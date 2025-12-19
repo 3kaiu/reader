@@ -278,23 +278,26 @@ onMounted(() => {
       <!-- 书架 -->
       <template v-else>
         <!-- 继续阅读 -->
-        <section v-if="recommendedBooks.length > 0 && !searchKeyword" class="mb-8">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              <BookOpen class="h-5 w-5" />
+        <section v-if="recommendedBooks.length > 0 && !searchKeyword" class="mb-10">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <div class="p-2 bg-primary/10 rounded-lg">
+                <BookOpen class="h-5 w-5 text-primary" />
+              </div>
               继续阅读
             </h2>
           </div>
           
-          <div class="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <div class="flex gap-5 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
             <div
               v-for="book in recommendedBooks"
               :key="book.bookUrl"
               class="flex-shrink-0 w-[140px] md:w-[160px] cursor-pointer group"
               @click="handleBookClick(book)"
             >
-
-              <div class="aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-3 relative">
+              <div class="aspect-[2/3] rounded-xl overflow-hidden bg-muted mb-3 relative
+                          shadow-md transition-all duration-300 ease-out
+                          group-hover:-translate-y-2 group-hover:shadow-xl group-hover:shadow-primary/15">
                 <img
                   v-if="book.coverUrl"
                   :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
@@ -305,12 +308,12 @@ onMounted(() => {
                 <div class="w-full h-full flex items-center justify-center absolute inset-0 -z-10">
                   <BookOpen class="h-8 w-8 text-muted-foreground" />
                 </div>
-                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                  <span class="text-white text-sm font-medium">继续阅读</span>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center pb-6 transition-opacity duration-300">
+                  <span class="px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/30">继续阅读</span>
                 </div>
-                <div class="absolute bottom-0 inset-x-0 h-1 bg-muted">
+                <div class="absolute bottom-0 inset-x-0 h-1.5 bg-black/20">
                   <div 
-                    class="h-full bg-primary"
+                    class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-r-full"
                     :style="{ width: `${book.totalChapterNum ? (book.durChapterIndex || 0) / book.totalChapterNum * 100 : 0}%` }"
                   />
                 </div>
@@ -323,9 +326,11 @@ onMounted(() => {
         
         <!-- 我的书架 -->
         <section>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              <Library class="h-5 w-5" />
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <div class="p-2 bg-primary/10 rounded-lg">
+                <Library class="h-5 w-5 text-primary" />
+              </div>
               {{ searchKeyword ? '搜索结果' : '我的书架' }}
               <span class="text-sm font-normal text-muted-foreground">({{ filteredBooks.length }})</span>
             </h2>

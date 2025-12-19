@@ -35,7 +35,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/reader3': {
-        target: 'http://localhost:4396',
+        target: 'http://192.168.5.9:18080',
         changeOrigin: true,
       },
     },

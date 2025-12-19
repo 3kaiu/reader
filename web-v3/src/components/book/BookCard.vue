@@ -58,8 +58,10 @@ function handleDelete(e: Event) {
   >
     <!-- 封面 -->
     <div 
-      class="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted transition-transform group-hover:-translate-y-1"
-      :class="{ 'ring-2 ring-primary ring-offset-2': selected }"
+      class="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted 
+             transition-all duration-300 ease-out
+             group-hover:-translate-y-1.5 group-hover:shadow-xl group-hover:shadow-primary/10"
+      :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': selected }"
     >
       <img
         v-if="coverUrl && !coverError"
@@ -82,8 +84,8 @@ function handleDelete(e: Event) {
       />
       
       <!-- 悬浮遮罩 (仅在非管理模式下显示) -->
-      <div v-if="!manageMode" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-        <span class="text-white text-sm font-medium">阅读</span>
+      <div v-if="!manageMode" class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center pb-8 transition-opacity duration-300">
+        <span class="px-4 py-1.5 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/30">开始阅读</span>
       </div>
 
       <!-- 管理模式勾选蒙层 -->
@@ -96,18 +98,31 @@ function handleDelete(e: Event) {
         </div>
       </div>
       
-      <!-- 未读角标 (非管理模式) -->
+      <!-- 更新角标 (非管理模式) -->
       <div
         v-if="unreadCount > 0 && !manageMode"
-        class="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center
-               bg-destructive text-destructive-foreground text-[10px] font-semibold rounded-full"
+        class="absolute -top-1 -right-1 flex items-center gap-0.5 animate-in zoom-in-75 duration-300"
       >
-        {{ unreadCount > 99 ? '99+' : unreadCount }}
+        <!-- 脉冲动画背景 -->
+        <span class="absolute inset-0 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 animate-ping opacity-40" />
+        <!-- 角标主体 -->
+        <span 
+          class="relative min-w-[20px] h-5 px-1.5 flex items-center justify-center
+                 bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 
+                 text-white text-[10px] font-bold rounded-full
+                 shadow-lg shadow-red-500/30 ring-2 ring-background"
+        >
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </span>
       </div>
       
       <!-- 进度条 (非管理模式) -->
-      <div v-if="showProgress && progress > 0 && !manageMode" class="absolute bottom-0 inset-x-0 h-0.5 bg-muted">
-        <div class="h-full bg-primary" :style="{ width: `${progress}%` }" />
+      <div v-if="showProgress && progress > 0 && !manageMode" class="absolute bottom-0 inset-x-0 h-1 bg-black/20 backdrop-blur-sm">
+        <div 
+          class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-r-full transition-all duration-500" 
+          :style="{ width: `${progress}%` }" 
+        />
+        <span class="absolute right-1 bottom-1.5 text-[9px] text-white/90 font-medium drop-shadow">{{ progress }}%</span>
       </div>
       
       <!-- 更多菜单 (非管理模式) -->
