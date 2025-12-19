@@ -10,6 +10,8 @@ buildscript {
     // extra["kotlin_version"] = "1.5.21"
     repositories {
 	    mavenLocal()
+        maven("https://maven.aliyun.com/repository/public")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
         mavenCentral()
     }
     dependencies {
@@ -64,11 +66,13 @@ java {
 }
 
 repositories {
+    mavenLocal()
+    maven("https://maven.aliyun.com/repository/public")
+    maven("https://maven.aliyun.com/repository/google")
     mavenCentral()
     maven("https://jitpack.io")
     maven("https://gitlab.com/api/v4/projects/26729549/packages/maven")
     google()
-    jcenter()
 }
 
 val compileOnly by configurations.getting {
