@@ -50,3 +50,6 @@ out
 /server/logs
 /server/storage
 /server/target
+
+# Docker 运行时数据
+/data/

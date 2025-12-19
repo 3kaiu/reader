@@ -13,8 +13,8 @@ services:
     ports:
       - 4396:8080 #4396端口映射可自行修改,8080请勿修改
     volumes:
-      - /home/reader/logs:/logs #log映射目录 /home/reader/logs 映射目录可自行修改
-      - /home/reader/storage:/storage #数据映射目录 /home/reader/storage 映射目录可自行修改
+      - ./data/logs:/logs #log映射目录
+      - ./data/storage:/storage #数据映射目录
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       #- READER_APP_USERLIMIT=50 #用户上限,默认且最大值为50
@@ -22,7 +22,7 @@ services:
       - READER_APP_CACHECHAPTERCONTENT=true #开启缓存章节内容
       - READER_APP_REMOTEWEBVIEWAPI=http://readerwebview:8050 #启用webview(若下方readerwebview容器不开启需注释此行
       # ↓多用户模式配置↓
-      - READER_APP_SECURE=true #开启登录鉴权，开启后将支持多用户模式
+      - READER_APP_SECURE=false #关闭登录鉴权 (开发模式)
       - READER_APP_SECUREKEY=adminpwd  #管理员密码  建议修改
       - READER_APP_INVITECODE=registercode #注册邀请码 建议修改,如不需要可注释或删除
 # 如需支持webview书源，打开(占用较大，不需要可加 # 注释)
