@@ -2,14 +2,12 @@
 /**
  * 阅读设置组件 - shadcn 风格
  */
-import { computed } from 'vue'
 import { useSettingsStore, type FontFamily, type ReaderTheme, type ChineseConvert } from '@/stores/settings'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { NSlider } from 'naive-ui'
@@ -30,10 +28,11 @@ const settingsStore = useSettingsStore()
 // 主题选项
 const themes: { key: ReaderTheme; label: string; color: string; textColor?: string }[] = [
   { key: 'white', label: '白', color: '#FFFFFF' },
-  { key: 'paper', label: '纸', color: '#FBF9F3' },
-  { key: 'sepia', label: '羊皮', color: '#F4ECD8' },
-  { key: 'green', label: '护眼', color: '#E8F5E9' },
-  { key: 'night', label: '夜间', color: '#121212', textColor: '#fff' },
+  { key: 'paper', label: '护眼', color: '#FAF7ED' },
+  { key: 'sepia', label: '羊皮', color: '#EFE6D5' },
+  { key: 'gray', label: '水墨', color: '#F2F3F5' },
+  { key: 'green', label: '清新', color: '#E6F0E6' },
+  { key: 'night', label: '夜间', color: '#1C1C1E', textColor: '#A1A1AA' },
 ]
 
 // 字体选项

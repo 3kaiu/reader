@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { useStorage, useDark, useToggle } from '@vueuse/core'
 import { computed } from 'vue'
 
-export type ReaderTheme = 'white' | 'paper' | 'sepia' | 'green' | 'night' | 'custom'
+export type ReaderTheme = 'white' | 'paper' | 'sepia' | 'gray' | 'green' | 'night' | 'custom'
 export type FontFamily = 'system' | 'heiti' | 'kaiti' | 'songti' | 'fangsong'
 export type ReadingMode = 'scroll' | 'swipe'
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
@@ -52,11 +52,12 @@ export const useSettingsStore = defineStore('settings', () => {
   // 计算属性：当前主题配色
   const themeColors = computed(() => {
     const themes: Record<string, { bg: string; text: string }> = {
-      white: { bg: '#FFFFFF', text: '#1a1a1a' },
-      paper: { bg: '#FBF9F3', text: '#333333' },
-      sepia: { bg: '#F4ECD8', text: '#5B4636' },
-      green: { bg: '#E8F5E9', text: '#2E5D32' },
-      night: { bg: '#121212', text: '#C4C4C4' },
+      white: { bg: '#FFFFFF', text: '#242424' },  // Clean White
+      paper: { bg: '#FAF7ED', text: '#38342F' },  // Warm Paper
+      sepia: { bg: '#EFE6D5', text: '#4A3B32' },  // Retro Sepia
+      gray: { bg: '#F2F3F5', text: '#2B2B2B' },   // E-ink Gray
+      green: { bg: '#E6F0E6', text: '#2E362C' },  // Soft Green
+      night: { bg: '#1C1C1E', text: '#A1A1AA' },  // Optimized Dark
     }
     if (config.value.theme === 'custom' && config.value.customColors) {
       return config.value.customColors

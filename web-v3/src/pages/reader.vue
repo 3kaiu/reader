@@ -12,7 +12,10 @@ import {
   NSpace,
   useMessage,
 } from 'naive-ui'
-import { Moon, Sun, Globe, Settings, RefreshCw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-vue-next'
+import { 
+  Moon, Sun, ArrowLeftRight, Type, RotateCcw, Loader2,
+  ChevronLeft, ChevronRight
+} from 'lucide-vue-next'
 import { useFullscreen, onKeyStroke, useSwipe, useScroll, useThrottleFn } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
@@ -51,9 +54,39 @@ const contentStyle = computed(() => ({
 }))
 
 const themeClass = computed(() => {
-  if (settingsStore.isDark || settingsStore.config.theme === 'night') return 'theme-night'
+  // 直接使用用户选择的阅读主题，不受系统暗色模式影响
   return `theme-${settingsStore.config.theme}`
 })
+
+// 是否为夜间模式
+const isNightMode = computed(() => settingsStore.config.theme === 'night')
+
+// 切换日夜模式
+function toggleDayNight() {
+  if (isNightMode.value) {
+    // 夜间 -> 切换到白色主题
+    settingsStore.updateConfig('theme', 'white')
+  } else {
+    // 日间 -> 切换到夜间主题
+    settingsStore.updateConfig('theme', 'night')
+  }
+}
+
+// 上一章处理函数
+async function handlePrevChapter() {
+  if (!readerStore.hasPrevChapter) return
+  await readerStore.prevChapter()
+  readerStore.initInfiniteScroll()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// 下一章处理函数
+async function handleNextChapter() {
+  if (!readerStore.hasNextChapter) return
+  await readerStore.nextChapter()
+  readerStore.initInfiniteScroll()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // 格式化章节内容
 function formatContent(text: string): string {
@@ -347,65 +380,86 @@ onUnmounted(() => {
           class="fixed bottom-0 inset-x-0 z-40"
           @click.stop
         >
-          <div class="toolbar-glass mx-3 mb-3 px-4 py-4 rounded-2xl shadow-lg">
-            <!-- 进度信息 -->
-            <div class="flex items-center justify-between mb-3 text-xs opacity-60">
-              <span>第 {{ readerStore.currentChapterIndex + 1 }} 章</span>
-              <span>{{ Math.round((readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100) }}%</span>
-              <span>共 {{ readerStore.totalChapters }} 章</span>
-            </div>
-            
-            <!-- 进度条 -->
-            <div class="progress-bar mb-4">
-              <div 
-                class="progress-bar-fill" 
-                :style="{ width: `${(readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100}%` }"
-              />
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="flex items-center justify-between">
-              <!-- 上一章 -->
-              <button
-                :disabled="!readerStore.hasPrevChapter"
-                class="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all"
-                :class="readerStore.hasPrevChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
-                @click="readerStore.prevChapter()"
-              >
-                <ChevronLeft class="w-4 h-4" />
-                <span>上一章</span>
-              </button>
-              
-              <!-- 中间功能按钮 -->
-              <div class="flex items-center gap-6">
-                <button class="reader-btn" @click="settingsStore.toggleDark()">
-                  <Moon v-if="settingsStore.isDark" class="w-5 h-5" />
-                  <Sun v-else class="w-5 h-5" />
-                  <span class="reader-btn-label">主题</span>
+          <div class="toolbar-glass mx-3 mb-3 rounded-2xl shadow-lg overflow-hidden">
+            <!-- 进度区域 -->
+            <div class="px-4 pt-4 pb-3">
+              <!-- 章节切换按钮 + 进度信息 -->
+              <div class="flex items-center justify-between gap-4">
+                <!-- 上一章按钮 -->
+                <button
+                  :disabled="!readerStore.hasPrevChapter"
+                  class="chapter-nav-btn"
+                  :class="{ 'disabled': !readerStore.hasPrevChapter }"
+                  @click="handlePrevChapter"
+                >
+                  <ChevronLeft class="w-4 h-4" />
+                  <span>上一章</span>
                 </button>
-                <button class="reader-btn" @click="showSourcePicker = true">
-                  <Globe class="w-5 h-5" />
-                  <span class="reader-btn-label">换源</span>
-                </button>
-                <button class="reader-btn" @click="showSettings = true">
-                  <Settings class="w-5 h-5" />
-                  <span class="reader-btn-label">设置</span>
-                </button>
-                <button class="reader-btn" @click="readerStore.refreshChapter()">
-                  <RefreshCw class="w-5 h-5" />
-                  <span class="reader-btn-label">刷新</span>
+                
+                <!-- 进度信息 -->
+                <div class="flex-1 text-center">
+                  <div class="text-sm font-medium">
+                    {{ readerStore.currentChapterIndex + 1 }} / {{ readerStore.totalChapters }}
+                  </div>
+                  <div class="text-[10px] opacity-50 mt-0.5">
+                    {{ Math.round((readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100) }}%
+                  </div>
+                </div>
+                
+                <!-- 下一章按钮 -->
+                <button
+                  :disabled="!readerStore.hasNextChapter"
+                  class="chapter-nav-btn"
+                  :class="{ 'disabled': !readerStore.hasNextChapter }"
+                  @click="handleNextChapter"
+                >
+                  <span>下一章</span>
+                  <ChevronRight class="w-4 h-4" />
                 </button>
               </div>
               
-              <!-- 下一章 -->
-              <button
-                :disabled="!readerStore.hasNextChapter"
-                class="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all"
-                :class="readerStore.hasNextChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
-                @click="readerStore.nextChapter()"
-              >
-                <span>下一章</span>
-                <ChevronRight class="w-4 h-4" />
+              <!-- 进度条 -->
+              <div class="progress-track mt-3">
+                <div 
+                  class="progress-fill" 
+                  :style="{ width: `${(readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100}%` }"
+                />
+              </div>
+            </div>
+            
+            <!-- 功能按钮区 -->
+            <div class="grid grid-cols-4">
+              <!-- 亮度/主题 -->
+              <button class="toolbar-item" @click="toggleDayNight()">
+                <div class="toolbar-item-icon">
+                  <Moon v-if="isNightMode" class="w-5 h-5" />
+                  <Sun v-else class="w-5 h-5" />
+                </div>
+                <span class="toolbar-item-label">{{ isNightMode ? '夜间' : '日间' }}</span>
+              </button>
+              
+              <!-- 设置 -->
+              <button class="toolbar-item" @click="showSettings = true">
+                <div class="toolbar-item-icon">
+                  <Type class="w-5 h-5" />
+                </div>
+                <span class="toolbar-item-label">设置</span>
+              </button>
+              
+              <!-- 换源 -->
+              <button class="toolbar-item" @click="showSourcePicker = true">
+                <div class="toolbar-item-icon">
+                  <ArrowLeftRight class="w-5 h-5" />
+                </div>
+                <span class="toolbar-item-label">换源</span>
+              </button>
+              
+              <!-- 刷新 -->
+              <button class="toolbar-item" @click="readerStore.refreshChapter()">
+                <div class="toolbar-item-icon">
+                  <RotateCcw class="w-5 h-5" />
+                </div>
+                <span class="toolbar-item-label">刷新</span>
               </button>
             </div>
           </div>
@@ -444,32 +498,38 @@ onUnmounted(() => {
 
 /* 纯白主题 */
 .theme-white {
-  background: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
-  color: #1a1a1a;
+  background: #FFFFFF;
+  color: #242424;
 }
 
-/* 米黄护眼 */
+/* 米黄护眼 (Warm Paper) */
 .theme-paper {
-  background: linear-gradient(180deg, #FDF8F0 0%, #F8F4EC 100%);
-  color: #3d3d3d;
+  background: #FAF7ED;
+  color: #38342F;
 }
 
-/* 羊皮纸 */
+/* 羊皮纸 (Retro Sepia) */
 .theme-sepia {
-  background: linear-gradient(180deg, #F4ECD8 0%, #EDE4D0 100%);
-  color: #5B4636;
+  background: #EFE6D5;
+  color: #4A3B32;
 }
 
-/* 护眼绿 */
+/* 水墨灰 (E-ink Gray) */
+.theme-gray {
+  background: #F2F3F5;
+  color: #2B2B2B;
+}
+
+/* 护眼绿 (Soft Green) */
 .theme-green {
-  background: linear-gradient(180deg, #E8F5E9 0%, #DCEDC8 100%);
-  color: #2E5D32;
+  background: #E6F0E6;
+  color: #2E362C;
 }
 
-/* 深夜模式 */
+/* 深夜模式 (Optimized Dark) */
 .theme-night {
-  background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
-  color: #b8b8b8;
+  background: #1C1C1E;
+  color: #A1A1AA;
 }
 
 /* ========== 正文排版样式 ========== */
@@ -502,15 +562,17 @@ onUnmounted(() => {
 
 /* ========== 工具栏样式 ========== */
 .toolbar-glass {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
 }
 
 .theme-night .toolbar-glass {
-  background: rgba(30, 30, 30, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(28, 28, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* ========== 进度条样式 ========== */
@@ -575,36 +637,123 @@ onUnmounted(() => {
   padding-top: env(safe-area-inset-top, 0);
 }
 
-/* ========== 阅读器按钮样式 ========== */
-.reader-btn {
+/* ========== 阅读器工具栏样式 ========== */
+.toolbar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 8px 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  gap: 4px;
+  padding: 12px 4px 14px;
   background: transparent;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
-.reader-btn:hover {
+.toolbar-item::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 12px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.toolbar-item:hover::before {
   background: rgba(0, 0, 0, 0.05);
 }
 
-.theme-night .reader-btn:hover {
+.toolbar-item:active::before {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.theme-night .toolbar-item:hover::before {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-night .toolbar-item:active::before {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.toolbar-item-icon {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.2s ease;
+}
+
+.toolbar-item:active .toolbar-item-icon {
+  transform: scale(0.92);
+}
+
+.toolbar-item-label {
+  font-size: 10px;
+  opacity: 0.6;
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
+}
+
+/* ========== 章节导航按钮 ========== */
+.chapter-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chapter-nav-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.chapter-nav-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.chapter-nav-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.theme-night .chapter-nav-btn {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.theme-night .chapter-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========== 简化版进度条 ========== */
+.progress-track {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 1.5px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.theme-night .progress-track {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.reader-btn-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-.reader-btn-label {
-  font-size: 10px;
-  opacity: 0.7;
+.progress-fill {
+  height: 100%;
+  background: currentColor;
+  opacity: 0.3;
+  border-radius: 1.5px;
+  transition: width 0.3s ease;
 }
 </style>
