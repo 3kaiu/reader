@@ -6,21 +6,16 @@
 import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  NDrawer,
-  NDrawerContent,
-  NScrollbar,
   NSpin,
   NResult,
   NButton,
   NSpace,
-  NSlider,
   useMessage,
 } from 'naive-ui'
 import { useFullscreen, onKeyStroke, useSwipe } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 import { bookApi } from '@/api'
-import { FloatingButton } from '@/components/ui'
 
 const ReadSettings = defineAsyncComponent(() => import('@/components/ReadSettings.vue'))
 const BookSourcePicker = defineAsyncComponent(() => import('@/components/book/BookSourcePicker.vue'))
@@ -207,58 +202,59 @@ onUnmounted(() => {
       <Transition name="slide-down">
         <header
           v-show="showToolbar"
-          class="fixed top-0 inset-x-0 z-40 safe-area-top"
+          class="fixed top-0 inset-x-0 z-40"
           @click.stop
         >
-          <div class="glass dark:glass-dark mx-4 mt-4 px-4 py-3 rounded-2xl shadow-lg">
+          <div class="toolbar-glass mx-3 mt-3 px-4 py-3 rounded-2xl shadow-lg">
             <div class="flex items-center justify-between">
-              <FloatingButton
-                icon="←"
-                variant="ghost"
-                size="sm"
+              <!-- 返回按钮 -->
+              <button 
+                class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                 @click="goBack"
-              />
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
               
-              <div class="flex-1 text-center px-4">
-                <h1 class="font-medium text-gray-800 dark:text-white truncate">
+              <!-- 书名和章节 -->
+              <div class="flex-1 text-center px-3">
+                <h1 class="font-semibold text-sm truncate">
                   {{ readerStore.currentBook?.name }}
                 </h1>
-                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <p class="text-xs opacity-60 truncate mt-0.5">
                   {{ readerStore.currentChapter?.title }}
                 </p>
               </div>
               
-              <NSpace :size="8">
-                <FloatingButton
-                  icon="ℹ️"
-                  variant="ghost"
-                  size="sm"
-                  tooltip="详情"
-                  @click="showBookInfo = true"
-                />
-                <FloatingButton
-                  icon="📑"
-                  variant="ghost"
-                  size="sm"
-                  tooltip="目录"
+              <!-- 右侧按钮 -->
+              <div class="flex items-center gap-1">
+                <button 
+                  class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                   @click="showCatalog = true"
-                />
-                <FloatingButton
-                  :icon="isFullscreen ? '⛶' : '⛶'"
-                  variant="ghost"
-                  size="sm"
-                  tooltip="全屏"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                  </svg>
+                </button>
+                <button 
+                  class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                   @click="toggleFullscreen"
-                />
-              </NSpace>
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path v-if="!isFullscreen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4H4m0 0l5 5M9 20v-5H4m0 0l5-5m11 0l-5-5m5 0v5h-5m5 10l-5-5m5 0v5h-5" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </header>
       </Transition>
       
       <!-- 章节标题 -->
-      <div class="pt-24 pb-6 text-center">
-        <h2 class="text-xl font-bold opacity-80">
+      <div class="pt-24 pb-8 text-center">
+        <h2 class="chapter-title text-xl font-bold opacity-80 inline-block">
           {{ readerStore.currentChapter?.title }}
         </h2>
       </div>
@@ -279,76 +275,66 @@ onUnmounted(() => {
       <Transition name="slide-up">
         <footer
           v-show="showToolbar"
-          class="fixed bottom-0 inset-x-0 z-40 safe-area-bottom"
+          class="fixed bottom-0 inset-x-0 z-40"
           @click.stop
         >
-          <div class="glass dark:glass-dark mx-4 mb-4 px-4 py-4 rounded-2xl shadow-lg">
+          <div class="toolbar-glass mx-3 mb-3 px-4 py-4 rounded-2xl shadow-lg">
+            <!-- 进度信息 -->
+            <div class="flex items-center justify-between mb-3 text-xs opacity-60">
+              <span>第 {{ readerStore.currentChapterIndex + 1 }} 章</span>
+              <span>{{ Math.round((readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100) }}%</span>
+              <span>共 {{ readerStore.totalChapters }} 章</span>
+            </div>
+            
             <!-- 进度条 -->
-            <div class="flex items-center gap-4 mb-4">
-              <span class="text-xs text-gray-500 w-12">
-                {{ readerStore.currentChapterIndex + 1 }}
-              </span>
-              <NSlider
-                :value="readerStore.currentChapterIndex + 1"
-                :min="1"
-                :max="readerStore.totalChapters"
-                :step="1"
-                :tooltip="false"
-                @update:value="(v: number) => readerStore.goToChapter(v - 1)"
+            <div class="progress-bar mb-4">
+              <div 
+                class="progress-bar-fill" 
+                :style="{ width: `${(readerStore.currentChapterIndex + 1) / readerStore.totalChapters * 100}%` }"
               />
-              <span class="text-xs text-gray-500 w-12 text-right">
-                {{ readerStore.totalChapters }}
-              </span>
             </div>
             
             <!-- 操作按钮 -->
             <div class="flex items-center justify-between">
-              <NButton
+              <!-- 上一章 -->
+              <button
                 :disabled="!readerStore.hasPrevChapter"
-                round
+                class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                :class="readerStore.hasPrevChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
                 @click="readerStore.prevChapter()"
               >
-                ← 上一章
-              </NButton>
+                上一章
+              </button>
               
-              <NSpace :size="12">
-                <FloatingButton
-                  :icon="settingsStore.isDark ? '🌙' : '☀️'"
-                  variant="ghost"
-                  size="md"
-                  tooltip="主题"
-                  @click="settingsStore.toggleDark()"
-                />
-                <FloatingButton
-                  icon="🌐"
-                  variant="ghost"
-                  size="md"
-                  tooltip="换源"
-                  @click="showSourcePicker = true"
-                />
-                <FloatingButton
-                  icon="⚙️"
-                  variant="ghost"
-                  size="md"
-                  tooltip="设置"
-                  @click="showSettings = true"
-                />
-                <FloatingButton
-                  icon="🔄"
-                  variant="ghost"
-                  size="md"
-                  tooltip="刷新"
-                  @click="readerStore.refreshChapter()"
-                />
-              </NSpace>
+              <!-- 中间功能按钮 -->
+              <div class="flex items-center gap-4">
+                <button class="reader-btn" @click="settingsStore.toggleDark()">
+                  <span class="reader-btn-icon">{{ settingsStore.isDark ? '🌙' : '☀️' }}</span>
+                  <span class="reader-btn-label">主题</span>
+                </button>
+                <button class="reader-btn" @click="showSourcePicker = true">
+                  <span class="reader-btn-icon">🌐</span>
+                  <span class="reader-btn-label">换源</span>
+                </button>
+                <button class="reader-btn" @click="showSettings = true">
+                  <span class="reader-btn-icon">⚙️</span>
+                  <span class="reader-btn-label">设置</span>
+                </button>
+                <button class="reader-btn" @click="readerStore.refreshChapter()">
+                  <span class="reader-btn-icon">🔄</span>
+                  <span class="reader-btn-label">刷新</span>
+                </button>
+              </div>
               
-              <NButton
+              <!-- 下一章 -->
+              <button
                 :disabled="!readerStore.hasNextChapter"
-                round
+                class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                :class="readerStore.hasNextChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
                 @click="readerStore.nextChapter()"
               >
-                下一章 →
-              </NButton>
+                下一章
+              </button>
             </div>
           </div>
         </footer>
@@ -382,59 +368,171 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 阅读器主题 */
+/* ========== 阅读器主题 (参考微信读书) ========== */
+
+/* 纯白主题 */
 .theme-white {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
   color: #1a1a1a;
 }
 
+/* 米黄护眼 */
 .theme-paper {
-  background: #FBF9F3;
-  color: #333333;
+  background: linear-gradient(180deg, #FDF8F0 0%, #F8F4EC 100%);
+  color: #3d3d3d;
 }
 
+/* 羊皮纸 */
 .theme-sepia {
-  background: #F4ECD8;
+  background: linear-gradient(180deg, #F4ECD8 0%, #EDE4D0 100%);
   color: #5B4636;
 }
 
+/* 护眼绿 */
 .theme-green {
-  background: #E8F5E9;
+  background: linear-gradient(180deg, #E8F5E9 0%, #DCEDC8 100%);
   color: #2E5D32;
 }
 
+/* 深夜模式 */
 .theme-night {
-  background: #121212;
-  color: #C4C4C4;
+  background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+  color: #b8b8b8;
 }
 
-/* 内容样式 */
+/* ========== 正文排版样式 ========== */
 .reader-text :deep(.content-paragraph) {
   text-indent: 2em;
   margin-bottom: 1.2em;
   word-break: break-word;
+  letter-spacing: 0.02em;
+  text-align: justify;
+  transition: all 0.3s ease;
 }
 
-/* 工具栏动画 */
+/* 章节标题样式 */
+.chapter-title {
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+.chapter-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.3;
+}
+
+/* ========== 工具栏样式 ========== */
+.toolbar-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.theme-night .toolbar-glass {
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========== 进度条样式 ========== */
+.progress-bar {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 1.5px;
+  overflow: hidden;
+}
+
+.theme-night .progress-bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #52c41a 0%, #73d13d 100%);
+  border-radius: 1.5px;
+  transition: width 0.3s ease;
+}
+
+/* ========== 工具栏动画 ========== */
 .slide-down-enter-active,
 .slide-down-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-down-enter-from,
 .slide-down-leave-to {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(-100%);
 }
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-up-enter-from,
 .slide-up-leave-to {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(100%);
+}
+
+/* ========== 章节切换动画 ========== */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ========== 底部安全区 ========== */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* ========== 阅读器按钮样式 ========== */
+.reader-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.reader-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-night .reader-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-btn-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.reader-btn-label {
+  font-size: 10px;
+  opacity: 0.7;
 }
 </style>
