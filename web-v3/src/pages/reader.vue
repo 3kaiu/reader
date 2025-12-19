@@ -12,6 +12,7 @@ import {
   NSpace,
   useMessage,
 } from 'naive-ui'
+import { Moon, Sun, Globe, Settings, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useFullscreen, onKeyStroke, useSwipe } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
@@ -299,29 +300,31 @@ onUnmounted(() => {
               <!-- 上一章 -->
               <button
                 :disabled="!readerStore.hasPrevChapter"
-                class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                class="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all"
                 :class="readerStore.hasPrevChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
                 @click="readerStore.prevChapter()"
               >
-                上一章
+                <ChevronLeft class="w-4 h-4" />
+                <span>上一章</span>
               </button>
               
               <!-- 中间功能按钮 -->
-              <div class="flex items-center gap-4">
+              <div class="flex items-center gap-6">
                 <button class="reader-btn" @click="settingsStore.toggleDark()">
-                  <span class="reader-btn-icon">{{ settingsStore.isDark ? '🌙' : '☀️' }}</span>
+                  <Moon v-if="settingsStore.isDark" class="w-5 h-5" />
+                  <Sun v-else class="w-5 h-5" />
                   <span class="reader-btn-label">主题</span>
                 </button>
                 <button class="reader-btn" @click="showSourcePicker = true">
-                  <span class="reader-btn-icon">🌐</span>
+                  <Globe class="w-5 h-5" />
                   <span class="reader-btn-label">换源</span>
                 </button>
                 <button class="reader-btn" @click="showSettings = true">
-                  <span class="reader-btn-icon">⚙️</span>
+                  <Settings class="w-5 h-5" />
                   <span class="reader-btn-label">设置</span>
                 </button>
                 <button class="reader-btn" @click="readerStore.refreshChapter()">
-                  <span class="reader-btn-icon">🔄</span>
+                  <RefreshCw class="w-5 h-5" />
                   <span class="reader-btn-label">刷新</span>
                 </button>
               </div>
@@ -329,11 +332,12 @@ onUnmounted(() => {
               <!-- 下一章 -->
               <button
                 :disabled="!readerStore.hasNextChapter"
-                class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                class="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all"
                 :class="readerStore.hasNextChapter ? 'bg-black/5 dark:bg-white/10 hover:bg-black/10' : 'opacity-30 cursor-not-allowed'"
                 @click="readerStore.nextChapter()"
               >
-                下一章
+                <span>下一章</span>
+                <ChevronRight class="w-4 h-4" />
               </button>
             </div>
           </div>
