@@ -38,10 +38,9 @@ const unreadCount = computed(() => {
 })
 
 const coverUrl = computed(() => {
-  if (props.book.coverUrl) {
-    return `/reader3/cover?path=${encodeURIComponent(props.book.coverUrl)}`
-  }
-  return ''
+  if (!props.book.coverUrl) return ''
+  // 将所有图片请求都通过 cover 接口代理
+  return `/reader3/cover?path=${encodeURIComponent(props.book.coverUrl)}`
 })
 
 function handleDelete(e: Event) {

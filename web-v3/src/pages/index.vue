@@ -146,6 +146,12 @@ function goSearch() {
   router.push('/search')
 }
 
+function getCoverUrl(url?: string) {
+  if (!url) return ''
+  // 将所有图片请求都通过 cover 接口代理
+  return `/reader3/cover?path=${encodeURIComponent(url)}`
+}
+
 onMounted(() => {
   loadBookshelf()
 })
@@ -300,7 +306,7 @@ onMounted(() => {
                           group-hover:-translate-y-2 group-hover:shadow-xl group-hover:shadow-primary/15">
                 <img
                   v-if="book.coverUrl"
-                  :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
+                  :src="getCoverUrl(book.coverUrl)"
                   :alt="book.name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   @error="(e: Event) => (e.target as HTMLImageElement).style.display = 'none'"
