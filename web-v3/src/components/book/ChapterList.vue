@@ -105,37 +105,66 @@ watch(() => props.open, (val) => {
   <Sheet :open="open" @update:open="(val) => emit('update:open', val)">
     <SheetContent side="left" class="w-[320px] sm:w-[400px] p-0 flex flex-col gap-0">
       <!-- 头部 -->
-      <SheetHeader class="px-4 py-5 border-b bg-muted/30">
-        <SheetTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span class="text-primary text-sm">📚</span>
-            </div>
-            <div>
-              <span class="truncate block text-base font-semibold">{{ bookName || '目录' }}</span>
-              <span class="text-xs text-muted-foreground">共 {{ chapters.length }} 章</span>
-            </div>
+      <SheetHeader class="px-4 pt-4 pb-3 border-b space-y-0">
+        <!-- 标题栏 -->
+        <div class="flex items-center justify-between mb-3">
+          <SheetTitle class="text-lg font-bold">目录</SheetTitle>
+          <SheetClose class="rounded-full p-1.5 hover:bg-muted transition-colors">
+            <X class="h-4 w-4" />
+          </SheetClose>
+        </div>
+        
+        <!-- 书名信息 -->
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
+            <span class="text-lg">📖</span>
           </div>
-          <div class="flex items-center gap-0.5">
-             <Button variant="ghost" size="icon" class="h-8 w-8" @click="toggleReverse" title="正序/倒序">
-                <ArrowDown v-if="!isReverse" class="h-4 w-4" />
-                <ArrowUp v-else class="h-4 w-4" />
-             </Button>
-             <Button variant="ghost" size="icon" class="h-8 w-8" @click="scrollToCurrent" title="定位当前">
-                <Locate class="h-4 w-4" />
-             </Button>
-             <Button variant="ghost" size="icon" class="h-8 w-8" @click="handleRefresh" :disabled="loading" title="刷新目录">
-                <RotateCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
-             </Button>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium truncate text-sm">{{ bookName || '未知书籍' }}</p>
+            <p class="text-xs text-muted-foreground">共 {{ chapters.length }} 章</p>
           </div>
-        </SheetTitle>
+        </div>
+        
+        <!-- 操作按钮组 -->
+        <div class="flex items-center gap-1 mb-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            class="flex-1 h-8 text-xs gap-1"
+            @click="toggleReverse"
+          >
+            <ArrowDown v-if="!isReverse" class="h-3.5 w-3.5" />
+            <ArrowUp v-else class="h-3.5 w-3.5" />
+            {{ isReverse ? '倒序' : '正序' }}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            class="flex-1 h-8 text-xs gap-1"
+            @click="scrollToCurrent"
+          >
+            <Locate class="h-3.5 w-3.5" />
+            定位
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            class="flex-1 h-8 text-xs gap-1"
+            :disabled="loading"
+            @click="handleRefresh"
+          >
+            <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
+            刷新
+          </Button>
+        </div>
+        
         <!-- 搜索框 -->
-        <div class="relative mt-3">
+        <div class="relative">
            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
            <Input 
              v-model="searchKeyword" 
              placeholder="搜索章节..." 
-             class="pl-9 h-9 text-sm bg-background rounded-full border-muted" 
+             class="pl-9 h-9 text-sm bg-muted/50 rounded-lg border-0" 
            />
            <button 
              v-if="searchKeyword"
@@ -145,13 +174,14 @@ watch(() => props.open, (val) => {
              <X class="h-3.5 w-3.5 text-muted-foreground" />
            </button>
         </div>
+        
         <!-- 当前阅读位置 -->
-        <div v-if="currentInd >= 0 && !searchKeyword" class="mt-3 px-3 py-2 bg-primary/5 rounded-lg">
-          <div class="flex items-center justify-between text-xs">
-            <span class="opacity-60">当前阅读</span>
-            <span class="text-primary font-medium">{{ Math.round((currentInd + 1) / chapters.length * 100) }}%</span>
+        <div v-if="currentInd >= 0 && !searchKeyword" class="mt-3 px-3 py-2.5 bg-primary/5 rounded-lg border border-primary/10">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="opacity-60">正在阅读</span>
+            <span class="text-primary font-semibold">{{ Math.round((currentInd + 1) / chapters.length * 100) }}%</span>
           </div>
-          <p class="text-sm truncate mt-1 font-medium">{{ chapters[currentInd]?.title }}</p>
+          <p class="text-sm truncate font-medium">第 {{ currentInd + 1 }} 章 · {{ chapters[currentInd]?.title }}</p>
         </div>
       </SheetHeader>
 
