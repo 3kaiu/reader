@@ -3,7 +3,7 @@ import { useStorage, useDark, useToggle } from '@vueuse/core'
 import { computed } from 'vue'
 
 export type ReaderTheme = 'white' | 'paper' | 'sepia' | 'gray' | 'green' | 'night' | 'custom'
-export type FontFamily = 'system' | 'heiti' | 'kaiti' | 'songti' | 'fangsong'
+export type FontFamily = 'system' | 'heiti' | 'kaiti' | 'songti' | 'fangsong' | 'lxgw'
 export type ReadingMode = 'scroll' | 'swipe'
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
 
@@ -72,6 +72,7 @@ export const useSettingsStore = defineStore('settings', () => {
     kaiti: 'KaiTi, STKaiti, serif',
     songti: 'SimSun, STSong, serif',
     fangsong: 'FangSong, STFangsong, serif',
+    lxgw: '"LXGW WenKai Screen", sans-serif',
   }
 
   const currentFontFamily = computed(() => fontFamilyMap[config.value.fontFamily] || fontFamilyMap.system)

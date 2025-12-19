@@ -21,6 +21,7 @@ export default defineConfig({
     tags: [
       { tag: 'link', attrs: { rel: 'manifest', href: '/manifest.json' } },
       { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/favicon.png' } },
+      { tag: 'link', attrs: { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css' } },
     ],
   },
 

@@ -42,6 +42,7 @@ const fonts: { key: FontFamily; label: string }[] = [
   { key: 'kaiti', label: '楷体' },
   { key: 'songti', label: '宋体' },
   { key: 'fangsong', label: '仿宋' },
+  { key: 'lxgw', label: '霞鹭文楷' },
 ]
 
 // 简繁转换
