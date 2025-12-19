@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { SkeletonLoader } from '@/components/ui'
 import { useMessage } from '@/composables/useMessage'
+import ImportSource from '@/components/source/ImportSource.vue'
+import EditSource from '@/components/source/EditSource.vue'
 
 const router = useRouter()
 const { success, error } = useMessage()
@@ -28,6 +30,9 @@ interface BookSource {
 const sources = ref<BookSource[]>([])
 const loading = ref(true)
 const searchKeyword = ref('')
+const showImport = ref(false)
+const showEdit = ref(false)
+const currentEditSource = ref<BookSource | null>(null)
 
 const filteredSources = computed(() => {
   if (!searchKeyword.value) return sources.value
@@ -63,7 +68,38 @@ async function loadSources() {
 }
 
 async function testSource(source: BookSource) {
-  success(`测试: ${source.bookSourceName}`)
+  try {
+    success(`开始调试: ${source.bookSourceName}`)
+    const res = await $post('/testBookSource', { bookSourceUrl: source.bookSourceUrl })
+    if (res.isSuccess) {
+      success('调试成功')
+    } else {
+      error(res.errorMsg || '调试失败')
+    }
+  } catch (e) {
+    error('调试出错')
+  }
+}
+
+function openEdit(source: BookSource) {
+  currentEditSource.value = source
+  showEdit.value = true
+}
+
+function exportSources() {
+  try {
+    const data = JSON.stringify(sources.value, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `booksources_${new Date().getTime()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    success(`已导出 ${sources.value.length} 个书源`)
+  } catch (e) {
+    error('导出失败')
+  }
 }
 
 async function deleteSource(source: BookSource) {
@@ -118,6 +154,12 @@ onMounted(() => {
           <Button variant="ghost" size="icon" :class="{ 'animate-spin': loading }" @click="loadSources">
             <RefreshCw class="h-4 w-4" />
           </Button>
+          <Button variant="ghost" size="icon" @click="exportSources" title="导出">
+            <Database class="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" @click="showImport = true" title="导入">
+            <Upload class="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </header>
@@ -143,12 +185,13 @@ onMounted(() => {
       
       <!-- 列表 -->
       <div v-else-if="filteredSources.length > 0" class="rounded-lg border">
-        <div
-          v-for="(source, index) in filteredSources"
-          :key="source.bookSourceUrl"
-          class="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
-          :class="{ 'border-t': index > 0 }"
-        >
+          <div
+            v-for="(source, index) in filteredSources"
+            :key="source.bookSourceUrl"
+            class="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+            :class="{ 'border-t': index > 0 }"
+            @click="openEdit(source)"
+          >
           <div class="min-w-0 flex-1">
             <h3 class="font-medium text-sm truncate">{{ source.bookSourceName }}</h3>
             <p class="text-xs text-muted-foreground truncate mt-0.5">{{ source.bookSourceUrl }}</p>
@@ -159,11 +202,11 @@ onMounted(() => {
               {{ source.bookSourceGroup }}
             </Badge>
             
-            <Button variant="ghost" size="icon" class="h-8 w-8" @click="testSource(source)">
+            <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="testSource(source)">
               <Play class="h-3 w-3" />
             </Button>
             
-            <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click="deleteSource(source)">
+            <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click.stop="deleteSource(source)">
               <Trash2 class="h-3 w-3" />
             </Button>
           </div>
@@ -177,11 +220,16 @@ onMounted(() => {
         </div>
         <h2 class="text-lg font-semibold mb-2">暂无书源</h2>
         <p class="text-muted-foreground mb-6">导入书源以开始使用</p>
-        <Button>
+        <Button @click="showImport = true">
           <Upload class="h-4 w-4 mr-2" />
           导入书源
         </Button>
       </div>
+
     </main>
+
+    <!-- 弹窗 -->
+    <ImportSource v-model:open="showImport" @success="loadSources" />
+    <EditSource v-model:open="showEdit" :source="currentEditSource" @saved="loadSources" />
   </div>
 </template>

@@ -11,6 +11,19 @@ export default defineConfig({
     },
   },
 
+  html: {
+    title: 'Reader',
+    meta: {
+      viewport: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no',
+      description: 'Web Reader Application',
+      'theme-color': '#ffffff'
+    },
+    tags: [
+      { tag: 'link', attrs: { rel: 'manifest', href: '/manifest.json' } },
+      { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/favicon.png' } },
+    ],
+  },
+
   output: {
     distPath: {
       root: '../src/main/resources/web',

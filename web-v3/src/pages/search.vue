@@ -45,20 +45,66 @@ async function search(keyword?: string) {
   hasSearched.value = true
   searchResult.value = []
   
-  try {
-    const res = await bookApi.search(query)
-    if (res.isSuccess) {
-      searchResult.value = res.data
-      if (res.data.length === 0) {
-        info('未找到相关书籍')
+  // Close existing SSE
+  if (window.searchEventSource) {
+    window.searchEventSource.close()
+    window.searchEventSource = null
+  }
+
+  // Use SSE
+  const url = bookApi.getSearchBookSSEUrl(query)
+  // Need to handle relative path if client.ts uses proxy but here we construct URL manually?
+  // client.ts uses /reader3 base. getSearchBookSSEUrl returns /reader3/... 
+  // Should be fine if proxy interprets it or if it matches same origin.
+  // In dev `rsbuild` proxy handles `/reader3`.
+  
+  const es = new EventSource(url)
+  window.searchEventSource = es
+
+  es.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      // data might be a list or single object?
+      // Original code: list.push(data) or list.concat(data)
+      // Usually SSE sends one by one or chunks.
+      if (Array.isArray(data)) {
+        searchResult.value.push(...data)
+      } else {
+        searchResult.value.push(data)
       }
-    } else {
-      error(res.errorMsg || '搜索失败')
+    } catch (e) {
+      // ignore
     }
-  } catch (e) {
-    error('搜索请求失败')
-  } finally {
+  }
+
+  es.addEventListener('end', () => {
+    es.close()
     loading.value = false
+    if (searchResult.value.length === 0) {
+      info('未找到相关书籍')
+    }
+    window.searchEventSource = null
+  })
+
+  es.onerror = (e) => {
+    es.close()
+    loading.value = false
+    // error('搜索连接断开') // Optional, might happen normally on end sometimes?
+    window.searchEventSource = null
+  }
+}
+
+// Cleaning up
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  if (window.searchEventSource) {
+    window.searchEventSource.close()
+  }
+})
+
+declare global {
+  interface Window {
+    searchEventSource: EventSource | null
   }
 }
 

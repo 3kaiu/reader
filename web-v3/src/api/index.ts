@@ -1,2 +1,7 @@
 export * from './client'
 export * from './book'
+export * from './source'
+export * from './replace'
+export * from './group'
+export * from './manage'
+export * from './explore'

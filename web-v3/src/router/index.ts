@@ -25,6 +25,36 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/sources.vue'),
     meta: { title: '书源管理' },
   },
+  {
+    path: '/replace-rule',
+    name: 'replace-rule',
+    component: () => import('@/pages/replace-rule.vue'),
+    meta: { title: '替换规则' },
+  },
+  {
+    path: '/book-group',
+    name: 'book-group',
+    component: () => import('@/pages/book-group.vue'),
+    meta: { title: '分组管理' },
+  },
+  {
+    path: '/book-manage',
+    name: 'book-manage',
+    component: () => import('@/pages/book-manage.vue'),
+    meta: { title: '书籍管理' },
+  },
+  {
+    path: '/explore',
+    name: 'explore',
+    component: () => import('@/pages/explore.vue'),
+    meta: { title: '发现' },
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('@/pages/settings.vue'),
+    meta: { title: '设置' },
+  },
 ]
 
 const router = createRouter({

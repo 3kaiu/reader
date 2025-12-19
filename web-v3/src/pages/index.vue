@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router'
 import { useDark, useToggle, useStorage } from '@vueuse/core'
 import { 
   Search, Plus, Settings, Moon, Sun, RefreshCw, 
-  BookOpen, Library, ChevronRight
+  BookOpen, Library, ChevronRight, Compass, Database, Folder, Regex
 } from 'lucide-vue-next'
 import { bookApi, type Book } from '@/api'
 import { Button } from '@/components/ui/button'
@@ -138,7 +138,19 @@ onMounted(() => {
             </SheetTrigger>
             <SheetContent>
               <div class="space-y-6 pt-6">
-                <h2 class="text-lg font-semibold">设置</h2>
+                <div class="flex items-center justify-between">
+                   <h2 class="text-lg font-semibold">菜单</h2>
+                   <Button variant="ghost" size="icon" @click="router.push('/settings')">
+                      <Settings class="h-4 w-4" />
+                   </Button>
+                </div>
+                
+                <div class="space-y-2">
+                   <Button variant="ghost" class="w-full justify-start" @click="router.push('/explore')">
+                      <Compass class="h-4 w-4 mr-2" />
+                      发现广场
+                   </Button>
+                </div>
                 
                 <div class="space-y-4">
                   <div class="flex items-center justify-between">
@@ -156,11 +168,35 @@ onMounted(() => {
                   </div>
                 </div>
                 
+                <div class="space-y-4 pt-4 border-t">
+                  <h3 class="text-sm font-medium text-muted-foreground px-1">显示设置</h3>
+                  <div class="flex items-center justify-between px-1">
+                    <span class="text-sm">显示进度</span>
+                    <Button variant="outline" size="sm" @click="showProgress = !showProgress">
+                      {{ showProgress ? '显示' : '隐藏' }}
+                    </Button>
+                  </div>
+                
                 <div class="space-y-2 pt-4 border-t">
-                  <Button variant="outline" class="w-full" @click="router.push('/sources')">
+                  <h3 class="text-sm font-medium text-muted-foreground px-1">数据管理</h3>
+                  <Button variant="ghost" class="w-full justify-start" @click="router.push('/sources')">
+                    <Database class="h-4 w-4 mr-2" />
                     书源管理
                   </Button>
-                  <Button variant="outline" class="w-full" @click="refresh">
+                  <Button variant="ghost" class="w-full justify-start" @click="router.push('/book-group')">
+                    <Folder class="h-4 w-4 mr-2" />
+                    分组管理
+                  </Button>
+                  <Button variant="ghost" class="w-full justify-start" @click="router.push('/book-manage')">
+                    <Library class="h-4 w-4 mr-2" />
+                    书籍管理
+                  </Button>
+                   <Button variant="ghost" class="w-full justify-start" @click="router.push('/replace-rule')">
+                    <Regex class="h-4 w-4 mr-2" />
+                    替换规则
+                  </Button>
+                  <Button variant="ghost" class="w-full justify-start" @click="refresh">
+                    <RefreshCw class="h-4 w-4 mr-2" />
                     刷新书架
                   </Button>
                 </div>

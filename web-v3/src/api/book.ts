@@ -57,6 +57,9 @@ export const bookApi = {
   // 搜索书籍
   search: (key: string) => $get<SearchResult[]>('/search', { params: { key } }),
 
+  // 获取SSE搜索URL
+  getSearchBookSSEUrl: (key: string) => `/reader3/searchBookMultiSSE?key=${encodeURIComponent(key)}`,
+
   // 保存书籍到书架
   saveBook: (book: Book) => $post<Book>('/saveBook', book),
 
