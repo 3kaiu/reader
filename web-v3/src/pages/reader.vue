@@ -142,22 +142,28 @@ watch(direction, (dir) => {
   }
 })
 
-// 无限滚动监听
-const scrollContainer = ref<HTMLElement | null>(null)
-const { arrivedState } = useScroll(scrollContainer, { offset: { bottom: 300 } })
+// 无限滚动监听 - 监听整个页面滚动
+const { arrivedState } = useScroll(window, { offset: { bottom: 500 } })
 
 // 节流的加载更多函数
 const loadMoreThrottled = useThrottleFn(async () => {
-  if (arrivedState.bottom && readerStore.hasNextChapter && !readerStore.isLoadingMore) {
+  if (readerStore.hasNextChapter && !readerStore.isLoadingMore) {
     await readerStore.appendNextChapter()
   }
-}, 500)
+}, 300)
 
 watch(() => arrivedState.bottom, (isBottom) => {
   if (isBottom) {
     loadMoreThrottled()
   }
 })
+
+// 手动加载下一章
+async function loadNextChapter() {
+  if (readerStore.hasNextChapter && !readerStore.isLoadingMore) {
+    await readerStore.appendNextChapter()
+  }
+}
 
 // 键盘快捷键
 onKeyStroke('ArrowLeft', () => readerStore.prevChapter())
@@ -284,16 +290,18 @@ onUnmounted(() => {
       
       <!-- 正文 (无限滚动模式) -->
       <div 
-        ref="scrollContainer"
-        class="mx-auto px-6 pb-40 pt-20 overflow-y-auto" 
-        :style="{ ...contentStyle, maxHeight: '100vh' }"
+        class="mx-auto px-6 pb-40 pt-20" 
+        :style="contentStyle"
         @click.stop
       >
         <!-- 多章节内容 -->
         <template v-for="chapter in readerStore.loadedChapters" :key="chapter.index">
           <!-- 章节标题 -->
-          <div class="text-center py-8 border-t border-border/30 first:border-t-0 first:pt-0">
-            <h2 class="chapter-title text-xl font-bold opacity-80 inline-block">
+          <div class="text-center py-10 mt-10 first:mt-0">
+            <div class="inline-block px-6 py-2 bg-primary/5 rounded-full mb-4">
+              <span class="text-xs opacity-60">第 {{ chapter.index + 1 }} 章</span>
+            </div>
+            <h2 class="chapter-title text-xl font-bold opacity-90">
               {{ chapter.title }}
             </h2>
           </div>
@@ -304,19 +312,27 @@ onUnmounted(() => {
         </template>
         
         <!-- 加载更多指示器 -->
-        <div v-if="readerStore.isLoadingMore" class="py-8 text-center">
-          <Loader2 class="w-6 h-6 animate-spin mx-auto opacity-50" />
-          <p class="text-sm opacity-50 mt-2">加载下一章...</p>
+        <div v-if="readerStore.isLoadingMore" class="py-12 text-center">
+          <Loader2 class="w-8 h-8 animate-spin mx-auto opacity-40" />
+          <p class="text-sm opacity-40 mt-3">正在加载下一章...</p>
         </div>
         
         <!-- 已加载到末尾 -->
-        <div v-else-if="!readerStore.hasNextChapter && readerStore.loadedChapters.length > 0" class="py-8 text-center">
-          <p class="text-sm opacity-50">—— 已是最后一章 ——</p>
+        <div v-else-if="!readerStore.hasNextChapter && readerStore.loadedChapters.length > 0" class="py-16 text-center">
+          <div class="inline-block px-8 py-3 bg-muted/50 rounded-full">
+            <p class="text-sm opacity-60">🎉 恭喜，已读完全书 🎉</p>
+          </div>
         </div>
         
-        <!-- 继续滚动提示 -->
-        <div v-else-if="readerStore.loadedChapters.length > 0" class="py-8 text-center">
-          <p class="text-sm opacity-40">↓ 继续滚动加载下一章 ↓</p>
+        <!-- 加载下一章按钮 -->
+        <div v-else-if="readerStore.loadedChapters.length > 0" class="py-12 text-center">
+          <button 
+            class="px-6 py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-sm font-medium transition-colors"
+            @click="loadNextChapter"
+          >
+            加载下一章
+          </button>
+          <p class="text-xs opacity-30 mt-3">或继续滚动自动加载</p>
         </div>
       </div>
       
