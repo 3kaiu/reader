@@ -102,7 +102,7 @@ onMounted(() => {
   <div class="min-h-screen bg-background">
     <!-- 导航栏 -->
     <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container flex h-14 max-w-screen-2xl items-center px-4">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
         <!-- Logo -->
         <div class="mr-4 flex items-center gap-2">
           <Library class="h-5 w-5" />
@@ -121,8 +121,17 @@ onMounted(() => {
           </div>
         </div>
         
+        <!-- 桌面端导航 -->
+        <nav class="hidden md:flex items-center gap-6 mx-6 text-sm font-medium">
+           <a v-if="false" class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/explore')">发现</a>
+           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/sources')">书源</a>
+           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/book-group')">分组</a>
+           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/book-manage')">管理</a>
+           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/settings')">设置</a>
+        </nav>
+
         <!-- 操作 -->
-        <div class="ml-4 flex items-center gap-1">
+        <div class="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="icon" @click="goSearch">
             <Plus class="h-4 w-4" />
           </Button>
@@ -130,12 +139,13 @@ onMounted(() => {
             <Moon v-if="!isDark" class="h-4 w-4" />
             <Sun v-else class="h-4 w-4" />
           </Button>
-          <Sheet v-model:open="showSidebar">
-            <SheetTrigger as-child>
-              <Button variant="ghost" size="icon">
-                <Settings class="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
+          <div class="md:hidden">
+            <Sheet v-model:open="showSidebar">
+              <SheetTrigger as-child>
+                <Button variant="ghost" size="icon">
+                  <Settings class="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
             <SheetContent>
               <div class="space-y-6 pt-6">
                 <div class="flex items-center justify-between">
@@ -145,12 +155,7 @@ onMounted(() => {
                    </Button>
                 </div>
                 
-                <div class="space-y-2">
-                   <Button variant="ghost" class="w-full justify-start" @click="router.push('/explore')">
-                      <Compass class="h-4 w-4 mr-2" />
-                      发现广场
-                   </Button>
-                </div>
+
                 
                 <div class="space-y-4">
                   <div class="flex items-center justify-between">
@@ -168,15 +173,7 @@ onMounted(() => {
                   </div>
                 </div>
                 
-                <div class="space-y-4 pt-4 border-t">
-                  <h3 class="text-sm font-medium text-muted-foreground px-1">显示设置</h3>
-                  <div class="flex items-center justify-between px-1">
-                    <span class="text-sm">显示进度</span>
-                    <Button variant="outline" size="sm" @click="showProgress = !showProgress">
-                      {{ showProgress ? '显示' : '隐藏' }}
-                    </Button>
-                  </div>
-                
+
                 <div class="space-y-2 pt-4 border-t">
                   <h3 class="text-sm font-medium text-muted-foreground px-1">数据管理</h3>
                   <Button variant="ghost" class="w-full justify-start" @click="router.push('/sources')">
@@ -203,12 +200,13 @@ onMounted(() => {
               </div>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       </div>
     </header>
     
     <!-- 主内容 -->
-    <main class="container max-w-screen-2xl px-4 py-6">
+    <main class="container mx-auto max-w-screen-2xl px-4 py-6">
       <!-- 加载 -->
       <div v-if="loading" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         <SkeletonLoader v-for="i in 12" :key="i" type="card" />
@@ -287,7 +285,7 @@ onMounted(() => {
             </Button>
           </div>
           
-          <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+          <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">
             <BookCard
               v-for="book in filteredBooks"
               :key="book.bookUrl"

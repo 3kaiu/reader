@@ -169,7 +169,7 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-background">
     <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur border-b">
-      <div class="container flex h-14 max-w-screen-2xl items-center justify-between px-4">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4">
         <div class="flex items-center gap-4">
           <Button variant="ghost" size="icon" @click="goBack">
             <ArrowLeft class="h-4 w-4" />
@@ -186,7 +186,7 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="container max-w-screen-2xl px-4 py-6">
+    <main class="container mx-auto max-w-screen-2xl px-4 py-6">
       <div v-if="loading" class="space-y-3">
         <SkeletonLoader v-for="i in 5" :key="i" type="text" :lines="1" />
       </div>

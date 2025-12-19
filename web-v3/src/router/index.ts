@@ -43,12 +43,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/book-manage.vue'),
     meta: { title: '书籍管理' },
   },
-  {
-    path: '/explore',
-    name: 'explore',
-    component: () => import('@/pages/explore.vue'),
-    meta: { title: '发现' },
-  },
+
   {
     path: '/settings',
     name: 'settings',

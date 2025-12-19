@@ -130,7 +130,7 @@ onMounted(() => {
   <div class="min-h-screen bg-background">
     <!-- 导航栏 -->
     <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur">
-      <div class="container flex h-14 max-w-screen-2xl items-center justify-between px-4">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4">
         <div class="flex items-center gap-4">
           <Button variant="ghost" size="icon" @click="goBack">
             <ArrowLeft class="h-4 w-4" />
@@ -165,7 +165,7 @@ onMounted(() => {
     </header>
     
     <!-- 主内容 -->
-    <main class="container max-w-screen-2xl px-4 py-6">
+    <main class="container mx-auto max-w-screen-2xl px-4 py-6">
       <!-- 分组统计 -->
       <div v-if="groupStats.length > 0" class="mb-6 flex flex-wrap gap-2">
         <Badge

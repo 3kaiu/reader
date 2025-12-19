@@ -79,7 +79,7 @@ function goBack() {
 <template>
   <div class="min-h-screen bg-background">
      <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur border-b">
-      <div class="container flex h-14 max-w-screen-2xl items-center gap-4 px-4">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center gap-4 px-4">
         <Button variant="ghost" size="icon" @click="goBack">
           <ArrowLeft class="h-4 w-4" />
         </Button>
@@ -87,7 +87,7 @@ function goBack() {
       </div>
     </header>
 
-    <main class="container max-w-screen-2xl px-4 py-6 space-y-8">
+    <main class="container mx-auto max-w-screen-2xl px-4 py-6 space-y-8">
       <!-- Appearance -->
       <section class="space-y-4">
         <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">外观</h2>
