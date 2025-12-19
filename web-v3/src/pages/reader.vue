@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+/**
+ * 阅读器页面 - 沉浸式设计
+ * 全屏阅读 + 浮动工具栏 + 手势操作
+ */
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  NLayout,
-  NLayoutSider,
-  NLayoutContent,
-  NButton,
-  NSpace,
-  NSpin,
   NSlider,
   NDrawer,
   NDrawerContent,
-  NList,
-  NListItem,
   NScrollbar,
+  NSpin,
   NResult,
+  NButton,
+  NSpace,
   useMessage,
 } from 'naive-ui'
-import { useStorage, useDark, useToggle, onKeyStroke, useFullscreen } from '@vueuse/core'
+import { useDark, useToggle, useFullscreen, onKeyStroke, useSwipe, useStorage } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
-import { bookApi, type Book } from '@/api'
+import { bookApi } from '@/api'
+import { GlassCard, FloatingButton } from '@/components/ui'
 
 const router = useRouter()
 const route = useRoute()
@@ -28,40 +28,54 @@ const message = useMessage()
 const readerStore = useReaderStore()
 const settingsStore = useSettingsStore()
 
-// ====== 状态 ======
-const showCatalog = ref(false)
-const showSettings = ref(false)
-const showToolbar = ref(true)
-
 // 暗色模式
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
+
+// 全屏
+const readerRef = ref<HTMLElement | null>(null)
+const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(readerRef)
+
+// ====== 状态 ======
+const showToolbar = ref(false)
+const showCatalog = ref(false)
+const showSettings = ref(false)
+const hideToolbarTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+// 阅读设置
+const fontSize = useStorage('reader-font-size', 18)
+const lineHeight = useStorage('reader-line-height', 1.8)
+const pageWidth = useStorage('reader-page-width', 800)
+const readerTheme = useStorage<'white' | 'paper' | 'sepia' | 'green' | 'night'>('reader-theme', 'paper')
 
 // ====== 计算属性 ======
 const contentStyle = computed(() => ({
-  fontSize: `${settingsStore.fontSize}px`,
-  lineHeight: settingsStore.lineHeight,
-  fontFamily: settingsStore.fontFamily,
-  maxWidth: `${settingsStore.pageWidth}px`,
+  fontSize: `${fontSize.value}px`,
+  lineHeight: lineHeight.value,
+  maxWidth: `${pageWidth.value}px`,
 }))
 
-const readerThemeClass = computed(() => {
-  const theme = settingsStore.readerTheme
-  if (isDark.value) return 'reader-night'
-  return `reader-${theme}`
+const themeClass = computed(() => {
+  if (isDark.value || readerTheme.value === 'night') return 'theme-night'
+  return `theme-${readerTheme.value}`
 })
 
 const formattedContent = computed(() => {
   if (!readerStore.content) return ''
-  
-  // 段落格式化
   return readerStore.content
     .split('\n')
     .filter(p => p.trim())
     .map(p => `<p class="content-paragraph">${p.trim()}</p>`)
     .join('')
 })
+
+const themes = [
+  { key: 'white', label: '白', color: '#FFFFFF' },
+  { key: 'paper', label: '纸', color: '#FBF9F3' },
+  { key: 'sepia', label: '羊皮', color: '#F4ECD8' },
+  { key: 'green', label: '护眼', color: '#E8F5E9' },
+  { key: 'night', label: '夜间', color: '#121212' },
+]
 
 // ====== 方法 ======
 
@@ -75,7 +89,6 @@ async function init() {
   }
 
   try {
-    // 获取书籍信息
     const res = await bookApi.getBookInfo(bookUrl)
     if (res.isSuccess) {
       await readerStore.openBook(res.data)
@@ -84,67 +97,108 @@ async function init() {
     }
   } catch (error) {
     message.error('加载书籍失败')
-    console.error(error)
   }
 }
 
-// 返回书架
+// 返回
 function goBack() {
   router.push('/')
 }
 
-// 切换工具栏显示
-function toggleToolbar() {
+// 显示工具栏
+function toggleToolbarVisible() {
   showToolbar.value = !showToolbar.value
+  
+  if (showToolbar.value) {
+    startHideTimer()
+  }
 }
 
-// 跳转到指定章节
+// 自动隐藏工具栏
+function startHideTimer() {
+  clearHideTimer()
+  hideToolbarTimer.value = setTimeout(() => {
+    if (!showSettings.value && !showCatalog.value) {
+      showToolbar.value = false
+    }
+  }, 4000)
+}
+
+function clearHideTimer() {
+  if (hideToolbarTimer.value) {
+    clearTimeout(hideToolbarTimer.value)
+    hideToolbarTimer.value = null
+  }
+}
+
+// 跳转章节
 function goToChapter(index: number) {
   readerStore.goToChapter(index)
   showCatalog.value = false
 }
 
-// ==== 键盘快捷键 ====
+// 手势支持
+const contentRef = ref<HTMLElement | null>(null)
+const { direction } = useSwipe(contentRef)
+
+watch(direction, (dir) => {
+  if (dir === 'left') {
+    readerStore.nextChapter()
+  } else if (dir === 'right') {
+    readerStore.prevChapter()
+  }
+})
+
+// 键盘快捷键
 onKeyStroke('ArrowLeft', () => readerStore.prevChapter())
 onKeyStroke('ArrowRight', () => readerStore.nextChapter())
 onKeyStroke('ArrowUp', () => readerStore.prevChapter())
 onKeyStroke('ArrowDown', () => readerStore.nextChapter())
 onKeyStroke('Escape', () => {
-  if (showCatalog.value) {
-    showCatalog.value = false
-  } else if (showSettings.value) {
-    showSettings.value = false
-  } else {
-    goBack()
-  }
+  if (showSettings.value) showSettings.value = false
+  else if (showCatalog.value) showCatalog.value = false
+  else if (showToolbar.value) showToolbar.value = false
+  else goBack()
 })
 onKeyStroke('f', () => toggleFullscreen())
-onKeyStroke('c', () => { showCatalog.value = !showCatalog.value })
-onKeyStroke('s', () => { showSettings.value = !showSettings.value })
+onKeyStroke('c', () => showCatalog.value = !showCatalog.value)
+onKeyStroke('s', () => showSettings.value = !showSettings.value)
+onKeyStroke('d', () => toggleDark())
 
-// 初始化
+// 生命周期
 onMounted(() => {
   init()
 })
 
 onUnmounted(() => {
+  clearHideTimer()
   readerStore.reset()
 })
 </script>
 
 <template>
-  <div 
-    class="reader-container min-h-screen transition-colors duration-300"
-    :class="readerThemeClass"
-    @click="toggleToolbar"
+  <div
+    ref="readerRef"
+    class="reader-container min-h-screen transition-colors duration-500"
+    :class="themeClass"
+    @click="toggleToolbarVisible"
   >
     <!-- 加载状态 -->
-    <div v-if="readerStore.isLoading" class="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
-      <NSpin size="large" />
+    <div
+      v-if="readerStore.isLoading"
+      class="fixed inset-0 flex items-center justify-center z-50 bg-black/20"
+    >
+      <div class="text-center">
+        <NSpin size="large" />
+        <p class="mt-4 text-gray-500">加载中...</p>
+      </div>
     </div>
-
+    
     <!-- 错误状态 -->
-    <div v-else-if="readerStore.error" class="min-h-screen flex items-center justify-center">
+    <div
+      v-else-if="readerStore.error"
+      class="min-h-screen flex items-center justify-center"
+    >
       <NResult status="error" :title="readerStore.error">
         <template #footer>
           <NSpace>
@@ -154,193 +208,276 @@ onUnmounted(() => {
         </template>
       </NResult>
     </div>
-
+    
     <!-- 阅读内容 -->
-    <div v-else class="reader-content">
+    <div v-else ref="contentRef" class="reader-content">
       <!-- 顶部工具栏 -->
       <Transition name="slide-down">
-        <div 
+        <header
           v-show="showToolbar"
-          class="fixed top-0 left-0 right-0 h-14 glass flex items-center justify-between px-4 z-40"
+          class="fixed top-0 inset-x-0 z-40 safe-area-top"
           @click.stop
         >
-          <NButton quaternary circle @click="goBack">
-            <span class="text-xl">←</span>
-          </NButton>
-
-          <h1 class="text-base font-medium truncate max-w-md">
-            {{ readerStore.currentBook?.name }}
-          </h1>
-
-          <NSpace>
-            <NButton quaternary circle @click="showCatalog = true">
-              <span class="text-lg">📑</span>
-            </NButton>
-            <NButton quaternary circle @click="showSettings = true">
-              <span class="text-lg">⚙️</span>
-            </NButton>
-            <NButton quaternary circle @click="toggleFullscreen">
-              <span class="text-lg">{{ isFullscreen ? '⛶' : '⛶' }}</span>
-            </NButton>
-          </NSpace>
-        </div>
+          <div class="glass dark:glass-dark mx-4 mt-4 px-4 py-3 rounded-2xl shadow-lg">
+            <div class="flex items-center justify-between">
+              <FloatingButton
+                icon="←"
+                variant="ghost"
+                size="sm"
+                @click="goBack"
+              />
+              
+              <div class="flex-1 text-center px-4">
+                <h1 class="font-medium text-gray-800 dark:text-white truncate">
+                  {{ readerStore.currentBook?.name }}
+                </h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {{ readerStore.currentChapter?.title }}
+                </p>
+              </div>
+              
+              <NSpace :size="8">
+                <FloatingButton
+                  icon="📑"
+                  variant="ghost"
+                  size="sm"
+                  tooltip="目录"
+                  @click="showCatalog = true"
+                />
+                <FloatingButton
+                  :icon="isFullscreen ? '⛶' : '⛶'"
+                  variant="ghost"
+                  size="sm"
+                  tooltip="全屏"
+                  @click="toggleFullscreen"
+                />
+              </NSpace>
+            </div>
+          </div>
+        </header>
       </Transition>
-
+      
       <!-- 章节标题 -->
-      <div class="pt-20 pb-4 text-center">
+      <div class="pt-24 pb-6 text-center">
         <h2 class="text-xl font-bold opacity-80">
           {{ readerStore.currentChapter?.title }}
         </h2>
       </div>
-
-      <!-- 正文内容 -->
+      
+      <!-- 正文 -->
       <article
-        class="mx-auto px-6 pb-32"
+        class="mx-auto px-6 pb-40"
         :style="contentStyle"
         @click.stop
       >
-        <div 
-          class="prose prose-lg dark:prose-invert max-w-none"
+        <div
+          class="reader-text"
           v-html="formattedContent"
         />
       </article>
-
+      
       <!-- 底部工具栏 -->
       <Transition name="slide-up">
-        <div 
+        <footer
           v-show="showToolbar"
-          class="fixed bottom-0 left-0 right-0 glass px-4 py-3 z-40"
+          class="fixed bottom-0 inset-x-0 z-40 safe-area-bottom"
           @click.stop
         >
-          <!-- 进度条 -->
-          <div class="flex items-center gap-4 mb-3">
-            <span class="text-xs opacity-60 w-16">
-              {{ readerStore.currentChapterIndex + 1 }}/{{ readerStore.totalChapters }}
-            </span>
-            <NSlider
-              :value="readerStore.currentChapterIndex + 1"
-              :min="1"
-              :max="readerStore.totalChapters"
-              :step="1"
-              :tooltip="false"
-              @update:value="(v: number) => readerStore.goToChapter(v - 1)"
-            />
-            <span class="text-xs opacity-60 w-12 text-right">
-              {{ readerStore.progress }}%
-            </span>
-          </div>
-
-          <!-- 操作按钮 -->
-          <div class="flex items-center justify-between">
-            <NButton 
-              :disabled="!readerStore.hasPrevChapter"
-              @click="readerStore.prevChapter()"
-            >
-              上一章
-            </NButton>
-
-            <NSpace>
-              <NButton quaternary @click="toggleDark()">
-                {{ isDark ? '🌙' : '☀️' }}
+          <div class="glass dark:glass-dark mx-4 mb-4 px-4 py-4 rounded-2xl shadow-lg">
+            <!-- 进度条 -->
+            <div class="flex items-center gap-4 mb-4">
+              <span class="text-xs text-gray-500 w-12">
+                {{ readerStore.currentChapterIndex + 1 }}
+              </span>
+              <NSlider
+                :value="readerStore.currentChapterIndex + 1"
+                :min="1"
+                :max="readerStore.totalChapters"
+                :step="1"
+                :tooltip="false"
+                @update:value="(v: number) => readerStore.goToChapter(v - 1)"
+              />
+              <span class="text-xs text-gray-500 w-12 text-right">
+                {{ readerStore.totalChapters }}
+              </span>
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="flex items-center justify-between">
+              <NButton
+                :disabled="!readerStore.hasPrevChapter"
+                round
+                @click="readerStore.prevChapter()"
+              >
+                ← 上一章
               </NButton>
-              <NButton quaternary @click="readerStore.refreshChapter()">
-                🔄
+              
+              <NSpace :size="12">
+                <FloatingButton
+                  :icon="isDark ? '🌙' : '☀️'"
+                  variant="ghost"
+                  size="md"
+                  tooltip="主题"
+                  @click="toggleDark()"
+                />
+                <FloatingButton
+                  icon="⚙️"
+                  variant="ghost"
+                  size="md"
+                  tooltip="设置"
+                  @click="showSettings = true"
+                />
+                <FloatingButton
+                  icon="🔄"
+                  variant="ghost"
+                  size="md"
+                  tooltip="刷新"
+                  @click="readerStore.refreshChapter()"
+                />
+              </NSpace>
+              
+              <NButton
+                :disabled="!readerStore.hasNextChapter"
+                round
+                @click="readerStore.nextChapter()"
+              >
+                下一章 →
               </NButton>
-            </NSpace>
-
-            <NButton 
-              :disabled="!readerStore.hasNextChapter"
-              @click="readerStore.nextChapter()"
-            >
-              下一章
-            </NButton>
+            </div>
           </div>
-        </div>
+        </footer>
       </Transition>
     </div>
-
+    
     <!-- 目录抽屉 -->
     <NDrawer v-model:show="showCatalog" :width="320" placement="left">
       <NDrawerContent title="目录" closable>
         <NScrollbar style="max-height: calc(100vh - 80px)">
-          <NList hoverable clickable>
-            <NListItem
+          <div class="space-y-1">
+            <div
               v-for="(chapter, index) in readerStore.catalog"
               :key="index"
-              :class="{ 'bg-primary-50 dark:bg-primary-900/20': index === readerStore.currentChapterIndex }"
+              class="px-4 py-3 rounded-xl cursor-pointer transition-all
+                     hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              :class="{
+                'bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30': 
+                  index === readerStore.currentChapterIndex
+              }"
               @click="goToChapter(index)"
             >
-              <div class="flex items-center gap-2">
-                <span 
-                  class="w-10 text-xs opacity-50"
-                >{{ index + 1 }}</span>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-400 w-8">{{ index + 1 }}</span>
                 <span 
                   class="truncate"
-                  :class="{ 'text-primary font-medium': index === readerStore.currentChapterIndex }"
-                >{{ chapter.title }}</span>
+                  :class="{
+                    'text-[#4361EE] dark:text-blue-400 font-medium': 
+                      index === readerStore.currentChapterIndex
+                  }"
+                >
+                  {{ chapter.title }}
+                </span>
               </div>
-            </NListItem>
-          </NList>
+            </div>
+          </div>
         </NScrollbar>
       </NDrawerContent>
     </NDrawer>
-
+    
     <!-- 设置抽屉 -->
-    <NDrawer v-model:show="showSettings" :width="320" placement="right">
+    <NDrawer v-model:show="showSettings" :width="360" placement="right">
       <NDrawerContent title="阅读设置" closable>
-        <div class="space-y-6">
+        <div class="space-y-8">
           <!-- 字号 -->
           <div>
-            <div class="text-sm font-medium mb-2">字号: {{ settingsStore.fontSize }}px</div>
-            <NSlider 
-              v-model:value="settingsStore.fontSize"
-              :min="12"
-              :max="32"
-              :step="1"
-            />
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-medium">字号</span>
+              <span class="text-sm text-gray-500">{{ fontSize }}px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <button
+                class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 
+                       flex items-center justify-center text-lg
+                       hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                @click="fontSize = Math.max(12, fontSize - 1)"
+              >
+                A-
+              </button>
+              <NSlider
+                v-model:value="fontSize"
+                :min="12"
+                :max="32"
+                :step="1"
+                class="flex-1"
+              />
+              <button
+                class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 
+                       flex items-center justify-center text-lg
+                       hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                @click="fontSize = Math.min(32, fontSize + 1)"
+              >
+                A+
+              </button>
+            </div>
           </div>
-
-          <!-- 行高 -->
+          
+          <!-- 行距 -->
           <div>
-            <div class="text-sm font-medium mb-2">行高: {{ settingsStore.lineHeight }}</div>
-            <NSlider 
-              v-model:value="settingsStore.lineHeight"
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-medium">行距</span>
+              <span class="text-sm text-gray-500">{{ lineHeight.toFixed(1) }}</span>
+            </div>
+            <NSlider
+              v-model:value="lineHeight"
               :min="1.2"
               :max="3"
               :step="0.1"
             />
           </div>
-
-          <!-- 页面宽度 -->
+          
+          <!-- 页宽 -->
           <div>
-            <div class="text-sm font-medium mb-2">页宽: {{ settingsStore.pageWidth }}px</div>
-            <NSlider 
-              v-model:value="settingsStore.pageWidth"
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-medium">页面宽度</span>
+              <span class="text-sm text-gray-500">{{ pageWidth }}px</span>
+            </div>
+            <NSlider
+              v-model:value="pageWidth"
               :min="400"
               :max="1200"
               :step="50"
             />
           </div>
-
-          <!-- 阅读主题 -->
+          
+          <!-- 主题 -->
           <div>
-            <div class="text-sm font-medium mb-2">阅读主题</div>
-            <div class="flex gap-2 flex-wrap">
+            <div class="font-medium mb-3">阅读主题</div>
+            <div class="flex gap-3">
               <button
-                v-for="theme in ['light', 'paper', 'sepia', 'green']"
-                :key="theme"
-                class="w-10 h-10 rounded-lg border-2 transition-all"
-                :class="[
-                  `bg-reader-${theme}`,
-                  settingsStore.readerTheme === theme ? 'border-primary scale-110' : 'border-transparent'
-                ]"
-                @click="settingsStore.setReaderTheme(theme as any)"
-              />
-              <button
-                class="w-10 h-10 rounded-lg border-2 bg-reader-night transition-all"
-                :class="settingsStore.readerTheme === 'dark' ? 'border-primary scale-110' : 'border-transparent'"
-                @click="settingsStore.setReaderTheme('dark')"
-              />
+                v-for="theme in themes"
+                :key="theme.key"
+                class="w-12 h-12 rounded-xl border-2 transition-all
+                       hover:scale-110"
+                :class="readerTheme === theme.key 
+                  ? 'border-[#4361EE] scale-110 shadow-lg' 
+                  : 'border-gray-200 dark:border-gray-700'"
+                :style="{ backgroundColor: theme.color }"
+                @click="readerTheme = theme.key as any"
+              >
+                <span v-if="theme.key === 'night'" class="text-white text-xs">🌙</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- 快捷键提示 -->
+          <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="font-medium mb-3">快捷键</div>
+            <div class="grid grid-cols-2 gap-2 text-sm text-gray-500">
+              <div>← → 翻页</div>
+              <div>C 目录</div>
+              <div>S 设置</div>
+              <div>F 全屏</div>
+              <div>D 夜间模式</div>
+              <div>Esc 返回</div>
             </div>
           </div>
         </div>
@@ -351,70 +488,58 @@ onUnmounted(() => {
 
 <style scoped>
 /* 阅读器主题 */
-.reader-light {
-  background: white;
+.theme-white {
+  background: #FFFFFF;
   color: #1a1a1a;
 }
 
-.reader-paper {
-  background: var(--color-reader-paper, #FBF9F3);
-  color: #333;
+.theme-paper {
+  background: #FBF9F3;
+  color: #333333;
 }
 
-.reader-sepia {
-  background: var(--color-reader-sepia, #F4ECD8);
-  color: #5b4636;
+.theme-sepia {
+  background: #F4ECD8;
+  color: #5B4636;
 }
 
-.reader-green {
-  background: var(--color-reader-green, #E8F5E9);
-  color: #2e5d32;
+.theme-green {
+  background: #E8F5E9;
+  color: #2E5D32;
 }
 
-.reader-night {
-  background: var(--color-reader-night, #121212);
-  color: var(--color-reader-night-text, #B0B0B0);
+.theme-night {
+  background: #121212;
+  color: #C4C4C4;
 }
 
-/* 毛玻璃效果 */
-.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.reader-night .glass {
-  background: rgba(18, 18, 18, 0.85);
-  border-top-color: rgba(255, 255, 255, 0.05);
-}
-
-/* 段落样式 */
-:deep(.content-paragraph) {
+/* 内容样式 */
+.reader-text :deep(.content-paragraph) {
   text-indent: 2em;
-  margin-bottom: 1em;
+  margin-bottom: 1.2em;
+  word-break: break-word;
 }
 
-/* 过渡动画 */
+/* 工具栏动画 */
 .slide-down-enter-active,
 .slide-down-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-down-enter-from,
 .slide-down-leave-to {
-  transform: translateY(-100%);
   opacity: 0;
+  transform: translateY(-20px);
 }
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-up-enter-from,
 .slide-up-leave-to {
-  transform: translateY(100%);
   opacity: 0;
+  transform: translateY(20px);
 }
 </style>

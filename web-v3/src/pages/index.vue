@@ -1,366 +1,282 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+/**
+ * 首页/书架 - shadcn-vue
+ */
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  NLayout,
-  NLayoutHeader,
-  NLayoutSider,
-  NLayoutContent,
-  NInput,
-  NButton,
-  NGrid,
-  NGridItem,
-  NEmpty,
-  NSpin,
-  NSpace,
-  NIcon,
-  NDropdown,
-  NTag,
-  NSwitch,
-  NModal,
-  NTabs,
-  NTabPane,
-  NForm,
-  NFormItem,
-  NSelect,
-  useMessage,
-  useDialog,
-} from 'naive-ui'
-import { useStorage, useDark, useToggle } from '@vueuse/core'
+import { useDark, useToggle, useStorage } from '@vueuse/core'
+import { 
+  Search, Plus, Settings, Moon, Sun, RefreshCw, 
+  BookOpen, Library, ChevronRight
+} from 'lucide-vue-next'
 import { bookApi, type Book } from '@/api'
-import { useUserStore, useSettingsStore } from '@/stores'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import BookCard from '@/components/book/BookCard.vue'
+import { SkeletonLoader } from '@/components/ui'
+import { useMessage } from '@/composables/useMessage'
 
 const router = useRouter()
-const message = useMessage()
-const dialog = useDialog()
-const userStore = useUserStore()
-const settingsStore = useSettingsStore()
-
-// ====== 状态 ======
-const books = ref<Book[]>([])
-const loading = ref(false)
-const refreshLoading = ref(false)
-const searchKeyword = ref('')
-const showSidebar = ref(true)
-const searchResult = ref<Book[]>([])
-const isSearchMode = ref(false)
-
-// API 配置
-const apiUrl = useStorage('reader-api', location.host + '/reader3')
-const connected = ref(false)
+const { success, error, warning } = useMessage()
 
 // 暗色模式
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
 
+// ====== 状态 ======
+const books = ref<Book[]>([])
+const loading = ref(true)
+const refreshing = ref(false)
+const searchKeyword = ref('')
+const showSidebar = ref(false)
+const showProgress = useStorage('bookshelf-progress', true)
+
 // ====== 计算属性 ======
-const displayBooks = computed(() => {
-  if (isSearchMode.value) {
-    return searchResult.value
-  }
-  
+const filteredBooks = computed(() => {
   if (!searchKeyword.value) return books.value
-  
   const keyword = searchKeyword.value.toLowerCase()
   return books.value.filter(
-    (book) =>
-      book.name.toLowerCase().includes(keyword) ||
-      book.author?.toLowerCase().includes(keyword)
+    book => book.name.toLowerCase().includes(keyword) ||
+            (book.author || '').toLowerCase().includes(keyword)
   )
 })
 
-const connectionStatus = computed(() => {
-  if (loading.value) return { type: 'warning' as const, text: '连接中...' }
-  if (connected.value) return { type: 'success' as const, text: '已连接' }
-  return { type: 'error' as const, text: '未连接' }
+const recommendedBooks = computed(() => {
+  return [...books.value]
+    .sort((a, b) => (b.durChapterTime || 0) - (a.durChapterTime || 0))
+    .slice(0, 6)
 })
 
 // ====== 方法 ======
 
-// 加载书架
-async function loadBookshelf(refresh = false) {
-  if (refresh) {
-    refreshLoading.value = true
-  } else {
-    loading.value = true
-  }
-  
+async function loadBookshelf() {
   try {
-    const res = await bookApi.getBookshelf(refresh)
+    const res = await bookApi.getBookshelf()
     if (res.isSuccess) {
       books.value = res.data
-      connected.value = true
     } else {
-      message.error(res.errorMsg || '加载书架失败')
+      error(res.errorMsg || '加载书架失败')
     }
-  } catch (error) {
-    console.error('加载书架失败:', error)
-    message.error('无法连接到后端服务')
-    connected.value = false
+  } catch (e) {
+    console.error('加载书架失败:', e)
   } finally {
     loading.value = false
-    refreshLoading.value = false
+    refreshing.value = false
   }
 }
 
-// 搜索书籍
-async function searchBooks() {
-  if (!searchKeyword.value.trim()) {
-    message.warning('请输入搜索关键词')
-    return
-  }
-  
-  isSearchMode.value = true
-  loading.value = true
-  
-  try {
-    const res = await bookApi.search(searchKeyword.value)
-    if (res.isSuccess) {
-      searchResult.value = res.data
-      if (res.data.length === 0) {
-        message.info('未找到相关书籍')
-      }
-    } else {
-      message.error(res.errorMsg || '搜索失败')
-    }
-  } catch (error) {
-    console.error('搜索失败:', error)
-    message.error('搜索请求失败')
-  } finally {
-    loading.value = false
-  }
+async function refresh() {
+  refreshing.value = true
+  await loadBookshelf()
+  success('刷新成功')
 }
 
-// 返回书架
-function backToShelf() {
-  isSearchMode.value = false
-  searchResult.value = []
-  searchKeyword.value = ''
-}
-
-// 打开书籍
 function openBook(book: Book) {
-  router.push({
-    name: 'reader',
-    query: { url: book.bookUrl },
-  })
+  router.push({ name: 'reader', query: { url: book.bookUrl } })
 }
 
-// 添加到书架
-async function addToShelf(book: Book) {
+async function deleteBook(book: Book) {
+  if (!confirm(`确定要删除《${book.name}》吗？`)) return
   try {
-    const res = await bookApi.saveBook(book)
+    const res = await bookApi.deleteBook(book.bookUrl)
     if (res.isSuccess) {
-      message.success('已添加到书架')
-      loadBookshelf()
-    } else {
-      message.error(res.errorMsg || '添加失败')
+      books.value = books.value.filter(b => b.bookUrl !== book.bookUrl)
+      success('删除成功')
     }
-  } catch (error) {
-    message.error('添加到书架失败')
+  } catch (e) {
+    error('删除失败')
   }
 }
 
-// 删除书籍
-async function deleteBook(book: Book) {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要从书架移除《${book.name}》吗？`,
-    positiveText: '删除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        const res = await bookApi.deleteBook(book.bookUrl)
-        if (res.isSuccess) {
-          message.success('删除成功')
-          loadBookshelf()
-        }
-      } catch (error) {
-        message.error('删除失败')
-      }
-    }
-  })
+function goSearch() {
+  router.push('/search')
 }
 
-// 刷新书架
-function refreshShelf() {
-  loadBookshelf(true)
-}
-
-// 初始化
 onMounted(() => {
   loadBookshelf()
 })
-
-// 监听搜索输入，按回车搜索
-function handleSearchKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter') {
-    searchBooks()
-  }
-}
 </script>
 
 <template>
-  <NLayout class="min-h-screen" has-sider>
-    <!-- 侧边栏 -->
-    <NLayoutSider
-      v-if="showSidebar"
-      bordered
-      :width="280"
-      :collapsed-width="0"
-      collapse-mode="width"
-      :native-scrollbar="false"
-      class="bg-white dark:bg-zinc-900"
-    >
-      <div class="p-4 space-y-6">
+  <div class="min-h-screen bg-background">
+    <!-- 导航栏 -->
+    <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div class="container flex h-14 max-w-screen-2xl items-center px-4">
         <!-- Logo -->
-        <div class="text-center py-4">
-          <h1 class="text-2xl font-bold bg-gradient-to-r from-primary to-primary-600 bg-clip-text text-transparent">
-            阅读
-          </h1>
-          <p class="text-xs text-gray-400 mt-1">清风不识字，何故乱翻书</p>
+        <div class="mr-4 flex items-center gap-2">
+          <Library class="h-5 w-5" />
+          <span class="font-semibold">阅读</span>
         </div>
-
+        
         <!-- 搜索 -->
-        <div class="space-y-2">
-          <NInput
-            v-model:value="searchKeyword"
-            placeholder="搜索书籍..."
-            clearable
-            @keydown="handleSearchKeydown"
-          >
-            <template #prefix>
-              <span class="text-gray-400">🔍</span>
-            </template>
-          </NInput>
-          <NButton
-            type="primary"
-            block
-            :loading="loading && isSearchMode"
-            @click="searchBooks"
-          >
-            搜索书籍
-          </NButton>
-        </div>
-
-        <!-- 连接状态 -->
-        <div class="space-y-3">
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400">后端连接</div>
-          <NTag :type="connectionStatus.type" round>
-            {{ connectionStatus.text }}
-          </NTag>
-        </div>
-
-        <!-- 快捷操作 -->
-        <div class="space-y-3">
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400">快捷操作</div>
-          <div class="grid grid-cols-2 gap-2">
-            <NButton size="small" quaternary @click="refreshShelf">
-              刷新书架
-            </NButton>
-            <NButton size="small" quaternary @click="router.push('/sources')">
-              书源管理
-            </NButton>
+        <div class="flex-1 flex justify-center">
+          <div class="w-full max-w-md relative">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              v-model="searchKeyword"
+              placeholder="搜索书架..."
+              class="pl-9"
+            />
           </div>
         </div>
-
-        <!-- 主题切换 -->
-        <div class="flex items-center justify-between py-2">
-          <span class="text-sm text-gray-500 dark:text-gray-400">深色模式</span>
-          <NSwitch :value="isDark" @update:value="toggleDark()" />
+        
+        <!-- 操作 -->
+        <div class="ml-4 flex items-center gap-1">
+          <Button variant="ghost" size="icon" @click="goSearch">
+            <Plus class="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" @click="toggleDark()">
+            <Moon v-if="!isDark" class="h-4 w-4" />
+            <Sun v-else class="h-4 w-4" />
+          </Button>
+          <Sheet v-model:open="showSidebar">
+            <SheetTrigger as-child>
+              <Button variant="ghost" size="icon">
+                <Settings class="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <div class="space-y-6 pt-6">
+                <h2 class="text-lg font-semibold">设置</h2>
+                
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">深色模式</span>
+                    <Button variant="outline" size="sm" @click="toggleDark()">
+                      {{ isDark ? '关闭' : '开启' }}
+                    </Button>
+                  </div>
+                  
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm">显示进度</span>
+                    <Button variant="outline" size="sm" @click="showProgress = !showProgress">
+                      {{ showProgress ? '显示' : '隐藏' }}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div class="space-y-2 pt-4 border-t">
+                  <Button variant="outline" class="w-full" @click="router.push('/sources')">
+                    书源管理
+                  </Button>
+                  <Button variant="outline" class="w-full" @click="refresh">
+                    刷新书架
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
-    </NLayoutSider>
-
-    <!-- 主内容区 -->
-    <NLayout>
-      <!-- 顶部栏 -->
-      <NLayoutHeader
-        bordered
-        class="h-16 flex items-center justify-between px-6 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
-      >
-        <div class="flex items-center gap-4">
-          <NButton
-            quaternary
-            circle
-            @click="showSidebar = !showSidebar"
-          >
-            <span class="text-xl">☰</span>
-          </NButton>
-          <h2 class="text-lg font-semibold">
-            {{ isSearchMode ? '搜索结果' : '我的书架' }}
-            <span class="text-sm text-gray-400 font-normal ml-2">
-              ({{ displayBooks.length }})
-            </span>
-          </h2>
+    </header>
+    
+    <!-- 主内容 -->
+    <main class="container max-w-screen-2xl px-4 py-6">
+      <!-- 加载 -->
+      <div v-if="loading" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <SkeletonLoader v-for="i in 12" :key="i" type="card" />
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else-if="books.length === 0" class="flex flex-col items-center justify-center py-24">
+        <div class="rounded-full bg-muted p-6 mb-6">
+          <BookOpen class="h-12 w-12 text-muted-foreground" />
         </div>
-
-        <NSpace>
-          <NButton
-            v-if="isSearchMode"
-            @click="backToShelf"
-          >
-            返回书架
-          </NButton>
-          <NButton
-            :loading="refreshLoading"
-            @click="refreshShelf"
-          >
-            {{ refreshLoading ? '刷新中...' : '刷新' }}
-          </NButton>
-        </NSpace>
-      </NLayoutHeader>
-
-      <!-- 内容区 -->
-      <NLayoutContent class="p-6 bg-surface dark:bg-surface-dark">
-        <NSpin :show="loading && !isSearchMode">
-          <!-- 书籍网格 -->
-          <NGrid
-            v-if="displayBooks.length > 0"
-            :x-gap="20"
-            :y-gap="20"
-            cols="2 s:3 m:4 l:5 xl:6"
-            responsive="screen"
-          >
-            <NGridItem v-for="book in displayBooks" :key="book.bookUrl">
-              <BookCard
-                :book="book"
-                :show-add-button="isSearchMode"
-                @click="openBook"
-                @add="addToShelf"
-                @delete="deleteBook"
-              />
-            </NGridItem>
-          </NGrid>
-
-          <!-- 空状态 -->
-          <NEmpty
-            v-else-if="!loading"
-            :description="isSearchMode ? '未找到相关书籍' : '书架空空如也'"
-            class="py-20"
-          >
-            <template #extra>
-              <NButton v-if="!isSearchMode" type="primary">
-                搜索添加书籍
-              </NButton>
-            </template>
-          </NEmpty>
-        </NSpin>
-      </NLayoutContent>
-    </NLayout>
-  </NLayout>
+        <h2 class="text-xl font-semibold mb-2">书架空空如也</h2>
+        <p class="text-muted-foreground mb-6">去添加一些书籍开始阅读吧</p>
+        <Button @click="goSearch">
+          <Search class="h-4 w-4 mr-2" />
+          搜索书籍
+        </Button>
+      </div>
+      
+      <!-- 书架 -->
+      <template v-else>
+        <!-- 继续阅读 -->
+        <section v-if="recommendedBooks.length > 0 && !searchKeyword" class="mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+              <BookOpen class="h-5 w-5" />
+              继续阅读
+            </h2>
+            <Button variant="ghost" size="sm" class="text-muted-foreground">
+              查看全部 <ChevronRight class="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div class="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+            <div
+              v-for="book in recommendedBooks"
+              :key="book.bookUrl"
+              class="flex-shrink-0 w-[140px] md:w-[160px] cursor-pointer group"
+              @click="openBook(book)"
+            >
+              <div class="aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-3 relative">
+                <img
+                  v-if="book.coverUrl"
+                  :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
+                  :alt="book.name"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div v-else class="w-full h-full flex items-center justify-center">
+                  <BookOpen class="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <span class="text-white text-sm font-medium">继续阅读</span>
+                </div>
+                <div class="absolute bottom-0 inset-x-0 h-1 bg-muted">
+                  <div 
+                    class="h-full bg-primary"
+                    :style="{ width: `${book.totalChapterNum ? (book.durChapterIndex || 0) / book.totalChapterNum * 100 : 0}%` }"
+                  />
+                </div>
+              </div>
+              <h3 class="font-medium text-sm truncate">{{ book.name }}</h3>
+              <p class="text-xs text-muted-foreground truncate">{{ book.author || '未知作者' }}</p>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 我的书架 -->
+        <section>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+              <Library class="h-5 w-5" />
+              {{ searchKeyword ? '搜索结果' : '我的书架' }}
+              <span class="text-sm font-normal text-muted-foreground">({{ filteredBooks.length }})</span>
+            </h2>
+            <Button variant="ghost" size="icon" :class="{ 'animate-spin': refreshing }" @click="refresh">
+              <RefreshCw class="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            <BookCard
+              v-for="book in filteredBooks"
+              :key="book.bookUrl"
+              :book="book"
+              :show-progress="showProgress"
+              @click="openBook"
+              @delete="deleteBook"
+            />
+          </div>
+          
+          <div v-if="searchKeyword && filteredBooks.length === 0" class="py-16 text-center text-muted-foreground">
+            未找到匹配的书籍
+          </div>
+        </section>
+      </template>
+    </main>
+  </div>
 </template>
 
 <style scoped>
-/* 自定义滚动条 */
-:deep(.n-layout-sider-scroll-container) {
-  scrollbar-width: thin;
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-
-/* 毛玻璃效果 */
-.backdrop-blur-sm {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 </style>

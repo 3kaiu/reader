@@ -1,157 +1,124 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { NButton, NDropdown } from 'naive-ui'
-import { useImage } from '@vueuse/core'
-import type { Book } from '@/api/book'
+/**
+ * BookCard - shadcn-vue 风格
+ */
+import { ref, computed } from 'vue'
+import { BookOpen, MoreVertical, Trash2 } from 'lucide-vue-next'
+import type { Book } from '@/api'
+import { Button } from '@/components/ui/button'
 
 const props = withDefaults(defineProps<{
   book: Book
-  showAddButton?: boolean
+  showProgress?: boolean
 }>(), {
-  showAddButton: false,
+  showProgress: true,
 })
 
 const emit = defineEmits<{
   click: [book: Book]
-  add: [book: Book]
   delete: [book: Book]
 }>()
 
-// 封面URL
+const coverLoaded = ref(false)
+const coverError = ref(false)
+const showMenu = ref(false)
+
+const progress = computed(() => {
+  if (!props.book.totalChapterNum) return 0
+  return Math.round((props.book.durChapterIndex || 0) / props.book.totalChapterNum * 100)
+})
+
+const unreadCount = computed(() => {
+  if (!props.book.totalChapterNum) return 0
+  return props.book.totalChapterNum - 1 - (props.book.durChapterIndex || 0)
+})
+
 const coverUrl = computed(() => {
-  if (props.book.customCoverUrl) return props.book.customCoverUrl
   if (props.book.coverUrl) {
     return `/reader3/cover?path=${encodeURIComponent(props.book.coverUrl)}`
   }
   return ''
 })
 
-// 懒加载封面图片
-const { isLoading: coverLoading, error: coverError } = useImage({ src: coverUrl.value })
-
-// 阅读进度
-const progress = computed(() => {
-  if (!props.book.totalChapterNum || props.book.totalChapterNum <= 0) return 0
-  return Math.round(
-    ((props.book.durChapterIndex || 0) + 1) / props.book.totalChapterNum * 100
-  )
-})
-
-// 未读章节数
-const unreadCount = computed(() => {
-  if (!props.book.totalChapterNum) return 0
-  return props.book.totalChapterNum - 1 - (props.book.durChapterIndex || 0)
-})
-
-// 下拉菜单选项
-const menuOptions = [
-  { label: '查看详情', key: 'detail' },
-  { label: '删除', key: 'delete' },
-]
-
-function handleMenuSelect(key: string) {
-  if (key === 'delete') {
-    emit('delete', props.book)
-  }
+function handleDelete(e: Event) {
+  e.stopPropagation()
+  showMenu.value = false
+  emit('delete', props.book)
 }
 </script>
 
 <template>
   <div
-    class="card-modern group relative overflow-hidden cursor-pointer"
+    class="group cursor-pointer"
     @click="emit('click', book)"
   >
     <!-- 封面 -->
-    <div class="relative aspect-[3/4] bg-gray-100 dark:bg-gray-700 overflow-hidden">
-      <!-- 加载占位 -->
-      <div
-        v-if="coverLoading || !coverUrl"
-        class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-700 dark:to-primary-800"
-      >
-        <span class="text-4xl opacity-50">📖</span>
-      </div>
-      
-      <!-- 封面图片 -->
+    <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted transition-transform group-hover:-translate-y-1">
       <img
-        v-else-if="!coverError"
+        v-if="coverUrl && !coverError"
         :src="coverUrl"
         :alt="book.name"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        loading="lazy"
+        class="w-full h-full object-cover transition-transform group-hover:scale-105"
+        @load="coverLoaded = true"
+        @error="coverError = true"
       />
       
-      <!-- 阅读进度条 -->
+      <div v-else class="w-full h-full flex items-center justify-center">
+        <BookOpen class="h-8 w-8 text-muted-foreground" />
+      </div>
+      
       <div
-        v-if="!showAddButton && progress > 0"
-        class="absolute bottom-0 left-0 right-0 h-1 bg-black/20"
-      >
-        <div
-          class="h-full bg-gradient-to-r from-primary to-primary-600 transition-all duration-300"
-          :style="{ width: `${progress}%` }"
-        />
+        v-if="coverUrl && !coverLoaded && !coverError"
+        class="absolute inset-0 bg-muted animate-pulse"
+      />
+      
+      <!-- 悬浮遮罩 -->
+      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+        <span class="text-white text-sm font-medium">阅读</span>
       </div>
       
       <!-- 未读角标 -->
       <div
-        v-if="!showAddButton && unreadCount > 0"
-        class="absolute top-2 right-2 min-w-6 h-6 px-1.5 flex items-center justify-center 
-               bg-red-500 text-white text-xs font-bold rounded-full shadow-lg"
+        v-if="unreadCount > 0"
+        class="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center
+               bg-destructive text-destructive-foreground text-[10px] font-semibold rounded-full"
       >
         {{ unreadCount > 99 ? '99+' : unreadCount }}
       </div>
       
-      <!-- 悬浮操作 -->
-      <div
-        v-if="!showAddButton"
-        class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
-               transition-opacity duration-300 flex items-center justify-center"
+      <!-- 进度条 -->
+      <div v-if="showProgress && progress > 0" class="absolute bottom-0 inset-x-0 h-0.5 bg-muted">
+        <div class="h-full bg-primary" :style="{ width: `${progress}%` }" />
+      </div>
+      
+      <!-- 更多菜单 -->
+      <Button
+        variant="secondary"
+        size="icon"
+        class="absolute bottom-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+        @click.stop="showMenu = !showMenu"
       >
-        <NDropdown
-          trigger="click"
-          :options="menuOptions"
-          @select="handleMenuSelect"
-          @click.stop
+        <MoreVertical class="h-3 w-3" />
+      </Button>
+      
+      <div
+        v-if="showMenu"
+        class="absolute bottom-8 right-1.5 bg-popover border rounded-md shadow-lg overflow-hidden z-10"
+        @click.stop
+      >
+        <button
+          class="flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-accent w-full"
+          @click="handleDelete"
         >
-          <NButton size="small" type="primary" ghost @click.stop>
-            操作
-          </NButton>
-        </NDropdown>
+          <Trash2 class="h-3 w-3" />
+          删除
+        </button>
       </div>
     </div>
-
+    
     <!-- 信息 -->
-    <div class="p-3 space-y-1.5">
-      <h3 class="font-semibold text-gray-900 dark:text-white truncate text-sm leading-tight">
-        {{ book.name }}
-      </h3>
-      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-        {{ book.author || '未知作者' }}
-      </p>
-      <p 
-        v-if="!showAddButton && book.durChapterTitle"
-        class="text-xs text-gray-400 dark:text-gray-500 truncate"
-      >
-        {{ book.durChapterTitle }}
-      </p>
-      <p 
-        v-else-if="book.intro"
-        class="text-xs text-gray-400 dark:text-gray-500 line-clamp-2"
-      >
-        {{ book.intro }}
-      </p>
-      
-      <!-- 添加按钮（搜索结果模式） -->
-      <NButton
-        v-if="showAddButton"
-        type="primary"
-        size="small"
-        block
-        class="mt-2"
-        @click.stop="emit('add', book)"
-      >
-        加入书架
-      </NButton>
-    </div>
+    <h3 class="mt-2 text-sm font-medium line-clamp-2 leading-tight">{{ book.name }}</h3>
+    <p class="text-xs text-muted-foreground truncate mt-0.5">{{ book.author || '未知作者' }}</p>
   </div>
 </template>
 
