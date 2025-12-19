@@ -7,9 +7,10 @@ import { useRouter } from 'vue-router'
 import { useDark, useToggle, useStorage } from '@vueuse/core'
 import { 
   Search, Plus, Settings, Moon, Sun, RefreshCw, 
-  BookOpen, Library, ChevronRight, Compass, Database, Folder, Regex
+  BookOpen, Library, ChevronRight, Compass, Database, Folder, Regex,
+  CheckSquare, Trash2, X
 } from 'lucide-vue-next'
-import { bookApi, type Book } from '@/api'
+import { bookApi, type Book, manageApi } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -31,6 +32,10 @@ const refreshing = ref(false)
 const searchKeyword = ref('')
 const showSidebar = ref(false)
 const showProgress = useStorage('bookshelf-progress', true)
+
+// ====== 计算属性 ======
+const isManageMode = ref(false)
+const selectedBooks = ref<Set<string>>(new Set())
 
 // ====== 计算属性 ======
 const filteredBooks = computed(() => {
@@ -72,8 +77,56 @@ async function refresh() {
   success('刷新成功')
 }
 
-function openBook(book: Book) {
-  router.push({ name: 'reader', query: { url: book.bookUrl } })
+// 统一的点击处理
+function handleBookClick(book: Book) {
+  if (isManageMode.value) {
+    toggleSelection(book)
+  } else {
+    router.push({ name: 'reader', query: { url: book.bookUrl } })
+  }
+}
+
+// 管理模式相关
+function toggleManageMode() {
+  isManageMode.value = !isManageMode.value
+  selectedBooks.value.clear()
+}
+
+function toggleSelection(book: Book) {
+  if (selectedBooks.value.has(book.bookUrl)) {
+    selectedBooks.value.delete(book.bookUrl)
+  } else {
+    selectedBooks.value.add(book.bookUrl)
+  }
+}
+
+function selectAll() {
+  if (selectedBooks.value.size === filteredBooks.value.length) {
+    selectedBooks.value.clear()
+  } else {
+    filteredBooks.value.forEach(b => selectedBooks.value.add(b.bookUrl))
+  }
+}
+
+async function batchDelete() {
+  if (selectedBooks.value.size === 0) return
+  if (!confirm(`确定要删除选中的 ${selectedBooks.value.size} 本书籍吗？`)) return
+
+  const booksToDelete = books.value.filter(b => selectedBooks.value.has(b.bookUrl))
+  try {
+    // 假设有 manageApi
+    const res = await manageApi.deleteBooks(booksToDelete)
+    if (res.isSuccess) {
+      books.value = books.value.filter(b => !selectedBooks.value.has(b.bookUrl))
+      selectedBooks.value.clear()
+      isManageMode.value = false // 删除后退出管理模式？或者保留
+      success('删除成功')
+    } else {
+      error('删除失败')
+    }
+  } catch (e) {
+    error('删除出错')
+  }
 }
 
 async function deleteBook(book: Book) {
@@ -123,10 +176,7 @@ onMounted(() => {
         
         <!-- 桌面端导航 -->
         <nav class="hidden md:flex items-center gap-6 mx-6 text-sm font-medium">
-           <a v-if="false" class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/explore')">发现</a>
            <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/sources')">书源</a>
-           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/book-group')">分组</a>
-           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/book-manage')">管理</a>
            <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/settings')">设置</a>
         </nav>
 
@@ -184,8 +234,8 @@ onMounted(() => {
                     <Folder class="h-4 w-4 mr-2" />
                     分组管理
                   </Button>
-                  <Button variant="ghost" class="w-full justify-start" @click="router.push('/book-manage')">
-                    <Library class="h-4 w-4 mr-2" />
+                  <Button variant="ghost" class="w-full justify-start" @click="toggleManageMode(); showSidebar = false">
+                    <CheckSquare class="h-4 w-4 mr-2" />
                     书籍管理
                   </Button>
                    <Button variant="ghost" class="w-full justify-start" @click="router.push('/replace-rule')">
@@ -234,9 +284,6 @@ onMounted(() => {
               <BookOpen class="h-5 w-5" />
               继续阅读
             </h2>
-            <Button variant="ghost" size="sm" class="text-muted-foreground">
-              查看全部 <ChevronRight class="h-4 w-4" />
-            </Button>
           </div>
           
           <div class="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
@@ -244,16 +291,18 @@ onMounted(() => {
               v-for="book in recommendedBooks"
               :key="book.bookUrl"
               class="flex-shrink-0 w-[140px] md:w-[160px] cursor-pointer group"
-              @click="openBook(book)"
+              @click="handleBookClick(book)"
             >
+
               <div class="aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-3 relative">
                 <img
                   v-if="book.coverUrl"
                   :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
                   :alt="book.name"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  @error="(e: Event) => (e.target as HTMLImageElement).style.display = 'none'"
                 />
-                <div v-else class="w-full h-full flex items-center justify-center">
+                <div class="w-full h-full flex items-center justify-center absolute inset-0 -z-10">
                   <BookOpen class="h-8 w-8 text-muted-foreground" />
                 </div>
                 <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -280,9 +329,20 @@ onMounted(() => {
               {{ searchKeyword ? '搜索结果' : '我的书架' }}
               <span class="text-sm font-normal text-muted-foreground">({{ filteredBooks.length }})</span>
             </h2>
-            <Button variant="ghost" size="icon" :class="{ 'animate-spin': refreshing }" @click="refresh">
-              <RefreshCw class="h-4 w-4" />
-            </Button>
+            <div class="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                :class="{ 'bg-accent text-accent-foreground': isManageMode }"
+                @click="toggleManageMode"
+              >
+                <CheckSquare class="h-4 w-4 mr-1" />
+                {{ isManageMode ? '退出' : '管理' }}
+              </Button>
+              <Button variant="ghost" size="icon" :class="{ 'animate-spin': refreshing }" @click="refresh">
+                <RefreshCw class="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           
           <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">
@@ -291,7 +351,9 @@ onMounted(() => {
               :key="book.bookUrl"
               :book="book"
               :show-progress="showProgress"
-              @click="openBook"
+              :manage-mode="isManageMode"
+              :selected="selectedBooks.has(book.bookUrl)"
+              @click="handleBookClick"
               @delete="deleteBook"
             />
           </div>
@@ -302,6 +364,25 @@ onMounted(() => {
         </section>
       </template>
     </main>
+
+    <!-- 底部批量操作栏 -->
+    <div v-if="isManageMode" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+       <div class="bg-popover border shadow-xl rounded-full px-6 py-2 flex items-center gap-4 animate-in slide-in-from-bottom-2 fade-in">
+          <Button variant="ghost" size="sm" @click="selectAll">
+             {{ selectedBooks.size === filteredBooks.length ? '取消全选' : '全选' }}
+          </Button>
+          <div class="h-4 w-px bg-border"></div>
+          <span class="text-sm font-medium whitespace-nowrap">已选 {{ selectedBooks.size }} 本</span>
+          <div class="h-4 w-px bg-border"></div>
+          <Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10" @click="batchDelete" :disabled="selectedBooks.size === 0">
+            <Trash2 class="h-4 w-4 mr-2" />
+            删除
+          </Button>
+          <Button variant="ghost" size="icon" class="ml-2 -mr-2 text-muted-foreground" @click="toggleManageMode">
+            <X class="h-4 w-4" />
+          </Button>
+       </div>
+    </div>
   </div>
 </template>
 

@@ -75,5 +75,22 @@ export const sourceApi = {
 
     // 调试书源 (根据原版逻辑，可能是 getBookSourceTest ?)
     // 假设后端有测试接口，或者只是前端模拟请求
-    testBookSource: (bookSourceUrl: string) => $post('/testBookSource', { bookSourceUrl })
+    testBookSource: (bookSourceUrl: string) => $post('/testBookSource', { bookSourceUrl }),
+
+    // 读取远程书源文件
+    readRemoteSourceFile: (url: string) => $post<string[]>('/readRemoteSourceFile', { url }),
+
+    // === 书源订阅功能 ===
+
+    // 获取订阅源列表
+    getSubscriptions: () =>
+        $get<string>('/file/get', { params: { path: 'remoteBookSourceSub.json', home: '__HOME__' } }),
+
+    // 保存订阅源列表
+    saveSubscriptions: (data: string) =>
+        $post('/file/save', { path: 'remoteBookSourceSub.json', content: data, home: '__HOME__' }),
+
+    // 从远程URL同步书源
+    syncFromRemote: (url: string) =>
+        $post<{ count: number }>('/saveFromRemoteSource', { url })
 }

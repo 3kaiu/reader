@@ -31,18 +31,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/replace-rule.vue'),
     meta: { title: '替换规则' },
   },
-  {
-    path: '/book-group',
-    name: 'book-group',
-    component: () => import('@/pages/book-group.vue'),
-    meta: { title: '分组管理' },
-  },
-  {
-    path: '/book-manage',
-    name: 'book-manage',
-    component: () => import('@/pages/book-manage.vue'),
-    meta: { title: '书籍管理' },
-  },
+
+
 
   {
     path: '/settings',
