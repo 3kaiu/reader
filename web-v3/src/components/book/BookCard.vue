@@ -59,8 +59,10 @@ function handleDelete(e: Event) {
     <!-- 封面 -->
     <div 
       class="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted 
-             transition-all duration-300 ease-out
-             group-hover:-translate-y-1.5 group-hover:shadow-xl group-hover:shadow-primary/10"
+             transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
+             group-hover:-translate-y-2 group-hover:scale-[1.02] 
+             group-hover:shadow-2xl group-hover:shadow-primary/20
+             after:absolute after:inset-0 after:rounded-xl after:border after:border-black/5 after:pointer-events-none"
       :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': selected }"
     >
       <img
@@ -68,7 +70,7 @@ function handleDelete(e: Event) {
         :src="coverUrl"
         :alt="book.name"
         loading="lazy"
-        class="w-full h-full object-cover transition-transform"
+        class="w-full h-full object-cover transition-transform duration-700 ease-out"
         :class="{ 'group-hover:scale-105': !manageMode }"
         @load="coverLoaded = true"
         @error="coverError = true"
@@ -84,8 +86,10 @@ function handleDelete(e: Event) {
       />
       
       <!-- 悬浮遮罩 (仅在非管理模式下显示) -->
-      <div v-if="!manageMode" class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center pb-8 transition-opacity duration-300">
-        <span class="px-4 py-1.5 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/30">开始阅读</span>
+      <div v-if="!manageMode" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 backdrop-blur-[2px]">
+        <div class="px-5 py-2.5 bg-white/10 backdrop-blur-md text-white text-sm font-medium rounded-full border border-white/20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-xl">
+          开始阅读
+        </div>
       </div>
 
       <!-- 管理模式勾选蒙层 -->
@@ -101,16 +105,12 @@ function handleDelete(e: Event) {
       <!-- 更新角标 (非管理模式) -->
       <div
         v-if="unreadCount > 0 && !manageMode"
-        class="absolute -top-1 -right-1 flex items-center gap-0.5 animate-in zoom-in-75 duration-300"
+        class="absolute top-2 right-2 flex items-center justify-center"
       >
-        <!-- 脉冲动画背景 -->
-        <span class="absolute inset-0 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 animate-ping opacity-40" />
-        <!-- 角标主体 -->
         <span 
-          class="relative min-w-[20px] h-5 px-1.5 flex items-center justify-center
-                 bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 
-                 text-white text-[10px] font-bold rounded-full
-                 shadow-lg shadow-red-500/30 ring-2 ring-background"
+          class="min-w-[18px] h-[18px] px-1.5 flex items-center justify-center
+                 bg-rose-500 text-white text-[10px] font-bold rounded-full
+                 shadow-sm ring-2 ring-white dark:ring-stone-900"
         >
           {{ unreadCount > 99 ? '99+' : unreadCount }}
         </span>
@@ -161,6 +161,7 @@ function handleDelete(e: Event) {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

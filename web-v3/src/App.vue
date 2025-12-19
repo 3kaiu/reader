@@ -43,7 +43,11 @@ const theme = computed(() => (settingsStore.isDark ? darkTheme : undefined))
   >
     <NMessageProvider>
       <NDialogProvider>
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </router-view>
         
         <!-- 全局登录弹窗 -->
         <LoginModal v-model:show="userStore.showLoginModal" />
@@ -59,5 +63,21 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+/* 页面转场动画 - Zoom In + Fade */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: scale(1.02);
 }
 </style>

@@ -350,17 +350,21 @@ onMounted(() => {
             </div>
           </div>
           
-          <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">
-            <BookCard
+          <div class="flex flex-wrap gap-x-5 gap-y-8 content-start">
+            <div
               v-for="book in filteredBooks"
               :key="book.bookUrl"
-              :book="book"
-              :show-progress="showProgress"
-              :manage-mode="isManageMode"
-              :selected="selectedBooks.has(book.bookUrl)"
-              @click="handleBookClick"
-              @delete="deleteBook"
-            />
+              class="flex-shrink-0 w-[140px] md:w-[160px]"
+            >
+              <BookCard
+                :book="book"
+                :show-progress="showProgress"
+                :manage-mode="isManageMode"
+                :selected="selectedBooks.has(book.bookUrl)"
+                @click="handleBookClick"
+                @delete="deleteBook"
+              />
+            </div>
           </div>
           
           <div v-if="searchKeyword && filteredBooks.length === 0" class="py-16 text-center text-muted-foreground">
