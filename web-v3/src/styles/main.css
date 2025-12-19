@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* 现代化主题变量 */
+@theme {
+  /* 主品牌色 - 现代渐变感 */
+  --color-primary: #6366F1;
+  --color-primary-50: #EEF2FF;
+  --color-primary-100: #E0E7FF;
+  --color-primary-200: #C7D2FE;
+  --color-primary-500: #6366F1;
+  --color-primary-600: #4F46E5;
+  --color-primary-700: #4338CA;
+
+  /* 阅读主题色 - 护眼系列 */
+  --color-reader-light: #FFFFFF;
+  --color-reader-paper: #FBF9F3;
+  --color-reader-sepia: #F4ECD8;
+  --color-reader-green: #E8F5E9;
+  --color-reader-night: #121212;
+  --color-reader-night-text: #B0B0B0;
+
+  /* 现代中性色 */
+  --color-surface: #FAFAFA;
+  --color-surface-dark: #18181B;
+  --color-border: #E4E4E7;
+  --color-border-dark: #27272A;
+}
+
+/* 全局样式 */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-surface);
+}
+
+/* 现代卡片效果 */
+.card-modern {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 现代按钮效果 */
+.btn-modern {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%);
+  border-radius: 12px;
+  padding: 10px 20px;
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-modern:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* 毛玻璃效果 */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* 暗色模式 */
+.dark body {
+  background: var(--color-surface-dark);
+}
+
+.dark .card-modern {
+  background: #1F1F23;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark .glass {
+  background: rgba(24, 24, 27, 0.8);
+}
