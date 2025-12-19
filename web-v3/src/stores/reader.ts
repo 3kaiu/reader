@@ -183,9 +183,9 @@ export const useReaderStore = defineStore('reader', () => {
   }
 
   // 跳转到指定章节
-  function goToChapter(index: number) {
+  async function goToChapter(index: number) {
     if (index >= 0 && index < catalog.value.length) {
-      loadChapter(index)
+      await loadChapter(index)
     }
   }
 

@@ -123,9 +123,13 @@ function clearHideTimer() {
 }
 
 // 跳转章节
-function goToChapter(index: number) {
-  readerStore.goToChapter(index)
+async function goToChapter(index: number) {
+  await readerStore.goToChapter(index)
+  // 重新初始化无限滚动，显示新章节
+  readerStore.initInfiniteScroll()
   showCatalog.value = false
+  // 滚动到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // 手势支持
