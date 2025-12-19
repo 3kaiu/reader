@@ -58,6 +58,7 @@ function handleDelete(e: Event) {
         v-if="coverUrl && !coverError"
         :src="coverUrl"
         :alt="book.name"
+        loading="lazy"
         class="w-full h-full object-cover transition-transform group-hover:scale-105"
         @load="coverLoaded = true"
         @error="coverError = true"

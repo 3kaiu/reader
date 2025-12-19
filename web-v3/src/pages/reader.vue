@@ -3,7 +3,7 @@
  * 阅读器页面 - 沉浸式设计
  * 全屏阅读 + 浮动工具栏 + 手势操作
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NDrawer,
@@ -21,10 +21,11 @@ import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 import { bookApi } from '@/api'
 import { FloatingButton } from '@/components/ui'
-import ReadSettings from '@/components/ReadSettings.vue'
-import BookSourcePicker from '@/components/book/BookSourcePicker.vue'
-import BookInfoModal from '@/components/book/BookInfoModal.vue'
-import ChapterList from '@/components/book/ChapterList.vue'
+
+const ReadSettings = defineAsyncComponent(() => import('@/components/ReadSettings.vue'))
+const BookSourcePicker = defineAsyncComponent(() => import('@/components/book/BookSourcePicker.vue'))
+const BookInfoModal = defineAsyncComponent(() => import('@/components/book/BookInfoModal.vue'))
+const ChapterList = defineAsyncComponent(() => import('@/components/book/ChapterList.vue'))
 
 const router = useRouter()
 const route = useRoute()

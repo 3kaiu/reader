@@ -11,6 +11,10 @@ export const useReaderStore = defineStore('reader', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // 缓存
+  const chapterCache = new Map<number, string>()
+  const PRELOAD_COUNT = 5
+
   // 计算属性
   const currentChapter = computed(() => catalog.value[currentChapterIndex.value])
   const totalChapters = computed(() => catalog.value.length)
@@ -27,6 +31,7 @@ export const useReaderStore = defineStore('reader', () => {
     currentBook.value = book
     isLoading.value = true
     error.value = null
+    chapterCache.clear() // 清空缓存
 
     try {
       const res = await bookApi.getChapterList(book.bookUrl)
@@ -50,14 +55,27 @@ export const useReaderStore = defineStore('reader', () => {
   async function loadChapter(index: number) {
     if (!currentBook.value || index < 0 || index >= catalog.value.length) return
 
-    isLoading.value = true
+    // 先设置索引，让UI响应
+    currentChapterIndex.value = index
     error.value = null
+
+    // 检查缓存
+    if (chapterCache.has(index)) {
+      content.value = chapterCache.get(index)!
+      // 触发预加载
+      preloadChapters(index + 1)
+      return
+    }
+
+    isLoading.value = true
 
     try {
       const res = await bookApi.getBookContent(currentBook.value.bookUrl, index)
       if (res.isSuccess) {
         content.value = res.data
-        currentChapterIndex.value = index
+        chapterCache.set(index, res.data)
+        // 触发预加载
+        preloadChapters(index + 1)
       } else {
         error.value = res.errorMsg || '加载内容失败'
       }
@@ -66,6 +84,29 @@ export const useReaderStore = defineStore('reader', () => {
       console.error(e)
     } finally {
       isLoading.value = false
+    }
+  }
+
+  // 预加载章节
+  async function preloadChapters(startIndex: number) {
+    if (!currentBook.value) return
+
+    for (let i = 0; i < PRELOAD_COUNT; i++) {
+      const targetIndex = startIndex + i
+      if (targetIndex >= catalog.value.length) break
+
+      if (!chapterCache.has(targetIndex)) {
+        try {
+          // 静默加载，不影响 isLoading
+          bookApi.getBookContent(currentBook.value.bookUrl, targetIndex).then(res => {
+            if (res.isSuccess) {
+              chapterCache.set(targetIndex, res.data)
+            }
+          })
+        } catch (e) {
+          // 忽略预加载错误
+        }
+      }
     }
   }
 
@@ -101,7 +142,8 @@ export const useReaderStore = defineStore('reader', () => {
       if (catalogRes.isSuccess) {
         catalog.value = catalogRes.data
       }
-      // 再刷新当前章节内容
+      // 清除当前缓存并强制刷新
+      chapterCache.delete(currentChapterIndex.value)
       await loadChapter(currentChapterIndex.value)
     } finally {
       isLoading.value = false
@@ -115,6 +157,7 @@ export const useReaderStore = defineStore('reader', () => {
     currentChapterIndex.value = 0
     content.value = ''
     error.value = null
+    chapterCache.clear()
   }
 
   return {
