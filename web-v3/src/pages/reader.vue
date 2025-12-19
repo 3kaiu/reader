@@ -12,8 +12,8 @@ import {
   NSpace,
   useMessage,
 } from 'naive-ui'
-import { Moon, Sun, Globe, Settings, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { useFullscreen, onKeyStroke, useSwipe } from '@vueuse/core'
+import { Moon, Sun, Globe, Settings, RefreshCw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-vue-next'
+import { useFullscreen, onKeyStroke, useSwipe, useScroll, useThrottleFn } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 import { bookApi } from '@/api'
@@ -55,14 +55,15 @@ const themeClass = computed(() => {
   return `theme-${settingsStore.config.theme}`
 })
 
-const formattedContent = computed(() => {
-  if (!readerStore.content) return ''
-  return readerStore.content
+// 格式化章节内容
+function formatContent(text: string): string {
+  if (!text) return ''
+  return text
     .split('\n')
-    .filter(p => p.trim())
-    .map(p => `<p class="content-paragraph" style="margin-bottom: ${settingsStore.config.paragraphSpacing}em">${p.trim()}</p>`)
+    .filter((p: string) => p.trim())
+    .map((p: string) => `<p class="content-paragraph" style="margin-bottom: ${settingsStore.config.paragraphSpacing}em">${p.trim()}</p>`)
     .join('')
-})
+}
 
 
 // ====== 方法 ======
@@ -80,6 +81,8 @@ async function init() {
     const res = await bookApi.getBookInfo(bookUrl)
     if (res.isSuccess) {
       await readerStore.openBook(res.data)
+      // 初始化无限滚动模式
+      readerStore.initInfiniteScroll()
     } else {
       message.error(res.errorMsg || '获取书籍信息失败')
     }
@@ -132,8 +135,27 @@ const { direction } = useSwipe(contentRef)
 watch(direction, (dir) => {
   if (dir === 'left') {
     readerStore.nextChapter()
+    readerStore.initInfiniteScroll()
   } else if (dir === 'right') {
     readerStore.prevChapter()
+    readerStore.initInfiniteScroll()
+  }
+})
+
+// 无限滚动监听
+const scrollContainer = ref<HTMLElement | null>(null)
+const { arrivedState } = useScroll(scrollContainer, { offset: { bottom: 300 } })
+
+// 节流的加载更多函数
+const loadMoreThrottled = useThrottleFn(async () => {
+  if (arrivedState.bottom && readerStore.hasNextChapter && !readerStore.isLoadingMore) {
+    await readerStore.appendNextChapter()
+  }
+}, 500)
+
+watch(() => arrivedState.bottom, (isBottom) => {
+  if (isBottom) {
+    loadMoreThrottled()
   }
 })
 
@@ -253,24 +275,50 @@ onUnmounted(() => {
         </header>
       </Transition>
       
-      <!-- 章节标题 -->
-      <div class="pt-24 pb-8 text-center">
+      <!-- 章节标题 (只在第一章时显示) -->
+      <div v-if="readerStore.loadedChapters.length === 0" class="pt-24 pb-8 text-center">
         <h2 class="chapter-title text-xl font-bold opacity-80 inline-block">
           {{ readerStore.currentChapter?.title }}
         </h2>
       </div>
       
-      <!-- 正文 -->
-      <article
-        class="mx-auto px-6 pb-40"
-        :style="contentStyle"
+      <!-- 正文 (无限滚动模式) -->
+      <div 
+        ref="scrollContainer"
+        class="mx-auto px-6 pb-40 pt-20 overflow-y-auto" 
+        :style="{ ...contentStyle, maxHeight: '100vh' }"
         @click.stop
       >
-        <div
-          class="reader-text"
-          v-html="formattedContent"
-        />
-      </article>
+        <!-- 多章节内容 -->
+        <template v-for="chapter in readerStore.loadedChapters" :key="chapter.index">
+          <!-- 章节标题 -->
+          <div class="text-center py-8 border-t border-border/30 first:border-t-0 first:pt-0">
+            <h2 class="chapter-title text-xl font-bold opacity-80 inline-block">
+              {{ chapter.title }}
+            </h2>
+          </div>
+          <!-- 章节内容 -->
+          <article class="reader-text">
+            <div v-html="formatContent(chapter.content)" />
+          </article>
+        </template>
+        
+        <!-- 加载更多指示器 -->
+        <div v-if="readerStore.isLoadingMore" class="py-8 text-center">
+          <Loader2 class="w-6 h-6 animate-spin mx-auto opacity-50" />
+          <p class="text-sm opacity-50 mt-2">加载下一章...</p>
+        </div>
+        
+        <!-- 已加载到末尾 -->
+        <div v-else-if="!readerStore.hasNextChapter && readerStore.loadedChapters.length > 0" class="py-8 text-center">
+          <p class="text-sm opacity-50">—— 已是最后一章 ——</p>
+        </div>
+        
+        <!-- 继续滚动提示 -->
+        <div v-else-if="readerStore.loadedChapters.length > 0" class="py-8 text-center">
+          <p class="text-sm opacity-40">↓ 继续滚动加载下一章 ↓</p>
+        </div>
+      </div>
       
       <!-- 底部工具栏 -->
       <Transition name="slide-up">

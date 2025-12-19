@@ -9,7 +9,11 @@ export const useReaderStore = defineStore('reader', () => {
   const currentChapterIndex = ref(0)
   const content = ref('')
   const isLoading = ref(false)
+  const isLoadingMore = ref(false)  // 加载更多章节状态
   const error = ref<string | null>(null)
+
+  // 无限滚动模式: 存储已加载的章节内容
+  const loadedChapters = ref<{ index: number; title: string; content: string }[]>([])
 
   // 缓存
   const chapterCache = new Map<number, string>()
@@ -117,6 +121,60 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
+  // 追加下一章 (无限滚动模式)
+  async function appendNextChapter(): Promise<boolean> {
+    if (!currentBook.value || isLoadingMore.value) return false
+
+    // 找到已加载章节中最大的索引
+    const maxLoadedIndex = loadedChapters.value.length > 0
+      ? Math.max(...loadedChapters.value.map(c => c.index))
+      : currentChapterIndex.value
+
+    const nextIndex = maxLoadedIndex + 1
+    if (nextIndex >= catalog.value.length) return false
+
+    isLoadingMore.value = true
+
+    try {
+      // 检查缓存
+      let chapterContent: string
+      if (chapterCache.has(nextIndex)) {
+        chapterContent = chapterCache.get(nextIndex)!
+      } else {
+        const res = await bookApi.getBookContent(currentBook.value.bookUrl, nextIndex)
+        if (!res.isSuccess) return false
+        chapterContent = res.data
+        chapterCache.set(nextIndex, chapterContent)
+      }
+
+      // 追加到已加载章节
+      loadedChapters.value.push({
+        index: nextIndex,
+        title: catalog.value[nextIndex]?.title || `第${nextIndex + 1}章`,
+        content: chapterContent
+      })
+
+      // 触发预加载
+      preloadChapters(nextIndex + 1)
+
+      return true
+    } catch (e) {
+      console.error('加载下一章失败:', e)
+      return false
+    } finally {
+      isLoadingMore.value = false
+    }
+  }
+
+  // 初始化无限滚动模式
+  function initInfiniteScroll() {
+    loadedChapters.value = [{
+      index: currentChapterIndex.value,
+      title: currentChapter.value?.title || '',
+      content: content.value
+    }]
+  }
+
   // 上一章
   function prevChapter() {
     if (hasPrevChapter.value) {
@@ -157,6 +215,7 @@ export const useReaderStore = defineStore('reader', () => {
     currentChapterIndex.value = 0
     content.value = ''
     error.value = null
+    loadedChapters.value = []
     chapterCache.clear()
   }
 
@@ -166,18 +225,22 @@ export const useReaderStore = defineStore('reader', () => {
     currentChapterIndex,
     content,
     isLoading,
+    isLoadingMore,
     error,
     currentChapter,
     totalChapters,
     hasNextChapter,
     hasPrevChapter,
     progress,
+    loadedChapters,
     openBook,
     loadChapter,
     nextChapter,
     prevChapter,
     goToChapter,
     refreshChapter,
+    appendNextChapter,
+    initInfiniteScroll,
     reset,
   }
 })
