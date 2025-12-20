@@ -170,30 +170,53 @@ export const useAIStore = defineStore('ai', () => {
         }
     }
 
-    // 生成回复
+    // 生成回复 (支持 JSON Mode 和 Seed)
     async function chat(
         messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
         options?: {
             temperature?: number
             maxTokens?: number
             onStream?: (text: string) => void
+            jsonMode?: boolean  // JSON 结构化输出
+            seed?: number       // 可复现种子
         }
     ): Promise<string> {
         if (!engine.value || !isModelLoaded.value) {
             throw new Error('模型未加载')
         }
 
-        const { temperature = 0.7, maxTokens = 1024, onStream } = options || {}
+        const {
+            temperature = 0.7,
+            maxTokens = 1024,
+            onStream,
+            jsonMode = false,
+            seed
+        } = options || {}
+
+        // 构建请求参数
+        const requestParams: any = {
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+        }
+
+        // 添加 JSON Mode
+        if (jsonMode) {
+            requestParams.response_format = { type: 'json_object' }
+        }
+
+        // 添加 Seed
+        if (seed !== undefined) {
+            requestParams.seed = seed
+        }
 
         try {
             if (onStream) {
                 // 流式输出
                 let fullResponse = ''
                 const asyncChunkGenerator = await engine.value.chat.completions.create({
-                    messages,
-                    temperature,
-                    max_tokens: maxTokens,
-                    stream: true,
+                    ...requestParams,
+                    stream: true as const,
                 })
 
                 for await (const chunk of asyncChunkGenerator) {
@@ -205,12 +228,7 @@ export const useAIStore = defineStore('ai', () => {
                 return fullResponse
             } else {
                 // 非流式
-                const response = await engine.value.chat.completions.create({
-                    messages,
-                    temperature,
-                    max_tokens: maxTokens,
-                })
-
+                const response = await engine.value.chat.completions.create(requestParams)
                 return response.choices[0]?.message?.content || ''
             }
         } catch (e) {
@@ -289,14 +307,24 @@ export const useAIStore = defineStore('ai', () => {
             const response = await chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
-            ], { temperature: 0.3 })
+            ], {
+                temperature: 0.3,
+                jsonMode: true  // 使用 JSON Mode 确保输出格式
+            })
 
             // 解析 JSON
-            const jsonMatch = response.match(/\[[\s\S]*\]/)
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0])
+            try {
+                const parsed = JSON.parse(response)
+                // 支持 { results: [...] } 或直接 [...] 格式
+                return Array.isArray(parsed) ? parsed : (parsed.results || [])
+            } catch {
+                // 如果 JSON Mode 失败，尝试提取 JSON 数组
+                const jsonMatch = response.match(/\[[\s\S]*\]/)
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0])
+                }
+                return []
             }
-            return []
         } catch (e) {
             console.error('谐音识别失败:', e)
             return []
