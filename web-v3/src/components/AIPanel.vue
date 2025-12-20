@@ -5,7 +5,7 @@
  */
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAI } from '@/composables/useAI'
+import { useAIStore } from '@/stores/ai'
 import { useReaderStore } from '@/stores/reader'
 import { getCache, setCache } from '@/composables/useAICache'
 import { Brain, Sparkles, Loader2, MessageSquare, FileText, Users, RefreshCw, Settings, Database } from 'lucide-vue-next'
@@ -28,7 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const ai = useAI()
+const aiStore = useAIStore()
 const readerStore = useReaderStore()
 
 // 状态
@@ -44,7 +44,7 @@ const fromCache = ref(false) // 结果来自缓存
 // 初始化检测
 watch(() => props.open, async (open) => {
   if (open) {
-    await ai.checkSupport()
+    await aiStore.checkSupport()
   }
 })
 
@@ -56,7 +56,7 @@ function goToSettings() {
 
 // 生成摘要
 async function generateSummary(forceRefresh = false) {
-  if (!ai.isModelLoaded.value || !readerStore.content) return
+  if (!aiStore.isModelLoaded.value || !readerStore.content) return
   
   const bookUrl = readerStore.currentBook?.bookUrl
   const chapterIndex = readerStore.currentChapterIndex
@@ -77,7 +77,7 @@ async function generateSummary(forceRefresh = false) {
   summaryResult.value = ''
   
   try {
-    await ai.summarizeChapter(
+    await aiStore.summarizeChapter(
       readerStore.content,
       readerStore.currentChapter?.title,
       (text: string) => { summaryResult.value = text }
@@ -97,7 +97,7 @@ async function generateSummary(forceRefresh = false) {
 
 // 检测谐音
 async function detectHomophones(forceRefresh = false) {
-  if (!ai.isModelLoaded.value || !readerStore.content) return
+  if (!aiStore.isModelLoaded.value || !readerStore.content) return
   
   const bookUrl = readerStore.currentBook?.bookUrl
   const chapterIndex = readerStore.currentChapterIndex
@@ -117,7 +117,7 @@ async function detectHomophones(forceRefresh = false) {
   homophoneResult.value = []
   
   try {
-    homophoneResult.value = await ai.detectHomophones(readerStore.content)
+    homophoneResult.value = await aiStore.detectHomophones(readerStore.content)
     
     // 保存到缓存
     if (bookUrl && homophoneResult.value.length > 0) {
@@ -132,14 +132,14 @@ async function detectHomophones(forceRefresh = false) {
 
 // 智能问答
 async function askQuestion() {
-  if (!ai.isModelLoaded.value || !chatInput.value.trim() || !readerStore.content) return
+  if (!aiStore.isModelLoaded.value || !chatInput.value.trim() || !readerStore.content) return
   
   isProcessing.value = true
   isStreaming.value = true
   chatResult.value = ''
   
   try {
-    await ai.askAboutBook(
+    await aiStore.askAboutBook(
       chatInput.value,
       readerStore.content,
       (text: string) => { chatResult.value = text }
@@ -170,13 +170,13 @@ async function askQuestion() {
       </SheetHeader>
 
       <!-- WebGPU 不支持提示 -->
-      <div v-if="!ai.isSupported.value" class="p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+      <div v-if="!aiStore.isSupported.value" class="p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
         <p class="font-medium mb-1">⚠️ 不支持 WebGPU</p>
         <p class="opacity-80">您的浏览器不支持 WebGPU，请使用 Chrome 113+ 或 Edge 113+。</p>
       </div>
 
       <!-- 模型未加载 -->
-      <div v-else-if="!ai.isModelLoaded.value" class="py-12 text-center">
+      <div v-else-if="!aiStore.isModelLoaded.value" class="py-12 text-center">
         <div class="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
           <Brain class="h-8 w-8 text-muted-foreground" />
         </div>
@@ -196,7 +196,7 @@ async function askQuestion() {
         <div class="flex items-center justify-between p-3 rounded-xl bg-muted/50">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span class="text-xs text-muted-foreground">{{ ai.currentModel.value?.split('-').slice(0, 2).join(' ') }}</span>
+            <span class="text-xs text-muted-foreground">{{ aiStore.currentModel.value?.split('-').slice(0, 2).join(' ') }}</span>
           </div>
         </div>
 
