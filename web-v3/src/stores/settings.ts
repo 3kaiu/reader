@@ -32,6 +32,12 @@ export interface ReaderConfig {
   readingMode: ReadingMode
   clickToNextPage: boolean
   pageAnimation: PageAnimation
+  // AI 设置
+  autoSummary: boolean
+  autoSummaryParams: {
+    model: string
+    prompt: string
+  }
 }
 
 const defaultConfig: ReaderConfig = {
@@ -49,6 +55,11 @@ const defaultConfig: ReaderConfig = {
   readingMode: 'scroll',
   clickToNextPage: true,
   pageAnimation: 'slide',
+  autoSummary: false,
+  autoSummaryParams: {
+    model: 'gpt-3.5-turbo',
+    prompt: '请用一句话总结本章内容'
+  }
 }
 
 export const useSettingsStore = defineStore('settings', () => {

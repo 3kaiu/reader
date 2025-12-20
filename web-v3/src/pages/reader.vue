@@ -5,25 +5,24 @@
  */
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, defineAsyncComponent, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useMessage } from 'naive-ui'
 import {
-  NSpin,
-  useMessage,
-} from 'naive-ui'
-import { 
-  Moon, Sun, ArrowLeftRight, Type, RotateCcw, Loader2,
-  ChevronLeft, ChevronRight, Volume2, Pause, Play, X
+  ArrowLeft, Settings, List, Moon, Sun,
+  ChevronLeft, ChevronRight, RotateCcw,
+  Download, Type, ArrowLeftRight, X,
+  Pause, Play, Volume2
 } from 'lucide-vue-next'
-import { useFullscreen, onKeyStroke, useSwipe, useScroll, useThrottleFn, useResizeObserver, useDateFormat, useNow } from '@vueuse/core'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 import { bookApi } from '@/api'
+import { useFullscreen, useStorage, onKeyStroke, useResizeObserver, useThrottleFn, useSwipe, onLongPress, useDateFormat, useNow, useScroll } from '@vueuse/core'
+import ReadSettings from '@/components/ReadSettings.vue'
+import BookSourcePicker from '@/components/book/BookSourcePicker.vue'
+import ChapterList from '@/components/book/ChapterList.vue'
+import BookInfoModal from '@/components/book/BookInfoModal.vue'
+import AIPanel from '@/components/AIPanel.vue'
+import ChapterSummary from '@/components/book/ChapterSummary.vue'
 import { useTTS } from '@/composables/useTTS'
-
-const ReadSettings = defineAsyncComponent(() => import('@/components/ReadSettings.vue'))
-const BookSourcePicker = defineAsyncComponent(() => import('@/components/book/BookSourcePicker.vue'))
-const BookInfoModal = defineAsyncComponent(() => import('@/components/book/BookInfoModal.vue'))
-const ChapterList = defineAsyncComponent(() => import('@/components/book/ChapterList.vue'))
-const AIPanel = defineAsyncComponent(() => import('@/components/AIPanel.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -839,6 +838,10 @@ onUnmounted(() => {
               {{ chapter.title }}
             </h2>
           </div>
+          
+          <!-- 智能摘要 -->
+          <ChapterSummary :chapter="chapter" />
+          
           <!-- 章节内容 -->
           <article class="reader-text">
             <div v-html="formatContent(chapter.content)" />
@@ -906,6 +909,12 @@ onUnmounted(() => {
                {{ readerStore.currentChapter?.title || readerStore.currentBook?.durChapterTitle }}
              </h2>
           </div>
+          
+          <!-- 智能摘要 -->
+          <div v-if="readerStore.currentChapter && settingsStore.config.readingMode === 'swipe'" class="px-4 mb-4">
+             <ChapterSummary :chapter="readerStore.currentChapter" />
+          </div>
+
           <!-- 章节内容 -->
           <article class="reader-text text-justify">
             <div v-html="formatContent(readerStore.content)" />

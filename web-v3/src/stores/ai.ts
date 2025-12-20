@@ -379,53 +379,110 @@ export const useAIStore = defineStore('ai', () => {
         ])
     }
 
-    // 谐音识别
+    // 谐音识别与映射分析
     async function detectHomophones(content: string): Promise<Array<{
         original: string
         guess: string
         confidence: number
     }>> {
-        const systemPrompt = `你是一个中文谐音识别助手。华娱/同人小说常用谐音规避审核，例如：
-- "周洁仑" → "周杰伦"
-- "冰冰" → "范冰冰"
-- "天后" → "王菲"
+        const systemPrompt = `你是一个专业的网文/同人小说内容分析助手。你的任务是分析文本中的"隐喻、映射、谐音、代称"。
+很多小说为了规避审核或增加趣味性，会使用谐音、别名或描述性称呼来指代现实中的【人物】或【公司/组织】。
 
-请分析文本，识别可能是现实人物谐音的词语。
+请分析文本，提取这些映射关系。
 
-规则：
-1. 只识别可能是真实明星/名人的谐音
-2. 结合上下文判断（如歌手、演员等描述）
-3. 输出 JSON 数组格式
+# 识别目标
+1. **人物映射**：
+   - 谐音：如 "周洁仑" -> "周杰伦", "杨密" -> "杨幂"
+   - 昵称/黑话：如 "大强子" -> "刘强东", "马总" -> "马云/马化腾"
+   - 描述性指代：如 "那个姓马的互联网大佬"
+2. **公司/组织映射**：
+   - 谐音/变体：如 "企鹅厂" -> "腾讯", "某里" -> "阿里", "菊花厂" -> "华为", "大米科技" -> "小米"
+   - 英文缩写变体：如 "P站" -> "Pixiv/Pornhub" (视上下文)
 
-输出示例：
-[{"original": "周洁仑", "guess": "周杰伦", "confidence": 0.9}]
+# 输出要求
+1. **严格的 JSON 数组格式**。
+2. 每个对象包含：
+   - \`original\`: 文本中出现的词 (必填)
+   - \`guess\`: 猜测的真实名称 (必填)
+   - \`confidence\`: 置信度 (0.0 - 1.0)
+3. **不要**包含 Markdown 标记（如 \`\`\`json）。
+4. 如果原词就是真实名称，**不需要**输出。
+5. 结果去重。
 
-如果没有识别到任何谐音，返回空数组 []`
+# 示例
+输入："企鹅厂的马总和隔壁大米科技的雷布斯在喝茶。"
+输出：
+[
+    {"original": "企鹅厂", "guess": "腾讯", "confidence": 0.95},
+    {"original": "马总", "guess": "马化腾", "confidence": 0.8},
+    {"original": "大米科技", "guess": "小米", "confidence": 0.95},
+    {"original": "雷布斯", "guess": "雷军", "confidence": 0.9}
+]
 
-        const userPrompt = `请分析以下文本中的谐音：\n\n${content.slice(0, 4000)}`
+如果没有发现任何映射，返回空数组 []。`
+
+        const userPrompt = `请分析以下文本中的映射关系：\n\n${content.slice(0, 3000)}`
 
         try {
             const response = await chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ], {
-                temperature: 0.3,
-                jsonMode: true  // 使用 JSON Mode 确保输出格式
+                temperature: 0.1, // 降低随机性，提高格式稳定性
+                jsonMode: true
             })
+
+            let parsed: any = []
 
             // 解析 JSON
             try {
-                const parsed = JSON.parse(response)
-                // 支持 { results: [...] } 或直接 [...] 格式
-                return Array.isArray(parsed) ? parsed : (parsed.results || [])
+                // 尝试清理可能的 Markdown 标记
+                const cleanJson = response.replace(/```json\s*|\s*```/g, '').trim()
+                parsed = JSON.parse(cleanJson)
             } catch {
-                // 如果 JSON Mode 失败，尝试提取 JSON 数组
+                // 如果直接解析失败，尝试提取数组
                 const jsonMatch = response.match(/\[[\s\S]*\]/)
                 if (jsonMatch) {
-                    return JSON.parse(jsonMatch[0])
+                    try {
+                        parsed = JSON.parse(jsonMatch[0])
+                    } catch {
+                        parsed = []
+                    }
                 }
-                return []
             }
+
+            // 规范化数据结构
+            const results = Array.isArray(parsed) ? parsed : (parsed.results || [])
+
+            return results.map((item: any) => {
+                // 处理 confidence
+                let confidence = 0.5
+                if (typeof item.confidence === 'number') {
+                    confidence = item.confidence
+                } else if (typeof item.confidence === 'string') {
+                    if (item.confidence.includes('%')) {
+                        confidence = parseFloat(item.confidence) / 100
+                    } else {
+                        confidence = parseFloat(item.confidence)
+                    }
+                }
+
+                if (isNaN(confidence)) confidence = 0.5
+                confidence = Math.min(Math.max(confidence, 0), 1)
+
+                return {
+                    original: String(item.original || '').trim(),
+                    guess: String(item.guess || '').trim(),
+                    confidence
+                }
+            }).filter((item: any) =>
+                item.original &&
+                item.guess &&
+                item.original !== item.guess && // 过滤掉无效项
+                item.original.length > 0 &&
+                item.guess.length > 0
+            )
+
         } catch (e) {
             console.error('谐音识别失败:', e)
             return []

@@ -40,6 +40,7 @@ const chatResult = ref('')
 const isProcessing = ref(false)
 const isStreaming = ref(false)
 const fromCache = ref(false) // 结果来自缓存
+const hasAnalyzed = ref(false) // 是否执行过分析
 
 // 初始化检测
 watch(() => props.open, async (open) => {
@@ -108,16 +109,19 @@ async function detectHomophones(forceRefresh = false) {
     if (cached) {
       homophoneResult.value = cached.result as any[]
       fromCache.value = true
+      hasAnalyzed.value = true
       return
     }
   }
   
   isProcessing.value = true
   fromCache.value = false
+  hasAnalyzed.value = false
   homophoneResult.value = []
   
   try {
     homophoneResult.value = await aiStore.detectHomophones(readerStore.content)
+    hasAnalyzed.value = true
     
     // 保存到缓存
     if (bookUrl && homophoneResult.value.length > 0) {
@@ -258,26 +262,40 @@ async function askQuestion() {
           >
             <RefreshCw v-if="!isProcessing" class="w-4 h-4 mr-2" />
             <Loader2 v-else class="w-4 h-4 mr-2 animate-spin" />
-            分析本章谐音
+            {{ isProcessing ? '正在分析...' : '分析本章谐音' }}
           </Button>
           
           <div v-if="homophoneResult.length > 0" class="space-y-2">
             <div
               v-for="(item, index) in homophoneResult"
               :key="index"
-              class="p-3 rounded-xl bg-muted/50 flex items-center justify-between"
+              class="p-3 rounded-xl bg-muted/50 flex items-center justify-between group hover:bg-muted transition-colors"
             >
-              <div>
+              <div class="flex items-center gap-2">
                 <span class="text-sm font-medium">{{ item.original }}</span>
-                <span class="text-muted-foreground mx-2">→</span>
+                <span class="text-muted-foreground">→</span>
                 <span class="text-sm text-primary font-medium">{{ item.guess }}</span>
               </div>
-              <span class="text-xs text-muted-foreground">
-                {{ Math.round(item.confidence * 100) }}%
-              </span>
+              <div class="flex items-center gap-2">
+                <!-- 简单的置信度指示条 -->
+                <div class="w-16 h-1.5 bg-background rounded-full overflow-hidden">
+                  <div 
+                    class="h-full bg-primary/60 rounded-full transition-all"
+                    :style="{ width: `${(item.confidence || 0) * 100}%` }" 
+                  />
+                </div>
+                <span class="text-xs text-muted-foreground w-8 text-right">
+                  {{ isNaN(item.confidence) ? '?' : Math.round(item.confidence * 100) }}%
+                </span>
+              </div>
             </div>
           </div>
           
+          <div v-else-if="!isProcessing && hasAnalyzed" class="text-center py-8 text-sm text-muted-foreground bg-muted/30 rounded-xl">
+             <div class="mb-2">🎉</div>
+             没有发现明显的谐音内容
+          </div>
+
           <div v-else-if="!isProcessing" class="text-center py-6 text-sm text-muted-foreground">
             点击上方按钮开始分析华娱/同人小说中的谐音
           </div>

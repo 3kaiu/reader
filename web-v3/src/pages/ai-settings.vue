@@ -6,11 +6,14 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAIStore, RECOMMENDED_MODELS, getAllModels, getVendors } from '@/stores/ai'
-import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle, HardDrive, ChevronDown, ChevronUp, Search } from 'lucide-vue-next'
+import { useSettingsStore } from '@/stores/settings'
+import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle, HardDrive, ChevronDown, ChevronUp, Search, Sparkles } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 
 const router = useRouter()
 const aiStore = useAIStore()
+const settingsStore = useSettingsStore()
 
 // 状态
 const downloadingModel = ref<string | null>(null)
@@ -159,6 +162,29 @@ async function clearCache() {
           <p class="text-xs text-muted-foreground">
             首次下载需要一些时间，模型会缓存到本地，下次打开无需重新下载。
           </p>
+        </div>
+      </section>
+
+      <!-- 功能设置 -->
+      <section v-if="aiStore.isModelLoaded" class="mb-8">
+        <h2 class="text-sm font-medium text-muted-foreground mb-4">功能设置</h2>
+        <div class="p-5 rounded-2xl border bg-card space-y-4">
+           <!-- 自动摘要 -->
+           <div class="flex items-center justify-between">
+             <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <Sparkles class="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <h3 class="font-medium">自动生成摘要</h3>
+                  <p class="text-sm text-muted-foreground">每章开始时自动提炼核心内容</p>
+                </div>
+             </div>
+             <Switch 
+                :checked="settingsStore.config.autoSummary" 
+                @update:checked="(v: boolean) => settingsStore.updateConfig('autoSummary', v)"
+             />
+           </div>
         </div>
       </section>
 
