@@ -92,6 +92,58 @@ const fontWeights = [300, 400, 500, 600, 700]
             >
               {{ theme.label }}
             </button>
+            <!-- 自定义主题按钮 -->
+            <button
+              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 flex items-center justify-center text-xs font-medium relative overflow-hidden"
+              :class="settingsStore.config.theme === 'custom' 
+                ? 'border-primary scale-105 shadow-md' 
+                : 'border-border'"
+              :style="{ 
+                backgroundColor: settingsStore.config.customColors?.background || '#f5f5f5',
+                color: settingsStore.config.customColors?.text || '#333'
+              }"
+              @click="settingsStore.updateConfig('theme', 'custom')"
+            >
+              自定
+            </button>
+          </div>
+          
+          <!-- 自定义颜色选择器 (仅在选择自定义主题时显示) -->
+          <div v-if="settingsStore.config.theme === 'custom'" class="mt-4 p-4 rounded-xl bg-muted/50 space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-sm">背景色</span>
+              <div class="flex items-center gap-2">
+                <input 
+                  type="color" 
+                  :value="settingsStore.config.customColors?.background || '#FAF7ED'"
+                  class="w-10 h-10 rounded-lg cursor-pointer border-0"
+                  @input="(e: Event) => settingsStore.updateConfig('customColors', { 
+                    ...settingsStore.config.customColors, 
+                    background: (e.target as HTMLInputElement).value 
+                  })"
+                />
+                <span class="text-xs text-muted-foreground font-mono">
+                  {{ settingsStore.config.customColors?.background || '#FAF7ED' }}
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm">文字色</span>
+              <div class="flex items-center gap-2">
+                <input 
+                  type="color" 
+                  :value="settingsStore.config.customColors?.text || '#333333'"
+                  class="w-10 h-10 rounded-lg cursor-pointer border-0"
+                  @input="(e: Event) => settingsStore.updateConfig('customColors', { 
+                    ...settingsStore.config.customColors, 
+                    text: (e.target as HTMLInputElement).value 
+                  })"
+                />
+                <span class="text-xs text-muted-foreground font-mono">
+                  {{ settingsStore.config.customColors?.text || '#333333' }}
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -272,6 +324,40 @@ const fontWeights = [300, 400, 500, 600, 700]
               @click="settingsStore.updateConfig('readingMode', 'swipe')"
             >
               左右翻页
+            </button>
+          </div>
+        </section>
+
+        <!-- 翻页动画 (仅左右翻页模式) -->
+        <section v-if="settingsStore.config.readingMode === 'swipe'">
+          <h3 class="text-sm font-medium mb-3">翻页动画</h3>
+          <div class="flex gap-2">
+            <button
+              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              :class="settingsStore.config.pageAnimation === 'slide' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'"
+              @click="settingsStore.updateConfig('pageAnimation', 'slide')"
+            >
+              滑动
+            </button>
+            <button
+              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              :class="settingsStore.config.pageAnimation === 'fade' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'"
+              @click="settingsStore.updateConfig('pageAnimation', 'fade')"
+            >
+              淡入淡出
+            </button>
+            <button
+              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              :class="settingsStore.config.pageAnimation === 'none' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'"
+              @click="settingsStore.updateConfig('pageAnimation', 'none')"
+            >
+              无动画
             </button>
           </div>
         </section>

@@ -328,6 +328,15 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
+  // 设置当前章节索引（不加载内容，用于滚动同步）
+  function setCurrentChapterIndex(index: number) {
+    if (index >= 0 && index < catalog.value.length && index !== currentChapterIndex.value) {
+      currentChapterIndex.value = index
+      // 保存进度
+      saveProgress()
+    }
+  }
+
   // 重置
   function reset() {
     currentBook.value = null
@@ -362,6 +371,7 @@ export const useReaderStore = defineStore('reader', () => {
     refreshChapter,
     appendNextChapter,
     initInfiniteScroll,
+    setCurrentChapterIndex,
     isChapterCached,
     saveProgress,
     reset,

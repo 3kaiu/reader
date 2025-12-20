@@ -6,6 +6,7 @@ export type ReaderTheme = 'white' | 'paper' | 'sepia' | 'gray' | 'green' | 'nigh
 export type FontFamily = 'system' | 'heiti' | 'kaiti' | 'songti' | 'fangsong' | 'lxgw'
 export type ReadingMode = 'scroll' | 'swipe'
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
+export type PageAnimation = 'slide' | 'fade' | 'none'
 
 export interface ReaderConfig {
   // 字体
@@ -30,6 +31,7 @@ export interface ReaderConfig {
   // 阅读方式
   readingMode: ReadingMode
   clickToNextPage: boolean
+  pageAnimation: PageAnimation
 }
 
 const defaultConfig: ReaderConfig = {
@@ -46,6 +48,7 @@ const defaultConfig: ReaderConfig = {
   nightModeEndHour: 6,     // 早上6点
   readingMode: 'scroll',
   clickToNextPage: true,
+  pageAnimation: 'slide',
 }
 
 export const useSettingsStore = defineStore('settings', () => {

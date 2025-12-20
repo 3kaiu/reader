@@ -64,7 +64,20 @@ const themeClass = computed(() => {
   return `theme-${settingsStore.config.theme}`
 })
 
-
+// 翻页动画样式
+const pageTransition = computed(() => {
+  const animation = settingsStore.config.pageAnimation
+  switch (animation) {
+    case 'slide':
+      return 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
+    case 'fade':
+      return 'opacity 0.3s ease-in-out'
+    case 'none':
+      return 'none'
+    default:
+      return 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
+  }
+})
 
 // 是否为夜间模式
 const isNightMode = computed(() => settingsStore.config.theme === 'night')
@@ -516,6 +529,69 @@ watch(() => arrivedState.bottom, (isBottom) => {
   }
 })
 
+// 滚动时更新当前章节索引 (使用 Intersection Observer)
+let chapterObserver: IntersectionObserver | null = null
+
+function setupChapterObserver() {
+  if (settingsStore.config.readingMode !== 'scroll') return
+  
+  // 清理旧的 observer
+  if (chapterObserver) {
+    chapterObserver.disconnect()
+  }
+  
+  // 创建新的 observer
+  // rootMargin: 当章节标题进入视口顶部 100px 位置时触发
+  chapterObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const chapterIndex = parseInt(entry.target.getAttribute('data-chapter-index') || '0')
+        
+        // 当章节标题离开视口顶部（向上滚动时）
+        if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+          // 进入该章节
+          if (chapterIndex !== readerStore.currentChapterIndex) {
+            readerStore.setCurrentChapterIndex(chapterIndex)
+          }
+        }
+        // 当章节标题进入视口（向下滚动回来时）
+        else if (entry.isIntersecting && entry.boundingClientRect.top > 0) {
+          // 如果是第一章之后的章节标题进入视口，说明我们回到了上一章
+          if (chapterIndex > 0 && chapterIndex <= readerStore.currentChapterIndex) {
+            readerStore.setCurrentChapterIndex(chapterIndex - 1)
+          }
+        }
+      })
+    },
+    {
+      rootMargin: '-100px 0px 0px 0px', // 视口顶部 100px 作为触发线
+      threshold: 0
+    }
+  )
+  
+  // 观察所有章节标题
+  nextTick(() => {
+    const markers = document.querySelectorAll('.chapter-marker[data-chapter-index]')
+    markers.forEach((marker) => {
+      chapterObserver?.observe(marker)
+    })
+  })
+}
+
+// 监听模式切换和章节列表变化，重新设置 observer
+watch(
+  [() => settingsStore.config.readingMode, () => readerStore.loadedChapters.length],
+  () => {
+    if (settingsStore.config.readingMode === 'scroll') {
+      setupChapterObserver()
+    } else if (chapterObserver) {
+      chapterObserver.disconnect()
+      chapterObserver = null
+    }
+  },
+  { immediate: true }
+)
+
 // 手动加载下一章
 async function loadNextChapter() {
   if (readerStore.hasNextChapter && !readerStore.isLoadingMore) {
@@ -586,6 +662,12 @@ onUnmounted(() => {
         'h-screen overflow-y-auto': isFullscreen
       }
     ]"
+    :style="settingsStore.config.theme === 'custom' && settingsStore.config.customColors ? {
+      '--custom-bg': settingsStore.config.customColors.background,
+      '--custom-text': settingsStore.config.customColors.text,
+      backgroundColor: settingsStore.config.customColors.background,
+      color: settingsStore.config.customColors.text
+    } : undefined"
     @click="handleSwipeClick"
   >
     <!-- 加载状态 -->
@@ -743,7 +825,10 @@ onUnmounted(() => {
         <!-- 多章节内容 -->
         <template v-for="chapter in readerStore.loadedChapters" :key="chapter.index">
           <!-- 章节标题 -->
-          <div class="text-center py-10 mt-10 first:mt-0">
+          <div 
+            class="chapter-marker text-center py-10 mt-10 first:mt-0"
+            :data-chapter-index="chapter.index"
+          >
             <div class="inline-block px-6 py-2 bg-primary/5 rounded-full mb-4">
               <span class="text-xs opacity-60">第 {{ chapter.index + 1 }} 章</span>
             </div>
@@ -802,8 +887,11 @@ onUnmounted(() => {
             paddingLeft: `${swipeLayout.padding}px`,
             paddingRight: `${swipeLayout.padding}px`,
             height: '100vh',
-            transform: `translateX(-${swipePage * 100}vw)`,
-            transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            transform: settingsStore.config.pageAnimation !== 'fade' 
+              ? `translateX(-${swipePage * 100}vw)` 
+              : 'none',
+            opacity: settingsStore.config.pageAnimation === 'fade' ? 1 : undefined,
+            transition: pageTransition
           }"
         >
           <!-- 章节标题 -->
@@ -1074,6 +1162,13 @@ onUnmounted(() => {
 .theme-night {
   background: #1C1C1E;
   color: #A1A1AA;
+}
+
+/* 自定义主题 - 颜色通过内联样式动态设置 */
+.theme-custom {
+  /* 使用 CSS 变量回退，实际颜色由内联样式覆盖 */
+  background: var(--custom-bg, #FAF7ED);
+  color: var(--custom-text, #333333);
 }
 
 /* ========== 正文排版样式 ========== */

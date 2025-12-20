@@ -19,3 +19,17 @@ app.use(router)
 
 // 挂载
 app.mount('#root')
+
+// 注册 Service Worker (仅在生产环境)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+                console.log('SW 注册成功:', registration.scope)
+            })
+            .catch((error) => {
+                console.log('SW 注册失败:', error)
+            })
+    })
+}
