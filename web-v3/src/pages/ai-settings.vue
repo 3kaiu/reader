@@ -5,8 +5,8 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAIStore, RECOMMENDED_MODELS, getAllModels } from '@/stores/ai'
-import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle, HardDrive, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { useAIStore, RECOMMENDED_MODELS, getAllModels, getVendors } from '@/stores/ai'
+import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle, HardDrive, ChevronDown, ChevronUp, Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
 const router = useRouter()
@@ -16,13 +16,32 @@ const aiStore = useAIStore()
 const downloadingModel = ref<string | null>(null)
 const showAllModels = ref(false)
 const storageUsage = ref<{ used: number; quota: number } | null>(null)
+const searchQuery = ref('')
+const selectedVendor = ref('全部')
 
-// 计算显示的模型列表
+// 获取厂商列表
+const vendors = computed(() => getVendors())
+
+// 计算显示的模型列表（支持搜索和厂商筛选）
 const displayModels = computed(() => {
-  if (showAllModels.value) {
-    return getAllModels()
+  let models = showAllModels.value ? getAllModels() : RECOMMENDED_MODELS.map(m => ({ ...m, vendor: '推荐' }))
+  
+  // 按厂商筛选
+  if (selectedVendor.value !== '全部') {
+    models = models.filter((m: any) => m.vendor === selectedVendor.value)
   }
-  return RECOMMENDED_MODELS
+  
+  // 按搜索词筛选
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    models = models.filter((m: any) => 
+      m.id.toLowerCase().includes(query) || 
+      m.name.toLowerCase().includes(query) ||
+      (m.vendor && m.vendor.toLowerCase().includes(query))
+    )
+  }
+  
+  return models
 })
 
 // 格式化存储大小
@@ -156,6 +175,41 @@ async function clearCache() {
             <ChevronDown v-else class="inline w-3 h-3" />
           </button>
         </div>
+        
+        <!-- 搜索和筛选 (仅在展开全部时显示) -->
+        <div v-if="showAllModels" class="mb-4 space-y-3">
+          <!-- 搜索框 -->
+          <div class="relative">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input 
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索模型名称..."
+              class="w-full pl-10 pr-4 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          
+          <!-- 厂商筛选标签 -->
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="vendor in vendors"
+              :key="vendor"
+              class="px-3 py-1 text-xs rounded-full transition-colors"
+              :class="selectedVendor === vendor 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'"
+              @click="selectedVendor = vendor"
+            >
+              {{ vendor }}
+            </button>
+          </div>
+        </div>
+        
+        <!-- 模型数量提示 -->
+        <p v-if="showAllModels" class="text-xs text-muted-foreground mb-3">
+          找到 {{ displayModels.length }} 个模型
+        </p>
+        
         <div class="space-y-3">
           <div
             v-for="model in displayModels"
@@ -176,12 +230,22 @@ async function clearCache() {
                     >
                       当前
                     </span>
+                    <span 
+                      v-if="model.recommended"
+                      class="px-2 py-0.5 bg-green-500/10 text-green-600 text-xs rounded-full"
+                    >
+                      推荐
+                    </span>
                   </h3>
-                  <p class="text-sm text-muted-foreground">{{ model.description }}</p>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span v-if="model.vendor" class="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      {{ model.vendor }}
+                    </span>
+                    <span class="text-xs text-muted-foreground">{{ model.size }}</span>
+                  </div>
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <span class="text-sm text-muted-foreground">{{ model.size }}</span>
                 <Button 
                   v-if="aiStore.currentModel !== model.id"
                   variant="outline" 

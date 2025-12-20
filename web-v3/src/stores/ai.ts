@@ -43,20 +43,84 @@ export const RECOMMENDED_MODELS = [
     },
 ]
 
-// 获取所有可用模型
+// 模型厂商映射
+const MODEL_VENDORS: Record<string, string> = {
+    'Qwen': '阿里 Qwen',
+    'Llama': 'Meta Llama',
+    'Phi': 'Microsoft Phi',
+    'Gemma': 'Google Gemma',
+    'Mistral': 'Mistral AI',
+    'SmolLM': 'HuggingFace',
+    'TinyLlama': 'TinyLlama',
+    'RedPajama': 'Together AI',
+    'Hermes': 'NousResearch',
+    'WizardMath': 'WizardLM',
+    'stablelm': 'Stability AI',
+}
+
+// 从模型 ID 解析厂商
+function getVendor(modelId: string): string {
+    for (const [key, value] of Object.entries(MODEL_VENDORS)) {
+        if (modelId.toLowerCase().includes(key.toLowerCase())) {
+            return value
+        }
+    }
+    return '其他'
+}
+
+// 从模型 ID 估算大小 (基于参数量和量化)
+function estimateSize(modelId: string): string {
+    const id = modelId.toLowerCase()
+
+    // 解析参数量
+    let params = 0
+    if (id.includes('0.5b')) params = 0.5
+    else if (id.includes('1b') || id.includes('1.5b')) params = 1.5
+    else if (id.includes('2b')) params = 2
+    else if (id.includes('3b')) params = 3
+    else if (id.includes('7b') || id.includes('8b')) params = 7
+    else if (id.includes('13b')) params = 13
+    else if (id.includes('70b')) params = 70
+
+    // 解析量化方式
+    let ratio = 1
+    if (id.includes('q4f16') || id.includes('q4f32')) ratio = 0.5
+    else if (id.includes('q0f16') || id.includes('q0f32')) ratio = 2
+
+    if (params === 0) return '未知'
+
+    const sizeMB = Math.round(params * 1000 * ratio)
+    if (sizeMB >= 1000) {
+        return `~${(sizeMB / 1000).toFixed(1)}GB`
+    }
+    return `~${sizeMB}MB`
+}
+
+// 获取所有可用模型（带厂商和大小）
 export function getAllModels() {
     try {
         const modelList = webllm.prebuiltAppConfig.model_list
-        return modelList.map((m: any) => ({
-            id: m.model_id,
-            name: m.model_id.split('-').slice(0, 3).join(' '),
-            size: '未知',
-            description: m.model_id,
-            recommended: RECOMMENDED_MODELS.some(r => r.id === m.model_id),
-        }))
+        return modelList.map((m: any) => {
+            const id = m.model_id
+            return {
+                id,
+                name: id.split('-').slice(0, 3).join(' '),
+                size: estimateSize(id),
+                vendor: getVendor(id),
+                description: id,
+                recommended: RECOMMENDED_MODELS.some(r => r.id === id),
+            }
+        })
     } catch {
-        return RECOMMENDED_MODELS
+        return RECOMMENDED_MODELS.map(m => ({ ...m, vendor: getVendor(m.id) }))
     }
+}
+
+// 获取所有厂商列表
+export function getVendors(): string[] {
+    const models = getAllModels()
+    const vendors = new Set(models.map((m: any) => m.vendor))
+    return ['全部', ...Array.from(vendors).sort()]
 }
 
 // 模型持久化 key
