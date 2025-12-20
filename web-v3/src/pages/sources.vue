@@ -345,41 +345,59 @@ onMounted(() => loadSources())
 <template>
   <div class="min-h-screen bg-background">
     <!-- 顶部导航 - 与首页风格一致 -->
-    <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
+    <header class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4 gap-4">
         <!-- 返回 + 标题 -->
-        <div class="flex items-center gap-3">
-          <Button variant="ghost" size="icon" @click="router.push('/')">
-            <ArrowLeft class="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 class="text-lg font-semibold">书源管理</h1>
+        <div class="flex items-center gap-2 shrink-0">
+          <button 
+            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+            @click="router.push('/')"
+          >
+            <ArrowLeft class="h-4 w-4" />
+          </button>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Database class="h-4 w-4 text-primary" />
+            </div>
+            <span class="font-semibold hidden sm:inline">书源管理</span>
           </div>
         </div>
         
-        <!-- 搜索 -->
-        <div class="flex-1 flex justify-center mx-4">
-          <div class="w-full max-w-md relative">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              v-model="searchKeyword"
-              placeholder="搜索书源..."
-              class="pl-9"
-            />
+        <!-- 搜索框 - 居中 -->
+        <div class="flex-1 flex justify-center">
+          <div class="w-full max-w-md">
+            <div class="relative group">
+              <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索书源..."
+                class="w-full h-9 pl-10 pr-4 rounded-full bg-muted/50 border-0 text-sm
+                       placeholder:text-muted-foreground/70
+                       focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background
+                       transition-all"
+              />
+            </div>
           </div>
         </div>
 
         <!-- 操作按钮 -->
-        <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="showImport = true">
-            <Upload class="h-4 w-4 mr-2" />
-            导入
-          </Button>
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- 导入 -->
+          <button 
+            class="h-8 px-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors flex items-center gap-1.5"
+            @click="showImport = true"
+          >
+            <Upload class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">导入</span>
+          </button>
+          
+          <!-- 更多菜单 -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal class="h-5 w-5" />
-              </Button>
+              <button class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors">
+                <MoreHorizontal class="h-4 w-4" />
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="w-48">
               <DropdownMenuItem @click="loadSources">
@@ -432,24 +450,22 @@ onMounted(() => loadSources())
         
         <!-- 批量测速按钮 -->
         <div class="flex items-center gap-2 shrink-0">
-          <Button 
+          <button 
             v-if="!isBatchTesting"
-            variant="outline" 
-            size="sm" 
+            class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs font-medium transition-colors flex items-center gap-1.5"
             @click="batchTestSources"
           >
-            <Zap class="h-4 w-4 mr-2" />
+            <Zap class="h-3.5 w-3.5" />
             测速
-          </Button>
-          <Button 
+          </button>
+          <button 
             v-else
-            variant="destructive" 
-            size="sm" 
+            class="h-8 px-3 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-medium transition-colors flex items-center gap-1.5"
             @click="stopBatchTest"
           >
-            <X class="h-4 w-4 mr-2" />
+            <X class="h-3.5 w-3.5" />
             停止
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -495,7 +511,7 @@ onMounted(() => loadSources())
       <div 
         v-else 
         ref="parentRef" 
-        class="overflow-y-auto pb-6" 
+        class="overflow-y-auto pb-6 mx-auto max-w-4xl" 
         :style="{ maxHeight: `${windowHeight - 240}px` }"
       >
         <div
@@ -520,9 +536,9 @@ onMounted(() => loadSources())
             <div
               v-if="filteredSources[virtualRow.index]"
               v-memo="[selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl), isManageMode, filteredSources[virtualRow.index].enabled, filteredSources[virtualRow.index]._ping, filteredSources[virtualRow.index]._bgTest]"
-              class="bg-card rounded-lg border px-3 py-2 transition-all duration-150 hover:shadow-sm cursor-pointer group mx-1 mb-2"
+              class="mx-2 mb-2 p-3 rounded-xl bg-card hover:bg-muted/50 border transition-all duration-200 cursor-pointer group"
               :class="{ 
-                'ring-2 ring-primary': selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl),
+                'ring-2 ring-primary bg-primary/5': selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl),
                 'opacity-50': filteredSources[virtualRow.index].enabled === false
               }"
               @click="isManageMode ? toggleSelect(filteredSources[virtualRow.index]) : openEdit(filteredSources[virtualRow.index])"

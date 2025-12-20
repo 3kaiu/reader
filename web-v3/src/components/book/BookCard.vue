@@ -5,7 +5,6 @@
 import { ref, computed } from 'vue'
 import { BookOpen, MoreVertical, Trash2 } from 'lucide-vue-next'
 import type { Book } from '@/api'
-import { Button } from '@/components/ui/button'
 import LazyImage from '@/components/ui/LazyImage.vue'
 
 const props = withDefaults(defineProps<{
@@ -54,97 +53,112 @@ function handleDelete(e: Event) {
     class="group cursor-pointer"
     @click="emit('click', book)"
   >
-    <!-- 封面 -->
+    <!-- 封面容器 -->
     <div 
-      class="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted 
-             transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
-             group-hover:-translate-y-2 group-hover:scale-[1.02] 
-             group-hover:shadow-2xl group-hover:shadow-primary/20
-             after:absolute after:inset-0 after:rounded-xl after:border after:border-black/5 after:pointer-events-none"
-      :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': selected }"
+      class="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted shadow-sm
+             transition-all duration-300 ease-out
+             group-hover:shadow-lg group-hover:shadow-black/10 dark:group-hover:shadow-black/30
+             group-hover:-translate-y-1"
+      :class="{ 'ring-2 ring-primary': selected }"
     >
+      <!-- 封面图 -->
       <LazyImage
         v-if="coverUrl"
         :src="coverUrl"
         :alt="book.name"
         aspect-ratio="2/3"
-        class="w-full h-full"
-        :class="{ 'group-hover:scale-105 transition-transform duration-700 ease-out': !manageMode }"
+        class="w-full h-full transition-transform duration-500 ease-out"
+        :class="{ 'group-hover:scale-105': !manageMode }"
       />
       
-      <div v-else class="w-full h-full flex items-center justify-center">
-        <BookOpen class="h-8 w-8 text-muted-foreground" />
+      <!-- 无封面占位 -->
+      <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/5">
+        <BookOpen class="h-10 w-10 text-muted-foreground/30" />
       </div>
       
-      <!-- 悬浮遮罩 (仅在非管理模式下显示) -->
-      <div v-if="!manageMode" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 backdrop-blur-[2px]">
-        <div class="px-5 py-2.5 bg-white/10 backdrop-blur-md text-white text-sm font-medium rounded-full border border-white/20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-xl">
+      <!-- 悬浮遮罩 (非管理模式) -->
+      <div 
+        v-if="!manageMode" 
+        class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent 
+               opacity-0 group-hover:opacity-100 
+               flex items-end justify-center pb-6
+               transition-opacity duration-300"
+      >
+        <span class="text-white text-xs font-medium px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full">
           开始阅读
-        </div>
+        </span>
       </div>
 
-      <!-- 管理模式勾选蒙层 -->
-      <div v-if="manageMode" class="absolute inset-0 bg-black/10 flex items-center justify-center transition-opacity" :class="{ 'bg-black/30': selected }">
+      <!-- 管理模式复选框 -->
+      <div v-if="manageMode" class="absolute inset-0 bg-black/5 flex items-center justify-center">
         <div 
-          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
-          :class="selected ? 'bg-primary border-primary' : 'border-white/80 bg-black/20'"
+          class="w-7 h-7 rounded-full flex items-center justify-center transition-all"
+          :class="selected 
+            ? 'bg-primary text-primary-foreground scale-100' 
+            : 'bg-white/80 dark:bg-black/50 border-2 border-muted-foreground/30 scale-90'"
         >
-          <svg v-if="selected" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-primary-foreground"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg v-if="selected" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-4 h-4">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
         </div>
       </div>
       
-      <!-- 更新角标 (非管理模式) -->
+      <!-- 未读数角标 -->
       <div
         v-if="unreadCount > 0 && !manageMode"
-        class="absolute top-2 right-2 flex items-center justify-center"
+        class="absolute top-1.5 right-1.5"
       >
         <span 
-          class="min-w-[18px] h-[18px] px-1.5 flex items-center justify-center
+          class="min-w-[20px] h-5 px-1.5 flex items-center justify-center
                  bg-rose-500 text-white text-[10px] font-bold rounded-full
-                 shadow-sm ring-2 ring-white dark:ring-stone-900"
+                 shadow-lg"
         >
           {{ unreadCount > 99 ? '99+' : unreadCount }}
         </span>
       </div>
       
-      <!-- 进度条 (非管理模式) -->
-      <div v-if="showProgress && progress > 0 && !manageMode" class="absolute bottom-0 inset-x-0 h-1 bg-black/20 backdrop-blur-sm">
+      <!-- 阅读进度条 -->
+      <div 
+        v-if="showProgress && progress > 0 && !manageMode" 
+        class="absolute bottom-0 inset-x-0 h-0.5 bg-black/20"
+      >
         <div 
-          class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-r-full transition-all duration-500" 
+          class="h-full bg-primary transition-all duration-500" 
           :style="{ width: `${progress}%` }" 
         />
-        <span class="absolute right-1 bottom-1.5 text-[9px] text-white/90 font-medium drop-shadow">{{ progress }}%</span>
       </div>
       
-      <!-- 更多菜单 (非管理模式) -->
-      <Button
+      <!-- 更多菜单按钮 -->
+      <button
         v-if="!manageMode"
-        variant="secondary"
-        size="icon"
-        class="absolute bottom-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+        class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm
+               flex items-center justify-center
+               opacity-0 group-hover:opacity-100 hover:bg-black/60
+               transition-opacity"
         @click.stop="showMenu = !showMenu"
       >
-        <MoreVertical class="h-3 w-3" />
-      </Button>
+        <MoreVertical class="h-3.5 w-3.5 text-white" />
+      </button>
       
+      <!-- 下拉菜单 -->
       <div
         v-if="showMenu && !manageMode"
-        class="absolute bottom-8 right-1.5 bg-popover border rounded-md shadow-lg overflow-hidden z-10"
+        class="absolute top-8 right-1.5 bg-popover border rounded-lg shadow-xl overflow-hidden z-10 min-w-[100px]"
         @click.stop
       >
         <button
-          class="flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-accent w-full"
+          class="flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-muted w-full transition-colors"
           @click="handleDelete"
         >
-          <Trash2 class="h-3 w-3" />
-          删除
+          <Trash2 class="h-3.5 w-3.5" />
+          删除书籍
         </button>
       </div>
     </div>
     
-    <!-- 信息 -->
-    <h3 class="mt-2 text-sm font-medium line-clamp-2 leading-tight">{{ book.name }}</h3>
-    <p class="text-xs text-muted-foreground truncate mt-0.5">{{ book.author || '未知作者' }}</p>
+    <!-- 书籍信息 -->
+    <h3 class="mt-2.5 text-sm font-medium line-clamp-2 leading-snug">{{ book.name }}</h3>
+    <p class="text-xs text-muted-foreground truncate mt-1">{{ book.author || '未知作者' }}</p>
   </div>
 </template>
 

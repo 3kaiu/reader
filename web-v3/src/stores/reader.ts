@@ -287,9 +287,12 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
-  // 刷新当前章节
-  async function refreshChapter() {
-    if (!currentBook.value) return
+  // 刷新当前章节 (返回刷新前的滚动比例供调用方恢复)
+  async function refreshChapter(): Promise<number> {
+    if (!currentBook.value) return 0
+
+    // 保存刷新前的滚动比例
+    const scrollRatio = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) || 0
 
     isLoading.value = true
     try {
@@ -301,6 +304,8 @@ export const useReaderStore = defineStore('reader', () => {
       // 清除当前缓存并强制刷新
       chapterCache.delete(currentChapterIndex.value)
       await loadChapter(currentChapterIndex.value)
+
+      return scrollRatio
     } finally {
       isLoading.value = false
     }

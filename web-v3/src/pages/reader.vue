@@ -3,7 +3,7 @@
  * 阅读器页面 - 沉浸式设计
  * 全屏阅读 + 浮动工具栏 + 手势操作
  */
-import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NSpin,
@@ -95,6 +95,16 @@ function formatContent(text: string): string {
     .join('')
 }
 
+// 刷新章节并恢复滚动位置
+async function handleRefresh() {
+  const scrollRatio = await readerStore.refreshChapter()
+  // 等待 DOM 更新后恢复滚动
+  await nextTick()
+  setTimeout(() => {
+    const newScrollHeight = document.documentElement.scrollHeight - window.innerHeight
+    window.scrollTo({ top: scrollRatio * newScrollHeight, behavior: 'instant' })
+  }, 100)
+}
 
 // ====== 方法 ======
 
@@ -274,7 +284,7 @@ onUnmounted(() => {
           <div class="flex gap-3">
             <button 
               class="flex-1 py-2.5 px-4 rounded-xl bg-current/5 hover:bg-current/10 text-sm transition-colors flex items-center justify-center gap-1"
-              @click="readerStore.refreshChapter()"
+              @click="handleRefresh()"
             >
               <RotateCcw class="w-4 h-4" />
               重试
@@ -410,7 +420,7 @@ onUnmounted(() => {
         
         <!-- 已加载到末尾 -->
         <div v-else-if="!readerStore.hasNextChapter && readerStore.loadedChapters.length > 0" class="py-16 text-center">
-          <div class="inline-block px-8 py-3 bg-muted/50 rounded-full">
+          <div class="inline-block px-8 py-3 bg-current/5 rounded-full">
             <p class="text-sm opacity-60">🎉 恭喜，已读完全书 🎉</p>
           </div>
         </div>
@@ -418,7 +428,7 @@ onUnmounted(() => {
         <!-- 加载下一章按钮 -->
         <div v-else-if="readerStore.loadedChapters.length > 0" class="py-12 text-center">
           <button 
-            class="px-6 py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-sm font-medium transition-colors"
+            class="px-6 py-3 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
             @click="loadNextChapter"
           >
             加载下一章
@@ -518,7 +528,7 @@ onUnmounted(() => {
               </button>
               
               <!-- 刷新 -->
-              <button class="toolbar-item" @click="readerStore.refreshChapter()">
+              <button class="toolbar-item" @click="handleRefresh()">
                 <div class="toolbar-item-icon">
                   <RotateCcw class="w-5 h-5" />
                 </div>
@@ -538,7 +548,7 @@ onUnmounted(() => {
       :book-name="readerStore.currentBook?.name"
       :loading="readerStore.isLoading"
       @select="goToChapter"
-      @refresh="readerStore.refreshChapter()"
+      @refresh="handleRefresh()"
     />
     
     <!-- 设置抽屉 -->

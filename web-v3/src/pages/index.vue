@@ -7,12 +7,11 @@ import { useRouter } from 'vue-router'
 import { useDark, useToggle, useStorage } from '@vueuse/core'
 import { 
   Search, Plus, Settings, Moon, Sun, RefreshCw, 
-  BookOpen, Library, ChevronRight, Compass, Database, Folder, Regex,
+  BookOpen, Library, Database, Folder, Regex,
   CheckSquare, Trash2, X
 } from 'lucide-vue-next'
 import { bookApi, type Book, manageApi } from '@/api'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import BookCard from '@/components/book/BookCard.vue'
 import { SkeletonLoader } from '@/components/ui'
@@ -38,11 +37,36 @@ const isManageMode = ref(false)
 const selectedBooks = ref<Set<string>>(new Set())
 
 // ====== 计算属性 ======
+
+// 按书名+作者去重，保留最近阅读的版本
+const deduplicatedBooks = computed(() => {
+  const bookMap = new Map<string, { book: Book; sourceCount: number }>()
+  
+  for (const book of books.value) {
+    // 使用 书名+作者 作为唯一标识
+    const key = `${book.name}||${book.author || ''}`
+    const existing = bookMap.get(key)
+    
+    if (!existing) {
+      bookMap.set(key, { book, sourceCount: 1 })
+    } else {
+      // 增加源计数
+      existing.sourceCount++
+      // 保留最近阅读的版本（durChapterTime 更大的）
+      if ((book.durChapterTime || 0) > (existing.book.durChapterTime || 0)) {
+        existing.book = book
+      }
+    }
+  }
+  
+  return Array.from(bookMap.values())
+})
+
 const filteredBooks = computed(() => {
-  if (!searchKeyword.value) return books.value
+  if (!searchKeyword.value) return deduplicatedBooks.value
   const keyword = searchKeyword.value.toLowerCase()
-  return books.value.filter(
-    book => book.name.toLowerCase().includes(keyword) ||
+  return deduplicatedBooks.value.filter(
+    ({ book }) => book.name.toLowerCase().includes(keyword) ||
             (book.author || '').toLowerCase().includes(keyword)
   )
 })
@@ -104,7 +128,7 @@ function selectAll() {
   if (selectedBooks.value.size === filteredBooks.value.length) {
     selectedBooks.value.clear()
   } else {
-    filteredBooks.value.forEach(b => selectedBooks.value.add(b.bookUrl))
+    filteredBooks.value.forEach(({ book }) => selectedBooks.value.add(book.bookUrl))
   }
 }
 
@@ -160,48 +184,70 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-background">
     <!-- 导航栏 -->
-    <header class="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
+    <header class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b">
+      <div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4 gap-4">
         <!-- Logo -->
-        <div class="mr-4 flex items-center gap-2">
-          <Library class="h-5 w-5" />
-          <span class="font-semibold">阅读</span>
+        <div class="flex items-center gap-2.5 shrink-0">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Library class="h-4 w-4 text-primary" />
+          </div>
+          <span class="font-semibold text-lg hidden sm:inline">阅读</span>
         </div>
         
-        <!-- 搜索 -->
+        <!-- 搜索框 - 居中 -->
         <div class="flex-1 flex justify-center">
-          <div class="w-full max-w-md relative">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              v-model="searchKeyword"
-              placeholder="搜索书架..."
-              class="pl-9"
-            />
+          <div class="w-full max-w-md">
+            <div class="relative group">
+              <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索书架..."
+                class="w-full h-9 pl-10 pr-4 rounded-full bg-muted/50 border-0 text-sm
+                       placeholder:text-muted-foreground/70
+                       focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background
+                       transition-all"
+              />
+            </div>
           </div>
         </div>
         
-        <!-- 桌面端导航 -->
-        <nav class="hidden md:flex items-center gap-6 mx-6 text-sm font-medium">
-           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/sources')">书源</a>
-           <a class="transition-colors hover:text-foreground/80 text-foreground/60 cursor-pointer" @click="router.push('/settings')">设置</a>
-        </nav>
-
-        <!-- 操作 -->
-        <div class="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" @click="goSearch">
-            <Plus class="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" @click="toggleDark()">
+        <!-- 右侧操作 -->
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- 添加书籍 -->
+          <button 
+            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+            title="搜索添加"
+            @click="goSearch"
+          >
+            <Plus class="h-4.5 w-4.5" />
+          </button>
+          
+          <!-- 刷新 -->
+          <button 
+            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+            title="刷新书架"
+            @click="refresh"
+          >
+            <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': refreshing }" />
+          </button>
+          
+          <!-- 暗色模式 -->
+          <button 
+            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+            @click="toggleDark()"
+          >
             <Moon v-if="!isDark" class="h-4 w-4" />
             <Sun v-else class="h-4 w-4" />
-          </Button>
-          <div class="md:hidden">
-            <Sheet v-model:open="showSidebar">
-              <SheetTrigger as-child>
-                <Button variant="ghost" size="icon">
-                  <Settings class="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
+          </button>
+          
+          <!-- 菜单 -->
+          <Sheet v-model:open="showSidebar">
+            <SheetTrigger as-child>
+              <button class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors">
+                <Settings class="h-4 w-4" />
+              </button>
+            </SheetTrigger>
             <SheetContent>
               <div class="space-y-6 pt-6">
                 <div class="flex items-center justify-between">
@@ -256,7 +302,6 @@ onMounted(() => {
               </div>
             </SheetContent>
           </Sheet>
-          </div>
         </div>
       </div>
     </header>
@@ -358,9 +403,9 @@ onMounted(() => {
           
           <div class="flex flex-wrap gap-x-5 gap-y-8 content-start">
             <div
-              v-for="book in filteredBooks"
+              v-for="{ book, sourceCount } in filteredBooks"
               :key="book.bookUrl"
-              class="flex-shrink-0 w-[140px] md:w-[160px]"
+              class="flex-shrink-0 w-[140px] md:w-[160px] relative"
             >
               <BookCard
                 :book="book"
@@ -370,6 +415,13 @@ onMounted(() => {
                 @click="handleBookClick"
                 @delete="deleteBook"
               />
+              <!-- 多源标识 -->
+              <div 
+                v-if="sourceCount > 1"
+                class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-medium rounded-full shadow-sm"
+              >
+                {{ sourceCount }}源
+              </div>
             </div>
           </div>
           
