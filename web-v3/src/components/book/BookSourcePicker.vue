@@ -148,7 +148,7 @@ async function changeSource(source: BookSource) {
       if (source.type !== undefined) newBook.type = source.type
       if (source.coverUrl) newBook.coverUrl = source.coverUrl
       
-      await readerStore.openBook(newBook)
+      await readerStore.openBook(newBook, true) // refresh=true 强制刷新目录
       emit('update:open', false)
     } else {
       message.error(res.errorMsg || '换源失败')

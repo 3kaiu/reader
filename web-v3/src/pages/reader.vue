@@ -7,9 +7,6 @@ import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } fr
 import { useRouter, useRoute } from 'vue-router'
 import {
   NSpin,
-  NResult,
-  NButton,
-  NSpace,
   useMessage,
 } from 'naive-ui'
 import { 
@@ -247,19 +244,50 @@ onUnmounted(() => {
       </div>
     </div>
     
-    <!-- 错误状态 -->
+    <!-- 错误状态 (使用阅读主题样式) -->
     <div
       v-else-if="readerStore.error"
-      class="min-h-screen flex items-center justify-center"
+      class="min-h-screen flex items-center justify-center p-6"
+      :class="themeClass"
     >
-      <NResult status="error" :title="readerStore.error">
-        <template #footer>
-          <NSpace>
-            <NButton @click="readerStore.refreshChapter()">重试</NButton>
-            <NButton type="primary" @click="goBack">返回书架</NButton>
-          </NSpace>
-        </template>
-      </NResult>
+      <div class="text-center max-w-sm">
+        <!-- 错误图标 - 使用主题色 -->
+        <div class="w-20 h-20 rounded-full bg-current/10 flex items-center justify-center mx-auto mb-6">
+          <svg class="w-10 h-10 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        
+        <!-- 错误信息 -->
+        <h2 class="text-lg font-semibold mb-2 opacity-90">加载失败</h2>
+        <p class="text-sm mb-6 opacity-60">{{ readerStore.error }}</p>
+        
+        <!-- 操作按钮 - 使用协调的颜色 -->
+        <div class="flex flex-col gap-3">
+          <button 
+            class="w-full py-3 px-6 rounded-xl bg-current/10 hover:bg-current/20 font-medium transition-colors flex items-center justify-center gap-2"
+            @click="showSourcePicker = true"
+          >
+            <ArrowLeftRight class="w-4 h-4" />
+            尝试换一个书源
+          </button>
+          <div class="flex gap-3">
+            <button 
+              class="flex-1 py-2.5 px-4 rounded-xl bg-current/5 hover:bg-current/10 text-sm transition-colors flex items-center justify-center gap-1"
+              @click="readerStore.refreshChapter()"
+            >
+              <RotateCcw class="w-4 h-4" />
+              重试
+            </button>
+            <button 
+              class="flex-1 py-2.5 px-4 rounded-xl bg-current/5 hover:bg-current/10 text-sm transition-colors"
+              @click="goBack"
+            >
+              返回书架
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- 阅读内容 -->
@@ -318,6 +346,32 @@ onUnmounted(() => {
         </header>
       </Transition>
       
+      <!-- 内容问题警告横幅 -->
+      <Transition name="slide-down">
+        <div 
+          v-if="readerStore.contentIssue && !showToolbar" 
+          class="fixed top-0 inset-x-0 z-30"
+        >
+          <div class="mx-3 mt-3 px-4 py-3 rounded-2xl bg-amber-500/95 dark:bg-amber-600/95 text-white shadow-lg backdrop-blur">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2 min-w-0">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span class="text-sm font-medium truncate">{{ readerStore.contentIssue }}</span>
+              </div>
+              <button 
+                class="shrink-0 px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5"
+                @click="showSourcePicker = true"
+              >
+                <ArrowLeftRight class="w-3.5 h-3.5" />
+                换源
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <!-- 章节标题 (只在第一章时显示) -->
       <div v-if="readerStore.loadedChapters.length === 0" class="pt-24 pb-8 text-center">
         <h2 class="chapter-title text-xl font-bold opacity-80 inline-block">
@@ -446,10 +500,19 @@ onUnmounted(() => {
                 <span class="toolbar-item-label">设置</span>
               </button>
               
-              <!-- 换源 -->
-              <button class="toolbar-item" @click="showSourcePicker = true">
+              <!-- 换源 (有问题时高亮) -->
+              <button 
+                class="toolbar-item relative" 
+                :class="{ 'text-amber-500': readerStore.contentIssue }"
+                @click="showSourcePicker = true"
+              >
                 <div class="toolbar-item-icon">
                   <ArrowLeftRight class="w-5 h-5" />
+                  <!-- 问题指示点 -->
+                  <span 
+                    v-if="readerStore.contentIssue" 
+                    class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full animate-pulse"
+                  />
                 </div>
                 <span class="toolbar-item-label">换源</span>
               </button>

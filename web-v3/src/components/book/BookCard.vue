@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import { BookOpen, MoreVertical, Trash2 } from 'lucide-vue-next'
 import type { Book } from '@/api'
 import { Button } from '@/components/ui/button'
+import LazyImage from '@/components/ui/LazyImage.vue'
 
 const props = withDefaults(defineProps<{
   book: Book
@@ -23,8 +24,6 @@ const emit = defineEmits<{
   delete: [book: Book]
 }>()
 
-const coverLoaded = ref(false)
-const coverError = ref(false)
 const showMenu = ref(false)
 
 const progress = computed(() => {
@@ -64,25 +63,18 @@ function handleDelete(e: Event) {
              after:absolute after:inset-0 after:rounded-xl after:border after:border-black/5 after:pointer-events-none"
       :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': selected }"
     >
-      <img
-        v-if="coverUrl && !coverError"
+      <LazyImage
+        v-if="coverUrl"
         :src="coverUrl"
         :alt="book.name"
-        loading="lazy"
-        class="w-full h-full object-cover transition-transform duration-700 ease-out"
-        :class="{ 'group-hover:scale-105': !manageMode }"
-        @load="coverLoaded = true"
-        @error="coverError = true"
+        aspect-ratio="2/3"
+        class="w-full h-full"
+        :class="{ 'group-hover:scale-105 transition-transform duration-700 ease-out': !manageMode }"
       />
       
       <div v-else class="w-full h-full flex items-center justify-center">
         <BookOpen class="h-8 w-8 text-muted-foreground" />
       </div>
-      
-      <div
-        v-if="coverUrl && !coverLoaded && !coverError"
-        class="absolute inset-0 bg-muted animate-pulse"
-      />
       
       <!-- 悬浮遮罩 (仅在非管理模式下显示) -->
       <div v-if="!manageMode" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 backdrop-blur-[2px]">

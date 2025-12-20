@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@tanstack/vue-virtual':
+        specifier: ^3.13.13
+        version: 3.13.13(vue@3.5.26(typescript@5.9.3))
       '@vueuse/core':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
