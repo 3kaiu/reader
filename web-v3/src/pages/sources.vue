@@ -1,12 +1,11 @@
 <script setup lang="ts">
 /**
  * 书源管理页面 - 统一风格版
- * 特性：分组筛选、批量测速、虚拟滚动优化、与首页一致的布局风格
+ * 特性：分组筛选、批量测速、响应式网格布局、与首页一致的布局风格
  */
 import { ref, shallowRef, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWindowSize } from '@vueuse/core'
-import { useVirtualizer } from '@tanstack/vue-virtual'
 import { 
   ArrowLeft, Search, RefreshCw, Database, 
   Trash2, Upload, Download, MoreHorizontal, 
@@ -107,16 +106,6 @@ const stats = computed(() => ({
   filtered: filteredSources.value.length,
   selected: selectedUrls.value.size
 }))
-
-// ====== 虚拟滚动 ======
-const parentRef = ref<HTMLElement | null>(null)
-
-const rowVirtualizer = useVirtualizer({
-  get count() { return filteredSources.value.length },
-  getScrollElement: () => parentRef.value,
-  estimateSize: () => 56, // 预估每个项目高度
-  overscan: 5, // 额外渲染的项目数
-})
 
 // ====== 方法 ======
 async function loadSources() {
@@ -507,99 +496,77 @@ onMounted(() => loadSources())
         </Button>
       </div>
 
-      <!-- 书源列表 (虚拟滚动) -->
+      <!-- 书源列表 (网格布局) -->
       <div 
         v-else 
-        ref="parentRef" 
-        class="overflow-y-auto pb-6 mx-auto max-w-4xl" 
+        class="overflow-y-auto pb-6" 
         :style="{ maxHeight: `${windowHeight - 240}px` }"
       >
-        <div
-          :style="{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }"
-        >
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div
-            v-for="virtualRow in rowVirtualizer.getVirtualItems()"
-            :key="virtualRow.key"
-            :style="{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: `${virtualRow.size}px`,
-              transform: `translateY(${virtualRow.start}px)`,
+            v-for="source in filteredSources"
+            :key="source.bookSourceUrl"
+            class="p-3 rounded-xl bg-card hover:bg-muted/50 border transition-all duration-200 cursor-pointer group"
+            :class="{ 
+              'ring-2 ring-primary bg-primary/5': selectedUrls.has(source.bookSourceUrl),
+              'opacity-50': source.enabled === false
             }"
+            @click="isManageMode ? toggleSelect(source) : openEdit(source)"
           >
-            <div
-              v-if="filteredSources[virtualRow.index]"
-              v-memo="[selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl), isManageMode, filteredSources[virtualRow.index].enabled, filteredSources[virtualRow.index]._ping, filteredSources[virtualRow.index]._bgTest]"
-              class="mx-2 mb-2 p-3 rounded-xl bg-card hover:bg-muted/50 border transition-all duration-200 cursor-pointer group"
-              :class="{ 
-                'ring-2 ring-primary bg-primary/5': selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl),
-                'opacity-50': filteredSources[virtualRow.index].enabled === false
-              }"
-              @click="isManageMode ? toggleSelect(filteredSources[virtualRow.index]) : openEdit(filteredSources[virtualRow.index])"
-            >
-              <div class="flex items-center gap-3">
-                <!-- 图标/选择框 -->
-                <div class="shrink-0">
-                  <div v-if="isManageMode" class="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                    <Checkbox 
-                      :checked="selectedUrls.has(filteredSources[virtualRow.index].bookSourceUrl)" 
-                      @update:checked="toggleSelect(filteredSources[virtualRow.index])"
-                      @click.stop
-                      class="scale-90"
-                    />
-                  </div>
-                  <div v-else class="w-8 h-8 rounded-full flex items-center justify-center"
-                       :class="filteredSources[virtualRow.index].enabled !== false ? 'bg-primary/10' : 'bg-muted'">
-                    <Globe :class="filteredSources[virtualRow.index].enabled !== false ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'" />
-                  </div>
-                </div>
-
-                <!-- 内容 -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h3 class="font-medium text-sm truncate">{{ filteredSources[virtualRow.index].bookSourceName }}</h3>
-                    <Badge v-if="filteredSources[virtualRow.index].bookSourceGroup" variant="secondary" class="shrink-0 text-[10px] h-4 px-1">
-                      {{ filteredSources[virtualRow.index].bookSourceGroup }}
-                    </Badge>
-                    <Badge 
-                      v-if="filteredSources[virtualRow.index]._ping !== undefined" 
-                      variant="outline"
-                      class="shrink-0 text-[10px] h-4 px-1"
-                      :class="getPingColor(filteredSources[virtualRow.index]._ping)"
-                    >
-                      {{ filteredSources[virtualRow.index]._ping > 0 ? `${filteredSources[virtualRow.index]._ping}ms` : '超时' }}
-                    </Badge>
-                    <span v-if="filteredSources[virtualRow.index]._bgTest" class="text-[10px] text-muted-foreground animate-pulse">测速中...</span>
-                  </div>
-                  <p class="text-[11px] text-muted-foreground truncate font-mono mt-0.5">
-                    {{ filteredSources[virtualRow.index].bookSourceUrl }}
-                  </p>
-                </div>
-
-                <!-- 操作 -->
-                <div v-if="!isManageMode" class="flex items-center gap-2 shrink-0">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    class="h-7 px-2 text-xs"
-                    :disabled="filteredSources[virtualRow.index]._bgTest"
-                    @click.stop="testSource(filteredSources[virtualRow.index])"
-                  >
-                    <Zap v-if="!filteredSources[virtualRow.index]._bgTest" class="h-3 w-3" />
-                    <RefreshCw v-else class="h-3 w-3 animate-spin" />
-                  </Button>
-                  <Switch 
-                    :checked="filteredSources[virtualRow.index].enabled !== false" 
-                    @update:checked="toggleEnable(filteredSources[virtualRow.index])"
+            <div class="flex items-center gap-3">
+              <!-- 图标/选择框 -->
+              <div class="shrink-0">
+                <div v-if="isManageMode" class="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <Checkbox 
+                    :checked="selectedUrls.has(source.bookSourceUrl)" 
+                    @update:checked="toggleSelect(source)"
                     @click.stop
+                    class="scale-90"
                   />
                 </div>
+                <div v-else class="w-8 h-8 rounded-full flex items-center justify-center"
+                     :class="source.enabled !== false ? 'bg-primary/10' : 'bg-muted'">
+                  <Globe :class="source.enabled !== false ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'" />
+                </div>
+              </div>
+
+              <!-- 内容 -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="font-medium text-sm truncate max-w-[120px]">{{ source.bookSourceName }}</h3>
+                  <Badge v-if="source.bookSourceGroup" variant="secondary" class="shrink-0 text-[10px] h-4 px-1">
+                    {{ source.bookSourceGroup }}
+                  </Badge>
+                  <Badge 
+                    v-if="source._ping !== undefined" 
+                    variant="outline"
+                    class="shrink-0 text-[10px] h-4 px-1"
+                    :class="getPingColor(source._ping)"
+                  >
+                    {{ source._ping > 0 ? `${source._ping}ms` : '超时' }}
+                  </Badge>
+                  <span v-if="source._bgTest" class="text-[10px] text-muted-foreground animate-pulse">测速中...</span>
+                </div>
+                <p class="text-[11px] text-muted-foreground truncate font-mono mt-0.5">
+                  {{ source.bookSourceUrl }}
+                </p>
+              </div>
+
+              <!-- 操作 -->
+              <div v-if="!isManageMode" class="flex items-center gap-2 shrink-0">
+                <button 
+                  class="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                  :disabled="source._bgTest"
+                  @click.stop="testSource(source)"
+                >
+                  <Zap v-if="!source._bgTest" class="h-3.5 w-3.5" />
+                  <RefreshCw v-else class="h-3.5 w-3.5 animate-spin" />
+                </button>
+                <Switch 
+                  :checked="source.enabled !== false" 
+                  @update:checked="toggleEnable(source)"
+                  @click.stop
+                />
               </div>
             </div>
           </div>
