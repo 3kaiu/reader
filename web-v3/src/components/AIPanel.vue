@@ -198,6 +198,10 @@ async function askQuestion() {
             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <span class="text-xs text-muted-foreground">{{ aiStore.currentModel?.split('-').slice(0, 2).join(' ') }}</span>
           </div>
+          <!-- 性能数据 -->
+          <div v-if="aiStore.performance.tokensPerSecond > 0" class="text-xs text-muted-foreground">
+            {{ aiStore.performance.tokensPerSecond }} tok/s
+          </div>
         </div>
 
         <!-- 功能标签页 -->

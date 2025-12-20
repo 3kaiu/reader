@@ -150,6 +150,14 @@ export const useAIStore = defineStore('ai', () => {
     const error = ref<string | null>(null)
     const currentModel = ref<string | null>(null)
 
+    // 性能监控
+    const performance = ref({
+        tokensPerSecond: 0,
+        totalTokens: 0,
+        generationTime: 0,
+        lastUpdated: 0,
+    })
+
     // WebLLM 引擎实例
     const engine = shallowRef<webllm.MLCEngineInterface | null>(null)
 
@@ -275,24 +283,53 @@ export const useAIStore = defineStore('ai', () => {
         }
 
         try {
+            const startTime = Date.now()
+            let tokenCount = 0
+
             if (onStream) {
                 // 流式输出
                 let fullResponse = ''
                 const asyncChunkGenerator = await engine.value.chat.completions.create({
                     ...requestParams,
                     stream: true as const,
+                    stream_options: { include_usage: true },
                 })
 
                 for await (const chunk of asyncChunkGenerator) {
                     const delta = chunk.choices[0]?.delta?.content || ''
                     fullResponse += delta
                     onStream(fullResponse)
+
+                    // 获取 token 使用量
+                    if (chunk.usage) {
+                        tokenCount = chunk.usage.completion_tokens || 0
+                    }
+                }
+
+                // 更新性能数据
+                const elapsed = (Date.now() - startTime) / 1000
+                performance.value = {
+                    tokensPerSecond: tokenCount > 0 ? Math.round(tokenCount / elapsed) : 0,
+                    totalTokens: tokenCount,
+                    generationTime: elapsed,
+                    lastUpdated: Date.now(),
                 }
 
                 return fullResponse
             } else {
                 // 非流式
                 const response = await engine.value.chat.completions.create(requestParams)
+
+                // 更新性能数据
+                const elapsed = (Date.now() - startTime) / 1000
+                tokenCount = response.usage?.completion_tokens || 0
+                performance.value = {
+                    tokensPerSecond: tokenCount > 0 ? Math.round(tokenCount / elapsed) : 0,
+                    totalTokens: tokenCount,
+                    generationTime: elapsed,
+                    lastUpdated: Date.now(),
+                }
+
                 return response.choices[0]?.message?.content || ''
             }
         } catch (e) {
@@ -424,6 +461,7 @@ ${context.slice(0, 4000)}
         loadStatus,
         error,
         currentModel,
+        performance, // 性能监控数据
 
         // 方法
         checkSupport,
