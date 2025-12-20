@@ -3,7 +3,7 @@
  * 阅读器页面 - 沉浸式设计
  * 全屏阅读 + 浮动工具栏 + 手势操作
  */
-import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, defineAsyncComponent, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NSpin,
@@ -225,13 +225,25 @@ onKeyStroke('c', () => showCatalog.value = !showCatalog.value)
 onKeyStroke('s', () => showSettings.value = !showSettings.value)
 onKeyStroke('d', () => settingsStore.toggleDark())
 
+// 页面卸载前保存进度
+function handleBeforeUnload() {
+  readerStore.saveProgress()
+}
+
 // 生命周期
 onMounted(() => {
   init()
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  // 组件卸载前保存进度
+  readerStore.saveProgress()
 })
 
 onUnmounted(() => {
   clearHideTimer()
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   readerStore.reset()
 })
 </script>

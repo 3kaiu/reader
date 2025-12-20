@@ -69,4 +69,8 @@ export const bookApi = {
   // 获取书籍信息
   getBookInfo: (bookUrl: string) =>
     $get<Book>('/getBookInfo', { params: { url: bookUrl } }),
+
+  // 保存阅读进度
+  saveBookProgress: (bookUrl: string, index: number) =>
+    $post('/saveBookProgress', { url: bookUrl, index }),
 }

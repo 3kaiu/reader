@@ -175,6 +175,8 @@ export const useReaderStore = defineStore('reader', () => {
         chapterCache.set(index, res.data)
         // 检测内容问题
         contentIssue.value = detectContentIssue(res.data)
+        // 保存阅读进度
+        saveProgress()
         // 触发预加载
         preloadChapters(index + 1)
       } else {
@@ -311,6 +313,16 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
+  // 保存阅读进度到服务器
+  async function saveProgress() {
+    if (!currentBook.value) return
+    try {
+      await bookApi.saveBookProgress(currentBook.value.bookUrl, currentChapterIndex.value)
+    } catch (e) {
+      console.error('保存进度失败:', e)
+    }
+  }
+
   // 重置
   function reset() {
     currentBook.value = null
@@ -345,6 +357,7 @@ export const useReaderStore = defineStore('reader', () => {
     refreshChapter,
     appendNextChapter,
     initInfiniteScroll,
+    saveProgress,
     reset,
   }
 })
