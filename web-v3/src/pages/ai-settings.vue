@@ -3,20 +3,48 @@
  * AI 模型设置页面
  * 管理端侧 AI 模型的下载、切换、卸载
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAIStore, RECOMMENDED_MODELS } from '@/stores/ai'
-import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle } from 'lucide-vue-next'
+import { useAIStore, RECOMMENDED_MODELS, getAllModels } from '@/stores/ai'
+import { ArrowLeft, Brain, Download, Trash2, Check, Loader2, AlertCircle, HardDrive, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
 const router = useRouter()
 const aiStore = useAIStore()
 
-// 当前下载的模型 ID
+// 状态
 const downloadingModel = ref<string | null>(null)
+const showAllModels = ref(false)
+const storageUsage = ref<{ used: number; quota: number } | null>(null)
+
+// 计算显示的模型列表
+const displayModels = computed(() => {
+  if (showAllModels.value) {
+    return getAllModels()
+  }
+  return RECOMMENDED_MODELS
+})
+
+// 格式化存储大小
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 
 onMounted(async () => {
   await aiStore.checkSupport()
+  
+  // 获取存储使用情况
+  if (navigator.storage?.estimate) {
+    const estimate = await navigator.storage.estimate()
+    storageUsage.value = {
+      used: estimate.usage || 0,
+      quota: estimate.quota || 0
+    }
+  }
 })
 
 // 下载模型
@@ -24,6 +52,24 @@ async function downloadModel(modelId: string) {
   downloadingModel.value = modelId
   await aiStore.loadModel(modelId)
   downloadingModel.value = null
+}
+
+// 清理缓存
+async function clearCache() {
+  if (!confirm('确定要清理所有 AI 模型缓存吗？这将需要重新下载模型。')) return
+  
+  try {
+    const cacheNames = await caches.keys()
+    for (const name of cacheNames) {
+      if (name.includes('webllm') || name.includes('mlc')) {
+        await caches.delete(name)
+      }
+    }
+    aiStore.unloadModel()
+    alert('缓存已清理')
+  } catch (e) {
+    alert('清理失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  }
 }
 </script>
 
@@ -99,10 +145,20 @@ async function downloadModel(modelId: string) {
 
       <!-- 可用模型列表 -->
       <section>
-        <h2 class="text-sm font-medium text-muted-foreground mb-4">可用模型</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-medium text-muted-foreground">可用模型</h2>
+          <button 
+            class="text-xs text-primary hover:underline"
+            @click="showAllModels = !showAllModels"
+          >
+            {{ showAllModels ? '只显示推荐' : '显示全部 50+ 模型' }}
+            <ChevronUp v-if="showAllModels" class="inline w-3 h-3" />
+            <ChevronDown v-else class="inline w-3 h-3" />
+          </button>
+        </div>
         <div class="space-y-3">
           <div
-            v-for="model in RECOMMENDED_MODELS"
+            v-for="model in displayModels"
             :key="model.id"
             class="p-5 rounded-2xl border bg-card hover:border-primary/30 transition-colors"
           >
@@ -147,6 +203,34 @@ async function downloadModel(modelId: string) {
         </div>
       </section>
 
+      <!-- 存储管理 -->
+      <section v-if="storageUsage" class="mt-8">
+        <h2 class="text-sm font-medium text-muted-foreground mb-4">存储管理</h2>
+        <div class="p-5 rounded-2xl border bg-card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <HardDrive class="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p class="font-medium">已用空间</p>
+                <p class="text-sm text-muted-foreground">
+                  {{ formatBytes(storageUsage.used) }} / {{ formatBytes(storageUsage.quota) }}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" @click="clearCache">
+              <Trash2 class="h-4 w-4 mr-2" />
+              清理缓存
+            </Button>
+          </div>
+          <div class="w-full bg-muted rounded-full h-2">
+            <div 
+              class="bg-primary h-2 rounded-full"
+              :style="{ width: `${Math.min(storageUsage.used / storageUsage.quota * 100, 100)}%` }"
+            />
+          </div>
+        </div>
+      </section>
+
       <!-- 说明 -->
       <section class="mt-8 p-5 rounded-2xl bg-muted/50">
         <h3 class="font-medium mb-3">关于端侧 AI</h3>
@@ -154,7 +238,7 @@ async function downloadModel(modelId: string) {
           <li>• 模型完全运行在您的设备上，数据不会上传到云端</li>
           <li>• 首次下载后会缓存到本地，下次使用无需重新下载</li>
           <li>• 推荐使用 <strong>Qwen 2.5 1.5B</strong>，对中文支持更好</li>
-          <li>• 需要较新的浏览器和支持 WebGPU 的显卡</li>
+          <li>• 使用 Web Worker 多线程，AI 推理不会卡顿界面</li>
         </ul>
       </section>
     </main>

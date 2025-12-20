@@ -25,20 +25,39 @@ export const RECOMMENDED_MODELS = [
         name: 'Qwen 2.5 1.5B',
         size: '~1GB',
         description: '中文优化，推荐用于中文小说',
+        recommended: true,
     },
     {
         id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
         name: 'Phi 3.5 Mini',
         size: '~2GB',
         description: '综合能力强，英语更佳',
+        recommended: true,
     },
     {
         id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
         name: 'Llama 3.2 1B',
         size: '~800MB',
         description: '轻量快速',
+        recommended: true,
     },
 ]
+
+// 获取所有可用模型
+export function getAllModels() {
+    try {
+        const modelList = webllm.prebuiltAppConfig.model_list
+        return modelList.map((m: any) => ({
+            id: m.model_id,
+            name: m.model_id.split('-').slice(0, 3).join(' '),
+            size: '未知',
+            description: m.model_id,
+            recommended: RECOMMENDED_MODELS.some(r => r.id === m.model_id),
+        }))
+    } catch {
+        return RECOMMENDED_MODELS
+    }
+}
 
 // 模型持久化 key
 const STORAGE_KEY = 'ai-last-model'
@@ -93,7 +112,7 @@ export const useAIStore = defineStore('ai', () => {
         }
     }
 
-    // 加载模型
+    // 加载模型 (使用 Web Worker)
     async function loadModel(modelId: string = getDefaultModel()): Promise<boolean> {
         if (isLoading.value) return false
 
@@ -109,13 +128,20 @@ export const useAIStore = defineStore('ai', () => {
         error.value = null
 
         try {
-            // 创建引擎并加载模型
-            const newEngine = await webllm.CreateMLCEngine(modelId, {
-                initProgressCallback: (report) => {
-                    loadProgress.value = Math.round(report.progress * 100)
-                    loadStatus.value = report.text
-                },
-            })
+            // 使用 Web Worker 创建引擎 (推理不阻塞 UI)
+            const newEngine = await webllm.CreateWebWorkerMLCEngine(
+                new Worker(
+                    new URL('../workers/ai-worker.ts', import.meta.url),
+                    { type: 'module' }
+                ),
+                modelId,
+                {
+                    initProgressCallback: (report) => {
+                        loadProgress.value = Math.round(report.progress * 100)
+                        loadStatus.value = report.text
+                    },
+                }
+            )
 
             engine.value = newEngine
             currentModel.value = modelId
