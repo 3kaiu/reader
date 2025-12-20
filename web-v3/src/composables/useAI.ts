@@ -39,8 +39,22 @@ export const RECOMMENDED_MODELS = [
     },
 ]
 
-// 默认模型
-const DEFAULT_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
+// 默认模型 - 优先使用上次选择的模型
+const STORAGE_KEY = 'ai-last-model'
+const getDefaultModel = () => {
+    try {
+        return localStorage.getItem(STORAGE_KEY) || 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
+    } catch {
+        return 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
+    }
+}
+const saveLastModel = (modelId: string) => {
+    try {
+        localStorage.setItem(STORAGE_KEY, modelId)
+    } catch {
+        // 忽略存储错误
+    }
+}
 
 export function useAI() {
     // 状态
@@ -79,7 +93,7 @@ export function useAI() {
     }
 
     // 加载模型
-    async function loadModel(modelId: string = DEFAULT_MODEL): Promise<boolean> {
+    async function loadModel(modelId: string = getDefaultModel()): Promise<boolean> {
         if (isLoading.value) return false
 
         // 检测支持
@@ -106,6 +120,9 @@ export function useAI() {
             currentModel.value = modelId
             isModelLoaded.value = true
             loadStatus.value = '模型加载完成'
+
+            // 保存最后使用的模型
+            saveLastModel(modelId)
 
             return true
         } catch (e) {
@@ -177,7 +194,11 @@ export function useAI() {
     // ========== AI 功能 ==========
 
     // 生成章节摘要
-    async function summarizeChapter(content: string, title?: string): Promise<string> {
+    async function summarizeChapter(
+        content: string,
+        title?: string,
+        onStream?: (text: string) => void
+    ): Promise<string> {
         const systemPrompt = `你是一个小说阅读助手。请用简洁的语言概括章节内容，突出关键情节和人物。
 要求：
 - 控制在 100-200 字以内
@@ -191,7 +212,7 @@ export function useAI() {
         return await chat([
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
-        ])
+        ], { onStream })
     }
 
     // 情节回顾

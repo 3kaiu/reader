@@ -629,6 +629,7 @@ onKeyStroke('f', () => toggleFullscreen())
 onKeyStroke('c', () => showCatalog.value = !showCatalog.value)
 onKeyStroke('s', () => showSettings.value = !showSettings.value)
 onKeyStroke('d', () => settingsStore.toggleDark())
+onKeyStroke('a', () => showAIPanel.value = !showAIPanel.value) // AI 助手
 
 // 页面卸载前保存进度
 function handleBeforeUnload() {

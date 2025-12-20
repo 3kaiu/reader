@@ -7,7 +7,8 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAI } from '@/composables/useAI'
 import { useReaderStore } from '@/stores/reader'
-import { Brain, Sparkles, X, Loader2, MessageSquare, FileText, Users, RefreshCw, Settings } from 'lucide-vue-next'
+import { getCache, setCache } from '@/composables/useAICache'
+import { Brain, Sparkles, Loader2, MessageSquare, FileText, Users, RefreshCw, Settings, Database } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -37,6 +38,8 @@ const homophoneResult = ref<Array<{ original: string; guess: string; confidence:
 const chatInput = ref('')
 const chatResult = ref('')
 const isProcessing = ref(false)
+const isStreaming = ref(false)
+const fromCache = ref(false) // 结果来自缓存
 
 // 初始化检测
 watch(() => props.open, async (open) => {
@@ -52,33 +55,74 @@ function goToSettings() {
 }
 
 // 生成摘要
-async function generateSummary() {
+async function generateSummary(forceRefresh = false) {
   if (!ai.isModelLoaded.value || !readerStore.content) return
   
+  const bookUrl = readerStore.currentBook?.bookUrl
+  const chapterIndex = readerStore.currentChapterIndex
+  
+  // 检查缓存
+  if (!forceRefresh && bookUrl) {
+    const cached = await getCache(bookUrl, chapterIndex, 'summary')
+    if (cached) {
+      summaryResult.value = cached.result as string
+      fromCache.value = true
+      return
+    }
+  }
+  
   isProcessing.value = true
+  isStreaming.value = true
+  fromCache.value = false
   summaryResult.value = ''
   
   try {
-    summaryResult.value = await ai.summarizeChapter(
+    await ai.summarizeChapter(
       readerStore.content,
-      readerStore.currentChapter?.title
+      readerStore.currentChapter?.title,
+      (text: string) => { summaryResult.value = text }
     )
+    
+    // 保存到缓存
+    if (bookUrl && summaryResult.value) {
+      await setCache(bookUrl, chapterIndex, 'summary', summaryResult.value)
+    }
   } catch (e) {
     summaryResult.value = `错误: ${e instanceof Error ? e.message : '未知错误'}`
   } finally {
     isProcessing.value = false
+    isStreaming.value = false
   }
 }
 
 // 检测谐音
-async function detectHomophones() {
+async function detectHomophones(forceRefresh = false) {
   if (!ai.isModelLoaded.value || !readerStore.content) return
   
+  const bookUrl = readerStore.currentBook?.bookUrl
+  const chapterIndex = readerStore.currentChapterIndex
+  
+  // 检查缓存
+  if (!forceRefresh && bookUrl) {
+    const cached = await getCache(bookUrl, chapterIndex, 'homophone')
+    if (cached) {
+      homophoneResult.value = cached.result as any[]
+      fromCache.value = true
+      return
+    }
+  }
+  
   isProcessing.value = true
+  fromCache.value = false
   homophoneResult.value = []
   
   try {
     homophoneResult.value = await ai.detectHomophones(readerStore.content)
+    
+    // 保存到缓存
+    if (bookUrl && homophoneResult.value.length > 0) {
+      await setCache(bookUrl, chapterIndex, 'homophone', homophoneResult.value)
+    }
   } catch (e) {
     console.error('谐音检测失败:', e)
   } finally {
@@ -91,6 +135,7 @@ async function askQuestion() {
   if (!ai.isModelLoaded.value || !chatInput.value.trim() || !readerStore.content) return
   
   isProcessing.value = true
+  isStreaming.value = true
   chatResult.value = ''
   
   try {
@@ -103,6 +148,7 @@ async function askQuestion() {
     chatResult.value = `错误: ${e instanceof Error ? e.message : '未知错误'}`
   } finally {
     isProcessing.value = false
+    isStreaming.value = false
   }
 }
 </script>
@@ -195,7 +241,7 @@ async function askQuestion() {
           </Button>
           
           <div v-if="summaryResult" class="p-4 rounded-xl bg-muted/50 text-sm leading-relaxed">
-            {{ summaryResult }}
+            {{ summaryResult }}<span v-if="isStreaming && activeTab === 'summary'" class="inline-block w-0.5 h-4 bg-primary ml-0.5 animate-pulse" />
           </div>
         </div>
 
@@ -249,7 +295,7 @@ async function askQuestion() {
           </div>
           
           <div v-if="chatResult" class="p-4 rounded-xl bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap">
-            {{ chatResult }}
+            {{ chatResult }}<span v-if="isStreaming && activeTab === 'chat'" class="inline-block w-0.5 h-4 bg-primary ml-0.5 animate-pulse" />
           </div>
         </div>
       </div>
