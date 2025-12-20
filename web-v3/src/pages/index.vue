@@ -8,7 +8,7 @@ import { useDark, useToggle, useStorage } from '@vueuse/core'
 import { 
   Search, Plus, Settings, Moon, Sun, RefreshCw, 
   BookOpen, Library, Database, Folder, Regex,
-  CheckSquare, Trash2, X
+  CheckSquare, Trash2, X, Brain
 } from 'lucide-vue-next'
 import { bookApi, type Book, manageApi } from '@/api'
 import { Button } from '@/components/ui/button'
@@ -293,6 +293,10 @@ onMounted(() => {
                    <Button variant="ghost" class="w-full justify-start" @click="router.push('/replace-rule')">
                     <Regex class="h-4 w-4 mr-2" />
                     替换规则
+                  </Button>
+                  <Button variant="ghost" class="w-full justify-start" @click="router.push('/ai-settings')">
+                    <Brain class="h-4 w-4 mr-2" />
+                    AI 模型
                   </Button>
                   <Button variant="ghost" class="w-full justify-start" @click="refresh">
                     <RefreshCw class="h-4 w-4 mr-2" />

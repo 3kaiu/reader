@@ -35,6 +35,12 @@ const routes: RouteRecordRaw[] = [
 
 
   {
+    path: '/ai-settings',
+    name: 'ai-settings',
+    component: () => import('@/pages/ai-settings.vue'),
+    meta: { title: 'AI 模型' },
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('@/pages/settings.vue'),

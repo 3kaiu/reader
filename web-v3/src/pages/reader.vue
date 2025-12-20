@@ -23,6 +23,7 @@ const ReadSettings = defineAsyncComponent(() => import('@/components/ReadSetting
 const BookSourcePicker = defineAsyncComponent(() => import('@/components/book/BookSourcePicker.vue'))
 const BookInfoModal = defineAsyncComponent(() => import('@/components/book/BookInfoModal.vue'))
 const ChapterList = defineAsyncComponent(() => import('@/components/book/ChapterList.vue'))
+const AIPanel = defineAsyncComponent(() => import('@/components/AIPanel.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -41,6 +42,7 @@ const showSettings = ref(false)
 const showSourcePicker = ref(false)
 const showBookInfo = ref(false)
 const showTTSPanel = ref(false)
+const showAIPanel = ref(false)
 const hideToolbarTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // TTS 语音朗读
@@ -981,7 +983,7 @@ onUnmounted(() => {
             </div>
             
             <!-- 功能按钮区 -->
-            <div class="grid grid-cols-5">
+            <div class="grid grid-cols-6">
               <!-- 亮度/主题 -->
               <button class="toolbar-item" @click="toggleDayNight()">
                 <div class="toolbar-item-icon">
@@ -1035,6 +1037,17 @@ onUnmounted(() => {
                   <RotateCcw class="w-5 h-5" />
                 </div>
                 <span class="toolbar-item-label">刷新</span>
+              </button>
+              
+              <!-- AI 助手 -->
+              <button class="toolbar-item" @click="showAIPanel = true">
+                <div class="toolbar-item-icon">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
+                </div>
+                <span class="toolbar-item-label">AI</span>
               </button>
             </div>
           </div>
@@ -1122,6 +1135,9 @@ onUnmounted(() => {
       :book-url="readerStore.currentBook?.bookUrl"
       :initial-book="readerStore.currentBook"
     />
+    
+    <!-- AI 助手面板 -->
+    <AIPanel v-model:open="showAIPanel" />
   </div>
 </template>
 
