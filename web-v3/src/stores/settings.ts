@@ -23,6 +23,10 @@ export interface ReaderConfig {
     background: string
     text: string
   }
+  // 自动夜间模式
+  autoNightMode: boolean
+  nightModeStartHour: number  // 开始时间（小时）
+  nightModeEndHour: number    // 结束时间（小时）
   // 阅读方式
   readingMode: ReadingMode
   clickToNextPage: boolean
@@ -37,6 +41,9 @@ const defaultConfig: ReaderConfig = {
   paragraphSpacing: 1.2,
   pageWidth: 800,
   theme: 'paper',
+  autoNightMode: false,
+  nightModeStartHour: 18,  // 晚上6点
+  nightModeEndHour: 6,     // 早上6点
   readingMode: 'scroll',
   clickToNextPage: true,
 }
@@ -102,6 +109,49 @@ export const useSettingsStore = defineStore('settings', () => {
     updateConfig('lineHeight', Math.max(1.2, +(config.value.lineHeight - 0.1).toFixed(1)))
   }
 
+  // 检查当前是否在夜间时段
+  function isNightTime(): boolean {
+    const hour = new Date().getHours()
+    const start = config.value.nightModeStartHour
+    const end = config.value.nightModeEndHour
+
+    // 处理跨越午夜的情况（如 18:00 - 6:00）
+    if (start > end) {
+      return hour >= start || hour < end
+    }
+    // 不跨越午夜的情况（如 22:00 - 5:00 变成 22 > 5，但这种情况一般不会发生）
+    return hour >= start && hour < end
+  }
+
+  // 保存用户手动选择的主题（非自动切换的）
+  let userSelectedTheme: ReaderTheme | null = null
+
+  // 应用自动夜间模式
+  function applyAutoNightMode() {
+    if (!config.value.autoNightMode) return
+
+    const shouldBeNight = isNightTime()
+    const currentTheme = config.value.theme
+
+    if (shouldBeNight && currentTheme !== 'night') {
+      // 保存当前主题，进入夜间模式
+      userSelectedTheme = currentTheme
+      updateConfig('theme', 'night')
+    } else if (!shouldBeNight && currentTheme === 'night' && userSelectedTheme) {
+      // 退出夜间模式，恢复之前的主题
+      updateConfig('theme', userSelectedTheme)
+      userSelectedTheme = null
+    }
+  }
+
+  // 切换自动夜间模式
+  function toggleAutoNightMode(enabled: boolean) {
+    updateConfig('autoNightMode', enabled)
+    if (enabled) {
+      applyAutoNightMode()
+    }
+  }
+
   return {
     config,
     isDark,
@@ -114,5 +164,8 @@ export const useSettingsStore = defineStore('settings', () => {
     decreaseFontSize,
     increaseLineHeight,
     decreaseLineHeight,
+    isNightTime,
+    applyAutoNightMode,
+    toggleAutoNightMode,
   }
 })

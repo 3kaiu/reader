@@ -313,6 +313,11 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
+  // 检查章节是否已缓存
+  function isChapterCached(index: number): boolean {
+    return chapterCache.has(index)
+  }
+
   // 保存阅读进度到服务器
   async function saveProgress() {
     if (!currentBook.value) return
@@ -357,6 +362,7 @@ export const useReaderStore = defineStore('reader', () => {
     refreshChapter,
     appendNextChapter,
     initInfiniteScroll,
+    isChapterCached,
     saveProgress,
     reset,
   }

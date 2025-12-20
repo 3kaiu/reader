@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import { 
-  Search, ArrowDown, ArrowUp, Locate, RotateCw, X
+  Search, ArrowDown, ArrowUp, Locate, RotateCw, X, Check
 } from 'lucide-vue-next'
 import { useVirtualList } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ const props = defineProps<{
   currentInd: number
   loading?: boolean
   bookName?: string
+  isCached?: (index: number) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -228,9 +229,17 @@ watch(() => props.open, (val) => {
             >
               {{ item.data.title }}
             </span>
+            <!-- 已缓存标记 -->
+            <span 
+              v-if="isCached?.(item.data.originalIndex)" 
+              class="text-primary/60 ml-2"
+              title="已缓存"
+            >
+              <Check class="w-3.5 h-3.5" />
+            </span>
             <!-- 已读标记 -->
             <span 
-              v-if="item.data.originalIndex < currentInd" 
+              v-else-if="item.data.originalIndex < currentInd" 
               class="text-xs text-muted-foreground ml-2"
             >
               ✓

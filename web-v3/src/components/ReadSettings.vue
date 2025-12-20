@@ -294,6 +294,30 @@ const fontWeights = [300, 400, 500, 600, 700]
             </button>
           </div>
         </section>
+
+        <!-- 自动夜间模式 -->
+        <section>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-medium">自动夜间模式</h3>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                {{ settingsStore.config.nightModeStartHour }}:00 - {{ settingsStore.config.nightModeEndHour }}:00 自动切换
+              </p>
+            </div>
+            <button
+              class="w-12 h-6 rounded-full transition-all relative"
+              :class="settingsStore.config.autoNightMode 
+                ? 'bg-primary' 
+                : 'bg-muted'"
+              @click="settingsStore.toggleAutoNightMode(!settingsStore.config.autoNightMode)"
+            >
+              <span 
+                class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                :class="settingsStore.config.autoNightMode ? 'left-6' : 'left-0.5'"
+              />
+            </button>
+          </div>
+        </section>
       </div>
     </SheetContent>
   </Sheet>
