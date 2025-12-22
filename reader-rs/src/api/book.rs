@@ -156,6 +156,44 @@ pub async fn save_book_progress(
 pub async fn get_cover(
     Query(query): Query<CoverQuery>,
 ) -> impl axum::response::IntoResponse {
-    // TODO: 实现封面代理
-    axum::response::Redirect::to(&query.path)
+    use axum::http::{header, StatusCode};
+    use axum::response::Response;
+    use axum::body::Body;
+    
+    // 如果是远程 URL，代理获取
+    if query.path.starts_with("http://") || query.path.starts_with("https://") {
+        match reqwest::get(&query.path).await {
+            Ok(resp) => {
+                let content_type = resp.headers()
+                    .get(header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("image/jpeg")
+                    .to_string();
+                
+                match resp.bytes().await {
+                    Ok(bytes) => {
+                        Response::builder()
+                            .header(header::CONTENT_TYPE, content_type)
+                            .header(header::CACHE_CONTROL, "public, max-age=86400")
+                            .body(Body::from(bytes.to_vec()))
+                            .unwrap()
+                    }
+                    Err(_) => Response::builder()
+                        .status(StatusCode::BAD_GATEWAY)
+                        .body(Body::empty())
+                        .unwrap()
+                }
+            }
+            Err(_) => Response::builder()
+                .status(StatusCode::BAD_GATEWAY)
+                .body(Body::empty())
+                .unwrap()
+        }
+    } else {
+        // 本地文件
+        Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::empty())
+            .unwrap()
+    }
 }
