@@ -502,7 +502,7 @@ onMounted(() => loadSources())
         class="overflow-y-auto pb-6" 
         :style="{ maxHeight: `${windowHeight - 240}px` }"
       >
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
           <div
             v-for="source in filteredSources"
             :key="source.bookSourceUrl"
@@ -553,14 +553,22 @@ onMounted(() => loadSources())
               </div>
 
               <!-- 操作 -->
-              <div v-if="!isManageMode" class="flex items-center gap-2 shrink-0">
+              <div v-if="!isManageMode" class="flex items-center gap-1.5 shrink-0">
                 <button 
                   class="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
                   :disabled="source._bgTest"
+                  title="测速"
                   @click.stop="testSource(source)"
                 >
                   <Zap v-if="!source._bgTest" class="h-3.5 w-3.5" />
                   <RefreshCw v-else class="h-3.5 w-3.5 animate-spin" />
+                </button>
+                <button 
+                  class="w-7 h-7 rounded-full hover:bg-destructive/10 flex items-center justify-center transition-colors text-destructive opacity-0 group-hover:opacity-100"
+                  title="删除"
+                  @click.stop="deleteSource(source)"
+                >
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
                 <Switch 
                   :checked="source.enabled !== false" 
