@@ -25,6 +25,27 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/sources.vue'),
     meta: { title: '书源管理' },
   },
+  {
+    path: '/replace-rule',
+    name: 'replace-rule',
+    component: () => import('@/pages/replace-rule.vue'),
+    meta: { title: '替换规则' },
+  },
+
+
+
+  {
+    path: '/ai-settings',
+    name: 'ai-settings',
+    component: () => import('@/pages/ai-settings.vue'),
+    meta: { title: 'AI 模型' },
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('@/pages/settings.vue'),
+    meta: { title: '设置' },
+  },
 ]
 
 const router = createRouter({
