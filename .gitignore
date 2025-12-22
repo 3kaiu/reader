@@ -53,3 +53,8 @@ out
 
 # Docker 运行时数据
 /data/
+
+# Rust
+/reader-rs/target/
+/reader-rs/.cargo/
+*.rs.bk

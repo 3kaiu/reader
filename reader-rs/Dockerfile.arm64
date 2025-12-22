@@ -1,0 +1,33 @@
+# 多阶段构建 - ARM64 版本
+FROM rust:1.83-alpine AS builder
+
+# 安装构建依赖
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY Cargo.toml Cargo.lock ./
+
+# 创建空 src 用于缓存依赖
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release --target aarch64-unknown-linux-musl && rm -rf src
+
+# 复制源代码
+COPY src ./src
+
+# 构建发布版本
+RUN touch src/main.rs && cargo build --release --target aarch64-unknown-linux-musl
+
+# 运行阶段 - 极小镜像
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata
+
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+COPY --from=builder /app/target/aarch64-unknown-linux-musl/release/reader-rs /app/reader-rs
+
+EXPOSE 8080
+CMD ["/app/reader-rs"]

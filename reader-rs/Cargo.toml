@@ -1,0 +1,57 @@
+[package]
+name = "reader-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Reader Team"]
+description = "A modern book reader backend written in Rust"
+
+[dependencies]
+# Web Framework
+axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP Client
+reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "gzip", "brotli", "rustls-tls"] }
+
+# HTML/XML Parsing
+scraper = "0.20"              # CSS selectors
+
+# JSON Query
+jsonpath-rust = "0.7"
+
+# Regex
+regex = "1"
+
+# Async
+futures = "0.3"
+async-stream = "0.3"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error Handling
+thiserror = "2"
+anyhow = "1"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = true
