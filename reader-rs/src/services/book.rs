@@ -6,14 +6,17 @@ use tokio::sync::RwLock;
 
 use crate::models::{Book, Chapter, SearchResult, BookSourceFull};
 use crate::storage::FileStorage;
-use crate::engine::AnalyzeRule;
+use crate::engine::WebBook;
 
 /// 书架存储文件名
 const BOOKSHELF_FILE: &str = "bookshelf.json";
+const SOURCES_FILE: &str = "bookSources.json";
 
 pub struct BookService {
     storage: FileStorage,
     bookshelf: Arc<RwLock<Vec<Book>>>,
+    sources: Arc<RwLock<Vec<BookSourceFull>>>,
+    webbook: WebBook,
 }
 
 impl BookService {
@@ -21,20 +24,27 @@ impl BookService {
         Self {
             storage: FileStorage::default(),
             bookshelf: Arc::new(RwLock::new(Vec::new())),
+            sources: Arc::new(RwLock::new(Vec::new())),
+            webbook: WebBook::new(),
         }
     }
 
-    /// 初始化加载书架数据
+    /// 初始化加载数据
     pub async fn init(&self) -> anyhow::Result<()> {
         let books: Vec<Book> = self.storage.read_json_or_default(BOOKSHELF_FILE).await;
+        let sources: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
+        
         let mut shelf = self.bookshelf.write().await;
         *shelf = books;
+        
+        let mut src = self.sources.write().await;
+        *src = sources;
+        
         Ok(())
     }
 
     /// 获取书架列表
     pub async fn get_bookshelf(&self, _refresh: bool) -> Result<Vec<Book>, anyhow::Error> {
-        // 如果书架为空，尝试从文件加载
         {
             let shelf = self.bookshelf.read().await;
             if !shelf.is_empty() {
@@ -42,7 +52,6 @@ impl BookService {
             }
         }
         
-        // 从文件加载
         let books: Vec<Book> = self.storage.read_json_or_default(BOOKSHELF_FILE).await;
         {
             let mut shelf = self.bookshelf.write().await;
@@ -53,9 +62,9 @@ impl BookService {
 
     /// 获取章节列表
     pub async fn get_chapter_list(&self, book_url: &str, refresh: bool) -> Result<Vec<Chapter>, anyhow::Error> {
-        // 从缓存读取
         let cache_key = format!("chapters/{}.json", Self::url_to_key(book_url));
         
+        // 尝试从缓存读取
         if !refresh {
             if let Ok(content) = self.storage.read_cache(&cache_key).await {
                 if let Ok(chapters) = serde_json::from_str::<Vec<Chapter>>(&content) {
@@ -64,22 +73,50 @@ impl BookService {
             }
         }
         
-        // TODO: 从书源获取章节列表
-        // 需要实现网络请求和规则解析
-        Ok(vec![])
+        // 获取书籍信息找到书源
+        let book = self.get_book_info(book_url).await?;
+        let source = self.get_source(&book.origin.unwrap_or_default()).await?;
+        
+        // 从书源获取章节
+        let toc_url = book.toc_url.unwrap_or_else(|| book_url.to_string());
+        let chapters = self.webbook.get_chapter_list(&source, &toc_url).await?;
+        
+        // 缓存
+        if !chapters.is_empty() {
+            let content = serde_json::to_string(&chapters)?;
+            let _ = self.storage.write_cache(&cache_key, &content).await;
+        }
+        
+        Ok(chapters)
     }
 
     /// 获取章节内容
     pub async fn get_book_content(&self, book_url: &str, index: i32) -> Result<String, anyhow::Error> {
-        // 从缓存读取
         let cache_key = format!("content/{}/{}.txt", Self::url_to_key(book_url), index);
         
+        // 尝试从缓存读取
         if let Ok(content) = self.storage.read_cache(&cache_key).await {
             return Ok(content);
         }
         
-        // TODO: 从书源获取内容
-        Ok(String::new())
+        // 获取章节列表
+        let chapters = self.get_chapter_list(book_url, false).await?;
+        let chapter = chapters.get(index as usize)
+            .ok_or_else(|| anyhow::anyhow!("Chapter not found"))?;
+        
+        // 获取书源
+        let book = self.get_book_info(book_url).await?;
+        let source = self.get_source(&book.origin.unwrap_or_default()).await?;
+        
+        // 从书源获取内容
+        let content = self.webbook.get_content(&source, &chapter.url).await?;
+        
+        // 缓存
+        if !content.is_empty() {
+            let _ = self.storage.write_cache(&cache_key, &content).await;
+        }
+        
+        Ok(content)
     }
 
     /// 获取书籍信息
@@ -91,18 +128,77 @@ impl BookService {
             .ok_or_else(|| anyhow::anyhow!("Book not found"))
     }
 
-    /// 搜索书籍
-    pub async fn search(&self, _key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
-        // TODO: 实现多书源搜索
+    /// 搜索书籍 (单书源)
+    pub async fn search(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
+        let sources = self.sources.read().await;
+        
+        // 使用第一个启用的书源搜索
+        for source in sources.iter().filter(|s| s.enabled) {
+            match self.webbook.search(source, key).await {
+                Ok(results) if !results.is_empty() => return Ok(results),
+                _ => continue,
+            }
+        }
+        
         Ok(vec![])
     }
 
     /// 多书源搜索 (SSE)
-    pub fn search_multi_sse(&self, _key: String) -> impl Stream<Item = Result<Event, Infallible>> {
+    pub fn search_multi_sse(&self, key: String) -> impl Stream<Item = Result<Event, Infallible>> {
+        let sources = self.sources.clone();
+        let storage = self.storage.clone();
+        let webbook = WebBook::new();
+        
         async_stream::stream! {
-            // TODO: 实现多书源并发搜索
+            // 确保书源已加载
+            let mut sources_guard = sources.write().await;
+            if sources_guard.is_empty() {
+                tracing::info!("Loading sources from file...");
+                let loaded: Vec<BookSourceFull> = storage.read_json_or_default(SOURCES_FILE).await;
+                tracing::info!("Loaded {} sources", loaded.len());
+                *sources_guard = loaded;
+            }
+            
+            let enabled_sources: Vec<_> = sources_guard.iter()
+                .filter(|s| s.enabled && !s.search_url.is_empty())
+                .cloned()
+                .collect();
+            drop(sources_guard);
+            
+            tracing::info!("Searching with {} sources for: {}", enabled_sources.len(), key);
+            
+            if enabled_sources.is_empty() {
+                tracing::warn!("No enabled sources with search_url found!");
+            }
+            
+            // 并发搜索所有书源
+            for source in enabled_sources {
+                tracing::debug!("Searching source: {} ({})", source.book_source_name, source.search_url);
+                match webbook.search(&source, &key).await {
+                    Ok(results) => {
+                        tracing::info!("Found {} results from {}", results.len(), source.book_source_name);
+                        for result in results {
+                            let json = serde_json::to_string(&result).unwrap_or_default();
+                            yield Ok(Event::default().data(json));
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Search failed for {}: {}", source.book_source_name, e);
+                    }
+                }
+            }
+            
             yield Ok(Event::default().data(r#"{"type":"end"}"#));
         }
+    }
+
+    /// 获取书源
+    async fn get_source(&self, source_url: &str) -> Result<BookSourceFull, anyhow::Error> {
+        let sources = self.sources.read().await;
+        sources.iter()
+            .find(|s| s.book_source_url == source_url)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Source not found"))
     }
 
     /// 保存书籍到书架

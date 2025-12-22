@@ -31,8 +31,8 @@ impl SourceService {
         Ok(())
     }
 
-    /// 获取所有书源 (简化版本，用于列表展示)
-    pub async fn get_all_sources(&self) -> Result<Vec<BookSource>, anyhow::Error> {
+    /// 获取所有书源 (完整版本)
+    pub async fn get_all_sources(&self) -> Result<Vec<BookSourceFull>, anyhow::Error> {
         let sources = self.sources.read().await;
         
         if sources.is_empty() {
@@ -41,31 +41,10 @@ impl SourceService {
             let loaded: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
             let mut cache = self.sources.write().await;
             *cache = loaded.clone();
-            
-            return Ok(loaded.into_iter().map(|s| BookSource {
-                book_url: String::new(),
-                origin: s.book_source_url.clone(),
-                origin_name: s.book_source_name.clone(),
-                name: String::new(),
-                author: String::new(),
-                latest_chapter_title: None,
-                time: None,
-                source_type: Some(s.book_source_type),
-                cover_url: None,
-            }).collect());
+            return Ok(loaded);
         }
         
-        Ok(sources.iter().map(|s| BookSource {
-            book_url: String::new(),
-            origin: s.book_source_url.clone(),
-            origin_name: s.book_source_name.clone(),
-            name: String::new(),
-            author: String::new(),
-            latest_chapter_title: None,
-            time: None,
-            source_type: Some(s.book_source_type),
-            cover_url: None,
-        }).collect())
+        Ok(sources.clone())
     }
 
     /// 获取完整书源 (用于解析)
@@ -135,6 +114,18 @@ impl SourceService {
         
         self.storage.write_json(SOURCES_FILE, &*sources).await?;
         Ok(count)
+    }
+
+    /// 从远程 URL 获取并保存书源
+    pub async fn save_from_remote_source(&self, url: &str) -> Result<i32, anyhow::Error> {
+        let client = reqwest::Client::new();
+        let resp = client.get(url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            .send()
+            .await?;
+            
+        let text = resp.text().await?;
+        self.import_sources(&text).await
     }
 }
 

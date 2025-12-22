@@ -11,6 +11,8 @@ mod source;
 mod replace;
 pub mod group;
 mod manage;
+mod migration;
+mod file;
 
 use crate::services::AppState;
 
@@ -37,6 +39,11 @@ pub fn routes() -> Router {
         .route("/saveBookSource", post(source::save_book_source))
         .route("/deleteBookSource", post(source::delete_book_source))
         .route("/importBookSource", post(source::import_book_source))
+        .route("/readRemoteSourceFile", post(source::read_remote_source_file))
+        .route("/saveBookSources", post(source::save_book_sources))
+        .route("/testBookSource", post(source::test_book_source))
+        .route("/deleteBookSources", post(source::delete_book_sources))
+        .route("/saveFromRemoteSource", post(source::save_from_remote_source))
         
         // 替换规则 API
         .route("/getReplaceRules", get(replace::get_replace_rules))
@@ -54,6 +61,13 @@ pub fn routes() -> Router {
         .route("/deleteBooks", post(manage::delete_books))
         .route("/addBookGroupMulti", post(manage::add_book_group_multi))
         .route("/removeBookGroupMulti", post(manage::remove_book_group_multi))
+        
+        // 迁移 API
+        .route("/migrate", post(migration::migrate))
+        
+        // 文件 API
+        .route("/file/get", get(file::file_get))
+        .route("/file/save", post(file::file_save))
         
         // 静态资源
         .route("/cover", get(book::get_cover))

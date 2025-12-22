@@ -48,6 +48,10 @@ pub struct BookSourceFull {
     pub header: Option<String>,
     #[serde(default)]
     pub login_url: Option<String>,
+    
+    // === JS 库 ===
+    #[serde(default)]
+    pub js_lib: Option<String>,
 }
 
 fn default_true() -> bool {

@@ -1,9 +1,11 @@
 use reqwest::Client;
 use std::time::Duration;
 use anyhow::Result;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 
 use crate::models::{BookSourceFull, SearchResult, Chapter};
-use crate::engine::{CssParser, JsonPathParser, RegexParser};
+use crate::engine::{CssParser, JsonPathParser, RegexParser, LegadoJsEngine};
 
 /// 网络书籍解析器
 pub struct WebBook {
@@ -26,11 +28,18 @@ impl WebBook {
 
     /// 搜索书籍
     pub async fn search(&self, source: &BookSourceFull, keyword: &str) -> Result<Vec<SearchResult>> {
-        let search_url = source.search_url
-            .replace("{{key}}", keyword)
-            .replace("{{page}}", "1");
+        // 创建共享缓存
+        let cache = Some(Arc::new(Mutex::new(std::collections::HashMap::<String, String>::new())));
+
+        // 获取搜索 URL
+        let search_url = self.resolve_url(&source.search_url, keyword, 1, source, cache.clone())?;
         
-        let content = self.client.get(&search_url).send().await?.text().await?;
+        tracing::debug!("Resolved search URL: {}", search_url);
+        
+        // 解析可能的请求配置（JSON 格式）
+        let (url, method, body) = self.parse_request_config(&search_url);
+        
+        let content = self.fetch_content(&url, &method, body.as_deref()).await?;
         
         let rule_search = match &source.rule_search {
             Some(r) => r,
@@ -38,15 +47,15 @@ impl WebBook {
         };
         
         // 解析书籍列表
-        let book_list = self.parse_list(&content, &rule_search.book_list)?;
+        let book_list = self.parse_list(&content, &rule_search.book_list, source, cache.clone())?;
         
         let mut results = Vec::new();
         for book_html in book_list {
-            let name = self.parse_string(&book_html, &rule_search.name)?;
-            let author = self.parse_string(&book_html, &rule_search.author)?;
-            let book_url = self.parse_string(&book_html, &rule_search.book_url)?;
-            let cover_url = self.parse_string(&book_html, &rule_search.cover_url).ok();
-            let intro = self.parse_string(&book_html, &rule_search.intro).ok();
+            let name = self.parse_string(&book_html, &rule_search.name, source, cache.clone())?;
+            let author = self.parse_string(&book_html, &rule_search.author, source, cache.clone())?;
+            let book_url = self.parse_string(&book_html, &rule_search.book_url, source, cache.clone())?;
+            let cover_url = self.parse_string(&book_html, &rule_search.cover_url, source, cache.clone()).ok();
+            let intro = self.parse_string(&book_html, &rule_search.intro, source, cache.clone()).ok();
             
             if !name.is_empty() && !book_url.is_empty() {
                 results.push(SearchResult {
@@ -63,6 +72,58 @@ impl WebBook {
         Ok(results)
     }
 
+    /// 解析 URL 规则（支持 @js:）
+    fn resolve_url(&self, url_rule: &str, key: &str, page: i32, source: &BookSourceFull, cache: Option<crate::engine::js::JsCache>) -> Result<String> {
+        let url_rule = url_rule.trim();
+        
+        // 处理 @js: 规则
+        if url_rule.starts_with("@js:") {
+            let code = &url_rule[4..];
+            let mut engine = LegadoJsEngine::new(cache);
+            
+            // 设置 source 对象
+            let source_json = serde_json::to_string(source).unwrap_or_default();
+            engine.set_source_json(&source_json);
+            
+            return engine.eval_search_url(code, key, page);
+        }
+        
+        // 处理普通模板 URL
+        let url = url_rule
+            .replace("{{key}}", key)
+            .replace("{{page}}", &page.to_string());
+        
+        Ok(url)
+    }
+
+    /// 解析请求配置
+    fn parse_request_config(&self, url_str: &str) -> (String, String, Option<String>) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(url_str) {
+            if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                let method = json.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+                let body = json.get("body").and_then(|v| v.as_str()).map(|s| s.to_string());
+                return (url.to_string(), method.to_string(), body);
+            }
+        }
+        (url_str.to_string(), "GET".to_string(), None)
+    }
+
+    /// 获取 URL 内容
+    async fn fetch_content(&self, url: &str, method: &str, body: Option<&str>) -> Result<String> {
+        let mut req = match method.to_uppercase().as_str() {
+            "POST" => self.client.post(url),
+            _ => self.client.get(url),
+        };
+        
+        if let Some(b) = body {
+            req = req.body(b.to_string());
+        }
+        
+        let resp = req.send().await?;
+        let text = resp.text().await?;
+        Ok(text)
+    }
+
     /// 获取章节列表
     pub async fn get_chapter_list(&self, source: &BookSourceFull, toc_url: &str) -> Result<Vec<Chapter>> {
         let content = self.client.get(toc_url).send().await?.text().await?;
@@ -72,12 +133,14 @@ impl WebBook {
             None => return Ok(vec![]),
         };
         
-        let chapter_list = self.parse_list(&content, &rule_toc.chapter_list)?;
+        let cache = Some(Arc::new(Mutex::new(std::collections::HashMap::<String, String>::new())));
+
+        let chapter_list = self.parse_list(&content, &rule_toc.chapter_list, source, cache.clone())?;
         
         let mut chapters = Vec::new();
         for (index, chapter_html) in chapter_list.iter().enumerate() {
-            let title = self.parse_string(chapter_html, &rule_toc.chapter_name)?;
-            let url = self.parse_string(chapter_html, &rule_toc.chapter_url)?;
+            let title = self.parse_string(chapter_html, &rule_toc.chapter_name, source, cache.clone())?;
+            let url = self.parse_string(chapter_html, &rule_toc.chapter_url, source, cache.clone())?;
             
             if !title.is_empty() {
                 chapters.push(Chapter {
@@ -100,7 +163,9 @@ impl WebBook {
             None => return Ok(content),
         };
         
-        let mut text = self.parse_string(&content, &rule_content.content)?;
+        let cache = Some(Arc::new(Mutex::new(std::collections::HashMap::<String, String>::new())));
+
+        let mut text = self.parse_string(&content, &rule_content.content, source, cache)?;
         
         // 应用替换规则
         if !rule_content.replace_regex.is_empty() {
@@ -110,10 +175,70 @@ impl WebBook {
         Ok(text)
     }
 
-    /// 解析获取字符串
-    fn parse_string(&self, content: &str, rule: &str) -> Result<String> {
+    /// 解析获取字符串（支持 Legado 扩展语法）
+    fn parse_string(&self, content: &str, rule: &str, source: &BookSourceFull, cache: Option<crate::engine::js::JsCache>) -> Result<String> {
         if rule.is_empty() {
             return Ok(String::new());
+        }
+        
+        // 处理 || 备选语法：尝试多个规则直到成功
+        if rule.contains("||") {
+            let alternatives: Vec<&str> = rule.split("||").collect();
+            for alt in alternatives {
+                if let Ok(result) = self.parse_string(content, alt.trim(), source, cache.clone()) { // recursive call correct? parse_single_rule needs cache?
+                    // actually parse_single_rule was defined below, wait. 
+                    // I will update parse_single_rule too
+                    if !result.is_empty() {
+                        return Ok(result);
+                    }
+                }
+            }
+            return Ok(String::new());
+        }
+        
+        // 处理 @js: 后处理语法
+        if let Some(js_pos) = rule.find("@js:") {
+            let base_rule = &rule[..js_pos];
+            let js_code = &rule[js_pos + 4..];
+            
+            // 先执行基础规则
+            let result = self.parse_single_rule(content, base_rule, source, cache.clone())?; // Updated signature
+            
+            // 再用 JS 处理结果
+            let mut engine = LegadoJsEngine::new(cache);
+            let source_json = serde_json::to_string(source).unwrap_or_default();
+            engine.set_source_json(&source_json);
+            
+            engine.set_global("result", &result);
+            return engine.eval_url(js_code, &[]);
+        }
+        
+        // 处理 @put: 语法
+        if let Some(put_pos) = rule.find("@put:") {
+            let base_rule = &rule[..put_pos];
+            return self.parse_single_rule(content, base_rule, source, cache);
+        }
+        
+        self.parse_single_rule(content, rule, source, cache)
+    }
+
+    /// 解析单个规则
+    fn parse_single_rule(&self, content: &str, rule: &str, source: &BookSourceFull, cache: Option<crate::engine::js::JsCache>) -> Result<String> {
+        let rule = rule.trim();
+        if rule.is_empty() {
+            return Ok(String::new());
+        }
+
+        // 处理正则替换 (Rule##RegexReplacement)
+        if !rule.starts_with("##") {
+            if let Some(pos) = rule.find("##") {
+                let base_rule = &rule[..pos];
+                let replace_regex = &rule[pos + 2..];
+                
+                let result = self.parse_single_rule(content, base_rule, source, cache)?;
+                
+                return RegexParser::replace(&result, replace_regex, "");
+            }
         }
         
         // 检测规则类型
@@ -121,50 +246,132 @@ impl WebBook {
             JsonPathParser::get_string(content, rule)
         } else if rule.starts_with("##") {
             RegexParser::get_string(content, &rule[2..])
+        } else if rule.starts_with("<js>") {
+            // 处理 <js>...</js> 规则
+            let code = rule.trim_start_matches("<js>").trim_end_matches("</js>");
+            let mut engine = LegadoJsEngine::new(cache);
+            let source_json = serde_json::to_string(source).unwrap_or_default();
+            engine.set_source_json(&source_json);
+
+            engine.set_global("result", content);
+            engine.eval_url(code, &[])
         } else {
-            // 处理 CSS 规则中的属性选择
-            // 格式: selector@attr 或 selector@@text
-            if let Some(pos) = rule.rfind('@') {
-                let selector = &rule[..pos];
-                let attr = &rule[pos+1..];
-                
-                if attr == "@text" || attr.is_empty() {
-                    CssParser::get_string(content, selector)
-                } else {
-                    CssParser::get_attr(content, selector, attr)
-                }
-            } else {
-                CssParser::get_string(content, rule)
-            }
-        }
+             // CSS rules...
+             // Use our new get_elements_html which handles @attr and ::text
+             // But get_elements_html expects Vec<String>. 
+             // We want single string. Join them?
+             let list = self.get_elements_html(content, rule)?;
+             Ok(list.join("\n"))
+        } 
     }
 
     /// 解析获取列表
-    fn parse_list(&self, content: &str, rule: &str) -> Result<Vec<String>> {
+    fn parse_list(&self, content: &str, rule: &str, source: &BookSourceFull, cache: Option<crate::engine::js::JsCache>) -> Result<Vec<String>> {
         if rule.is_empty() {
             return Ok(vec![content.to_string()]);
         }
         
+        // 处理 || 备选语法
+        if rule.contains("||") {
+            let alternatives: Vec<&str> = rule.split("||").collect();
+            for alt in alternatives {
+                if let Ok(result) = self.parse_list(content, alt.trim(), source, cache.clone()) {
+                    if !result.is_empty() {
+                        return Ok(result);
+                    }
+                }
+            }
+            return Ok(Vec::new());
+        }
+
+        // 处理 <js>...</js> 规则
+        if rule.starts_with("<js>") {
+            let code = rule.trim_start_matches("<js>").trim_end_matches("</js>");
+            let mut engine = LegadoJsEngine::new(cache.clone());
+            let source_json = serde_json::to_string(source).unwrap_or_default();
+            engine.set_source_json(&source_json);
+
+            engine.set_global("result", content);
+            match engine.eval_url(code, &[]) {
+                Ok(res_str) => {
+                     // Try to parse as JSON array
+                     if let Ok(list) = serde_json::from_str::<Vec<String>>(&res_str) {
+                         return Ok(list);
+                     }
+                     return Ok(vec![res_str]);
+                },
+                Err(e) => {
+                    tracing::warn!("JS list rule failed: {}", e);
+                    return Ok(Vec::new());
+                }
+            }
+        }
+        
+        if rule.contains("@js:") {
+            let parts: Vec<&str> = rule.split("@js:").collect();
+            if parts.len() == 2 {
+                let base_rule = parts[0];
+                let js_code = parts[1];
+                
+                let list = self.parse_list(content, base_rule, source, cache.clone())?;
+                if list.is_empty() { return Ok(list); }
+                
+                let list_json = serde_json::to_string(&list).unwrap_or_default();
+                
+                let mut engine = LegadoJsEngine::new(cache); // use cache
+                let source_json = serde_json::to_string(source).unwrap_or_default();
+                engine.set_source_json(&source_json);
+                engine.set_global("result", &list_json);
+                
+                match engine.eval_url(js_code, &[]) {
+                     Ok(res_str) => {
+                         if let Ok(new_list) = serde_json::from_str::<Vec<String>>(&res_str) {
+                             return Ok(new_list);
+                         }
+                         return Ok(vec![res_str]);
+                     },
+                     Err(e) => {
+                         tracing::warn!("JS list post-processing failed: {}", e);
+                         return Ok(list); 
+                     }
+                }
+            }
+        }
+
         if rule.starts_with("$.") || rule.starts_with("$[") {
             JsonPathParser::get_list(content, rule)
         } else if rule.starts_with("##") {
             RegexParser::get_list(content, &rule[2..])
         } else {
-            // CSS 选择器 - 返回匹配元素的 outer HTML
             self.get_elements_html(content, rule)
         }
     }
 
-    /// 获取 CSS 匹配元素的 HTML
-    fn get_elements_html(&self, content: &str, selector: &str) -> Result<Vec<String>> {
+    /// 获取 CSS 匹配元素的 HTML (支持 @attr, ::text)
+    fn get_elements_html(&self, content: &str, rule: &str) -> Result<Vec<String>> {
         use scraper::{Html, Selector};
+        
+        // 处理 Legado CSS 扩展语法
+        let (selector, attr) = if let Some(pos) = rule.rfind('@') {
+            (&rule[..pos], Some(&rule[pos+1..]))
+        } else if rule.ends_with("::text") {
+            (&rule[..rule.len()-6], Some("text"))
+        } else {
+            (rule, None)
+        };
         
         let document = Html::parse_document(content);
         let sel = Selector::parse(selector)
             .map_err(|e| anyhow::anyhow!("CSS parse error: {:?}", e))?;
         
         Ok(document.select(&sel)
-            .map(|e| e.html())
+            .map(|e| {
+                match attr {
+                    Some("text") => e.text().collect::<Vec<_>>().join(""),
+                    Some(a) => e.value().attr(a).unwrap_or("").to_string(),
+                    None => e.html(),
+                }
+            })
             .collect())
     }
 

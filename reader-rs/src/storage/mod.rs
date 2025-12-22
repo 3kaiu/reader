@@ -4,6 +4,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use anyhow::Result;
 
 /// 文件存储服务
+#[derive(Clone)]
 pub struct FileStorage {
     base_path: PathBuf,
 }
@@ -80,7 +81,24 @@ impl FileStorage {
             fs::create_dir_all(parent).await?;
         }
         
-        fs::write(&path, content).await?;
+        fs::write(path, content).await?;
+        Ok(())
+    }
+
+    /// 读取任意文件
+    pub async fn read_file(&self, filename: &str) -> Result<String> {
+        let path = self.data_path(filename);
+        let content = fs::read_to_string(path).await?;
+        Ok(content)
+    }
+
+    /// 写入任意文件
+    pub async fn write_file(&self, filename: &str, content: &str) -> Result<()> {
+        let path = self.data_path(filename);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        fs::write(path, content).await?;
         Ok(())
     }
 }
