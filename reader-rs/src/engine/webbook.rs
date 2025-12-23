@@ -39,7 +39,10 @@ impl WebBook {
         // 解析可能的请求配置（JSON 格式）
         let (url, method, body) = self.parse_request_config(&search_url);
         
-        let content = self.fetch_content(&url, &method, body.as_deref()).await?;
+        // 处理相对 URL - 转换为绝对 URL
+        let absolute_url = self.absolute_url(&source.book_source_url, &url);
+        
+        let content = self.fetch_content(&absolute_url, &method, body.as_deref()).await?;
         
         let rule_search = match &source.rule_search {
             Some(r) => r,
@@ -96,15 +99,36 @@ impl WebBook {
         Ok(url)
     }
 
-    /// 解析请求配置
+    /// 解析请求配置 (支持 Legado 格式: URL,{JSON} 或纯 JSON {url,method,body})
     fn parse_request_config(&self, url_str: &str) -> (String, String, Option<String>) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(url_str) {
-            if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
-                let method = json.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
-                let body = json.get("body").and_then(|v| v.as_str()).map(|s| s.to_string());
-                return (url.to_string(), method.to_string(), body);
+        let url_str = url_str.trim();
+        
+        // 尝试纯 JSON 格式: {"url": "...", "method": "...", "body": "..."}
+        if url_str.starts_with('{') {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(url_str) {
+                if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                    let method = json.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+                    let body = json.get("body").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    return (url.to_string(), method.to_string(), body);
+                }
             }
         }
+        
+        // 尝试 Legado 格式: http://xxx.com,{"method": "POST", "body": "..."}
+        // 找到最后一个 ',{' 分割点
+        if let Some(pos) = url_str.rfind(",{") {
+            let url_part = &url_str[..pos];
+            let json_part = &url_str[pos + 1..];
+            
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_part) {
+                let method = json.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+                let body = json.get("body").and_then(|v| v.as_str()).map(|s| s.to_string());
+                tracing::debug!("Parsed comma-separated URL: {} method={}", url_part, method);
+                return (url_part.to_string(), method.to_string(), body);
+            }
+        }
+        
+        // 默认 GET 请求
         (url_str.to_string(), "GET".to_string(), None)
     }
 
@@ -267,6 +291,7 @@ impl WebBook {
 
     /// 解析获取列表
     fn parse_list(&self, content: &str, rule: &str, source: &BookSourceFull, cache: Option<crate::engine::js::JsCache>) -> Result<Vec<String>> {
+        let rule = rule.trim();
         if rule.is_empty() {
             return Ok(vec![content.to_string()]);
         }
@@ -284,9 +309,9 @@ impl WebBook {
             return Ok(Vec::new());
         }
 
-        // 处理 <js>...</js> 规则
-        if rule.starts_with("<js>") {
-            let code = rule.trim_start_matches("<js>").trim_end_matches("</js>");
+        // 处理 <js>...</js> 规则 (可能在规则开头或结尾)
+        if rule.trim_start().starts_with("<js>") {
+            let code = rule.trim_start().trim_start_matches("<js>").trim_end_matches("</js>");
             let mut engine = LegadoJsEngine::new(cache.clone());
             let source_json = serde_json::to_string(source).unwrap_or_default();
             engine.set_source_json(&source_json);
@@ -334,6 +359,39 @@ impl WebBook {
                          tracing::warn!("JS list post-processing failed: {}", e);
                          return Ok(list); 
                      }
+                }
+            }
+        }
+        
+        // 处理规则中包含 <js>...</js> 的情况 (如 $.data<js>...</js>)
+        if rule.contains("<js>") && !rule.trim_start().starts_with("<js>") {
+            if let Some(js_pos) = rule.find("<js>") {
+                let base_rule = &rule[..js_pos];
+                let js_part = &rule[js_pos..];
+                let js_code = js_part.trim_start_matches("<js>").trim_end_matches("</js>");
+                
+                // 先用基础规则解析
+                let list = self.parse_list(content, base_rule.trim(), source, cache.clone())?;
+                if list.is_empty() { return Ok(list); }
+                
+                let list_json = serde_json::to_string(&list).unwrap_or_default();
+                
+                let mut engine = LegadoJsEngine::new(cache);
+                let source_json = serde_json::to_string(source).unwrap_or_default();
+                engine.set_source_json(&source_json);
+                engine.set_global("result", &list_json);
+                
+                match engine.eval_url(js_code, &[]) {
+                    Ok(res_str) => {
+                        if let Ok(new_list) = serde_json::from_str::<Vec<String>>(&res_str) {
+                            return Ok(new_list);
+                        }
+                        return Ok(vec![res_str]);
+                    },
+                    Err(e) => {
+                        tracing::warn!("JS post-processing in list rule failed: {}", e);
+                        return Ok(list);
+                    }
                 }
             }
         }

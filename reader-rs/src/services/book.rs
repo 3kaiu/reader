@@ -128,14 +128,65 @@ impl BookService {
             .ok_or_else(|| anyhow::anyhow!("Book not found"))
     }
 
-    /// 搜索书籍 (单书源)
+    /// 搜索书籍 (优先使用新引擎，失败时回退旧引擎)
     pub async fn search(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
-        let sources = self.sources.read().await;
+        // 优先尝试新引擎
+        match self.search_v2(key).await {
+            Ok(results) if !results.is_empty() => return Ok(results),
+            Ok(_) => tracing::debug!("search_v2 returned empty, falling back to legacy"),
+            Err(e) => tracing::warn!("search_v2 failed: {}, falling back to legacy", e),
+        }
         
-        // 使用第一个启用的书源搜索
+        // 回退到旧引擎
+        let sources = self.sources.read().await;
         for source in sources.iter().filter(|s| s.enabled) {
             match self.webbook.search(source, key).await {
                 Ok(results) if !results.is_empty() => return Ok(results),
+                _ => continue,
+            }
+        }
+        
+        Ok(vec![])
+    }
+    
+    /// 搜索书籍 (使用新引擎 - v2)
+    pub async fn search_v2(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
+        use crate::engine::book_source::{BookSourceEngine, BookSource};
+        
+        let sources = self.sources.read().await;
+        
+        for source in sources.iter().filter(|s| s.enabled && !s.search_url.is_empty()) {
+            // 使用 JSON 序列化转换书源格式 (避免手动字段映射)
+            let source_json = serde_json::to_string(source)?;
+            let engine_source: BookSource = serde_json::from_str(&source_json)?;
+            
+            // 在阻塞线程中运行新引擎
+            let key = key.to_string();
+            let source_name = source.book_source_name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                match BookSourceEngine::new(engine_source) {
+                    Ok(engine) => engine.search(&key, 1),
+                    Err(e) => Err(e),
+                }
+            }).await;
+            
+            match result {
+                Ok(Ok(books)) if !books.is_empty() => {
+                    // 转换为 SearchResult 格式
+                    let results: Vec<SearchResult> = books.into_iter()
+                        .map(|b| SearchResult {
+                            book_url: b.book_url,
+                            name: b.name,
+                            author: b.author,
+                            cover_url: b.cover_url,
+                            intro: b.intro,
+                            origin_name: Some(source_name.clone()),
+                        })
+                        .collect();
+                    return Ok(results);
+                }
+                Ok(Err(e)) => tracing::warn!("search_v2 failed for {}: {}", source.book_source_name, e),
+                Err(e) => tracing::warn!("search_v2 spawn error: {}", e),
                 _ => continue,
             }
         }

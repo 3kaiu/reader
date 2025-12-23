@@ -98,12 +98,15 @@ impl LegadoJsEngine {
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json) {
             if let Some(url) = parsed.get("bookSourceUrl").and_then(|v| v.as_str()) {
                 self.set_global("baseUrl", url);
+                tracing::debug!("Set baseUrl: {}", url);
             }
             // 执行 jsLib
             if let Some(lib) = parsed.get("jsLib").and_then(|v| v.as_str()) {
                 if !lib.is_empty() {
-                     if let Err(e) = self.context.eval(Source::from_bytes(lib.as_bytes())) {
-                         tracing::warn!("Failed to eval jsLib: {}", e);
+                     tracing::debug!("Evaluating jsLib ({} bytes)", lib.len());
+                     match self.context.eval(Source::from_bytes(lib.as_bytes())) {
+                         Ok(_) => tracing::debug!("jsLib evaluated successfully"),
+                         Err(e) => tracing::warn!("Failed to eval jsLib: {}", e),
                      }
                 }
             }
@@ -185,17 +188,24 @@ impl LegadoJsEngine {
                         if let Some(url) = url_arg.as_string() {
                             let url_str = url.to_std_string_escaped();
                             tracing::debug!("JS java.ajax: {}", url_str);
-                            let client = reqwest::blocking::Client::new();
-                            match client.get(&url_str)
-                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-                                .send() 
-                            {
-                                Ok(resp) => {
-                                    if let Ok(text) = resp.text() {
-                                        return Ok(JsValue::from(JsString::from(text.as_str())));
-                                    }
-                                },
-                                Err(e) => { tracing::error!("JS java.ajax error: {}", e); }
+                            
+                            // Run blocking HTTP in separate thread to avoid tokio runtime conflict
+                            let result = std::thread::spawn(move || {
+                                let client = reqwest::blocking::Client::builder()
+                                    .timeout(std::time::Duration::from_secs(10))
+                                    .build()
+                                    .ok()?;
+                                    
+                                let resp = client.get(&url_str)
+                                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                                    .send()
+                                    .ok()?;
+                                    
+                                resp.text().ok()
+                            }).join().ok().flatten();
+                            
+                            if let Some(text) = result {
+                                return Ok(JsValue::from(JsString::from(text.as_str())));
                             }
                         }
                     }
