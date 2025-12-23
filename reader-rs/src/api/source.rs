@@ -3,6 +3,7 @@ use axum::{
     response::{Json, sse::{Event, Sse}},
 };
 use futures::stream::Stream;
+use futures::StreamExt;
 use serde::Deserialize;
 use std::sync::Arc;
 use std::convert::Infallible;
@@ -89,11 +90,36 @@ pub async fn search_book_source_sse(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchSourceSSEQuery>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let stream = state.source_service.search_source_sse(
-        query.url,
-        query.book_source_group,
-        query.concurrent_count.unwrap_or(20),
-    );
+    // 1. 获取书籍信息以得到书名
+    // 注意：这里需要 async 块来处理 await，由于 Sse::new 需要流，我们使用 async_stream
+    let book_service = state.book_service.clone();
+    let url = query.url.clone();
+    let concurrent = query.concurrent_count.unwrap_or(20) as usize;
+
+    let stream = async_stream::stream! {
+        // 尝试获取书籍信息
+        let book_name = match book_service.get_book_info(&url).await {
+            Ok(book) => book.name,
+            Err(_) => {
+                // 书籍未找到，可能是 ID 错误
+                tracing::warn!("Book not found for source search: {}", url);
+                yield Ok(Event::default().data(r#"{"type":"end"}"#));
+                return;
+            }
+        };
+
+        tracing::info!("Starting source search for book: {}", book_name);
+
+    let mut search_stream = Box::pin(book_service.search_multi_sse(book_name, concurrent));
+
+        while let Some(event) = search_stream.next().await {
+            yield event;
+        }
+        
+        // 发送结束事件 (虽然 search_multi_sse 可能已经发了，但多发无害，或者依靠 frontend 的处理)
+        // yield Ok(Event::default().data(r#"{"type":"end"}"#));
+    };
+
     Sse::new(stream)
 }
 

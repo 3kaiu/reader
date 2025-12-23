@@ -9,8 +9,7 @@ pub use book::BookService;
 pub use source::SourceService;
 pub use replace::ReplaceService;
 pub use group::GroupService;
-pub use http::HttpClient;
-pub use migration::{Migration, MigrationResult};
+pub use migration::Migration;
 
 /// 应用全局状态
 pub struct AppState {

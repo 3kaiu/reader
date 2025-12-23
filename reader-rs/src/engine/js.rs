@@ -6,7 +6,6 @@ use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
-use boa_engine::object::NativeObject;
 
 // Type alias for the cache
 pub type JsCache = Arc<Mutex<HashMap<String, String>>>;
@@ -454,7 +453,7 @@ fn base64_encode(data: &[u8]) -> String {
         let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
         let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
         
-        result.push(CHARSET[(b0 >> 2)] as char);
+        result.push(CHARSET[b0 >> 2] as char);
         result.push(CHARSET[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
         
         if chunk.len() > 1 {

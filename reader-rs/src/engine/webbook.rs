@@ -2,12 +2,12 @@ use reqwest::Client;
 use std::time::Duration;
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 
 use crate::models::{BookSourceFull, SearchResult, Chapter};
-use crate::engine::{CssParser, JsonPathParser, RegexParser, LegadoJsEngine};
+use crate::engine::{JsonPathParser, RegexParser, LegadoJsEngine};
 
 /// 网络书籍解析器
+#[derive(Clone)]
 pub struct WebBook {
     client: Client,
 }
@@ -67,7 +67,9 @@ impl WebBook {
                     author,
                     cover_url,
                     intro,
+                    latest_chapter_title: None,
                     origin_name: Some(source.book_source_name.clone()),
+                    origin: None,
                 });
             }
         }
@@ -150,7 +152,8 @@ impl WebBook {
 
     /// 获取章节列表
     pub async fn get_chapter_list(&self, source: &BookSourceFull, toc_url: &str) -> Result<Vec<Chapter>> {
-        let content = self.client.get(toc_url).send().await?.text().await?;
+        let abs_url = self.absolute_url(&source.book_source_url, toc_url);
+        let content = self.client.get(&abs_url).send().await?.text().await?;
         
         let rule_toc = match &source.rule_toc {
             Some(r) => r,
@@ -180,7 +183,8 @@ impl WebBook {
 
     /// 获取章节内容
     pub async fn get_content(&self, source: &BookSourceFull, chapter_url: &str) -> Result<String> {
-        let content = self.client.get(chapter_url).send().await?.text().await?;
+        let abs_url = self.absolute_url(&source.book_source_url, chapter_url);
+        let content = self.client.get(&abs_url).send().await?.text().await?;
         
         let rule_content = match &source.rule_content {
             Some(r) => r,
@@ -418,9 +422,18 @@ impl WebBook {
             (rule, None)
         };
         
+        if selector.trim().is_empty() {
+            return Ok(vec![]);
+        }
+        
         let document = Html::parse_document(content);
-        let sel = Selector::parse(selector)
-            .map_err(|e| anyhow::anyhow!("CSS parse error: {:?}", e))?;
+        let sel = match Selector::parse(selector) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("CSS parse error in get_elements_html for '{}': {:?}", selector, e);
+                return Ok(vec![]);
+            }
+        };
         
         Ok(document.select(&sel)
             .map(|e| {

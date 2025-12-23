@@ -184,7 +184,7 @@ impl BookSourceEngine {
             name: self.get_rule_value(&content, &rule.name).unwrap_or_default(),
             author: self.get_rule_value(&content, &rule.author).unwrap_or_default(),
             intro: self.get_rule_value(&content, &rule.intro).ok(),
-            cover_url: self.get_rule_value(&content, &rule.cover_url).ok(),
+            cover_url: self.get_rule_value(&content, &rule.cover_url).ok().map(|u| self.http.absolute_url(&u)),
             book_url: book_url.to_string(),
             kind: None,
             last_chapter: self.get_rule_value(&content, &rule.last_chapter).ok(),
@@ -238,8 +238,8 @@ impl BookSourceEngine {
             name: self.get_rule_value(element, &rule.name)?,
             author: self.get_rule_value(element, &rule.author).unwrap_or_default(),
             intro: self.get_rule_value(element, &rule.intro).ok(),
-            cover_url: self.get_rule_value(element, &rule.cover_url).ok(),
-            book_url: self.get_rule_value(element, &rule.book_url)?,
+            cover_url: self.get_rule_value(element, &rule.cover_url).ok().map(|u| self.http.absolute_url(&u)),
+            book_url: self.http.absolute_url(&self.get_rule_value(element, &rule.book_url)?),
             kind: self.get_rule_value(element, &rule.kind).ok(),
             last_chapter: self.get_rule_value(element, &rule.last_chapter).ok(),
             word_count: self.get_rule_value(element, &rule.word_count).ok(),
@@ -249,7 +249,7 @@ impl BookSourceEngine {
     fn parse_chapter(&self, element: &str, rule: &TocRule) -> Result<Chapter> {
         Ok(Chapter {
             title: self.get_rule_value(element, &rule.chapter_name)?,
-            url: self.get_rule_value(element, &rule.chapter_url)?,
+            url: self.http.absolute_url(&self.get_rule_value(element, &rule.chapter_url)?),
             is_volume: self.get_rule_value(element, &rule.is_volume)
                 .map(|v| v == "true" || v == "1")
                 .unwrap_or(false),

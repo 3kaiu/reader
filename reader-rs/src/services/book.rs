@@ -12,6 +12,7 @@ use crate::engine::WebBook;
 const BOOKSHELF_FILE: &str = "bookshelf.json";
 const SOURCES_FILE: &str = "bookSources.json";
 
+#[derive(Clone)]
 pub struct BookService {
     storage: FileStorage,
     bookshelf: Arc<RwLock<Vec<Book>>>,
@@ -128,29 +129,8 @@ impl BookService {
             .ok_or_else(|| anyhow::anyhow!("Book not found"))
     }
 
-    /// 搜索书籍 (优先使用新引擎，失败时回退旧引擎)
+    /// 搜索书籍 (使用新引擎)
     pub async fn search(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
-        // 优先尝试新引擎
-        match self.search_v2(key).await {
-            Ok(results) if !results.is_empty() => return Ok(results),
-            Ok(_) => tracing::debug!("search_v2 returned empty, falling back to legacy"),
-            Err(e) => tracing::warn!("search_v2 failed: {}, falling back to legacy", e),
-        }
-        
-        // 回退到旧引擎
-        let sources = self.sources.read().await;
-        for source in sources.iter().filter(|s| s.enabled) {
-            match self.webbook.search(source, key).await {
-                Ok(results) if !results.is_empty() => return Ok(results),
-                _ => continue,
-            }
-        }
-        
-        Ok(vec![])
-    }
-    
-    /// 搜索书籍 (使用新引擎 - v2)
-    pub async fn search_v2(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
         use crate::engine::book_source::{BookSourceEngine, BookSource};
         
         let sources = self.sources.read().await;
@@ -158,12 +138,12 @@ impl BookService {
         for source in sources.iter().filter(|s| s.enabled && !s.search_url.is_empty()) {
             // 使用 JSON 序列化转换书源格式 (避免手动字段映射)
             let source_json = serde_json::to_string(source)?;
-            let engine_source: BookSource = serde_json::from_str(&source_json)?;
             
             // 在阻塞线程中运行新引擎
             let key = key.to_string();
             let source_name = source.book_source_name.clone();
             let result = tokio::task::spawn_blocking(move || {
+                let engine_source: BookSource = serde_json::from_str(&source_json)?;
                 match BookSourceEngine::new(engine_source) {
                     Ok(engine) => engine.search(&key, 1),
                     Err(e) => Err(e),
@@ -180,13 +160,15 @@ impl BookService {
                             author: b.author,
                             cover_url: b.cover_url,
                             intro: b.intro,
+                            latest_chapter_title: b.last_chapter,
                             origin_name: Some(source_name.clone()),
+                            origin: Some(source.book_source_url.clone()),
                         })
                         .collect();
                     return Ok(results);
                 }
-                Ok(Err(e)) => tracing::warn!("search_v2 failed for {}: {}", source.book_source_name, e),
-                Err(e) => tracing::warn!("search_v2 spawn error: {}", e),
+                Ok(Err(e)) => tracing::warn!("search failed for {}: {}", source.book_source_name, e),
+                Err(e) => tracing::warn!("search spawn error: {}", e),
                 _ => continue,
             }
         }
@@ -195,10 +177,11 @@ impl BookService {
     }
 
     /// 多书源搜索 (SSE)
-    pub fn search_multi_sse(&self, key: String) -> impl Stream<Item = Result<Event, Infallible>> {
+    pub fn search_multi_sse(&self, key: String, concurrent_count: usize) -> impl Stream<Item = Result<Event, Infallible>> {
+        use crate::engine::book_source::{BookSourceEngine, BookSource};
+
         let sources = self.sources.clone();
         let storage = self.storage.clone();
-        let webbook = WebBook::new();
         
         async_stream::stream! {
             // 确保书源已加载
@@ -223,18 +206,119 @@ impl BookService {
             }
             
             // 并发搜索所有书源
-            for source in enabled_sources {
-                tracing::debug!("Searching source: {} ({})", source.book_source_name, source.search_url);
-                match webbook.search(&source, &key).await {
-                    Ok(results) => {
-                        tracing::info!("Found {} results from {}", results.len(), source.book_source_name);
-                        for result in results {
-                            let json = serde_json::to_string(&result).unwrap_or_default();
-                            yield Ok(Event::default().data(json));
-                        }
-                    }
+            // 使用 Semaphore 限制最大并发数
+            let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrent_count));
+            
+            // 使用 FuturesUnordered 来无序处理结果 (谁先完成谁先返回)
+            use futures::stream::FuturesUnordered;
+            use futures::StreamExt;
+            
+            let mut tasks = FuturesUnordered::new();
+            
+            for source in &enabled_sources {
+                let key = key.clone();
+                let source_name = source.book_source_name.clone();
+                let source_name_closure = source_name.clone(); // Clone for closure
+                let source_url = source.book_source_url.clone();
+                let source_json = match serde_json::to_string(&source) {
+                    Ok(json) => json,
                     Err(e) => {
-                        tracing::warn!("Search failed for {}: {}", source.book_source_name, e);
+                        tracing::error!("Failed to serialize source {}: {}", source_name, e);
+                        continue;
+                    }
+                };
+                
+                let semaphore = semaphore.clone(); // Clone semaphore for task
+                
+                tasks.push(tokio::task::spawn(async move {
+                    // 在任务内部获取 permit，这样循环不会阻塞
+                    let permit = semaphore.acquire_owned().await;
+                    
+                    // 确保 permit 在任务结束前一直被持有
+                    let _permit = permit;
+                    
+                    // 使用 timeout 包装阻塞任务
+                    let result = tokio::time::timeout(
+                        std::time::Duration::from_secs(15),
+                        tokio::task::spawn_blocking(move || {
+                            let engine_source: BookSource = match serde_json::from_str(&source_json) {
+                                Ok(s) => s,
+                                Err(e) => return Err(anyhow::anyhow!("Failed to parse source: {}", e)),
+                            };
+
+                            match BookSourceEngine::new(engine_source) {
+                                Ok(engine) => {
+                                    tracing::debug!("Searching source: {}", source_name_closure);
+                                    engine.search(&key, 1)
+                                },
+                                Err(e) => Err(anyhow::anyhow!("Failed to create engine: {}", e)),
+                            }
+                        })
+                    ).await;
+                    
+                    let final_result = match result {
+                        Ok(Ok(engine_res)) => engine_res, // success
+                        Ok(Err(e)) => Err(anyhow::anyhow!("Task join error: {}", e)), // join error
+                        Err(_) => Err(anyhow::anyhow!("Search timed out")), // timeout
+                    };
+                    
+                    (source_name, source_url, final_result)
+                }));
+            }
+
+            // 处理结果流
+            let mut completed_count = 0;
+            let total_count = enabled_sources.len();
+
+            while let Some(task_result) = tasks.next().await {
+                completed_count += 1;
+                
+                // 发送进度事件
+                let progress_json = serde_json::json!({
+                    "type": "progress",
+                    "current": completed_count,
+                    "total": total_count
+                }).to_string();
+                yield Ok(Event::default().data(progress_json));
+
+                // task_result 是 JOIN 句柄的结果 (Result<..., JoinError>)
+                if let Ok((source_name, source_url, search_result)) = task_result {
+                    match search_result {
+                        Ok(books) => {
+                            tracing::info!("Found {} results from {}", books.len(), source_name);
+                            for mut book in books {
+                                // 补充来源信息
+                                book.kind = Some(source_name.clone());
+                                
+                                // 转换为 SearchResult 格式
+                                let result = SearchResult {
+                                    book_url: book.book_url,
+                                    name: book.name,
+                                    author: book.author,
+                                    cover_url: book.cover_url,
+                                    intro: book.intro,
+                                    latest_chapter_title: book.last_chapter,
+                                    origin_name: Some(source_name.clone()),
+                                    origin: Some(source_url.clone()),
+                                };
+
+                                // 包装在 data 字段中，以匹配前端预期: { "data": [ result ] }
+                                let wrapper = serde_json::json!({
+                                    "data": [result]
+                                });
+
+                                match serde_json::to_string(&wrapper) {
+                                    Ok(json) => yield Ok(Event::default().data(json)),
+                                    Err(e) => tracing::error!("Failed to serialize book: {}", e),
+                                }
+                            }
+                        }
+                        Err(e) => {
+                             // 只有在非超时和其他特定错误时才打印警告，减少噪音
+                             if !e.to_string().contains("timed out") && !e.to_string().contains("sending request") {
+                                tracing::warn!("Search failed for {}: {}", source_name, e);
+                             }
+                        }
                     }
                 }
             }

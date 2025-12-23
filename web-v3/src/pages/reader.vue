@@ -5,12 +5,12 @@
  */
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, defineAsyncComponent, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { useMessage, NSpin } from 'naive-ui'
 import {
   ArrowLeft, Settings, List, Moon, Sun,
   ChevronLeft, ChevronRight, RotateCcw,
   Download, Type, ArrowLeftRight, X,
-  Pause, Play, Volume2
+  Pause, Play, Volume2, Loader2
 } from 'lucide-vue-next'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'

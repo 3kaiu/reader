@@ -313,7 +313,7 @@ onMounted(() => {
     <!-- 主内容 -->
     <main class="container mx-auto max-w-screen-2xl px-4 py-6">
       <!-- 加载 -->
-      <div v-if="loading" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <div v-if="loading" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 sm:gap-6">
         <SkeletonLoader v-for="i in 12" :key="i" type="card" />
       </div>
       
@@ -343,11 +343,11 @@ onMounted(() => {
             </h2>
           </div>
           
-          <div class="flex gap-5 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-            <div
+          <div class="flex gap-4 sm:gap-5 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+             <div
               v-for="book in recommendedBooks"
               :key="book.bookUrl"
-              class="flex-shrink-0 w-[140px] md:w-[160px] cursor-pointer group"
+              class="flex-shrink-0 w-[120px] sm:w-[140px] md:w-[160px] cursor-pointer group"
               @click="handleBookClick(book)"
             >
               <div class="aspect-[2/3] rounded-xl overflow-hidden bg-muted mb-3 relative
@@ -405,11 +405,11 @@ onMounted(() => {
             </div>
           </div>
           
-          <div class="flex flex-wrap gap-x-5 gap-y-8 content-start">
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 sm:gap-6 content-start">
             <div
               v-for="{ book, sourceCount } in filteredBooks"
               :key="book.bookUrl"
-              class="flex-shrink-0 w-[140px] md:w-[160px] relative"
+              class="relative"
             >
               <BookCard
                 :book="book"

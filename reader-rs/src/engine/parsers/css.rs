@@ -12,8 +12,18 @@ impl Parser for CssParser {
         let (selector_str, attr) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("CSS parse error: {:?}", e))?;
+        
+        if selector_str.is_empty() {
+             return Ok(String::new());
+        }
+
+        let selector = match Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("CSS parse error for '{}': {:?}", selector_str, e);
+                return Ok(String::new());
+            }
+        };
         
         if let Some(element) = document.select(&selector).next() {
             match attr.as_str() {
@@ -36,8 +46,18 @@ impl Parser for CssParser {
         let (selector_str, attr) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("CSS parse error: {:?}", e))?;
+        
+        if selector_str.is_empty() {
+             return Ok(vec![]);
+        }
+
+        let selector = match Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("CSS parse error for '{}': {:?}", selector_str, e);
+                return Ok(vec![]);
+            }
+        };
         
         let results: Vec<String> = document.select(&selector)
             .map(|element| {
@@ -59,8 +79,18 @@ impl Parser for CssParser {
         let (selector_str, _) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("CSS parse error: {:?}", e))?;
+        
+        if selector_str.is_empty() {
+             return Ok(vec![]);
+        }
+
+        let selector = match Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("CSS parse error for '{}': {:?}", selector_str, e);
+                return Ok(vec![]);
+            }
+        };
         
         let results: Vec<String> = document.select(&selector)
             .map(|element| element.html())

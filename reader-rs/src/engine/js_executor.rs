@@ -2,7 +2,7 @@
 //!
 //! Provides ES2023 JavaScript execution with custom utils.* API
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use rquickjs::{Runtime, Context, Value, Object, Function, Ctx};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

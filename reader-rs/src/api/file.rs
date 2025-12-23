@@ -1,12 +1,10 @@
 use axum::{
-    extract::{Query, State},
+    extract::Query,
     response::Json,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use serde::Deserialize;
 
 use crate::models::ApiResponse;
-use crate::services::AppState;
 use crate::storage::FileStorage;
 
 #[derive(Debug, Deserialize)]

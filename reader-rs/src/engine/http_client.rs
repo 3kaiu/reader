@@ -6,7 +6,7 @@
 //! - Custom headers, charset, proxy support
 //! - Cookie management
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -193,7 +193,7 @@ impl HttpClient {
     // === Private methods ===
     
     /// Convert relative URL to absolute
-    fn absolute_url(&self, url: &str) -> String {
+    pub fn absolute_url(&self, url: &str) -> String {
         let url = url.trim();
         
         if url.starts_with("http://") || url.starts_with("https://") {

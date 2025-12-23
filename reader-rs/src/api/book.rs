@@ -3,7 +3,7 @@ use axum::{
     response::{Json, sse::{Event, Sse}},
 };
 use futures::stream::Stream;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::convert::Infallible;
 
@@ -110,23 +110,13 @@ pub async fn search(
     }
 }
 
-/// GET /searchV2 - 搜索书籍 (使用新引擎)
-pub async fn search_v2(
-    State(state): State<Arc<AppState>>,
-    Query(query): Query<SearchQuery>,
-) -> Json<ApiResponse<Vec<SearchResult>>> {
-    match state.book_service.search_v2(&query.key).await {
-        Ok(results) => Json(ApiResponse::success(results)),
-        Err(e) => Json(ApiResponse::error(&e.to_string())),
-    }
-}
 
 /// GET /searchBookMultiSSE - 多书源搜索 (SSE)
 pub async fn search_book_multi_sse(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let stream = state.book_service.search_multi_sse(query.key);
+    let stream = state.book_service.search_multi_sse(query.key, 50);
     Sse::new(stream)
 }
 

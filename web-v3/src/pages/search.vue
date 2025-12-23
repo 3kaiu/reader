@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router'
 import { useStorage } from '@vueuse/core'
 import { 
   Search, ArrowLeft, Plus, BookOpen, Clock, X, 
-  Loader2, BookMarked, User, Check, Globe, Square
+  Loader2, BookMarked, User, Check, Square
 } from 'lucide-vue-next'
 import { bookApi, type Book } from '@/api'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ const loading = ref(false)
 const hasSearched = ref(false)
 const addedBooks = ref<Set<string>>(new Set())
 const openingBook = ref<string | null>(null) // 正在打开的书籍URL
+const progress = ref({ current: 0, total: 0 })
 
 const searchHistory = useStorage<string[]>('search-history', [])
 
@@ -52,6 +53,9 @@ async function search(keyword?: string) {
   
   searchKeyword.value = query
   
+  // 关闭已有的SSE连接
+  stopSearch()
+
   if (!searchHistory.value.includes(query)) {
     searchHistory.value = [query, ...searchHistory.value.slice(0, 9)]
   }
@@ -59,25 +63,54 @@ async function search(keyword?: string) {
   loading.value = true
   hasSearched.value = true
   searchResult.value = []
-  
-  // 关闭已有的SSE连接
-  stopSearch()
 
   // 使用 SSE 搜索
   const url = bookApi.getSearchBookSSEUrl(query)
+
+  // Reset progress
+  progress.value = { current: 0, total: 0 }
+
   const es = new EventSource(url)
   window.searchEventSource = es
 
   es.onmessage = (event) => {
     try {
       const parsed = JSON.parse(event.data)
-      // SSE 返回格式: {"lastIndex": number, "data": [...书籍列表...]}
-      const books = parsed.data
-      if (Array.isArray(books) && books.length > 0) {
-        searchResult.value.push(...books)
+      
+      // Handle progress events
+      if (parsed.type === 'progress') {
+        progress.value = { 
+          current: parsed.current, 
+          total: parsed.total 
+        }
+        return
+      }
+
+      // Check if it's an end event
+      if (parsed.type === 'end') {
+        es.close()
+        loading.value = false
+        window.searchEventSource = null
+        return
+      }
+      
+      // Handle wrapped data (new format supported by backend)
+      if (parsed.data && Array.isArray(parsed.data)) {
+        parsed.data.forEach((item: any) => {
+          if (item && item.bookUrl) {
+            searchResult.value.push(item)
+          }
+        })
+        return
+      }
+
+      // Backend returns a single book object as JSON string (Legacy support)
+      // Just push it directly to the array
+      if (parsed && parsed.bookUrl) {
+         searchResult.value.push(parsed)
       }
     } catch (e) {
-      // ignore parse errors
+      console.error('SSE parse error:', e)
     }
   }
 
@@ -275,117 +308,153 @@ function resetSearch() {
         </div>
       </header>
       
-      <main class="max-w-2xl mx-auto px-4 py-4">
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <!-- 实时结果计数 -->
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-6">
           <p class="text-sm text-muted-foreground flex items-center gap-2">
-            <span v-if="loading" class="flex items-center gap-1.5">
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-              搜索中...
+            <!-- 搜索中状态 -->
+            <span v-if="loading" class="flex items-center gap-2 text-primary">
+              <Loader2 class="h-4 w-4 animate-spin" />
+              <span class="font-medium">
+                {{ progress.total > 0 ? `正在搜索: ${progress.current}/${progress.total} 个书源` : '正在聚合全网书源...' }}
+              </span>
             </span>
-            <span v-else>搜索完成</span>
-            <Badge variant="secondary" class="ml-1">
-              {{ resultCount }} 本
+            <!-- 搜索完成状态 -->
+            <span v-else class="text-foreground font-medium flex items-center gap-2">
+              <Check class="h-4 w-4 text-green-500" />
+              搜索完成
+            </span>
+            
+            <!-- 结果数量 (仅当有结果时，或者搜索结束时显示) -->
+            <Badge v-if="resultCount > 0 || !loading" variant="secondary" class="ml-2 px-2.5 py-0.5 text-xs font-normal transition-all duration-300">
+              已找到 {{ resultCount }} 本
             </Badge>
           </p>
         </div>
         
-        <!-- 加载中同时显示已有结果 -->
-        <div v-if="searchResult.length > 0" class="space-y-2">
+        <!-- 结果网格 -->
+        <div v-if="searchResult.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           <div
             v-for="(book, index) in searchResult"
             :key="book.bookUrl + index"
-            class="flex gap-4 p-3 rounded-xl border bg-card hover:bg-accent/50 cursor-pointer 
-                   transition-all duration-200 hover:shadow-sm group animate-in fade-in slide-in-from-bottom-2"
-            :style="{ animationDelay: `${Math.min(index, 10) * 30}ms` }"
+            class="group relative flex flex-col bg-card rounded-xl border border-border/50 hover:border-primary/50 cursor-pointer 
+                   transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 animate-in fade-in slide-in-from-bottom-4 overflow-hidden"
+            :style="{ animationDelay: `${Math.min(index, 10) * 50}ms` }"
             @click="openBook(book)"
           >
-            <!-- 封面 -->
-            <div class="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-muted shadow-sm">
-              <img
-                v-if="book.coverUrl"
-                :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
-                :alt="book.name"
-                class="w-full h-full object-cover"
-              />
-              <div v-else class="w-full h-full flex items-center justify-center">
-                <BookMarked class="h-5 w-5 text-muted-foreground" />
-              </div>
-            </div>
-            
-            <!-- 信息 -->
-            <div class="flex-1 min-w-0 py-0.5">
-              <div class="flex items-start gap-2">
-                <h3 class="font-medium text-sm truncate flex-1">{{ book.name }}</h3>
-                <!-- 打开中状态 -->
-                <Loader2 
-                  v-if="openingBook === book.bookUrl" 
-                  class="h-4 w-4 animate-spin text-primary shrink-0" 
+            <div class="flex p-3 gap-4 h-full">
+               <!-- 封面 -->
+              <div class="relative shrink-0 w-[5rem] sm:w-[5.5rem] aspect-[2/3] rounded shadow-sm overflow-hidden bg-muted group-hover:shadow-md transition-shadow">
+                <img
+                  v-if="book.coverUrl"
+                  :src="`/reader3/cover?path=${encodeURIComponent(book.coverUrl)}`"
+                  :alt="book.name"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
                 />
-              </div>
-              
-              <div class="flex items-center gap-2 mt-1 flex-wrap">
-                <span class="text-xs text-muted-foreground flex items-center gap-1">
-                  <User class="h-3 w-3" />
-                  {{ book.author || '未知作者' }}
-                </span>
-                <!-- 书源标签 -->
-                <Badge v-if="book.originName" variant="outline" class="text-[10px] h-4 px-1.5">
-                  <Globe class="h-2.5 w-2.5 mr-0.5" />
+                <div v-else class="w-full h-full flex items-center justify-center bg-secondary/30">
+                  <BookMarked class="h-8 w-8 text-muted-foreground/30" />
+                </div>
+                
+                <!-- 书源角标 (悬浮更清晰) -->
+                <div v-if="book.originName" class="absolute top-0 left-0 bg-black/70 backdrop-blur-[2px] text-white text-[9px] px-1.5 py-0.5 rounded-br font-medium max-w-full truncate">
                   {{ book.originName }}
-                </Badge>
+                </div>
               </div>
               
-              <p v-if="book.intro" class="text-xs text-muted-foreground mt-1.5 line-clamp-2">
-                {{ book.intro }}
-              </p>
-              <p v-else-if="book.latestChapterTitle" class="text-xs text-muted-foreground mt-1.5 truncate">
-                最新: {{ book.latestChapterTitle }}
-              </p>
+              <!-- 信息区域 -->
+              <div class="flex-1 min-w-0 flex flex-col h-full">
+                <!-- 顶部信息 -->
+                <div>
+                  <h3 class="font-bold text-[15px] leading-tight text-foreground/90 truncate group-hover:text-primary transition-colors mb-1">
+                    {{ book.name }}
+                  </h3>
+                  
+                  <div class="flex items-center gap-1.5 text-xs text-muted-foreground/80 mb-2">
+                    <User class="h-3 w-3" />
+                    <span class="truncate max-w-[8rem]">{{ book.author || '未知作者' }}</span>
+                  </div>
+                </div>
+
+                <!-- 简介/最新章节 -->
+                <div class="flex-1">
+                   <p v-if="book.intro" class="text-xs text-muted-foreground/70 line-clamp-2 leading-relaxed h-[2.2rem]">
+                    {{ book.intro.trim() }}
+                  </p>
+                  <p v-else-if="book.latestChapterTitle" class="text-xs text-muted-foreground/70 truncate">
+                    最新: {{ book.latestChapterTitle }}
+                  </p>
+                </div>
+                
+                <!-- 底部操作 (移除边框，更紧凑) -->
+                <div class="mt-2 flex items-end justify-between">
+                   <!-- 状态提示 -->
+                   <div class="h-6 flex items-center">
+                      <Loader2 
+                        v-if="openingBook === book.bookUrl" 
+                        class="h-4 w-4 animate-spin text-primary" 
+                      />
+                      <span v-else class="text-[10px] text-primary/80 font-medium opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0 duration-300">
+                        点击阅读 &rarr;
+                      </span>
+                   </div>
+                   
+                   <!-- 加书架按钮 -->
+                   <Button
+                      variant="secondary"
+                      size="sm"
+                      class="h-7 px-2.5 text-xs font-medium bg-secondary/50 hover:bg-primary hover:text-primary-foreground transition-all rounded-md shadow-sm"
+                      :class="addedBooks.has(book.bookUrl) ? 'bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800' : ''"
+                      @click.stop="addToShelf(book)"
+                    >
+                      <span v-if="addedBooks.has(book.bookUrl)" class="flex items-center gap-1">
+                        <Check class="h-3 w-3" /> 已添加
+                      </span>
+                      <span v-else class="flex items-center gap-1">
+                        <Plus class="h-3 w-3" /> 书架
+                      </span>
+                    </Button>
+                </div>
+              </div>
             </div>
-            
-            <!-- 添加按钮 -->
-            <Button
-              variant="ghost"
-              size="icon"
-              class="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity"
-              :class="addedBooks.has(book.bookUrl) ? 'text-green-600 opacity-100' : ''"
-              @click.stop="addToShelf(book)"
-            >
-              <Check v-if="addedBooks.has(book.bookUrl)" class="h-4 w-4" />
-              <Plus v-else class="h-4 w-4" />
-            </Button>
           </div>
         </div>
         
-        <!-- 加载骨架屏 (仅在无结果时显示) -->
-        <div v-else-if="loading" class="space-y-3">
-          <div v-for="i in 6" :key="i" class="flex gap-4 p-3 rounded-xl border animate-pulse">
-            <div class="w-14 h-20 rounded-lg bg-muted" />
-            <div class="flex-1 space-y-2 py-1">
-              <div class="h-4 bg-muted rounded w-3/4" />
-              <div class="h-3 bg-muted rounded w-1/2" />
-              <div class="h-3 bg-muted rounded w-full" />
+        <!-- 加载骨架屏 -->
+        <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+          <div v-for="i in 8" :key="i" class="flex p-3 gap-3 rounded-xl border bg-card/50">
+            <div class="w-[5.5rem] aspect-[2/3] rounded-lg bg-muted animate-pulse" />
+            <div class="flex-1 space-y-3 py-1">
+              <div class="h-5 bg-muted rounded w-3/4 animate-pulse" />
+              <div class="h-3 bg-muted rounded w-1/3 animate-pulse" />
+              <div class="space-y-1.5 mt-2">
+                 <div class="h-2.5 bg-muted rounded w-full animate-pulse" />
+                 <div class="h-2.5 bg-muted rounded w-5/6 animate-pulse" />
+              </div>
             </div>
           </div>
         </div>
         
         <!-- 无结果 -->
-        <div v-else-if="!loading && searchResult.length === 0" class="flex flex-col items-center justify-center py-20">
-          <div class="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
-            <BookOpen class="h-10 w-10 text-muted-foreground/50" />
+        <div v-else class="flex flex-col items-center justify-center py-32 animate-in fade-in zoom-in-95 duration-500">
+          <div class="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mb-6 ring-8 ring-muted/20">
+            <BookOpen class="h-10 w-10 text-muted-foreground/40" />
           </div>
-          <h3 class="text-lg font-medium mb-2">未找到相关书籍</h3>
-          <p class="text-muted-foreground text-sm mb-6">换个关键词试试？</p>
-          <Button variant="outline" @click="resetSearch">
+          <h3 class="text-xl font-semibold mb-2 text-foreground">未找到相关书籍</h3>
+          <p class="text-muted-foreground text-sm mb-8 text-center max-w-sm">
+            没有找到与“{{ searchKeyword }}”相关的结果。<br>尝试更换关键词或检查网络连接。
+          </p>
+          <Button variant="outline" size="lg" @click="resetSearch" class="px-8 rounded-full border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors">
             重新搜索
           </Button>
         </div>
         
         <!-- 加载更多指示 -->
-        <div v-if="loading && searchResult.length > 0" class="py-6 text-center">
-          <Loader2 class="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-          <p class="text-xs text-muted-foreground mt-2">继续搜索中...</p>
+        <div v-if="loading && searchResult.length > 0" class="py-12 text-center">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 text-sm text-muted-foreground">
+            <Loader2 class="h-4 w-4 animate-spin" />
+            <span>智能聚合搜索中...</span>
+          </div>
         </div>
       </main>
     </div>

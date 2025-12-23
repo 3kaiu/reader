@@ -2,7 +2,6 @@ use axum::{
     extract::State,
     response::Json,
 };
-use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::models::{ReplaceRule, ApiResponse};

@@ -1,7 +1,5 @@
-use axum::{
-    routing::{get, post},
-    Router,
-};
+#![allow(dead_code)]
+use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
