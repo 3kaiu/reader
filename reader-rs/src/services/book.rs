@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 
 use crate::models::{Book, Chapter, SearchResult, BookSourceFull};
 use crate::storage::FileStorage;
-use crate::engine::WebBook;
+use crate::engine::book_source::{BookSource, BookSourceEngine};
 
 /// 书架存储文件名
 const BOOKSHELF_FILE: &str = "bookshelf.json";
@@ -17,7 +17,6 @@ pub struct BookService {
     storage: FileStorage,
     bookshelf: Arc<RwLock<Vec<Book>>>,
     sources: Arc<RwLock<Vec<BookSourceFull>>>,
-    webbook: WebBook,
 }
 
 impl BookService {
@@ -26,7 +25,6 @@ impl BookService {
             storage: FileStorage::default(),
             bookshelf: Arc::new(RwLock::new(Vec::new())),
             sources: Arc::new(RwLock::new(Vec::new())),
-            webbook: WebBook::new(),
         }
     }
 
@@ -92,8 +90,20 @@ impl BookService {
         
         tracing::debug!("Fetching chapters from toc_url: {} (book_url: {})", toc_url, book_url);
         
-        // 从书源获取章节
-        let chapters = self.webbook.get_chapter_list(&source, &toc_url).await?;
+        // 使用 BookSourceEngine 获取章节
+        let source_json = serde_json::to_string(&source)?;
+        let toc_url_clone = toc_url.clone();
+        let chapters = tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<Chapter>> {
+            let engine_source: BookSource = serde_json::from_str(&source_json)?;
+            let engine = BookSourceEngine::new(engine_source)?;
+            let engine_chapters = engine.get_chapters(&toc_url_clone)?;
+            
+            Ok(engine_chapters.into_iter().enumerate().map(|(i, c)| Chapter {
+                title: c.title,
+                url: c.url,
+                index: i as i32,
+            }).collect())
+        }).await??;
         
         // 缓存
         if !chapters.is_empty() {
@@ -122,8 +132,14 @@ impl BookService {
         let book = self.get_book_info(book_url, None).await?;
         let source = self.get_source(&book.origin.unwrap_or_default()).await?;
         
-        // 从书源获取内容
-        let content = self.webbook.get_content(&source, &chapter.url).await?;
+        // 使用 BookSourceEngine 获取内容
+        let source_json = serde_json::to_string(&source)?;
+        let chapter_url = chapter.url.clone();
+        let content = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+            let engine_source: BookSource = serde_json::from_str(&source_json)?;
+            let engine = BookSourceEngine::new(engine_source)?;
+            engine.get_content(&chapter_url)
+        }).await??;
         
         // 缓存
         if !content.is_empty() {

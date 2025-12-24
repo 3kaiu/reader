@@ -26,6 +26,7 @@ pub struct RuleAnalyzer {
     jsoup_parser: JsoupDefaultParser,
     xpath_parser: XPathParser,
     js_executor: JsExecutor,
+    variables: std::cell::RefCell<HashMap<String, String>>,
 }
 
 impl RuleAnalyzer {
@@ -38,6 +39,7 @@ impl RuleAnalyzer {
             jsoup_parser: JsoupDefaultParser,
             xpath_parser: XPathParser,
             js_executor: JsExecutor::new()?,
+            variables: std::cell::RefCell::new(HashMap::new()),
         })
     }
     
@@ -51,10 +53,84 @@ impl RuleAnalyzer {
         self.js_executor.preload_lib(js_lib)
     }
     
+    /// Put a variable for @put syntax
+    pub fn put_variable(&self, key: &str, value: &str) {
+        self.variables.borrow_mut().insert(key.to_string(), value.to_string());
+    }
+    
+    /// Get a variable for @get syntax
+    pub fn get_variable(&self, key: &str) -> Option<String> {
+        self.variables.borrow().get(key).cloned()
+    }
+    
+    /// Replace @get:key and {{key}} placeholders with stored variables
+    fn replace_variables(&self, text: &str) -> String {
+        let mut result = text.to_string();
+        let vars = self.variables.borrow();
+        
+        for (k, v) in vars.iter() {
+            // Replace {{key}}
+            result = result.replace(&format!("{{{{{}}}}}", k), v);
+            // Replace @get:key
+            result = result.replace(&format!("@get:{}", k), v);
+        }
+        
+        result
+    }
+    
+    /// Parse @put:{key:value} syntax and return the rule without @put part
+    fn parse_put_rule(&self, rule: &str) -> String {
+        // Format: rule@put:{"key":"value"} or rule@put:{key:value}
+        if let Some(pos) = rule.find("@put:") {
+            let base_rule = rule[..pos].trim();
+            let json_part = &rule[pos + 5..];
+            
+            // Try to parse as JSON
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_part) {
+                if let Some(obj) = json.as_object() {
+                    for (k, v) in obj {
+                        if let Some(val) = v.as_str() {
+                            self.put_variable(k, val);
+                        } else {
+                            self.put_variable(k, &v.to_string());
+                        }
+                    }
+                }
+            }
+            
+            return base_rule.to_string();
+        }
+        
+        rule.to_string()
+    }
+    
     /// Get a single string value from content using a rule
     pub fn get_string(&self, content: &str, rule: &str) -> Result<String> {
         let rule = rule.trim();
         if rule.is_empty() {
+            return Ok(String::new());
+        }
+
+        // Handle @put:{key:value} syntax - extract and store variables
+        let rule = self.parse_put_rule(rule);
+        
+        // Replace @get:key and {{key}} placeholders
+        let rule = self.replace_variables(&rule);
+        let rule = rule.as_str();
+
+        // Handle || alternative rules (try each until one succeeds)
+        if rule.contains("||") && !rule.starts_with("<js>") {
+            for alt in rule.split("||") {
+                let alt = alt.trim();
+                if alt.is_empty() {
+                    continue;
+                }
+                if let Ok(result) = self.get_string(content, alt) {
+                    if !result.is_empty() && result != "null" {
+                        return Ok(result);
+                    }
+                }
+            }
             return Ok(String::new());
         }
 
@@ -120,6 +196,22 @@ impl RuleAnalyzer {
             
             let base_content = self.get_string(content, &base_rule_part)?;
             return self.get_list(&base_content, list_rule_part);
+        }
+
+        // Handle || alternative rules for lists
+        if rule.contains("||") && !rule.starts_with("<js>") {
+            for alt in rule.split("||") {
+                let alt = alt.trim();
+                if alt.is_empty() {
+                    continue;
+                }
+                if let Ok(results) = self.get_list(content, alt) {
+                    if !results.is_empty() {
+                        return Ok(results);
+                    }
+                }
+            }
+            return Ok(Vec::new());
         }
 
         // Check for list reversal prefix (-)

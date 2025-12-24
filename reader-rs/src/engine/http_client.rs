@@ -236,6 +236,27 @@ impl HttpClient {
         self.request(&config)
     }
     
+    /// Request with retry on failure
+    pub fn request_with_retry(&self, config: &RequestConfig, max_retries: u32) -> Result<String> {
+        let mut last_error = None;
+        
+        for i in 0..=max_retries {
+            match self.request(config) {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    last_error = Some(e);
+                    if i < max_retries {
+                        let delay = Duration::from_millis(500 * (i as u64 + 1));
+                        tracing::warn!("Request failed, retry {}/{} after {:?}", i + 1, max_retries, delay);
+                        std::thread::sleep(delay);
+                    }
+                }
+            }
+        }
+        
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Request failed")))
+    }
+    
     // === Private methods ===
     
     /// Convert relative URL to absolute
