@@ -244,6 +244,47 @@ impl BookSourceEngine {
         Ok(false)
     }
     
+    /// Refresh book URL by searching for the book again
+    /// Useful for sources where bookUrl changes periodically
+    pub fn refresh_book_url(&self, book: &mut BookItem) -> Result<()> {
+        let results = self.search(&book.name, 1)?;
+        
+        for result in results {
+            // Match by name and author
+            if result.name == book.name {
+                // Check author match if both have authors
+                if !result.author.is_empty() && !book.author.is_empty() {
+                    if result.author == book.author {
+                        book.book_url = result.book_url;
+                        if result.toc_url.is_some() {
+                            book.toc_url = result.toc_url;
+                        }
+                        return Ok(());
+                    }
+                } else {
+                    // If no author to match, use the first name match
+                    book.book_url = result.book_url;
+                    if result.toc_url.is_some() {
+                        book.toc_url = result.toc_url;
+                    }
+                    return Ok(());
+                }
+            }
+        }
+        
+        Err(anyhow!("Book not found in search results"))
+    }
+    
+    /// Refresh TOC URL by fetching book info again
+    /// Useful for sources where tocUrl changes periodically
+    pub fn refresh_toc_url(&self, book: &mut BookItem) -> Result<()> {
+        let info = self.get_book_info(&book.book_url)?;
+        if let Some(toc_url) = info.toc_url {
+            book.toc_url = Some(toc_url);
+        }
+        Ok(())
+    }
+    
     /// Get book info
     pub fn get_book_info(&self, book_url: &str) -> Result<BookItem> {
         let config = self.http.parse_request_config(book_url);

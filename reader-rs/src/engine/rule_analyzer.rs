@@ -27,6 +27,7 @@ pub struct RuleAnalyzer {
     xpath_parser: XPathParser,
     js_executor: JsExecutor,
     variables: std::cell::RefCell<HashMap<String, String>>,
+    result_list: std::cell::RefCell<Vec<String>>,  // For $1, $2 capture groups
 }
 
 impl RuleAnalyzer {
@@ -40,6 +41,7 @@ impl RuleAnalyzer {
             xpath_parser: XPathParser,
             js_executor: JsExecutor::new()?,
             variables: std::cell::RefCell::new(HashMap::new()),
+            result_list: std::cell::RefCell::new(Vec::new()),
         })
     }
     
@@ -61,6 +63,26 @@ impl RuleAnalyzer {
     /// Get a variable for @get syntax
     pub fn get_variable(&self, key: &str) -> Option<String> {
         self.variables.borrow().get(key).cloned()
+    }
+    
+    /// Set result list for $1, $2 capture group references
+    pub fn set_result_list(&self, list: Vec<String>) {
+        *self.result_list.borrow_mut() = list;
+    }
+    
+    /// Replace $1, $2 etc. with values from result_list
+    fn replace_capture_groups(&self, text: &str) -> String {
+        let list = self.result_list.borrow();
+        if list.is_empty() {
+            return text.to_string();
+        }
+        
+        // Match $1, $2, ... $99
+        let re = regex::Regex::new(r"\$(\d{1,2})").unwrap();
+        re.replace_all(text, |caps: &regex::Captures| {
+            let index: usize = caps[1].parse().unwrap_or(0);
+            list.get(index).cloned().unwrap_or_default()
+        }).to_string()
     }
     
     /// Replace @get:key and {{key}} placeholders with stored variables

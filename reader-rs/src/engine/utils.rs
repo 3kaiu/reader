@@ -111,3 +111,71 @@ pub fn extract_images(html: &str) -> Vec<String> {
     
     images
 }
+
+/// Convert Chinese numerals to Arabic numbers
+/// E.g., "一" -> 1, "十二" -> 12, "一百二十三" -> 123
+fn chinese_to_number(s: &str) -> Option<u32> {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.is_empty() {
+        return None;
+    }
+    
+    let mut result = 0u32;
+    let mut temp = 0u32;
+    
+    for c in chars {
+        match c {
+            '零' => {},
+            '一' | '壹' => temp = 1,
+            '二' | '贰' | '两' => temp = 2,
+            '三' | '叁' => temp = 3,
+            '四' | '肆' => temp = 4,
+            '五' | '伍' => temp = 5,
+            '六' | '陆' => temp = 6,
+            '七' | '柒' => temp = 7,
+            '八' | '捌' => temp = 8,
+            '九' | '玖' => temp = 9,
+            '十' | '拾' => {
+                if temp == 0 { temp = 1; }
+                temp *= 10;
+                result += temp;
+                temp = 0;
+            },
+            '百' | '佰' => {
+                if temp == 0 { temp = 1; }
+                temp *= 100;
+                result += temp;
+                temp = 0;
+            },
+            '千' | '仟' => {
+                if temp == 0 { temp = 1; }
+                temp *= 1000;
+                result += temp;
+                temp = 0;
+            },
+            _ => return None,
+        }
+    }
+    
+    Some(result + temp)
+}
+
+/// Convert chapter title with Chinese numerals to Arabic numbers
+/// E.g., "第一章" -> "第1章", "第十二章" -> "第12章"
+pub fn to_num_chapter(s: &str) -> String {
+    let re = regex::Regex::new(r"(第)(.+?)(章|节|回|卷)").unwrap();
+    
+    re.replace(s, |caps: &regex::Captures| {
+        let prefix = &caps[1];
+        let num_str = &caps[2];
+        let suffix = &caps[3];
+        
+        // Try to convert Chinese numerals
+        if let Some(num) = chinese_to_number(num_str) {
+            format!("{}{}{}", prefix, num, suffix)
+        } else {
+            // Not Chinese numerals, return as-is
+            caps[0].to_string()
+        }
+    }).to_string()
+}
