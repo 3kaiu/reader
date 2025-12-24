@@ -36,11 +36,47 @@ impl Default for RequestConfig {
     }
 }
 
+/// Rate limiter for controlling request frequency
+/// Format: "count/milliseconds" e.g. "1/1000" = 1 request per 1000ms
+#[derive(Debug)]
+pub struct RateLimiter {
+    last_request: std::sync::Mutex<std::time::Instant>,
+    interval: Duration,
+}
+
+impl RateLimiter {
+    /// Create a new rate limiter from concurrentRate string
+    /// Format: "count/milliseconds" e.g. "1/1000"
+    pub fn new(rate_str: &str) -> Option<Self> {
+        let parts: Vec<&str> = rate_str.split('/').collect();
+        if parts.len() == 2 {
+            if let (Ok(_count), Ok(ms)) = (parts[0].parse::<u32>(), parts[1].parse::<u64>()) {
+                return Some(Self {
+                    last_request: std::sync::Mutex::new(std::time::Instant::now()),
+                    interval: Duration::from_millis(ms),
+                });
+            }
+        }
+        None
+    }
+    
+    /// Wait for rate limit if needed
+    pub fn wait(&self) {
+        let mut last = self.last_request.lock().unwrap();
+        let elapsed = last.elapsed();
+        if elapsed < self.interval {
+            std::thread::sleep(self.interval - elapsed);
+        }
+        *last = std::time::Instant::now();
+    }
+}
+
 /// HTTP Client for making requests
 pub struct HttpClient {
     client: reqwest::blocking::Client,
     base_url: String,
     default_headers: HashMap<String, String>,
+    rate_limiter: Option<RateLimiter>,
 }
 
 impl HttpClient {
@@ -79,7 +115,13 @@ impl HttpClient {
             client,
             base_url: base_url.to_string(),
             default_headers,
+            rate_limiter: None,
         })
+    }
+    
+    /// Set rate limiter from concurrentRate string
+    pub fn set_rate_limit(&mut self, rate_str: &str) {
+        self.rate_limiter = RateLimiter::new(rate_str);
     }
     
     /// Parse URL with template variables
@@ -167,6 +209,11 @@ impl HttpClient {
     
     /// Make a request based on config
     pub fn request(&self, config: &RequestConfig) -> Result<String> {
+        // Apply rate limiting if configured
+        if let Some(ref limiter) = self.rate_limiter {
+            limiter.wait();
+        }
+        
         let mut request = if config.method.to_uppercase() == "POST" {
             self.client.post(&config.url)
         } else {
