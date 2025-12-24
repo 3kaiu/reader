@@ -202,22 +202,40 @@ impl BookService {
     async fn get_source_by_url(&self, book_url: &str) -> Result<BookSourceFull, anyhow::Error> {
         let sources = self.sources.read().await;
         
-        // 1. 尝试完全匹配 origin
-        if let Some(source) = sources.iter().find(|s| book_url.starts_with(&s.book_source_url)) {
+        tracing::debug!("Searching source for URL: {}", book_url);
+        
+        // 1. 尝试完全匹配 bookSourceUrl (可能是 URL 前缀，也可能是像 "DQuestQBall" 这样的 ID)
+        if let Some(source) = sources.iter().find(|s| book_url.starts_with(&s.book_source_url) || s.book_source_url == book_url) {
+            tracing::debug!("Found source by prefix/exact match: {}", source.book_source_name);
             return Ok(source.clone());
         }
         
-        // 2. 尝试匹配域名
+        // 2. 尝试匹配域名 (处理子域名情况)
         if let Some(pos) = book_url.find("://") {
             let start = pos + 3;
             let end = book_url[start..].find('/').unwrap_or(book_url.len() - start);
-            let domain = &book_url[..start + end];
+            let full_host = &book_url[start..start + end];
             
-            if let Some(source) = sources.iter().find(|s| s.book_source_url.contains(domain)) {
+            // 提取主域名 (例如 bookshelf.html5.qq.com -> qq.com)
+            let parts: Vec<&str> = full_host.split('.').collect();
+            if parts.len() >= 2 {
+                let domain = parts[parts.len()-2..].join(".");
+                if let Some(source) = sources.iter().find(|s| s.book_source_url.contains(&domain)) {
+                    tracing::debug!("Found source by domain match ({}): {}", domain, source.book_source_name);
+                    return Ok(source.clone());
+                }
+            }
+        }
+        
+        // 3. 最后尝试关键字模糊匹配 (针对一些特殊的书源)
+        if book_url.contains("qq.com") {
+             if let Some(source) = sources.iter().find(|s| s.book_source_url == "DQuestQBall" || s.book_source_url.contains("qq.com")) {
+                tracing::debug!("Found source by qq.com fallback: {}", source.book_source_name);
                 return Ok(source.clone());
             }
         }
         
+        tracing::error!("Source not found for URL: {}", book_url);
         Err(anyhow::anyhow!("Source not found for URL: {}", book_url))
     }
 

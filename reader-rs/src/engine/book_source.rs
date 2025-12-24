@@ -336,8 +336,9 @@ impl BookSourceEngine {
         
         let mut chapters = Vec::new();
         for element in elements {
-            if let Ok(chapter) = self.parse_chapter(&element, rule) {
-                chapters.push(chapter);
+            match self.parse_chapter(&element, rule, toc_url) {
+                Ok(chapter) => chapters.push(chapter),
+                Err(e) => tracing::error!("Failed to parse chapter: {}", e),
             }
         }
         
@@ -443,10 +444,29 @@ impl BookSourceEngine {
         })
     }
     
-    fn parse_chapter(&self, element: &str, rule: &TocRule) -> Result<Chapter> {
+    fn parse_chapter(&self, element: &str, rule: &TocRule, base_url: &str) -> Result<Chapter> {
+        let title = self.get_rule_value(element, &rule.chapter_name)?;
+        
+        // For chapter URL, we need to process templates with baseUrl and element data
+        let chapter_url_raw = self.get_rule_value(element, &rule.chapter_url)?;
+        
+        // Replace baseUrl in the URL template
+        let chapter_url_processed = chapter_url_raw.replace("{{baseUrl}}", base_url);
+        
+        // If URL contains more template expressions, process them with the element as context
+        let chapter_url = if chapter_url_processed.contains("{{") {
+            // Use process_templates with baseUrl as a variable
+            let mut vars = HashMap::new();
+            vars.insert("baseUrl".to_string(), base_url.to_string());
+            vars.insert("result".to_string(), element.to_string());
+            self.analyzer.process_templates(&chapter_url_processed, &vars)
+        } else {
+            chapter_url_processed
+        };
+        
         Ok(Chapter {
-            title: self.get_rule_value(element, &rule.chapter_name)?,
-            url: self.http.absolute_url(&self.get_rule_value(element, &rule.chapter_url)?),
+            title,
+            url: self.http.absolute_url(&chapter_url),
             is_volume: self.get_rule_value(element, &rule.is_volume)
                 .map(|v| v == "true" || v == "1")
                 .unwrap_or(false),

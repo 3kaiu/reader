@@ -138,6 +138,9 @@ impl RuleAnalyzer {
         
         // Replace @get:key and {{key}} placeholders
         let rule = self.replace_variables(&rule);
+        
+        // Replace $1, $2 etc. capture group references
+        let rule = self.replace_capture_groups(&rule);
         let rule = rule.as_str();
 
         // Handle || alternative rules (try each until one succeeds)
@@ -169,8 +172,10 @@ impl RuleAnalyzer {
                  self.execute_single_rule(if first_line { content } else { &current_result }, line)?
             } else {
                 let mut vars = HashMap::new();
-                vars.insert("result".to_string(), current_result.clone());
-                vars.insert("it".to_string(), current_result.clone());
+                // Use original content for first line, previous result for subsequent lines
+                let effective_content = if first_line { content } else { &current_result };
+                vars.insert("result".to_string(), effective_content.to_string());
+                vars.insert("it".to_string(), effective_content.to_string());
                 
                 let processed_line = self.process_templates(line, &vars);
                 let rule_type = RuleType::detect(&processed_line);
@@ -363,6 +368,9 @@ impl RuleAnalyzer {
                 
                 let content = vars.get("result").map(|s| s.as_str()).unwrap_or("");
                 
+                tracing::debug!("process_templates: content length={}, has matches={}", 
+                    content.len(), matches.len());
+                
                 for (full_match, inner_rule) in matches {
                     // Try evaluating as a rule first if content is available and it looks like a rule
                     // (starts with $ or @ or //)
@@ -518,8 +526,8 @@ impl RuleAnalyzer {
         let result = if let Some(suffix) = regex_suffix {
             match self.regex_parser.get_string(&initial_result, &suffix) {
                 Ok(r) => r,
-                Err(e) => {
-                    tracing::warn!("Regex suffix application failed: {}", e);
+                Err(_) => {
+                    // Regex suffix not matching is common and expected, don't log
                     initial_result
                 }
             }
