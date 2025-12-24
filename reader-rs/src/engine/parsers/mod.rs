@@ -5,6 +5,7 @@ pub mod css;
 pub mod jsonpath;
 pub mod regex;
 pub mod jsoup;
+pub mod xpath;
 
 use anyhow::Result;
 

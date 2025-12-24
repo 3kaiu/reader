@@ -181,26 +181,52 @@ impl WebBook {
         Ok(chapters)
     }
 
-    /// 获取章节内容
+    /// 获取章节内容 (支持分页)
     pub async fn get_content(&self, source: &BookSourceFull, chapter_url: &str) -> Result<String> {
-        let abs_url = self.absolute_url(&source.book_source_url, chapter_url);
-        let content = self.client.get(&abs_url).send().await?.text().await?;
-        
         let rule_content = match &source.rule_content {
             Some(r) => r,
-            None => return Ok(content),
+            None => {
+                let abs_url = self.absolute_url(&source.book_source_url, chapter_url);
+                return Ok(self.client.get(&abs_url).send().await?.text().await?);
+            }
         };
         
         let cache = Some(Arc::new(Mutex::new(std::collections::HashMap::<String, String>::new())));
-
-        let mut text = self.parse_string(&content, &rule_content.content, source, cache)?;
+        let mut all_content = String::new();
+        let mut current_url = chapter_url.to_string();
+        let max_pages = 10; // 防止无限循环
+        
+        for _ in 0..max_pages {
+            let abs_url = self.absolute_url(&source.book_source_url, &current_url);
+            let html = self.client.get(&abs_url).send().await?.text().await?;
+            
+            // 解析正文内容
+            let page_content = self.parse_string(&html, &rule_content.content, source, cache.clone())?;
+            
+            if !all_content.is_empty() && !page_content.is_empty() {
+                all_content.push_str("\n\n");
+            }
+            all_content.push_str(&page_content);
+            
+            // 检查是否有下一页
+            if rule_content.next_content_url.is_empty() {
+                break;
+            }
+            
+            match self.parse_string(&html, &rule_content.next_content_url, source, cache.clone()) {
+                Ok(next_url) if !next_url.is_empty() && next_url != current_url => {
+                    current_url = self.absolute_url(&source.book_source_url, &next_url);
+                }
+                _ => break, // 没有下一页或解析失败
+            }
+        }
         
         // 应用替换规则
         if !rule_content.replace_regex.is_empty() {
-            text = self.apply_replace(&text, &rule_content.replace_regex)?;
+            all_content = self.apply_replace(&all_content, &rule_content.replace_regex)?;
         }
         
-        Ok(text)
+        Ok(all_content)
     }
 
     /// 解析获取字符串（支持 Legado 扩展语法）

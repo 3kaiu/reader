@@ -14,6 +14,7 @@ use super::parsers::css::CssParser;
 use super::parsers::jsonpath::JsonPathParser;
 use super::parsers::regex::RegexParser;
 use super::parsers::jsoup::JsoupDefaultParser;
+use super::parsers::xpath::XPathParser;
 use super::js_executor::JsExecutor;
 
 /// Rule Analyzer for parsing content using Legado rules
@@ -22,6 +23,7 @@ pub struct RuleAnalyzer {
     json_parser: JsonPathParser,
     regex_parser: RegexParser,
     jsoup_parser: JsoupDefaultParser,
+    xpath_parser: XPathParser,
     js_executor: JsExecutor,
 }
 
@@ -33,6 +35,7 @@ impl RuleAnalyzer {
             json_parser: JsonPathParser,
             regex_parser: RegexParser,
             jsoup_parser: JsoupDefaultParser,
+            xpath_parser: XPathParser,
             js_executor: JsExecutor::new()?,
         })
     }
@@ -82,11 +85,41 @@ impl RuleAnalyzer {
             return Ok(vec![]);
         }
         
+        // Check for list reversal prefix (-)
+        let (rule, should_reverse) = if rule.starts_with('-') {
+            (&rule[1..], true)
+        } else {
+            (rule, false)
+        };
+        
+        // Handle multi-rule (%%)
+        if rule.contains("%%") {
+            let mut all_results = Vec::new();
+            for sub_rule in rule.split("%%") {
+                let sub_rule = sub_rule.trim();
+                if sub_rule.is_empty() {
+                    continue;
+                }
+                if let Ok(mut results) = self.get_list(content, sub_rule) {
+                    all_results.append(&mut results);
+                }
+            }
+            if should_reverse {
+                all_results.reverse();
+            }
+            return Ok(all_results);
+        }
+        
         // Handle JS post-processing
         let (base_rule, js_code) = self.extract_js_postprocess(rule);
         
         // Execute base rule
-        let results = self.execute_list_rule(content, &base_rule)?;
+        let mut results = self.execute_list_rule(content, &base_rule)?;
+        
+        // Apply list reversal
+        if should_reverse {
+            results.reverse();
+        }
         
         // Apply JS post-processing if present
         if let Some(code) = js_code {
@@ -203,8 +236,7 @@ impl RuleAnalyzer {
                 self.jsoup_parser.get_string(content, rule)
             }
             RuleType::XPath => {
-                // XPath not yet implemented, fallback to CSS
-                Err(anyhow!("XPath not yet implemented"))
+                self.xpath_parser.get_string(content, rule)
             }
         }
     }
@@ -235,7 +267,7 @@ impl RuleAnalyzer {
                 self.jsoup_parser.get_list(content, rule)
             }
             RuleType::XPath => {
-                Err(anyhow!("XPath not yet implemented"))
+                self.xpath_parser.get_list(content, rule)
             }
         }
     }
@@ -253,6 +285,9 @@ impl RuleAnalyzer {
             }
             RuleType::JsoupDefault => {
                 self.jsoup_parser.get_elements(content, rule)
+            }
+            RuleType::XPath => {
+                self.xpath_parser.get_elements(content, rule)
             }
             _ => {
                 Err(anyhow!("get_elements not supported for this rule type"))

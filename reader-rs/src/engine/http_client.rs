@@ -171,7 +171,10 @@ impl HttpClient {
         request = request.timeout(config.timeout);
         
         let response = request.send()?;
-        let text = response.text()?;
+        
+        // Decode response with specified charset
+        let bytes = response.bytes()?;
+        let text = decode_with_charset(&bytes, &config.charset);
         
         Ok(text)
     }
@@ -234,6 +237,36 @@ impl HttpClient {
                     config.headers = Some(map);
                 }
             }
+        }
+    }
+}
+
+/// Decode bytes with specified charset
+fn decode_with_charset(bytes: &[u8], charset: &str) -> String {
+    use encoding_rs::{GBK, GB18030, UTF_8};
+    
+    match charset.to_lowercase().as_str() {
+        "gbk" | "gb2312" => {
+            let (result, _, _) = GBK.decode(bytes);
+            result.into_owned()
+        }
+        "gb18030" => {
+            let (result, _, _) = GB18030.decode(bytes);
+            result.into_owned()
+        }
+        "utf-8" | "utf8" | "" => {
+            // Try UTF-8 first, fallback to lossy conversion
+            match std::str::from_utf8(bytes) {
+                Ok(s) => s.to_string(),
+                Err(_) => {
+                    let (result, _, _) = UTF_8.decode(bytes);
+                    result.into_owned()
+                }
+            }
+        }
+        _ => {
+            // Unknown charset, try UTF-8
+            String::from_utf8_lossy(bytes).into_owned()
         }
     }
 }
