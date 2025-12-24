@@ -213,6 +213,53 @@ impl JsExecutor {
         
         globals.set("utils", utils)?;
         
+        // source object - book source level variable storage
+        // These use the same cache but with "source_" prefix for namespacing
+        let source_obj = Object::new(ctx.clone())?;
+        let source_cache_get = self.cache.clone();
+        let source_cache_set = self.cache.clone();
+        
+        source_obj.set("putVariable", Function::new(ctx.clone(), move |key: String, value: String| {
+            let prefixed_key = format!("source_{}", key);
+            if let Ok(mut c) = source_cache_set.lock() {
+                c.insert(prefixed_key, value);
+            }
+        })?)?;
+        
+        source_obj.set("getVariable", Function::new(ctx.clone(), move |key: String| -> String {
+            let prefixed_key = format!("source_{}", key);
+            source_cache_get.lock()
+                .ok()
+                .and_then(|c| c.get(&prefixed_key).cloned())
+                .unwrap_or_default()
+        })?)?;
+        
+        // Also add bookSourceUrl for source context
+        let base_url = self.base_url.clone();
+        source_obj.set("bookSourceUrl", base_url)?;
+        
+        globals.set("source", source_obj)?;
+        
+        // java object - compatibility layer for Legado JavaScript
+        let java_obj = Object::new(ctx.clone())?;
+        let java_cache_get = self.cache.clone();
+        let java_cache_set = self.cache.clone();
+        
+        java_obj.set("put", Function::new(ctx.clone(), move |key: String, value: String| {
+            if let Ok(mut c) = java_cache_set.lock() {
+                c.insert(key, value);
+            }
+        })?)?;
+        
+        java_obj.set("get", Function::new(ctx.clone(), move |key: String| -> String {
+            java_cache_get.lock()
+                .ok()
+                .and_then(|c| c.get(&key).cloned())
+                .unwrap_or_default()
+        })?)?;
+        
+        globals.set("java", java_obj)?;
+        
         Ok(())
     }
 }
