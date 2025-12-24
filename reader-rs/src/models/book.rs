@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// 书籍模型
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Book {
     pub book_url: String,
@@ -54,7 +54,13 @@ pub struct SearchResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intro: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub word_count: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_chapter_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

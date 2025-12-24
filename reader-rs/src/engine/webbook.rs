@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::models::{BookSourceFull, SearchResult, Chapter};
 use crate::engine::{JsonPathParser, RegexParser, LegadoJsEngine};
+use crate::engine::book_source::{BookSource, BookSourceEngine};
+use super::utils::resolve_absolute_url;
 
 /// 网络书籍解析器
 #[derive(Clone)]
@@ -26,6 +28,50 @@ impl WebBook {
         Self { client }
     }
 
+    /// Parse source headers from JSON string
+    fn parse_source_headers(&self, source: &BookSourceFull) -> Vec<(String, String)> {
+        let mut headers = Vec::new();
+        if let Some(header_str) = &source.header {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(header_str) {
+                if let Some(obj) = json.as_object() {
+                    for (key, value) in obj {
+                        if let Some(v) = value.as_str() {
+                            headers.push((key.clone(), v.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+        headers
+    }
+
+    /// Build request with source headers
+    fn build_request(&self, url: &str, source: &BookSourceFull) -> reqwest::RequestBuilder {
+        let mut req = self.client.get(url);
+        for (key, value) in self.parse_source_headers(source) {
+            req = req.header(&key, &value);
+        }
+        req
+    }
+
+    /// 获取书源的真实基础 URL (处理 ID 格式)
+    fn get_base_url(&self, source: &BookSourceFull) -> String {
+        if source.book_source_url.contains("://") {
+            return source.book_source_url.clone();
+        }
+
+        // 尝试从 search_url 派生
+        if !source.search_url.is_empty() {
+            let url = &source.search_url;
+            if let Some(pos) = url.find("://") {
+                let domain_end = url[pos + 3..].find('/').unwrap_or(url.len() - (pos + 3));
+                return url[..pos + 3 + domain_end].to_string();
+            }
+        }
+        
+        source.book_source_url.clone()
+    }
+
     /// 搜索书籍
     pub async fn search(&self, source: &BookSourceFull, keyword: &str) -> Result<Vec<SearchResult>> {
         // 创建共享缓存
@@ -40,7 +86,8 @@ impl WebBook {
         let (url, method, body) = self.parse_request_config(&search_url);
         
         // 处理相对 URL - 转换为绝对 URL
-        let absolute_url = self.absolute_url(&source.book_source_url, &url);
+        let base_url = self.get_base_url(source);
+        let absolute_url = resolve_absolute_url(&base_url, &url);
         
         let content = self.fetch_content(&absolute_url, &method, body.as_deref()).await?;
         
@@ -61,13 +108,17 @@ impl WebBook {
             let intro = self.parse_string(&book_html, &rule_search.intro, source, cache.clone()).ok();
             
             if !name.is_empty() && !book_url.is_empty() {
+                let base_url = self.get_base_url(source);
                 results.push(SearchResult {
-                    book_url: self.absolute_url(&source.book_source_url, &book_url),
+                    book_url: resolve_absolute_url(&base_url, &book_url),
                     name,
                     author,
                     cover_url,
                     intro,
+                    kind: None,
+                    word_count: None,
                     latest_chapter_title: None,
+                    update_time: None,
                     origin_name: Some(source.book_source_name.clone()),
                     origin: None,
                 });
@@ -152,33 +203,23 @@ impl WebBook {
 
     /// 获取章节列表
     pub async fn get_chapter_list(&self, source: &BookSourceFull, toc_url: &str) -> Result<Vec<Chapter>> {
-        let abs_url = self.absolute_url(&source.book_source_url, toc_url);
-        let content = self.client.get(&abs_url).send().await?.text().await?;
+        let source_json = serde_json::to_string(source)?;
         
-        let rule_toc = match &source.rule_toc {
-            Some(r) => r,
-            None => return Ok(vec![]),
-        };
+        // Spawn blocking task for engine execution
+        let toc_url_str = toc_url.to_string();
+        let chapters = tokio::task::spawn_blocking(move || {
+            let engine_source: BookSource = serde_json::from_str(&source_json)?;
+            let engine = BookSourceEngine::new(engine_source)?;
+            engine.get_chapters(&toc_url_str)
+        }).await??;
         
-        let cache = Some(Arc::new(Mutex::new(std::collections::HashMap::<String, String>::new())));
-
-        let chapter_list = self.parse_list(&content, &rule_toc.chapter_list, source, cache.clone())?;
+        let result = chapters.into_iter().enumerate().map(|(i, c)| Chapter {
+            title: c.title,
+            url: c.url,
+            index: i as i32,
+        }).collect();
         
-        let mut chapters = Vec::new();
-        for (index, chapter_html) in chapter_list.iter().enumerate() {
-            let title = self.parse_string(chapter_html, &rule_toc.chapter_name, source, cache.clone())?;
-            let url = self.parse_string(chapter_html, &rule_toc.chapter_url, source, cache.clone())?;
-            
-            if !title.is_empty() {
-                chapters.push(Chapter {
-                    title,
-                    url: self.absolute_url(toc_url, &url),
-                    index: index as i32,
-                });
-            }
-        }
-        
-        Ok(chapters)
+        Ok(result)
     }
 
     /// 获取章节内容 (支持分页)
@@ -186,7 +227,7 @@ impl WebBook {
         let rule_content = match &source.rule_content {
             Some(r) => r,
             None => {
-                let abs_url = self.absolute_url(&source.book_source_url, chapter_url);
+                let abs_url = resolve_absolute_url(&source.book_source_url, chapter_url);
                 return Ok(self.client.get(&abs_url).send().await?.text().await?);
             }
         };
@@ -196,9 +237,12 @@ impl WebBook {
         let mut current_url = chapter_url.to_string();
         let max_pages = 10; // 防止无限循环
         
+        let base_url = self.get_base_url(source);
         for _ in 0..max_pages {
-            let abs_url = self.absolute_url(&source.book_source_url, &current_url);
-            let html = self.client.get(&abs_url).send().await?.text().await?;
+            let abs_url = resolve_absolute_url(&base_url, &current_url);
+            let html = self.client.get(&abs_url).send().await?
+                .text().await
+                .map_err(|e| anyhow::anyhow!("Failed to fetch {}: {}", abs_url, e))?;
             
             // 解析正文内容
             let page_content = self.parse_string(&html, &rule_content.content, source, cache.clone())?;
@@ -215,7 +259,8 @@ impl WebBook {
             
             match self.parse_string(&html, &rule_content.next_content_url, source, cache.clone()) {
                 Ok(next_url) if !next_url.is_empty() && next_url != current_url => {
-                    current_url = self.absolute_url(&source.book_source_url, &next_url);
+                    let base_url = self.get_base_url(source);
+                    current_url = resolve_absolute_url(&base_url, &next_url);
                 }
                 _ => break, // 没有下一页或解析失败
             }
@@ -480,32 +525,6 @@ impl WebBook {
             RegexParser::replace(content, parts[0], parts[1])
         } else {
             Ok(content.to_string())
-        }
-    }
-
-    /// 转换为绝对 URL
-    fn absolute_url(&self, base: &str, url: &str) -> String {
-        if url.starts_with("http://") || url.starts_with("https://") {
-            url.to_string()
-        } else if url.starts_with("//") {
-            format!("https:{}", url)
-        } else if url.starts_with('/') {
-            // 提取 base 的域名
-            if let Some(pos) = base.find("://") {
-                let after_protocol = &base[pos + 3..];
-                if let Some(end) = after_protocol.find('/') {
-                    let domain = &base[..pos + 3 + end];
-                    return format!("{}{}", domain, url);
-                }
-            }
-            format!("{}{}", base, url)
-        } else {
-            // 相对路径
-            if let Some(pos) = base.rfind('/') {
-                format!("{}/{}", &base[..pos], url)
-            } else {
-                format!("{}/{}", base, url)
-            }
         }
     }
 }

@@ -10,6 +10,7 @@ use anyhow::Result;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::time::Duration;
+use super::utils::resolve_absolute_url;
 
 /// Request configuration parsed from URL,{JSON} format
 #[derive(Debug, Clone)]
@@ -39,11 +40,17 @@ impl Default for RequestConfig {
 pub struct HttpClient {
     client: reqwest::blocking::Client,
     base_url: String,
+    default_headers: HashMap<String, String>,
 }
 
 impl HttpClient {
-    /// Create a new HTTP client
+    /// Create a new HTTP client with optional default headers
     pub fn new(base_url: &str) -> Result<Self> {
+        Self::with_headers(base_url, None)
+    }
+    
+    /// Create a new HTTP client with source-level default headers
+    pub fn with_headers(base_url: &str, headers_json: Option<&str>) -> Result<Self> {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(30))
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -51,9 +58,27 @@ impl HttpClient {
             .gzip(true)
             .build()?;
         
+        // Parse source-level headers from JSON string
+        let default_headers = if let Some(json_str) = headers_json {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                if let Some(obj) = json.as_object() {
+                    obj.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect()
+                } else {
+                    HashMap::new()
+                }
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        };
+        
         Ok(Self {
             client,
             base_url: base_url.to_string(),
+            default_headers,
         })
     }
     
@@ -148,9 +173,21 @@ impl HttpClient {
             self.client.get(&config.url)
         };
         
-        // Add headers
+        // Add headers - merge default headers with request-specific headers
+        let mut header_map = HeaderMap::new();
+        
+        // Apply default headers first
+        for (key, value) in &self.default_headers {
+            if let (Ok(name), Ok(val)) = (
+                HeaderName::try_from(key.as_str()),
+                HeaderValue::from_str(value),
+            ) {
+                header_map.insert(name, val);
+            }
+        }
+        
+        // Then apply request-specific headers (can override defaults)
         if let Some(ref headers) = config.headers {
-            let mut header_map = HeaderMap::new();
             for (key, value) in headers {
                 if let (Ok(name), Ok(val)) = (
                     HeaderName::try_from(key.as_str()),
@@ -159,7 +196,13 @@ impl HttpClient {
                     header_map.insert(name, val);
                 }
             }
+        }
+        
+        if !header_map.is_empty() {
+            tracing::debug!("Request headers for {}: {:?}", config.url, header_map);
             request = request.headers(header_map);
+        } else {
+            tracing::debug!("No headers for {}", config.url);
         }
         
         // Add body for POST
@@ -197,30 +240,7 @@ impl HttpClient {
     
     /// Convert relative URL to absolute
     pub fn absolute_url(&self, url: &str) -> String {
-        let url = url.trim();
-        
-        if url.starts_with("http://") || url.starts_with("https://") {
-            return url.to_string();
-        }
-        
-        if url.starts_with("//") {
-            return format!("https:{}", url);
-        }
-        
-        if url.starts_with('/') {
-            // Get base domain
-            if let Some(slash_pos) = self.base_url.find("://") {
-                let after_proto = &self.base_url[slash_pos + 3..];
-                if let Some(path_pos) = after_proto.find('/') {
-                    let domain = &self.base_url[..slash_pos + 3 + path_pos];
-                    return format!("{}{}", domain, url);
-                }
-            }
-            return format!("{}{}", self.base_url.trim_end_matches('/'), url);
-        }
-        
-        // Relative URL
-        format!("{}/{}", self.base_url.trim_end_matches('/'), url)
+        resolve_absolute_url(&self.base_url, url)
     }
     
     /// Parse headers from JSON config

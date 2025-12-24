@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use super::rule_analyzer::RuleAnalyzer;
 use super::http_client::HttpClient;
 
+
 /// Book source definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,11 +40,12 @@ pub struct SearchRule {
     pub name: Option<String>,
     pub author: Option<String>,
     pub intro: Option<String>,
+    pub kind: Option<String>,
+    pub word_count: Option<String>,
+    pub last_chapter: Option<String>,
+    pub update_time: Option<String>,
     pub cover_url: Option<String>,
     pub book_url: Option<String>,
-    pub kind: Option<String>,
-    pub last_chapter: Option<String>,
-    pub word_count: Option<String>,
 }
 
 /// Explore rule configuration  
@@ -54,20 +56,28 @@ pub struct ExploreRule {
     pub name: Option<String>,
     pub author: Option<String>,
     pub intro: Option<String>,
+    pub kind: Option<String>,
+    pub word_count: Option<String>,
+    pub update_time: Option<String>,
     pub cover_url: Option<String>,
     pub book_url: Option<String>,
+    pub toc_url: Option<String>,
 }
 
 /// Book info rule configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BookInfoRule {
+    pub init: Option<String>,
     pub name: Option<String>,
     pub author: Option<String>,
     pub intro: Option<String>,
+    pub kind: Option<String>,
+    pub word_count: Option<String>,
     pub cover_url: Option<String>,
     pub toc_url: Option<String>,
     pub last_chapter: Option<String>,
+    pub update_time: Option<String>,
 }
 
 /// Table of contents rule configuration
@@ -78,6 +88,7 @@ pub struct TocRule {
     pub chapter_name: Option<String>,
     pub chapter_url: Option<String>,
     pub is_volume: Option<String>,
+    pub next_toc_url: Option<String>,
     pub update_time: Option<String>,
 }
 
@@ -93,16 +104,19 @@ pub struct ContentRule {
 }
 
 /// Search result book item
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct BookItem {
     pub name: String,
     pub author: String,
-    pub intro: Option<String>,
-    pub cover_url: Option<String>,
     pub book_url: String,
+    pub cover_url: Option<String>,
+    pub intro: Option<String>,
     pub kind: Option<String>,
-    pub last_chapter: Option<String>,
     pub word_count: Option<String>,
+    pub last_chapter: Option<String>,
+    pub update_time: Option<String>,
+    pub toc_url: Option<String>,
 }
 
 /// Chapter item
@@ -112,6 +126,14 @@ pub struct Chapter {
     pub url: String,
     pub is_volume: bool,
 }
+
+// Helper implementations for rule conversions if fields match exactly, 
+// otherwise use serde_json for robust conversion as they are practically identical structs
+// But since they are defined in different modules with same structure...
+// Actually, relying on serde might be safer/easier if fields align.
+// Let's implement From using serde_json trick in the impl above if explicit mapping is tedious.
+// Re-visiting implementation:
+
 
 /// Main Book Source Engine
 pub struct BookSourceEngine {
@@ -123,9 +145,34 @@ pub struct BookSourceEngine {
 impl BookSourceEngine {
     /// Create a new engine for a book source
     pub fn new(source: BookSource) -> Result<Self> {
-        let http = HttpClient::new(&source.book_source_url)?;
+        // Try to determine a real base URL if book_source_url is just an ID
+        let mut base_url = source.book_source_url.clone();
+        if !base_url.contains("://") {
+            // Try to find a URL in other fields
+            if let Some(url) = source.search_url.as_ref() {
+                if let Some(pos) = url.find("://") {
+                    let domain_end = url[pos + 3..].find('/').unwrap_or(url.len() - (pos + 3));
+                    base_url = url[..pos + 3 + domain_end].to_string();
+                }
+            } else if let Some(url) = source.explore_url.as_ref() {
+                 if let Some(pos) = url.find("://") {
+                    let domain_end = url[pos + 3..].find('/').unwrap_or(url.len() - (pos + 3));
+                    base_url = url[..pos + 3 + domain_end].to_string();
+                }
+            }
+        }
+
+        // Create HTTP client with source-level headers
+        let http = HttpClient::with_headers(&base_url, source.header.as_deref())?;
         let mut analyzer = RuleAnalyzer::new()?;
-        analyzer.set_base_url(&source.book_source_url);
+        analyzer.set_base_url(&base_url);
+        
+        // Preload jsLib if present
+        if let Some(ref js_lib) = source.js_lib {
+            if let Err(e) = analyzer.preload_lib(js_lib) {
+                tracing::warn!("Failed to preload jsLib: {}", e);
+            }
+        }
         
         Ok(Self {
             source,
@@ -146,10 +193,11 @@ impl BookSourceEngine {
         vars.insert("page".to_string(), page.to_string());
         vars.insert("searchKey".to_string(), key.to_string());
         
-        let url = self.http.parse_url_template(search_url, &vars);
+        let url = self.analyzer.evaluate_url(search_url, &vars)?;
         
         // Make request
-        let content = self.http.get(&url)?;
+        let config = self.http.parse_request_config(&url);
+        let content = self.http.request(&config)?;
         
         // Parse results
         let rule = self.source.rule_search
@@ -172,13 +220,49 @@ impl BookSourceEngine {
         Ok(books)
     }
     
+    /// Check if the source is working by performing a test search
+    /// Returns true if the source returns at least one valid result
+    pub fn check_source(&self) -> Result<bool> {
+        // Use a common test keyword
+        let test_keywords = ["斗破苍穹", "完美世界", "test"];
+        
+        for keyword in test_keywords {
+            match self.search(keyword, 1) {
+                Ok(results) => {
+                    if !results.is_empty() {
+                        // Verify at least one result has a valid name
+                        let has_valid = results.iter().any(|b| !b.name.is_empty() && b.name != "null");
+                        if has_valid {
+                            return Ok(true);
+                        }
+                    }
+                },
+                Err(_) => continue, // Try next keyword
+            }
+        }
+        
+        Ok(false)
+    }
+    
     /// Get book info
     pub fn get_book_info(&self, book_url: &str) -> Result<BookItem> {
-        let content = self.http.get(book_url)?;
+        let config = self.http.parse_request_config(book_url);
+        let content_raw = self.http.request(&config)?;
         
         let rule = self.source.rule_book_info
             .as_ref()
             .ok_or_else(|| anyhow!("No book info rule defined"))?;
+            
+        // Process init rule if present
+        let content = if let Some(init_rule) = &rule.init {
+            if !init_rule.is_empty() {
+                self.analyzer.get_string(&content_raw, init_rule).unwrap_or(content_raw)
+            } else {
+                content_raw
+            }
+        } else {
+            content_raw
+        };
         
         Ok(BookItem {
             name: self.get_rule_value(&content, &rule.name).unwrap_or_default(),
@@ -186,15 +270,18 @@ impl BookSourceEngine {
             intro: self.get_rule_value(&content, &rule.intro).ok(),
             cover_url: self.get_rule_value(&content, &rule.cover_url).ok().map(|u| self.http.absolute_url(&u)),
             book_url: book_url.to_string(),
-            kind: None,
+            kind: self.get_rule_value(&content, &rule.kind).ok(),
             last_chapter: self.get_rule_value(&content, &rule.last_chapter).ok(),
-            word_count: None,
+            word_count: self.get_rule_value(&content, &rule.word_count).ok(),
+            update_time: self.get_rule_value(&content, &rule.update_time).ok(),
+            toc_url: self.get_rule_value(&content, &rule.toc_url).ok(),
         })
     }
     
     /// Get table of contents
     pub fn get_chapters(&self, toc_url: &str) -> Result<Vec<Chapter>> {
-        let content = self.http.get(toc_url)?;
+        let config = self.http.parse_request_config(toc_url);
+        let content = self.http.request(&config)?;
         
         let rule = self.source.rule_toc
             .as_ref()
@@ -216,10 +303,8 @@ impl BookSourceEngine {
         Ok(chapters)
     }
     
-    /// Get chapter content
+    /// Get chapter content (with pagination support)
     pub fn get_content(&self, chapter_url: &str) -> Result<String> {
-        let content = self.http.get(chapter_url)?;
-        
         let rule = self.source.rule_content
             .as_ref()
             .ok_or_else(|| anyhow!("No content rule defined"))?;
@@ -228,7 +313,76 @@ impl BookSourceEngine {
             .as_ref()
             .ok_or_else(|| anyhow!("No content rule"))?;
         
-        self.analyzer.get_string(&content, content_rule)
+        let mut full_content = String::new();
+        let mut current_url = chapter_url.to_string();
+        let max_pages = 20; // Prevent infinite loops
+
+        for page_num in 0..max_pages {
+            let config = self.http.parse_request_config(&current_url);
+            let page_html = self.http.request(&config)?;
+            
+            // Extract content from this page
+            let page_content = self.analyzer.get_string(&page_html, content_rule)?;
+            
+            if !page_content.is_empty() {
+                if page_num > 0 {
+                    full_content.push_str("\n\n"); // Page separator
+                }
+                full_content.push_str(&page_content);
+            }
+            
+            // Check for next page
+            if let Some(next_url_rule) = &rule.next_content_url {
+                if !next_url_rule.is_empty() {
+                    if let Ok(next_url) = self.analyzer.get_string(&page_html, next_url_rule) {
+                        let next_url = next_url.trim();
+                        if !next_url.is_empty() && next_url != current_url {
+                            current_url = self.http.absolute_url(next_url);
+                            tracing::debug!("Following nextContentUrl to page {}: {}", page_num + 2, current_url);
+                            continue;
+                        }
+                    }
+                }
+            }
+            break; // No more pages
+        }
+        
+        // Apply replaceRegex if configured
+        let final_content = if let Some(replace_regex) = &rule.replace_regex {
+            self.apply_replace_regex(&full_content, replace_regex)
+        } else {
+            full_content
+        };
+        
+        Ok(final_content)
+    }
+    
+    /// Apply replaceRegex rules to content
+    fn apply_replace_regex(&self, content: &str, replace_rules: &str) -> String {
+        use regex::Regex;
+        
+        let mut result = content.to_string();
+        
+        // Format: ##regex##replacement or multiple lines
+        for line in replace_rules.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            
+            // Parse ##pattern##replacement
+            let line = line.trim_start_matches("##");
+            let parts: Vec<&str> = line.split("##").collect();
+            
+            if let Some(pattern) = parts.first() {
+                let replacement = parts.get(1).map(|s| *s).unwrap_or("");
+                if let Ok(re) = Regex::new(pattern) {
+                    result = re.replace_all(&result, replacement).to_string();
+                }
+            }
+        }
+        
+        result
     }
     
     // === Private methods ===
@@ -243,6 +397,8 @@ impl BookSourceEngine {
             kind: self.get_rule_value(element, &rule.kind).ok(),
             last_chapter: self.get_rule_value(element, &rule.last_chapter).ok(),
             word_count: self.get_rule_value(element, &rule.word_count).ok(),
+            update_time: self.get_rule_value(element, &rule.update_time).ok(),
+            toc_url: None,
         })
     }
     

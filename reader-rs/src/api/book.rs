@@ -18,6 +18,7 @@ pub struct BookshelfQuery {
 #[derive(Debug, Deserialize)]
 pub struct ChapterListQuery {
     pub url: String,
+    pub origin: Option<String>,
     pub refresh: Option<i32>,
 }
 
@@ -35,6 +36,7 @@ pub struct SearchQuery {
 #[derive(Debug, Deserialize)]
 pub struct BookInfoQuery {
     pub url: String,
+    pub origin: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -71,7 +73,7 @@ pub async fn get_chapter_list(
     Query(query): Query<ChapterListQuery>,
 ) -> Json<ApiResponse<Vec<Chapter>>> {
     let refresh = query.refresh.unwrap_or(0) == 1;
-    match state.book_service.get_chapter_list(&query.url, refresh).await {
+    match state.book_service.get_chapter_list(&query.url, query.origin.as_deref(), refresh).await {
         Ok(chapters) => Json(ApiResponse::success(chapters)),
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }
@@ -93,7 +95,7 @@ pub async fn get_book_info(
     State(state): State<Arc<AppState>>,
     Query(query): Query<BookInfoQuery>,
 ) -> Json<ApiResponse<Book>> {
-    match state.book_service.get_book_info(&query.url).await {
+    match state.book_service.get_book_info(&query.url, query.origin.as_deref()).await {
         Ok(book) => Json(ApiResponse::success(book)),
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }

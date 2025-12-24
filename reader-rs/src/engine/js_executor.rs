@@ -50,6 +50,32 @@ impl JsExecutor {
         self.base_url = url.to_string();
     }
     
+    /// Preload JavaScript library code (jsLib from book source)
+    /// This executes the code once to define global functions/variables
+    pub fn preload_lib(&self, js_lib: &str) -> Result<()> {
+        if js_lib.trim().is_empty() {
+            return Ok(());
+        }
+        
+        self.context.with(|ctx| {
+            // Register utils first so jsLib can use them
+            self.register_utils(&ctx)?;
+            
+            // Execute jsLib to define global functions
+            match ctx.eval::<Value, _>(js_lib) {
+                Ok(_) => {
+                    tracing::debug!("Successfully loaded jsLib ({} bytes)", js_lib.len());
+                    Ok(())
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to load jsLib: {}", e);
+                    // Don't fail completely, some functions might still work
+                    Ok(())
+                }
+            }
+        })
+    }
+    
     /// Evaluate JavaScript code and return result as string
     pub fn eval(&self, code: &str) -> Result<String> {
         self.context.with(|ctx| {

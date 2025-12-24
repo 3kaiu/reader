@@ -98,7 +98,7 @@ pub async fn search_book_source_sse(
 
     let stream = async_stream::stream! {
         // 尝试获取书籍信息
-        let book_name = match book_service.get_book_info(&url).await {
+        let book_name = match book_service.get_book_info(&url, None).await {
             Ok(book) => book.name,
             Err(_) => {
                 // 书籍未找到，可能是 ID 错误
@@ -252,4 +252,39 @@ pub async fn save_from_remote_source(
 #[derive(Debug, serde::Serialize)]
 pub struct SyncResult {
     pub count: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InjectCookieRequest {
+    #[serde(rename = "bookSourceUrl")]
+    pub book_source_url: String,
+    pub cookies: String, // Format: "key1=value1; key2=value2"
+}
+
+/// POST /injectCookies - 注入登录 Cookie
+pub async fn inject_cookies(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<InjectCookieRequest>,
+) -> Json<ApiResponse<()>> {
+    match state.source_service.inject_cookies(&req.book_source_url, &req.cookies).await {
+        Ok(_) => Json(ApiResponse::success(())),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckSourceRequest {
+    #[serde(rename = "bookSourceUrl")]
+    pub book_source_url: String,
+}
+
+/// POST /checkBookSource - 检测书源有效性
+pub async fn check_book_source(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CheckSourceRequest>,
+) -> Json<ApiResponse<bool>> {
+    match state.source_service.check_source(&req.book_source_url).await {
+        Ok(valid) => Json(ApiResponse::success(valid)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
 }

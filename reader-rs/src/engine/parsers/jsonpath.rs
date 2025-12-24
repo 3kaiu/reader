@@ -45,6 +45,22 @@ impl Parser for JsonPathParser {
         
         // Return each matched element as JSON string
         if let Value::Array(arr) = result {
+            // Check if we have a single result that is itself an array (nested array)
+            // This happens when path selects an array field like $.rows -> [[item1, item2]]
+            // We want to return [item1, item2] so we can iterate over them
+            if arr.len() == 1 {
+                if let Some(Value::Array(inner)) = arr.first() {
+                    tracing::debug!("JsonPath matched single nested array with {} elements, flattening", inner.len());
+                    return Ok(inner.iter()
+                        .map(|v| v.to_string())
+                        .collect());
+                } else {
+                     tracing::debug!("JsonPath matched single matched element, but not an array: {:?}", arr.first());
+                }
+            } else {
+                 tracing::debug!("JsonPath matched {} elements", arr.len());
+            }
+            
             Ok(arr.iter()
                 .map(|v| v.to_string())
                 .collect())

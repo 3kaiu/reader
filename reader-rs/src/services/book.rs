@@ -62,7 +62,7 @@ impl BookService {
     }
 
     /// 获取章节列表
-    pub async fn get_chapter_list(&self, book_url: &str, refresh: bool) -> Result<Vec<Chapter>, anyhow::Error> {
+    pub async fn get_chapter_list(&self, book_url: &str, origin: Option<&str>, refresh: bool) -> Result<Vec<Chapter>, anyhow::Error> {
         let cache_key = format!("chapters/{}.json", Self::url_to_key(book_url));
         
         // 尝试从缓存读取
@@ -74,12 +74,25 @@ impl BookService {
             }
         }
         
-        // 获取书籍信息找到书源
-        let book = self.get_book_info(book_url).await?;
-        let source = self.get_source(&book.origin.unwrap_or_default()).await?;
+        // 获取书源：优先使用 origin 参数，否则从 book info 中获取
+        let source = if let Some(origin_url) = origin {
+            self.get_source(origin_url).await?
+        } else {
+            let book = self.get_book_info(book_url, None).await?;
+            self.get_source(&book.origin.unwrap_or_default()).await?
+        };
+        
+        // Step 1: Get book info to resolve toc_url
+        // The toc_url template may reference book info fields like {{$.resourceID}}
+        let book_info = self.get_book_info(book_url, origin).await.ok();
+        let toc_url = book_info
+            .as_ref()
+            .and_then(|b| b.toc_url.clone())
+            .unwrap_or_else(|| book_url.to_string());
+        
+        tracing::debug!("Fetching chapters from toc_url: {} (book_url: {})", toc_url, book_url);
         
         // 从书源获取章节
-        let toc_url = book.toc_url.unwrap_or_else(|| book_url.to_string());
         let chapters = self.webbook.get_chapter_list(&source, &toc_url).await?;
         
         // 缓存
@@ -101,12 +114,12 @@ impl BookService {
         }
         
         // 获取章节列表
-        let chapters = self.get_chapter_list(book_url, false).await?;
+        let chapters = self.get_chapter_list(book_url, None, false).await?;
         let chapter = chapters.get(index as usize)
             .ok_or_else(|| anyhow::anyhow!("Chapter not found"))?;
         
         // 获取书源
-        let book = self.get_book_info(book_url).await?;
+        let book = self.get_book_info(book_url, None).await?;
         let source = self.get_source(&book.origin.unwrap_or_default()).await?;
         
         // 从书源获取内容
@@ -121,12 +134,75 @@ impl BookService {
     }
 
     /// 获取书籍信息
-    pub async fn get_book_info(&self, book_url: &str) -> Result<Book, anyhow::Error> {
+    pub async fn get_book_info(&self, book_url: &str, origin: Option<&str>) -> Result<Book, anyhow::Error> {
         let shelf = self.bookshelf.read().await;
-        shelf.iter()
-            .find(|b| b.book_url == book_url)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Book not found"))
+        if let Some(book) = shelf.iter().find(|b| b.book_url == book_url) {
+            return Ok(book.clone());
+        }
+        drop(shelf);
+        
+        // 如果不在书架上，尝试从外部加载 (例如搜索结果详情)
+        self.get_book_info_from_web(book_url, origin).await
+    }
+
+    /// 从网络获取书籍详细信息
+    async fn get_book_info_from_web(&self, book_url: &str, origin: Option<&str>) -> Result<Book, anyhow::Error> {
+        use crate::engine::book_source::{BookSourceEngine, BookSource};
+        
+        // 尝试用 origin 找到匹配源，否则用 URL 猜测
+        let source = if let Some(origin_url) = origin {
+            self.get_source(origin_url).await?
+        } else {
+            self.get_source_by_url(book_url).await?
+        };
+        let source_json = serde_json::to_string(&source)?;
+        
+        let book_url_str = book_url.to_string();
+        let result = tokio::task::spawn_blocking(move || {
+            let engine_source: BookSource = serde_json::from_str(&source_json)?;
+            let engine = BookSourceEngine::new(engine_source)?;
+            engine.get_book_info(&book_url_str)
+        }).await?;
+        
+        match result {
+            Ok(item) => {
+                Ok(Book {
+                    book_url: book_url.to_string(),
+                    name: item.name,
+                    author: item.author,
+                    cover_url: item.cover_url,
+                    intro: item.intro,
+                    origin: Some(source.book_source_url.clone()),
+                    origin_name: Some(source.book_source_name.clone()),
+                    toc_url: item.toc_url.or(Some(book_url.to_string())),
+                    ..Default::default()
+                })
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// 根据 URL 找到匹配的书源
+    async fn get_source_by_url(&self, book_url: &str) -> Result<BookSourceFull, anyhow::Error> {
+        let sources = self.sources.read().await;
+        
+        // 1. 尝试完全匹配 origin
+        if let Some(source) = sources.iter().find(|s| book_url.starts_with(&s.book_source_url)) {
+            return Ok(source.clone());
+        }
+        
+        // 2. 尝试匹配域名
+        if let Some(pos) = book_url.find("://") {
+            let start = pos + 3;
+            let end = book_url[start..].find('/').unwrap_or(book_url.len() - start);
+            let domain = &book_url[..start + end];
+            
+            if let Some(source) = sources.iter().find(|s| s.book_source_url.contains(domain)) {
+                return Ok(source.clone());
+            }
+        }
+        
+        Err(anyhow::anyhow!("Source not found for URL: {}", book_url))
     }
 
     /// 搜索书籍 (使用新引擎)
@@ -160,7 +236,10 @@ impl BookService {
                             author: b.author,
                             cover_url: b.cover_url,
                             intro: b.intro,
+                            kind: b.kind,
+                            word_count: b.word_count,
                             latest_chapter_title: b.last_chapter,
+                            update_time: b.update_time,
                             origin_name: Some(source_name.clone()),
                             origin: Some(source.book_source_url.clone()),
                         })
@@ -297,7 +376,10 @@ impl BookService {
                                     author: book.author,
                                     cover_url: book.cover_url,
                                     intro: book.intro,
+                                    kind: book.kind,
+                                    word_count: book.word_count,
                                     latest_chapter_title: book.last_chapter,
+                                    update_time: book.update_time,
                                     origin_name: Some(source_name.clone()),
                                     origin: Some(source_url.clone()),
                                 };
@@ -329,11 +411,23 @@ impl BookService {
 
     /// 获取书源
     async fn get_source(&self, source_url: &str) -> Result<BookSourceFull, anyhow::Error> {
+        // Lazy load sources if cache is empty
+        {
+            let sources = self.sources.read().await;
+            if sources.is_empty() {
+                drop(sources);
+                let loaded: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
+                tracing::info!("Lazy loaded {} sources for lookup", loaded.len());
+                let mut sources = self.sources.write().await;
+                *sources = loaded;
+            }
+        }
+        
         let sources = self.sources.read().await;
         sources.iter()
             .find(|s| s.book_source_url == source_url)
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Source not found"))
+            .ok_or_else(|| anyhow::anyhow!("Source not found: {}", source_url))
     }
 
     /// 保存书籍到书架
