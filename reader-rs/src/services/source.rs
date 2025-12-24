@@ -1,6 +1,5 @@
 use axum::response::sse::Event;
 use futures::stream::Stream;
-use futures::StreamExt;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -58,6 +58,8 @@ impl RuleAnalyzer {
     /// Put a variable for @put syntax
     pub fn put_variable(&self, key: &str, value: &str) {
         self.variables.borrow_mut().insert(key.to_string(), value.to_string());
+        // Also update JS cache for java.get/put access
+        self.js_executor.put_variable(key, value);
     }
     
     /// Get a variable for @get syntax
@@ -178,7 +180,7 @@ impl RuleAnalyzer {
                 vars.insert("it".to_string(), effective_content.to_string());
                 
                 let processed_line = self.process_templates(line, &vars);
-                let rule_type = RuleType::detect(&processed_line);
+                let rule_type = RuleType::detect(&processed_line, content);
                 
                 // Heuristic: If it's a Jsoup rule without @ or . or #, and it's after processing,
                 // it might be a literal if it contains spaces or ends with / or is purely numeric.
@@ -308,8 +310,8 @@ impl RuleAnalyzer {
         self.execute_elements_rule(&base_content, &base_rule)
     }
     
-    /// Execute a pure JavaScript rule
-    pub fn eval_js(&self, code: &str, vars: &HashMap<String, String>) -> Result<String> {
+    /// Execute a JavaScript rule
+    pub(crate) fn eval_js(&self, code: &str, vars: &HashMap<String, String>) -> Result<String> {
         self.js_executor.eval_with_context(code, vars)
     }
 
@@ -463,6 +465,9 @@ impl RuleAnalyzer {
     
     /// Apply JS post-processing to a result
     fn apply_js_postprocess(&self, result: &str, js_code: &str) -> Result<String> {
+        // Set current content for java.getString()
+        self.js_executor.set_current_content(result);
+
         let mut vars = HashMap::new();
         vars.insert("result".to_string(), result.to_string());
         vars.insert("it".to_string(), result.to_string());
@@ -498,7 +503,7 @@ impl RuleAnalyzer {
              (base_rule_full, None)
         };
 
-        let rule_type = RuleType::detect(&base_rule);
+        let rule_type = RuleType::detect(&base_rule, content);
         
         let initial_result = match rule_type {
             RuleType::JavaScript => {
@@ -510,6 +515,10 @@ impl RuleAnalyzer {
                 } else {
                     &base_rule
                 };
+
+                // Set current content for java.getString()
+                self.js_executor.set_current_content(content);
+
                 let mut vars = HashMap::new();
                 vars.insert("result".to_string(), content.to_string());
                 vars.insert("it".to_string(), content.to_string());
@@ -544,7 +553,7 @@ impl RuleAnalyzer {
     
     /// Execute rule that returns a list
     fn execute_list_rule(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule_type = RuleType::detect(rule);
+        let rule_type = RuleType::detect(rule, content);
         
         match rule_type {
             RuleType::JavaScript => {
@@ -575,7 +584,7 @@ impl RuleAnalyzer {
     
     /// Execute rule that returns elements
     fn execute_elements_rule(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule_type = RuleType::detect(rule);
+        let rule_type = RuleType::detect(rule, content);
         
         match rule_type {
             RuleType::Css => {
@@ -598,27 +607,35 @@ impl RuleAnalyzer {
 
     /// Evaluate an URL rule, handling @js: if present
     pub fn evaluate_url(&self, raw_url: &str, vars: &HashMap<String, String>) -> Result<String> {
-        // Evaluate templates first (e.g. searchKey, page)
-        let url = self.process_templates(raw_url, vars);
+        // If it starts with @js:, evaluate everything else as JS
+        if raw_url.starts_with("@js:") {
+            let js_code = &raw_url[4..];
+            return self.js_executor.eval_with_context(js_code, vars);
+        }
+
+        // Otherwise, process line by line
+        let mut current_result = String::new();
+        let lines: Vec<&str> = raw_url.split('\n').collect();
         
-        // If it starts with @js: or uses <js> tags or has multiple lines, use get_string
-        if url.contains("@js:") || url.contains("<js>") || url.contains('\n') {
-            // Use an empty content as basis if it's a template-only rule,
-            // or use variables context.
-            // In Legado, evaluate_url often starts with the raw URL then applies JS.
-            let mut initial_val = String::new();
-            if let Some(pos) = url.find("@js:") {
-                 initial_val = url[..pos].to_string();
-            } else if let Some(pos) = url.find("<js>") {
-                 initial_val = url[..pos].to_string();
-            } else if let Some(newline_pos) = url.find('\n') {
-                 initial_val = url[..newline_pos].to_string();
+        for (i, line) in lines.iter().enumerate() {
+            let mut line_vars = vars.clone();
+            // result is passed from previous step
+            if i > 0 {
+                line_vars.insert("result".to_string(), current_result.clone());
             }
             
-            self.get_string(&initial_val, &url)
-        } else {
-            Ok(url)
+            // Process templates in this line
+            let processed_line = self.process_templates(line, &line_vars);
+            
+            // If it contains <js> tags or is explicitly JS, process it
+            current_result = if processed_line.contains("<js>") {
+                self.process_js_tags(&processed_line, &current_result)?
+            } else {
+                processed_line
+            };
         }
+        
+        Ok(current_result)
     }
 }
 
@@ -682,11 +699,10 @@ mod tests {
 
     #[test]
     fn test_js_tags_anywhere() {
-        let analyzer = RuleAnalyzer::new().unwrap();
-        let vars: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let _analyzer = RuleAnalyzer::new().unwrap();
         
         let rule = "prefix_<js>'a'.toUpperCase()</js>_suffix";
-        let result = analyzer.process_js_tags(rule, "").unwrap();
+        let result = _analyzer.process_js_tags(rule, "").unwrap();
         assert_eq!(result, "prefix_A_suffix");
     }
 

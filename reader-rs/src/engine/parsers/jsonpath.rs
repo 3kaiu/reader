@@ -9,10 +9,16 @@ pub struct JsonPathParser;
 
 impl Parser for JsonPathParser {
     fn get_string(&self, content: &str, rule: &str) -> Result<String> {
-        let rule = rule.trim_start_matches("@json:");
+        let rule = rule.trim_start_matches("@json:").trim();
         let json: Value = serde_json::from_str(content)?;
         
-        let path = JsonPath::try_from(rule)?;
+        let path_str = if rule.starts_with('$') || rule.is_empty() {
+            rule.to_string()
+        } else {
+            format!("$.{}", rule)
+        };
+        
+        let path = JsonPath::try_from(path_str.as_str())?;
         let result = path.find(&json);
         
         // find() returns a Value, which may be an array or single value
@@ -20,10 +26,16 @@ impl Parser for JsonPathParser {
     }
     
     fn get_list(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule = rule.trim_start_matches("@json:");
+        let rule = rule.trim_start_matches("@json:").trim();
         let json: Value = serde_json::from_str(content)?;
         
-        let path = JsonPath::try_from(rule)?;
+        let path_str = if rule.starts_with('$') || rule.is_empty() {
+            rule.to_string()
+        } else {
+            format!("$.{}", rule)
+        };
+        
+        let path = JsonPath::try_from(path_str.as_str())?;
         let result = path.find(&json);
         
         // If result is an array, extract each element
@@ -37,10 +49,16 @@ impl Parser for JsonPathParser {
     }
     
     fn get_elements(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule = rule.trim_start_matches("@json:");
+        let rule = rule.trim_start_matches("@json:").trim();
         let json: Value = serde_json::from_str(content)?;
         
-        let path = JsonPath::try_from(rule)?;
+        let path_str = if rule.starts_with('$') || rule.is_empty() {
+            rule.to_string()
+        } else {
+            format!("$.{}", rule)
+        };
+        
+        let path = JsonPath::try_from(path_str.as_str())?;
         let result = path.find(&json);
         
         // Return each matched element as JSON string
@@ -54,11 +72,7 @@ impl Parser for JsonPathParser {
                     return Ok(inner.iter()
                         .map(|v| v.to_string())
                         .collect());
-                } else {
-                     tracing::debug!("JsonPath matched single matched element, but not an array: {:?}", arr.first());
                 }
-            } else {
-                 tracing::debug!("JsonPath matched {} elements", arr.len());
             }
             
             Ok(arr.iter()

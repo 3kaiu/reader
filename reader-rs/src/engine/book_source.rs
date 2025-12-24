@@ -137,9 +137,9 @@ pub struct Chapter {
 
 /// Main Book Source Engine
 pub struct BookSourceEngine {
-    source: BookSource,
-    analyzer: RuleAnalyzer,
-    http: HttpClient,
+    pub(crate) source: BookSource,
+    pub(crate) analyzer: RuleAnalyzer,
+    pub(crate) http: HttpClient,
 }
 
 impl BookSourceEngine {
@@ -187,17 +187,39 @@ impl BookSourceEngine {
             .as_ref()
             .ok_or_else(|| anyhow!("No search URL defined"))?;
         
+        tracing::debug!("Search URL template: {}", search_url.chars().take(200).collect::<String>());
+        
         // Build URL with variables
         let mut vars = HashMap::new();
         vars.insert("key".to_string(), key.to_string());
         vars.insert("page".to_string(), page.to_string());
         vars.insert("searchKey".to_string(), key.to_string());
         
-        let url = self.analyzer.evaluate_url(search_url, &vars)?;
+        let url = match self.analyzer.evaluate_url(search_url, &vars) {
+            Ok(u) => {
+                tracing::info!("Evaluated search URL: {}", u.chars().take(300).collect::<String>());
+                u
+            },
+            Err(e) => {
+                tracing::error!("Failed to evaluate search URL: {}", e);
+                return Err(e);
+            }
+        };
         
         // Make request
         let config = self.http.parse_request_config(&url);
-        let content = self.http.request(&config)?;
+        tracing::debug!("Making search request to: {} (method: {})", config.url, config.method);
+        
+        let content = match self.http.request(&config) {
+            Ok(c) => {
+                tracing::debug!("Search response length: {} bytes", c.len());
+                c
+            },
+            Err(e) => {
+                tracing::error!("Search HTTP request failed: {}", e);
+                return Err(e);
+            }
+        };
         
         // Parse results
         let rule = self.source.rule_search
@@ -213,6 +235,49 @@ impl BookSourceEngine {
         let mut books = Vec::new();
         for element in elements {
             if let Ok(book) = self.parse_book_item(&element, rule) {
+                books.push(book);
+            }
+        }
+        
+        Ok(books)
+    }
+
+    /// Explore/Discovery books by URL (e.g. from exploreUrl categories)
+    pub fn explore(&self, url_template: &str, page: i32) -> Result<Vec<BookItem>> {
+        let mut vars = HashMap::new();
+        vars.insert("page".to_string(), page.to_string());
+        
+        let url = match self.analyzer.evaluate_url(url_template, &vars) {
+            Ok(u) => {
+                tracing::info!("Evaluated explore URL: {}", u.chars().take(300).collect::<String>());
+                u
+            },
+            Err(e) => {
+                tracing::error!("Failed to evaluate explore URL: {}", e);
+                return Err(e);
+            }
+        };
+        
+        // Make request
+        let config = self.http.parse_request_config(&url);
+        tracing::debug!("Making explore request to: {} (method: {})", config.url, config.method);
+        
+        let content = self.http.request(&config)?;
+        
+        // Parse results
+        let rule = self.source.rule_explore
+            .as_ref()
+            .ok_or_else(|| anyhow!("No explore rule defined"))?;
+        
+        let book_list_rule = rule.book_list
+            .as_ref()
+            .ok_or_else(|| anyhow!("No book_list rule in rule_explore"))?;
+        
+        let elements = self.analyzer.get_elements(&content, book_list_rule)?;
+        
+        let mut books = Vec::new();
+        for element in elements {
+            if let Ok(book) = self.parse_explore_item(&element, rule) {
                 books.push(book);
             }
         }
@@ -321,9 +386,6 @@ impl BookSourceEngine {
     
     /// Get table of contents
     pub fn get_chapters(&self, toc_url: &str) -> Result<Vec<Chapter>> {
-        let config = self.http.parse_request_config(toc_url);
-        let content = self.http.request(&config)?;
-        
         let rule = self.source.rule_toc
             .as_ref()
             .ok_or_else(|| anyhow!("No TOC rule defined"))?;
@@ -331,18 +393,50 @@ impl BookSourceEngine {
         let chapter_list_rule = rule.chapter_list
             .as_ref()
             .ok_or_else(|| anyhow!("No chapter_list rule"))?;
+            
+        let mut all_chapters = Vec::new();
+        let mut current_url = toc_url.to_string();
+        let max_pages = 50; // TOC can be very long
         
-        let elements = self.analyzer.get_elements(&content, chapter_list_rule)?;
-        
-        let mut chapters = Vec::new();
-        for element in elements {
-            match self.parse_chapter(&element, rule, toc_url) {
-                Ok(chapter) => chapters.push(chapter),
-                Err(e) => tracing::error!("Failed to parse chapter: {}", e),
+        for page_num in 0..max_pages {
+            let config = self.http.parse_request_config(&current_url);
+            let content = self.http.request(&config)?;
+            
+            let elements = self.analyzer.get_elements(&content, chapter_list_rule)?;
+            let page_chapters_count = elements.len();
+            
+            for element in elements {
+                match self.parse_chapter(&element, rule, &current_url) {
+                    Ok(chapter) => all_chapters.push(chapter),
+                    Err(e) => tracing::error!("Failed to parse chapter: {}", e),
+                }
             }
+            
+            // Check for next page
+            if let Some(next_url_rule) = &rule.next_toc_url {
+                if !next_url_rule.is_empty() {
+                    if let Ok(next_url) = self.analyzer.get_string(&content, next_url_rule) {
+                        let next_url = next_url.trim();
+                        if !next_url.is_empty() && next_url != current_url {
+                            let old_url = current_url.clone();
+                            current_url = self.http.absolute_url(next_url);
+                            if current_url != old_url {
+                                tracing::debug!("Following nextTocUrl to page {}: {}", page_num + 2, current_url);
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If no next page or same URL, stop
+            if page_chapters_count == 0 {
+                break;
+            }
+            break;
         }
         
-        Ok(chapters)
+        Ok(all_chapters)
     }
     
     /// Get chapter content (with pagination support)
@@ -428,6 +522,21 @@ impl BookSourceEngine {
     }
     
     // === Private methods ===
+    
+    fn parse_explore_item(&self, element: &str, rule: &ExploreRule) -> Result<BookItem> {
+        Ok(BookItem {
+            name: self.get_rule_value(element, &rule.name)?,
+            author: self.get_rule_value(element, &rule.author).unwrap_or_default(),
+            intro: self.get_rule_value(element, &rule.intro).ok(),
+            cover_url: self.get_rule_value(element, &rule.cover_url).ok().map(|u| self.http.absolute_url(&u)),
+            book_url: self.http.absolute_url(&self.get_rule_value(element, &rule.book_url)?),
+            kind: self.get_rule_value(element, &rule.kind).ok(),
+            last_chapter: None,
+            word_count: self.get_rule_value(element, &rule.word_count).ok(),
+            update_time: self.get_rule_value(element, &rule.update_time).ok(),
+            toc_url: self.get_rule_value(element, &rule.toc_url).ok().map(|u| self.http.absolute_url(&u)),
+        })
+    }
     
     fn parse_book_item(&self, element: &str, rule: &SearchRule) -> Result<BookItem> {
         Ok(BookItem {

@@ -407,9 +407,11 @@ mod tests {
             "https://example.com/search"
         );
         
+        // Relative URL without leading slash is resolved relative to the directory
+        // Since base is "https://example.com/books", the directory is "https://example.com/"
         assert_eq!(
             client.parse_request_config("chapter/1").url,
-            "https://example.com/books/chapter/1"
+            "https://example.com/chapter/1"
         );
     }
 }

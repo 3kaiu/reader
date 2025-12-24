@@ -40,10 +40,10 @@ pub enum RuleType {
 
 impl RuleType {
     /// Detect rule type from rule string
-    pub fn detect(rule: &str) -> Self {
+    pub fn detect(rule: &str, content: &str) -> Self {
         let rule = rule.trim();
         
-        if rule.starts_with("@js:") || rule.starts_with("<js>") {
+        let rule_type = if rule.starts_with("@js:") || rule.starts_with("<js>") {
             RuleType::JavaScript
         } else if rule.starts_with("@css:") {
             RuleType::Css
@@ -54,8 +54,19 @@ impl RuleType {
         } else if rule.starts_with("##") {
             RuleType::Regex
         } else {
-            // Default to JSOUP Default syntax (class.tag.0@text)
-            RuleType::JsoupDefault
-        }
+            // Intelligent fallback: if content looks like JSON, use JsonPath
+            let content_trimmed = content.trim();
+            if content_trimmed.starts_with('{') || content_trimmed.starts_with('[') {
+                RuleType::JsonPath
+            } else {
+                // Default to JSOUP Default syntax (class.tag.0@text)
+                RuleType::JsoupDefault
+            }
+        };
+        
+        tracing::debug!("Detected rule type {:?} for rule: '{}' (content starts with: {})", 
+            rule_type, rule, content.chars().take(20).collect::<String>());
+            
+        rule_type
     }
 }

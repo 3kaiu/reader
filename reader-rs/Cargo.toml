@@ -67,6 +67,7 @@ encoding_rs = "0.8"
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"
 cipher = "0.4.4"
+des = "0.8"
 
 [features]
 default = ["legacy-boa"]

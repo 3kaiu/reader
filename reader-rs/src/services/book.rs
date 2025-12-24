@@ -243,7 +243,20 @@ impl BookService {
     pub async fn search(&self, key: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
         use crate::engine::book_source::{BookSourceEngine, BookSource};
         
+        // Lazy load sources if not already loaded
+        {
+            let sources = self.sources.read().await;
+            if sources.is_empty() {
+                drop(sources);
+                let loaded: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
+                tracing::info!("Lazy loaded {} sources for search", loaded.len());
+                let mut sources = self.sources.write().await;
+                *sources = loaded;
+            }
+        }
+        
         let sources = self.sources.read().await;
+        tracing::debug!("Searching across {} sources", sources.len());
         
         for source in sources.iter().filter(|s| s.enabled && !s.search_url.is_empty()) {
             // 使用 JSON 序列化转换书源格式 (避免手动字段映射)
