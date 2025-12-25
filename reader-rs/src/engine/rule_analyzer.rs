@@ -22,6 +22,7 @@ use super::parsers::xpath::XPathParser;
 use super::parsers::{Parser, RuleType};
 use super::preprocessor::SourcePreprocessor;
 use super::template::{TemplateContext, TemplateExecutor};
+use crate::storage::kv::KvStore;
 
 /// Rule Analyzer for parsing content using Legado rules
 pub struct RuleAnalyzer {
@@ -43,9 +44,9 @@ pub struct RuleAnalyzer {
 
 impl RuleAnalyzer {
     /// Create a new RuleAnalyzer
-    pub fn new() -> Result<Self> {
+    pub fn new(kv_store: Arc<KvStore>) -> Result<Self> {
         let cookie_manager = Arc::new(CookieManager::new());
-        let native_api = Arc::new(NativeApiProvider::new(cookie_manager));
+        let native_api = Arc::new(NativeApiProvider::new(cookie_manager, kv_store));
         let template_executor = TemplateExecutor::new(native_api.clone());
 
         Ok(Self {
@@ -54,7 +55,7 @@ impl RuleAnalyzer {
             regex_parser: RegexParser,
             jsoup_parser: JsoupDefaultParser,
             xpath_parser: XPathParser,
-            js_executor: JsExecutor::new()?,
+            js_executor: JsExecutor::new(native_api.clone())?,
             variables: std::cell::RefCell::new(HashMap::new()),
             result_list: std::cell::RefCell::new(Vec::new()),
             preprocessor: SourcePreprocessor::new(),
@@ -64,8 +65,11 @@ impl RuleAnalyzer {
     }
 
     /// Create RuleAnalyzer with shared cookie manager
-    pub fn with_cookie_manager(cookie_manager: Arc<CookieManager>) -> Result<Self> {
-        let native_api = Arc::new(NativeApiProvider::new(cookie_manager));
+    pub fn with_cookie_manager(
+        cookie_manager: Arc<CookieManager>,
+        kv_store: Arc<KvStore>,
+    ) -> Result<Self> {
+        let native_api = Arc::new(NativeApiProvider::new(cookie_manager, kv_store));
         let template_executor = TemplateExecutor::new(native_api.clone());
 
         Ok(Self {
@@ -74,7 +78,7 @@ impl RuleAnalyzer {
             regex_parser: RegexParser,
             jsoup_parser: JsoupDefaultParser,
             xpath_parser: XPathParser,
-            js_executor: JsExecutor::new()?,
+            js_executor: JsExecutor::new(native_api.clone())?,
             variables: std::cell::RefCell::new(HashMap::new()),
             result_list: std::cell::RefCell::new(Vec::new()),
             preprocessor: SourcePreprocessor::new(),
@@ -355,19 +359,20 @@ impl RuleAnalyzer {
             return Ok(String::new());
         }
 
-        // Split by newline for chain rules
-        let lines: Vec<&str> = rule
-            .split('\n')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .collect();
+        // Split into steps using smarter logic that respects JS blocks and rule types
+        let lines = self.split_steps(rule, false);
         let mut current_result = content.to_string();
         let mut first_line = true;
 
         for line in lines {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
             // Check if this line is a pure JS rule (starts with @js: or <js>)
             let is_js =
-                line.starts_with("@js:") || (line.starts_with("<js>") && line.ends_with("</js>"));
+                line.starts_with("@js:") || (line.starts_with("<js>") && line.contains("</js>"));
 
             let line_result = if is_js {
                 self.execute_single_rule(if first_line { content } else { &current_result }, line)?
@@ -377,6 +382,7 @@ impl RuleAnalyzer {
                 let effective_content = if first_line { content } else { &current_result };
                 vars.insert("result".to_string(), effective_content.to_string());
                 vars.insert("it".to_string(), effective_content.to_string());
+                vars.insert("src".to_string(), effective_content.to_string());
 
                 let processed_line = self.process_templates(line, &vars);
                 let rule_type = RuleType::detect(&processed_line, content);
@@ -774,6 +780,7 @@ impl RuleAnalyzer {
                     let mut vars = HashMap::new();
                     vars.insert("result".to_string(), content.to_string());
                     vars.insert("it".to_string(), content.to_string());
+                    vars.insert("src".to_string(), content.to_string());
                     self.js_executor.eval_with_context(code, &vars)?
                 }
                 RuleType::Css => self.css_parser.get_string(content, &base_rule)?,
@@ -839,7 +846,6 @@ impl RuleAnalyzer {
     }
 
     /// Evaluate an URL rule, handling @js: if present
-    /// Evaluate an URL rule, handling @js: if present
     pub fn evaluate_url(&self, raw_url: &str, vars: &HashMap<String, String>) -> Result<String> {
         // If it starts with @js:, evaluate everything else as JS
         if raw_url.starts_with("@js:") {
@@ -847,61 +853,135 @@ impl RuleAnalyzer {
             return self.js_executor.eval_with_context(js_code, vars);
         }
 
-        // Otherwise, process line by line
+        // Otherwise, process line by line using smarter split
         let mut current_result = String::new();
-        let lines: Vec<&str> = raw_url.split('\n').collect();
+        let lines = self.split_steps(raw_url, true);
 
         for (i, line) in lines.iter().enumerate() {
+            let line = line.trim();
             let mut line_vars = vars.clone();
             // result is passed from previous step
             if i > 0 {
                 line_vars.insert("result".to_string(), current_result.clone());
+                line_vars.insert("it".to_string(), current_result.clone());
+                line_vars.insert("src".to_string(), current_result.clone());
             }
 
-            // Use Rust-native Template Executor
-            let ctx = TemplateContext {
-                variables: line_vars,
-            };
+            // Check if this step is a JS step
+            let is_js_step =
+                line.starts_with("@js:") || (line.starts_with("<js>") && line.contains("</js>"));
 
-            // Parse and execute template expressions
-            let parts = self.preprocessor.parse_template(line);
+            let next_part = if is_js_step {
+                self.execute_single_rule(&current_result, line)?
+            } else {
+                // Use Rust-native Template Executor
+                let ctx = TemplateContext {
+                    variables: line_vars,
+                };
 
-            let processed_line = match self.template_executor.execute_parts(&parts, &ctx) {
-                Ok(res) => res,
-                Err(e) => {
-                    tracing::warn!("Template execution error: {}", e);
-                    // If native execution fails, return error or maybe strictly fallback?
-                    // Given we want partial execution, we should probably fail to alert user.
-                    return Err(e);
+                // Parse and execute template expressions
+                let parts = self.preprocessor.parse_template(line);
+
+                let processed_line = match self.template_executor.execute_parts(&parts, &ctx) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        tracing::warn!("Template execution error: {}", e);
+                        return Err(e);
+                    }
+                };
+
+                // If it contains <js> tags that are not the whole line, process it
+                if processed_line.contains("<js>") {
+                    self.process_js_tags(&processed_line, &current_result)?
+                } else {
+                    processed_line
                 }
             };
 
-            // If it contains <js> tags or is explicitly JS, process it
-            // Note: pass current_result (from prev line) as context content
-            current_result = if processed_line.contains("<js>") {
-                self.process_js_tags(&processed_line, &current_result)?
+            if i > 0 && !is_js_step {
+                current_result.push('\n');
+            }
+            if is_js_step {
+                // JS step REPLACES the result usually in URL chain
+                current_result = next_part;
             } else {
-                processed_line
-            };
+                current_result.push_str(&next_part);
+            }
         }
 
         Ok(current_result)
     }
-}
 
-impl Default for RuleAnalyzer {
-    fn default() -> Self {
-        Self::new().expect("Failed to create RuleAnalyzer")
+    /// Split a rule into logical steps, respecting JS blocks and JSON templates
+    fn split_steps(&self, rule: &str, is_url_rule: bool) -> Vec<String> {
+        let mut steps = Vec::new();
+        let mut current_block = String::new();
+        let mut in_js_block = false;
+
+        for line in rule.split('\n') {
+            let trimmed = line.trim();
+            if trimmed.is_empty() && !in_js_block {
+                continue;
+            }
+
+            let starts_js = trimmed.starts_with("<js>") || trimmed.starts_with("@js:");
+
+            if !in_js_block {
+                if starts_js {
+                    // Start of JS step.
+                    if !current_block.is_empty() {
+                        steps.push(current_block.trim().to_string());
+                        current_block = String::new();
+                    }
+                    if trimmed.starts_with("<js>") && !trimmed.contains("</js>") {
+                        in_js_block = true;
+                    }
+                } else if !is_url_rule {
+                    // For standard rules, every non-JS line is a separate step
+                    if !current_block.is_empty() {
+                        steps.push(current_block.trim().to_string());
+                        current_block = String::new();
+                    }
+                }
+            }
+
+            if !current_block.is_empty() {
+                current_block.push('\n');
+            }
+            current_block.push_str(line);
+
+            if in_js_block && trimmed.contains("</js>") {
+                in_js_block = false;
+                steps.push(current_block.trim().to_string());
+                current_block = String::new();
+            } else if !in_js_block && starts_js && !is_url_rule {
+                // for standard rules, single line @js is a step
+                steps.push(current_block.trim().to_string());
+                current_block = String::new();
+            }
+        }
+
+        if !current_block.is_empty() {
+            steps.push(current_block.trim().to_string());
+        }
+        steps
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::kv::KvStore;
+    use crate::storage::FileStorage;
+
+    fn create_test_kv() -> Arc<KvStore> {
+        let fs = FileStorage::new("/tmp/reader_tests_ra");
+        Arc::new(KvStore::new(fs, "test_kv_ra.json"))
+    }
 
     #[test]
     fn test_css_rule() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let html = r#"<div class="title">Hello</div>"#;
 
         let result = analyzer.get_string(html, "@css:div.title").unwrap();
@@ -910,7 +990,7 @@ mod tests {
 
     #[test]
     fn test_jsonpath_rule() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let json = r#"{"name": "Test"}"#;
 
         let result = analyzer.get_string(json, "$.name").unwrap();
@@ -919,7 +999,7 @@ mod tests {
 
     #[test]
     fn test_alternative_rules() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let html = r#"<div class="author">Author Name</div>"#;
 
         // First rule fails, second succeeds
@@ -931,7 +1011,7 @@ mod tests {
 
     #[test]
     fn test_js_postprocess() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let html = r#"<div class="name">hello world</div>"#;
 
         let result = analyzer
@@ -942,7 +1022,7 @@ mod tests {
 
     #[test]
     fn test_chain_rules() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let json = r#"{"id": 123}"#;
 
         // Chain: id -> JS transformation -> template
@@ -953,7 +1033,7 @@ mod tests {
 
     #[test]
     fn test_js_tags_anywhere() {
-        let _analyzer = RuleAnalyzer::new().unwrap();
+        let _analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let rule = "prefix_<js>'a'.toUpperCase()</js>_suffix";
         let result = _analyzer.process_js_tags(rule, "").unwrap();
@@ -962,7 +1042,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_url_complex() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let mut _vars: std::collections::HashMap<String, String> = std::collections::HashMap::new();
         _vars.insert("bid".to_string(), "123".to_string());
 
@@ -972,7 +1052,7 @@ mod tests {
     }
     #[test]
     fn test_regex_suffix() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
         let content = r#"{"key": "prefix_123_suffix"}"#;
 
         // Test extraction
@@ -987,7 +1067,7 @@ mod tests {
 
     #[test]
     fn test_build_url_native() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         // Test simple variable substitution
         let url = analyzer
@@ -1001,7 +1081,7 @@ mod tests {
 
     #[test]
     fn test_build_url_with_base64() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         // Test java.base64Encode - should be executed natively
         let url = analyzer
@@ -1015,7 +1095,7 @@ mod tests {
 
     #[test]
     fn test_native_base64() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let encoded = analyzer.base64_encode("hello");
         assert_eq!(encoded, "aGVsbG8=");
@@ -1026,7 +1106,7 @@ mod tests {
 
     #[test]
     fn test_native_md5() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let hash = analyzer.md5_encode("hello");
         assert_eq!(hash, "5d41402abc4b2a76b9719d911017c592");
@@ -1037,7 +1117,7 @@ mod tests {
 
     #[test]
     fn test_native_encode_uri() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let encoded = analyzer.encode_uri("hello world");
         assert_eq!(encoded, "hello%20world");
@@ -1045,7 +1125,7 @@ mod tests {
 
     #[test]
     fn test_native_uuid() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let uuid = analyzer.random_uuid();
         assert_eq!(uuid.len(), 36); // UUID format: 8-4-4-4-12
@@ -1054,7 +1134,7 @@ mod tests {
 
     #[test]
     fn test_native_digest() {
-        let analyzer = RuleAnalyzer::new().unwrap();
+        let analyzer = RuleAnalyzer::new(create_test_kv()).unwrap();
 
         let sha256 = analyzer.digest_hex("hello", "SHA256");
         assert!(sha256.len() == 64); // SHA256 = 64 hex chars

@@ -1,9 +1,9 @@
+use anyhow::Result;
+use serde::{de::DeserializeOwned, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use serde::{de::DeserializeOwned, Serialize};
-use anyhow::Result;
+pub mod kv;
 
-/// 文件存储服务
 #[derive(Clone)]
 pub struct FileStorage {
     base_path: PathBuf,
@@ -37,12 +37,12 @@ impl FileStorage {
     /// 写入 JSON 文件
     pub async fn write_json<T: Serialize>(&self, filename: &str, data: &T) -> Result<()> {
         let path = self.data_path(filename);
-        
+
         // 确保目录存在
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        
+
         let content = serde_json::to_string_pretty(data)?;
         fs::write(&path, content).await?;
         Ok(())
@@ -76,11 +76,11 @@ impl FileStorage {
     /// 写入缓存
     pub async fn write_cache(&self, filename: &str, content: &str) -> Result<()> {
         let path = self.cache_path(filename);
-        
+
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        
+
         fs::write(path, content).await?;
         Ok(())
     }

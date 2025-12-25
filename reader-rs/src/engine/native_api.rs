@@ -3,42 +3,43 @@
 //! This module provides Rust-native implementations of commonly used java.* APIs,
 //! eliminating the need for JS execution in many cases.
 
-use anyhow::Result;
-use std::sync::Arc;
-use std::collections::HashMap;
-use chrono::TimeZone;
 use super::cookie::CookieManager;
 use super::preprocessor::NativeApi;
+use crate::storage::kv::KvStore;
+use anyhow::Result;
+use chrono::TimeZone;
+
+use std::sync::Arc;
 
 /// Native API Provider - executes java.* APIs in pure Rust
 pub struct NativeApiProvider {
     /// Cookie manager for getCookie/setCookie
     cookie_manager: Arc<CookieManager>,
-    /// Cache for key-value storage
-    cache: Arc<std::sync::Mutex<HashMap<String, String>>>,
+    /// Persistent KV Store
+    kv_store: Arc<KvStore>,
     /// Base URL for relative URL resolution
     pub base_url: String,
 }
 
 impl NativeApiProvider {
     /// Create a new NativeApiProvider
-    pub fn new(cookie_manager: Arc<CookieManager>) -> Self {
+    pub fn new(cookie_manager: Arc<CookieManager>, kv_store: Arc<KvStore>) -> Self {
         Self {
             cookie_manager,
-            cache: Arc::new(std::sync::Mutex::new(HashMap::new())),
+            kv_store,
             base_url: String::new(),
         }
     }
-    
-    /// Create with existing cache
-    pub fn with_cache(cookie_manager: Arc<CookieManager>, cache: Arc<std::sync::Mutex<HashMap<String, String>>>) -> Self {
+
+    /// Create with existing kv_store (deprecated name but keeping signature similar if needed, or just remove)
+    pub fn with_store(cookie_manager: Arc<CookieManager>, kv_store: Arc<KvStore>) -> Self {
         Self {
             cookie_manager,
-            cache,
+            kv_store,
             base_url: String::new(),
         }
     }
-    
+
     /// Execute a native API call
     pub fn execute(&self, api: &NativeApi, args: &[String]) -> Result<String> {
         match api {
@@ -48,7 +49,7 @@ impl NativeApiProvider {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(base64::engine::general_purpose::STANDARD.encode(input.as_bytes()))
             }
-            
+
             NativeApi::Base64Decode => {
                 use base64::Engine;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
@@ -59,7 +60,7 @@ impl NativeApiProvider {
                     .map(Ok)
                     .unwrap_or(Ok(String::new()))
             }
-            
+
             NativeApi::Base64DecodeWithFlags(flags) => {
                 use base64::Engine;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
@@ -68,18 +69,19 @@ impl NativeApiProvider {
                 } else {
                     &base64::engine::general_purpose::STANDARD
                 };
-                engine.decode(input.as_bytes())
+                engine
+                    .decode(input.as_bytes())
                     .ok()
                     .and_then(|bytes| String::from_utf8(bytes).ok())
                     .map(Ok)
                     .unwrap_or(Ok(String::new()))
             }
-            
+
             NativeApi::Md5Encode => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(format!("{:x}", md5::compute(input.as_bytes())))
             }
-            
+
             NativeApi::Md5Encode16 => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 let full = format!("{:x}", md5::compute(input.as_bytes()));
@@ -89,12 +91,12 @@ impl NativeApiProvider {
                     Ok(full)
                 }
             }
-            
+
             NativeApi::EncodeUri => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(urlencoding::encode(input).to_string())
             }
-            
+
             NativeApi::EncodeUriWithEnc(enc) => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 // For non-UTF8 encodings, first convert then URL encode
@@ -106,19 +108,19 @@ impl NativeApiProvider {
                     Ok(urlencoding::encode(input).to_string())
                 }
             }
-            
+
             NativeApi::Utf8ToGbk => {
                 use encoding_rs::GBK;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 let (encoded, _, _) = GBK.encode(input);
                 Ok(hex::encode(&encoded))
             }
-            
+
             NativeApi::HtmlFormat => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(html_escape::decode_html_entities(input).to_string())
             }
-            
+
             // Cookie
             NativeApi::GetCookie { url, key } => {
                 // Extract domain from URL
@@ -126,36 +128,38 @@ impl NativeApiProvider {
                     .ok()
                     .and_then(|u| u.host_str().map(|h| h.to_string()))
                     .unwrap_or_else(|| url.to_string());
-                
+
                 // Use the get_cookie method with proper signature
                 let cookie_str = self.cookie_manager.get_cookie(&domain, key.as_deref());
                 Ok(cookie_str)
             }
-            
+
             // Time
             NativeApi::TimeFormat(format) => {
                 use chrono::Utc;
-                let timestamp = args.first()
+                let timestamp = args
+                    .first()
                     .and_then(|s| s.parse::<i64>().ok())
                     .unwrap_or_else(|| Utc::now().timestamp_millis());
-                    
+
                 let fmt = format.as_deref().unwrap_or("%Y-%m-%d %H:%M:%S");
-                
-                chrono::Utc.timestamp_opt(timestamp / 1000, 0)
+
+                chrono::Utc
+                    .timestamp_opt(timestamp / 1000, 0)
                     .single()
                     .map(|dt| dt.format(fmt).to_string())
                     .map(Ok)
                     .unwrap_or(Ok(String::new()))
             }
-            
+
             // Hash
             NativeApi::DigestHex(algorithm) => {
                 use sha1::Sha1;
-                use sha2::{Sha256, Sha512, Digest};
-                
+                use sha2::{Digest, Sha256, Sha512};
+
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 let data_bytes = input.as_bytes();
-                
+
                 match algorithm.to_uppercase().as_str() {
                     "MD5" => Ok(format!("{:x}", md5::compute(data_bytes))),
                     "SHA1" | "SHA-1" => {
@@ -176,192 +180,227 @@ impl NativeApiProvider {
                     _ => Ok(format!("{:x}", md5::compute(data_bytes))),
                 }
             }
-            
+
             // Random
-            NativeApi::RandomUuid => {
-                Ok(uuid::Uuid::new_v4().to_string())
-            }
-            
+            NativeApi::RandomUuid => Ok(uuid::Uuid::new_v4().to_string()),
+
             // Crypto - AES
-            NativeApi::AesEncode { transformation: _, iv } => {
+            NativeApi::AesEncode {
+                transformation: _,
+                iv,
+            } => {
                 use aes::Aes128;
-                use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
                 use base64::Engine;
-                
+                use cbc::{
+                    cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit},
+                    Encryptor,
+                };
+
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                
+
                 type Aes128CbcEnc = Encryptor<Aes128>;
-                
+
                 let key_bytes = ensure_16_bytes(key.as_bytes());
                 let iv_bytes = ensure_16_bytes(iv.as_bytes());
-                
+
                 let cipher = Aes128CbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-                
+
                 let data_bytes = data.as_bytes();
                 let buf_len = ((data_bytes.len() / 16) + 1) * 16;
                 let mut buf = vec![0u8; buf_len];
                 buf[..data_bytes.len()].copy_from_slice(data_bytes);
-                
+
                 match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                    Ok(encrypted) => Ok(base64::engine::general_purpose::STANDARD.encode(encrypted)),
+                    Ok(encrypted) => {
+                        Ok(base64::engine::general_purpose::STANDARD.encode(encrypted))
+                    }
                     Err(_) => Ok(String::new()),
                 }
             }
-            
-            NativeApi::AesDecode { transformation: _, iv } => {
+
+            NativeApi::AesDecode {
+                transformation: _,
+                iv,
+            } => {
                 use aes::Aes128;
-                use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
                 use base64::Engine;
-                
+                use cbc::{
+                    cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit},
+                    Decryptor,
+                };
+
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                
+
                 type Aes128CbcDec = Decryptor<Aes128>;
-                
+
                 let encrypted = base64::engine::general_purpose::STANDARD
                     .decode(data.as_bytes())
                     .unwrap_or_default();
-                if encrypted.is_empty() { return Ok(String::new()); }
-                
+                if encrypted.is_empty() {
+                    return Ok(String::new());
+                }
+
                 let key_bytes = ensure_16_bytes(key.as_bytes());
                 let iv_bytes = ensure_16_bytes(iv.as_bytes());
-                
+
                 let cipher = Aes128CbcDec::new(&key_bytes.into(), &iv_bytes.into());
-                
+
                 let mut buf = encrypted.clone();
                 match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
                     Ok(decrypted) => Ok(String::from_utf8_lossy(decrypted).to_string()),
                     Err(_) => Ok(String::new()),
                 }
             }
-            
+
             // DES
-            NativeApi::DesEncode { transformation: _, iv } => {
+            NativeApi::DesEncode {
+                transformation: _,
+                iv,
+            } => {
+                use cbc::{
+                    cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit},
+                    Encryptor,
+                };
                 use des::Des;
-                use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-                
+
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                
+
                 type DesCbcEnc = Encryptor<Des>;
-                
+
                 let key_bytes = ensure_8_bytes(key.as_bytes());
                 let iv_bytes = ensure_8_bytes(iv.as_bytes());
-                
+
                 let cipher = DesCbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-                
+
                 let data_bytes = data.as_bytes();
                 let buf_len = ((data_bytes.len() / 8) + 1) * 8;
                 let mut buf = vec![0u8; buf_len];
                 buf[..data_bytes.len()].copy_from_slice(data_bytes);
-                
+
                 match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
                     Ok(encrypted) => Ok(hex::encode(encrypted)),
                     Err(_) => Ok(String::new()),
                 }
             }
-            
-            NativeApi::DesDecode { transformation: _, iv } => {
+
+            NativeApi::DesDecode {
+                transformation: _,
+                iv,
+            } => {
+                use cbc::{
+                    cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit},
+                    Decryptor,
+                };
                 use des::Des;
-                use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
-                
+
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                
+
                 type DesCbcDec = Decryptor<Des>;
-                
+
                 let encrypted = hex::decode(data).unwrap_or_default();
-                if encrypted.is_empty() { return Ok(String::new()); }
-                
+                if encrypted.is_empty() {
+                    return Ok(String::new());
+                }
+
                 let key_bytes = ensure_8_bytes(key.as_bytes());
                 let iv_bytes = ensure_8_bytes(iv.as_bytes());
-                
+
                 let cipher = DesCbcDec::new(&key_bytes.into(), &iv_bytes.into());
-                
+
                 let mut buf = encrypted.clone();
                 match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
                     Ok(decrypted) => Ok(String::from_utf8_lossy(decrypted).to_string()),
                     Err(_) => Ok(String::new()),
                 }
             }
-            
+
             // 3DES (Triple DES / DESede)
             NativeApi::TripleDesDecodeStr { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
+
                 super::crypto::CryptoProvider::triple_des_decode_str(data, key, mode, padding, iv)
             }
-            
+
             NativeApi::TripleDesDecodeArgsBase64 { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
+
                 super::crypto::CryptoProvider::triple_des_decode_args_base64(
-                    data, key_base64, mode, padding, iv_base64
+                    data, key_base64, mode, padding, iv_base64,
                 )
             }
-            
+
             NativeApi::TripleDesEncodeBase64 { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
-                super::crypto::CryptoProvider::triple_des_encode_base64(data, key, mode, padding, iv)
+
+                super::crypto::CryptoProvider::triple_des_encode_base64(
+                    data, key, mode, padding, iv,
+                )
             }
-            
+
             NativeApi::TripleDesEncodeArgsBase64 { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
+
                 super::crypto::CryptoProvider::triple_des_encode_args_base64(
-                    data, key_base64, mode, padding, iv_base64
+                    data, key_base64, mode, padding, iv_base64,
                 )
             }
-            
+
             // AES with Base64 encoded args
             NativeApi::AesDecodeArgsBase64 { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
+
                 super::crypto::CryptoProvider::aes_decode_args_base64(
-                    data, key_base64, mode, padding, iv_base64
+                    data, key_base64, mode, padding, iv_base64,
                 )
             }
-            
+
             NativeApi::AesEncodeArgsBase64 { mode, padding } => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
-                
+
                 super::crypto::CryptoProvider::aes_encode_args_base64(
-                    data, key_base64, mode, padding, iv_base64
+                    data, key_base64, mode, padding, iv_base64,
                 )
             }
-            
+
             // Time with UTC offset
-            NativeApi::TimeFormatUtc { format, offset_hours } => {
-                use chrono::{Utc, FixedOffset, TimeZone as _};
-                
-                let timestamp = args.first()
+            NativeApi::TimeFormatUtc {
+                format,
+                offset_hours,
+            } => {
+                use chrono::{FixedOffset, TimeZone as _, Utc};
+
+                let timestamp = args
+                    .first()
                     .and_then(|s| s.parse::<i64>().ok())
                     .unwrap_or_else(|| Utc::now().timestamp_millis());
-                
+
                 let offset = FixedOffset::east_opt(*offset_hours * 3600)
                     .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap());
-                    
-                offset.timestamp_opt(timestamp / 1000, 0)
+
+                offset
+                    .timestamp_opt(timestamp / 1000, 0)
                     .single()
                     .map(|dt| dt.format(format).to_string())
                     .map(Ok)
                     .unwrap_or(Ok(String::new()))
             }
-            
+
             // Delete file
             NativeApi::DeleteFile => {
                 let path = args.first().map(|s| s.as_str()).unwrap_or("");
@@ -374,7 +413,7 @@ impl NativeApiProvider {
                     Err(_) => Ok("false".to_string()),
                 }
             }
-            
+
             // Unknown - should not reach here, fallback needed
             NativeApi::Unknown(name) => {
                 tracing::warn!("Unknown native API called: {}", name);
@@ -382,17 +421,34 @@ impl NativeApiProvider {
             }
         }
     }
-    
+
     /// Get a cached value
     pub fn get_cache(&self, key: &str) -> Option<String> {
-        self.cache.lock().ok().and_then(|c| c.get(key).cloned())
+        self.kv_store.get_cache(key)
     }
-    
+
     /// Set a cached value
     pub fn set_cache(&self, key: &str, value: &str) {
-        if let Ok(mut c) = self.cache.lock() {
-            c.insert(key.to_string(), value.to_string());
-        }
+        self.kv_store.set_cache(key, value, 0); // 0 = no expiry for now, or default
+                                                // Async save
+        let store = self.kv_store.clone();
+        tokio::task::spawn(async move {
+            let _ = store.save().await;
+        });
+    }
+
+    /// Get source variable
+    pub fn get_source_var(&self, source_url: &str, key: &str) -> Option<String> {
+        self.kv_store.get_source_var(source_url, key)
+    }
+
+    /// Set source variable
+    pub fn set_source_var(&self, source_url: &str, key: &str, value: &str) {
+        self.kv_store.set_source_var(source_url, key, value);
+        let store = self.kv_store.clone();
+        tokio::task::spawn(async move {
+            let _ = store.save().await;
+        });
     }
 }
 
@@ -415,48 +471,63 @@ fn ensure_8_bytes(input: &[u8]) -> [u8; 8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+    use crate::storage::kv::KvStore;
+    use crate::storage::FileStorage;
+
+    fn create_test_kv() -> Arc<KvStore> {
+        let fs = FileStorage::new("/tmp/reader_tests");
+        Arc::new(KvStore::new(fs, "test_kv.json"))
+    }
+
     #[test]
     fn test_base64_encode() {
         let cm = Arc::new(CookieManager::new());
-        let provider = NativeApiProvider::new(cm);
-        
-        let result = provider.execute(&NativeApi::Base64Encode, &["hello".to_string()]).unwrap();
+        let provider = NativeApiProvider::new(cm, create_test_kv());
+
+        let result = provider
+            .execute(&NativeApi::Base64Encode, &["hello".to_string()])
+            .unwrap();
         assert_eq!(result, "aGVsbG8=");
     }
-    
+
     #[test]
     fn test_base64_decode() {
         let cm = Arc::new(CookieManager::new());
-        let provider = NativeApiProvider::new(cm);
-        
-        let result = provider.execute(&NativeApi::Base64Decode, &["aGVsbG8=".to_string()]).unwrap();
+        let provider = NativeApiProvider::new(cm, create_test_kv());
+
+        let result = provider
+            .execute(&NativeApi::Base64Decode, &["aGVsbG8=".to_string()])
+            .unwrap();
         assert_eq!(result, "hello");
     }
-    
+
     #[test]
     fn test_md5_encode() {
         let cm = Arc::new(CookieManager::new());
-        let provider = NativeApiProvider::new(cm);
-        
-        let result = provider.execute(&NativeApi::Md5Encode, &["hello".to_string()]).unwrap();
+        let provider = NativeApiProvider::new(cm, create_test_kv());
+
+        let result = provider
+            .execute(&NativeApi::Md5Encode, &["hello".to_string()])
+            .unwrap();
         assert_eq!(result, "5d41402abc4b2a76b9719d911017c592");
     }
-    
+
     #[test]
     fn test_encode_uri() {
         let cm = Arc::new(CookieManager::new());
-        let provider = NativeApiProvider::new(cm);
-        
-        let result = provider.execute(&NativeApi::EncodeUri, &["hello world".to_string()]).unwrap();
+        let provider = NativeApiProvider::new(cm, create_test_kv());
+
+        let result = provider
+            .execute(&NativeApi::EncodeUri, &["hello world".to_string()])
+            .unwrap();
         assert_eq!(result, "hello%20world");
     }
-    
+
     #[test]
     fn test_random_uuid() {
         let cm = Arc::new(CookieManager::new());
-        let provider = NativeApiProvider::new(cm);
-        
+        let provider = NativeApiProvider::new(cm, create_test_kv());
+
         let result = provider.execute(&NativeApi::RandomUuid, &[]).unwrap();
         assert!(result.len() == 36); // UUID format
     }

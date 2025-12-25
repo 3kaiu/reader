@@ -7,19 +7,25 @@ use tokio::sync::RwLock;
 use crate::models::{BookSource, BookSourceFull};
 use crate::storage::FileStorage;
 
+use crate::storage::kv::KvStore;
+
 /// 书源存储文件名
 const SOURCES_FILE: &str = "bookSources.json";
 
 pub struct SourceService {
     storage: FileStorage,
     sources: Arc<RwLock<Vec<BookSourceFull>>>,
+    kv_store: Arc<KvStore>,
 }
 
 impl SourceService {
     pub fn new() -> Self {
+        let storage = FileStorage::default();
+        let kv_store = Arc::new(KvStore::new(storage.clone(), "kv_store.json"));
         Self {
-            storage: FileStorage::default(),
+            storage,
             sources: Arc::new(RwLock::new(Vec::new())),
+            kv_store,
         }
     }
 
@@ -34,7 +40,7 @@ impl SourceService {
     /// 获取所有书源 (完整版本)
     pub async fn get_all_sources(&self) -> Result<Vec<BookSourceFull>, anyhow::Error> {
         let sources = self.sources.read().await;
-        
+
         if sources.is_empty() {
             // 从文件加载
             drop(sources);
@@ -43,32 +49,50 @@ impl SourceService {
             *cache = loaded.clone();
             return Ok(loaded);
         }
-        
+
         Ok(sources.clone())
     }
 
     /// 获取完整书源 (用于解析)
     pub async fn get_source_by_url(&self, source_url: &str) -> Option<BookSourceFull> {
         let sources = self.sources.read().await;
-        sources.iter().find(|s| s.book_source_url == source_url).cloned()
+        sources
+            .iter()
+            .find(|s| s.book_source_url == source_url)
+            .cloned()
     }
 
     /// 获取可用书源
-    pub async fn get_available_sources(&self, _book_url: &str, _refresh: bool) -> Result<Vec<BookSource>, anyhow::Error> {
+    pub async fn get_available_sources(
+        &self,
+        _book_url: &str,
+        _refresh: bool,
+    ) -> Result<Vec<BookSource>, anyhow::Error> {
         // TODO: 实现书源搜索匹配
         Ok(vec![])
     }
 
     /// 切换书源
-    pub async fn set_book_source(&self, _book_url: &str, _new_url: &str, _source_url: &str) -> Result<(), anyhow::Error> {
+    pub async fn set_book_source(
+        &self,
+        _book_url: &str,
+        _new_url: &str,
+        _source_url: &str,
+    ) -> Result<(), anyhow::Error> {
         // TODO: 实现书源切换
         Ok(())
     }
 
     /// 搜索书源 (SSE)
-    pub fn search_source_sse(&self, key: String, group: Option<String>, concurrent: usize) -> impl Stream<Item = Result<Event, Infallible>> {
+    pub fn search_source_sse(
+        &self,
+        key: String,
+        group: Option<String>,
+        concurrent: usize,
+    ) -> impl Stream<Item = Result<Event, Infallible>> {
         let sources_state = self.sources.clone();
-        
+        let kv_store_state = self.kv_store.clone();
+
         async_stream::stream! {
             yield Ok(Event::default().data(r#"{"type":"start"}"#));
 
@@ -91,10 +115,10 @@ impl SourceService {
             let mut seen_books: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
 
             let mut stream = futures::stream::iter(target_sources)
-                .map(|source| {
+                .map(move |source| {
                     let key = key.clone();
                     let source_name = source.book_source_name.clone();
-                    
+                    let kv_dist = kv_store_state.clone();
                     async move {
                         // Wrap with 10 second timeout per source
                         let search_future = tokio::task::spawn_blocking(move || {
@@ -104,7 +128,7 @@ impl SourceService {
                                 Err(_) => return None,
                             };
 
-                            let engine = match crate::engine::book_source::BookSourceEngine::new(engine_source) {
+                            let engine = match crate::engine::book_source::BookSourceEngine::new(engine_source, kv_dist) {
                                 Ok(e) => e,
                                 Err(_) => return None,
                             };
@@ -119,7 +143,7 @@ impl SourceService {
                                 }
                             }
                         });
-                        
+
                         match tokio::time::timeout(std::time::Duration::from_secs(10), search_future).await {
                             Ok(Ok(result)) => result,
                             Ok(Err(e)) => {
@@ -136,7 +160,7 @@ impl SourceService {
                 .buffer_unordered(concurrent);
 
             use futures::StreamExt;
-            
+
             while let Some(result) = stream.next().await {
                 // result is now Option directly (not Result from JoinHandle)
                 if let Some((origin_url, origin_name, books)) = result {
@@ -144,13 +168,13 @@ impl SourceService {
                         // Normalize for deduplication
                         let title_norm = book.name.trim().to_lowercase();
                         let author_norm = book.author.trim().to_lowercase();
-                        
+
                         if seen_books.contains(&(title_norm.clone(), author_norm.clone())) {
                             continue;
                         }
-                        
+
                         seen_books.insert((title_norm, author_norm));
-                        
+
                         // We need to enrich book with origin info to pass to frontend
                         // But Engine BookItem is strict.
                         // We should serialize to JSON and inject origin.
@@ -159,7 +183,7 @@ impl SourceService {
                             obj.insert("origin".to_string(), serde_json::Value::String(origin_url.clone()));
                             obj.insert("originName".to_string(), serde_json::Value::String(origin_name.clone()));
                         }
-                        
+
                         let data = serde_json::to_string(&book_json).unwrap_or_default();
                         yield Ok(Event::default().event("book").data(data));
                     }
@@ -174,14 +198,17 @@ impl SourceService {
     pub async fn save_source(&self, source_json: &str) -> Result<(), anyhow::Error> {
         let source: BookSourceFull = serde_json::from_str(source_json)?;
         let mut sources = self.sources.write().await;
-        
+
         // 更新或添加
-        if let Some(pos) = sources.iter().position(|s| s.book_source_url == source.book_source_url) {
+        if let Some(pos) = sources
+            .iter()
+            .position(|s| s.book_source_url == source.book_source_url)
+        {
             sources[pos] = source;
         } else {
             sources.push(source);
         }
-        
+
         self.storage.write_json(SOURCES_FILE, &*sources).await?;
         Ok(())
     }
@@ -198,17 +225,20 @@ impl SourceService {
     pub async fn import_sources(&self, sources_json: &str) -> Result<i32, anyhow::Error> {
         let new_sources: Vec<BookSourceFull> = serde_json::from_str(sources_json)?;
         let count = new_sources.len() as i32;
-        
+
         let mut sources = self.sources.write().await;
-        
+
         for source in new_sources {
-            if let Some(pos) = sources.iter().position(|s| s.book_source_url == source.book_source_url) {
+            if let Some(pos) = sources
+                .iter()
+                .position(|s| s.book_source_url == source.book_source_url)
+            {
                 sources[pos] = source;
             } else {
                 sources.push(source);
             }
         }
-        
+
         self.storage.write_json(SOURCES_FILE, &*sources).await?;
         Ok(count)
     }
@@ -220,16 +250,20 @@ impl SourceService {
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             .send()
             .await?;
-            
+
         let text = resp.text().await?;
         self.import_sources(&text).await
     }
-    
+
     /// 注入登录 Cookie
     /// Note: Cookie injection is handled at the source level by storing cookies in the source config
-    pub async fn inject_cookies(&self, source_url: &str, cookies: &str) -> Result<(), anyhow::Error> {
+    pub async fn inject_cookies(
+        &self,
+        source_url: &str,
+        cookies: &str,
+    ) -> Result<(), anyhow::Error> {
         let mut sources = self.sources.write().await;
-        
+
         if let Some(source) = sources.iter_mut().find(|s| s.book_source_url == source_url) {
             // Store cookies in the header field as a JSON object
             let mut headers: serde_json::Value = if let Some(ref h) = source.header {
@@ -237,41 +271,47 @@ impl SourceService {
             } else {
                 serde_json::json!({})
             };
-            
+
             if let Some(obj) = headers.as_object_mut() {
-                obj.insert("Cookie".to_string(), serde_json::Value::String(cookies.to_string()));
+                obj.insert(
+                    "Cookie".to_string(),
+                    serde_json::Value::String(cookies.to_string()),
+                );
             }
-            
+
             source.header = Some(serde_json::to_string(&headers)?);
             self.storage.write_json(SOURCES_FILE, &*sources).await?;
-            
+
             tracing::info!("Injected cookies for source: {}", source_url);
             Ok(())
         } else {
             Err(anyhow::anyhow!("Source not found: {}", source_url))
         }
     }
-    
+
     /// 检测书源有效性
     pub async fn check_source(&self, source_url: &str) -> Result<bool, anyhow::Error> {
         let sources = self.sources.read().await;
-        
-        let source = sources.iter()
+
+        let source = sources
+            .iter()
             .find(|s| s.book_source_url == source_url)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Source not found: {}", source_url))?;
-        
+
         drop(sources);
-        
+
         // Run check in blocking task since BookSourceEngine is blocking
+        let kv_dist = self.kv_store.clone();
         let result = tokio::task::spawn_blocking(move || {
-            let engine_source: crate::engine::book_source::BookSource = 
+            let engine_source: crate::engine::book_source::BookSource =
                 serde_json::from_value(serde_json::to_value(&source)?)?;
-            
-            let engine = crate::engine::book_source::BookSourceEngine::new(engine_source)?;
+
+            let engine = crate::engine::book_source::BookSourceEngine::new(engine_source, kv_dist)?;
             engine.check_source()
-        }).await??;
-        
+        })
+        .await??;
+
         Ok(result)
     }
 }
