@@ -41,17 +41,18 @@ pub enum RuleType {
 impl RuleType {
     /// Detect rule type from rule string
     pub fn detect(rule: &str, content: &str) -> Self {
-        let rule = rule.trim();
+        let rule_trimmed = rule.trim();
+        let rule_lower = rule_trimmed.to_lowercase();
         
-        let rule_type = if rule.starts_with("@js:") || rule.starts_with("<js>") {
+        let rule_type = if rule_lower.starts_with("@js:") || rule.starts_with("<js>") {
             RuleType::JavaScript
-        } else if rule.starts_with("@css:") {
+        } else if rule_lower.starts_with("@css:") || rule_lower.starts_with("css:") || rule_lower.starts_with("css#") || rule_lower.starts_with("css.") {
             RuleType::Css
-        } else if rule.starts_with("@xpath:") || rule.starts_with("//") {
+        } else if rule_lower.starts_with("@xpath:") || rule_lower.starts_with("xpath:") || rule_trimmed.starts_with("//") {
             RuleType::XPath
-        } else if rule.starts_with("@json:") || rule.starts_with("$.") || rule.starts_with("$[") {
+        } else if rule_lower.starts_with("@json:") || rule_lower.starts_with("json:") || rule_trimmed.starts_with("$.") || rule_trimmed.starts_with("$[") {
             RuleType::JsonPath
-        } else if rule.starts_with("##") {
+        } else if rule_trimmed.starts_with("##") || rule_trimmed.starts_with(":") {
             RuleType::Regex
         } else {
             // Intelligent fallback: if content looks like JSON, use JsonPath

@@ -30,7 +30,20 @@ pub struct BookSource {
     pub rule_book_info: Option<BookInfoRule>,
     pub rule_toc: Option<TocRule>,
     pub rule_content: Option<ContentRule>,
+    /// Login URL configuration (URL or JSON config)
+    #[serde(default)]
+    pub login_url: Option<String>,
+    /// JavaScript to check if logged in (returns "true" if logged in)
+    #[serde(default)]
+    pub login_check_js: Option<String>,
+    /// Login UI configuration (for user interface)
+    #[serde(default)]
+    pub login_ui: Option<String>,
+    /// Concurrent request rate limit
+    #[serde(default)]
+    pub concurrent_rate: Option<String>,
 }
+
 
 /// Search rule configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

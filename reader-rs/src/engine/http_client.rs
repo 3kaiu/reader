@@ -4,13 +4,15 @@
 //! - URL template parsing ({{key}})
 //! - Request config parsing (URL,{JSON})
 //! - Custom headers, charset, proxy support
-//! - Cookie management
+//! - Cookie management with CookieManager
+//! - Configurable retry with exponential backoff
 
 use anyhow::Result;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE, SET_COOKIE};
 use std::collections::HashMap;
 use std::time::Duration;
 use super::utils::resolve_absolute_url;
+use super::cookie::CookieManager;
 
 /// Request configuration parsed from URL,{JSON} format
 #[derive(Debug, Clone)]
@@ -21,6 +23,7 @@ pub struct RequestConfig {
     pub body: Option<String>,
     pub charset: String,
     pub timeout: Duration,
+    pub retry: u32,
 }
 
 impl Default for RequestConfig {
@@ -32,6 +35,79 @@ impl Default for RequestConfig {
             body: None,
             charset: "UTF-8".to_string(),
             timeout: Duration::from_secs(10),
+            retry: 3,
+        }
+    }
+}
+
+/// Response from a request that doesn't follow redirects
+#[derive(Debug, Clone)]
+pub struct RedirectResponse {
+    /// Original request URL
+    pub url: String,
+    /// HTTP status code
+    pub status_code: u16,
+    /// Response headers
+    pub headers: HashMap<String, String>,
+    /// Response body
+    pub body: String,
+    /// Location header (redirect target) if present
+    pub location: Option<String>,
+}
+
+impl RedirectResponse {
+    /// Get a specific header value
+    pub fn header(&self, name: &str) -> Option<&String> {
+        self.headers.get(&name.to_lowercase())
+    }
+    
+    /// Check if response is a redirect (3xx status)
+    pub fn is_redirect(&self) -> bool {
+        (300..400).contains(&self.status_code)
+    }
+    
+    /// Get cookie from Set-Cookie header
+    pub fn cookie(&self, name: &str) -> Option<String> {
+        self.headers.get("set-cookie").and_then(|cookie_str| {
+            for part in cookie_str.split(';') {
+                let part = part.trim();
+                if part.starts_with(&format!("{}=", name)) {
+                    return Some(part[name.len() + 1..].to_string());
+                }
+            }
+            None
+        })
+    }
+}
+
+/// Retry configuration with exponential backoff
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub max_retries: u32,
+    pub base_delay_ms: u64,
+    pub max_delay_ms: u64,
+    pub exponential: bool,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            base_delay_ms: 500,
+            max_delay_ms: 5000,
+            exponential: true,
+        }
+    }
+}
+
+impl RetryConfig {
+    /// Calculate delay for a given retry attempt
+    pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
+        if self.exponential {
+            let delay = self.base_delay_ms * (2_u64.pow(attempt));
+            Duration::from_millis(delay.min(self.max_delay_ms))
+        } else {
+            Duration::from_millis(self.base_delay_ms)
         }
     }
 }
@@ -77,6 +153,8 @@ pub struct HttpClient {
     base_url: String,
     default_headers: HashMap<String, String>,
     rate_limiter: Option<RateLimiter>,
+    cookie_manager: CookieManager,
+    retry_config: RetryConfig,
 }
 
 impl HttpClient {
@@ -116,7 +194,31 @@ impl HttpClient {
             base_url: base_url.to_string(),
             default_headers,
             rate_limiter: None,
+            cookie_manager: CookieManager::new(),
+            retry_config: RetryConfig::default(),
         })
+    }
+    
+    /// Create with shared cookie manager
+    pub fn with_cookie_manager(base_url: &str, headers_json: Option<&str>, cookie_manager: CookieManager) -> Result<Self> {
+        let mut client = Self::with_headers(base_url, headers_json)?;
+        client.cookie_manager = cookie_manager;
+        Ok(client)
+    }
+    
+    /// Get reference to cookie manager
+    pub fn cookie_manager(&self) -> &CookieManager {
+        &self.cookie_manager
+    }
+    
+    /// Get mutable reference to cookie manager
+    pub fn cookie_manager_mut(&mut self) -> &mut CookieManager {
+        &mut self.cookie_manager
+    }
+    
+    /// Set retry configuration
+    pub fn set_retry_config(&mut self, config: RetryConfig) {
+        self.retry_config = config;
     }
     
     /// Set rate limiter from concurrentRate string
@@ -207,8 +309,8 @@ impl HttpClient {
         config
     }
     
-    /// Make a request based on config
-    pub fn request(&self, config: &RequestConfig) -> Result<String> {
+    /// Make a request based on config (internal, without retry)
+    fn request_internal(&self, config: &RequestConfig) -> Result<String> {
         // Apply rate limiting if configured
         if let Some(ref limiter) = self.rate_limiter {
             limiter.wait();
@@ -245,6 +347,14 @@ impl HttpClient {
             }
         }
         
+        // Add cookies from cookie manager
+        let domain = extract_domain(&config.url);
+        if let Some(cookie_header) = self.cookie_manager.get_cookie_header(&domain) {
+            if let Ok(val) = HeaderValue::from_str(&cookie_header) {
+                header_map.insert(COOKIE, val);
+            }
+        }
+        
         if !header_map.is_empty() {
             tracing::debug!("Request headers for {}: {:?}", config.url, header_map);
             request = request.headers(header_map);
@@ -262,12 +372,50 @@ impl HttpClient {
         
         let response = request.send()?;
         
+        // Parse Set-Cookie headers and store in cookie manager
+        for cookie in response.headers().get_all(SET_COOKIE) {
+            if let Ok(cookie_str) = cookie.to_str() {
+                self.cookie_manager.parse_set_cookie(&domain, cookie_str);
+            }
+        }
+        
         // Decode response with specified charset
         let bytes = response.bytes()?;
         let text = decode_with_charset(&bytes, &config.charset);
         
         Ok(text)
     }
+    
+    /// Make a request based on config (with automatic retry)
+    pub fn request(&self, config: &RequestConfig) -> Result<String> {
+        let max_retries = config.retry.min(self.retry_config.max_retries);
+        
+        if max_retries == 0 {
+            return self.request_internal(config);
+        }
+        
+        let mut last_error = None;
+        
+        for attempt in 0..=max_retries {
+            match self.request_internal(config) {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    last_error = Some(e);
+                    if attempt < max_retries {
+                        let delay = self.retry_config.delay_for_attempt(attempt);
+                        tracing::warn!(
+                            "Request to {} failed, retry {}/{} after {:?}",
+                            config.url, attempt + 1, max_retries, delay
+                        );
+                        std::thread::sleep(delay);
+                    }
+                }
+            }
+        }
+        
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Request failed")))
+    }
+
     
     /// Simple GET request
     pub fn get(&self, url: &str) -> Result<String> {
@@ -283,26 +431,107 @@ impl HttpClient {
         self.request(&config)
     }
     
-    /// Request with retry on failure
-    pub fn request_with_retry(&self, config: &RequestConfig, max_retries: u32) -> Result<String> {
-        let mut last_error = None;
+    /// GET request without following redirects
+    /// Returns RedirectResponse with status code, headers, and body
+    pub fn get_no_redirect(&self, url: &str, headers: HashMap<String, String>) -> Result<RedirectResponse> {
+        self.request_no_redirect(url, "GET", None, headers)
+    }
+    
+    /// POST request without following redirects
+    /// Returns RedirectResponse with status code, headers, and body
+    pub fn post_no_redirect(&self, url: &str, body: &str, headers: HashMap<String, String>) -> Result<RedirectResponse> {
+        self.request_no_redirect(url, "POST", Some(body), headers)
+    }
+    
+    /// Internal method for requests without redirect following
+    fn request_no_redirect(
+        &self, 
+        url: &str, 
+        method: &str, 
+        body: Option<&str>, 
+        mut headers: HashMap<String, String>
+    ) -> Result<RedirectResponse> {
+        // Create a client that doesn't follow redirects
+        let client = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(30))
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .build()?;
         
-        for i in 0..=max_retries {
-            match self.request(config) {
-                Ok(result) => return Ok(result),
-                Err(e) => {
-                    last_error = Some(e);
-                    if i < max_retries {
-                        let delay = Duration::from_millis(500 * (i as u64 + 1));
-                        tracing::warn!("Request failed, retry {}/{} after {:?}", i + 1, max_retries, delay);
-                        std::thread::sleep(delay);
-                    }
-                }
+        // Merge default headers
+        for (k, v) in &self.default_headers {
+            headers.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+        
+        // Build request
+        let mut request = if method == "POST" {
+            client.post(url)
+        } else {
+            client.get(url)
+        };
+        
+        // Add headers
+        let mut header_map = HeaderMap::new();
+        for (key, value) in &headers {
+            if let (Ok(name), Ok(val)) = (
+                HeaderName::try_from(key.as_str()),
+                HeaderValue::from_str(value),
+            ) {
+                header_map.insert(name, val);
             }
         }
         
-        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Request failed")))
+        // Add cookies
+        let domain = extract_domain(url);
+        if let Some(cookie_header) = self.cookie_manager.get_cookie_header(&domain) {
+            if let Ok(val) = HeaderValue::from_str(&cookie_header) {
+                header_map.insert(COOKIE, val);
+            }
+        }
+        
+        request = request.headers(header_map);
+        
+        // Add body for POST
+        if let Some(body_str) = body {
+            request = request.body(body_str.to_string());
+        }
+        
+        let response = request.send()?;
+        
+        // Extract response data
+        let status = response.status().as_u16();
+        let location = response.headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+        
+        // Extract all headers
+        let mut resp_headers = HashMap::new();
+        for (key, value) in response.headers() {
+            if let Ok(v) = value.to_str() {
+                resp_headers.insert(key.as_str().to_string(), v.to_string());
+            }
+        }
+        
+        // Store cookies
+        for cookie in response.headers().get_all(SET_COOKIE) {
+            if let Ok(cookie_str) = cookie.to_str() {
+                self.cookie_manager.parse_set_cookie(&domain, cookie_str);
+            }
+        }
+        
+        let body_text = response.text().unwrap_or_default();
+        
+        Ok(RedirectResponse {
+            url: url.to_string(),
+            status_code: status,
+            headers: resp_headers,
+            body: body_text,
+            location,
+        })
     }
+
+
     
     // === Private methods ===
     
@@ -357,6 +586,20 @@ fn decode_with_charset(bytes: &[u8], charset: &str) -> String {
             String::from_utf8_lossy(bytes).into_owned()
         }
     }
+}
+
+/// Extract domain from URL for cookie management
+fn extract_domain(url: &str) -> String {
+    // Try to parse URL and extract host
+    if let Some(start) = url.find("://") {
+        let after_scheme = &url[start + 3..];
+        let end = after_scheme.find('/').unwrap_or(after_scheme.len());
+        let host_port = &after_scheme[..end];
+        // Remove port if present
+        let host = host_port.split(':').next().unwrap_or(host_port);
+        return host.to_string();
+    }
+    url.to_string()
 }
 
 #[cfg(test)]

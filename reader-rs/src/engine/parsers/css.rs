@@ -8,7 +8,7 @@ pub struct CssParser;
 
 impl Parser for CssParser {
     fn get_string(&self, content: &str, rule: &str) -> Result<String> {
-        let rule = rule.trim_start_matches("@css:");
+        let rule = strip_css_prefix(rule);
         let (selector_str, attr) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
@@ -42,7 +42,7 @@ impl Parser for CssParser {
     }
     
     fn get_list(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule = rule.trim_start_matches("@css:");
+        let rule = strip_css_prefix(rule);
         let (selector_str, attr) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
@@ -75,7 +75,7 @@ impl Parser for CssParser {
     }
     
     fn get_elements(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule = rule.trim_start_matches("@css:");
+        let rule = strip_css_prefix(rule);
         let (selector_str, _) = parse_css_rule(rule);
         
         let document = Html::parse_document(content);
@@ -100,11 +100,29 @@ impl Parser for CssParser {
     }
 }
 
+/// Strip CSS prefixes from rule
+fn strip_css_prefix(rule: &str) -> &str {
+    let rule_lower = rule.to_lowercase();
+    if rule_lower.starts_with("@css:") {
+        &rule[5..]
+    } else if rule_lower.starts_with("css:") {
+        &rule[4..]
+    } else if rule_lower.starts_with("css#") || rule_lower.starts_with("css.") {
+        &rule[3..]
+    } else {
+        rule
+    }
+}
+
 /// Parse CSS rule to extract selector and attribute
 /// Format: selector@attr or selector (default text)
 fn parse_css_rule(rule: &str) -> (String, String) {
     if let Some(pos) = rule.rfind('@') {
-        let selector = &rule[..pos];
+        let mut selector = rule[..pos].trim();
+        // Handle double @@ or multiple @
+        while selector.ends_with('@') {
+             selector = &selector[..selector.len()-1];
+        }
         let attr = &rule[pos + 1..];
         (selector.trim().to_string(), attr.trim().to_string())
     } else {

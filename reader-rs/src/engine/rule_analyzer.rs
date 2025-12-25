@@ -8,6 +8,7 @@
 
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
+use std::sync::Arc;
 use regex::Regex;
 
 use super::parsers::{Parser, RuleType};
@@ -17,6 +18,10 @@ use super::parsers::regex::RegexParser;
 use super::parsers::jsoup::JsoupDefaultParser;
 use super::parsers::xpath::XPathParser;
 use super::js_executor::JsExecutor;
+use super::preprocessor::SourcePreprocessor;
+use super::native_api::NativeApiProvider;
+use super::cookie::CookieManager;
+use super::template::{TemplateExecutor, TemplateContext};
 
 /// Rule Analyzer for parsing content using Legado rules
 pub struct RuleAnalyzer {
@@ -28,11 +33,21 @@ pub struct RuleAnalyzer {
     js_executor: JsExecutor,
     variables: std::cell::RefCell<HashMap<String, String>>,
     result_list: std::cell::RefCell<Vec<String>>,  // For $1, $2 capture groups
+    /// Source preprocessor for rule analysis
+    preprocessor: SourcePreprocessor,
+    /// Native API provider for Rust-native execution
+    native_api: Arc<NativeApiProvider>,
+    /// Template executor for URL/rule templates
+    template_executor: TemplateExecutor,
 }
 
 impl RuleAnalyzer {
     /// Create a new RuleAnalyzer
     pub fn new() -> Result<Self> {
+        let cookie_manager = Arc::new(CookieManager::new());
+        let native_api = Arc::new(NativeApiProvider::new(cookie_manager));
+        let template_executor = TemplateExecutor::new(native_api.clone());
+        
         Ok(Self {
             css_parser: CssParser,
             json_parser: JsonPathParser,
@@ -42,8 +57,32 @@ impl RuleAnalyzer {
             js_executor: JsExecutor::new()?,
             variables: std::cell::RefCell::new(HashMap::new()),
             result_list: std::cell::RefCell::new(Vec::new()),
+            preprocessor: SourcePreprocessor::new(),
+            native_api,
+            template_executor,
         })
     }
+    
+    /// Create RuleAnalyzer with shared cookie manager
+    pub fn with_cookie_manager(cookie_manager: Arc<CookieManager>) -> Result<Self> {
+        let native_api = Arc::new(NativeApiProvider::new(cookie_manager));
+        let template_executor = TemplateExecutor::new(native_api.clone());
+        
+        Ok(Self {
+            css_parser: CssParser,
+            json_parser: JsonPathParser,
+            regex_parser: RegexParser,
+            jsoup_parser: JsoupDefaultParser,
+            xpath_parser: XPathParser,
+            js_executor: JsExecutor::new()?,
+            variables: std::cell::RefCell::new(HashMap::new()),
+            result_list: std::cell::RefCell::new(Vec::new()),
+            preprocessor: SourcePreprocessor::new(),
+            native_api,
+            template_executor,
+        })
+    }
+
     
     /// Set base URL for the JS executor
     pub fn set_base_url(&mut self, url: &str) {
@@ -53,6 +92,128 @@ impl RuleAnalyzer {
     /// Preload JavaScript library code (jsLib from book source)
     pub fn preload_lib(&self, js_lib: &str) -> Result<()> {
         self.js_executor.preload_lib(js_lib)
+    }
+    
+    /// Build URL from template using Rust-native execution
+    /// 
+    /// This method uses the preprocessor to analyze the URL template and
+    /// executes it using native Rust where possible, only falling back to
+    /// JS for complex expressions.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// let url = analyzer.build_url(
+    ///     "https://example.com/search?q={{java.base64Encode(key)}}&page={{page}}",
+    ///     &[("key", "test"), ("page", "1")]
+    /// )?;
+    /// ```
+    pub fn build_url(&self, url_template: &str, vars: &[(&str, &str)]) -> Result<String> {
+        let preprocessed = self.preprocessor.preprocess_url(url_template);
+        
+        let mut ctx = TemplateContext::new();
+        for (key, value) in vars {
+            ctx.set(key, value);
+        }
+        
+        // Add stored variables
+        let stored_vars = self.variables.borrow();
+        for (k, v) in stored_vars.iter() {
+            ctx.set(k, v);
+        }
+        
+        self.template_executor.execute_url(&preprocessed, &ctx)
+    }
+    
+    /// Get the native API provider (for external use)
+    pub fn native_api(&self) -> &Arc<NativeApiProvider> {
+        &self.native_api
+    }
+    
+    /// Get the preprocessor (for external use)
+    pub fn preprocessor(&self) -> &SourcePreprocessor {
+        &self.preprocessor
+    }
+    
+    // ============== Crypto API (Rust Native) ==============
+    
+    /// 3DES decode using Rust native implementation
+    pub fn triple_des_decode(&self, data: &str, key: &str, mode: &str, padding: &str, iv: &str) -> Result<String> {
+        super::crypto::CryptoProvider::triple_des_decode_str(data, key, mode, padding, iv)
+    }
+    
+    /// 3DES encode to Base64 using Rust native implementation
+    pub fn triple_des_encode_base64(&self, data: &str, key: &str, mode: &str, padding: &str, iv: &str) -> Result<String> {
+        super::crypto::CryptoProvider::triple_des_encode_base64(data, key, mode, padding, iv)
+    }
+    
+    /// AES decode with Base64 encoded key/iv
+    pub fn aes_decode_args_base64(&self, data: &str, key_b64: &str, mode: &str, padding: &str, iv_b64: &str) -> Result<String> {
+        super::crypto::CryptoProvider::aes_decode_args_base64(data, key_b64, mode, padding, iv_b64)
+    }
+    
+    /// AES encode with Base64 encoded key/iv
+    pub fn aes_encode_args_base64(&self, data: &str, key_b64: &str, mode: &str, padding: &str, iv_b64: &str) -> Result<String> {
+        super::crypto::CryptoProvider::aes_encode_args_base64(data, key_b64, mode, padding, iv_b64)
+    }
+    
+    // ============== File API (Rust Native) ==============
+    
+    /// Delete a file from cache directory
+    pub fn delete_file(&self, path: &str) -> bool {
+        std::fs::remove_file(path).is_ok()
+    }
+    
+    // ============== Hash API (Rust Native) ==============
+    
+    /// Calculate digest hash (MD5, SHA1, SHA256, SHA512)
+    pub fn digest_hex(&self, data: &str, algorithm: &str) -> String {
+        use super::preprocessor::NativeApi;
+        self.native_api
+            .execute(&NativeApi::DigestHex(algorithm.to_string()), &[data.to_string()])
+            .unwrap_or_default()
+    }
+    
+    /// MD5 encode
+    pub fn md5_encode(&self, data: &str) -> String {
+        format!("{:x}", md5::compute(data.as_bytes()))
+    }
+    
+    /// MD5 encode 16 characters
+    pub fn md5_encode16(&self, data: &str) -> String {
+        let full = self.md5_encode(data);
+        if full.len() >= 24 {
+            full[8..24].to_string()
+        } else {
+            full
+        }
+    }
+    
+    // ============== Encoding API (Rust Native) ==============
+    
+    /// Base64 encode
+    pub fn base64_encode(&self, data: &str) -> String {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD.encode(data.as_bytes())
+    }
+    
+    /// Base64 decode
+    pub fn base64_decode(&self, data: &str) -> String {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD
+            .decode(data.as_bytes())
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .unwrap_or_default()
+    }
+    
+    /// URL encode
+    pub fn encode_uri(&self, data: &str) -> String {
+        urlencoding::encode(data).to_string()
+    }
+    
+    /// Random UUID
+    pub fn random_uuid(&self) -> String {
+        uuid::Uuid::new_v4().to_string()
     }
     
     /// Put a variable for @put syntax
@@ -195,6 +356,7 @@ impl RuleAnalyzer {
                 );
 
                 if looks_like_literal {
+                    eprintln!("!!!TRACE!!! process_chain_rules literal line, current len={}", if first_line { content.len() } else { current_result.len() });
                     self.process_js_tags(&processed_line, &current_result)?
                 } else {
                     self.execute_single_rule(if first_line { content } else { &current_result }, &processed_line)?
@@ -392,6 +554,23 @@ impl RuleAnalyzer {
                     }
                     
                     if !replaced {
+                        // Try Native Template Executor
+                        // This handles java.* APIs natively without JS
+                        let parts = self.preprocessor.parse_template(&full_match);
+                        let ctx = TemplateContext { variables: vars.clone() };
+                        
+                        if let Ok(result) = self.template_executor.execute_parts(&parts, &ctx) {
+                            // If result matches the expression (literal fallback), it didn't really 'execute' in a useful way
+                            // unless it was a literal. But here full_match includes {{}}. 
+                            // If template_executor returns a string that is not the original {{...}}, valid.
+                            if result != full_match {
+                                output = output.replace(&full_match, &result);
+                                replaced = true;
+                            }
+                        }
+                    }
+                    
+                    if !replaced {
                         // Fallback to JS evaluation
                         match self.eval_js(&inner_rule, vars) {
                             Ok(result) => {
@@ -503,11 +682,14 @@ impl RuleAnalyzer {
              (base_rule_full, None)
         };
 
-        let rule_type = RuleType::detect(&base_rule, content);
-        
-        let initial_result = match rule_type {
-            RuleType::JavaScript => {
-                let code = if base_rule.starts_with("@js:") {
+        let initial_result = if base_rule.is_empty() {
+            content.to_string()
+        } else {
+            let rule_type = RuleType::detect(&base_rule, content);
+            match rule_type {
+                RuleType::JavaScript => {
+                    // eprintln!("!!!TRACE!!! execute_single_rule JS content_len={}", content.len());
+                    let code = if base_rule.starts_with("@js:") {
                     base_rule.trim_start_matches("@js:")
                 } else if base_rule.starts_with("<js>") {
                     let s = base_rule.trim_start_matches("<js>");
@@ -529,7 +711,8 @@ impl RuleAnalyzer {
             RuleType::Regex => self.regex_parser.get_string(content, &base_rule)?,
             RuleType::JsoupDefault => self.jsoup_parser.get_string(content, &base_rule)?,
             RuleType::XPath => self.xpath_parser.get_string(content, &base_rule)?,
-        };
+        }
+    };
 
         // Apply regex suffix if present
         let result = if let Some(suffix) = regex_suffix {
@@ -606,6 +789,7 @@ impl RuleAnalyzer {
     }
 
     /// Evaluate an URL rule, handling @js: if present
+    /// Evaluate an URL rule, handling @js: if present
     pub fn evaluate_url(&self, raw_url: &str, vars: &HashMap<String, String>) -> Result<String> {
         // If it starts with @js:, evaluate everything else as JS
         if raw_url.starts_with("@js:") {
@@ -624,10 +808,26 @@ impl RuleAnalyzer {
                 line_vars.insert("result".to_string(), current_result.clone());
             }
             
-            // Process templates in this line
-            let processed_line = self.process_templates(line, &line_vars);
+            // Use Rust-native Template Executor
+            let ctx = TemplateContext {
+                variables: line_vars,
+            };
+            
+            // Parse and execute template expressions
+            let parts = self.preprocessor.parse_template(line);
+            
+            let processed_line = match self.template_executor.execute_parts(&parts, &ctx) {
+                Ok(res) => res,
+                Err(e) => {
+                    tracing::warn!("Template execution error: {}", e);
+                    // If native execution fails, return error or maybe strictly fallback?
+                    // Given we want partial execution, we should probably fail to alert user.
+                    return Err(e);
+                }
+            };
             
             // If it contains <js> tags or is explicitly JS, process it
+            // Note: pass current_result (from prev line) as context content
             current_result = if processed_line.contains("<js>") {
                 self.process_js_tags(&processed_line, &current_result)?
             } else {
@@ -729,5 +929,76 @@ mod tests {
         // ##regex##replacement
         let result = analyzer.get_string(content, "$.key##prefix_##").unwrap();
         assert_eq!(result, "123_suffix");
+    }
+    
+    #[test]
+    fn test_build_url_native() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        // Test simple variable substitution
+        let url = analyzer.build_url(
+            "https://example.com/search?q={{key}}&page={{page}}",
+            &[("key", "test"), ("page", "2")]
+        ).unwrap();
+        assert_eq!(url, "https://example.com/search?q=test&page=2");
+    }
+    
+    #[test]
+    fn test_build_url_with_base64() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        // Test java.base64Encode - should be executed natively
+        let url = analyzer.build_url(
+            "https://example.com/s?q={{java.base64Encode(key)}}",
+            &[("key", "hello")]
+        ).unwrap();
+        assert_eq!(url, "https://example.com/s?q=aGVsbG8=");
+    }
+    
+    #[test]
+    fn test_native_base64() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        let encoded = analyzer.base64_encode("hello");
+        assert_eq!(encoded, "aGVsbG8=");
+        
+        let decoded = analyzer.base64_decode(&encoded);
+        assert_eq!(decoded, "hello");
+    }
+    
+    #[test]
+    fn test_native_md5() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        let hash = analyzer.md5_encode("hello");
+        assert_eq!(hash, "5d41402abc4b2a76b9719d911017c592");
+        
+        let hash16 = analyzer.md5_encode16("hello");
+        assert_eq!(hash16.len(), 16);
+    }
+    
+    #[test]
+    fn test_native_encode_uri() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        let encoded = analyzer.encode_uri("hello world");
+        assert_eq!(encoded, "hello%20world");
+    }
+    
+    #[test]
+    fn test_native_uuid() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        let uuid = analyzer.random_uuid();
+        assert_eq!(uuid.len(), 36); // UUID format: 8-4-4-4-12
+        assert!(uuid.contains('-'));
+    }
+    
+    #[test]
+    fn test_native_digest() {
+        let analyzer = RuleAnalyzer::new().unwrap();
+        
+        let sha256 = analyzer.digest_hex("hello", "SHA256");
+        assert!(sha256.len() == 64); // SHA256 = 64 hex chars
     }
 }
