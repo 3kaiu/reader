@@ -32,8 +32,8 @@ const typeStyles = {
         v-for="i in lines"
         :key="i"
         :class="[
-          'skeleton',
-          animated ? '' : 'animation-none',
+          'bg-muted animate-pulse',
+          animated ? '' : 'animate-none',
           i === lines ? 'w-2/3' : 'w-full',
         ]"
         class="h-4 rounded"
@@ -41,16 +41,16 @@ const typeStyles = {
     </template>
     
     <template v-else-if="type === 'card'">
-      <div class="skeleton w-full aspect-[2/3] rounded-xl" />
-      <div class="skeleton h-4 w-3/4 rounded mt-3" />
-      <div class="skeleton h-3 w-1/2 rounded" />
+      <div class="bg-muted animate-pulse w-full aspect-[2/3] rounded-xl" />
+      <div class="bg-muted animate-pulse h-4 w-3/4 rounded mt-3" />
+      <div class="bg-muted animate-pulse h-3 w-1/2 rounded" />
     </template>
     
     <template v-else>
       <div
         :class="[
-          'skeleton',
-          animated ? '' : 'animation-none',
+          'bg-muted animate-pulse',
+          animated ? '' : 'animate-none',
           typeStyles[type],
         ]"
         :style="{
