@@ -43,7 +43,7 @@ impl Parser for JsoupDefaultParser {
                 if attr == "text" || attr == "" {
                     // Join all matching elements for text
                     let texts: Vec<String> = matches.iter()
-                        .map(|el| el.text().collect::<String>().trim().to_string())
+                        .filter_map(|el| extract_content(el, "text").ok())
                         .filter(|s| !s.is_empty())
                         .collect();
                     tracing::debug!("JsoupDefaultParser: Joining {} non-empty texts", texts.len());
@@ -61,7 +61,7 @@ impl Parser for JsoupDefaultParser {
         if !matches.is_empty() {
             if attr == "text" || attr == "" {
                 let texts: Vec<String> = matches.iter()
-                    .map(|el| el.text().collect::<String>().trim().to_string())
+                    .filter_map(|el| extract_content(el, "text").ok())
                     .filter(|s| !s.is_empty())
                     .collect();
                 return Ok(texts.join("\n"));
@@ -143,6 +143,21 @@ impl Parser for JsoupDefaultParser {
                 let part = part.trim();
                 if part.is_empty() { continue; }
                 
+                // Check for incompatible Legado syntax
+                if part.contains('!') {
+                     return Err(anyhow::anyhow!("Legado exclusion syntax"));
+                }
+                
+                // Check for index syntax (.0, .-1) which Legado uses for array indexing, not CSS classes
+                if let Some(pos) = part.find('.') {
+                    let suffix = &part[pos+1..];
+                    if let Some(c) = suffix.chars().next() {
+                        if c.is_numeric() || c == '-' {
+                             return Err(anyhow::anyhow!("Legado index syntax"));
+                        }
+                    }
+                }
+                
                 // Convert id.xxx to #xxx
                 if part.starts_with("id.") {
                     parts.push(format!("#{}", &part[3..]));
@@ -199,8 +214,18 @@ fn split_rule(rule: &str) -> (String, String) {
 
 fn extract_content(element: &ElementRef, attr: &str) -> Result<String> {
     match attr {
-        "text" | "" => Ok(element.text().collect::<String>().trim().to_string()),
-        "textNodes" | "ownText" => Ok(element.text().collect::<String>().trim().to_string()),
+        "text" | "" | "textNodes" | "ownText" => {
+            // Use structural extraction to preserve line breaks from <br> and <p>
+            let raw_text = extract_text_structure(element);
+            
+            // Clean up text: remove empty lines, trim lines to prevent excessive whitespace
+            let clean_text = raw_text.lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n");
+            Ok(clean_text)
+        },
         "html" | "outerHtml" => Ok(element.html()),
         "innerHtml" => Ok(element.inner_html()),
         "href" => element.value().attr("href").map(|s| s.to_string()).ok_or_else(|| anyhow!("href not found")),
@@ -209,11 +234,44 @@ fn extract_content(element: &ElementRef, attr: &str) -> Result<String> {
     }
 }
 
+// Recursively extract text, converting <br> and block elements to newlines
+fn extract_text_structure(element: &ElementRef) -> String {
+    let mut buffer = String::new();
+    extract_text_recursive(*element, &mut buffer);
+    buffer
+}
+
+fn extract_text_recursive(element: ElementRef, buffer: &mut String) {
+    for node in element.children() {
+        if let Some(el) = ElementRef::wrap(node) {
+            let tag = el.value().name();
+            if tag == "br" {
+                buffer.push('\n');
+            } else if ["p", "div", "li", "dd", "dt", "h1", "h2", "h3", "h4", "h5", "h6"].contains(&tag) {
+                // Block Elements - ensure newline before and after
+                if !buffer.ends_with('\n') && !buffer.is_empty() {
+                     buffer.push('\n');
+                }
+                extract_text_recursive(el, buffer);
+                if !buffer.ends_with('\n') {
+                     buffer.push('\n');
+                }
+            } else {
+                // Inline elements - just recurse
+                extract_text_recursive(el, buffer);
+            }
+        } else if let Some(text) = node.value().as_text() {
+            buffer.push_str(text);
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum SelectorModifier {
     Class(String),
     Id(String),
     Index(isize),
+    Exclude(isize),
     Ambiguous(String), // Could be Class or Index (e.g. "-1", "0")
     TextFilter(String), // For "text" type
 }
@@ -236,93 +294,74 @@ fn parse_jsoup_rule(rule: &str) -> Result<(Vec<SelectorSegment>, String)> {
 }
 
 fn parse_segment(part: &str) -> Option<SelectorSegment> {
-    // Handle shorthand .class and #id
-    if part.starts_with('.') {
-        // Class shorthand
-        return parse_segment(&format!("tag{}", part));
-    }
-    if part.starts_with('#') {
-        // Id shorthand
-        return parse_segment(&format!("tag{}", part));
-    }
-
-    let pieces: Vec<&str> = part.split('.').collect();
-    if pieces.is_empty() { return None; }
+    if part.is_empty() { return None; }
     
-    // Special handling for "id.xxx" syntax which means ID selector, not tag "id" + class "xxx"
-    // In Legado Jsoup syntax: id.yulan means #yulan, class.foo means .foo
-    if pieces[0] == "id" && pieces.len() >= 2 {
-        // This is id.xxx = ID selector #xxx
-        let id_name = pieces[1];
-        let mut modifiers = vec![SelectorModifier::Id(id_name.to_string())];
-        
-        // Remaining pieces after id.xxx are class or index modifiers
-        for piece in pieces.iter().skip(2) {
-            if piece.is_empty() { continue; }
-            if piece.parse::<isize>().is_ok() {
-                modifiers.push(SelectorModifier::Ambiguous(piece.to_string()));
-            } else {
-                modifiers.push(SelectorModifier::Class(piece.to_string()));
-            }
-        }
-        
-        return Some(SelectorSegment {
-            tag: "*".to_string(),  // Match any tag with this ID
-            modifiers,
-        });
-    }
+    // 1. Handle Exclusions (split by !)
+    let bang_parts: Vec<&str> = part.split('!').collect();
+    let main_selector = bang_parts[0];
     
-    // Special handling for "class.xxx" syntax
-    if pieces[0] == "class" && pieces.len() >= 2 {
-        let class_name = pieces[1];
-        let mut modifiers = vec![SelectorModifier::Class(class_name.to_string())];
-        
-        for piece in pieces.iter().skip(2) {
-            if piece.is_empty() { continue; }
-            if piece.parse::<isize>().is_ok() {
-                modifiers.push(SelectorModifier::Ambiguous(piece.to_string()));
-            } else {
-                modifiers.push(SelectorModifier::Class(piece.to_string()));
-            }
-        }
-        
-        return Some(SelectorSegment {
-            tag: "*".to_string(),
-            modifiers,
-        });
-    }
-    
-    let tag = if pieces[0].is_empty() || pieces[0] == "tag" { "*" } else { pieces[0] };
-    
-    let mut modifiers = Vec::new();
-    
-    if tag == "text" {
-         if let Some(text) = pieces.get(1) {
-             modifiers.push(SelectorModifier::TextFilter(text.to_string()));
-         }
-         return Some(SelectorSegment { tag: "*".to_string(), modifiers });
-    }
-
-    for piece in pieces.iter().skip(1) {
-        if piece.is_empty() { continue; }
-        
-        if piece.parse::<isize>().is_ok() {
-            // Numeric: Ambiguous
-             modifiers.push(SelectorModifier::Ambiguous(piece.to_string()));
+    // 2. Parse main selector parts (split by .)
+    let (tag, mut modifiers) = if main_selector.is_empty() {
+        ("*".to_string(), Vec::new())
+    } else {
+        // Handle shorthand .class or #id manually
+        let s = if main_selector.starts_with('#') {
+            format!("id.{}", &main_selector[1..]) 
+        } else if main_selector.starts_with('.') {
+             format!("class.{}", &main_selector[1..])
         } else {
-            // Non-numeric: Class
-             modifiers.push(SelectorModifier::Class(piece.to_string()));
+             main_selector.to_string()
+        };
+        
+        let pieces: Vec<&str> = s.split('.').collect();
+        let mut tag = pieces[0].to_string();
+        if tag == "tag" { tag = "*".to_string(); }
+        
+        let mut mods = Vec::new();
+        
+        if tag == "id" && pieces.len() > 1 {
+             tag = "*".to_string();
+             mods.push(SelectorModifier::Id(pieces[1].to_string()));
+             for piece in pieces.iter().skip(2) {
+                 parse_modifier(piece, &mut mods);
+             }
+        } else if tag == "class" && pieces.len() > 1 {
+             tag = "*".to_string();
+             mods.push(SelectorModifier::Class(pieces[1].to_string()));
+             for piece in pieces.iter().skip(2) {
+                 parse_modifier(piece, &mut mods);
+             }
+        } else if tag == "text" {
+              tag = "*".to_string();
+              if let Some(text) = pieces.get(1) {
+                   mods.push(SelectorModifier::TextFilter(text.to_string()));
+              }
+        } else {
+             if tag.is_empty() { tag = "*".to_string(); }
+             for piece in pieces.iter().skip(1) {
+                 parse_modifier(piece, &mut mods);
+             }
         }
+        (tag, mods)
+    };
+    
+    // 3. Add Exclusions (Handle ranges !0:1 by sorting descending)
+    let mut exclude_indices = Vec::new();
+    for exclusion in bang_parts.iter().skip(1) {
+         for ex_part in exclusion.split(':') {
+             if let Ok(idx) = ex_part.parse::<isize>() {
+                  exclude_indices.push(idx);
+             }
+         }
+    }
+    // Sort descending to safely remove from list by index (removing larger indices first avoids shifting issues)
+    exclude_indices.sort_by(|a, b| b.cmp(a));
+    
+    for idx in exclude_indices {
+         modifiers.push(SelectorModifier::Exclude(idx));
     }
     
-    // Also handle #id if present in tag part (e.g. div#id.class)
-    // Simplified: split '#' not handled here for now, assuming standard Jsoup rules
-    // But JsoupDefaultParser mostly sees split-by-dot parts.
-    
-    Some(SelectorSegment {
-        tag: tag.to_string(),
-        modifiers,
-    })
+    Some(SelectorSegment { tag, modifiers })
 }
 
 fn apply_selectors<'a>(root: ElementRef<'a>, segments: &[SelectorSegment]) -> Result<Vec<ElementRef<'a>>> {
@@ -361,6 +400,13 @@ fn apply_selectors<'a>(root: ElementRef<'a>, segments: &[SelectorSegment]) -> Re
                                  candidates = vec![el];
                              } else {
                                  candidates.clear();
+                             }
+                         },
+                         SelectorModifier::Exclude(idx) => {
+                             if let Some(el_to_remove) = apply_index(&candidates, *idx) {
+                                  if let Some(pos) = candidates.iter().position(|x| *x == el_to_remove) {
+                                      candidates.remove(pos);
+                                  }
                              }
                          },
                          SelectorModifier::Ambiguous(val) => {
@@ -409,6 +455,15 @@ fn apply_index<'a>(elements: &[ElementRef<'a>], idx: isize) -> Option<ElementRef
          idx as usize
      };
      elements.get(actual_idx).cloned()
+}
+
+fn parse_modifier(piece: &str, modifiers: &mut Vec<SelectorModifier>) {
+    if piece.is_empty() { return; }
+    if let Ok(idx) = piece.parse::<isize>() {
+        modifiers.push(SelectorModifier::Index(idx));
+    } else {
+        modifiers.push(SelectorModifier::Class(piece.to_string()));
+    }
 }
 
 #[cfg(test)]
@@ -472,6 +527,30 @@ mod tests {
         // Test class.content selector
         let result = parser.get_string(html, "class.content@text").unwrap();
         assert!(result.contains("Hello"));
+    }
+    
+    #[test]
+    fn test_jsoup_dd_selector() {
+        // This mimics txtduo's structure: <div id="list"><dl><dd><a>
+        let html = r#"
+        <div id="list">
+            <dl>
+                <dd><a href="/ch1">Chapter 1</a></dd>
+                <dd><a href="/ch2">Chapter 2</a></dd>
+            </dl>
+        </div>
+        "#;
+        let parser = JsoupDefaultParser;
+        
+        // Test id.list@dd@a selector
+        let elements = parser.get_elements(html, "id.list@dd@a").unwrap();
+        println!("DEBUG: txtduo-like elements = {:?}", elements);
+        
+        assert_eq!(elements.len(), 2, "Should find 2 <a> elements from dl/dd structure");
+        assert!(elements[0].contains("href="), "Element should have href");
+        
+        let href = parser.get_string(&elements[0], "href").unwrap();
+        assert_eq!(href, "/ch1");
     }
 }
 

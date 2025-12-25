@@ -393,6 +393,8 @@ impl BookService {
     pub fn search_multi_sse(
         &self,
         key: String,
+        exact_match: bool,
+        match_author: Option<String>,
         concurrent_count: usize,
     ) -> impl Stream<Item = Result<Event, Infallible>> {
         use crate::engine::book_source::{BookSource, BookSourceEngine};
@@ -400,6 +402,9 @@ impl BookService {
         let sources = self.sources.clone();
         let storage = self.storage.clone();
         let kv_store = self.kv_store.clone();
+        
+        let target_title = if exact_match { Some(key.trim().to_lowercase()) } else { None };
+        let target_author = match_author.map(|a| a.trim().to_lowercase());
 
         async_stream::stream! {
             // 确保书源已加载
@@ -507,6 +512,16 @@ impl BookService {
                         Ok(books) => {
                             tracing::info!("Found {} results from {}", books.len(), source_name);
                             for mut book in books {
+                                // Strict Filtering Logic
+                                if let Some(ref t) = target_title {
+                                    if book.name.trim().to_lowercase() != *t { continue; }
+                                }
+                                if let Some(ref a) = target_author {
+                                    // Author match - handle empty author cases gracefully
+                                    let b_author = book.author.trim().to_lowercase();
+                                    if b_author.is_empty() || b_author != *a { continue; }
+                                }
+
                                 // 补充来源信息
                                 book.kind = Some(source_name.clone());
 

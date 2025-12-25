@@ -343,6 +343,7 @@ impl HttpClient {
 
     /// Make a request based on config (internal, without retry)
     fn request_internal(&self, config: &RequestConfig) -> Result<String> {
+        // println!("DEBUG: request_internal called for {}", config.url);
         // Apply rate limiting if configured
         if let Some(ref limiter) = self.rate_limiter {
             limiter.wait();
@@ -394,9 +395,33 @@ impl HttpClient {
             tracing::debug!("No headers for {}", config.url);
         }
 
-        // Add body for POST
+        // Add body for POST - URL-encode form values if needed
         if let Some(ref body) = config.body {
-            request = request.body(body.clone());
+            // Check if this looks like form data (key=value&key2=value2)
+            // and encode the values appropriately for non-ASCII characters
+            println!("DEBUG: Processing POST body: {}", body);
+            let encoded_body = if body.contains('=') && !body.starts_with('{') {
+                // This looks like form-urlencoded data, encode the values
+                body.split('&')
+                    .map(|pair| {
+                        if let Some(eq_pos) = pair.find('=') {
+                            let key = &pair[..eq_pos];
+                            let value = &pair[eq_pos + 1..];
+                            // Only encode if value contains non-ASCII or needs encoding
+                            let encoded_value = urlencoding::encode(value);
+                            format!("{}={}", key, encoded_value)
+                        } else {
+                            pair.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("&")
+            } else {
+                body.clone()
+            };
+            
+            tracing::debug!("POST body (encoded): {}", &encoded_body.chars().take(200).collect::<String>());
+            request = request.body(encoded_body);
         }
 
         // Set timeout
@@ -711,10 +736,22 @@ fn decode_with_charset(bytes: &[u8], charset: &str) -> String {
             result.into_owned()
         }
         "utf-8" | "utf8" | "" => {
-            // Try UTF-8 first, fallback to lossy conversion
+            // Try UTF-8 first
             match std::str::from_utf8(bytes) {
                 Ok(s) => s.to_string(),
                 Err(_) => {
+                    // If UTF-8 fails, check if we can find a meta tag suggesting GBK
+                    // Convert prefix to lossy string to search for meta tags
+                    let prefix_len = bytes.len().min(1024);
+                    let prefix = String::from_utf8_lossy(&bytes[..prefix_len]).to_lowercase();
+                    
+                    if prefix.contains("charset=gb") || prefix.contains("charset=\"gb") || prefix.contains("charset=\'gb") {
+                         tracing::debug!("Detected GBK charset from meta tag in body");
+                         let (result, _, _) = GB18030.decode(bytes);
+                         return result.into_owned();
+                    }
+                
+                    // Fallback to UTF-8 with replacement
                     let (result, _, _) = UTF_8.decode(bytes);
                     result.into_owned()
                 }
@@ -795,5 +832,30 @@ mod tests {
             client.parse_request_config("chapter/1").url,
             "https://example.com/chapter/1"
         );
+    }
+    
+    #[test]
+    fn test_post_body_encoding() {
+        let body = "key=斗破苍穹&type=all";
+        
+        let encoded_body = if body.contains('=') && !body.starts_with('{') {
+            body.split('&')
+                .map(|pair| {
+                    if let Some(eq_pos) = pair.find('=') {
+                        let key = &pair[..eq_pos];
+                        let value = &pair[eq_pos + 1..];
+                        let encoded_value = urlencoding::encode(value);
+                        format!("{}={}", key, encoded_value)
+                    } else {
+                        pair.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("&")
+        } else {
+            body.to_string()
+        };
+        
+        assert_eq!(encoded_body, "key=%E6%96%97%E7%A0%B4%E8%8B%8D%E7%A9%B9&type=all");
     }
 }

@@ -98,8 +98,8 @@ pub async fn search_book_source_sse(
 
     let stream = async_stream::stream! {
         // 尝试获取书籍信息
-        let book_name = match book_service.get_book_info(&url, None).await {
-            Ok(book) => book.name,
+        let (book_name, book_author) = match book_service.get_book_info(&url, None).await {
+            Ok(book) => (book.name, Some(book.author)),
             Err(_) => {
                 // 书籍未找到，可能是 ID 错误
                 tracing::warn!("Book not found for source search: {}", url);
@@ -108,9 +108,9 @@ pub async fn search_book_source_sse(
             }
         };
 
-        tracing::info!("Starting source search for book: {}", book_name);
+        tracing::info!("Starting strict source search for book: {}, author: {:?}", book_name, book_author);
 
-    let mut search_stream = Box::pin(book_service.search_multi_sse(book_name, concurrent));
+        let mut search_stream = Box::pin(book_service.search_multi_sse(book_name, true, book_author, concurrent));
 
         while let Some(event) = search_stream.next().await {
             yield event;

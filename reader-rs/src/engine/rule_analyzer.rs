@@ -542,7 +542,20 @@ impl RuleAnalyzer {
 
     /// Get elements (HTML fragments) from content using a rule
     pub fn get_elements(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let rule = rule.trim();
+        let raw_rule = rule.trim();
+        if raw_rule.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Handle Reverse order syntax (-)
+        // If the rule starts with -, the resulting list should be reversed
+        let (is_reversed, rule_body) = if raw_rule.starts_with('-') {
+            (true, &raw_rule[1..])
+        } else {
+            (false, raw_rule)
+        };
+        
+        let rule = rule_body.trim();
         if rule.is_empty() {
             return Ok(vec![]);
         }
@@ -554,6 +567,7 @@ impl RuleAnalyzer {
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
             .collect();
+            
         let (base_content, selector) = if lines.len() > 1 {
             let base_rule_part = lines[..lines.len() - 1].join("\n");
             (
@@ -565,7 +579,13 @@ impl RuleAnalyzer {
         };
 
         let (base_rule, _) = self.extract_js_postprocess(&selector);
-        self.execute_elements_rule(&base_content, &base_rule)
+        let mut results = self.execute_elements_rule(&base_content, &base_rule)?;
+        
+        if is_reversed {
+            results.reverse();
+        }
+        
+        Ok(results)
     }
 
     /// Execute a JavaScript rule

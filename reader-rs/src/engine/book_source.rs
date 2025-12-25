@@ -454,9 +454,21 @@ impl BookSourceEngine {
         for page_num in 0..max_pages {
             let config = self.http.parse_request_config(&current_url);
             let content = self.http.request(&config)?;
+            
+            tracing::debug!(
+                "get_chapters: url={}, content_len={}, chapter_list_rule='{}', has_id_list={}, has_dd={}",
+                current_url, content.len(), chapter_list_rule,
+                content.contains("id=\"list\"") || content.contains("id='list'"),
+                content.contains("<dd>") || content.contains("<dd ")
+            );
 
             let elements = self.analyzer.get_elements(&content, chapter_list_rule)?;
             let page_chapters_count = elements.len();
+            
+            tracing::debug!(
+                "get_chapters: found {} elements on page {}",
+                page_chapters_count, page_num
+            );
 
             for element in elements {
                 match self.parse_chapter(&element, rule, &current_url) {
@@ -547,14 +559,43 @@ impl BookSourceEngine {
             break; // No more pages
         }
 
+        // Apply smart filtering for common artifacts (pagination, loading text)
+        let mut smart_cleaned = self.smart_filter_content(&full_content);
+
         // Apply replaceRegex if configured
         let final_content = if let Some(replace_regex) = &rule.replace_regex {
-            self.apply_replace_regex(&full_content, replace_regex)
+            self.apply_replace_regex(&smart_cleaned, replace_regex)
         } else {
-            full_content
+            smart_cleaned
         };
 
         Ok(final_content)
+    }
+
+    /// Smart filter to remove common pollution (pagination info, 'loading', 'next page' prompts)
+    fn smart_filter_content(&self, content: &str) -> String {
+        use regex::Regex;
+        let mut result = content.to_string();
+        
+        // Common patterns to strip
+        let patterns = [
+            r"（本章未完，请点击下一页继续阅读）",
+            r"\(第\d+/\d+页\)",
+            r"\(第\d+页\)",
+            r"请点击下一页继续阅读",
+            r"本章未完，点击下一页继续阅读",
+            r"加载中...",
+            r"-->>",
+        ];
+
+        for pattern in patterns {
+            if let Ok(re) = Regex::new(pattern) {
+                result = re.replace_all(&result, "").to_string();
+            }
+        }
+        
+        
+        result
     }
 
     /// Apply replaceRegex rules to content

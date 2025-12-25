@@ -118,7 +118,7 @@ pub async fn search_book_multi_sse(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let stream = state.book_service.search_multi_sse(query.key, 50);
+    let stream = state.book_service.search_multi_sse(query.key, false, None, 50);
     Sse::new(stream)
 }
 
