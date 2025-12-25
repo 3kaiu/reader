@@ -55,12 +55,19 @@ fn parse_regex_rule(rule: &str) -> Result<(String, Option<String>)> {
     let rule = rule.trim_start_matches("##");
     
     // Split by ## to get pattern and optional replacement
-    let parts: Vec<&str> = rule.split("##").collect();
+    let mut parts: Vec<&str> = rule.split("##").collect();
+    
+    // Handle trailing ## resulting in empty last part
+    if let Some(&last) = parts.last() {
+        if last.is_empty() && parts.len() > 1 {
+            parts.pop();
+        }
+    }
     
     match parts.len() {
         1 => Ok((parts[0].to_string(), None)),
         2 => Ok((parts[0].to_string(), Some(parts[1].to_string()))),
-        _ => Err(anyhow!("Invalid regex rule format")),
+        _ => Err(anyhow!("Invalid regex rule format: {:?}", parts)),
     }
 }
 

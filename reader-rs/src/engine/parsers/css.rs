@@ -25,16 +25,26 @@ impl Parser for CssParser {
             }
         };
         
-        if let Some(element) = document.select(&selector).next() {
-            match attr.as_str() {
-                "text" | "" => Ok(element.text().collect::<String>().trim().to_string()),
-                "html" | "outerHtml" => Ok(element.html()),
-                "innerHtml" => Ok(element.inner_html()),
-                _ => {
-                    element.value().attr(&attr)
-                        .map(|v| v.to_string())
-                        .ok_or_else(|| anyhow!("Attribute '{}' not found", attr))
+        let matches: Vec<_> = document.select(&selector).collect();
+        if !matches.is_empty() {
+            if attr == "text" || attr == "" {
+                let texts: Vec<String> = matches.iter()
+                    .map(|element| element.text().collect::<String>().trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                return Ok(texts.join("\n"));
+            } else if let Some(element) = matches.first() {
+                match attr.as_str() {
+                    "html" | "outerHtml" => Ok(element.html()),
+                    "innerHtml" => Ok(element.inner_html()),
+                    _ => {
+                        element.value().attr(&attr)
+                            .map(|v| v.to_string())
+                            .ok_or_else(|| anyhow!("Attribute '{}' not found", attr))
+                    }
                 }
+            } else {
+                Err(anyhow!("No element found for selector: {}", selector_str))
             }
         } else {
             Err(anyhow!("No element found for selector: {}", selector_str))

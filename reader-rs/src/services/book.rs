@@ -200,9 +200,26 @@ impl BookService {
 
     /// 根据 URL 找到匹配的书源
     async fn get_source_by_url(&self, book_url: &str) -> Result<BookSourceFull, anyhow::Error> {
+        // Lazy load sources if not already loaded
+        {
+            let sources = self.sources.read().await;
+            if sources.is_empty() {
+                drop(sources);
+                let loaded: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
+                tracing::info!("Lazy loaded {} sources for get_source_by_url", loaded.len());
+                let mut sources = self.sources.write().await;
+                *sources = loaded;
+            }
+        }
+        
         let sources = self.sources.read().await;
         
-        tracing::debug!("Searching source for URL: {}", book_url);
+        tracing::debug!("Searching source for URL: {}, sources count: {}", book_url, sources.len());
+        
+        // Debug: list all source URLs
+        for s in sources.iter() {
+            tracing::debug!("  Available source: {} -> {}", s.book_source_name, s.book_source_url);
+        }
         
         // 1. 尝试完全匹配 bookSourceUrl (可能是 URL 前缀，也可能是像 "DQuestQBall" 这样的 ID)
         if let Some(source) = sources.iter().find(|s| book_url.starts_with(&s.book_source_url) || s.book_source_url == book_url) {

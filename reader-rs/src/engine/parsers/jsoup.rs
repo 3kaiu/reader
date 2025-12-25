@@ -8,25 +8,49 @@ impl Parser for JsoupDefaultParser {
     fn get_string(&self, content: &str, rule: &str) -> Result<String> {
         let (selector_str, attr) = split_rule(rule);
         
+        tracing::debug!("JsoupDefaultParser.get_string: rule='{}', selector='{}', attr='{}', content_len={}", 
+            rule, selector_str, attr, content.len());
+        
         let document = Html::parse_document(content);
         let root = document.root_element();
         
         // 1. Try Standard CSS Selector first
         if let Ok(selector) = Selector::parse(&selector_str) {
             let matches: Vec<ElementRef> = root.select(&selector).collect();
-             if let Some(element) = matches.first() {
-                 return extract_content(element, &attr);
-             }
+            tracing::debug!("JsoupDefaultParser: CSS selector '{}' matched {} elements", selector_str, matches.len());
+            if !matches.is_empty() {
+                if attr == "text" || attr == "" {
+                    // Join all matching elements for text
+                    let texts: Vec<String> = matches.iter()
+                        .map(|el| el.text().collect::<String>().trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    tracing::debug!("JsoupDefaultParser: Joining {} non-empty texts", texts.len());
+                    return Ok(texts.join("\n"));
+                } else if let Some(element) = matches.first() {
+                    return extract_content(element, &attr);
+                }
+            }
         }
         
         // 2. Fallback to Custom Jsoup Parser
         let (segments, _) = parse_jsoup_rule(rule)?;
         let matches = apply_selectors(root, &segments)?;
         
-        // Find first match that has the valid content/attribute
-        for element in matches {
-            if let Ok(val) = extract_content(&element, &attr) {
-                return Ok(val);
+        if !matches.is_empty() {
+            if attr == "text" || attr == "" {
+                let texts: Vec<String> = matches.iter()
+                    .map(|el| el.text().collect::<String>().trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                return Ok(texts.join("\n"));
+            } else {
+                // Find first match that has the valid attribute
+                for element in matches {
+                    if let Ok(val) = extract_content(&element, &attr) {
+                        return Ok(val);
+                    }
+                }
             }
         }
         
