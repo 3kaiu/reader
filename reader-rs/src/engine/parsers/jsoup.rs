@@ -14,6 +14,27 @@ impl Parser for JsoupDefaultParser {
         let document = Html::parse_document(content);
         let root = document.root_element();
         
+        // Special handling for pure attribute rules (no @ separator)
+        // e.g. "href", "src", "text" - extract directly from root/first element
+        if !rule.contains('@') {
+            // Check if it's a known attribute name
+            let attr_names = ["href", "src", "text", "textNodes", "ownText", "html", "outerHtml", "innerHtml", "title", "alt", "class", "id", "data-src"];
+            if attr_names.iter().any(|&a| a == rule) {
+                // Find the first real content element (not html/head/body wrappers)
+                if let Some(first_element) = root.descendants()
+                    .filter_map(|n| ElementRef::wrap(n))
+                    .find(|el| {
+                        let name = el.value().name();
+                        // Skip document structure tags
+                        name != "html" && name != "head" && name != "body"
+                    }) {
+                    return extract_content(&first_element, rule);
+                }
+                // Fallback to root
+                return extract_content(&root, rule);
+            }
+        }
+        
         // 1. Try Standard CSS Selector first
         if let Ok(selector) = Selector::parse(&selector_str) {
             let matches: Vec<ElementRef> = root.select(&selector).collect();
@@ -92,21 +113,64 @@ impl Parser for JsoupDefaultParser {
     }
     
     fn get_elements(&self, content: &str, rule: &str) -> Result<Vec<String>> {
-        let (selector_str, _) = split_rule(rule);
+        // For get_elements, we want all parts of the rule to be part of the selector chain
+        // NOT splitting at the last @ to extract attr (that's for get_string)
+        // The entire rule is the selector - we return the HTML of matched elements
         
         let document = Html::parse_document(content);
         let root = document.root_element();
         
-        // 1. Try Standard CSS Selector
-        if let Ok(selector) = Selector::parse(&selector_str) {
+        // Check if rule ends with a known attribute name - if so, split it
+        // Otherwise use full rule as selector
+        let (selector_to_use, _attr) = {
+            let (sel, attr) = split_rule(rule);
+            // Known attributes that should be split off
+            let attr_names = ["text", "textNodes", "ownText", "html", "outerHtml", "innerHtml"];
+            if attr_names.contains(&attr.as_str()) {
+                (sel, attr)
+            } else {
+                // The "attr" is actually part of the selector (e.g. @li@a where 'a' is a tag)
+                // Use full rule as selector
+                (rule.to_string(), String::new())
+            }
+        };
+        
+        // 1. Try Standard CSS Selector first (replace @ with space for CSS)
+        // Also convert Legado syntax: id.xxx -> #xxx, class.xxx -> .xxx
+        let css_selector = {
+            let mut parts: Vec<String> = Vec::new();
+            for part in selector_to_use.split('@') {
+                let part = part.trim();
+                if part.is_empty() { continue; }
+                
+                // Convert id.xxx to #xxx
+                if part.starts_with("id.") {
+                    parts.push(format!("#{}", &part[3..]));
+                }
+                // Convert class.xxx to .xxx  
+                else if part.starts_with("class.") {
+                    parts.push(format!(".{}", &part[6..]));
+                }
+                else {
+                    parts.push(part.to_string());
+                }
+            }
+            parts.join(" ")
+        };
+        
+        tracing::debug!("get_elements: rule='{}', css_selector='{}'", rule, css_selector);
+        
+        if let Ok(selector) = Selector::parse(&css_selector) {
              let results: Vec<String> = root.select(&selector)
                 .map(|element| element.html())
                 .collect();
-             return Ok(results);
+             if !results.is_empty() {
+                 return Ok(results);
+             }
         }
         
-        // 2. Fallback
-        let (segments, _) = parse_jsoup_rule(rule)?;
+        // 2. Fallback to custom Jsoup parser
+        let (segments, _) = parse_jsoup_rule(&selector_to_use)?;
         let matches = apply_selectors(root, &segments)?;
         
         let results: Vec<String> = matches.iter()
@@ -184,6 +248,49 @@ fn parse_segment(part: &str) -> Option<SelectorSegment> {
 
     let pieces: Vec<&str> = part.split('.').collect();
     if pieces.is_empty() { return None; }
+    
+    // Special handling for "id.xxx" syntax which means ID selector, not tag "id" + class "xxx"
+    // In Legado Jsoup syntax: id.yulan means #yulan, class.foo means .foo
+    if pieces[0] == "id" && pieces.len() >= 2 {
+        // This is id.xxx = ID selector #xxx
+        let id_name = pieces[1];
+        let mut modifiers = vec![SelectorModifier::Id(id_name.to_string())];
+        
+        // Remaining pieces after id.xxx are class or index modifiers
+        for piece in pieces.iter().skip(2) {
+            if piece.is_empty() { continue; }
+            if piece.parse::<isize>().is_ok() {
+                modifiers.push(SelectorModifier::Ambiguous(piece.to_string()));
+            } else {
+                modifiers.push(SelectorModifier::Class(piece.to_string()));
+            }
+        }
+        
+        return Some(SelectorSegment {
+            tag: "*".to_string(),  // Match any tag with this ID
+            modifiers,
+        });
+    }
+    
+    // Special handling for "class.xxx" syntax
+    if pieces[0] == "class" && pieces.len() >= 2 {
+        let class_name = pieces[1];
+        let mut modifiers = vec![SelectorModifier::Class(class_name.to_string())];
+        
+        for piece in pieces.iter().skip(2) {
+            if piece.is_empty() { continue; }
+            if piece.parse::<isize>().is_ok() {
+                modifiers.push(SelectorModifier::Ambiguous(piece.to_string()));
+            } else {
+                modifiers.push(SelectorModifier::Class(piece.to_string()));
+            }
+        }
+        
+        return Some(SelectorSegment {
+            tag: "*".to_string(),
+            modifiers,
+        });
+    }
     
     let tag = if pieces[0].is_empty() || pieces[0] == "tag" { "*" } else { pieces[0] };
     
@@ -324,4 +431,50 @@ mod tests {
         let result3 = parser.get_string(html, "span.0@text").unwrap();
         assert_eq!(result3, "Class -1"); // Should match index 0
     }
+    
+    #[test]
+    fn test_jsoup_id_selector() {
+        let html = r#"
+        <div id="yulan">
+            <li><a href="http://example.com/chapter1">Chapter 1</a></li>
+            <li><a href="http://example.com/chapter2">Chapter 2</a></li>
+        </div>
+        "#;
+        let parser = JsoupDefaultParser;
+        
+        // Test id.yulan selector
+        let elements = parser.get_elements(html, "id.yulan@li@a").unwrap();
+        println!("DEBUG: elements count = {}", elements.len());
+        println!("DEBUG: elements[0] = '{}'", elements[0]);
+        
+        assert_eq!(elements.len(), 2, "Should find 2 <a> elements");
+        
+        // Each element should be an <a> tag
+        assert!(elements[0].contains("<a"), "First element should be <a>, got: {}", elements[0]);
+        assert!(elements[0].contains("href="), "First element should have href, got: {}", elements[0]);
+        
+        // The element is already <a>...</a>, so the pure attribute rule should work
+        println!("DEBUG: Calling get_string with href rule on: {}", &elements[0]);
+        let href = parser.get_string(&elements[0], "href").unwrap();
+        assert_eq!(href, "http://example.com/chapter1");
+        
+        // Extract text
+        let text = parser.get_string(&elements[0], "text").unwrap();
+        assert_eq!(text, "Chapter 1");
+    }
+    
+    #[test]
+    fn test_jsoup_class_selector() {
+        let html = r#"
+        <div class="content">
+            <span class="title">Hello</span>
+        </div>
+        "#;
+        let parser = JsoupDefaultParser;
+        
+        // Test class.content selector
+        let result = parser.get_string(html, "class.content@text").unwrap();
+        assert!(result.contains("Hello"));
+    }
 }
+
