@@ -15,6 +15,3 @@ pub mod preprocessor;
 pub mod native_api;
 pub mod template;
 pub mod crypto;
-
-#[cfg(test)]
-mod dingdian_test;

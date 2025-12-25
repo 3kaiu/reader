@@ -7,6 +7,9 @@ use rquickjs::{Runtime, Context, Value, Object, Function, Ctx, IntoJs};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use super::native_api::NativeApiProvider;
+use super::preprocessor::NativeApi;
+use super::cookie::CookieManager;
 
 /// Cache for JavaScript context data
 pub type JsCache = Arc<Mutex<HashMap<String, String>>>;
@@ -24,7 +27,10 @@ pub struct JsExecutor {
     /// Book JSON for `book` binding
     book_json: std::cell::RefCell<String>,
     /// Chapter JSON for `chapter` binding
+    /// Chapter JSON for `chapter` binding
     chapter_json: std::cell::RefCell<String>,
+    /// Native API provider for delegated execution
+    native_api: Arc<NativeApiProvider>,
 }
 
 impl JsExecutor {
@@ -42,6 +48,7 @@ impl JsExecutor {
             source_json: std::cell::RefCell::new(String::new()),
             book_json: std::cell::RefCell::new(String::new()),
             chapter_json: std::cell::RefCell::new(String::new()),
+            native_api: Arc::new(NativeApiProvider::new(Arc::new(CookieManager::new()))),
         })
     }
     
@@ -50,6 +57,8 @@ impl JsExecutor {
         let runtime = Runtime::new()?;
         let context = Context::full(&runtime)?;
         
+        let native_api = Arc::new(NativeApiProvider::with_cache(Arc::new(CookieManager::new()), cache.clone()));
+
         Ok(Self {
             runtime,
             context,
@@ -59,6 +68,7 @@ impl JsExecutor {
             source_json: std::cell::RefCell::new(String::new()),
             book_json: std::cell::RefCell::new(String::new()),
             chapter_json: std::cell::RefCell::new(String::new()),
+            native_api, 
         })
     }
     
@@ -351,55 +361,14 @@ impl JsExecutor {
         // utils.aes (AES-128-CBC encryption/decryption)
         let aes_obj = Object::new(ctx.clone())?;
         
-        aes_obj.set("encrypt", Function::new(ctx.clone(), |data: String, key: String, iv: String| -> String {
-            use aes::Aes128;
-            use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type Aes128CbcEnc = Encryptor<Aes128>;
-            
-            // Ensure key and IV are 16 bytes
-            let key_bytes = ensure_16_bytes(key.as_bytes());
-            let iv_bytes = ensure_16_bytes(iv.as_bytes());
-            
-            let cipher = Aes128CbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let data_bytes = data.as_bytes();
-            // Calculate padded buffer size (multiple of 16)
-            let buf_len = ((data_bytes.len() / 16) + 1) * 16;
-            let mut buf = vec![0u8; buf_len];
-            buf[..data_bytes.len()].copy_from_slice(data_bytes);
-            
-            match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                Ok(encrypted) => base64::engine::general_purpose::STANDARD.encode(encrypted),
-                Err(_) => String::new(),
-            }
+        let api = self.native_api.clone();
+        aes_obj.set("encrypt", Function::new(ctx.clone(), move |data: String, key: String, iv: String| -> String {
+            api.execute(&NativeApi::AesEncode { transformation: String::new(), iv }, &[data, key]).unwrap_or_default()
         })?)?;
         
-        aes_obj.set("decrypt", Function::new(ctx.clone(), |data: String, key: String, iv: String| -> String {
-            use aes::Aes128;
-            use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type Aes128CbcDec = Decryptor<Aes128>;
-            
-            // Decode base64 input
-            let encrypted = match base64::engine::general_purpose::STANDARD.decode(data.as_bytes()) {
-                Ok(bytes) => bytes,
-                Err(_) => return String::new(),
-            };
-            
-            // Ensure key and IV are 16 bytes
-            let key_bytes = ensure_16_bytes(key.as_bytes());
-            let iv_bytes = ensure_16_bytes(iv.as_bytes());
-            
-            let cipher = Aes128CbcDec::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let mut buf = encrypted.clone();
-            match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
-                Ok(decrypted) => String::from_utf8_lossy(decrypted).to_string(),
-                Err(_) => String::new(),
-            }
+        let api = self.native_api.clone();
+        aes_obj.set("decrypt", Function::new(ctx.clone(), move |data: String, key: String, iv: String| -> String {
+            api.execute(&NativeApi::AesDecode { transformation: String::new(), iv }, &[data, key]).unwrap_or_default()
         })?)?;
         utils.set("aes", aes_obj)?;
         
@@ -462,20 +431,17 @@ impl JsExecutor {
         // === Encoding Methods ===
         
         // java.base64Encode(val) / java.base64Decode(val)
-        java_obj.set("base64Encode", Function::new(ctx.clone(), |val: Value| -> String {
-            use base64::Engine;
+        // java.base64Encode(val) / java.base64Decode(val)
+        let api = self.native_api.clone();
+        java_obj.set("base64Encode", Function::new(ctx.clone(), move |val: Value| -> String {
             let s = value_to_string_js(&val);
-            base64::engine::general_purpose::STANDARD.encode(s.as_bytes())
+            api.execute(&NativeApi::Base64Encode, &[s]).unwrap_or_default()
         })?)?;
         
-        java_obj.set("base64Decode", Function::new(ctx.clone(), |val: Value| -> String {
-            use base64::Engine;
+        let api = self.native_api.clone();
+        java_obj.set("base64Decode", Function::new(ctx.clone(), move |val: Value| -> String {
             let s = value_to_string_js(&val);
-            base64::engine::general_purpose::STANDARD
-                .decode(s.as_bytes())
-                .ok()
-                .and_then(|bytes| String::from_utf8(bytes).ok())
-                .unwrap_or_default()
+            api.execute(&NativeApi::Base64Decode, &[s]).unwrap_or_default()
         })?)?;
         
         // java.base64DecodeToByteArray(str) - Decode Base64 to hex-encoded bytes
@@ -489,14 +455,15 @@ impl JsExecutor {
         
         // java.base64EncodeWithFlags(str, flags) - Base64 encode with flags
         // flag 2 = NO_WRAP (no line breaks)
+        // java.base64EncodeWithFlags(str, flags)
+
         java_obj.set("base64EncodeWithFlags", Function::new(ctx.clone(), |str: String, flags: i32| -> String {
-            use base64::Engine;
-            if flags == 2 {
-                // NO_WRAP - use standard without line breaks (which is default anyway)
-                base64::engine::general_purpose::STANDARD_NO_PAD.encode(str.as_bytes())
-            } else {
-                base64::engine::general_purpose::STANDARD.encode(str.as_bytes())
-            }
+             use base64::Engine;
+             if flags == 2 {
+                 base64::engine::general_purpose::STANDARD_NO_PAD.encode(str.as_bytes())
+             } else {
+                 base64::engine::general_purpose::STANDARD.encode(str.as_bytes())
+             }
         })?)?;
         
         // === Phase 11: Complete Base64 API variants with flags ===
@@ -530,26 +497,27 @@ impl JsExecutor {
         })?)?;
 
         // java.md5Encode(val) - 32 character hex
-        java_obj.set("md5Encode", Function::new(ctx.clone(), |val: Value| -> String {
+        // java.md5Encode(val)
+        let api = self.native_api.clone();
+        java_obj.set("md5Encode", Function::new(ctx.clone(), move |val: Value| -> String {
             let s = value_to_string_js(&val);
-            format!("{:x}", md5::compute(s.as_bytes()))
+            api.execute(&NativeApi::Md5Encode, &[s]).unwrap_or_default()
         })?)?;
         
         // java.md5Encode16(val) - 16 character hex (middle 16 chars)
-        java_obj.set("md5Encode16", Function::new(ctx.clone(), |val: Value| -> String {
+        // java.md5Encode16(val)
+        let api = self.native_api.clone();
+        java_obj.set("md5Encode16", Function::new(ctx.clone(), move |val: Value| -> String {
             let s = value_to_string_js(&val);
-            let full = format!("{:x}", md5::compute(s.as_bytes()));
-            if full.len() >= 24 {
-                full[8..24].to_string()
-            } else {
-                full
-            }
+            api.execute(&NativeApi::Md5Encode16, &[s]).unwrap_or_default()
         })?)?;
         
         // java.encodeURI(val) / java.decodeURI(val)
-        java_obj.set("encodeURI", Function::new(ctx.clone(), |val: Value| -> String {
+        // java.encodeURI(val)
+        let api = self.native_api.clone();
+        java_obj.set("encodeURI", Function::new(ctx.clone(), move |val: Value| -> String {
             let s = value_to_string_js(&val);
-            urlencoding::encode(&s).to_string()
+            api.execute(&NativeApi::EncodeUri, &[s]).unwrap_or_default()
         })?)?;
         
         java_obj.set("decodeURI", Function::new(ctx.clone(), |val: Value| -> String {
@@ -618,11 +586,10 @@ impl JsExecutor {
             }
         })?)?;
         
-        // java.utf8ToGbk(str) - Convert UTF-8 string to GBK encoded hex
-        java_obj.set("utf8ToGbk", Function::new(ctx.clone(), |str: String| -> String {
-            use encoding_rs::GBK;
-            let (encoded, _, _) = GBK.encode(&str);
-            hex::encode(&encoded)
+        // java.utf8ToGbk(str)
+        let api = self.native_api.clone();
+        java_obj.set("utf8ToGbk", Function::new(ctx.clone(), move |str: String| -> String {
+            api.execute(&NativeApi::Utf8ToGbk, &[str]).unwrap_or_default()
         })?)?;
         
         // java.htmlFormat(str) - Format HTML content
@@ -1314,13 +1281,10 @@ impl JsExecutor {
             uuid::Uuid::new_v4().to_string()
         })?)?;
         
-        // java.timeFormat(timestamp) - Format timestamp to date string
-        java_obj.set("timeFormat", Function::new(ctx.clone(), |time: i64| -> String {
-            use chrono::{Utc, TimeZone};
-            Utc.timestamp_opt(time / 1000, 0)
-                .single()
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_default()
+        // java.timeFormat(timestamp)
+        let api = self.native_api.clone();
+        java_obj.set("timeFormat", Function::new(ctx.clone(), move |time: i64| -> String {
+            api.execute(&NativeApi::TimeFormat(None), &[time.to_string()]).unwrap_or_default()
         })?)?;
         
         // === Crypto Methods (AES) ===
@@ -1427,28 +1391,9 @@ impl JsExecutor {
         })?)?;
         
         // java.aesBase64DecodeToString
-        java_obj.set("aesBase64DecodeToString", Function::new(ctx.clone(), |data: String, key: String, _transformation: String, iv: String| -> String {
-            use aes::Aes128;
-            use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type Aes128CbcDec = Decryptor<Aes128>;
-            
-            let encrypted = base64::engine::general_purpose::STANDARD
-                .decode(data.as_bytes())
-                .unwrap_or_default();
-            if encrypted.is_empty() { return String::new(); }
-            
-            let key_bytes = ensure_16_bytes(key.as_bytes());
-            let iv_bytes = ensure_16_bytes(iv.as_bytes());
-            
-            let cipher = Aes128CbcDec::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let mut buf = encrypted.clone();
-            match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
-                Ok(decrypted) => String::from_utf8_lossy(decrypted).to_string(),
-                Err(_) => String::new(),
-            }
+        let api = self.native_api.clone();
+        java_obj.set("aesBase64DecodeToString", Function::new(ctx.clone(), move |data: String, key: String, _transformation: String, iv: String| -> String {
+            api.execute(&NativeApi::AesDecode { transformation: String::new(), iv }, &[data, key]).unwrap_or_default()
         })?)?;
         
         // java.aesEncodeToByteArray - returns hex encoded bytes
@@ -1499,27 +1444,9 @@ impl JsExecutor {
         })?)?;
         
         // java.aesEncodeToBase64String
-        java_obj.set("aesEncodeToBase64String", Function::new(ctx.clone(), |data: String, key: String, _transformation: String, iv: String| -> String {
-            use aes::Aes128;
-            use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type Aes128CbcEnc = Encryptor<Aes128>;
-            
-            let key_bytes = ensure_16_bytes(key.as_bytes());
-            let iv_bytes = ensure_16_bytes(iv.as_bytes());
-            
-            let cipher = Aes128CbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let data_bytes = data.as_bytes();
-            let buf_len = ((data_bytes.len() / 16) + 1) * 16;
-            let mut buf = vec![0u8; buf_len];
-            buf[..data_bytes.len()].copy_from_slice(data_bytes);
-            
-            match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                Ok(encrypted) => base64::engine::general_purpose::STANDARD.encode(encrypted),
-                Err(_) => String::new(),
-            }
+        let api = self.native_api.clone();
+        java_obj.set("aesEncodeToBase64String", Function::new(ctx.clone(), move |data: String, key: String, _transformation: String, iv: String| -> String {
+            api.execute(&NativeApi::AesEncode { transformation: String::new(), iv }, &[data, key]).unwrap_or_default()
         })?)?;
 
 
@@ -1852,66 +1779,20 @@ impl JsExecutor {
         })?)?;
         
         // java.tripleDESDecodeStr(data, key, mode, padding, iv) - 3DES decrypt
-        java_obj.set("tripleDESDecodeStr", Function::new(ctx.clone(), |data: String, key: String, _mode: String, _padding: String, iv: String| -> String {
-            use des::TdesEde3;
-            use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type TdesCbcDec = Decryptor<TdesEde3>;
-            
-            // Decode base64 input
-            let encrypted = base64::engine::general_purpose::STANDARD
-                .decode(data.as_bytes())
-                .unwrap_or_default();
-            if encrypted.is_empty() { return String::new(); }
-            
-            // 3DES requires 24-byte key
-            let mut key_bytes = [0u8; 24];
-            let key_data = key.as_bytes();
-            for i in 0..24 {
-                key_bytes[i] = key_data.get(i % key_data.len()).copied().unwrap_or(0);
-            }
-            
-            let iv_bytes = ensure_8_bytes(iv.as_bytes());
-            
-            let cipher = TdesCbcDec::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let mut buf = encrypted.clone();
-            match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
-                Ok(decrypted) => String::from_utf8_lossy(decrypted).to_string(),
-                Err(_) => String::new(),
-            }
+        // java.tripleDESDecodeStr
+        let api = self.native_api.clone();
+        java_obj.set("tripleDESDecodeStr", Function::new(ctx.clone(), move |data: String, key: String, mode: String, padding: String, iv: String| -> String {
+            api.execute(&NativeApi::TripleDesDecodeStr { mode, padding }, &[data, key, iv]).unwrap_or_default()
         })?)?;
+
         
         // java.tripleDESEncodeBase64Str(data, key, mode, padding, iv) - 3DES encrypt to Base64
-        java_obj.set("tripleDESEncodeBase64Str", Function::new(ctx.clone(), |data: String, key: String, _mode: String, _padding: String, iv: String| -> String {
-            use des::TdesEde3;
-            use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type TdesCbcEnc = Encryptor<TdesEde3>;
-            
-            // 3DES requires 24-byte key
-            let mut key_bytes = [0u8; 24];
-            let key_data = key.as_bytes();
-            for i in 0..24 {
-                key_bytes[i] = key_data.get(i % key_data.len()).copied().unwrap_or(0);
-            }
-            
-            let iv_bytes = ensure_8_bytes(iv.as_bytes());
-            
-            let cipher = TdesCbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let data_bytes = data.as_bytes();
-            let buf_len = ((data_bytes.len() / 8) + 1) * 8;
-            let mut buf = vec![0u8; buf_len];
-            buf[..data_bytes.len()].copy_from_slice(data_bytes);
-            
-            match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                Ok(encrypted) => base64::engine::general_purpose::STANDARD.encode(encrypted),
-                Err(_) => String::new(),
-            }
+        // java.tripleDESEncodeBase64Str
+        let api = self.native_api.clone();
+        java_obj.set("tripleDESEncodeBase64Str", Function::new(ctx.clone(), move |data: String, key: String, mode: String, padding: String, iv: String| -> String {
+            api.execute(&NativeApi::TripleDesEncodeBase64 { mode, padding }, &[data, key, iv]).unwrap_or_default()
         })?)?;
+
         
         // === Phase 5.3: Base64 parameter encryption APIs ===
         
@@ -1950,127 +1831,37 @@ impl JsExecutor {
         })?)?;
         
         // java.aesEncodeArgsBase64Str(data, key, mode, padding, iv) - AES encrypt with Base64 encoded params
-        java_obj.set("aesEncodeArgsBase64Str", Function::new(ctx.clone(), |data: String, key: String, _mode: String, _padding: String, iv: String| -> String {
-            use aes::Aes128;
-            use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type Aes128CbcEnc = Encryptor<Aes128>;
-            
-            // Decode Base64 encoded key and iv
-            let key_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(key.as_bytes())
-                .unwrap_or_default();
-            let iv_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(iv.as_bytes())
-                .unwrap_or_default();
-            
-            let key_bytes = ensure_16_bytes(&key_bytes_raw);
-            let iv_bytes = ensure_16_bytes(&iv_bytes_raw);
-            
-            let cipher = Aes128CbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let data_bytes = data.as_bytes();
-            let buf_len = ((data_bytes.len() / 16) + 1) * 16;
-            let mut buf = vec![0u8; buf_len];
-            buf[..data_bytes.len()].copy_from_slice(data_bytes);
-            
-            match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                Ok(encrypted) => base64::engine::general_purpose::STANDARD.encode(encrypted),
-                Err(_) => String::new(),
-            }
+        // java.aesEncodeArgsBase64Str
+        let api = self.native_api.clone();
+        java_obj.set("aesEncodeArgsBase64Str", Function::new(ctx.clone(), move |data: String, key: String, mode: String, padding: String, iv: String| -> String {
+            api.execute(&NativeApi::AesEncodeArgsBase64 { mode, padding }, &[data, key, iv]).unwrap_or_default()
         })?)?;
         
         // java.tripleDESDecodeArgsBase64Str(data, key, mode, padding, iv) - 3DES decrypt with Base64 params
-        java_obj.set("tripleDESDecodeArgsBase64Str", Function::new(ctx.clone(), |data: String, key: String, _mode: String, _padding: String, iv: String| -> String {
-            use des::TdesEde3;
-            use cbc::{Decryptor, cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type TdesCbcDec = Decryptor<TdesEde3>;
-            
-            // Decode Base64 encoded key and iv
-            let key_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(key.as_bytes())
-                .unwrap_or_default();
-            let iv_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(iv.as_bytes())
-                .unwrap_or_default();
-            
-            // Decode Base64 input data
-            let encrypted = base64::engine::general_purpose::STANDARD
-                .decode(data.as_bytes())
-                .unwrap_or_default();
-            if encrypted.is_empty() { return String::new(); }
-            
-            // 3DES requires 24-byte key
-            let mut key_bytes = [0u8; 24];
-            for i in 0..24 {
-                key_bytes[i] = key_bytes_raw.get(i % key_bytes_raw.len().max(1)).copied().unwrap_or(0);
-            }
-            
-            let iv_bytes = ensure_8_bytes(&iv_bytes_raw);
-            
-            let cipher = TdesCbcDec::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let mut buf = encrypted.clone();
-            match cipher.decrypt_padded_mut::<Pkcs7>(&mut buf) {
-                Ok(decrypted) => String::from_utf8_lossy(decrypted).to_string(),
-                Err(_) => String::new(),
-            }
+        // java.tripleDESDecodeArgsBase64Str
+        let api = self.native_api.clone();
+        java_obj.set("tripleDESDecodeArgsBase64Str", Function::new(ctx.clone(), move |data: String, key: String, mode: String, padding: String, iv: String| -> String {
+            api.execute(&NativeApi::TripleDesDecodeArgsBase64 { mode, padding }, &[data, key, iv]).unwrap_or_default()
         })?)?;
+
         
         // java.tripleDESEncodeArgsBase64Str(data, key, mode, padding, iv) - 3DES encrypt with Base64 params
-        java_obj.set("tripleDESEncodeArgsBase64Str", Function::new(ctx.clone(), |data: String, key: String, _mode: String, _padding: String, iv: String| -> String {
-            use des::TdesEde3;
-            use cbc::{Encryptor, cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7}};
-            use base64::Engine;
-            
-            type TdesCbcEnc = Encryptor<TdesEde3>;
-            
-            // Decode Base64 encoded key and iv
-            let key_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(key.as_bytes())
-                .unwrap_or_default();
-            let iv_bytes_raw = base64::engine::general_purpose::STANDARD
-                .decode(iv.as_bytes())
-                .unwrap_or_default();
-            
-            // 3DES requires 24-byte key
-            let mut key_bytes = [0u8; 24];
-            for i in 0..24 {
-                key_bytes[i] = key_bytes_raw.get(i % key_bytes_raw.len().max(1)).copied().unwrap_or(0);
-            }
-            
-            let iv_bytes = ensure_8_bytes(&iv_bytes_raw);
-            
-            let cipher = TdesCbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-            
-            let data_bytes = data.as_bytes();
-            let buf_len = ((data_bytes.len() / 8) + 1) * 8;
-            let mut buf = vec![0u8; buf_len];
-            buf[..data_bytes.len()].copy_from_slice(data_bytes);
-            
-            match cipher.encrypt_padded_mut::<Pkcs7>(&mut buf, data_bytes.len()) {
-                Ok(encrypted) => base64::engine::general_purpose::STANDARD.encode(encrypted),
-                Err(_) => String::new(),
-            }
+        // java.tripleDESEncodeArgsBase64Str
+        let api = self.native_api.clone();
+        java_obj.set("tripleDESEncodeArgsBase64Str", Function::new(ctx.clone(), move |data: String, key: String, mode: String, padding: String, iv: String| -> String {
+            api.execute(&NativeApi::TripleDesEncodeArgsBase64 { mode, padding }, &[data, key, iv]).unwrap_or_default()
         })?)?;
+
         
         // === Phase 5.4: Additional Utility APIs ===
         
-        // java.timeFormatUTC(time, format, sh) - Format time with timezone offset
-        java_obj.set("timeFormatUTC", Function::new(ctx.clone(), |time: i64, format: String, sh: i32| -> String {
-            use chrono::{TimeZone, FixedOffset};
-            
-            let offset_secs = sh * 3600;
-            let offset = FixedOffset::east_opt(offset_secs).unwrap_or(FixedOffset::east_opt(0).unwrap());
-            
-            match offset.timestamp_millis_opt(time).single() {
-                Some(dt) => dt.format(&format).to_string(),
-                None => String::new(),
-            }
+        // java.timeFormatUTC
+        let api = self.native_api.clone();
+        java_obj.set("timeFormatUTC", Function::new(ctx.clone(), move |time: i64, format: String, sh: i32| -> String {
+            // Note: NativeApi::TimeFormatUtc expects arguments as strings
+            api.execute(&NativeApi::TimeFormatUtc { format: format, offset_hours: sh }, &[time.to_string()]).unwrap_or_default()
         })?)?;
+
         
         // java.getTxtInFolder(path) - Read all txt files in folder
         java_obj.set("getTxtInFolder", Function::new(ctx.clone(), |path: String| -> String {
