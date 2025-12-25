@@ -13,5 +13,17 @@ pub mod webview;
 // New Rust-native architecture modules
 pub mod preprocessor;
 pub mod native_api;
+pub mod native_http;
+pub mod native_file;
+pub mod js_analyzer;
+pub mod source_transformer;
 pub mod template;
 pub mod crypto;
+
+// Benchmark tests
+#[cfg(test)]
+mod benchmarks;
+
+
+
+

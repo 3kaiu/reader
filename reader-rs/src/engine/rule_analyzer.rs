@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::cookie::CookieManager;
+use super::js_analyzer::{AnalysisResult, JsPatternAnalyzer, ExprValue};
 use super::js_executor::JsExecutor;
 use super::native_api::NativeApiProvider;
 use super::parsers::css::CssParser;
@@ -20,7 +21,7 @@ use super::parsers::jsoup::JsoupDefaultParser;
 use super::parsers::regex::RegexParser;
 use super::parsers::xpath::XPathParser;
 use super::parsers::{Parser, RuleType};
-use super::preprocessor::SourcePreprocessor;
+use super::preprocessor::{NativeApi, SourcePreprocessor};
 use super::template::{TemplateContext, TemplateExecutor};
 use crate::storage::kv::KvStore;
 
@@ -40,6 +41,8 @@ pub struct RuleAnalyzer {
     native_api: Arc<NativeApiProvider>,
     /// Template executor for URL/rule templates
     template_executor: TemplateExecutor,
+    /// JS pattern analyzer for native execution of simple JS
+    js_analyzer: JsPatternAnalyzer,
 }
 
 impl RuleAnalyzer {
@@ -61,6 +64,7 @@ impl RuleAnalyzer {
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
+            js_analyzer: JsPatternAnalyzer::new(),
         })
     }
 
@@ -84,6 +88,7 @@ impl RuleAnalyzer {
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
+            js_analyzer: JsPatternAnalyzer::new(),
         })
     }
 
@@ -135,6 +140,27 @@ impl RuleAnalyzer {
     /// Get the preprocessor (for external use)
     pub fn preprocessor(&self) -> &SourcePreprocessor {
         &self.preprocessor
+    }
+
+    /// Execute a native JS operation without QuickJS
+    fn execute_native_js(&self, exec: &super::js_analyzer::NativeExecution, content: &str) -> Result<String> {
+        use super::js_analyzer::ExprValue;
+        
+        // Resolve arguments to actual values
+        let args: Vec<String> = exec.args.iter().map(|arg| {
+            match arg {
+                ExprValue::Literal(s) => s.clone(),
+                ExprValue::Variable(name) => {
+                    // Check variables first, fall back to content
+                    self.variables.borrow().get(name).cloned()
+                        .unwrap_or_else(|| content.to_string())
+                }
+                ExprValue::CurrentContent => content.to_string(),
+            }
+        }).collect();
+        
+        // Execute the native API
+        self.native_api.execute(&exec.api, &args)
     }
 
     // ============== Crypto API (Rust Native) ==============
@@ -764,7 +790,6 @@ impl RuleAnalyzer {
             let rule_type = RuleType::detect(&base_rule, content);
             match rule_type {
                 RuleType::JavaScript => {
-                    // eprintln!("!!!TRACE!!! execute_single_rule JS content_len={}", content.len());
                     let code = if base_rule.starts_with("@js:") {
                         base_rule.trim_start_matches("@js:")
                     } else if base_rule.starts_with("<js>") {
@@ -774,14 +799,31 @@ impl RuleAnalyzer {
                         &base_rule
                     };
 
-                    // Set current content for java.getString()
-                    self.js_executor.set_current_content(content);
+                    // Try native execution first using JsPatternAnalyzer
+                    match self.js_analyzer.analyze(code) {
+                        AnalysisResult::Native(exec) => {
+                            // Execute natively
+                            self.execute_native_js(&exec, content)?
+                        }
+                        AnalysisResult::NativeChain(chain) => {
+                            // Execute chain natively
+                            let mut result = content.to_string();
+                            for exec in chain {
+                                result = self.execute_native_js(&exec, &result)?;
+                            }
+                            result
+                        }
+                        AnalysisResult::RequiresJs(_) => {
+                            // Fall back to JS executor
+                            self.js_executor.set_current_content(content);
 
-                    let mut vars = HashMap::new();
-                    vars.insert("result".to_string(), content.to_string());
-                    vars.insert("it".to_string(), content.to_string());
-                    vars.insert("src".to_string(), content.to_string());
-                    self.js_executor.eval_with_context(code, &vars)?
+                            let mut vars = HashMap::new();
+                            vars.insert("result".to_string(), content.to_string());
+                            vars.insert("it".to_string(), content.to_string());
+                            vars.insert("src".to_string(), content.to_string());
+                            self.js_executor.eval_with_context(code, &vars)?
+                        }
+                    }
                 }
                 RuleType::Css => self.css_parser.get_string(content, &base_rule)?,
                 RuleType::JsonPath => self.json_parser.get_string(content, &base_rule)?,

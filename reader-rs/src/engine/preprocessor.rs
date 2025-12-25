@@ -28,7 +28,7 @@ static JAVA_CALL_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// Native API that can be executed directly in Rust
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeApi {
-    // Encoding
+    // ============== Encoding ==============
     Base64Encode,
     Base64Decode,
     Base64DecodeWithFlags(i32),
@@ -38,42 +38,119 @@ pub enum NativeApi {
     EncodeUriWithEnc(String),
     Utf8ToGbk,
     HtmlFormat,
+    HexEncode,
+    HexDecode,
     
-    // Cookie
+    // ============== Cookie ==============
     GetCookie { url: String, key: Option<String> },
+    SetCookie { url: String, cookie: String },
     
-    // Crypto - AES
+    // ============== Crypto - AES ==============
     AesEncode { transformation: String, iv: String },
     AesDecode { transformation: String, iv: String },
     AesEncodeArgsBase64 { mode: String, padding: String },
     AesDecodeArgsBase64 { mode: String, padding: String },
     
-    // Crypto - DES
+    // ============== Crypto - DES ==============
     DesEncode { transformation: String, iv: String },
     DesDecode { transformation: String, iv: String },
     
-    // Crypto - 3DES (Triple DES / DESede)
+    // ============== Crypto - 3DES ==============
     TripleDesDecodeStr { mode: String, padding: String },
     TripleDesDecodeArgsBase64 { mode: String, padding: String },
     TripleDesEncodeBase64 { mode: String, padding: String },
     TripleDesEncodeArgsBase64 { mode: String, padding: String },
     
-    // Time
+    // ============== Time ==============
     TimeFormat(Option<String>),
     TimeFormatUtc { format: String, offset_hours: i32 },
     
-    // File
-    DeleteFile,
+    // ============== Hash ==============
+    DigestHex(String),  // algorithm: MD5, SHA1, SHA256, SHA512
     
-    // Hash
-    DigestHex(String),  // algorithm
-    
-    // Random
+    // ============== Random ==============
     RandomUuid,
     
-    // Unknown - must fallback to JS
+    // ============== HTTP (NEW) ==============
+    /// HTTP GET request
+    HttpGet { 
+        url: String, 
+        headers: std::collections::HashMap<String, String>,
+    },
+    /// HTTP POST request  
+    HttpPost { 
+        url: String, 
+        body: String, 
+        headers: std::collections::HashMap<String, String>,
+    },
+    /// Generic HTTP request
+    HttpRequest { 
+        method: String, 
+        url: String, 
+        body: Option<String>, 
+        headers: std::collections::HashMap<String, String>,
+    },
+    /// Concurrent HTTP GET requests
+    HttpGetAll { urls: Vec<String> },
+    
+    // ============== File Operations (NEW) ==============
+    /// Cache file from URL with expiry time (seconds)
+    CacheFile { url: String, save_time: i32 },
+    /// Read file as bytes (hex encoded)
+    ReadFile { path: String },
+    /// Read text file
+    ReadTxtFile { path: String },
+    /// Read text file with charset
+    ReadTxtFileWithCharset { path: String, charset: String },
+    /// Delete file
+    DeleteFile,
+    /// Get file path (resolve cache path)
+    GetFile { path: String },
+    /// Import external script
+    ImportScript { path: String },
+    
+    // ============== ZIP Operations (NEW) ==============
+    /// Read string content from ZIP
+    ZipReadString { zip_source: String, file_path: String },
+    /// Read string with charset from ZIP
+    ZipReadStringWithCharset { zip_source: String, file_path: String, charset: String },
+    /// Read bytes from ZIP (hex encoded)
+    ZipReadBytes { zip_source: String, file_path: String },
+    /// Extract ZIP file
+    ZipExtract { zip_path: String },
+    
+    // ============== String Operations (NEW) ==============
+    /// String replace (regex or literal)
+    StringReplace { 
+        pattern: String, 
+        replacement: String, 
+        is_regex: bool, 
+        global: bool,
+    },
+    /// String split
+    StringSplit { delimiter: String },
+    /// String trim
+    StringTrim,
+    /// String substring
+    StringSubstring { start: i32, end: Option<i32> },
+    /// HTML to text (strip tags)
+    HtmlToText,
+    
+    // ============== JSON Operations (NEW) ==============
+    /// JSONPath query
+    JsonPath { path: String },
+    /// Parse JSON string
+    JsonParse,
+    /// Stringify to JSON
+    JsonStringify,
+    
+    // ============== Misc ==============
+    /// Log message (for debugging)
+    Log { message: String },
+    /// Unknown - must fallback to JS
     Unknown(String),
 }
+
 
 /// Template expression types
 #[derive(Debug, Clone)]

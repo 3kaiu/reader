@@ -407,11 +407,201 @@ impl NativeApiProvider {
                 if path.is_empty() {
                     return Ok("false".to_string());
                 }
-                // TODO: Resolve cache path based on base_url
                 match std::fs::remove_file(path) {
                     Ok(_) => Ok("true".to_string()),
                     Err(_) => Ok("false".to_string()),
                 }
+            }
+            
+            // ============== New APIs ==============
+            
+            // Hex encoding
+            NativeApi::HexEncode => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(hex::encode(input.as_bytes()))
+            }
+            
+            NativeApi::HexDecode => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                hex::decode(input)
+                    .ok()
+                    .and_then(|bytes| String::from_utf8(bytes).ok())
+                    .map(Ok)
+                    .unwrap_or(Ok(String::new()))
+            }
+            
+            // Set Cookie
+            NativeApi::SetCookie { url, cookie } => {
+                let domain = reqwest::Url::parse(url)
+                    .ok()
+                    .and_then(|u| u.host_str().map(|h| h.to_string()))
+                    .unwrap_or_else(|| url.to_string());
+                self.cookie_manager.parse_set_cookie(&domain, cookie);
+                Ok(String::new())
+            }
+            
+            // HTTP APIs - Delegate to native_http module
+            NativeApi::HttpGet { url, headers } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
+                let resp = client.get(url, headers)?;
+                Ok(resp.to_json())
+            }
+            
+            NativeApi::HttpPost { url, body, headers } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
+                let resp = client.post(url, body, headers)?;
+                Ok(resp.to_json())
+            }
+            
+            NativeApi::HttpRequest { method, url, body, headers } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
+                let resp = client.request(method, url, body.as_deref(), headers)?;
+                Ok(resp.to_json())
+            }
+            
+            NativeApi::HttpGetAll { urls } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::new(cache_dir)?;
+                let responses = client.get_all(urls);
+                let bodies: Vec<String> = responses.into_iter().map(|r| r.body).collect();
+                Ok(serde_json::to_string(&bodies).unwrap_or_default())
+            }
+            
+            // File APIs - Delegate to native_file module
+            NativeApi::CacheFile { url, save_time } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::new(cache_dir)?;
+                client.cache_file(url, *save_time)
+            }
+            
+            NativeApi::ReadFile { path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.read_file(path)
+            }
+            
+            NativeApi::ReadTxtFile { path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.read_txt_file(path)
+            }
+            
+            NativeApi::ReadTxtFileWithCharset { path, charset } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.read_txt_file_with_charset(path, charset)
+            }
+            
+            NativeApi::GetFile { path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                Ok(ops.get_file(path))
+            }
+            
+            NativeApi::ImportScript { path } => {
+                use super::native_http::NativeHttpClient;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let client = NativeHttpClient::new(cache_dir)?;
+                client.import_script(path)
+            }
+            
+            // ZIP APIs
+            NativeApi::ZipReadString { zip_source, file_path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.zip_read_string(zip_source, file_path)
+            }
+            
+            NativeApi::ZipReadStringWithCharset { zip_source, file_path, charset } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.zip_read_string_with_charset(zip_source, file_path, charset)
+            }
+            
+            NativeApi::ZipReadBytes { zip_source, file_path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.zip_read_bytes(zip_source, file_path)
+            }
+            
+            NativeApi::ZipExtract { zip_path } => {
+                use super::native_file::NativeFileOps;
+                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let ops = NativeFileOps::new(cache_dir);
+                ops.zip_extract(zip_path)
+            }
+            
+            // String APIs
+            NativeApi::StringReplace { pattern, replacement, is_regex, global } => {
+                use super::native_file::NativeStringOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(NativeStringOps::replace(input, pattern, replacement, *is_regex, *global))
+            }
+            
+            NativeApi::StringSplit { delimiter } => {
+                use super::native_file::NativeStringOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(serde_json::to_string(&NativeStringOps::split(input, delimiter)).unwrap_or_default())
+            }
+            
+            NativeApi::StringTrim => {
+                use super::native_file::NativeStringOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(NativeStringOps::trim(input))
+            }
+            
+            NativeApi::StringSubstring { start, end } => {
+                use super::native_file::NativeStringOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(NativeStringOps::substring(input, *start, *end))
+            }
+            
+            NativeApi::HtmlToText => {
+                use super::native_file::NativeStringOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(NativeStringOps::html_to_text(input))
+            }
+            
+            // JSON APIs
+            NativeApi::JsonPath { path } => {
+                use super::native_file::NativeJsonOps;
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                NativeJsonOps::json_path(input, path)
+            }
+            
+            NativeApi::JsonParse => {
+                // Just validate and return the input (actual parsing is done in caller)
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                serde_json::from_str::<serde_json::Value>(input)
+                    .map(|_| input.to_string())
+                    .map_err(|e| anyhow::anyhow!("JSON parse error: {}", e))
+            }
+            
+            NativeApi::JsonStringify => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                // If already a string, just return it; otherwise treat as raw
+                Ok(input.to_string())
+            }
+            
+            // Misc
+            NativeApi::Log { message } => {
+                tracing::info!("Native log: {}", message);
+                Ok(String::new())
             }
 
             // Unknown - should not reach here, fallback needed
