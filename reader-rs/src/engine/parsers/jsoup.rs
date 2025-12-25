@@ -444,8 +444,6 @@ mod tests {
         
         // Test id.yulan selector
         let elements = parser.get_elements(html, "id.yulan@li@a").unwrap();
-        println!("DEBUG: elements count = {}", elements.len());
-        println!("DEBUG: elements[0] = '{}'", elements[0]);
         
         assert_eq!(elements.len(), 2, "Should find 2 <a> elements");
         
@@ -454,7 +452,6 @@ mod tests {
         assert!(elements[0].contains("href="), "First element should have href, got: {}", elements[0]);
         
         // The element is already <a>...</a>, so the pure attribute rule should work
-        println!("DEBUG: Calling get_string with href rule on: {}", &elements[0]);
         let href = parser.get_string(&elements[0], "href").unwrap();
         assert_eq!(href, "http://example.com/chapter1");
         
