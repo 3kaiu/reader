@@ -12,6 +12,7 @@ pub mod webview;
 
 // New Rust-native architecture modules
 pub mod crypto;
+pub mod error;
 pub mod js_analyzer;
 pub mod native_api;
 pub mod native_api_registry;

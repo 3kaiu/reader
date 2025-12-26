@@ -4,6 +4,7 @@
 //! eliminating the need for JS execution in many cases.
 
 use super::cookie::CookieManager;
+use super::error::EngineError;
 use super::native::HandlerRegistry;
 use super::preprocessor::NativeApi;
 use crate::storage::kv::KvStore;
@@ -765,14 +766,14 @@ impl NativeApiProvider {
             // Unknown - should not reach here, fallback needed
             NativeApi::Unknown(name) => {
                 tracing::warn!("Unknown native API called: {}", name);
-                Err(anyhow::anyhow!("Unknown API: {}", name))
+                Err(EngineError::UnknownApi(name.clone()).into())
             }
 
             // All other APIs should have been handled by HandlerRegistry
             // This is a fallback for safety
             _ => {
                 tracing::warn!("API {:?} not handled by registry or fallback", api);
-                Err(anyhow::anyhow!("Unhandled API: {:?}", api))
+                Err(EngineError::ApiExecution(format!("Unhandled API: {:?}", api)).into())
             }
         }
     }
