@@ -141,7 +141,7 @@ async function downloadModel(modelId: string) {
 
 // 返回
 function goBack() {
-  router.back();
+  router.push("/");
 }
 
 // 清理缓存

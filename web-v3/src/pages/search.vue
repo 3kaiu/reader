@@ -184,7 +184,7 @@ function clearHistory() {
 }
 
 function goBack() {
-  router.back();
+  router.push("/");
 }
 
 function resetSearch() {

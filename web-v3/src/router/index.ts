@@ -50,6 +50,20 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackPrefetch: true */ '@/pages/settings.vue'),
     meta: { title: '设置' },
   },
+  {
+    path: '/voice-settings',
+    name: 'voice-settings',
+    // 音色管理页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/voice-settings.vue'),
+    meta: { title: '自定义音色' },
+  },
+  {
+    path: '/ai-analysis-settings',
+    name: 'ai-analysis-settings',
+    // AI 分析助手页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/ai-analysis-settings.vue'),
+    meta: { title: '网文分析助手' },
+  },
 ]
 
 const router = createRouter({
