@@ -369,7 +369,7 @@ impl NativeApiProvider {
                     .join("cache");
                 let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
                 let resp = client.get(url, &headers)?;
-                Ok(resp.to_json())
+                Ok(resp.body) // Return body string for legacy java.ajax compatibility
             }
 
             NativeApi::HttpPost => {
@@ -387,7 +387,7 @@ impl NativeApiProvider {
                     .join("cache");
                 let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
                 let resp = client.post(url, body, &headers)?;
-                Ok(resp.to_json())
+                Ok(resp.body) // Return body string for legacy java.post compatibility
             }
 
             NativeApi::HttpRequest => {
