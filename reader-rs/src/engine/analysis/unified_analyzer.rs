@@ -100,6 +100,49 @@ pub struct AnalysisStats {
     pub ast_matches: usize,
     /// Number of JS fallbacks
     pub js_fallbacks: usize,
+    /// Total analysis time in microseconds
+    pub total_time_us: u64,
+    /// Total regex analysis time in microseconds
+    pub regex_time_us: u64,
+    /// Total AST analysis time in microseconds
+    pub ast_time_us: u64,
+}
+
+impl AnalysisStats {
+    /// Get total number of analyses
+    pub fn total_analyses(&self) -> usize {
+        self.cache_hits + self.regex_matches + self.ast_matches + self.js_fallbacks
+    }
+
+    /// Get cache hit rate as percentage
+    pub fn cache_hit_rate(&self) -> f64 {
+        let total = self.total_analyses();
+        if total == 0 {
+            0.0
+        } else {
+            (self.cache_hits as f64 / total as f64) * 100.0
+        }
+    }
+
+    /// Get native execution rate (regex + AST matches)
+    pub fn native_rate(&self) -> f64 {
+        let total = self.total_analyses();
+        if total == 0 {
+            0.0
+        } else {
+            ((self.regex_matches + self.ast_matches) as f64 / total as f64) * 100.0
+        }
+    }
+
+    /// Get average analysis time in microseconds
+    pub fn avg_time_us(&self) -> f64 {
+        let total = self.total_analyses();
+        if total == 0 {
+            0.0
+        } else {
+            self.total_time_us as f64 / total as f64
+        }
+    }
 }
 
 impl Default for UnifiedJsAnalyzer {
