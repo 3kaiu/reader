@@ -6,8 +6,6 @@
 import { ref, shallowRef, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
-  ArrowLeft,
-  Search,
   RefreshCw,
   Server,
   Trash2,
@@ -16,10 +14,9 @@ import {
   Plus,
   Zap,
   Globe2,
-  CheckSquare,
-  X,
   Edit2,
   FolderX,
+  X,
 } from "lucide-vue-next";
 import { $get, $post } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -39,6 +36,13 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
 import ImportSource from "@/components/source/ImportSource.vue";
 import EditSource from "@/components/source/EditSource.vue";
+import {
+  PageHeader,
+  PageToolbar,
+  EmptyState,
+  LoadingGrid,
+} from "@/components/common";
+import { CheckSquare } from "lucide-vue-next";
 
 const router = useRouter();
 const { success, error } = useMessage();
@@ -379,219 +383,135 @@ onMounted(() => loadSources());
 
     <!-- 主内容区 -->
     <main class="px-5 max-w-7xl mx-auto pt-6 sm:pt-8 pb-32">
-      <!-- 第一行：返回、搜索（居中）、全量测速/导出/导入书源（居右） -->
-      <div class="flex items-center gap-3 mb-4">
-        <!-- 返回按钮 -->
-        <button
-          class="w-10 h-10 rounded-full hover:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
-          @click="router.push('/')"
-          title="返回书架"
-          aria-label="返回书架"
-        >
-          <ArrowLeft class="h-5 w-5 text-muted-foreground" />
-        </button>
+      <!-- 页面头部 -->
+      <PageHeader
+        :search-value="searchKeyword"
+        search-placeholder="搜索书源名称、URL或分组..."
+        :actions="[
+          {
+            label: isBatchTesting ? '停止测速' : '全量测速',
+            icon: isBatchTesting ? RefreshCw : Zap,
+            onClick: isBatchTesting ? stopBatchTest : batchTestSources,
+            variant: 'outline',
+            hideLabelOnMobile: true,
+          },
+          {
+            label: '导出',
+            icon: Download,
+            onClick: exportSources,
+            variant: 'outline',
+            hideLabelOnMobile: true,
+          },
+          {
+            label: '导入书源',
+            icon: Upload,
+            onClick: () => (showImport = true),
+            variant: 'default',
+          },
+        ]"
+        @update:search-value="searchKeyword = $event"
+        @back="router.push('/')"
+      />
 
-        <!-- 搜索框（居中） -->
-        <div class="flex-1 flex justify-center">
-          <div class="relative group w-full max-w-md">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10"
-            >
-              <Search
-                class="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
-              />
-            </div>
-            <Input
-              v-model="searchKeyword"
-              class="pl-10 pr-10 h-10 rounded-full bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0"
-              placeholder="搜索书源名称、URL或分组..."
-            />
+      <!-- 页面工具栏 -->
+      <PageToolbar
+        :title="activeGroup === '全部' ? '全部书源' : activeGroup"
+        :icon="Server"
+        :count="stats.filtered"
+        :stats="[
+          {
+            label: '启用',
+            value: stats.enabled,
+            color: '#22c55e',
+          },
+          {
+            label: '/',
+            value: stats.total - stats.enabled,
+          },
+        ]"
+        :is-manage-mode="isManageMode"
+        @toggle-manage="toggleManageMode"
+      />
+
+      <!-- 分组筛选（书源页面特有功能） -->
+      <div class="flex items-center gap-3 mb-6 -mt-4">
+        <div class="flex-1"></div>
+        <div
+          class="flex-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0"
+        >
+          <div class="flex items-center gap-2 pb-2 sm:pb-0">
             <button
-              v-if="searchKeyword"
-              class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
-              @click="searchKeyword = ''"
-              aria-label="清除"
+              v-for="[group, count] in groups.filter(
+                ([name]) => name !== '全部'
+              )"
+              :key="group"
+              class="relative px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap snap-start select-none group/btn"
+              :class="
+                activeGroup === group
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              "
+              @click="activeGroup = group"
             >
-              <X
-                class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-              />
+              {{ group }}
+              <span class="ml-1 opacity-60 text-xs">{{ count }}</span>
+
+              <!-- 删除分组按钮 (仅在Hover且非未分组时显示) -->
+              <button
+                v-if="group !== '未分组' && activeGroup === group"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-md bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/btn:opacity-100 transition-opacity hover:scale-110"
+                @click.stop="deleteGroupSources(group)"
+                aria-label="删除分组"
+              >
+                <X class="h-2.5 w-2.5" />
+              </button>
             </button>
           </div>
         </div>
-
-        <!-- 操作按钮组（居右） -->
-        <div class="flex items-center gap-2 shrink-0">
-          <!-- 全量测速 -->
-          <Button
-            variant="outline"
-            size="sm"
-            :class="
-              isBatchTesting &&
-              'bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20'
-            "
-            @click="isBatchTesting ? stopBatchTest() : batchTestSources()"
-          >
-            <component
-              :is="isBatchTesting ? CheckSquare : Zap"
-              class="h-4 w-4 mr-2"
-            />
-            <span class="hidden sm:inline">{{
-              isBatchTesting ? "停止测速" : "全量测速"
-            }}</span>
-          </Button>
-
-          <!-- 导出 -->
-          <Button variant="outline" size="sm" @click="exportSources">
-            <Download class="h-4 w-4 mr-2" />
-            <span class="hidden sm:inline">导出</span>
-          </Button>
-
-          <!-- 导入书源 -->
-          <Button variant="default" size="sm" @click="showImport = true">
-            <Upload class="h-4 w-4 mr-2" />
-            导入书源
-          </Button>
-        </div>
-      </div>
-
-      <!-- 第二行：全部书源（x）+ 分组、启用/禁用、批量管理（居右） -->
-      <div class="flex items-center gap-3 mb-6">
-        <!-- 全部书源标题 + 分组筛选 -->
-        <div class="flex items-center gap-3 flex-1 min-w-0">
-          <div class="flex items-center gap-2 shrink-0">
-            <Server class="w-4 h-4 text-primary" />
-            <h2
-              class="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2"
-            >
-              {{ activeGroup === "全部" ? "全部书源" : activeGroup }}
-              <span
-                class="text-xs font-normal text-muted-foreground/60 normal-case"
-                >({{ stats.filtered }})</span
-              >
-            </h2>
-          </div>
-
-          <!-- 分组滚动列表 -->
-          <div
-            class="flex-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0"
-          >
-            <div class="flex items-center gap-2 pb-2 sm:pb-0">
-              <button
-                v-for="[group, count] in groups.filter(
-                  ([name]) => name !== '全部'
-                )"
-                :key="group"
-                class="relative px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap snap-start select-none group/btn"
-                :class="
-                  activeGroup === group
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                "
-                @click="activeGroup = group"
-              >
-                {{ group }}
-                <span class="ml-1 opacity-60 text-xs">{{ count }}</span>
-
-                <!-- 删除分组按钮 (仅在Hover且非未分组时显示) -->
-                <button
-                  v-if="group !== '未分组' && activeGroup === group"
-                  class="absolute -top-1 -right-1 w-4 h-4 rounded-md bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/btn:opacity-100 transition-opacity hover:scale-110"
-                  @click.stop="deleteGroupSources(group)"
-                  aria-label="删除分组"
-                >
-                  <X class="h-2.5 w-2.5" />
-                </button>
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div class="flex-1"></div>
-
-        <!-- 启用/禁用统计 -->
-        <div
-          class="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md border border-border shrink-0"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-          <span>{{ stats.enabled }} 启用</span>
-          <span class="opacity-50">/</span>
-          <span>{{ stats.total - stats.enabled }} 禁用</span>
-        </div>
-
-        <!-- 批量管理按钮 -->
-        <Button
-          variant="outline"
-          @click="toggleManageMode"
-          :class="
-            isManageMode && 'bg-primary/10 text-primary border-primary/20'
-          "
-          class="shrink-0"
-        >
-          <CheckSquare class="h-4 w-4 mr-2" />
-          <span class="hidden sm:inline">{{
-            isManageMode ? "退出管理" : "批量管理"
-          }}</span>
-        </Button>
       </div>
 
       <!-- 加载状态 -->
-      <div
-        v-if="loading"
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-      >
-        <div
-          v-for="i in 12"
-          :key="i"
-          class="h-32 bg-card rounded-2xl border border-border/50 animate-pulse"
-        ></div>
-      </div>
+      <LoadingGrid v-if="loading" />
 
       <!-- 空状态 -->
-      <div
+      <EmptyState
         v-else-if="filteredSources.length === 0"
-        class="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500"
-      >
-        <div
-          class="w-20 h-20 rounded-2xl bg-muted/30 flex items-center justify-center mb-6"
-        >
-          <Server class="h-10 w-10 text-muted-foreground/40" />
-        </div>
-        <h3 class="text-lg font-semibold mb-2 text-foreground">
-          {{
-            searchKeyword
-              ? "未找到匹配的书源"
-              : activeGroup === "全部"
-              ? "暂无书源"
-              : `「${activeGroup}」分组为空`
-          }}
-        </h3>
-        <p
-          class="text-muted-foreground text-sm mb-8 max-w-xs mx-auto leading-relaxed"
-        >
-          {{
-            searchKeyword
-              ? "尝试更换搜索关键词"
-              : activeGroup === "全部"
-              ? "导入书源开始使用"
-              : "切换到其他分组或导入新书源"
-          }}
-        </p>
-        <div class="flex gap-3">
-          <Button variant="default" @click="showImport = true">
-            <Upload class="h-4 w-4 mr-2" /> 导入书源
-          </Button>
-          <Button
-            v-if="searchKeyword || activeGroup !== '全部'"
-            variant="outline"
-            @click="
-              searchKeyword = '';
-              activeGroup = '全部';
-            "
-          >
-            查看全部
-          </Button>
-        </div>
-      </div>
+        :icon="Server"
+        :title="
+          searchKeyword
+            ? '未找到匹配的书源'
+            : activeGroup === '全部'
+            ? '暂无书源'
+            : `「${activeGroup}」分组为空`
+        "
+        :description="
+          searchKeyword
+            ? '尝试更换搜索关键词'
+            : activeGroup === '全部'
+            ? '导入书源开始使用'
+            : '切换到其他分组或导入新书源'
+        "
+        :actions="[
+          {
+            label: '导入书源',
+            icon: Upload,
+            onClick: () => (showImport = true),
+          },
+          ...(searchKeyword || activeGroup !== '全部'
+            ? [
+                {
+                  label: '查看全部',
+                  onClick: () => {
+                    searchKeyword = ''
+                    activeGroup = '全部'
+                  },
+                  variant: 'outline' as const,
+                },
+              ]
+            : []),
+        ]"
+      />
 
       <!-- 书源列表 (网格布局) -->
       <div
@@ -743,133 +663,99 @@ onMounted(() => loadSources());
     </main>
 
     <!-- 底部操作栏 (管理模式) -->
-    <Transition
-      enter-active-class="transition duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"
-      enter-from-class="translate-y-20 opacity-0 scale-90"
-      enter-to-class="translate-y-0 opacity-100 scale-100"
-      leave-active-class="transition duration-200 ease-in"
-      leave-from-class="translate-y-0 opacity-100 scale-100"
-      leave-to-class="translate-y-20 opacity-0 scale-90"
+    <ManageModeBar
+      v-if="isManageMode"
+      :selected-count="selectedUrls.size"
+      :total-count="filteredSources.length"
+      :actions="[
+        {
+          icon: FolderX,
+          onClick: () => {}, // 分组功能需要在外部处理
+          title: '修改分组',
+          disabled: selectedUrls.size === 0,
+        },
+      ]"
+      @select-all="selectAll"
+      @delete="batchDelete"
+      @close="toggleManageMode"
     >
-      <div
-        v-if="isManageMode"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[95vw]"
-      >
-        <div
-          class="bg-background/95 dark:bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-full px-3 py-2 flex items-center gap-2 text-foreground"
-        >
-          <button
-            class="h-9 px-4 rounded-full hover:bg-muted flex items-center gap-2 transition-colors active:scale-95 font-medium text-sm"
-            @click="selectAll"
-          >
-            <CheckSquare class="h-4 w-4" />
-            <span>{{
-              selectedUrls.size === filteredSources.length ? "取消全选" : "全选"
-            }}</span>
-          </button>
-
-          <div class="w-px h-6 bg-border mx-1"></div>
-
-          <span
-            class="text-xs font-medium px-2 text-muted-foreground tabular-nums"
-            >已选 {{ selectedUrls.size }}</span
-          >
-
-          <div class="w-px h-6 bg-border mx-1"></div>
-
-          <!-- 分组 -->
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <button
-                class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="修改分组"
-                :disabled="selectedUrls.size === 0"
-              >
-                <FolderX class="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="center"
-              side="top"
-              class="w-56 p-2 rounded-xl mb-2 bg-popover backdrop-blur-xl border-border shadow-lg"
+      <!-- 分组下拉菜单（插槽） -->
+      <template #before-delete>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <button
+              class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="修改分组"
+              :disabled="selectedUrls.size === 0"
             >
+              <FolderX class="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="center"
+            side="top"
+            class="w-56 p-2 rounded-xl mb-2 bg-popover backdrop-blur-xl border-border shadow-lg"
+          >
+            <DropdownMenuItem
+              @click="batchSetGroup('')"
+              class="rounded-lg cursor-pointer"
+            >
+              设为未分组
+            </DropdownMenuItem>
+            <DropdownMenuSeparator
+              class="my-1"
+              v-if="existingGroups.length > 0"
+            />
+            <div class="max-h-48 overflow-y-auto px-1">
               <DropdownMenuItem
-                @click="batchSetGroup('')"
+                v-for="g in existingGroups"
+                :key="g"
+                @click="batchSetGroup(g)"
                 class="rounded-lg cursor-pointer"
-                >设为未分组</DropdownMenuItem
               >
-              <DropdownMenuSeparator
-                class="my-1"
-                v-if="existingGroups.length > 0"
-              />
-              <div class="max-h-48 overflow-y-auto px-1">
-                <DropdownMenuItem
-                  v-for="g in existingGroups"
-                  :key="g"
-                  @click="batchSetGroup(g)"
-                  class="rounded-lg cursor-pointer"
-                >
-                  {{ g }}
-                </DropdownMenuItem>
+                {{ g }}
+              </DropdownMenuItem>
+            </div>
+            <DropdownMenuSeparator class="my-1" />
+            <div class="p-1">
+              <div
+                v-if="!showGroupInput"
+                @click.stop="showGroupInput = true"
+                class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted cursor-pointer text-sm transition-colors"
+              >
+                <Plus class="h-4 w-4" /> 新建分组...
               </div>
-              <DropdownMenuSeparator class="my-1" />
-              <div class="p-1">
-                <div
-                  v-if="!showGroupInput"
-                  @click.stop="showGroupInput = true"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted cursor-pointer text-sm transition-colors"
-                >
-                  <Plus class="h-4 w-4" /> 新建分组...
-                </div>
-                <div v-else class="space-y-2">
-                  <Input
-                    v-model="newGroupName"
-                    placeholder="分组名称"
+              <div v-else class="space-y-2">
+                <Input
+                  v-model="newGroupName"
+                  placeholder="分组名称"
+                  class="h-8 text-xs"
+                  @keyup.enter="confirmNewGroup"
+                  autofocus
+                />
+                <div class="flex gap-2">
+                  <Button
+                    size="sm"
+                    class="flex-1 h-8 text-xs"
+                    @click="confirmNewGroup"
+                  >
+                    确定
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     class="h-8 text-xs"
-                    @keyup.enter="confirmNewGroup"
-                    autofocus
-                  />
-                  <div class="flex gap-2">
-                    <Button
-                      size="sm"
-                      class="flex-1 h-8 text-xs"
-                      @click="confirmNewGroup"
-                      >确定</Button
-                    >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      class="h-8 text-xs"
-                      @click="showGroupInput = false"
-                      >取消</Button
-                    >
-                  </div>
+                    @click="showGroupInput = false"
+                  >
+                    取消
+                  </Button>
                 </div>
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <!-- 删除 -->
-          <button
-            class="w-9 h-9 rounded-full hover:bg-destructive/10 text-destructive hover:text-destructive flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="删除选中"
-            :disabled="selectedUrls.size === 0"
-            @click="batchDelete"
-          >
-            <Trash2 class="h-4 w-4" />
-          </button>
-
-          <!-- 关闭 -->
-          <button
-            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors ml-1 active:scale-95"
-            @click="toggleManageMode"
-            title="退出管理"
-          >
-            <X class="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </Transition>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </template>
+    </ManageModeBar>
 
     <ImportSource v-model:open="showImport" @success="loadSources" />
     <EditSource

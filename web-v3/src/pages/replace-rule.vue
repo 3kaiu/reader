@@ -2,21 +2,15 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
-  ArrowLeft,
-  Search,
   Plus,
   Trash2,
   Upload,
   Download,
   Wand2,
-  CheckSquare,
-  X,
   Edit2,
-  RefreshCw,
 } from "lucide-vue-next";
 import { replaceApi, type ReplaceRule } from "@/api/replace";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +19,13 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
 import EditRule from "@/components/replace/EditRule.vue";
 import ImportRule from "@/components/replace/ImportRule.vue";
+import {
+  PageHeader,
+  PageToolbar,
+  ManageModeBar,
+  EmptyState,
+  LoadingGrid,
+} from "@/components/common";
 
 const router = useRouter();
 const { success, error, warning } = useMessage();
@@ -203,165 +204,86 @@ onMounted(() => {
 
     <!-- 主内容区 -->
     <main class="px-5 max-w-7xl mx-auto pt-6 sm:pt-8 pb-32">
-      <!-- 第一行：返回、搜索（居中）、导入/导出/新增规则（居右） -->
-      <div class="flex items-center gap-3 mb-4">
-        <!-- 返回按钮 -->
-        <button
-          class="w-10 h-10 rounded-full hover:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
-          @click="goBack"
-          title="返回书架"
-          aria-label="返回书架"
-        >
-          <ArrowLeft class="h-5 w-5 text-muted-foreground" />
-        </button>
+      <!-- 页面头部 -->
+      <PageHeader
+        :search-value="searchKeyword"
+        :search-placeholder="'搜索规则名称、模式或范围...'"
+        :actions="[
+          {
+            label: '导出',
+            icon: Download,
+            onClick: exportRules,
+            variant: 'outline',
+            hideLabelOnMobile: true,
+          },
+          {
+            label: '导入',
+            icon: Upload,
+            onClick: () => (showImport = true),
+            variant: 'outline',
+            hideLabelOnMobile: true,
+          },
+          {
+            label: '新增规则',
+            icon: Plus,
+            onClick: () => openEdit(),
+            variant: 'default',
+          },
+        ]"
+        @update:search-value="searchKeyword = $event"
+        @back="goBack"
+      />
 
-        <!-- 搜索框（居中） -->
-        <div class="flex-1 flex justify-center">
-          <div class="relative group w-full max-w-md">
-            <div
-              class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10"
-            >
-              <Search
-                class="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
-              />
-            </div>
-            <Input
-              v-model="searchKeyword"
-              class="pl-10 pr-10 h-10 rounded-full bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0"
-              placeholder="搜索规则名称、模式或范围..."
-            />
-            <button
-              v-if="searchKeyword"
-              class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
-              @click="searchKeyword = ''"
-              aria-label="清除"
-            >
-              <X
-                class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-              />
-            </button>
-          </div>
-        </div>
-
-        <!-- 操作按钮组（居右） -->
-        <div class="flex items-center gap-2 shrink-0">
-          <!-- 导出 -->
-          <Button variant="outline" size="sm" @click="exportRules">
-            <Download class="h-4 w-4 mr-2" />
-            <span class="hidden sm:inline">导出</span>
-          </Button>
-
-          <!-- 导入规则 -->
-          <Button
-            variant="outline"
-            size="sm"
-            @click="showImport = true"
-          >
-            <Upload class="h-4 w-4 mr-2" />
-            <span class="hidden sm:inline">导入</span>
-          </Button>
-
-          <!-- 新增规则 -->
-          <Button variant="default" size="sm" @click="openEdit()">
-            <Plus class="h-4 w-4 mr-2" />
-            新增规则
-          </Button>
-        </div>
-      </div>
-
-      <!-- 第二行：全部规则（x）、启用/禁用、批量管理（居右） -->
-      <div class="flex items-center gap-3 mb-6">
-        <!-- 全部规则标题 -->
-        <div class="flex items-center gap-2 shrink-0">
-          <Wand2 class="w-4 h-4 text-primary" />
-          <h2
-            class="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2"
-          >
-            全部规则
-            <span
-              class="text-xs font-normal text-muted-foreground/60 normal-case"
-              >({{ stats.filtered }})</span
-            >
-          </h2>
-        </div>
-
-        <div class="flex-1"></div>
-
-        <!-- 启用/禁用统计 -->
-        <div
-          class="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md border border-border shrink-0"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-          <span>{{ stats.enabled }} 启用</span>
-          <span class="opacity-50">/</span>
-          <span>{{ stats.total - stats.enabled }} 禁用</span>
-        </div>
-
-        <!-- 批量管理按钮 -->
-        <Button
-          variant="outline"
-          @click="toggleManageMode"
-          :class="
-            isManageMode && 'bg-primary/10 text-primary border-primary/20'
-          "
-          class="shrink-0"
-        >
-          <CheckSquare class="h-4 w-4 mr-2" />
-          <span class="hidden sm:inline">{{
-            isManageMode ? "退出管理" : "批量管理"
-          }}</span>
-        </Button>
-      </div>
+      <!-- 页面工具栏 -->
+      <PageToolbar
+        title="全部规则"
+        :icon="Wand2"
+        :count="stats.filtered"
+        :stats="[
+          {
+            label: '启用',
+            value: stats.enabled,
+            color: '#22c55e',
+          },
+          {
+            label: '/',
+            value: stats.total - stats.enabled,
+          },
+        ]"
+        :is-manage-mode="isManageMode"
+        @toggle-manage="toggleManageMode"
+      />
 
       <!-- 加载状态 -->
-      <div
-        v-if="loading"
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-      >
-        <div
-          v-for="i in 12"
-          :key="i"
-          class="h-32 bg-card rounded-2xl border border-border/50 animate-pulse"
-        ></div>
-      </div>
+      <LoadingGrid v-if="loading" />
 
       <!-- 空状态 -->
-      <div
+      <EmptyState
         v-else-if="filteredRules.length === 0"
-        class="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500"
-      >
-        <div
-          class="w-20 h-20 rounded-2xl bg-muted/30 flex items-center justify-center mb-6"
-        >
-          <Wand2 class="h-10 w-10 text-muted-foreground/40" />
-        </div>
-        <h3 class="text-lg font-semibold mb-2 text-foreground">
-          {{
-            searchKeyword ? "未找到匹配的规则" : "暂无规则"
-          }}
-        </h3>
-        <p
-          class="text-muted-foreground text-sm mb-8 max-w-xs mx-auto leading-relaxed"
-        >
-          {{
-            searchKeyword
-              ? "尝试更换搜索关键词"
-              : "创建替换规则来优化阅读体验"
-          }}
-        </p>
-        <div class="flex gap-3">
-          <Button variant="default" @click="openEdit()">
-            <Plus class="h-4 w-4 mr-2" /> 新增规则
-          </Button>
-          <Button
-            v-if="searchKeyword"
-            variant="outline"
-            @click="searchKeyword = ''"
-          >
-            查看全部
-          </Button>
-        </div>
-      </div>
+        :icon="Wand2"
+        :title="searchKeyword ? '未找到匹配的规则' : '暂无规则'"
+        :description="
+          searchKeyword
+            ? '尝试更换搜索关键词'
+            : '创建替换规则来优化阅读体验'
+        "
+        :actions="[
+          {
+            label: '新增规则',
+            icon: Plus,
+            onClick: () => openEdit(),
+          },
+          ...(searchKeyword
+            ? [
+                {
+                  label: '查看全部',
+                  onClick: () => (searchKeyword = ''),
+                  variant: 'outline' as const,
+                },
+              ]
+            : []),
+        ]"
+      />
 
       <!-- 规则列表 (网格布局) -->
       <div
@@ -511,63 +433,14 @@ onMounted(() => {
     </main>
 
     <!-- 底部操作栏 (管理模式) -->
-    <Transition
-      enter-active-class="transition duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"
-      enter-from-class="translate-y-20 opacity-0 scale-90"
-      enter-to-class="translate-y-0 opacity-100 scale-100"
-      leave-active-class="transition duration-200 ease-in"
-      leave-from-class="translate-y-0 opacity-100 scale-100"
-      leave-to-class="translate-y-20 opacity-0 scale-90"
-    >
-      <div
-        v-if="isManageMode"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[95vw]"
-      >
-        <div
-          class="bg-background/95 dark:bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-full px-3 py-2 flex items-center gap-2 text-foreground"
-        >
-          <button
-            class="h-9 px-4 rounded-full hover:bg-muted flex items-center gap-2 transition-colors active:scale-95 font-medium text-sm"
-            @click="selectAll"
-          >
-            <CheckSquare class="h-4 w-4" />
-            <span>{{
-              selectedRules.size === filteredRules.length
-                ? "取消全选"
-                : "全选"
-            }}</span>
-          </button>
-
-          <div class="w-px h-6 bg-border mx-1"></div>
-
-          <span
-            class="text-xs font-medium px-2 text-muted-foreground tabular-nums"
-            >已选 {{ selectedRules.size }}</span
-          >
-
-          <div class="w-px h-6 bg-border mx-1"></div>
-
-          <!-- 删除 -->
-          <button
-            class="w-9 h-9 rounded-full hover:bg-destructive/10 text-destructive hover:text-destructive flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="删除选中"
-            :disabled="selectedRules.size === 0"
-            @click="batchDelete"
-          >
-            <Trash2 class="h-4 w-4" />
-          </button>
-
-          <!-- 关闭 -->
-          <button
-            class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors ml-1 active:scale-95"
-            @click="toggleManageMode"
-            title="退出管理"
-          >
-            <X class="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </Transition>
+    <ManageModeBar
+      v-if="isManageMode"
+      :selected-count="selectedRules.size"
+      :total-count="filteredRules.length"
+      @select-all="selectAll"
+      @delete="batchDelete"
+      @close="toggleManageMode"
+    />
 
     <!-- Modals -->
     <ImportRule v-model:open="showImport" @success="loadRules" />
