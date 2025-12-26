@@ -4,6 +4,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::engine::source_rewriter::SourceRewriter;
 use crate::models::{BookSource, BookSourceFull};
 use crate::storage::FileStorage;
 
@@ -31,9 +32,73 @@ impl SourceService {
 
     /// 初始化加载书源
     pub async fn init(&self) -> anyhow::Result<()> {
+        // First, migrate any existing sources that still have java.* calls
+        self.migrate_existing_sources().await?;
+
         let sources: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
         let mut cache = self.sources.write().await;
         *cache = sources;
+        Ok(())
+    }
+
+    /// 迁移现有书源，将 java.* 调用转译为 native.*
+    ///
+    /// 此函数会读取所有书源，应用 SourceRewriter 转译，然后保存回文件。
+    /// 仅当有实际转译发生时才会写入文件。
+    async fn migrate_existing_sources(&self) -> anyhow::Result<()> {
+        // Read raw JSON to preserve all fields
+        let json_str: String = self.storage.read_file_or_default(SOURCES_FILE).await;
+
+        if json_str.is_empty() || json_str == "[]" {
+            return Ok(());
+        }
+
+        // Check if migration is needed (quick check for java. presence)
+        if !json_str.contains("java.") {
+            tracing::debug!("No java.* calls found in existing sources, skipping migration");
+            return Ok(());
+        }
+
+        // Parse as raw JSON array
+        let mut raw_sources: Vec<serde_json::Value> = serde_json::from_str(&json_str)?;
+
+        // Apply rewriter to each source
+        let rewriter = SourceRewriter::new();
+        let mut total_transpiled = 0;
+        let mut sources_changed = 0;
+
+        for source in &mut raw_sources {
+            let stats = rewriter.rewrite_source(source);
+            if stats.transpiled > 0 {
+                total_transpiled += stats.transpiled;
+                sources_changed += 1;
+            }
+        }
+
+        if total_transpiled > 0 {
+            tracing::info!(
+                "Migration: transpiled {} java.* calls across {} sources",
+                total_transpiled,
+                sources_changed
+            );
+
+            // Convert back to BookSourceFull and save
+            let migrated_sources: Vec<BookSourceFull> = raw_sources
+                .into_iter()
+                .filter_map(|v| serde_json::from_value(v).ok())
+                .collect();
+
+            self.storage
+                .write_json(SOURCES_FILE, &migrated_sources)
+                .await?;
+            tracing::info!(
+                "Migration complete: saved {} sources",
+                migrated_sources.len()
+            );
+        } else {
+            tracing::debug!("No migration needed for existing sources");
+        }
+
         Ok(())
     }
 
@@ -195,8 +260,26 @@ impl SourceService {
     }
 
     /// 保存书源
+    ///
+    /// 在保存时自动将 java.* 调用转译为 native.* 调用
     pub async fn save_source(&self, source_json: &str) -> Result<(), anyhow::Error> {
-        let source: BookSourceFull = serde_json::from_str(source_json)?;
+        // 1. 解析为原始 JSON Value
+        let mut raw_source: serde_json::Value = serde_json::from_str(source_json)?;
+
+        // 2. 转译 java.* 调用为 native.*
+        let rewriter = SourceRewriter::new();
+        let stats = rewriter.rewrite_source(&mut raw_source);
+
+        if stats.transpiled > 0 {
+            tracing::info!(
+                "Source save: transpiled {} java.* calls to native.*, {} unknown APIs",
+                stats.transpiled,
+                stats.unknown
+            );
+        }
+
+        // 3. 反序列化为 BookSourceFull
+        let source: BookSourceFull = serde_json::from_value(raw_source)?;
         let mut sources = self.sources.write().await;
 
         // 更新或添加
@@ -222,9 +305,37 @@ impl SourceService {
     }
 
     /// 批量导入书源
+    ///
+    /// 在导入时自动将 java.* 调用转译为 native.* 调用
     pub async fn import_sources(&self, sources_json: &str) -> Result<i32, anyhow::Error> {
-        let new_sources: Vec<BookSourceFull> = serde_json::from_str(sources_json)?;
-        let count = new_sources.len() as i32;
+        // 1. 解析为原始 JSON Value
+        let mut raw_sources: Vec<serde_json::Value> = serde_json::from_str(sources_json)?;
+        let count = raw_sources.len() as i32;
+
+        // 2. 转译 java.* 调用为 native.*
+        let rewriter = SourceRewriter::new();
+        let mut total_transpiled = 0;
+        let mut total_unknown = 0;
+
+        for source in &mut raw_sources {
+            let stats = rewriter.rewrite_source(source);
+            total_transpiled += stats.transpiled;
+            total_unknown += stats.unknown;
+        }
+
+        if total_transpiled > 0 {
+            tracing::info!(
+                "Source import: transpiled {} java.* calls to native.*, {} unknown APIs",
+                total_transpiled,
+                total_unknown
+            );
+        }
+
+        // 3. 反序列化为 BookSourceFull
+        let new_sources: Vec<BookSourceFull> = raw_sources
+            .into_iter()
+            .filter_map(|v| serde_json::from_value(v).ok())
+            .collect();
 
         let mut sources = self.sources.write().await;
 

@@ -6,18 +6,20 @@
 
 use super::js_analyzer::{AnalysisResult, ExprValue, JsPatternAnalyzer, NativeExecution};
 use super::parsers::RuleType;
-use super::preprocessor::{NativeApi, SourcePreprocessor, TemplateExpr};
-use crate::models::{
-    BookInfoRule, BookSourceFull, ContentRule, ExploreRule, SearchRule, TocRule,
-};
+use super::preprocessor::{SourcePreprocessor, TemplateExpr};
+use crate::models::{BookInfoRule, BookSourceFull, ContentRule, SearchRule, TocRule};
+use serde::{Deserialize, Serialize};
 
 /// Compiled rule that can be executed
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CompiledRule {
     /// Empty rule - no operation
     Empty,
     /// Pure CSS/XPath/JSON selector
-    Selector { rule_type: RuleType, selector: String },
+    Selector {
+        rule_type: RuleType,
+        selector: String,
+    },
     /// Native Rust execution
     Native(NativeExecution),
     /// Chain of native operations
@@ -33,7 +35,7 @@ pub enum CompiledRule {
 }
 
 /// How to join multiple rule parts
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum JoinType {
     /// Use first successful result
     FirstMatch,
@@ -42,7 +44,7 @@ pub enum JoinType {
 }
 
 /// Compiled URL with template parts
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledUrl {
     /// Original URL template
     pub original: String,
@@ -53,7 +55,7 @@ pub struct CompiledUrl {
 }
 
 /// URL template part
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UrlPart {
     /// Literal text
     Literal(String),
@@ -64,7 +66,7 @@ pub enum UrlPart {
 }
 
 /// Transformed book source with optimization metadata
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransformedSource {
     /// Original source data
     pub original: BookSourceFull,
@@ -87,7 +89,7 @@ pub struct TransformedSource {
 }
 
 /// Compiled search rules
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CompiledSearchRules {
     pub book_list: CompiledRule,
     pub name: CompiledRule,
@@ -98,10 +100,11 @@ pub struct CompiledSearchRules {
     pub cover_url: CompiledRule,
     pub book_url: CompiledRule,
     pub word_count: CompiledRule,
+    pub update_time: CompiledRule,
 }
 
 /// Compiled book info rules
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CompiledBookInfoRules {
     pub name: CompiledRule,
     pub author: CompiledRule,
@@ -111,10 +114,12 @@ pub struct CompiledBookInfoRules {
     pub toc_url: CompiledRule,
     pub last_chapter: CompiledRule,
     pub word_count: CompiledRule,
+    pub init: CompiledRule,
+    pub update_time: CompiledRule,
 }
 
 /// Compiled TOC rules
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CompiledTocRules {
     pub chapter_list: CompiledRule,
     pub chapter_name: CompiledRule,
@@ -124,7 +129,7 @@ pub struct CompiledTocRules {
 }
 
 /// Compiled content rules
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CompiledContentRules {
     pub content: CompiledRule,
     pub next_content_url: CompiledRule,
@@ -162,49 +167,62 @@ impl SourceTransformer {
     pub fn transform(&self, source: &BookSourceFull) -> TransformedSource {
         let mut requires_js = false;
         let mut js_apis = Vec::new();
-        
+
         // Transform search URL
         let search_url = if !source.search_url.is_empty() {
             Some(self.transform_url(&source.search_url, &mut requires_js, &mut js_apis))
         } else {
             None
         };
-        
+
         // Transform search rules
-        let search_rules = source.rule_search.as_ref()
+        let search_rules = source
+            .rule_search
+            .as_ref()
             .map(|r| self.transform_search_rules(r, &mut requires_js, &mut js_apis))
             .unwrap_or_default();
-        
+
         // Transform book info rules
-        let book_info_rules = source.rule_book_info.as_ref()
+        let book_info_rules = source
+            .rule_book_info
+            .as_ref()
             .map(|r| self.transform_book_info_rules(r, &mut requires_js, &mut js_apis))
             .unwrap_or_default();
-        
+
         // Transform TOC rules
-        let toc_rules = source.rule_toc.as_ref()
+        let toc_rules = source
+            .rule_toc
+            .as_ref()
             .map(|r| self.transform_toc_rules(r, &mut requires_js, &mut js_apis))
             .unwrap_or_default();
-        
+
         // Transform content rules
-        let content_rules = source.rule_content.as_ref()
+        let content_rules = source
+            .rule_content
+            .as_ref()
             .map(|r| self.transform_content_rules(r, &mut requires_js, &mut js_apis))
             .unwrap_or_default();
-        
+
         // Check jsLib - if present, likely needs JS
-        if source.js_lib.as_ref().map(|s: &String| !s.is_empty()).unwrap_or(false) {
+        if source
+            .js_lib
+            .as_ref()
+            .map(|s: &String| !s.is_empty())
+            .unwrap_or(false)
+        {
             requires_js = true;
             js_apis.push("jsLib".to_string());
         }
-        
+
         // Calculate complexity score
         let complexity_score = self.calculate_complexity(
-            &search_rules, 
-            &book_info_rules, 
-            &toc_rules, 
+            &search_rules,
+            &book_info_rules,
+            &toc_rules,
             &content_rules,
-            requires_js
+            requires_js,
         );
-        
+
         TransformedSource {
             original: source.clone(),
             complexity_score,
@@ -219,12 +237,17 @@ impl SourceTransformer {
     }
 
     /// Transform a URL template
-    fn transform_url(&self, url: &str, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledUrl {
+    fn transform_url(
+        &self,
+        url: &str,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledUrl {
         let preprocessed = self.preprocessor.preprocess_url(url);
-        
+
         let mut parts = Vec::new();
         let mut url_requires_js = false;
-        
+
         for part in &preprocessed.parts {
             match part {
                 TemplateExpr::Literal(s) => {
@@ -237,7 +260,10 @@ impl SourceTransformer {
                     // Convert to NativeExecution
                     let exec = NativeExecution {
                         api: api.clone(),
-                        args: args.iter().map(|a| self.template_to_expr_value(a)).collect(),
+                        args: args
+                            .iter()
+                            .map(|a| self.template_to_expr_value(a))
+                            .collect(),
                     };
                     parts.push(UrlPart::NativeCall(exec));
                 }
@@ -248,7 +274,7 @@ impl SourceTransformer {
                 }
             }
         }
-        
+
         CompiledUrl {
             original: url.to_string(),
             requires_js: url_requires_js,
@@ -257,7 +283,12 @@ impl SourceTransformer {
     }
 
     /// Transform search rules
-    fn transform_search_rules(&self, rules: &SearchRule, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledSearchRules {
+    fn transform_search_rules(
+        &self,
+        rules: &SearchRule,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledSearchRules {
         CompiledSearchRules {
             book_list: self.transform_rule_str(&rules.book_list, requires_js, js_apis),
             name: self.transform_rule_str(&rules.name, requires_js, js_apis),
@@ -267,26 +298,39 @@ impl SourceTransformer {
             intro: self.transform_rule_str(&rules.intro, requires_js, js_apis),
             cover_url: self.transform_rule_str(&rules.cover_url, requires_js, js_apis),
             book_url: self.transform_rule_str(&rules.book_url, requires_js, js_apis),
-            word_count: CompiledRule::Empty, // Not in current model
+            word_count: self.transform_rule_str(&rules.word_count, requires_js, js_apis),
+            update_time: self.transform_rule_str(&rules.update_time, requires_js, js_apis),
         }
     }
 
     /// Transform book info rules
-    fn transform_book_info_rules(&self, rules: &BookInfoRule, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledBookInfoRules {
+    fn transform_book_info_rules(
+        &self,
+        rules: &BookInfoRule,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledBookInfoRules {
         CompiledBookInfoRules {
             name: self.transform_rule_str(&rules.name, requires_js, js_apis),
             author: self.transform_rule_str(&rules.author, requires_js, js_apis),
-            kind: CompiledRule::Empty, // Not in model
+            kind: self.transform_rule_str(&rules.kind, requires_js, js_apis),
             intro: self.transform_rule_str(&rules.intro, requires_js, js_apis),
             cover_url: self.transform_rule_str(&rules.cover_url, requires_js, js_apis),
             toc_url: self.transform_rule_str(&rules.toc_url, requires_js, js_apis),
             last_chapter: self.transform_rule_str(&rules.last_chapter, requires_js, js_apis),
-            word_count: CompiledRule::Empty, // Not in model
+            word_count: self.transform_rule_str(&rules.word_count, requires_js, js_apis),
+            init: self.transform_rule_str(&rules.init, requires_js, js_apis),
+            update_time: self.transform_rule_str(&rules.update_time, requires_js, js_apis),
         }
     }
 
     /// Transform TOC rules
-    fn transform_toc_rules(&self, rules: &TocRule, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledTocRules {
+    fn transform_toc_rules(
+        &self,
+        rules: &TocRule,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledTocRules {
         CompiledTocRules {
             chapter_list: self.transform_rule_str(&rules.chapter_list, requires_js, js_apis),
             chapter_name: self.transform_rule_str(&rules.chapter_name, requires_js, js_apis),
@@ -297,19 +341,33 @@ impl SourceTransformer {
     }
 
     /// Transform content rules
-    fn transform_content_rules(&self, rules: &ContentRule, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledContentRules {
+    fn transform_content_rules(
+        &self,
+        rules: &ContentRule,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledContentRules {
         // Parse replace regex pairs
         let replace_regex = self.parse_replace_regex(&rules.replace_regex);
-        
+
         CompiledContentRules {
             content: self.transform_rule_str(&rules.content, requires_js, js_apis),
-            next_content_url: self.transform_rule_str(&rules.next_content_url, requires_js, js_apis),
+            next_content_url: self.transform_rule_str(
+                &rules.next_content_url,
+                requires_js,
+                js_apis,
+            ),
             replace_regex,
         }
     }
 
     /// Transform a rule from String field
-    fn transform_rule_str(&self, rule: &str, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledRule {
+    fn transform_rule_str(
+        &self,
+        rule: &str,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledRule {
         if rule.is_empty() {
             return CompiledRule::Empty;
         }
@@ -317,18 +375,24 @@ impl SourceTransformer {
     }
 
     /// Transform a single rule string
-    fn transform_rule(&self, rule: Option<&str>, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledRule {
+    fn transform_rule(
+        &self,
+        rule: Option<&str>,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledRule {
         let rule = match rule {
             Some(r) if !r.is_empty() => r,
             _ => return CompiledRule::Empty,
         };
-        
+
         let rule = rule.trim();
-        
+
         // Check for multi-rule operators
         if rule.contains("||") {
             let parts: Vec<_> = rule.split("||").map(|p| p.trim()).collect();
-            let compiled: Vec<_> = parts.iter()
+            let compiled: Vec<_> = parts
+                .iter()
                 .map(|p| self.transform_single_rule(p, requires_js, js_apis))
                 .collect();
             return CompiledRule::Composite {
@@ -336,10 +400,11 @@ impl SourceTransformer {
                 join_type: JoinType::FirstMatch,
             };
         }
-        
+
         if rule.contains("&&") {
             let parts: Vec<_> = rule.split("&&").map(|p| p.trim()).collect();
-            let compiled: Vec<_> = parts.iter()
+            let compiled: Vec<_> = parts
+                .iter()
                 .map(|p| self.transform_single_rule(p, requires_js, js_apis))
                 .collect();
             return CompiledRule::Composite {
@@ -347,21 +412,26 @@ impl SourceTransformer {
                 join_type: JoinType::Concatenate,
             };
         }
-        
+
         self.transform_single_rule(rule, requires_js, js_apis)
     }
 
     /// Transform a single rule (no || or &&)
-    fn transform_single_rule(&self, rule: &str, requires_js: &mut bool, js_apis: &mut Vec<String>) -> CompiledRule {
+    fn transform_single_rule(
+        &self,
+        rule: &str,
+        requires_js: &mut bool,
+        js_apis: &mut Vec<String>,
+    ) -> CompiledRule {
         let rule = rule.trim();
-        
+
         if rule.is_empty() {
             return CompiledRule::Empty;
         }
-        
+
         // Detect rule type
         let rule_type = RuleType::detect(rule, "");
-        
+
         match rule_type {
             RuleType::JavaScript => {
                 // Try to analyze for native execution
@@ -376,17 +446,26 @@ impl SourceTransformer {
                     }
                 }
             }
-            RuleType::Css | RuleType::XPath | RuleType::JsonPath | RuleType::JsoupDefault | RuleType::Regex => {
+            RuleType::Css
+            | RuleType::XPath
+            | RuleType::JsonPath
+            | RuleType::JsoupDefault
+            | RuleType::Regex => {
                 // Strip prefix and create selector
                 let selector = self.strip_rule_prefix(rule);
-                CompiledRule::Selector { rule_type: rule_type.clone(), selector }
+                CompiledRule::Selector {
+                    rule_type: rule_type.clone(),
+                    selector,
+                }
             }
         }
     }
 
     /// Strip rule type prefix (e.g., @css:, @xpath:)
     fn strip_rule_prefix(&self, rule: &str) -> String {
-        let prefixes = ["@css:", "css:", "@xpath:", "xpath:", "@json:", "json:", "@js:"];
+        let prefixes = [
+            "@css:", "css:", "@xpath:", "xpath:", "@json:", "json:", "@js:",
+        ];
         for prefix in prefixes {
             if rule.to_lowercase().starts_with(prefix) {
                 return rule[prefix.len()..].to_string();
@@ -400,7 +479,16 @@ impl SourceTransformer {
         match expr {
             TemplateExpr::Literal(s) => ExprValue::Literal(s.clone()),
             TemplateExpr::Variable(name) => ExprValue::Variable(name.clone()),
-            TemplateExpr::NativeCall { .. } => ExprValue::CurrentContent,
+            TemplateExpr::NativeCall { api, args } => {
+                let exec = NativeExecution {
+                    api: api.clone(),
+                    args: args
+                        .iter()
+                        .map(|a| self.template_to_expr_value(a))
+                        .collect(),
+                };
+                ExprValue::NativeCall(Box::new(exec))
+            }
             TemplateExpr::JsExpr(_) => ExprValue::CurrentContent,
         }
     }
@@ -408,7 +496,7 @@ impl SourceTransformer {
     /// Parse replace regex string into pairs
     fn parse_replace_regex(&self, regex_str: &str) -> Vec<(String, String)> {
         let mut result = Vec::new();
-        
+
         // Format: ["pattern1","replacement1"],["pattern2","replacement2"]
         // Or JSON array: [["pattern", "replacement"], ...]
         if let Ok(arr) = serde_json::from_str::<Vec<Vec<String>>>(regex_str) {
@@ -418,7 +506,7 @@ impl SourceTransformer {
                 }
             }
         }
-        
+
         result
     }
 
@@ -432,19 +520,19 @@ impl SourceTransformer {
         requires_js: bool,
     ) -> u8 {
         let mut score = 0u8;
-        
+
         // Base score if JS is required
         if requires_js {
             score += 40;
         }
-        
+
         // Add based on rule types
         let all_rules = [
             &search_rules.book_list,
             &search_rules.name,
             &search_rules.author,
         ];
-        
+
         for rule in all_rules {
             match rule {
                 CompiledRule::JavaScript(_) => score = score.saturating_add(10),
@@ -454,7 +542,7 @@ impl SourceTransformer {
                 _ => {}
             }
         }
-        
+
         score.min(100)
     }
 
@@ -462,7 +550,7 @@ impl SourceTransformer {
     pub fn analyze_compatibility(&self, source: &BookSourceFull) -> CompatibilityReport {
         let transformed = self.transform(source);
         let native_ratio = self.calculate_native_ratio(&transformed);
-        
+
         CompatibilityReport {
             source_name: source.book_source_name.clone(),
             source_url: source.book_source_url.clone(),
@@ -476,7 +564,7 @@ impl SourceTransformer {
     fn calculate_native_ratio(&self, transformed: &TransformedSource) -> f32 {
         let mut native = 0;
         let mut total = 0;
-        
+
         fn count_rule(rule: &CompiledRule, native: &mut i32, total: &mut i32) {
             *total += 1;
             match rule {
@@ -492,13 +580,13 @@ impl SourceTransformer {
                 }
             }
         }
-        
+
         count_rule(&transformed.search_rules.book_list, &mut native, &mut total);
         count_rule(&transformed.search_rules.name, &mut native, &mut total);
         count_rule(&transformed.search_rules.author, &mut native, &mut total);
         count_rule(&transformed.toc_rules.chapter_list, &mut native, &mut total);
         count_rule(&transformed.content_rules.content, &mut native, &mut total);
-        
+
         if total == 0 {
             1.0
         } else {
@@ -523,7 +611,7 @@ impl CompatibilityReport {
     pub fn is_fully_native(&self) -> bool {
         !self.requires_js && self.complexity_score == 0
     }
-    
+
     /// Check if source is mostly native (>80% rules)
     pub fn is_mostly_native(&self) -> bool {
         self.native_ratio >= 0.8
@@ -533,7 +621,7 @@ impl CompatibilityReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     fn create_test_source() -> BookSourceFull {
         BookSourceFull {
             book_source_url: "https://test.com".to_string(),
@@ -552,6 +640,8 @@ mod tests {
                 intro: String::new(),
                 cover_url: String::new(),
                 book_url: String::new(),
+                word_count: String::new(),
+                update_time: String::new(),
             }),
             rule_book_info: None,
             rule_toc: None,
@@ -562,38 +652,39 @@ mod tests {
             js_lib: None,
         }
     }
-    
+
     #[test]
     fn test_transform_source() {
         let source = create_test_source();
         let transformer = SourceTransformer::new();
         let transformed = transformer.transform(&source);
-        
+
         assert!(!transformed.requires_js);
         assert!(transformed.complexity_score < 50);
     }
-    
+
     #[test]
     fn test_transform_url() {
         let transformer = SourceTransformer::new();
         let mut requires_js = false;
         let mut js_apis = Vec::new();
-        
+
         let url = "https://test.com/search?key={{key}}";
         let compiled = transformer.transform_url(url, &mut requires_js, &mut js_apis);
-        
+
         assert!(!compiled.requires_js);
         assert!(compiled.parts.is_some());
     }
-    
+
     #[test]
     fn test_transform_selector_rule() {
         let transformer = SourceTransformer::new();
         let mut requires_js = false;
         let mut js_apis = Vec::new();
-        
-        let rule = transformer.transform_rule(Some("div.class@text"), &mut requires_js, &mut js_apis);
-        
+
+        let rule =
+            transformer.transform_rule(Some("div.class@text"), &mut requires_js, &mut js_apis);
+
         match rule {
             CompiledRule::Selector { rule_type, .. } => {
                 assert_eq!(rule_type, RuleType::JsoupDefault);
@@ -601,15 +692,20 @@ mod tests {
             _ => panic!("Expected Selector rule"),
         }
     }
-    
+
     #[test]
     fn test_transform_js_rule_native() {
+        use crate::engine::preprocessor::NativeApi;
         let transformer = SourceTransformer::new();
         let mut requires_js = false;
         let mut js_apis = Vec::new();
-        
-        let rule = transformer.transform_rule(Some("@js:java.base64Decode(result)"), &mut requires_js, &mut js_apis);
-        
+
+        let rule = transformer.transform_rule(
+            Some("@js:java.base64Decode(result)"),
+            &mut requires_js,
+            &mut js_apis,
+        );
+
         match rule {
             CompiledRule::Native(exec) => {
                 assert_eq!(exec.api, NativeApi::Base64Decode);
@@ -617,13 +713,13 @@ mod tests {
             _ => panic!("Expected Native rule, got {:?}", rule),
         }
     }
-    
+
     #[test]
     fn test_compatibility_report() {
         let source = create_test_source();
         let transformer = SourceTransformer::new();
         let report = transformer.analyze_compatibility(&source);
-        
+
         assert_eq!(report.source_name, "Test Source");
         assert!(report.native_ratio > 0.5);
     }

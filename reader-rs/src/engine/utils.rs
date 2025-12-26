@@ -1,5 +1,5 @@
 /// Robustly resolve an absolute URL from a base and a relative path.
-/// 
+///
 /// If the base is not a valid URL (e.g. it's an ID like "DQuestQBall"),
 /// it returns the URL as-is if it's already absolute, otherwise it returns
 /// the original relative URL to avoid "DQuestQBall/path" errors.
@@ -11,7 +11,7 @@ pub fn resolve_absolute_url(base: &str, url: &str) -> String {
     if url.starts_with("http://") || url.starts_with("https://") {
         return url.to_string();
     }
-    
+
     if url.starts_with("//") {
         return format!("https:{}", url);
     }
@@ -22,7 +22,7 @@ pub fn resolve_absolute_url(base: &str, url: &str) -> String {
     if !base.contains("://") {
         return url.to_string();
     }
-    
+
     if url.starts_with('/') {
         // Get base domain
         if let Some(slash_pos) = base.find("://") {
@@ -36,7 +36,7 @@ pub fn resolve_absolute_url(base: &str, url: &str) -> String {
             }
         }
     }
-    
+
     // Relative URL
     if base.ends_with('/') {
         format!("{}{}", base, url)
@@ -56,10 +56,10 @@ pub fn resolve_absolute_url(base: &str, url: &str) -> String {
 /// Purify HTML content by removing scripts, styles, and extracting readable text
 pub fn purify_content(html: &str) -> String {
     use scraper::{Html, Selector};
-    
+
     let doc = Html::parse_fragment(html);
     let mut lines: Vec<String> = Vec::new();
-    
+
     // Try to find content paragraphs first
     if let Ok(p_selector) = Selector::parse("p") {
         for element in doc.select(&p_selector) {
@@ -70,7 +70,7 @@ pub fn purify_content(html: &str) -> String {
             }
         }
     }
-    
+
     // If no paragraphs, extract all text nodes
     if lines.is_empty() {
         for node in doc.tree.nodes() {
@@ -82,25 +82,27 @@ pub fn purify_content(html: &str) -> String {
             }
         }
     }
-    
+
     lines.join("\n\n")
 }
 
 /// Extract image URLs from HTML, handling lazy-load attributes
 pub fn extract_images(html: &str) -> Vec<String> {
     use scraper::{Html, Selector};
-    
+
     let doc = Html::parse_fragment(html);
     let mut images: Vec<String> = Vec::new();
-    
+
     if let Ok(img_selector) = Selector::parse("img") {
         for element in doc.select(&img_selector) {
             // Try multiple attributes for lazy-loaded images
-            let src = element.value().attr("data-src")
+            let src = element
+                .value()
+                .attr("data-src")
                 .or_else(|| element.value().attr("data-original"))
                 .or_else(|| element.value().attr("data-lazy-src"))
                 .or_else(|| element.value().attr("src"));
-            
+
             if let Some(url) = src {
                 if !url.is_empty() && !url.starts_with("data:") {
                     images.push(url.to_string());
@@ -108,7 +110,7 @@ pub fn extract_images(html: &str) -> Vec<String> {
             }
         }
     }
-    
+
     images
 }
 
@@ -119,13 +121,13 @@ fn chinese_to_number(s: &str) -> Option<u32> {
     if chars.is_empty() {
         return None;
     }
-    
+
     let mut result = 0u32;
     let mut temp = 0u32;
-    
+
     for c in chars {
         match c {
-            '零' => {},
+            '零' => {}
             '一' | '壹' => temp = 1,
             '二' | '贰' | '两' => temp = 2,
             '三' | '叁' => temp = 3,
@@ -136,27 +138,33 @@ fn chinese_to_number(s: &str) -> Option<u32> {
             '八' | '捌' => temp = 8,
             '九' | '玖' => temp = 9,
             '十' | '拾' => {
-                if temp == 0 { temp = 1; }
+                if temp == 0 {
+                    temp = 1;
+                }
                 temp *= 10;
                 result += temp;
                 temp = 0;
-            },
+            }
             '百' | '佰' => {
-                if temp == 0 { temp = 1; }
+                if temp == 0 {
+                    temp = 1;
+                }
                 temp *= 100;
                 result += temp;
                 temp = 0;
-            },
+            }
             '千' | '仟' => {
-                if temp == 0 { temp = 1; }
+                if temp == 0 {
+                    temp = 1;
+                }
                 temp *= 1000;
                 result += temp;
                 temp = 0;
-            },
+            }
             _ => return None,
         }
     }
-    
+
     Some(result + temp)
 }
 
@@ -164,12 +172,12 @@ fn chinese_to_number(s: &str) -> Option<u32> {
 /// E.g., "第一章" -> "第1章", "第十二章" -> "第12章"
 pub fn to_num_chapter(s: &str) -> String {
     let re = regex::Regex::new(r"(第)(.+?)(章|节|回|卷)").unwrap();
-    
+
     re.replace(s, |caps: &regex::Captures| {
         let prefix = &caps[1];
         let num_str = &caps[2];
         let suffix = &caps[3];
-        
+
         // Try to convert Chinese numerals
         if let Some(num) = chinese_to_number(num_str) {
             format!("{}{}{}", prefix, num, suffix)
@@ -177,5 +185,14 @@ pub fn to_num_chapter(s: &str) -> String {
             // Not Chinese numerals, return as-is
             caps[0].to_string()
         }
-    }).to_string()
+    })
+    .to_string()
+}
+
+/// Get the common cache directory
+pub fn get_cache_dir() -> std::path::PathBuf {
+    std::env::current_dir()
+        .unwrap_or_default()
+        .join("data")
+        .join("cache")
 }

@@ -29,9 +29,14 @@ impl NativeHttpResponse {
             "headers": self.headers,
             "code": self.status_code,
             "url": self.url
-        }).to_string()
+        })
+        .to_string()
     }
 }
+
+use std::sync::OnceLock;
+
+static GLOBAL_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
 
 /// Native HTTP Client for direct Rust execution
 pub struct NativeHttpClient {
@@ -41,46 +46,56 @@ pub struct NativeHttpClient {
 }
 
 impl NativeHttpClient {
-    /// Create a new NativeHttpClient
+    /// Create a new NativeHttpClient (reuses global connection pool)
     pub fn new(cache_dir: PathBuf) -> Result<Self> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .danger_accept_invalid_certs(true)
-            .gzip(true)
-            .build()?;
-        
+        let client = GLOBAL_CLIENT
+            .get_or_init(|| {
+                reqwest::blocking::Client::builder()
+                    .timeout(Duration::from_secs(30))
+                    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .danger_accept_invalid_certs(true)
+                    .gzip(true)
+                    .build()
+                    .expect("Failed to initialize global HTTP client")
+            })
+            .clone();
+
         Ok(Self {
             client,
             cache_dir,
             default_headers: HashMap::new(),
         })
     }
-    
+
     /// Create with default headers
     pub fn with_headers(cache_dir: PathBuf, headers: HashMap<String, String>) -> Result<Self> {
         let mut client = Self::new(cache_dir)?;
         client.default_headers = headers;
         Ok(client)
     }
-    
+
     /// Execute HTTP GET request
     pub fn get(&self, url: &str, headers: &HashMap<String, String>) -> Result<NativeHttpResponse> {
         self.request("GET", url, None, headers)
     }
-    
+
     /// Execute HTTP POST request
-    pub fn post(&self, url: &str, body: &str, headers: &HashMap<String, String>) -> Result<NativeHttpResponse> {
+    pub fn post(
+        &self,
+        url: &str,
+        body: &str,
+        headers: &HashMap<String, String>,
+    ) -> Result<NativeHttpResponse> {
         self.request("POST", url, Some(body), headers)
     }
-    
+
     /// Execute generic HTTP request
     pub fn request(
-        &self, 
-        method: &str, 
-        url: &str, 
-        body: Option<&str>, 
-        headers: &HashMap<String, String>
+        &self,
+        method: &str,
+        url: &str,
+        body: Option<&str>,
+        headers: &HashMap<String, String>,
     ) -> Result<NativeHttpResponse> {
         let method = match method.to_uppercase().as_str() {
             "POST" => reqwest::Method::POST,
@@ -90,31 +105,31 @@ impl NativeHttpClient {
             "HEAD" => reqwest::Method::HEAD,
             _ => reqwest::Method::GET,
         };
-        
+
         let mut request = self.client.request(method, url);
-        
+
         // Add default headers first
         for (key, value) in &self.default_headers {
             request = request.header(key.as_str(), value.as_str());
         }
-        
+
         // Add request-specific headers (override defaults)
         for (key, value) in headers {
             request = request.header(key.as_str(), value.as_str());
         }
-        
+
         // Add body for POST/PUT
         if let Some(body_str) = body {
             request = request
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(body_str.to_string());
         }
-        
+
         let response = request.send()?;
-        
+
         let status_code = response.status().as_u16();
         let final_url = response.url().to_string();
-        
+
         // Collect headers
         let mut resp_headers = HashMap::new();
         for (name, value) in response.headers().iter() {
@@ -122,9 +137,9 @@ impl NativeHttpClient {
                 resp_headers.insert(name.as_str().to_string(), val_str.to_string());
             }
         }
-        
+
         let body = response.text().unwrap_or_default();
-        
+
         Ok(NativeHttpResponse {
             body,
             headers: resp_headers,
@@ -132,60 +147,67 @@ impl NativeHttpClient {
             url: final_url,
         })
     }
-    
+
     /// Execute concurrent GET requests
     pub fn get_all(&self, urls: &[String]) -> Vec<NativeHttpResponse> {
         use std::thread;
-        
-        let handles: Vec<_> = urls.iter().map(|url| {
-            let url = url.clone();
-            let client = self.client.clone();
-            
-            thread::spawn(move || {
-                let response = client
-                    .get(&url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .send()
-                    .ok()?;
-                
-                let status_code = response.status().as_u16();
-                let final_url = response.url().to_string();
-                
-                let mut headers = HashMap::new();
-                for (name, value) in response.headers().iter() {
-                    if let Ok(val_str) = value.to_str() {
-                        headers.insert(name.as_str().to_string(), val_str.to_string());
+
+        let handles: Vec<_> = urls
+            .iter()
+            .map(|url| {
+                let url = url.clone();
+                let client = self.client.clone();
+
+                thread::spawn(move || {
+                    let response = client
+                        .get(&url)
+                        .header(
+                            "User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        )
+                        .send()
+                        .ok()?;
+
+                    let status_code = response.status().as_u16();
+                    let final_url = response.url().to_string();
+
+                    let mut headers = HashMap::new();
+                    for (name, value) in response.headers().iter() {
+                        if let Ok(val_str) = value.to_str() {
+                            headers.insert(name.as_str().to_string(), val_str.to_string());
+                        }
                     }
-                }
-                
-                let body = response.text().unwrap_or_default();
-                
-                Some(NativeHttpResponse {
-                    body,
-                    headers,
-                    status_code,
-                    url: final_url,
+
+                    let body = response.text().unwrap_or_default();
+
+                    Some(NativeHttpResponse {
+                        body,
+                        headers,
+                        status_code,
+                        url: final_url,
+                    })
                 })
             })
-        }).collect();
-        
-        handles.into_iter()
+            .collect();
+
+        handles
+            .into_iter()
             .filter_map(|h| h.join().ok().flatten())
             .collect()
     }
-    
+
     /// Cache file from URL with expiry time
     pub fn cache_file(&self, url: &str, save_time: i32) -> Result<String> {
         use std::fs;
         use std::time::SystemTime;
-        
+
         // Create cache directory if needed
         fs::create_dir_all(&self.cache_dir)?;
-        
+
         // Generate cache key from URL
         let cache_key = format!("{:x}", md5::compute(url));
         let cache_path = self.cache_dir.join(&cache_key);
-        
+
         // Check if cache is valid
         if cache_path.exists() {
             if save_time == 0 {
@@ -205,22 +227,22 @@ impl NativeHttpClient {
                 }
             }
         }
-        
+
         // Download and cache
         let response = self.get(url, &HashMap::new())?;
-        
+
         // Save to cache
         if !response.body.is_empty() {
             let _ = fs::write(&cache_path, &response.body);
         }
-        
+
         Ok(response.body)
     }
-    
+
     /// Import external script (with caching)
     pub fn import_script(&self, path: &str) -> Result<String> {
         use std::fs;
-        
+
         if path.starts_with("http://") || path.starts_with("https://") {
             // Download with permanent cache
             self.cache_file(path, 0)
@@ -235,12 +257,12 @@ impl NativeHttpClient {
 mod tests {
     use super::*;
     use std::env;
-    
+
     fn create_test_client() -> NativeHttpClient {
         let cache_dir = env::temp_dir().join("reader_rs_test_cache");
         NativeHttpClient::new(cache_dir).unwrap()
     }
-    
+
     #[test]
     fn test_response_to_json() {
         let resp = NativeHttpResponse {
@@ -249,11 +271,11 @@ mod tests {
             status_code: 200,
             url: "https://example.com".to_string(),
         };
-        
+
         let json = resp.to_json();
         assert!(json.contains("\"body\":\"test body\""));
         assert!(json.contains("\"code\":200"));
     }
-    
+
     // HTTP tests would require network access, skip in unit tests
 }

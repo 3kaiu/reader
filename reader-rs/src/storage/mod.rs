@@ -92,6 +92,11 @@ impl FileStorage {
         Ok(content)
     }
 
+    /// 读取任意文件，不存在则返回空字符串
+    pub async fn read_file_or_default(&self, filename: &str) -> String {
+        self.read_file(filename).await.unwrap_or_default()
+    }
+
     /// 写入任意文件
     pub async fn write_file(&self, filename: &str, content: &str) -> Result<()> {
         let path = self.data_path(filename);

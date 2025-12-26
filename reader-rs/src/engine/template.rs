@@ -105,7 +105,12 @@ impl TemplateExecutor {
                 }
 
                 // Execute natively
-                self.native_api.execute(api, &arg_values)
+                // Execute natively
+                self.native_api.execute(
+                    api,
+                    &arg_values,
+                    &crate::engine::native_api::ExecutionContext::default(),
+                )
             }
 
             TemplateExpr::JsExpr(code) => self.execute_js(code, ctx),

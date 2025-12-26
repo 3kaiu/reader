@@ -20,35 +20,35 @@ pub struct BookSourceFull {
     /// 是否启用
     #[serde(default = "default_true")]
     pub enabled: bool,
-    
+
     // === 搜索规则 ===
     #[serde(default)]
     pub search_url: String,
     #[serde(default)]
     pub rule_search: Option<SearchRule>,
-    
+
     // === 书籍信息规则 ===
     #[serde(default)]
     pub rule_book_info: Option<BookInfoRule>,
-    
+
     // === 目录规则 ===
     #[serde(default)]
     pub rule_toc: Option<TocRule>,
-    
+
     // === 正文规则 ===
     #[serde(default)]
     pub rule_content: Option<ContentRule>,
-    
+
     // === 发现规则 ===
     #[serde(default)]
     pub rule_explore: Option<ExploreRule>,
-    
+
     // === HTTP 相关 ===
     #[serde(default)]
     pub header: Option<String>,
     #[serde(default)]
     pub login_url: Option<String>,
-    
+
     // === JS 库 ===
     #[serde(default)]
     pub js_lib: Option<String>,
@@ -78,6 +78,10 @@ pub struct SearchRule {
     pub kind: String,
     #[serde(default)]
     pub last_chapter: String,
+    #[serde(default)]
+    pub word_count: String,
+    #[serde(default)]
+    pub update_time: String,
 }
 
 /// 书籍信息规则
@@ -98,6 +102,12 @@ pub struct BookInfoRule {
     pub toc_url: String,
     #[serde(default)]
     pub last_chapter: String,
+    #[serde(default)]
+    pub word_count: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub update_time: String,
 }
 
 /// 目录规则

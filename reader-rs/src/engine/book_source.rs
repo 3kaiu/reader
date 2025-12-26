@@ -8,10 +8,18 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
 
+use crate::engine::utils::get_cache_dir;
+
 use super::http_client::HttpClient;
+use super::native_api::NativeApiProvider;
+use super::native_executor::NativeExecutor;
+use super::parsers::RuleType;
 use super::rule_analyzer::RuleAnalyzer;
+use super::source_transformer::{CompiledRule, SourceTransformer, TransformedSource};
+use crate::models::BookSourceFull;
 use crate::storage::kv::KvStore;
 
 /// Book source definition
@@ -152,6 +160,8 @@ pub struct BookSourceEngine {
     pub(crate) source: BookSource,
     pub(crate) analyzer: RuleAnalyzer,
     pub(crate) http: HttpClient,
+    pub(crate) transformed: Option<TransformedSource>,
+    pub(crate) native_executor: Option<NativeExecutor>,
 }
 
 impl BookSourceEngine {
@@ -176,7 +186,7 @@ impl BookSourceEngine {
 
         // Create HTTP client with source-level headers
         let http = HttpClient::with_headers(&base_url, source.header.as_deref())?;
-        let mut analyzer = RuleAnalyzer::new(kv_store)?;
+        let mut analyzer = RuleAnalyzer::new(kv_store.clone())?;
         analyzer.set_base_url(&base_url);
 
         // Preload jsLib if present
@@ -186,11 +196,133 @@ impl BookSourceEngine {
             }
         }
 
+        // Compile source rules
+        // Compile source rules with caching
+        let mut transformed = None;
+        let mut native_executor = None;
+
+        // Initialize Native Executor early infrastructure
+        let cm = Arc::new(crate::engine::cookie::CookieManager::new());
+        let provider = Arc::new(NativeApiProvider::new(cm, kv_store));
+        native_executor = Some(NativeExecutor::new(provider));
+
+        // Setup cache
+        let cache_dir = get_cache_dir().join("rules");
+        let _ = fs::create_dir_all(&cache_dir);
+
+        let source_json_str = serde_json::to_string(&source).unwrap_or_default();
+        let hash = format!("{:x}", md5::compute(&source_json_str));
+        let cache_path = cache_dir.join(format!("{}.json", hash));
+
+        // Try load from cache
+        if cache_path.exists() {
+            if let Ok(file) = fs::File::open(&cache_path) {
+                if let Ok(cached) = serde_json::from_reader(file) {
+                    transformed = Some(cached);
+                }
+            }
+        }
+
+        // Convert to BookSourceFull for transformer if not cached
+        if transformed.is_none() {
+            if let Ok(json) = serde_json::to_value(&source) {
+                if let Ok(full_source) = serde_json::from_value::<BookSourceFull>(json) {
+                    let transformer = SourceTransformer::new();
+                    let t = transformer.transform(&full_source);
+
+                    // Save to cache
+                    if let Ok(file) = fs::File::create(&cache_path) {
+                        let _ = serde_json::to_writer(file, &t);
+                    }
+
+                    transformed = Some(t);
+                }
+            }
+        }
+
         Ok(Self {
             source,
             analyzer,
             http,
+            transformed,
+            native_executor,
         })
+    }
+
+    /// Reconstruct rule string from CompiledRule
+    fn reconstruct_rule(&self, rule_type: &RuleType, selector: &str) -> String {
+        let prefix = match rule_type {
+            RuleType::Css => "@css:",
+            RuleType::XPath => "@xpath:",
+            RuleType::JsonPath => "@json:",
+            RuleType::JsoupDefault => "",
+            RuleType::Regex => "@regex:",
+            _ => "",
+        };
+        format!("{}{}", prefix, selector)
+    }
+
+    /// Execute a compiled rule (helper)
+    fn execute_compiled(&self, rule: &CompiledRule, content: &str) -> Result<String> {
+        match rule {
+            CompiledRule::Empty => Ok(String::new()),
+            CompiledRule::Selector {
+                rule_type,
+                selector,
+            } => {
+                let rule_str = self.reconstruct_rule(rule_type, selector);
+                self.analyzer.get_string(content, &rule_str)
+            }
+            CompiledRule::Native(exec) => {
+                if let Some(executor) = &self.native_executor {
+                    let context = crate::engine::native_api::ExecutionContext {
+                        base_url: self.source.book_source_url.clone(),
+                    };
+                    let vars = HashMap::new();
+                    executor.execute(exec, &context, &vars, Some(content))
+                } else {
+                    Err(anyhow!("Native executor not initialized"))
+                }
+            }
+            CompiledRule::JavaScript(code) => {
+                let rule_str = format!("@js:{}", code);
+                self.analyzer.get_string(content, &rule_str)
+            }
+            _ => Err(anyhow!("Unsupported compiled rule type")),
+        }
+    }
+
+    /// Execute a compiled rule returning list (helper)
+    fn execute_compiled_list(&self, rule: &CompiledRule, content: &str) -> Result<Vec<String>> {
+        match rule {
+            CompiledRule::Selector {
+                rule_type,
+                selector,
+            } => {
+                let rule_str = self.reconstruct_rule(rule_type, selector);
+                self.analyzer.get_elements(content, &rule_str)
+            }
+            CompiledRule::Native(exec) => {
+                if let Some(executor) = &self.native_executor {
+                    let context = crate::engine::native_api::ExecutionContext {
+                        base_url: self.source.book_source_url.clone(),
+                    };
+                    let vars = HashMap::new();
+                    let res = executor.execute(exec, &context, &vars, Some(content))?;
+                    // Try parse as JSON list
+                    if res.trim().starts_with('[') {
+                        if let Ok(list) = serde_json::from_str::<Vec<String>>(&res) {
+                            return Ok(list);
+                        }
+                    }
+                    Ok(vec![res])
+                } else {
+                    Err(anyhow!("Native executor not initialized"))
+                }
+            }
+            CompiledRule::Empty => Ok(vec![]),
+            _ => Ok(vec![]),
+        }
     }
 
     /// Search for books
@@ -246,6 +378,47 @@ impl BookSourceEngine {
         };
 
         // Parse results
+        // Compiled path
+        if let Some(transformed) = &self.transformed {
+            let rules = &transformed.search_rules;
+            // Execute list rule to get "element" strings
+            let elements = self.execute_compiled_list(&rules.book_list, &content)?;
+
+            let mut books = Vec::new();
+            for element in elements {
+                let name = self
+                    .execute_compiled(&rules.name, &element)
+                    .unwrap_or_default();
+                if name.is_empty() {
+                    continue;
+                }
+
+                let book = BookItem {
+                    name,
+                    author: self
+                        .execute_compiled(&rules.author, &element)
+                        .unwrap_or_default(),
+                    intro: self.execute_compiled(&rules.intro, &element).ok(),
+                    kind: self.execute_compiled(&rules.kind, &element).ok(),
+                    last_chapter: self.execute_compiled(&rules.last_chapter, &element).ok(),
+                    cover_url: self
+                        .execute_compiled(&rules.cover_url, &element)
+                        .ok()
+                        .map(|u| self.http.absolute_url(&u)),
+                    book_url: self
+                        .execute_compiled(&rules.book_url, &element)
+                        .ok()
+                        .map(|u| self.http.absolute_url(&u))
+                        .unwrap_or_default(),
+                    word_count: self.execute_compiled(&rules.word_count, &element).ok(),
+                    update_time: self.execute_compiled(&rules.update_time, &element).ok(),
+                    toc_url: None, // Search usually doesn't provide TOC link directly or same as book_url
+                };
+                books.push(book);
+            }
+            return Ok(books);
+        }
+
         let rule = self
             .source
             .rule_search
@@ -394,6 +567,38 @@ impl BookSourceEngine {
         let config = self.http.parse_request_config(book_url);
         let content_raw = self.http.request(&config)?;
 
+        // Use compiled rules if available
+        if let Some(transformed) = &self.transformed {
+            let rules = &transformed.book_info_rules;
+            let content = if matches!(rules.init, CompiledRule::Empty) {
+                content_raw
+            } else {
+                self.execute_compiled(&rules.init, &content_raw)
+                    .unwrap_or_else(|_| content_raw.to_string())
+            };
+
+            return Ok(BookItem {
+                name: self
+                    .execute_compiled(&rules.name, &content)
+                    .unwrap_or_default(),
+                author: self
+                    .execute_compiled(&rules.author, &content)
+                    .unwrap_or_default(),
+                intro: self.execute_compiled(&rules.intro, &content).ok(),
+                cover_url: self
+                    .execute_compiled(&rules.cover_url, &content)
+                    .ok()
+                    .map(|u| self.http.absolute_url(&u)),
+                book_url: book_url.to_string(),
+                kind: self.execute_compiled(&rules.kind, &content).ok(),
+                last_chapter: self.execute_compiled(&rules.last_chapter, &content).ok(),
+                word_count: self.execute_compiled(&rules.word_count, &content).ok(),
+                update_time: self.execute_compiled(&rules.update_time, &content).ok(),
+                toc_url: self.execute_compiled(&rules.toc_url, &content).ok(),
+            });
+        }
+
+        // Legacy path
         let rule = self
             .source
             .rule_book_info
@@ -436,6 +641,60 @@ impl BookSourceEngine {
 
     /// Get table of contents
     pub fn get_chapters(&self, toc_url: &str) -> Result<Vec<Chapter>> {
+        // Compiled path
+        if let Some(transformed) = &self.transformed {
+            let rules = &transformed.toc_rules;
+            let mut all_chapters = Vec::new();
+            let mut current_url = toc_url.to_string();
+            let max_pages = 50;
+
+            for _ in 0..max_pages {
+                let config = self.http.parse_request_config(&current_url);
+                let content = self.http.request(&config)?;
+
+                let elements = self.execute_compiled_list(&rules.chapter_list, &content)?;
+                if elements.is_empty() {
+                    break;
+                }
+
+                for element in elements {
+                    let title = self
+                        .execute_compiled(&rules.chapter_name, &element)
+                        .unwrap_or_default();
+                    let url = self
+                        .execute_compiled(&rules.chapter_url, &element)
+                        .unwrap_or_default();
+                    if !title.is_empty() {
+                        all_chapters.push(Chapter {
+                            title,
+                            url: self.http.absolute_url(&url),
+                            is_volume: self
+                                .execute_compiled(&rules.is_volume, &element)
+                                .ok()
+                                .map(|s| s == "true")
+                                .unwrap_or(false),
+                        });
+                    }
+                }
+
+                // Next page
+                let next_url = self
+                    .execute_compiled(&rules.next_toc_url, &content)
+                    .unwrap_or_default();
+                let next_url = next_url.trim();
+
+                if !next_url.is_empty() && next_url != current_url {
+                    let old_url = current_url.clone();
+                    current_url = self.http.absolute_url(next_url);
+                    if current_url != old_url {
+                        continue;
+                    }
+                }
+                break;
+            }
+            return Ok(all_chapters);
+        }
+
         let rule = self
             .source
             .rule_toc
@@ -454,7 +713,7 @@ impl BookSourceEngine {
         for page_num in 0..max_pages {
             let config = self.http.parse_request_config(&current_url);
             let content = self.http.request(&config)?;
-            
+
             tracing::debug!(
                 "get_chapters: url={}, content_len={}, chapter_list_rule='{}', has_id_list={}, has_dd={}",
                 current_url, content.len(), chapter_list_rule,
@@ -464,10 +723,11 @@ impl BookSourceEngine {
 
             let elements = self.analyzer.get_elements(&content, chapter_list_rule)?;
             let page_chapters_count = elements.len();
-            
+
             tracing::debug!(
                 "get_chapters: found {} elements on page {}",
-                page_chapters_count, page_num
+                page_chapters_count,
+                page_num
             );
 
             for element in elements {
@@ -510,6 +770,53 @@ impl BookSourceEngine {
 
     /// Get chapter content (with pagination support)
     pub fn get_content(&self, chapter_url: &str) -> Result<String> {
+        // Compiled path
+        if let Some(transformed) = &self.transformed {
+            let rules = &transformed.content_rules;
+            let mut full_content = String::new();
+            let mut current_url = chapter_url.to_string();
+            let max_pages = 20;
+
+            for page_num in 0..max_pages {
+                let config = self.http.parse_request_config(&current_url);
+                let page_html = self.http.request(&config)?;
+
+                let page_content = self
+                    .execute_compiled(&rules.content, &page_html)
+                    .unwrap_or_default();
+
+                if !page_content.is_empty() {
+                    if page_num > 0 {
+                        full_content.push_str("\n\n");
+                    }
+                    full_content.push_str(&page_content);
+                }
+
+                // Next page
+                let next_url = self
+                    .execute_compiled(&rules.next_content_url, &page_html)
+                    .unwrap_or_default();
+                let next_url = next_url.trim();
+
+                if !next_url.is_empty() && next_url != current_url {
+                    current_url = self.http.absolute_url(next_url);
+                    continue;
+                }
+                break;
+            }
+
+            let smart_cleaned = self.smart_filter_content(&full_content);
+            let mut result = smart_cleaned;
+
+            // Apply compiled replace regex
+            for (pattern, replacement) in &rules.replace_regex {
+                if let Ok(re) = regex::Regex::new(pattern) {
+                    result = re.replace_all(&result, replacement.as_str()).to_string();
+                }
+            }
+            return Ok(result);
+        }
+
         let rule = self
             .source
             .rule_content
@@ -560,7 +867,7 @@ impl BookSourceEngine {
         }
 
         // Apply smart filtering for common artifacts (pagination, loading text)
-        let mut smart_cleaned = self.smart_filter_content(&full_content);
+        let smart_cleaned = self.smart_filter_content(&full_content);
 
         // Apply replaceRegex if configured
         let final_content = if let Some(replace_regex) = &rule.replace_regex {
@@ -576,7 +883,7 @@ impl BookSourceEngine {
     fn smart_filter_content(&self, content: &str) -> String {
         use regex::Regex;
         let mut result = content.to_string();
-        
+
         // Common patterns to strip
         let patterns = [
             r"（本章未完，请点击下一页继续阅读）",
@@ -593,8 +900,7 @@ impl BookSourceEngine {
                 result = re.replace_all(&result, "").to_string();
             }
         }
-        
-        
+
         result
     }
 

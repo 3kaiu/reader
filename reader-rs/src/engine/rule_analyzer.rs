@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::cookie::CookieManager;
-use super::js_analyzer::{AnalysisResult, JsPatternAnalyzer, ExprValue};
+use super::js_analyzer::{AnalysisResult, JsPatternAnalyzer};
 use super::js_executor::JsExecutor;
 use super::native_api::NativeApiProvider;
 use super::parsers::css::CssParser;
@@ -21,7 +21,7 @@ use super::parsers::jsoup::JsoupDefaultParser;
 use super::parsers::regex::RegexParser;
 use super::parsers::xpath::XPathParser;
 use super::parsers::{Parser, RuleType};
-use super::preprocessor::{NativeApi, SourcePreprocessor};
+use super::preprocessor::SourcePreprocessor;
 use super::template::{TemplateContext, TemplateExecutor};
 use crate::storage::kv::KvStore;
 
@@ -43,6 +43,8 @@ pub struct RuleAnalyzer {
     template_executor: TemplateExecutor,
     /// JS pattern analyzer for native execution of simple JS
     js_analyzer: JsPatternAnalyzer,
+    /// Base URL for resolving relative links and source isolation
+    base_url: String,
 }
 
 impl RuleAnalyzer {
@@ -64,7 +66,9 @@ impl RuleAnalyzer {
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
+
             js_analyzer: JsPatternAnalyzer::new(),
+            base_url: String::new(),
         })
     }
 
@@ -88,12 +92,15 @@ impl RuleAnalyzer {
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
+
             js_analyzer: JsPatternAnalyzer::new(),
+            base_url: String::new(),
         })
     }
 
     /// Set base URL for the JS executor
     pub fn set_base_url(&mut self, url: &str) {
+        self.base_url = url.to_string();
         self.js_executor.set_base_url(url);
     }
 
@@ -143,24 +150,39 @@ impl RuleAnalyzer {
     }
 
     /// Execute a native JS operation without QuickJS
-    fn execute_native_js(&self, exec: &super::js_analyzer::NativeExecution, content: &str) -> Result<String> {
+    fn execute_native_js(
+        &self,
+        exec: &super::js_analyzer::NativeExecution,
+        content: &str,
+    ) -> Result<String> {
         use super::js_analyzer::ExprValue;
-        
+
         // Resolve arguments to actual values
-        let args: Vec<String> = exec.args.iter().map(|arg| {
-            match arg {
-                ExprValue::Literal(s) => s.clone(),
-                ExprValue::Variable(name) => {
-                    // Check variables first, fall back to content
-                    self.variables.borrow().get(name).cloned()
-                        .unwrap_or_else(|| content.to_string())
-                }
-                ExprValue::CurrentContent => content.to_string(),
-            }
-        }).collect();
-        
+        let args: Vec<String> = exec
+            .args
+            .iter()
+            .map(|arg| -> Result<String> {
+                Ok(match arg {
+                    ExprValue::Literal(s) => s.clone(),
+                    ExprValue::Variable(name) => {
+                        // Check variables first, fall back to content
+                        self.variables
+                            .borrow()
+                            .get(name)
+                            .cloned()
+                            .unwrap_or_else(|| content.to_string())
+                    }
+                    ExprValue::CurrentContent => content.to_string(),
+                    ExprValue::NativeCall(inner) => self.execute_native_js(inner, content)?,
+                })
+            })
+            .collect::<Result<Vec<String>>>()?;
+
         // Execute the native API
-        self.native_api.execute(&exec.api, &args)
+        let context = crate::engine::native_api::ExecutionContext {
+            base_url: self.base_url.clone(),
+        };
+        self.native_api.execute(&exec.api, &args, &context)
     }
 
     // ============== Crypto API (Rust Native) ==============
@@ -229,6 +251,9 @@ impl RuleAnalyzer {
             .execute(
                 &NativeApi::DigestHex(algorithm.to_string()),
                 &[data.to_string()],
+                &crate::engine::native_api::ExecutionContext {
+                    base_url: self.base_url.clone(),
+                },
             )
             .unwrap_or_default()
     }
@@ -411,14 +436,14 @@ impl RuleAnalyzer {
                 vars.insert("src".to_string(), effective_content.to_string());
 
                 let processed_line = self.process_templates(line, &vars);
-                let rule_type = RuleType::detect(&processed_line, content);
+                let rule_type = RuleType::detect(&processed_line, effective_content);
 
                 // Heuristic: If it's a Jsoup rule without @ or . or #, and it's after processing,
                 // it might be a literal if it contains spaces or ends with / or is purely numeric.
                 // But CSS selectors like ".chapter-content p" should NOT be treated as literals
                 let is_css_like = processed_line.starts_with('.')
                     || processed_line.starts_with('#')
-                    || processed_line.contains(':'); // For pseudo-selectors
+                    || (processed_line.contains(':') && !processed_line.contains(": ")); // Colon implies pseudo-selector, but ": " implies text
 
                 let looks_like_literal = rule_type == RuleType::JsoupDefault
                     && !is_css_like
@@ -430,14 +455,6 @@ impl RuleAnalyzer {
                         || processed_line.starts_with('<'));
 
                 if looks_like_literal {
-                    eprintln!(
-                        "!!!TRACE!!! process_chain_rules literal line, current len={}",
-                        if first_line {
-                            content.len()
-                        } else {
-                            current_result.len()
-                        }
-                    );
                     self.process_js_tags(&processed_line, &current_result)?
                 } else {
                     self.execute_single_rule(
@@ -554,7 +571,7 @@ impl RuleAnalyzer {
         } else {
             (false, raw_rule)
         };
-        
+
         let rule = rule_body.trim();
         if rule.is_empty() {
             return Ok(vec![]);
@@ -567,7 +584,7 @@ impl RuleAnalyzer {
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
             .collect();
-            
+
         let (base_content, selector) = if lines.len() > 1 {
             let base_rule_part = lines[..lines.len() - 1].join("\n");
             (
@@ -580,11 +597,11 @@ impl RuleAnalyzer {
 
         let (base_rule, _) = self.extract_js_postprocess(&selector);
         let mut results = self.execute_elements_rule(&base_content, &base_rule)?;
-        
+
         if is_reversed {
             results.reverse();
         }
-        
+
         Ok(results)
     }
 
@@ -795,7 +812,7 @@ impl RuleAnalyzer {
         let (base_rule, regex_suffix) = if !base_rule_full.starts_with("##") {
             if let Some(pos) = base_rule_full.find("##") {
                 let base = base_rule_full[..pos].trim();
-                let suffix = base_rule_full[pos..].trim();
+                let suffix = base_rule_full[pos..].trim().trim_start_matches("##");
                 (base.to_string(), Some(suffix.to_string()))
             } else {
                 (base_rule_full, None)
@@ -960,14 +977,25 @@ impl RuleAnalyzer {
                 }
             };
 
-            if i > 0 && !is_js_step {
-                current_result.push('\n');
-            }
             if is_js_step {
                 // JS step REPLACES the result usually in URL chain
                 current_result = next_part;
+            } else if i == 0 {
+                // First line just sets the initial result
+                current_result = next_part;
             } else {
-                current_result.push_str(&next_part);
+                // Subsequent non-JS lines: If there's content, append with newline
+                // But for URL chaining, typically later lines use {{result}} and should replace
+                // Check if the processed line looks like a complete URL (starts with http or /)
+                if next_part.starts_with("http://")
+                    || next_part.starts_with("https://")
+                    || next_part.starts_with('/')
+                {
+                    current_result = next_part;
+                } else {
+                    current_result.push('\n');
+                    current_result.push_str(&next_part);
+                }
             }
         }
 
@@ -1014,6 +1042,10 @@ impl RuleAnalyzer {
 
             if in_js_block && trimmed.contains("</js>") {
                 in_js_block = false;
+                steps.push(current_block.trim().to_string());
+                current_block = String::new();
+            } else if !in_js_block && starts_js && trimmed.contains("</js>") {
+                // Single-line <js>...</js> - always a separate step
                 steps.push(current_block.trim().to_string());
                 current_block = String::new();
             } else if !in_js_block && starts_js && !is_url_rule {

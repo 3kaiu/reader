@@ -4,11 +4,11 @@
 
 #[cfg(test)]
 mod bench_tests {
+    use crate::engine::cookie::CookieManager;
     use crate::engine::js_analyzer::{AnalysisResult, JsPatternAnalyzer};
     use crate::engine::js_executor::JsExecutor;
     use crate::engine::native_api::NativeApiProvider;
     use crate::engine::preprocessor::NativeApi;
-    use crate::engine::cookie::CookieManager;
     use crate::storage::kv::KvStore;
     use crate::storage::FileStorage;
     use std::sync::Arc;
@@ -36,7 +36,11 @@ mod bench_tests {
         let test_data = "Hello, World! This is a test string for base64 encoding benchmark.";
 
         // Warm up
-        let _ = native_api.execute(&NativeApi::Base64Encode, &[test_data.to_string()]);
+        let _ = native_api.execute(
+            &NativeApi::Base64Encode,
+            &[test_data.to_string()],
+            &crate::engine::native_api::ExecutionContext::default(),
+        );
         let _ = js_executor.eval_with_context(
             &format!("java.base64Encode('{}')", test_data),
             &std::collections::HashMap::new(),
@@ -45,7 +49,11 @@ mod bench_tests {
         // Native benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = native_api.execute(&NativeApi::Base64Encode, &[test_data.to_string()]);
+            let _ = native_api.execute(
+                &NativeApi::Base64Encode,
+                &[test_data.to_string()],
+                &crate::engine::native_api::ExecutionContext::default(),
+            );
         }
         let native_duration = start.elapsed();
 
@@ -59,10 +67,24 @@ mod bench_tests {
         }
         let js_duration = start.elapsed();
 
-        println!("\n=== Base64 Encode Benchmark ({} iterations) ===", ITERATIONS);
-        println!("Native: {:?} ({:.2} µs/op)", native_duration, native_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("JS:     {:?} ({:.2} µs/op)", js_duration, js_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("Speedup: {:.2}x", js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64);
+        println!(
+            "\n=== Base64 Encode Benchmark ({} iterations) ===",
+            ITERATIONS
+        );
+        println!(
+            "Native: {:?} ({:.2} µs/op)",
+            native_duration,
+            native_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "JS:     {:?} ({:.2} µs/op)",
+            js_duration,
+            js_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "Speedup: {:.2}x",
+            js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64
+        );
     }
 
     /// Benchmark MD5 hashing: Native vs JS
@@ -73,7 +95,11 @@ mod bench_tests {
         let test_data = "Hello, World! This is a test string for MD5 hashing benchmark.";
 
         // Warm up
-        let _ = native_api.execute(&NativeApi::Md5Encode, &[test_data.to_string()]);
+        let _ = native_api.execute(
+            &NativeApi::Md5Encode,
+            &[test_data.to_string()],
+            &crate::engine::native_api::ExecutionContext::default(),
+        );
         let _ = js_executor.eval_with_context(
             &format!("java.md5Encode('{}')", test_data),
             &std::collections::HashMap::new(),
@@ -82,7 +108,11 @@ mod bench_tests {
         // Native benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = native_api.execute(&NativeApi::Md5Encode, &[test_data.to_string()]);
+            let _ = native_api.execute(
+                &NativeApi::Md5Encode,
+                &[test_data.to_string()],
+                &crate::engine::native_api::ExecutionContext::default(),
+            );
         }
         let native_duration = start.elapsed();
 
@@ -97,9 +127,20 @@ mod bench_tests {
         let js_duration = start.elapsed();
 
         println!("\n=== MD5 Encode Benchmark ({} iterations) ===", ITERATIONS);
-        println!("Native: {:?} ({:.2} µs/op)", native_duration, native_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("JS:     {:?} ({:.2} µs/op)", js_duration, js_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("Speedup: {:.2}x", js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64);
+        println!(
+            "Native: {:?} ({:.2} µs/op)",
+            native_duration,
+            native_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "JS:     {:?} ({:.2} µs/op)",
+            js_duration,
+            js_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "Speedup: {:.2}x",
+            js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64
+        );
     }
 
     /// Benchmark URL encoding: Native vs JS
@@ -110,7 +151,11 @@ mod bench_tests {
         let test_data = "Hello World! 你好世界 Special chars: &=?#";
 
         // Warm up
-        let _ = native_api.execute(&NativeApi::EncodeUri, &[test_data.to_string()]);
+        let _ = native_api.execute(
+            &NativeApi::EncodeUri,
+            &[test_data.to_string()],
+            &crate::engine::native_api::ExecutionContext::default(),
+        );
         let _ = js_executor.eval_with_context(
             &format!("java.encodeURI('{}')", test_data),
             &std::collections::HashMap::new(),
@@ -119,7 +164,11 @@ mod bench_tests {
         // Native benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = native_api.execute(&NativeApi::EncodeUri, &[test_data.to_string()]);
+            let _ = native_api.execute(
+                &NativeApi::EncodeUri,
+                &[test_data.to_string()],
+                &crate::engine::native_api::ExecutionContext::default(),
+            );
         }
         let native_duration = start.elapsed();
 
@@ -134,9 +183,20 @@ mod bench_tests {
         let js_duration = start.elapsed();
 
         println!("\n=== URI Encode Benchmark ({} iterations) ===", ITERATIONS);
-        println!("Native: {:?} ({:.2} µs/op)", native_duration, native_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("JS:     {:?} ({:.2} µs/op)", js_duration, js_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("Speedup: {:.2}x", js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64);
+        println!(
+            "Native: {:?} ({:.2} µs/op)",
+            native_duration,
+            native_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "JS:     {:?} ({:.2} µs/op)",
+            js_duration,
+            js_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "Speedup: {:.2}x",
+            js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64
+        );
     }
 
     /// Benchmark String trim: Native vs JS
@@ -149,7 +209,11 @@ mod bench_tests {
         // Native benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = native_api.execute(&NativeApi::StringTrim, &[test_data.to_string()]);
+            let _ = native_api.execute(
+                &NativeApi::StringTrim,
+                &[test_data.to_string()],
+                &crate::engine::native_api::ExecutionContext::default(),
+            );
         }
         let native_duration = start.elapsed();
 
@@ -162,10 +226,24 @@ mod bench_tests {
         }
         let js_duration = start.elapsed();
 
-        println!("\n=== String Trim Benchmark ({} iterations) ===", ITERATIONS);
-        println!("Native: {:?} ({:.2} µs/op)", native_duration, native_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("JS:     {:?} ({:.2} µs/op)", js_duration, js_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("Speedup: {:.2}x", js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64);
+        println!(
+            "\n=== String Trim Benchmark ({} iterations) ===",
+            ITERATIONS
+        );
+        println!(
+            "Native: {:?} ({:.2} µs/op)",
+            native_duration,
+            native_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "JS:     {:?} ({:.2} µs/op)",
+            js_duration,
+            js_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "Speedup: {:.2}x",
+            js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64
+        );
     }
 
     /// Benchmark JS pattern analysis
@@ -194,9 +272,16 @@ mod bench_tests {
         }
         let duration = start.elapsed();
 
-        println!("\n=== JS Pattern Analysis Benchmark ({} iterations x {} patterns) ===", ITERATIONS, patterns.len());
+        println!(
+            "\n=== JS Pattern Analysis Benchmark ({} iterations x {} patterns) ===",
+            ITERATIONS,
+            patterns.len()
+        );
         println!("Total: {:?}", duration);
-        println!("Per analysis: {:.2} µs", duration.as_micros() as f64 / (ITERATIONS * patterns.len()) as f64);
+        println!(
+            "Per analysis: {:.2} µs",
+            duration.as_micros() as f64 / (ITERATIONS * patterns.len()) as f64
+        );
 
         // Count native vs JS
         let mut native_count = 0;
@@ -218,27 +303,51 @@ mod bench_tests {
         let js_executor = create_js_executor();
 
         // Warm up
-        let _ = native_api.execute(&NativeApi::RandomUuid, &[]);
-        let _ = js_executor.eval_with_context("java.randomUUID()", &std::collections::HashMap::new());
+        let _ = native_api.execute(
+            &NativeApi::RandomUuid,
+            &[],
+            &crate::engine::native_api::ExecutionContext::default(),
+        );
+        let _ =
+            js_executor.eval_with_context("java.randomUUID()", &std::collections::HashMap::new());
 
         // Native benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = native_api.execute(&NativeApi::RandomUuid, &[]);
+            let _ = native_api.execute(
+                &NativeApi::RandomUuid,
+                &[],
+                &crate::engine::native_api::ExecutionContext::default(),
+            );
         }
         let native_duration = start.elapsed();
 
         // JS benchmark
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let _ = js_executor.eval_with_context("java.randomUUID()", &std::collections::HashMap::new());
+            let _ = js_executor
+                .eval_with_context("java.randomUUID()", &std::collections::HashMap::new());
         }
         let js_duration = start.elapsed();
 
-        println!("\n=== Random UUID Benchmark ({} iterations) ===", ITERATIONS);
-        println!("Native: {:?} ({:.2} µs/op)", native_duration, native_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("JS:     {:?} ({:.2} µs/op)", js_duration, js_duration.as_micros() as f64 / ITERATIONS as f64);
-        println!("Speedup: {:.2}x", js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64);
+        println!(
+            "\n=== Random UUID Benchmark ({} iterations) ===",
+            ITERATIONS
+        );
+        println!(
+            "Native: {:?} ({:.2} µs/op)",
+            native_duration,
+            native_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "JS:     {:?} ({:.2} µs/op)",
+            js_duration,
+            js_duration.as_micros() as f64 / ITERATIONS as f64
+        );
+        println!(
+            "Speedup: {:.2}x",
+            js_duration.as_nanos() as f64 / native_duration.as_nanos() as f64
+        );
     }
 
     /// Summary benchmark across all operations

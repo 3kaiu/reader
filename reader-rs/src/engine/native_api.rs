@@ -17,7 +17,11 @@ pub struct NativeApiProvider {
     cookie_manager: Arc<CookieManager>,
     /// Persistent KV Store
     kv_store: Arc<KvStore>,
-    /// Base URL for relative URL resolution
+}
+
+/// Execution context for Native API calls
+#[derive(Debug, Default, Clone)]
+pub struct ExecutionContext {
     pub base_url: String,
 }
 
@@ -27,7 +31,6 @@ impl NativeApiProvider {
         Self {
             cookie_manager,
             kv_store,
-            base_url: String::new(),
         }
     }
 
@@ -36,65 +39,51 @@ impl NativeApiProvider {
         Self {
             cookie_manager,
             kv_store,
-            base_url: String::new(),
         }
     }
 
     /// Execute a native API call
-    pub fn execute(&self, api: &NativeApi, args: &[String]) -> Result<String> {
+    pub fn execute(
+        &self,
+        api: &NativeApi,
+        args: &[String],
+        context: &ExecutionContext,
+    ) -> Result<String> {
+        // Record native execution for stats
+        crate::engine::stats::STATS.record_native(&format!("{:?}", api));
+
         match api {
-            // Encoding
+            // Encoding - delegated to native::encoding
             NativeApi::Base64Encode => {
-                use base64::Engine;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(base64::engine::general_purpose::STANDARD.encode(input.as_bytes()))
+                super::native::encoding::base64_encode(input)
             }
 
             NativeApi::Base64Decode => {
-                use base64::Engine;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                base64::engine::general_purpose::STANDARD
-                    .decode(input.as_bytes())
-                    .ok()
-                    .and_then(|bytes| String::from_utf8(bytes).ok())
-                    .map(Ok)
-                    .unwrap_or(Ok(String::new()))
+                super::native::encoding::base64_decode(input)
             }
 
             NativeApi::Base64DecodeWithFlags(flags) => {
-                use base64::Engine;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                let engine = if flags & 8 != 0 {
-                    &base64::engine::general_purpose::URL_SAFE
-                } else {
-                    &base64::engine::general_purpose::STANDARD
-                };
-                engine
-                    .decode(input.as_bytes())
-                    .ok()
-                    .and_then(|bytes| String::from_utf8(bytes).ok())
-                    .map(Ok)
-                    .unwrap_or(Ok(String::new()))
+                super::native::encoding::base64_decode_with_flags(input, *flags)
             }
 
+            // Crypto - delegated to native::crypto
             NativeApi::Md5Encode => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(format!("{:x}", md5::compute(input.as_bytes())))
+                super::crypto::md5_encode(input)
             }
 
             NativeApi::Md5Encode16 => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                let full = format!("{:x}", md5::compute(input.as_bytes()));
-                if full.len() >= 24 {
-                    Ok(full[8..24].to_string())
-                } else {
-                    Ok(full)
-                }
+                super::crypto::md5_encode16(input)
             }
 
+            // URI encoding - delegated to native::encoding
             NativeApi::EncodeUri => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(urlencoding::encode(input).to_string())
+                super::native::encoding::encode_uri(input)
             }
 
             NativeApi::EncodeUriWithEnc(enc) => {
@@ -105,24 +94,25 @@ impl NativeApiProvider {
                     let (encoded, _, _) = GBK.encode(input);
                     Ok(urlencoding::encode_binary(&encoded).to_string())
                 } else {
-                    Ok(urlencoding::encode(input).to_string())
+                    super::native::encoding::encode_uri(input)
                 }
             }
 
             NativeApi::Utf8ToGbk => {
-                use encoding_rs::GBK;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                let (encoded, _, _) = GBK.encode(input);
-                Ok(hex::encode(&encoded))
+                super::native::encoding::utf8_to_gbk(input)
             }
 
             NativeApi::HtmlFormat => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(html_escape::decode_html_entities(input).to_string())
+                super::native::encoding::html_format(input)
             }
 
             // Cookie
-            NativeApi::GetCookie { url, key } => {
+            NativeApi::GetCookie => {
+                let url = args.first().map(|s| s.as_str()).unwrap_or("");
+                let key = args.get(1).map(|s| s.as_str());
+
                 // Extract domain from URL
                 let domain = reqwest::Url::parse(url)
                     .ok()
@@ -130,8 +120,20 @@ impl NativeApiProvider {
                     .unwrap_or_else(|| url.to_string());
 
                 // Use the get_cookie method with proper signature
-                let cookie_str = self.cookie_manager.get_cookie(&domain, key.as_deref());
+                let cookie_str = self.cookie_manager.get_cookie(&domain, key);
                 Ok(cookie_str)
+            }
+
+            NativeApi::SetCookie => {
+                let url = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cookie = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let domain = reqwest::Url::parse(url)
+                    .ok()
+                    .and_then(|u| u.host_str().map(|h| h.to_string()))
+                    .unwrap_or_else(|| url.to_string());
+                self.cookie_manager.parse_set_cookie(&domain, cookie);
+                Ok(String::new())
             }
 
             // Time
@@ -152,43 +154,18 @@ impl NativeApiProvider {
                     .unwrap_or(Ok(String::new()))
             }
 
-            // Hash
+            // Hash - delegated to native::crypto
             NativeApi::DigestHex(algorithm) => {
-                use sha1::Sha1;
-                use sha2::{Digest, Sha256, Sha512};
-
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                let data_bytes = input.as_bytes();
-
-                match algorithm.to_uppercase().as_str() {
-                    "MD5" => Ok(format!("{:x}", md5::compute(data_bytes))),
-                    "SHA1" | "SHA-1" => {
-                        let mut hasher = Sha1::new();
-                        hasher.update(data_bytes);
-                        Ok(format!("{:x}", hasher.finalize()))
-                    }
-                    "SHA256" | "SHA-256" => {
-                        let mut hasher = Sha256::new();
-                        hasher.update(data_bytes);
-                        Ok(format!("{:x}", hasher.finalize()))
-                    }
-                    "SHA512" | "SHA-512" => {
-                        let mut hasher = Sha512::new();
-                        hasher.update(data_bytes);
-                        Ok(format!("{:x}", hasher.finalize()))
-                    }
-                    _ => Ok(format!("{:x}", md5::compute(data_bytes))),
-                }
+                super::crypto::digest_hex(input, algorithm)
             }
 
-            // Random
-            NativeApi::RandomUuid => Ok(uuid::Uuid::new_v4().to_string()),
+            // Random - delegated to native::misc
+            NativeApi::RandomUuid => super::native::misc::random_uuid(),
 
             // Crypto - AES
-            NativeApi::AesEncode {
-                transformation: _,
-                iv,
-            } => {
+            // Crypto - AES
+            NativeApi::AesEncode => {
                 use aes::Aes128;
                 use base64::Engine;
                 use cbc::{
@@ -198,6 +175,8 @@ impl NativeApiProvider {
 
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                // Optional transformation and iv from args currently supported if passed
+                let iv = args.get(3).map(|s| s.as_str()).unwrap_or("");
 
                 type Aes128CbcEnc = Encryptor<Aes128>;
 
@@ -219,10 +198,7 @@ impl NativeApiProvider {
                 }
             }
 
-            NativeApi::AesDecode {
-                transformation: _,
-                iv,
-            } => {
+            NativeApi::AesDecode => {
                 use aes::Aes128;
                 use base64::Engine;
                 use cbc::{
@@ -232,6 +208,7 @@ impl NativeApiProvider {
 
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                let iv = args.get(3).map(|s| s.as_str()).unwrap_or("");
 
                 type Aes128CbcDec = Decryptor<Aes128>;
 
@@ -255,10 +232,7 @@ impl NativeApiProvider {
             }
 
             // DES
-            NativeApi::DesEncode {
-                transformation: _,
-                iv,
-            } => {
+            NativeApi::DesEncode => {
                 use cbc::{
                     cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit},
                     Encryptor,
@@ -267,6 +241,7 @@ impl NativeApiProvider {
 
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                let iv = args.get(3).map(|s| s.as_str()).unwrap_or("");
 
                 type DesCbcEnc = Encryptor<Des>;
 
@@ -286,10 +261,7 @@ impl NativeApiProvider {
                 }
             }
 
-            NativeApi::DesDecode {
-                transformation: _,
-                iv,
-            } => {
+            NativeApi::DesDecode => {
                 use cbc::{
                     cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit},
                     Decryptor,
@@ -298,6 +270,7 @@ impl NativeApiProvider {
 
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                let iv = args.get(3).map(|s| s.as_str()).unwrap_or("");
 
                 type DesCbcDec = Decryptor<Des>;
 
@@ -319,38 +292,48 @@ impl NativeApiProvider {
             }
 
             // 3DES (Triple DES / DESede)
-            NativeApi::TripleDesDecodeStr { mode, padding } => {
+            // 3DES (Triple DES / DESede)
+            NativeApi::TripleDesDecodeStr => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                // args order for 3DES: data, key, mode, padding, iv
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::triple_des_decode_str(data, key, mode, padding, iv)
             }
 
-            NativeApi::TripleDesDecodeArgsBase64 { mode, padding } => {
+            NativeApi::TripleDesDecodeArgsBase64 => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv_base64 = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::triple_des_decode_args_base64(
                     data, key_base64, mode, padding, iv_base64,
                 )
             }
 
-            NativeApi::TripleDesEncodeBase64 { mode, padding } => {
+            NativeApi::TripleDesEncodeBase64 => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::triple_des_encode_base64(
                     data, key, mode, padding, iv,
                 )
             }
 
-            NativeApi::TripleDesEncodeArgsBase64 { mode, padding } => {
+            NativeApi::TripleDesEncodeArgsBase64 => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv_base64 = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::triple_des_encode_args_base64(
                     data, key_base64, mode, padding, iv_base64,
@@ -358,20 +341,24 @@ impl NativeApiProvider {
             }
 
             // AES with Base64 encoded args
-            NativeApi::AesDecodeArgsBase64 { mode, padding } => {
+            NativeApi::AesDecodeArgsBase64 => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv_base64 = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::aes_decode_args_base64(
                     data, key_base64, mode, padding, iv_base64,
                 )
             }
 
-            NativeApi::AesEncodeArgsBase64 { mode, padding } => {
+            NativeApi::AesEncodeArgsBase64 => {
                 let data = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key_base64 = args.get(1).map(|s| s.as_str()).unwrap_or("");
-                let iv_base64 = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let mode = args.get(2).map(|s| s.as_str()).unwrap_or("");
+                let padding = args.get(3).map(|s| s.as_str()).unwrap_or("");
+                let iv_base64 = args.get(4).map(|s| s.as_str()).unwrap_or("");
 
                 super::crypto::CryptoProvider::aes_encode_args_base64(
                     data, key_base64, mode, padding, iv_base64,
@@ -379,10 +366,8 @@ impl NativeApiProvider {
             }
 
             // Time with UTC offset
-            NativeApi::TimeFormatUtc {
-                format,
-                offset_hours,
-            } => {
+            // Time with UTC offset
+            NativeApi::TimeFormatUtc => {
                 use chrono::{FixedOffset, TimeZone as _, Utc};
 
                 let timestamp = args
@@ -390,7 +375,16 @@ impl NativeApiProvider {
                     .and_then(|s| s.parse::<i64>().ok())
                     .unwrap_or_else(|| Utc::now().timestamp_millis());
 
-                let offset = FixedOffset::east_opt(*offset_hours * 3600)
+                let format = args
+                    .get(1)
+                    .map(|s| s.as_str())
+                    .unwrap_or("%Y-%m-%d %H:%M:%S");
+                // args order: timestamp, format, offset_hours ?
+                // Java: timeFormatUtc(time, format, offset)
+
+                let offset_hours = args.get(2).and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
+
+                let offset = FixedOffset::east_opt(offset_hours * 3600)
                     .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap());
 
                 offset
@@ -412,15 +406,15 @@ impl NativeApiProvider {
                     Err(_) => Ok("false".to_string()),
                 }
             }
-            
+
             // ============== New APIs ==============
-            
+
             // Hex encoding
             NativeApi::HexEncode => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(hex::encode(input.as_bytes()))
             }
-            
+
             NativeApi::HexDecode => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 hex::decode(input)
@@ -429,161 +423,297 @@ impl NativeApiProvider {
                     .map(Ok)
                     .unwrap_or(Ok(String::new()))
             }
-            
-            // Set Cookie
-            NativeApi::SetCookie { url, cookie } => {
-                let domain = reqwest::Url::parse(url)
-                    .ok()
-                    .and_then(|u| u.host_str().map(|h| h.to_string()))
-                    .unwrap_or_else(|| url.to_string());
-                self.cookie_manager.parse_set_cookie(&domain, cookie);
-                Ok(String::new())
-            }
-            
+
             // HTTP APIs - Delegate to native_http module
-            NativeApi::HttpGet { url, headers } => {
+            // HTTP APIs
+            NativeApi::HttpGet => {
                 use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let url = args.first().map(|s| s.as_str()).unwrap_or("");
+                // Headers parsing if needed, assumed empty for now or parse args[1] if JSON
+                let headers = std::collections::HashMap::new();
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
-                let resp = client.get(url, headers)?;
+                let resp = client.get(url, &headers)?;
                 Ok(resp.to_json())
             }
-            
-            NativeApi::HttpPost { url, body, headers } => {
+
+            NativeApi::HttpPost => {
                 use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let url = args.first().map(|s| s.as_str()).unwrap_or("");
+                let body = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let headers_json = args.get(2).map(|s| s.as_str()).unwrap_or("{}");
+                let headers: std::collections::HashMap<String, String> =
+                    serde_json::from_str(headers_json).unwrap_or_default();
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
-                let resp = client.post(url, body, headers)?;
+                let resp = client.post(url, body, &headers)?;
                 Ok(resp.to_json())
             }
-            
-            NativeApi::HttpRequest { method, url, body, headers } => {
+
+            NativeApi::HttpRequest => {
+                // args: method, url, body, headers(json)?
                 use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let method = args.first().map(|s| s.as_str()).unwrap_or("GET");
+                let url = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                let body = args.get(2).map(|s| s.as_str());
+                let headers = std::collections::HashMap::new();
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let client = NativeHttpClient::with_headers(cache_dir, headers.clone())?;
-                let resp = client.request(method, url, body.as_deref(), headers)?;
+                let resp = client.request(method, url, body, &headers)?;
                 Ok(resp.to_json())
             }
-            
-            NativeApi::HttpGetAll { urls } => {
+
+            NativeApi::HttpGetAll => {
+                // args: [url, url, ...] - all args are urls
                 use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let client = NativeHttpClient::new(cache_dir)?;
-                let responses = client.get_all(urls);
+
+                let urls: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+
+                let responses = client.get_all(&urls);
                 let bodies: Vec<String> = responses.into_iter().map(|r| r.body).collect();
                 Ok(serde_json::to_string(&bodies).unwrap_or_default())
             }
-            
-            // File APIs - Delegate to native_file module
-            NativeApi::CacheFile { url, save_time } => {
-                use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
-                let client = NativeHttpClient::new(cache_dir)?;
-                client.cache_file(url, *save_time)
+
+            // KV Storage - delegated to native::storage
+            // KV Storage - delegated to native::storage
+            NativeApi::CacheGet => {
+                let key = args.first().map(|s| s.as_str()).unwrap_or("");
+                super::native::storage::cache_get(&self.kv_store, key)
             }
-            
-            NativeApi::ReadFile { path } => {
+            NativeApi::CacheSet => {
+                let key = args.first().map(|s| s.as_str()).unwrap_or("");
+                let value = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                super::native::storage::cache_set(&self.kv_store, key, value)
+            }
+            NativeApi::SourceVarGet => {
+                let key = args.first().map(|s| s.as_str()).unwrap_or("");
+
+                // Source URL is required for source variables
+                let source_url = if context.base_url.is_empty() {
+                    "global"
+                } else {
+                    &context.base_url
+                };
+                Ok(
+                    super::native::storage::get_source_var(&self.kv_store, source_url, key)
+                        .unwrap_or_default(),
+                )
+            }
+            NativeApi::SourceVarSet => {
+                let key = args.first().map(|s| s.as_str()).unwrap_or("");
+                let value = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let source_url = if context.base_url.is_empty() {
+                    "global"
+                } else {
+                    &context.base_url
+                };
+                super::native::storage::set_source_var(&self.kv_store, source_url, key, value);
+                Ok(String::new())
+            }
+
+            // Logging
+            NativeApi::Log => {
+                let message = args.first().map(|s| s.as_str()).unwrap_or("");
+                super::native::misc::log_message(message);
+                Ok(String::new())
+            }
+
+            // File APIs - Delegate to native_file module
+            // File APIs - Delegate to native_file module
+            NativeApi::CacheFile => {
+                use super::native_http::NativeHttpClient;
+                let url = args.first().map(|s| s.as_str()).unwrap_or("");
+                let save_time = args.get(1).and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
+                let client = NativeHttpClient::new(cache_dir)?;
+                client.cache_file(url, save_time)
+            }
+
+            NativeApi::ReadFile => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.read_file(path)
             }
-            
-            NativeApi::ReadTxtFile { path } => {
+
+            NativeApi::ReadTxtFile => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.read_txt_file(path)
             }
-            
-            NativeApi::ReadTxtFileWithCharset { path, charset } => {
+
+            NativeApi::ReadTxtFileWithCharset => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let charset = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.read_txt_file_with_charset(path, charset)
             }
-            
-            NativeApi::GetFile { path } => {
+
+            NativeApi::GetFile => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 Ok(ops.get_file(path))
             }
-            
-            NativeApi::ImportScript { path } => {
+
+            NativeApi::ImportScript => {
                 use super::native_http::NativeHttpClient;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let client = NativeHttpClient::new(cache_dir)?;
                 client.import_script(path)
             }
-            
+
             // ZIP APIs
-            NativeApi::ZipReadString { zip_source, file_path } => {
+            NativeApi::ZipReadString => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let zip_source = args.first().map(|s| s.as_str()).unwrap_or("");
+                let file_path = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.zip_read_string(zip_source, file_path)
             }
-            
-            NativeApi::ZipReadStringWithCharset { zip_source, file_path, charset } => {
+
+            NativeApi::ZipReadStringWithCharset => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let zip_source = args.first().map(|s| s.as_str()).unwrap_or("");
+                let file_path = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                let charset = args.get(2).map(|s| s.as_str()).unwrap_or("");
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.zip_read_string_with_charset(zip_source, file_path, charset)
             }
-            
-            NativeApi::ZipReadBytes { zip_source, file_path } => {
+
+            NativeApi::ZipReadBytes => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let zip_source = args.first().map(|s| s.as_str()).unwrap_or("");
+                let file_path = args.get(1).map(|s| s.as_str()).unwrap_or("");
+
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.zip_read_bytes(zip_source, file_path)
             }
-            
-            NativeApi::ZipExtract { zip_path } => {
+
+            NativeApi::ZipExtract => {
                 use super::native_file::NativeFileOps;
-                let cache_dir = std::env::current_dir().unwrap_or_default().join("data").join("cache");
+                let zip_path = args.first().map(|s| s.as_str()).unwrap_or("");
+                let cache_dir = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("data")
+                    .join("cache");
                 let ops = NativeFileOps::new(cache_dir);
                 ops.zip_extract(zip_path)
             }
-            
+
             // String APIs
-            NativeApi::StringReplace { pattern, replacement, is_regex, global } => {
+            NativeApi::StringReplace {
+                pattern,
+                replacement,
+                is_regex,
+                global,
+            } => {
                 use super::native_file::NativeStringOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(NativeStringOps::replace(input, pattern, replacement, *is_regex, *global))
+                Ok(NativeStringOps::replace(
+                    input,
+                    pattern,
+                    replacement,
+                    *is_regex,
+                    *global,
+                ))
             }
-            
+
             NativeApi::StringSplit { delimiter } => {
                 use super::native_file::NativeStringOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                Ok(serde_json::to_string(&NativeStringOps::split(input, delimiter)).unwrap_or_default())
+                Ok(
+                    serde_json::to_string(&NativeStringOps::split(input, delimiter))
+                        .unwrap_or_default(),
+                )
             }
-            
+
             NativeApi::StringTrim => {
                 use super::native_file::NativeStringOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(NativeStringOps::trim(input))
             }
-            
+
             NativeApi::StringSubstring { start, end } => {
                 use super::native_file::NativeStringOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(NativeStringOps::substring(input, *start, *end))
             }
-            
+
             NativeApi::HtmlToText => {
                 use super::native_file::NativeStringOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 Ok(NativeStringOps::html_to_text(input))
             }
-            
+
             // JSON APIs
-            NativeApi::JsonPath { path } => {
+            NativeApi::JsonPath => {
                 use super::native_file::NativeJsonOps;
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                let path = args.get(1).map(|s| s.as_str()).unwrap_or("");
                 NativeJsonOps::json_path(input, path)
             }
-            
+
             NativeApi::JsonParse => {
                 // Just validate and return the input (actual parsing is done in caller)
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
@@ -591,17 +721,11 @@ impl NativeApiProvider {
                     .map(|_| input.to_string())
                     .map_err(|e| anyhow::anyhow!("JSON parse error: {}", e))
             }
-            
+
             NativeApi::JsonStringify => {
                 let input = args.first().map(|s| s.as_str()).unwrap_or("");
                 // If already a string, just return it; otherwise treat as raw
                 Ok(input.to_string())
-            }
-            
-            // Misc
-            NativeApi::Log { message } => {
-                tracing::info!("Native log: {}", message);
-                Ok(String::new())
             }
 
             // Unknown - should not reach here, fallback needed
@@ -675,7 +799,11 @@ mod tests {
         let provider = NativeApiProvider::new(cm, create_test_kv());
 
         let result = provider
-            .execute(&NativeApi::Base64Encode, &["hello".to_string()])
+            .execute(
+                &NativeApi::Base64Encode,
+                &["hello".to_string()],
+                &ExecutionContext::default(),
+            )
             .unwrap();
         assert_eq!(result, "aGVsbG8=");
     }
@@ -686,7 +814,11 @@ mod tests {
         let provider = NativeApiProvider::new(cm, create_test_kv());
 
         let result = provider
-            .execute(&NativeApi::Base64Decode, &["aGVsbG8=".to_string()])
+            .execute(
+                &NativeApi::Base64Decode,
+                &["aGVsbG8=".to_string()],
+                &ExecutionContext::default(),
+            )
             .unwrap();
         assert_eq!(result, "hello");
     }
@@ -697,7 +829,11 @@ mod tests {
         let provider = NativeApiProvider::new(cm, create_test_kv());
 
         let result = provider
-            .execute(&NativeApi::Md5Encode, &["hello".to_string()])
+            .execute(
+                &NativeApi::Md5Encode,
+                &["hello".to_string()],
+                &ExecutionContext::default(),
+            )
             .unwrap();
         assert_eq!(result, "5d41402abc4b2a76b9719d911017c592");
     }
@@ -708,7 +844,11 @@ mod tests {
         let provider = NativeApiProvider::new(cm, create_test_kv());
 
         let result = provider
-            .execute(&NativeApi::EncodeUri, &["hello world".to_string()])
+            .execute(
+                &NativeApi::EncodeUri,
+                &["hello world".to_string()],
+                &ExecutionContext::default(),
+            )
             .unwrap();
         assert_eq!(result, "hello%20world");
     }
@@ -718,7 +858,9 @@ mod tests {
         let cm = Arc::new(CookieManager::new());
         let provider = NativeApiProvider::new(cm, create_test_kv());
 
-        let result = provider.execute(&NativeApi::RandomUuid, &[]).unwrap();
+        let result = provider
+            .execute(&NativeApi::RandomUuid, &[], &ExecutionContext::default())
+            .unwrap();
         assert!(result.len() == 36); // UUID format
     }
 }
