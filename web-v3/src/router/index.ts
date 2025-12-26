@@ -4,46 +4,50 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: () => import('@/pages/index.vue'),
-    meta: { title: '阅读' },
+    // 首页预加载，减少首次加载时间
+    component: () => import(/* webpackPreload: true */ '@/pages/index.vue'),
+    meta: { title: '阅读', preload: true },
   },
   {
     path: '/reader',
     name: 'reader',
-    component: () => import('@/pages/reader.vue'),
+    // 阅读器页面预取，提升导航体验
+    component: () => import(/* webpackPrefetch: true */ '@/pages/reader.vue'),
     meta: { title: '阅读', fullscreen: true },
   },
   {
     path: '/search',
     name: 'search',
-    component: () => import('@/pages/search.vue'),
+    // 搜索页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/search.vue'),
     meta: { title: '搜索' },
   },
   {
     path: '/sources',
     name: 'sources',
-    component: () => import('@/pages/sources.vue'),
+    // 书源管理页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/sources.vue'),
     meta: { title: '书源管理' },
   },
   {
     path: '/replace-rule',
     name: 'replace-rule',
-    component: () => import('@/pages/replace-rule.vue'),
+    // 替换规则页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/replace-rule.vue'),
     meta: { title: '替换规则' },
   },
-
-
-
   {
     path: '/ai-settings',
     name: 'ai-settings',
-    component: () => import('@/pages/ai-settings.vue'),
+    // AI 设置页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/ai-settings.vue'),
     meta: { title: 'AI 模型' },
   },
   {
     path: '/settings',
     name: 'settings',
-    component: () => import('@/pages/settings.vue'),
+    // 设置页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/settings.vue'),
     meta: { title: '设置' },
   },
 ]

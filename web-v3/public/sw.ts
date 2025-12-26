@@ -2,8 +2,14 @@
 
 declare const self: ServiceWorkerGlobalScope
 
-const CACHE_NAME = 'reader-cache-v1'
-const CHAPTER_CACHE_NAME = 'reader-chapters-v1'
+// 缓存版本管理
+const CACHE_VERSION = 1
+const CACHE_NAME = `reader-cache-v${CACHE_VERSION}`
+const CHAPTER_CACHE_NAME = `reader-chapters-v${CACHE_VERSION}`
+
+// 最大缓存数量限制（防止缓存无限增长）
+const MAX_CACHE_ITEMS = 100
+const MAX_CHAPTER_CACHE_ITEMS = 50
 
 // 需要预缓存的静态资源
 const STATIC_ASSETS = [
@@ -15,7 +21,9 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS)
+            return cache.addAll(STATIC_ASSETS).catch((error) => {
+                console.error('缓存静态资源失败:', error)
+            })
         })
     )
     // 立即激活新的 Service Worker
@@ -26,11 +34,18 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME && name !== CHAPTER_CACHE_NAME)
-                    .map((name) => caches.delete(name))
-            )
+            // 删除所有旧版本的缓存
+            const deletePromises = cacheNames
+                .filter((name) => {
+                    // 删除所有不是当前版本的缓存
+                    return !name.startsWith(`reader-cache-v${CACHE_VERSION}`) &&
+                           !name.startsWith(`reader-chapters-v${CACHE_VERSION}`)
+                })
+                .map((name) => {
+                    console.log('删除旧缓存:', name)
+                    return caches.delete(name)
+                })
+            return Promise.all(deletePromises)
         })
     )
     // 立即接管所有页面

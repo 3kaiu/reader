@@ -98,7 +98,7 @@ export function useTTS() {
         }
 
         utterance.onerror = (e) => {
-            console.error('TTS Error:', e)
+            logger.error('TTS 错误', e as Error, { function: 'useTTS' })
             isSpeaking.value = false
             isPaused.value = false
         }

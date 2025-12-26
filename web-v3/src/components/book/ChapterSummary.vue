@@ -5,6 +5,7 @@ import { useAIStore } from '@/stores/ai'
 import { useSettingsStore } from '@/stores/settings'
 import { getCache, setCache } from '@/composables/useAICache'
 import { useReaderStore } from '@/stores/reader'
+import { logger } from '@/utils/logger'
 
 const props = defineProps<{
   chapter: {
@@ -68,7 +69,7 @@ async function loadSummary(force = false) {
     
   } catch (e) {
     if (isMountedRef.value) error.value = '生成失败'
-    console.error(e)
+    logger.error('生成章节摘要失败', e as Error, { function: 'ChapterSummary', chapterIndex: props.chapter.index })
   } finally {
     if (isMountedRef.value) isLoading.value = false
   }

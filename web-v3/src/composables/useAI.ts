@@ -271,7 +271,7 @@ export function useAI() {
             }
             return []
         } catch (e) {
-            console.error('谐音识别失败:', e)
+            logger.error('谐音识别失败', e as Error, { function: 'detectHomophones' })
             return []
         }
     }

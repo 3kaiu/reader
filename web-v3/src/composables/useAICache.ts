@@ -2,10 +2,12 @@
  * AI 分析结果缓存
  * 使用 IndexedDB 存储章节摘要、谐音识别结果
  */
+import { logger } from '../utils/logger'
+import { IDB_DB_NAME, IDB_DB_VERSION, IDB_STORE_NAME } from '../constants/cache'
 
-const DB_NAME = 'ai-cache'
-const DB_VERSION = 1
-const STORE_NAME = 'analysis'
+const DB_NAME = IDB_DB_NAME
+const DB_VERSION = IDB_DB_VERSION
+const STORE_NAME = IDB_STORE_NAME
 
 interface CacheEntry {
     id: string // bookUrl + chapterIndex + type
@@ -83,7 +85,7 @@ export async function getCache(
             }
         })
     } catch (e) {
-        console.error('获取缓存失败:', e)
+        logger.error('获取缓存失败', e as Error, { function: 'getCache' })
         return null
     }
 }
@@ -111,7 +113,7 @@ export async function setCache(
 
         store.put(entry)
     } catch (e) {
-        console.error('设置缓存失败:', e)
+        logger.error('设置缓存失败', e as Error, { function: 'setCache' })
     }
 }
 
@@ -129,7 +131,7 @@ export async function deleteCache(
 
         store.delete(key)
     } catch (e) {
-        console.error('删除缓存失败:', e)
+        logger.error('删除缓存失败', e as Error, { function: 'deleteCache' })
     }
 }
 
@@ -150,7 +152,7 @@ export async function clearBookCache(bookUrl: string): Promise<void> {
             }
         }
     } catch (e) {
-        console.error('清除书籍缓存失败:', e)
+        logger.error('清除书籍缓存失败', e as Error, { function: 'clearBookCache' })
     }
 }
 
@@ -162,7 +164,7 @@ export async function clearAllCache(): Promise<void> {
         const store = transaction.objectStore(STORE_NAME)
         store.clear()
     } catch (e) {
-        console.error('清除所有缓存失败:', e)
+        logger.error('清除所有缓存失败', e as Error, { function: 'clearAllCache' })
     }
 }
 
@@ -179,7 +181,7 @@ export async function getCacheSize(): Promise<number> {
             request.onsuccess = () => resolve(request.result)
         })
     } catch (e) {
-        console.error('获取缓存大小失败:', e)
+        logger.error('获取缓存大小失败', e as Error, { function: 'getCacheSize' })
         return 0
     }
 }

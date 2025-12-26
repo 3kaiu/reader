@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useMessage } from '@/composables/useMessage'
+import { logger } from '@/utils/logger'
 import { Check, RefreshCw, Loader2, Globe } from 'lucide-vue-next'
 import { 
   Sheet,
@@ -117,7 +118,7 @@ function startSearchSSE() {
         sources.value.push(...newSources)
       }
     } catch (err) {
-      console.error(err)
+      logger.error('加载书源失败', err as Error, { function: 'BookSourcePicker' })
     }
   })
   

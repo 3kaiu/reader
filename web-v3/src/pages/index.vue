@@ -2,9 +2,12 @@
 /**
  * 首页/书架 - Neo-Modern Redesign
  */
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useDark, useToggle, useStorage } from "@vueuse/core";
+import { useVirtualizer } from "@tanstack/vue-virtual";
+import { logger } from "@/utils/logger";
+import { VIRTUAL_SCROLL_THRESHOLD, VIRTUAL_SCROLL_OVERSCAN } from "@/constants/ui";
 import {
   Search,
   Plus,
@@ -93,6 +96,60 @@ const otherBooks = computed(() => {
   return sortedBooks.value.slice(4);
 });
 
+// 虚拟滚动：只在书籍数量超过阈值时启用
+const shouldUseVirtualScroll = computed(() => otherBooks.value.length > VIRTUAL_SCROLL_THRESHOLD);
+const virtualContainerRef = ref<HTMLElement | null>(null);
+
+// 计算每行显示的列数（响应式）
+const getColumnsPerRow = () => {
+  if (typeof window === 'undefined') return 6
+  const width = window.innerWidth
+  if (width >= 1280) return 6 // xl
+  if (width >= 1024) return 5 // lg
+  if (width >= 768) return 4  // md
+  return 3 // sm
+}
+
+// 计算行数（响应式）
+const rows = computed(() => {
+  const cols = getColumnsPerRow()
+  return Math.ceil(otherBooks.value.length / cols)
+})
+
+// 窗口宽度响应式（用于监听窗口大小变化，触发虚拟滚动更新）
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
+
+// 监听窗口大小变化
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    const handleResize = () => {
+      windowWidth.value = window.innerWidth
+    }
+    window.addEventListener('resize', handleResize)
+  }
+})
+
+// 虚拟滚动器（按行）
+// 注意：@tanstack/vue-virtual 的 count 需要是响应式的，但需要确保在数据变化时更新
+const virtualizer = useVirtualizer({
+  count: () => rows.value, // 使用函数形式确保响应式
+  getScrollElement: () => virtualContainerRef.value,
+  estimateSize: () => {
+    const cols = getColumnsPerRow()
+    // 估算每行高度：卡片高度 + gap
+    return cols <= 3 ? 280 : cols <= 4 ? 260 : 240
+  },
+  overscan: VIRTUAL_SCROLL_OVERSCAN, // 预渲染行数
+});
+
+// 监听 rows 和 windowWidth 变化，强制虚拟滚动器重新计算
+watch([rows, windowWidth], () => {
+  // 触发虚拟滚动器重新计算
+  if (virtualizer.value) {
+    virtualizer.value.measureElement(0)
+  }
+}, { flush: 'post' })
+
 // ====== 方法 ======
 
 async function loadBookshelf() {
@@ -104,7 +161,7 @@ async function loadBookshelf() {
       error(res.errorMsg || "加载书架失败");
     }
   } catch (e) {
-    console.error("加载书架失败:", e);
+    logger.error("加载书架失败", e as Error, { function: "loadBookshelf" });
   } finally {
     loading.value = false;
     refreshing.value = false;
@@ -488,10 +545,68 @@ onMounted(() => {
             class="text-sm font-bold text-muted-foreground uppercase tracking-wider"
           >
             全部书籍
+            <span class="text-xs font-normal text-muted-foreground/60 normal-case ml-1">
+              ({{ otherBooks.length }})
+            </span>
           </h2>
         </div>
 
+        <!-- 虚拟滚动（书籍数量多时） -->
         <div
+          v-if="shouldUseVirtualScroll"
+          ref="virtualContainerRef"
+          class="h-[600px] overflow-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 scrollbar-hide pb-32"
+        >
+          <div
+            :style="{
+              height: `${virtualizer.getTotalSize()}px`,
+              position: 'relative',
+            }"
+          >
+            <div
+              v-for="virtualRow in virtualizer.getVirtualItems()"
+              :key="virtualRow.key"
+              :style="{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }"
+            >
+              <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 px-1">
+                <template
+                  v-for="col in getColumnsPerRow()"
+                  :key="col"
+                >
+                  <div
+                    v-if="virtualRow.index * getColumnsPerRow() + col - 1 < otherBooks.length"
+                    class="relative"
+                  >
+                    <BookCard
+                      :book="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].book"
+                      :show-progress="showProgress"
+                      :manage-mode="isManageMode"
+                      :selected="selectedBooks.has(otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].book.bookUrl)"
+                      @click="handleBookClick"
+                      @delete="deleteBook"
+                    />
+                    <div
+                      v-if="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].sourceCount > 1 && !isManageMode"
+                      class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-primary/20 backdrop-blur text-primary text-[10px] font-bold flex items-center justify-center ring-2 ring-background z-10 scale-90 sm:scale-100"
+                    >
+                      {{ otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].sourceCount }}
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 普通网格渲染（书籍数量少时） -->
+        <div
+          v-else
           class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 pb-32"
         >
           <div

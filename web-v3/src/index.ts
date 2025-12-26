@@ -29,7 +29,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
                 console.log('SW 注册成功:', registration.scope)
             })
             .catch((error) => {
-                console.log('SW 注册失败:', error)
+                // Service Worker 注册失败（生产环境）
             })
     })
 }

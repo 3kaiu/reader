@@ -5,6 +5,7 @@
 import { ref, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useStorage } from "@vueuse/core";
+import { logger } from "@/utils/logger";
 import {
   Search,
   ArrowLeft,
@@ -113,7 +114,7 @@ async function search(keyword?: string) {
         searchResult.value.push(parsed);
       }
     } catch (e) {
-      console.error("SSE parse error:", e);
+      logger.error("SSE 解析错误", e as Error, { function: "searchPage" });
     }
   };
 

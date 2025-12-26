@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useMessage } from '@/composables/useMessage'
+import { logger } from '@/utils/logger'
 import { 
   Sheet,
   SheetContent,
@@ -68,7 +69,7 @@ async function loadInfo() {
       info.value = res.data
     }
   } catch (err) {
-    console.error(err)
+    logger.error('加载书籍信息失败', err as Error, { function: 'BookInfoModal', bookUrl: props.bookUrl })
   } finally {
     loading.value = false
   }

@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import { useAIStore } from '@/stores/ai'
 import { useReaderStore } from '@/stores/reader'
 import { getCache, setCache } from '@/composables/useAICache'
+import { logger } from '@/utils/logger'
 import { Brain, Sparkles, Loader2, MessageSquare, FileText, Users, RefreshCw, Settings, Database } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -128,7 +129,7 @@ async function detectHomophones(forceRefresh = false) {
       await setCache(bookUrl, chapterIndex, 'homophone', homophoneResult.value)
     }
   } catch (e) {
-    console.error('谐音检测失败:', e)
+    logger.error('谐音检测失败', e as Error, { function: 'AIPanel.detectHomophones' })
   } finally {
     isProcessing.value = false
   }

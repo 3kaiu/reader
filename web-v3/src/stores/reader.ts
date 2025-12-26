@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { bookApi, type Book, type Chapter } from '../api'
+import { logger } from '../utils/logger'
 
 // 检测问题内容的关键词模式
 const ERROR_PATTERNS = [
@@ -141,7 +142,7 @@ export const useReaderStore = defineStore('reader', () => {
       }
     } catch (e) {
       error.value = '无法加载书籍目录'
-      console.error(e)
+      logger.error('加载目录失败', e as Error, { function: 'loadCatalog' })
     } finally {
       isLoading.value = false
     }
@@ -184,7 +185,7 @@ export const useReaderStore = defineStore('reader', () => {
       }
     } catch (e) {
       error.value = '无法加载章节内容'
-      console.error(e)
+      logger.error('加载目录失败', e as Error, { function: 'loadCatalog' })
     } finally {
       isLoading.value = false
     }
@@ -259,7 +260,7 @@ export const useReaderStore = defineStore('reader', () => {
 
       return true
     } catch (e) {
-      console.error('加载下一章失败:', e)
+      logger.error('加载下一章失败', e as Error, { function: 'appendNextChapter' })
       return false
     } finally {
       isLoadingMore.value = false
@@ -324,7 +325,7 @@ export const useReaderStore = defineStore('reader', () => {
     try {
       await bookApi.saveBookProgress(currentBook.value.bookUrl, currentChapterIndex.value)
     } catch (e) {
-      console.error('保存进度失败:', e)
+      logger.error('保存进度失败', e as Error, { function: 'saveProgress' })
     }
   }
 
