@@ -44,6 +44,9 @@ pub mod execution;
 // Unified analysis framework (Phase 2)
 pub mod analysis;
 
+// Prelude for convenient imports
+pub mod prelude;
+
 // Benchmark tests
 #[cfg(test)]
 mod benchmarks;
