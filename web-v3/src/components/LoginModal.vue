@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  NModal,
-  NCard,
-  NForm,
-  NFormItem,
-  NInput,
-  NButton,
-  NSpace,
-  NTabs,
-  NTabPane,
-  useMessage,
-} from 'naive-ui'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import { $post } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { useMessage } from '@/composables/useMessage'
 
 const props = defineProps<{
   show: boolean
@@ -29,6 +29,7 @@ const userStore = useUserStore()
 // ====== 状态 ======
 const activeTab = ref<'login' | 'register'>('login')
 const loading = ref(false)
+const showPassword = ref({ login: false, register: false, confirm: false })
 
 const loginForm = ref({
   username: '',
@@ -112,98 +113,149 @@ async function handleRegister() {
 </script>
 
 <template>
-  <NModal 
-    :show="show"
-    @update:show="emit('update:show', $event)"
-    :mask-closable="true"
-  >
-    <NCard
-      style="width: 400px"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-      class="rounded-2xl"
-    >
-      <template #header>
-        <div class="text-center">
-          <h2 class="text-xl font-bold">用户登录</h2>
-        </div>
-      </template>
-
-      <NTabs v-model:value="activeTab" type="segment" animated>
-        <!-- 登录 -->
-        <NTabPane name="login" tab="登录">
-          <NForm class="mt-4">
-            <NFormItem label="用户名">
-              <NInput
-                v-model:value="loginForm.username"
-                placeholder="请输入用户名"
-                @keyup.enter="handleLogin"
-              />
-            </NFormItem>
-            <NFormItem label="密码">
-              <NInput
-                v-model:value="loginForm.password"
-                type="password"
-                show-password-on="click"
-                placeholder="请输入密码"
-                @keyup.enter="handleLogin"
-              />
-            </NFormItem>
-            <NButton
-              type="primary"
-              block
-              :loading="loading"
-              @click="handleLogin"
-            >
-              登录
-            </NButton>
-          </NForm>
-        </NTabPane>
-
-        <!-- 注册 -->
-        <NTabPane name="register" tab="注册">
-          <NForm class="mt-4">
-            <NFormItem label="用户名">
-              <NInput
-                v-model:value="registerForm.username"
-                placeholder="请输入用户名"
-              />
-            </NFormItem>
-            <NFormItem label="密码">
-              <NInput
-                v-model:value="registerForm.password"
-                type="password"
-                show-password-on="click"
-                placeholder="请输入密码"
-              />
-            </NFormItem>
-            <NFormItem label="确认密码">
-              <NInput
-                v-model:value="registerForm.confirmPassword"
-                type="password"
-                show-password-on="click"
-                placeholder="请再次输入密码"
-                @keyup.enter="handleRegister"
-              />
-            </NFormItem>
-            <NButton
-              type="primary"
-              block
-              :loading="loading"
-              @click="handleRegister"
-            >
-              注册
-            </NButton>
-          </NForm>
-        </NTabPane>
-      </NTabs>
-
-      <template #footer>
-        <div class="text-center text-sm text-gray-400">
+  <Dialog :open="show" @update:open="(val) => emit('update:show', val)">
+    <DialogContent class="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle class="text-center text-xl">用户登录</DialogTitle>
+        <DialogDescription class="text-center">
           登录后可同步阅读进度和书架
+        </DialogDescription>
+      </DialogHeader>
+
+      <!-- Tabs 切换 -->
+      <div class="grid grid-cols-2 p-1 bg-muted rounded-lg mb-6">
+        <button
+          class="px-4 py-2 text-sm font-medium rounded-md transition-all"
+          :class="activeTab === 'login' 
+            ? 'bg-background shadow-sm text-foreground' 
+            : 'text-muted-foreground hover:bg-background/50'"
+          @click="activeTab = 'login'"
+        >
+          登录
+        </button>
+        <button
+          class="px-4 py-2 text-sm font-medium rounded-md transition-all"
+          :class="activeTab === 'register' 
+            ? 'bg-background shadow-sm text-foreground' 
+            : 'text-muted-foreground hover:bg-background/50'"
+          @click="activeTab = 'register'"
+        >
+          注册
+        </button>
+      </div>
+
+      <!-- 登录表单 -->
+      <div v-if="activeTab === 'login'" class="space-y-4">
+        <div class="space-y-2">
+          <Label for="login-username">用户名</Label>
+          <Input
+            id="login-username"
+            v-model="loginForm.username"
+            placeholder="请输入用户名"
+            @keyup.enter="handleLogin"
+            :disabled="loading"
+          />
         </div>
-      </template>
-    </NCard>
-  </NModal>
+        
+        <div class="space-y-2">
+          <Label for="login-password">密码</Label>
+          <div class="relative">
+            <Input
+              id="login-password"
+              v-model="loginForm.password"
+              :type="showPassword.login ? 'text' : 'password'"
+              placeholder="请输入密码"
+              @keyup.enter="handleLogin"
+              :disabled="loading"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="showPassword.login = !showPassword.login"
+            >
+              <EyeOff v-if="showPassword.login" class="h-4 w-4" />
+              <Eye v-else class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <Button
+          class="w-full"
+          :disabled="loading"
+          @click="handleLogin"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          登录
+        </Button>
+      </div>
+
+      <!-- 注册表单 -->
+      <div v-else class="space-y-4">
+        <div class="space-y-2">
+          <Label for="register-username">用户名</Label>
+          <Input
+            id="register-username"
+            v-model="registerForm.username"
+            placeholder="请输入用户名"
+            :disabled="loading"
+          />
+        </div>
+        
+        <div class="space-y-2">
+          <Label for="register-password">密码</Label>
+          <div class="relative">
+            <Input
+              id="register-password"
+              v-model="registerForm.password"
+              :type="showPassword.register ? 'text' : 'password'"
+              placeholder="请输入密码"
+              :disabled="loading"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="showPassword.register = !showPassword.register"
+            >
+              <EyeOff v-if="showPassword.register" class="h-4 w-4" />
+              <Eye v-else class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="register-confirm">确认密码</Label>
+          <div class="relative">
+            <Input
+              id="register-confirm"
+              v-model="registerForm.confirmPassword"
+              :type="showPassword.confirm ? 'text' : 'password'"
+              placeholder="请再次输入密码"
+              @keyup.enter="handleRegister"
+              :disabled="loading"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="showPassword.confirm = !showPassword.confirm"
+            >
+              <EyeOff v-if="showPassword.confirm" class="h-4 w-4" />
+              <Eye v-else class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <Button
+          class="w-full"
+          :disabled="loading"
+          @click="handleRegister"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          注册
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
 </template>

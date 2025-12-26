@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { NConfigProvider, NMessageProvider, NDialogProvider, zhCN, dateZhCN, darkTheme, type GlobalThemeOverrides } from 'naive-ui'
+import { NConfigProvider, zhCN, dateZhCN, darkTheme, type GlobalThemeOverrides } from 'naive-ui'
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useUserStore } from '@/stores/user'
 import LoginModal from '@/components/LoginModal.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const settingsStore = useSettingsStore()
 const userStore = useUserStore()
@@ -41,18 +42,16 @@ const theme = computed(() => (settingsStore.isDark ? darkTheme : undefined))
     :locale="zhCN"
     :date-locale="dateZhCN"
   >
-    <NMessageProvider>
-      <NDialogProvider>
-        <router-view v-slot="{ Component }">
-          <Transition name="page-fade" mode="out-in">
-            <component :is="Component" />
-          </Transition>
-        </router-view>
-        
-        <!-- 全局登录弹窗 -->
-        <LoginModal v-model:show="userStore.showLoginModal" />
-      </NDialogProvider>
-    </NMessageProvider>
+    <router-view v-slot="{ Component }">
+      <Transition name="page-fade" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </router-view>
+    
+    <!-- 全局登录弹窗 -->
+    <LoginModal v-model:show="userStore.showLoginModal" />
+    <!-- 全局确认对话框 -->
+    <ConfirmDialog />
   </NConfigProvider>
 </template>
 

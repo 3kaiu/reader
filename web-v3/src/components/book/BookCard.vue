@@ -50,8 +50,13 @@ function handleDelete(e: Event) {
 
 <template>
   <div
-    class="group cursor-pointer relative select-none"
+    class="group cursor-pointer relative select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
     @click="emit('click', book)"
+    role="button"
+    tabindex="0"
+    @keydown.enter="emit('click', book)"
+    @keydown.space.prevent="emit('click', book)"
+    :aria-label="`打开书籍 ${book.name}`"
   >
     <!-- 封面容器 -->
     <div 
@@ -140,9 +145,11 @@ function handleDelete(e: Event) {
         v-if="!manageMode"
         class="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/30 backdrop-blur-md
                flex items-center justify-center text-white/90
-               opacity-0 group-hover:opacity-100 hover:bg-black/50 hover:scale-105
-               transition-all duration-200 z-20"
+               opacity-0 group-hover:opacity-100 hover:bg-black/50 hover:scale-105 active:scale-95
+               transition-all duration-200 z-20 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1"
         @click.stop="showMenu = !showMenu"
+        aria-label="更多选项"
+        aria-expanded="showMenu"
       >
         <MoreVertical class="h-3 w-3" />
       </button>
@@ -154,8 +161,9 @@ function handleDelete(e: Event) {
         @click.stop
       >
         <button
-          class="flex items-center gap-2 px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium text-destructive hover:bg-destructive/10 w-full transition-colors"
+          class="flex items-center gap-2 px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium text-destructive hover:bg-destructive/10 active:bg-destructive/20 w-full transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-1"
           @click="handleDelete"
+          aria-label="删除书籍"
         >
           <Trash2 class="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           删除书籍

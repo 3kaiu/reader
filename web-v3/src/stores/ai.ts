@@ -18,30 +18,136 @@ declare global {
     }
 }
 
-// 推荐模型列表
-export const RECOMMENDED_MODELS = [
-    {
-        id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-        name: 'Qwen 2.5 1.5B',
-        size: '~1GB',
-        description: '中文优化，推荐用于中文小说',
-        recommended: true,
-    },
-    {
-        id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
-        name: 'Phi 3.5 Mini',
-        size: '~2GB',
-        description: '综合能力强，英语更佳',
-        recommended: true,
-    },
-    {
-        id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-        name: 'Llama 3.2 1B',
-        size: '~800MB',
-        description: '轻量快速',
-        recommended: true,
-    },
-]
+// 动态获取推荐模型（精选最优模型）
+export function getRecommendedModels() {
+    try {
+        const modelList = webllm.prebuiltAppConfig.model_list
+        if (!modelList || !Array.isArray(modelList)) {
+            return []
+        }
+        
+        // 推荐模型标准（优先 3B，附加同系列 7B/8B，中文友好）：
+        // 1. 参数量：1B / 1.5B / 2B / 3B / 7B / 8B
+        // 2. 量化：Q4
+        // 3. VRAM：< 7GB（允许 7B/8B Q4 端侧运行）
+        // 4. 主流系列：Qwen 2.5、Llama 3.2（中文表现较好）
+        // 5. 优先 3B（轻量），可附加 7B/8B（重型），都优先 q4f16
+        const candidates = modelList
+            .filter((m: any) => {
+                const id = m.model_id.toLowerCase()
+                const vram = m.vram_required_MB || 0
+
+                // 剔除专用途径模型（代码 / 数学 / 视觉 / 嵌入 等）
+                if (
+                    id.includes('coder') ||
+                    id.includes('code') ||
+                    id.includes('math') ||
+                    id.includes('vision') ||
+                    id.includes('vl') ||
+                    id.includes('embed') ||
+                    id.includes('embedding')
+                ) {
+                    return false
+                }
+                
+                // 模型大小检查：1B / 1.5B / 2B / 3B / 7B / 8B
+                const isSmall = (
+                    (id.includes('1b') || 
+                     id.includes('1.5b') || 
+                     id.includes('2b') ||
+                     id.includes('3b') ||
+                     id.includes('7b') ||
+                     id.includes('8b'))
+                )
+                
+                // Q4量化检查
+                const isQ4 = id.includes('q4')
+                
+                // VRAM需求检查（小于7GB，兼顾 3B 与 7B/8B Q4）
+                const isLowVRAM = vram < 7000
+                
+                // 主流系列检查（只选择对中文友好的模型）
+                // 优先选择 Qwen（中文优化），其次选择 Llama 3.2（对中文支持较好）
+                const isMainstream = 
+                    (id.includes('qwen2.5') && !id.includes('coder') && !id.includes('math')) ||
+                    (id.includes('llama-3.2'))
+                
+                return isSmall && isQ4 && isLowVRAM && isMainstream
+            })
+            .map((m: any) => {
+                const id = m.model_id.toLowerCase()
+                const vram = m.vram_required_MB || 0
+                // rank 越小越优先：3B > 2B > 1.5B > 1B > 7B > 8B
+                let rank = 10
+                if (id.includes('3b')) rank = 0
+                else if (id.includes('2b')) rank = 1
+                else if (id.includes('1.5b')) rank = 2
+                else if (id.includes('1b')) rank = 3
+                else if (id.includes('7b')) rank = 4
+                else if (id.includes('8b')) rank = 5
+
+                return {
+                    id: m.model_id,
+                    vram,
+                    isQ4F16: id.includes('q4f16'),
+                    rank,
+                }
+            })
+        
+        // 按系列分组，每个系列选择最优的1-2个模型
+        const seriesGroups: Record<string, typeof candidates> = {}
+        
+        candidates.forEach((model) => {
+            const id = model.id.toLowerCase()
+            let series = 'other'
+            
+            if (id.includes('qwen2.5')) series = 'qwen'
+            else if (id.includes('llama-3.2')) series = 'llama-3.2'
+            else if (id.includes('llama-3.1')) series = 'llama-3.1'
+            
+            if (!seriesGroups[series]) {
+                seriesGroups[series] = []
+            }
+            seriesGroups[series].push(model)
+        })
+        
+        // 从每个系列中选择最优模型（优先 q4f16，然后按 VRAM 排序）
+        const recommended: string[] = []
+        
+        Object.values(seriesGroups).forEach((group) => {
+            // 按 rank -> q4f16 -> VRAM 从小到大排序
+            const sorted = group.sort((a, b) => {
+                if (a.rank !== b.rank) {
+                    return a.rank - b.rank
+                }
+                if (a.isQ4F16 !== b.isQ4F16) {
+                    return a.isQ4F16 ? -1 : 1
+                }
+                return a.vram - b.vram
+            })
+
+            // 轻量优先：选一个 rank <= 3 的（最多 3B/2B/1.5B/1B）
+            const light = sorted.find(m => m.rank <= 3)
+            if (light) {
+                recommended.push(light.id)
+            }
+
+            // 如果有更大模型（7B/8B），再附加一个重型选项
+            const heavy = sorted.find(m => m.rank >= 4)
+            if (heavy) {
+                recommended.push(heavy.id)
+            }
+        })
+        
+        return recommended
+    } catch {
+        // 如果无法获取模型列表（可能不支持WebGPU），返回空数组
+        return []
+    }
+}
+
+// 保持向后兼容的导出（用于其他地方引用）
+export const RECOMMENDED_MODELS = []
 
 // 模型厂商映射
 const MODEL_VENDORS: Record<string, string> = {
@@ -72,20 +178,30 @@ function getVendor(modelId: string): string {
 function estimateSize(modelId: string): string {
     const id = modelId.toLowerCase()
 
-    // 解析参数量
+    // 解析参数量（更全面的匹配）
     let params = 0
-    if (id.includes('0.5b')) params = 0.5
-    else if (id.includes('1b') || id.includes('1.5b')) params = 1.5
-    else if (id.includes('2b')) params = 2
-    else if (id.includes('3b')) params = 3
-    else if (id.includes('7b') || id.includes('8b')) params = 7
+    // 匹配各种参数量格式（按从大到小顺序，避免误匹配）
+    if (id.includes('70b')) params = 70
     else if (id.includes('13b')) params = 13
-    else if (id.includes('70b')) params = 70
+    else if (id.includes('8b')) params = 8
+    else if (id.includes('7b')) params = 7
+    else if (id.includes('3b')) params = 3
+    else if (id.includes('2b')) params = 2
+    else if (id.includes('1.5b') || id.includes('1.5-b')) params = 1.5
+    else if (id.includes('1b') && !id.includes('1.5')) params = 1
+    else if (id.includes('0.5b') || id.includes('500m')) params = 0.5
 
     // 解析量化方式
     let ratio = 1
-    if (id.includes('q4f16') || id.includes('q4f32')) ratio = 0.5
-    else if (id.includes('q0f16') || id.includes('q0f32')) ratio = 2
+    if (id.includes('q4f16') || id.includes('q4f32') || id.includes('q4')) {
+        ratio = 0.5
+    } else if (id.includes('q8f16') || id.includes('q8f32') || id.includes('q8')) {
+        ratio = 0.75
+    } else if (id.includes('q0f16') || id.includes('q0f32')) {
+        ratio = 2
+    } else if (id.includes('f16') || id.includes('f32')) {
+        ratio = 2
+    }
 
     if (params === 0) return '未知'
 
@@ -96,23 +212,122 @@ function estimateSize(modelId: string): string {
     return `~${sizeMB}MB`
 }
 
+// 从模型ID解析量化方式
+function getQuantization(modelId: string): string {
+    const id = modelId.toLowerCase()
+    if (id.includes('q4f16') || id.includes('q4f32')) return 'Q4'
+    if (id.includes('q8f16') || id.includes('q8f32')) return 'Q8'
+    if (id.includes('q0f16') || id.includes('q0f32')) return 'FP16'
+    return '未知'
+}
+
+// 从模型ID解析参数量
+function getParams(modelId: string): string {
+    const id = modelId.toLowerCase()
+    
+    // 更精确的参数量匹配（按从大到小顺序，避免误匹配）
+    if (id.includes('70b')) return '70B'
+    if (id.includes('13b')) return '13B'
+    if (id.includes('8b')) return '8B'
+    if (id.includes('7b')) return '7B'
+    if (id.includes('3b')) return '3B'
+    if (id.includes('2b')) return '2B'
+    if (id.includes('1.5b') || id.includes('1.5-b')) return '1.5B'
+    if (id.includes('1b') && !id.includes('1.5')) return '1B'
+    if (id.includes('0.5b') || id.includes('500m')) return '0.5B'
+    
+    return '未知'
+}
+
 // 获取所有可用模型（带厂商和大小）
 export function getAllModels() {
     try {
         const modelList = webllm.prebuiltAppConfig.model_list
-        return modelList.map((m: any) => {
-            const id = m.model_id
-            return {
-                id,
-                name: id.split('-').slice(0, 3).join(' '),
-                size: estimateSize(id),
-                vendor: getVendor(id),
-                description: id,
-                recommended: RECOMMENDED_MODELS.some(r => r.id === id),
-            }
-        })
+        if (!modelList || !Array.isArray(modelList)) {
+            return []
+        }
+        
+        const recommendedIds = new Set(getRecommendedModels())
+        
+        // 映射并过滤模型
+        return modelList
+            .map((m: any) => {
+                const id = m.model_id
+                if (!id || typeof id !== 'string') {
+                    return null
+                }
+                
+                // 尝试从model对象中获取context_window，如果没有则使用默认值
+                const contextWindow = m.context_window || 4096
+                
+                // 解析模型系列（取第一个单词，处理大小写）
+                const seriesParts = id.split('-')
+                const series = seriesParts[0] || 'Unknown'
+                
+                // 计算模型信息
+                const size = estimateSize(id)
+                const vendor = getVendor(id)
+                const params = getParams(id)
+                const quantization = getQuantization(id)
+                
+                return {
+                    id,
+                    name: id.split('-').slice(0, 3).join(' '),
+                    fullName: id,
+                    size,
+                    vendor,
+                    description: id,
+                    recommended: recommendedIds.has(id), // 使用 web-llm 的 low_resource_required 标记
+                    quantization,
+                    params,
+                    contextWindow: contextWindow,
+                    series, // 模型系列（如 Qwen, Llama, Phi 等）
+                }
+            })
+            .filter((model: any) => {
+                // 过滤条件：
+                // 1. 模型对象必须存在
+                // 2. 厂商不能是"其他"（未知厂商）
+                // 3. 大小不能是"未知"
+                // 4. 参数量不能是"未知"
+                // 5. 移除对中文不友好的模型
+                if (!model) return false
+                if (model.vendor === '其他') return false
+                if (model.size === '未知') return false
+                if (model.params === '未知') return false
+                
+                // 中文支持过滤：移除对中文不友好的模型系列
+                const id = model.id.toLowerCase()
+                // 保留：Qwen（中文优化）、Llama（较新版本对中文支持有所改善）
+                // 移除：Gemma（Google，主要针对英文）、Phi（Microsoft，主要针对英文）
+                // 移除：其他对中文支持较差的模型
+                const isChineseUnfriendly = 
+                    id.includes('gemma') ||           // Google Gemma，主要针对英文
+                    id.includes('phi') ||              // Microsoft Phi，主要针对英文
+                    id.includes('mistral') ||          // Mistral AI，主要针对英文
+                    id.includes('smollm') ||           // SmolLM，主要针对英文
+                    id.includes('stablelm') ||         // StableLM，主要针对英文
+                    id.includes('redpajama') ||        // RedPajama，主要针对英文
+                    id.includes('wizardmath') ||       // WizardMath，主要针对数学和英文
+                    (id.includes('llama') && !id.includes('llama-3.2') && !id.includes('llama-3.1')) // 只保留 Llama 3.1+ 和 3.2（较新版本对中文支持更好）
+                
+                if (isChineseUnfriendly) return false
+
+                // 移除专用途径模型（coder / math / vision 等）
+                const isSpecialized =
+                    id.includes('coder') ||    // 代码模型
+                    id.includes('code') ||     // 泛代码模型
+                    id.includes('math') ||     // 数学推理模型
+                    id.includes('vision') ||   // 视觉模型
+                    id.includes('vl')          // 多模态视觉语言
+
+                if (isSpecialized) return false
+                
+                return true
+            })
     } catch {
-        return RECOMMENDED_MODELS.map(m => ({ ...m, vendor: getVendor(m.id) }))
+        // 如果无法获取模型列表（可能不支持WebGPU），返回空数组
+        return []
     }
 }
 
@@ -127,7 +342,25 @@ export function getVendors(): string[] {
 const STORAGE_KEY = 'ai-last-model'
 const getDefaultModel = () => {
     try {
-        return localStorage.getItem(STORAGE_KEY) || 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) {
+            // 验证保存的模型是否可用
+            const availableModels = getAllModels()
+            if (availableModels.some(m => m.id === saved)) {
+                return saved
+            }
+        }
+        // 如果没有保存的或保存的不可用，使用第一个推荐的模型
+        const recommended = getRecommendedModels()
+        if (recommended.length > 0) {
+            return recommended[0] // getRecommendedModels() 现在返回字符串数组
+        }
+        // 如果连推荐模型都没有，使用第一个可用模型
+        const availableModels = getAllModels()
+        if (availableModels.length > 0) {
+            return availableModels[0].id
+        }
+        return 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC' // 兜底
     } catch {
         return 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
     }
@@ -247,28 +480,54 @@ export const useAIStore = defineStore('ai', () => {
         messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
         options?: {
             temperature?: number
+            topP?: number
             maxTokens?: number
             onStream?: (text: string) => void
             jsonMode?: boolean  // JSON 结构化输出
             seed?: number       // 可复现种子
+            presencePenalty?: number  // 话题新鲜度
+            frequencyPenalty?: number  // 频率惩罚度
         }
     ): Promise<string> {
         if (!engine.value || !isModelLoaded.value) {
             throw new Error('模型未加载')
         }
 
+        // 从settings store获取默认参数（如果可用）
+        let defaultTemperature = 0.7
+        let defaultTopP = 0.9
+        let defaultMaxTokens = 2048
+        let defaultPresencePenalty = 0.0
+        let defaultFrequencyPenalty = 0.0
+
+        try {
+            const { useSettingsStore } = await import('./settings')
+            const settingsStore = useSettingsStore()
+            defaultTemperature = settingsStore.config.aiParams.temperature
+            defaultTopP = settingsStore.config.aiParams.topP
+            defaultMaxTokens = settingsStore.config.aiParams.maxTokens
+            defaultPresencePenalty = settingsStore.config.aiParams.presencePenalty
+            defaultFrequencyPenalty = settingsStore.config.aiParams.frequencyPenalty
+        } catch {
+            // 如果无法导入settings store，使用默认值
+        }
+
         const {
-            temperature = 0.7,
-            maxTokens = 1024,
+            temperature = defaultTemperature,
+            topP = defaultTopP,
+            maxTokens = defaultMaxTokens,
             onStream,
             jsonMode = false,
-            seed
+            seed,
+            presencePenalty = defaultPresencePenalty,
+            frequencyPenalty = defaultFrequencyPenalty,
         } = options || {}
 
         // 构建请求参数
         const requestParams: any = {
             messages,
             temperature,
+            top_p: topP,
             max_tokens: maxTokens,
         }
 
@@ -280,6 +539,14 @@ export const useAIStore = defineStore('ai', () => {
         // 添加 Seed
         if (seed !== undefined) {
             requestParams.seed = seed
+        }
+
+        // 添加 Penalty 参数（如果模型支持）
+        if (presencePenalty !== 0) {
+            requestParams.presence_penalty = presencePenalty
+        }
+        if (frequencyPenalty !== 0) {
+            requestParams.frequency_penalty = frequencyPenalty
         }
 
         try {

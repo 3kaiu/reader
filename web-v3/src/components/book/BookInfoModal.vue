@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage } from '@/composables/useMessage'
 import { 
   Sheet,
   SheetContent,

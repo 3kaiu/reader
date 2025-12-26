@@ -4,11 +4,15 @@ import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
+  for?: string
 }>()
 </script>
 
 <template>
-  <div :class="cn('rounded-lg border bg-card text-card-foreground shadow-sm transition-shadow hover:shadow-md', props.class)">
+  <label
+    :for="props.for"
+    :class="cn('text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70', props.class)"
+  >
     <slot />
-  </div>
+  </label>
 </template>

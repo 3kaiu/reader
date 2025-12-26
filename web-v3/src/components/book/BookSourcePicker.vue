@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage } from '@/composables/useMessage'
 import { Check, RefreshCw, Loader2, Globe } from 'lucide-vue-next'
 import { 
   Sheet,

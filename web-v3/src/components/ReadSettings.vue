@@ -80,7 +80,7 @@ const fontWeights = [300, 400, 500, 600, 700]
             <button
               v-for="theme in themes"
               :key="theme.key"
-              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 flex items-center justify-center text-xs font-medium"
+              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center text-xs font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.theme === theme.key 
                 ? 'border-primary scale-105 shadow-md' 
                 : 'border-border'"
@@ -89,12 +89,14 @@ const fontWeights = [300, 400, 500, 600, 700]
                 color: theme.textColor || '#333'
               }"
               @click="settingsStore.updateConfig('theme', theme.key)"
+              :aria-label="`切换到${theme.label}主题`"
+              :aria-pressed="settingsStore.config.theme === theme.key"
             >
               {{ theme.label }}
             </button>
             <!-- 自定义主题按钮 -->
             <button
-              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 flex items-center justify-center text-xs font-medium relative overflow-hidden"
+              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center text-xs font-medium relative overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.theme === 'custom' 
                 ? 'border-primary scale-105 shadow-md' 
                 : 'border-border'"
@@ -103,6 +105,8 @@ const fontWeights = [300, 400, 500, 600, 700]
                 color: settingsStore.config.customColors?.text || '#333'
               }"
               @click="settingsStore.updateConfig('theme', 'custom')"
+              aria-label="切换到自定义主题"
+              :aria-pressed="settingsStore.config.theme === 'custom'"
             >
               自定
             </button>
@@ -154,11 +158,13 @@ const fontWeights = [300, 400, 500, 600, 700]
             <button
               v-for="font in fonts"
               :key="font.key"
-              class="px-4 py-2 rounded-lg border transition-all text-sm"
+              class="px-4 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.fontFamily === font.key 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('fontFamily', font.key)"
+              :aria-label="`切换到${font.label}字体`"
+              :aria-pressed="settingsStore.config.fontFamily === font.key"
             >
               {{ font.label }}
             </button>
@@ -172,11 +178,13 @@ const fontWeights = [300, 400, 500, 600, 700]
             <button
               v-for="opt in chineseOptions"
               :key="opt.key"
-              class="px-4 py-2 rounded-lg border transition-all text-sm"
+              class="px-4 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.chineseConvert === opt.key 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('chineseConvert', opt.key)"
+              :aria-label="`${opt.label}简繁转换`"
+              :aria-pressed="settingsStore.config.chineseConvert === opt.key"
             >
               {{ opt.label }}
             </button>
@@ -227,12 +235,14 @@ const fontWeights = [300, 400, 500, 600, 700]
             <button
               v-for="weight in fontWeights"
               :key="weight"
-              class="flex-1 py-2 rounded-lg border transition-all text-sm"
+              class="flex-1 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.fontWeight === weight 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               :style="{ fontWeight: weight }"
               @click="settingsStore.updateConfig('fontWeight', weight)"
+              :aria-label="`字重${weight}`"
+              :aria-pressed="settingsStore.config.fontWeight === weight"
             >
               {{ weight }}
             </button>
@@ -308,20 +318,24 @@ const fontWeights = [300, 400, 500, 600, 700]
           <h3 class="text-sm font-medium mb-3">阅读方式</h3>
           <div class="flex gap-2">
             <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.readingMode === 'scroll' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('readingMode', 'scroll')"
+              aria-label="上下滚动模式"
+              :aria-pressed="settingsStore.config.readingMode === 'scroll'"
             >
               上下滚动
             </button>
             <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.readingMode === 'swipe' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('readingMode', 'swipe')"
+              aria-label="左右翻页模式"
+              :aria-pressed="settingsStore.config.readingMode === 'swipe'"
             >
               左右翻页
             </button>
@@ -333,29 +347,35 @@ const fontWeights = [300, 400, 500, 600, 700]
           <h3 class="text-sm font-medium mb-3">翻页动画</h3>
           <div class="flex gap-2">
             <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.pageAnimation === 'slide' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('pageAnimation', 'slide')"
+              aria-label="滑动动画"
+              :aria-pressed="settingsStore.config.pageAnimation === 'slide'"
             >
               滑动
             </button>
             <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.pageAnimation === 'fade' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('pageAnimation', 'fade')"
+              aria-label="淡入淡出动画"
+              :aria-pressed="settingsStore.config.pageAnimation === 'fade'"
             >
               淡入淡出
             </button>
             <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm"
+              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.pageAnimation === 'none' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               @click="settingsStore.updateConfig('pageAnimation', 'none')"
+              aria-label="无动画"
+              :aria-pressed="settingsStore.config.pageAnimation === 'none'"
             >
               无动画
             </button>
@@ -367,11 +387,14 @@ const fontWeights = [300, 400, 500, 600, 700]
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-medium">全屏点击翻页</h3>
             <button
-              class="w-12 h-6 rounded-full transition-all relative"
+              class="w-12 h-6 rounded-full transition-all relative focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.clickToNextPage 
                 ? 'bg-primary' 
                 : 'bg-muted'"
               @click="settingsStore.updateConfig('clickToNextPage', !settingsStore.config.clickToNextPage)"
+              :aria-label="settingsStore.config.clickToNextPage ? '关闭点击翻页' : '开启点击翻页'"
+              :aria-checked="settingsStore.config.clickToNextPage"
+              role="switch"
             >
               <span 
                 class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
@@ -391,11 +414,14 @@ const fontWeights = [300, 400, 500, 600, 700]
               </p>
             </div>
             <button
-              class="w-12 h-6 rounded-full transition-all relative"
+              class="w-12 h-6 rounded-full transition-all relative focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               :class="settingsStore.config.autoNightMode 
                 ? 'bg-primary' 
                 : 'bg-muted'"
               @click="settingsStore.toggleAutoNightMode(!settingsStore.config.autoNightMode)"
+              :aria-label="settingsStore.config.autoNightMode ? '关闭自动夜间模式' : '开启自动夜间模式'"
+              :aria-checked="settingsStore.config.autoNightMode"
+              role="switch"
             >
               <span 
                 class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
