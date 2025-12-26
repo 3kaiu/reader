@@ -106,6 +106,43 @@ pub enum NativeApi {
         end: Option<i32>,
     },
     HtmlToText,
+    StringToLowerCase,
+    StringToUpperCase,
+    StringPadStart {
+        length: i32,
+        pad_char: String,
+    },
+    StringPadEnd {
+        length: i32,
+        pad_char: String,
+    },
+    StringRepeat {
+        count: i32,
+    },
+    StringCharAt {
+        index: i32,
+    },
+    StringCharCodeAt {
+        index: i32,
+    },
+    StringIncludes {
+        search: String,
+    },
+    StringStartsWith {
+        prefix: String,
+    },
+    StringEndsWith {
+        suffix: String,
+    },
+    StringIndexOf {
+        search: String,
+    },
+    StringLastIndexOf {
+        search: String,
+    },
+
+    // ============== Time Operations ==============
+    GetTimeMillis,
 
     // ============== JSON Operations ==============
     JsonPath,

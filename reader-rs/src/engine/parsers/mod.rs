@@ -4,8 +4,12 @@
 pub mod css;
 pub mod jsonpath;
 pub mod jsoup;
+pub mod parser_factory;
 pub mod regex;
 pub mod xpath;
+
+// Re-export ParserFactory for convenience
+pub use parser_factory::{create_shared_parser_factory, ParserFactory, SharedParserFactory};
 
 use anyhow::Result;
 

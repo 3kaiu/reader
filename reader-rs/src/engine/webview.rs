@@ -9,7 +9,6 @@
 //! ```
 
 use anyhow::{anyhow, Result};
-use std::sync::{Arc, OnceLock};
 
 /// Global browser pool for reusing Chrome instance
 #[cfg(feature = "webview")]

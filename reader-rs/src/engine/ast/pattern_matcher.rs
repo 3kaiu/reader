@@ -268,10 +268,19 @@ impl AstPatternMatcher {
             // Random/Time
             "randomUUID" => NativeApi::RandomUuid,
             "timeFormat" => NativeApi::TimeFormat(None),
+            "timeFormatUtc" => NativeApi::TimeFormatUtc,
+
+            // Hash
+            "digestHex" => NativeApi::DigestHex("MD5".to_string()),
+            "sha1" | "sha1Encode" => NativeApi::DigestHex("SHA1".to_string()),
+            "sha256" | "sha256Encode" => NativeApi::DigestHex("SHA256".to_string()),
+            "sha512" | "sha512Encode" => NativeApi::DigestHex("SHA512".to_string()),
 
             // HTTP
             "ajax" | "connect" | "httpGet" => NativeApi::HttpGet,
             "post" | "httpPost" => NativeApi::HttpPost,
+            "request" | "httpRequest" => NativeApi::HttpRequest,
+            "getAll" | "httpGetAll" => NativeApi::HttpGetAll,
 
             // Storage
             "put" => NativeApi::CacheSet,
@@ -295,17 +304,30 @@ impl AstPatternMatcher {
 
             // Crypto - 3DES
             "tripleDes" | "tripleDesDecodeStr" => NativeApi::TripleDesDecodeStr,
+            "tripleDesEncodeBase64" => NativeApi::TripleDesEncodeBase64,
+            "tripleDesDecodeArgsBase64" => NativeApi::TripleDesDecodeArgsBase64,
+            "tripleDesEncodeArgsBase64" => NativeApi::TripleDesEncodeArgsBase64,
 
             // File
             "cacheFile" => NativeApi::CacheFile,
             "readFile" => NativeApi::ReadFile,
             "readTxtFile" => NativeApi::ReadTxtFile,
+            "readTxtFileWithCharset" => NativeApi::ReadTxtFileWithCharset,
             "getFile" => NativeApi::GetFile,
             "deleteFile" => NativeApi::DeleteFile,
             "importScript" => NativeApi::ImportScript,
 
+            // ZIP
+            "zipReadString" => NativeApi::ZipReadString,
+            "zipReadStringWithCharset" => NativeApi::ZipReadStringWithCharset,
+            "zipReadBytes" => NativeApi::ZipReadBytes,
+            "zipExtract" => NativeApi::ZipExtract,
+
             // JSON path
             "getString" => NativeApi::JsonPath,
+
+            // String operations
+            "htmlToText" | "textTrim" => NativeApi::HtmlToText,
 
             // Logging
             "log" | "logType" => NativeApi::Log,
@@ -412,7 +434,7 @@ impl AstPatternMatcher {
 
         // Map string methods to operations
         match method {
-            "trim" | "trimStart" | "trimEnd" => AstAnalysisResult::Native(
+            "trim" | "trimStart" | "trimEnd" | "trimLeft" | "trimRight" => AstAnalysisResult::Native(
                 NativeExecutionPlan::method_call(object, "trim".to_string(), operands),
             ),
 
@@ -450,9 +472,13 @@ impl AstPatternMatcher {
                 NativeExecutionPlan::method_call(object, method.to_string(), operands),
             ),
 
-            "toLowerCase" | "toUpperCase" => AstAnalysisResult::Native(
-                NativeExecutionPlan::method_call(object, method.to_string(), operands),
-            ),
+            "toLowerCase" | "toUpperCase" | "toLocaleLowerCase" | "toLocaleUpperCase" => {
+                AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                    object,
+                    method.to_string(),
+                    operands,
+                ))
+            }
 
             "match" => {
                 // String.match() with regex - can be native if pattern is literal
@@ -463,11 +489,13 @@ impl AstPatternMatcher {
                 ))
             }
 
-            "charAt" | "charCodeAt" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
-                object,
-                method.to_string(),
-                operands,
-            )),
+            "charAt" | "charCodeAt" | "codePointAt" => {
+                AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                    object,
+                    method.to_string(),
+                    operands,
+                ))
+            }
 
             "concat" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
                 object,
@@ -475,8 +503,39 @@ impl AstPatternMatcher {
                 operands,
             )),
 
+            // Padding methods
+            "padStart" | "padEnd" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                object,
+                method.to_string(),
+                operands,
+            )),
+
+            // Repeat
+            "repeat" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                object,
+                "repeat".to_string(),
+                operands,
+            )),
+
+            // Normalize
+            "normalize" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                object,
+                "normalize".to_string(),
+                operands,
+            )),
+
+            // Search
+            "search" => AstAnalysisResult::Native(NativeExecutionPlan::method_call(
+                object,
+                "search".to_string(),
+                operands,
+            )),
+
             // Array methods
-            "join" | "reverse" | "sort" | "filter" | "map" | "find" | "forEach" => {
+            "join" | "reverse" | "sort" | "filter" | "map" | "find" | "forEach" | "pop" | "push"
+            | "shift" | "unshift" | "splice" | "flat" | "flatMap" | "every" | "some"
+            | "reduce" | "reduceRight" | "fill" | "copyWithin" | "entries" | "keys" | "values"
+            | "at" => {
                 // These could be native for simple cases
                 AstAnalysisResult::Native(NativeExecutionPlan::method_call(
                     object,

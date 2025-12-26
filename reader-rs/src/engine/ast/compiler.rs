@@ -182,7 +182,7 @@ impl ExecutionPlanCompiler {
                 })
             }
 
-            Operation::Literal(op) => {
+            Operation::Literal(_op) => {
                 // Literal values don't map to NativeExecution
                 None
             }
@@ -192,26 +192,106 @@ impl ExecutionPlanCompiler {
     }
 
     /// Map method name to NativeApi
-    fn method_to_native_api(&self, method: &str, _args: &[Operand]) -> Option<NativeApi> {
+    fn method_to_native_api(&self, method: &str, args: &[Operand]) -> Option<NativeApi> {
         match method {
-            "trim" => Some(NativeApi::StringTrim),
+            "trim" | "trimStart" | "trimEnd" | "trimLeft" | "trimRight" => {
+                Some(NativeApi::StringTrim)
+            }
+
             "replace" | "replaceAll" => {
-                // Need to extract pattern and replacement from args
-                // For now, return a placeholder
+                // Extract pattern and replacement from args if available
+                let pattern = self.operand_to_string(args.get(0)).unwrap_or_default();
+                let replacement = self.operand_to_string(args.get(1)).unwrap_or_default();
                 Some(NativeApi::StringReplace {
-                    pattern: String::new(),
-                    replacement: String::new(),
-                    is_regex: false,
+                    pattern,
+                    replacement,
+                    is_regex: method == "replaceAll",
                     global: true,
                 })
             }
-            "split" => Some(NativeApi::StringSplit {
-                delimiter: String::new(),
-            }),
-            "substring" | "substr" | "slice" => Some(NativeApi::StringSubstring {
-                start: 0,
-                end: None,
-            }),
+
+            "split" => {
+                let delimiter = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringSplit { delimiter })
+            }
+
+            "substring" | "substr" | "slice" => {
+                let start = self.operand_to_number(args.get(0)).unwrap_or(0);
+                let end = self.operand_to_number(args.get(1));
+                Some(NativeApi::StringSubstring { start, end })
+            }
+
+            "toLowerCase" | "toLocaleLowerCase" => Some(NativeApi::StringToLowerCase),
+            "toUpperCase" | "toLocaleUpperCase" => Some(NativeApi::StringToUpperCase),
+
+            "includes" => {
+                let search = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringIncludes { search })
+            }
+
+            "startsWith" => {
+                let prefix = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringStartsWith { prefix })
+            }
+
+            "endsWith" => {
+                let suffix = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringEndsWith { suffix })
+            }
+
+            "indexOf" => {
+                let search = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringIndexOf { search })
+            }
+
+            "lastIndexOf" => {
+                let search = self.operand_to_string(args.get(0)).unwrap_or_default();
+                Some(NativeApi::StringLastIndexOf { search })
+            }
+
+            "charAt" => {
+                let index = self.operand_to_number(args.get(0)).unwrap_or(0);
+                Some(NativeApi::StringCharAt { index })
+            }
+
+            "charCodeAt" | "codePointAt" => {
+                let index = self.operand_to_number(args.get(0)).unwrap_or(0);
+                Some(NativeApi::StringCharCodeAt { index })
+            }
+
+            "padStart" => {
+                let length = self.operand_to_number(args.get(0)).unwrap_or(0);
+                let pad_char = self.operand_to_string(args.get(1)).unwrap_or_else(|| " ".to_string());
+                Some(NativeApi::StringPadStart { length, pad_char })
+            }
+
+            "padEnd" => {
+                let length = self.operand_to_number(args.get(0)).unwrap_or(0);
+                let pad_char = self.operand_to_string(args.get(1)).unwrap_or_else(|| " ".to_string());
+                Some(NativeApi::StringPadEnd { length, pad_char })
+            }
+
+            "repeat" => {
+                let count = self.operand_to_number(args.get(0)).unwrap_or(0);
+                Some(NativeApi::StringRepeat { count })
+            }
+
+            _ => None,
+        }
+    }
+
+    /// Extract string value from operand
+    fn operand_to_string(&self, op: Option<&Operand>) -> Option<String> {
+        match op? {
+            Operand::StringLiteral(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+
+    /// Extract number value from operand
+    fn operand_to_number(&self, op: Option<&Operand>) -> Option<i32> {
+        match op? {
+            Operand::NumberLiteral(n) => Some(*n as i32),
             _ => None,
         }
     }

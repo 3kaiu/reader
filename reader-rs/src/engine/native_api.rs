@@ -4,6 +4,7 @@
 //! eliminating the need for JS execution in many cases.
 
 use super::cookie::CookieManager;
+use super::native::HandlerRegistry;
 use super::preprocessor::NativeApi;
 use crate::storage::kv::KvStore;
 use anyhow::Result;
@@ -17,6 +18,8 @@ pub struct NativeApiProvider {
     cookie_manager: Arc<CookieManager>,
     /// Persistent KV Store
     kv_store: Arc<KvStore>,
+    /// Handler registry for modular API dispatch
+    handler_registry: HandlerRegistry,
 }
 
 /// Execution context for Native API calls
@@ -31,6 +34,7 @@ impl NativeApiProvider {
         Self {
             cookie_manager,
             kv_store,
+            handler_registry: HandlerRegistry::new(),
         }
     }
 
@@ -39,6 +43,7 @@ impl NativeApiProvider {
         Self {
             cookie_manager,
             kv_store,
+            handler_registry: HandlerRegistry::new(),
         }
     }
 
@@ -52,63 +57,14 @@ impl NativeApiProvider {
         // Record native execution for stats
         crate::engine::stats::STATS.record_native(&format!("{:?}", api));
 
+        // Try handler registry first (covers Encoding, Time, String, Misc, Hash, JSON)
+        if let Some(result) = self.handler_registry.execute(api, args, context) {
+            return result;
+        }
+
+        // Fall back to inline implementations for stateful APIs (Cookie, Crypto, HTTP, Storage)
         match api {
-            // Encoding - delegated to native::encoding
-            NativeApi::Base64Encode => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::base64_encode(input)
-            }
-
-            NativeApi::Base64Decode => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::base64_decode(input)
-            }
-
-            NativeApi::Base64DecodeWithFlags(flags) => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::base64_decode_with_flags(input, *flags)
-            }
-
-            // Crypto - delegated to native::crypto
-            NativeApi::Md5Encode => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::crypto::md5_encode(input)
-            }
-
-            NativeApi::Md5Encode16 => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::crypto::md5_encode16(input)
-            }
-
-            // URI encoding - delegated to native::encoding
-            NativeApi::EncodeUri => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::encode_uri(input)
-            }
-
-            NativeApi::EncodeUriWithEnc(enc) => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                // For non-UTF8 encodings, first convert then URL encode
-                if enc.eq_ignore_ascii_case("gbk") || enc.eq_ignore_ascii_case("gb2312") {
-                    use encoding_rs::GBK;
-                    let (encoded, _, _) = GBK.encode(input);
-                    Ok(urlencoding::encode_binary(&encoded).to_string())
-                } else {
-                    super::native::encoding::encode_uri(input)
-                }
-            }
-
-            NativeApi::Utf8ToGbk => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::utf8_to_gbk(input)
-            }
-
-            NativeApi::HtmlFormat => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::native::encoding::html_format(input)
-            }
-
-            // Cookie
+            // Cookie - needs cookie_manager
             NativeApi::GetCookie => {
                 let url = args.first().map(|s| s.as_str()).unwrap_or("");
                 let key = args.get(1).map(|s| s.as_str());
@@ -136,32 +92,6 @@ impl NativeApiProvider {
                 Ok(String::new())
             }
 
-            // Time
-            NativeApi::TimeFormat(format) => {
-                use chrono::Utc;
-                let timestamp = args
-                    .first()
-                    .and_then(|s| s.parse::<i64>().ok())
-                    .unwrap_or_else(|| Utc::now().timestamp_millis());
-
-                let fmt = format.as_deref().unwrap_or("%Y-%m-%d %H:%M:%S");
-
-                chrono::Utc
-                    .timestamp_opt(timestamp / 1000, 0)
-                    .single()
-                    .map(|dt| dt.format(fmt).to_string())
-                    .map(Ok)
-                    .unwrap_or(Ok(String::new()))
-            }
-
-            // Hash - delegated to native::crypto
-            NativeApi::DigestHex(algorithm) => {
-                let input = args.first().map(|s| s.as_str()).unwrap_or("");
-                super::crypto::digest_hex(input, algorithm)
-            }
-
-            // Random - delegated to native::misc
-            NativeApi::RandomUuid => super::native::misc::random_uuid(),
 
             // Crypto - AES
             // Crypto - AES
@@ -728,10 +658,121 @@ impl NativeApiProvider {
                 Ok(input.to_string())
             }
 
+            // String case conversion
+            NativeApi::StringToLowerCase => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.to_lowercase())
+            }
+
+            NativeApi::StringToUpperCase => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.to_uppercase())
+            }
+
+            // String padding
+            NativeApi::StringPadStart { length, pad_char } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                let pad = if pad_char.is_empty() { " " } else { pad_char };
+                let current_len = input.chars().count() as i32;
+                if current_len >= *length {
+                    Ok(input.to_string())
+                } else {
+                    let padding_needed = (*length - current_len) as usize;
+                    let repeated: String = pad.chars().cycle().take(padding_needed).collect();
+                    Ok(format!("{}{}", repeated, input))
+                }
+            }
+
+            NativeApi::StringPadEnd { length, pad_char } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                let pad = if pad_char.is_empty() { " " } else { pad_char };
+                let current_len = input.chars().count() as i32;
+                if current_len >= *length {
+                    Ok(input.to_string())
+                } else {
+                    let padding_needed = (*length - current_len) as usize;
+                    let repeated: String = pad.chars().cycle().take(padding_needed).collect();
+                    Ok(format!("{}{}", input, repeated))
+                }
+            }
+
+            NativeApi::StringRepeat { count } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.repeat((*count).max(0) as usize))
+            }
+
+            NativeApi::StringCharAt { index } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input
+                    .chars()
+                    .nth((*index).max(0) as usize)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default())
+            }
+
+            NativeApi::StringCharCodeAt { index } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input
+                    .chars()
+                    .nth((*index).max(0) as usize)
+                    .map(|c| (c as u32).to_string())
+                    .unwrap_or_else(|| "NaN".to_string()))
+            }
+
+            NativeApi::StringIncludes { search } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.contains(search).to_string())
+            }
+
+            NativeApi::StringStartsWith { prefix } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.starts_with(prefix).to_string())
+            }
+
+            NativeApi::StringEndsWith { suffix } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input.ends_with(suffix).to_string())
+            }
+
+            NativeApi::StringIndexOf { search } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input
+                    .find(search)
+                    .map(|i| i as i32)
+                    .unwrap_or(-1)
+                    .to_string())
+            }
+
+            NativeApi::StringLastIndexOf { search } => {
+                let input = args.first().map(|s| s.as_str()).unwrap_or("");
+                Ok(input
+                    .rfind(search)
+                    .map(|i| i as i32)
+                    .unwrap_or(-1)
+                    .to_string())
+            }
+
+            // Time
+            NativeApi::GetTimeMillis => {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let millis = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                Ok(millis.to_string())
+            }
+
             // Unknown - should not reach here, fallback needed
             NativeApi::Unknown(name) => {
                 tracing::warn!("Unknown native API called: {}", name);
                 Err(anyhow::anyhow!("Unknown API: {}", name))
+            }
+
+            // All other APIs should have been handled by HandlerRegistry
+            // This is a fallback for safety
+            _ => {
+                tracing::warn!("API {:?} not handled by registry or fallback", api);
+                Err(anyhow::anyhow!("Unhandled API: {:?}", api))
             }
         }
     }

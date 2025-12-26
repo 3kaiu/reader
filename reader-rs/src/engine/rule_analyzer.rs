@@ -11,27 +11,20 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::analysis::UnifiedJsAnalyzer;
 use super::cookie::CookieManager;
-use super::js_analyzer::{AnalysisResult, JsPatternAnalyzer};
+use super::js_analyzer::AnalysisResult;
 use super::js_executor::JsExecutor;
 use super::native_api::NativeApiProvider;
-use super::parsers::css::CssParser;
-use super::parsers::jsonpath::JsonPathParser;
-use super::parsers::jsoup::JsoupDefaultParser;
-use super::parsers::regex::RegexParser;
-use super::parsers::xpath::XPathParser;
-use super::parsers::{Parser, RuleType};
+use super::parsers::{Parser, ParserFactory, RuleType};
 use super::preprocessor::SourcePreprocessor;
 use super::template::{TemplateContext, TemplateExecutor};
 use crate::storage::kv::KvStore;
 
 /// Rule Analyzer for parsing content using Legado rules
 pub struct RuleAnalyzer {
-    css_parser: CssParser,
-    json_parser: JsonPathParser,
-    regex_parser: RegexParser,
-    jsoup_parser: JsoupDefaultParser,
-    xpath_parser: XPathParser,
+    /// Unified parser factory for all content parsers
+    parser_factory: ParserFactory,
     js_executor: JsExecutor,
     variables: std::cell::RefCell<HashMap<String, String>>,
     result_list: std::cell::RefCell<Vec<String>>, // For $1, $2 capture groups
@@ -41,8 +34,8 @@ pub struct RuleAnalyzer {
     native_api: Arc<NativeApiProvider>,
     /// Template executor for URL/rule templates
     template_executor: TemplateExecutor,
-    /// JS pattern analyzer for native execution of simple JS
-    js_analyzer: JsPatternAnalyzer,
+    /// Unified JS analyzer (combines regex + AST analysis)
+    unified_analyzer: UnifiedJsAnalyzer,
     /// Base URL for resolving relative links and source isolation
     base_url: String,
 }
@@ -55,19 +48,14 @@ impl RuleAnalyzer {
         let template_executor = TemplateExecutor::new(native_api.clone());
 
         Ok(Self {
-            css_parser: CssParser,
-            json_parser: JsonPathParser,
-            regex_parser: RegexParser,
-            jsoup_parser: JsoupDefaultParser,
-            xpath_parser: XPathParser,
+            parser_factory: ParserFactory::new(),
             js_executor: JsExecutor::new(native_api.clone())?,
             variables: std::cell::RefCell::new(HashMap::new()),
             result_list: std::cell::RefCell::new(Vec::new()),
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
-
-            js_analyzer: JsPatternAnalyzer::new(),
+            unified_analyzer: UnifiedJsAnalyzer::new(),
             base_url: String::new(),
         })
     }
@@ -81,19 +69,14 @@ impl RuleAnalyzer {
         let template_executor = TemplateExecutor::new(native_api.clone());
 
         Ok(Self {
-            css_parser: CssParser,
-            json_parser: JsonPathParser,
-            regex_parser: RegexParser,
-            jsoup_parser: JsoupDefaultParser,
-            xpath_parser: XPathParser,
+            parser_factory: ParserFactory::new(),
             js_executor: JsExecutor::new(native_api.clone())?,
             variables: std::cell::RefCell::new(HashMap::new()),
             result_list: std::cell::RefCell::new(Vec::new()),
             preprocessor: SourcePreprocessor::new(),
             native_api,
             template_executor,
-
-            js_analyzer: JsPatternAnalyzer::new(),
+            unified_analyzer: UnifiedJsAnalyzer::new(),
             base_url: String::new(),
         })
     }
@@ -836,8 +819,8 @@ impl RuleAnalyzer {
                         &base_rule
                     };
 
-                    // Try native execution first using JsPatternAnalyzer
-                    match self.js_analyzer.analyze(code) {
+                    // Use unified analyzer (combines regex + AST analysis)
+                    match self.unified_analyzer.analyze_readonly(code) {
                         AnalysisResult::Native(exec) => {
                             // Execute natively
                             self.execute_native_js(&exec, content)?
@@ -851,9 +834,8 @@ impl RuleAnalyzer {
                             result
                         }
                         AnalysisResult::RequiresJs(_) => {
-                            // Fall back to JS executor
+                            // Fall back to QuickJS
                             self.js_executor.set_current_content(content);
-
                             let mut vars = HashMap::new();
                             vars.insert("result".to_string(), content.to_string());
                             vars.insert("it".to_string(), content.to_string());
@@ -862,17 +844,15 @@ impl RuleAnalyzer {
                         }
                     }
                 }
-                RuleType::Css => self.css_parser.get_string(content, &base_rule)?,
-                RuleType::JsonPath => self.json_parser.get_string(content, &base_rule)?,
-                RuleType::Regex => self.regex_parser.get_string(content, &base_rule)?,
-                RuleType::JsoupDefault => self.jsoup_parser.get_string(content, &base_rule)?,
-                RuleType::XPath => self.xpath_parser.get_string(content, &base_rule)?,
+                RuleType::Css | RuleType::JsonPath | RuleType::Regex | RuleType::JsoupDefault | RuleType::XPath => {
+                    self.parser_factory.get_parser(&rule_type).get_string(content, &base_rule)?
+                }
             }
         };
 
         // Apply regex suffix if present
         let result = if let Some(suffix) = regex_suffix {
-            match self.regex_parser.get_string(&initial_result, &suffix) {
+            match self.parser_factory.regex().get_string(&initial_result, &suffix) {
                 Ok(r) => r,
                 Err(_) => {
                     // Regex suffix not matching is common and expected, don't log
@@ -903,11 +883,9 @@ impl RuleAnalyzer {
                 let result = self.js_executor.eval_with_context(code, &vars)?;
                 Ok(vec![result])
             }
-            RuleType::Css => self.css_parser.get_list(content, rule),
-            RuleType::JsonPath => self.json_parser.get_list(content, rule),
-            RuleType::Regex => self.regex_parser.get_list(content, rule),
-            RuleType::JsoupDefault => self.jsoup_parser.get_list(content, rule),
-            RuleType::XPath => self.xpath_parser.get_list(content, rule),
+            RuleType::Css | RuleType::JsonPath | RuleType::Regex | RuleType::JsoupDefault | RuleType::XPath => {
+                self.parser_factory.get_parser(&rule_type).get_list(content, rule)
+            }
         }
     }
 
@@ -916,10 +894,9 @@ impl RuleAnalyzer {
         let rule_type = RuleType::detect(rule, content);
 
         match rule_type {
-            RuleType::Css => self.css_parser.get_elements(content, rule),
-            RuleType::JsonPath => self.json_parser.get_elements(content, rule),
-            RuleType::JsoupDefault => self.jsoup_parser.get_elements(content, rule),
-            RuleType::XPath => self.xpath_parser.get_elements(content, rule),
+            RuleType::Css | RuleType::JsonPath | RuleType::JsoupDefault | RuleType::XPath => {
+                self.parser_factory.get_parser(&rule_type).get_elements(content, rule)
+            }
             _ => Err(anyhow!("get_elements not supported for this rule type")),
         }
     }

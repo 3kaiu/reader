@@ -14,6 +14,7 @@ pub mod webview;
 pub mod crypto;
 pub mod js_analyzer;
 pub mod native_api;
+pub mod native_api_registry;
 pub mod native_executor;
 pub mod native_file;
 pub mod native_http;
@@ -34,6 +35,12 @@ pub mod native;
 
 // Modular JS registration
 pub mod js;
+
+// Execution framework (Refactored)
+pub mod execution;
+
+// Unified analysis framework (Phase 2)
+pub mod analysis;
 
 // Benchmark tests
 #[cfg(test)]
