@@ -1,5 +1,6 @@
 // New engine modules (rquickjs-based)
 pub mod book_source;
+pub mod config;
 pub mod cookie;
 pub mod http_client;
 pub mod js_executor;
