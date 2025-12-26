@@ -57,6 +57,14 @@ rquickjs = { version = "0.10", features = ["full-async", "parallel"] }
 # Keep boa for transition period (optional)
 boa_engine = { version = "0.21", optional = true }
 
+# JavaScript AST Parser (Oxc) - for static analysis
+oxc_allocator = "0.52"
+oxc_ast = "0.52"
+oxc_parser = "0.52"
+oxc_span = "0.52"
+oxc_syntax = "0.52"
+
+
 # Additional crypto
 base64 = "0.22"
 aes = "0.8"

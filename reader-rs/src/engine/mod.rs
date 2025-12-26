@@ -26,6 +26,9 @@ pub mod java_api_mapping;
 pub mod source_rewriter;
 pub mod stats;
 
+// AST-based JavaScript analysis (Oxc)
+pub mod ast;
+
 // Modular native implementations
 pub mod native;
 
