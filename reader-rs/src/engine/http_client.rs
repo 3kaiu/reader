@@ -8,7 +8,8 @@
 //! - Configurable retry with exponential backoff
 
 use super::cookie::CookieManager;
-use super::flaresolverr::{is_cloudflare_challenge, FlareSolverrClient, cookies_to_string};
+use super::flaresolverr::{is_cloudflare_challenge, FlareSolverrClient};
+
 use super::utils::resolve_absolute_url;
 use anyhow::Result;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE, SET_COOKIE};

@@ -34,5 +34,3 @@ mod types;
 
 pub use compiler::ExecutionPlanCompiler;
 pub use parser::JsAstParser;
-pub use pattern_matcher::AstPatternMatcher;
-pub use types::*;

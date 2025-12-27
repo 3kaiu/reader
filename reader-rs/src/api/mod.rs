@@ -24,6 +24,7 @@ pub fn routes() -> Router {
         .route("/getBookContent", get(book::get_book_content))
         .route("/getBookInfo", get(book::get_book_info))
         .route("/search", get(book::search))
+        .route("/local_search", get(book::local_search))
         .route("/searchBookMultiSSE", get(book::search_book_multi_sse))
         .route("/saveBook", post(book::save_book))
         .route("/deleteBook", post(book::delete_book))

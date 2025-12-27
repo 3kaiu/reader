@@ -199,12 +199,10 @@ impl BookSourceEngine {
         // Compile source rules
         // Compile source rules with caching
         let mut transformed = None;
-        let mut native_executor = None;
-
         // Initialize Native Executor early infrastructure
         let cm = Arc::new(crate::engine::cookie::CookieManager::new());
         let provider = Arc::new(NativeApiProvider::new(cm, kv_store));
-        native_executor = Some(NativeExecutor::new(provider));
+        let native_executor = Some(NativeExecutor::new(provider));
 
         // Setup cache
         let cache_dir = get_cache_dir().join("rules");

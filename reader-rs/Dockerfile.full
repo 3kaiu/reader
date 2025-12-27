@@ -5,7 +5,7 @@
 FROM rustlang/rust:nightly-alpine AS backend
 
 # 安装构建依赖
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static perl pkgconf
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static perl pkgconf upx
 
 WORKDIR /app
 
@@ -15,7 +15,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release --features webview && rm -rf src
 
 COPY reader-rs/src ./src
-RUN touch src/main.rs && cargo build --release --features webview
+RUN touch src/main.rs && cargo build --release --features webview && \
+    upx --best --lzma target/release/reader-rs
 
 # 构建前端 (使用 pnpm)
 FROM node:20-alpine AS frontend

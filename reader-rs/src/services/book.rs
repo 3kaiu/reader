@@ -4,10 +4,12 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+
 use crate::engine::book_source::{BookSource, BookSourceEngine};
 use crate::models::{Book, BookSourceFull, Chapter, SearchResult};
 use crate::storage::kv::KvStore;
 use crate::storage::FileStorage;
+use crate::engine::search_engine::SearchEngine;
 
 /// 书架存储文件名
 const BOOKSHELF_FILE: &str = "bookshelf.json";
@@ -19,10 +21,11 @@ pub struct BookService {
     bookshelf: Arc<RwLock<Vec<Book>>>,
     sources: Arc<RwLock<Vec<BookSourceFull>>>,
     kv_store: Arc<KvStore>,
+    search_engine: Arc<SearchEngine>,
 }
 
 impl BookService {
-    pub fn new() -> Self {
+    pub fn new(search_engine: Arc<SearchEngine>) -> Self {
         let storage = FileStorage::default();
         let kv_store = Arc::new(KvStore::new(storage.clone(), "kv_store.json"));
         Self {
@@ -30,8 +33,10 @@ impl BookService {
             bookshelf: Arc::new(RwLock::new(Vec::new())),
             sources: Arc::new(RwLock::new(Vec::new())),
             kv_store,
+            search_engine,
         }
     }
+
 
     /// 初始化加载数据
     pub async fn init(&self) -> anyhow::Result<()> {
@@ -39,10 +44,25 @@ impl BookService {
         let sources: Vec<BookSourceFull> = self.storage.read_json_or_default(SOURCES_FILE).await;
 
         let mut shelf = self.bookshelf.write().await;
-        *shelf = books;
+        *shelf = books.clone();
 
         let mut src = self.sources.write().await;
         *src = sources;
+
+        // 异步重建索引
+        let search_engine = self.search_engine.clone();
+        let books_clone = books.clone();
+        
+        tokio::task::spawn_blocking(move || {
+            tracing::info!("Starting search index rebuild for {} books...", books_clone.len());
+            for book in books_clone {
+                 let intro = book.intro.unwrap_or_default();
+                 if let Err(e) = search_engine.index_book(&book.book_url, &book.name, &book.author, &intro) {
+                     tracing::warn!("Failed to index book {}: {}", book.name, e);
+                 }
+            }
+            tracing::info!("Search index rebuild completed.");
+        });
 
         Ok(())
     }
@@ -601,6 +621,17 @@ impl BookService {
 
         // 保存到文件
         self.storage.write_json(BOOKSHELF_FILE, &*shelf).await?;
+
+        // 更新索引
+        let search_engine = self.search_engine.clone();
+        let book_clone = book.clone();
+        tokio::task::spawn_blocking(move || {
+            let intro = book_clone.intro.unwrap_or_default();
+            if let Err(e) = search_engine.index_book(&book_clone.book_url, &book_clone.name, &book_clone.author, &intro) {
+                 tracing::warn!("Failed to index book {}: {}", book_clone.name, e);
+            }
+        });
+
         Ok(book)
     }
 
@@ -609,6 +640,16 @@ impl BookService {
         let mut shelf = self.bookshelf.write().await;
         shelf.retain(|b| b.book_url != book_url);
         self.storage.write_json(BOOKSHELF_FILE, &*shelf).await?;
+        
+        // 删除索引
+        let search_engine = self.search_engine.clone();
+        let id_clone = book_url.to_string();
+        tokio::task::spawn_blocking(move || {
+           if let Err(e) = search_engine.delete_book(&id_clone) {
+               tracing::warn!("Failed to delete index for book {}: {}", id_clone, e);
+           }
+        });
+
         Ok(())
     }
 
@@ -680,8 +721,4 @@ impl BookService {
     }
 }
 
-impl Default for BookService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+

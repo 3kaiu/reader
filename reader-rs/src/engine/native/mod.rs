@@ -16,7 +16,4 @@ pub mod string_ops;
 pub mod time;
 
 // Re-export handlers for convenience
-pub use api_handler::{
-    ApiHandler, EncodingHandler, HandlerRegistry, HashHandler, JsonHandler, MiscHandler,
-    StringOpsHandler, TimeHandler,
-};
+pub use api_handler::HandlerRegistry;

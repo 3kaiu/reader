@@ -9,7 +9,7 @@ pub mod regex;
 pub mod xpath;
 
 // Re-export ParserFactory for convenience
-pub use parser_factory::{create_shared_parser_factory, ParserFactory, SharedParserFactory};
+pub use parser_factory::ParserFactory;
 
 use anyhow::Result;
 

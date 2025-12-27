@@ -9,6 +9,7 @@ use std::convert::Infallible;
 
 use crate::models::{Book, Chapter, SearchResult, ApiResponse};
 use crate::services::AppState;
+use crate::engine::search_engine::SearchResult as LocalSearchResult;
 
 #[derive(Debug, Deserialize)]
 pub struct BookshelfQuery {
@@ -112,6 +113,17 @@ pub async fn search(
     }
 }
 
+
+/// GET /local_search - 本地全书搜索
+pub async fn local_search(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SearchQuery>,
+) -> Json<ApiResponse<Vec<LocalSearchResult>>> {
+    match state.search_engine.search(&query.key, 50) {
+        Ok(results) => Json(ApiResponse::success(results)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
+}
 
 /// GET /searchBookMultiSSE - 多书源搜索 (SSE)
 pub async fn search_book_multi_sse(

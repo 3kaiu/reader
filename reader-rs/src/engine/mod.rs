@@ -11,6 +11,7 @@ pub mod rule_analyzer;
 pub mod utils;
 pub mod webview;
 pub mod flaresolverr;
+pub mod search_engine;
 
 // New Rust-native architecture modules
 pub mod crypto;

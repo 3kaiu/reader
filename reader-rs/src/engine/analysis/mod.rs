@@ -10,4 +10,4 @@
 
 mod unified_analyzer;
 
-pub use unified_analyzer::{AnalysisStats, UnifiedJsAnalyzer};
+pub use unified_analyzer::UnifiedJsAnalyzer;

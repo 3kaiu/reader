@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Flaresolverr API endpoint (configurable via env var)
 fn get_flaresolverr_url() -> String {
