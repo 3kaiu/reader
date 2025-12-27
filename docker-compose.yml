@@ -1,50 +1,71 @@
-version: '3.1'
+# Reader 在线阅读 - Docker Compose
+# =================================
+# Rust 引擎 (reader-rs) + Vue3 前端 (web-v3) + Flaresolverr (CF绕过)
+#
+# 使用方法:
+#   docker compose up -d
+#
+# 更新方式:
+#   docker compose pull && docker compose up -d
+
 services:
-# reader 在线阅读
-# 公开服务器(服务器位于日本)：[https://reader.nxnow.top](https://reader.nxnow.top) 测试账号/密码分别为guest/guest123，也可自行创建账号添加书源，不定期删除长期未登录账号(2周)
-# 书源集合 : [https://legado.aoaostar.com/](https://legado.aoaostar.com/) 点击打开连接，添加远程书源即可
-# 公众号汇总 : [https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MjM5MzMyMDgyMA==&action=getalbum&album_id=2397535253763801090#wechat_redirect](https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MjM5MzMyMDgyMA==&action=getalbum&album_id=2397535253763801090#wechat_redirect)
-# 手动更新方式 : docker-compose pull && docker-compose up -d
+  # Reader-RS: Rust 后端 + Vue3 前端
   reader:
-    #image: hectorqin/reader # 普通镜像
-    image: hectorqin/reader:openj9-latest # Openj9镜像，arm64架构或小内存机器优先使用
-    container_name: reader #容器名 可自行修改
-    restart: always
+    build:
+      context: .
+      dockerfile: reader-rs/Dockerfile.full
+    container_name: reader
+    restart: unless-stopped
     ports:
-      - 4396:8080 #4396端口映射可自行修改,8080请勿修改
+      - "4396:8080" # 访问端口（可自定义）
     volumes:
-      - ./data/logs:/logs #log映射目录
-      - ./data/storage:/storage #数据映射目录
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      #- READER_APP_USERLIMIT=50 #用户上限,默认且最大值为50
-      - READER_APP_USERBOOKLIMIT=200 #用户书籍上限,默认200
-      - READER_APP_CACHECHAPTERCONTENT=true #开启缓存章节内容
-      - READER_APP_REMOTEWEBVIEWAPI=http://readerwebview:8050 #启用webview(若下方readerwebview容器不开启需注释此行
-      # ↓多用户模式配置↓
-      - READER_APP_SECURE=false #关闭登录鉴权 (开发模式)
-      - READER_APP_SECUREKEY=adminpwd  #管理员密码  建议修改
-      - READER_APP_INVITECODE=registercode #注册邀请码 建议修改,如不需要可注释或删除
-# 如需支持webview书源，打开(占用较大，不需要可加 # 注释)
-  readerwebview:
-    image: hectorqin/remote-webview
-    container_name: readerwebview
-    restart: always
+      - ./data/storage:/app/storage # 数据持久化
+      - ./data/logs:/app/logs # 日志
     environment:
       - TZ=Asia/Shanghai
-# 自动更新docker镜像
+      # Flaresolverr 自动绕过 Cloudflare
+      - FLARESOLVERR_URL=http://flaresolverr:8191/v1
+      # 日志级别
+      - RUST_LOG=info,reader_rs=info
+    depends_on:
+      - flaresolverr
+    networks:
+      - reader-network
+
+  # Flaresolverr: 自动绕过 Cloudflare 保护
+  # 当访问 69shuba 等受保护网站时自动调用
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - HEADLESS=true
+    networks:
+      - reader-network
+    # 调试时取消注释以暴露端口
+    # ports:
+    #   - "8191:8191"
+
+    # 自动更新 (可选)
   watchtower:
     image: containrrr/watchtower
-    container_name: watchtower
-    restart: always
-    environment:
-        - TZ=Asia/Shanghai
+    container_name: reader-watchtower
+    restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: reader readerwebview watchtower --cleanup --schedule "0 0 4 * * *"
-    # 仅更新reader与watchtower容器,如需其他自行添加 '容器名' ,如:reader watchtower nginx
-    # --cleanup 更新后清理旧版本镜像
-    # --schedule 自动检测更新 crontab定时(限定6位crontab) 此处代表凌晨4点整
+    environment:
+      - TZ=Asia/Shanghai
+    command: reader flaresolverr reader-watchtower --cleanup --schedule "0 0 4 * * *"
+    networks:
+      - reader-network
+
+networks:
+  reader-network:
+    driver: bridge
+
 volumes:
-  reader:
-  readerwebview:
+  reader-data:

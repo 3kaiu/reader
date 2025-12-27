@@ -10,6 +10,7 @@ pub mod query_ttf;
 pub mod rule_analyzer;
 pub mod utils;
 pub mod webview;
+pub mod flaresolverr;
 
 // New Rust-native architecture modules
 pub mod crypto;

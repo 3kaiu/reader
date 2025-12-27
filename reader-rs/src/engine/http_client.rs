@@ -8,11 +8,21 @@
 //! - Configurable retry with exponential backoff
 
 use super::cookie::CookieManager;
+use super::flaresolverr::{is_cloudflare_challenge, FlareSolverrClient, cookies_to_string};
 use super::utils::resolve_absolute_url;
 use anyhow::Result;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE, SET_COOKIE};
 use std::collections::HashMap;
 use std::time::Duration;
+use std::sync::OnceLock;
+
+/// Global Flaresolverr client (lazily initialized)
+static FLARESOLVERR_CLIENT: OnceLock<FlareSolverrClient> = OnceLock::new();
+
+/// Get or create the global Flaresolverr client
+fn get_flaresolverr() -> &'static FlareSolverrClient {
+    FLARESOLVERR_CLIENT.get_or_init(FlareSolverrClient::new)
+}
 
 /// Request configuration parsed from URL,{JSON} format
 #[derive(Debug, Clone)]
@@ -462,7 +472,47 @@ impl HttpClient {
 
         let text = decode_with_charset(&bytes, &final_charset);
 
+        // Check for Cloudflare challenge and try Flaresolverr as fallback
+        if is_cloudflare_challenge(&text) {
+            tracing::info!("Cloudflare challenge detected for {}, trying Flaresolverr", config.url);
+            return self.request_with_flaresolverr(config);
+        }
+
         Ok(text)
+    }
+
+    /// Make a request using Flaresolverr to bypass Cloudflare
+    fn request_with_flaresolverr(&self, config: &RequestConfig) -> Result<String> {
+        let client = get_flaresolverr();
+        
+        // Use tokio runtime for async call
+        let rt = tokio::runtime::Runtime::new()?;
+        
+        let result = rt.block_on(async {
+            if config.method.to_uppercase() == "POST" {
+                let body = config.body.clone().unwrap_or_default();
+                client.solve_post(&config.url, &body).await
+            } else {
+                client.solve_get(&config.url).await
+            }
+        });
+        
+        match result {
+            Ok(solution) => {
+                // Save cookies from Flaresolverr to our cookie manager
+                let domain = extract_domain(&config.url);
+                for cookie in &solution.cookies {
+                    let cookie_str = format!("{}={}; Path=/", cookie.name, cookie.value);
+                    self.cookie_manager.parse_set_cookie(&domain, &cookie_str);
+                }
+                tracing::info!("Flaresolverr succeeded, got {} cookies", solution.cookies.len());
+                Ok(solution.response)
+            }
+            Err(e) => {
+                tracing::warn!("Flaresolverr failed: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Make a request based on config (with automatic retry)
