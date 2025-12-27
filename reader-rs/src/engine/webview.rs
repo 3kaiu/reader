@@ -11,11 +11,11 @@
 use anyhow::{anyhow, Result};
 
 #[cfg(feature = "webview")]
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex};
 
 /// Global browser pool for reusing Chrome instance
 #[cfg(feature = "webview")]
-static BROWSER_POOL: OnceLock<Arc<WebViewPool>> = OnceLock::new();
+static BROWSER_POOL: Mutex<Option<Arc<WebViewPool>>> = Mutex::new(None);
 
 /// WebView pool for managing a shared Chrome browser instance
 #[cfg(feature = "webview")]
@@ -27,10 +27,15 @@ pub struct WebViewPool {
 impl WebViewPool {
     /// Get or create the global browser pool (lazy singleton)
     pub fn global() -> Result<Arc<Self>> {
-        let pool = BROWSER_POOL.get_or_try_init(|| {
-            Self::new_internal().map(Arc::new)
-        })?;
-        Ok(pool.clone())
+        let mut lock = BROWSER_POOL.lock().map_err(|e| anyhow!("Failed to lock browser pool: {}", e))?;
+        
+        if let Some(pool) = lock.as_ref() {
+            return Ok(pool.clone());
+        }
+
+        let pool = Arc::new(Self::new_internal()?);
+        *lock = Some(pool.clone());
+        Ok(pool)
     }
 
     /// Internal: Create a new browser instance with stealth mode enabled
