@@ -41,7 +41,7 @@ export default defineConfig({
 
   output: {
     distPath: {
-      root: "../src/main/resources/web",
+      root: "dist",
     },
     cleanDistPath: true,
     // 文件名包含 hash，便于缓存
