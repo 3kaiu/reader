@@ -12,10 +12,10 @@ WORKDIR /app
 COPY reader-rs/Cargo.toml reader-rs/Cargo.lock ./
 
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release && rm -rf src
+RUN cargo build --release --features webview && rm -rf src
 
 COPY reader-rs/src ./src
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs && cargo build --release --features webview
 
 # 构建前端 (使用 pnpm)
 FROM node:20-alpine AS frontend
