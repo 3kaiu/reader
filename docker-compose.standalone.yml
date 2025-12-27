@@ -1,0 +1,45 @@
+# Reader 在线阅读 - 独立部署版
+# ================================
+# 无需克隆代码，直接拉取预构建镜像运行
+#
+# 使用方法:
+#   1. 将此文件保存到 NAS 的任意目录 (如 /vol1/docker/reader/)
+#   2. 执行: docker compose up -d
+#
+# 更新方式:
+#   docker compose pull && docker compose up -d
+
+services:
+  # Reader-RS: Rust 后端 + Vue3 前端
+  reader:
+    image: ghcr.io/3kaiu/reader:latest
+    container_name: reader
+    restart: unless-stopped
+    ports:
+      - "4396:8080"
+    volumes:
+      - ./storage:/app/storage
+    environment:
+      - TZ=Asia/Shanghai
+      - FLARESOLVERR_URL=http://flaresolverr:8191/v1
+      - RUST_LOG=info
+    depends_on:
+      - flaresolverr
+    networks:
+      - reader-network
+
+  # Flaresolverr: Cloudflare 自动绕过
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - LOG_LEVEL=info
+      - HEADLESS=true
+    networks:
+      - reader-network
+
+networks:
+  reader-network:
+    driver: bridge
