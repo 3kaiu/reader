@@ -10,6 +10,9 @@
 
 use anyhow::{anyhow, Result};
 
+#[cfg(feature = "webview")]
+use std::sync::{Arc, OnceLock};
+
 /// Global browser pool for reusing Chrome instance
 #[cfg(feature = "webview")]
 static BROWSER_POOL: OnceLock<Arc<WebViewPool>> = OnceLock::new();
@@ -31,12 +34,32 @@ impl WebViewPool {
             .clone()
     }
 
-    /// Internal: Create a new browser instance
+    /// Internal: Create a new browser instance with stealth mode enabled
     fn new_internal() -> Result<Self> {
         use headless_chrome::{Browser, LaunchOptions};
+        use std::ffi::OsStr;
         use std::time::Duration;
 
-        tracing::info!("Initializing WebView browser pool (one-time startup)");
+        tracing::info!("Initializing WebView browser pool with stealth mode (one-time startup)");
+
+        // Stealth mode arguments to bypass bot detection (e.g., Cloudflare)
+        let stealth_args = vec![
+            // Disable automation detection flags
+            OsStr::new("--disable-blink-features=AutomationControlled"),
+            // Disable infobars that reveal automation
+            OsStr::new("--disable-infobars"),
+            // Standard performance flags
+            OsStr::new("--disable-dev-shm-usage"),
+            OsStr::new("--no-first-run"),
+            OsStr::new("--no-default-browser-check"),
+            // Reduce fingerprinting surface
+            OsStr::new("--disable-extensions"),
+            OsStr::new("--disable-popup-blocking"),
+            // Use realistic window size
+            OsStr::new("--window-size=1920,1080"),
+            // Set User-Agent to realistic Chrome
+            OsStr::new("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        ];
 
         let browser = Browser::new(LaunchOptions {
             headless: true,
@@ -44,6 +67,7 @@ impl WebViewPool {
             enable_gpu: false,
             enable_logging: false,
             idle_browser_timeout: Duration::from_secs(300), // 5 minutes idle
+            args: stealth_args,
             ..Default::default()
         })?;
 
@@ -51,7 +75,7 @@ impl WebViewPool {
     }
 
     /// Create a new tab for a request
-    pub fn new_tab(&self) -> Result<headless_chrome::Tab> {
+    pub fn new_tab(&self) -> Result<std::sync::Arc<headless_chrome::Tab>> {
         self.browser
             .new_tab()
             .map_err(|e| anyhow!("Failed to create tab: {}", e))
@@ -93,12 +117,36 @@ impl WebViewExecutor {
         url: Option<&str>,
         js: Option<&str>,
     ) -> Result<String> {
+        use std::thread;
         use std::time::Duration;
 
         let tab = self.pool.new_tab()?;
 
-        // Set a reasonable timeout
-        tab.set_default_timeout(Duration::from_secs(30));
+        // Set a longer timeout for Cloudflare-protected sites
+        tab.set_default_timeout(Duration::from_secs(60));
+
+        // Inject stealth JavaScript to hide automation markers
+        // This runs before any page navigation to set up the environment
+        let stealth_js = r#"
+            // Hide navigator.webdriver
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+                configurable: true
+            });
+            // Hide automation-related properties
+            if (window.chrome) {
+                window.chrome.runtime = undefined;
+            }
+            // Spoof plugins to look like real browser
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
+                configurable: true
+            });
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['zh-CN', 'zh', 'en'],
+                configurable: true
+            });
+        "#;
 
         // Navigate to URL or load HTML directly
         if let Some(html_content) = html {
@@ -112,8 +160,44 @@ impl WebViewExecutor {
             return Err(anyhow!("Either html or url must be provided"));
         }
 
-        // Wait for page to load
+        // Wait for initial page load
         tab.wait_until_navigated()?;
+
+        // Inject stealth scripts immediately after navigation
+        let _ = tab.evaluate(stealth_js, false);
+
+        // Check if we hit a Cloudflare challenge page
+        let title_check = tab.evaluate("document.title", true)?;
+        let is_cloudflare = match &title_check.value {
+            Some(serde_json::Value::String(s)) => {
+                s.contains("Just a moment") || s.contains("请稍候")
+            }
+            _ => false,
+        };
+
+        if is_cloudflare {
+            tracing::debug!("Cloudflare challenge detected, waiting for resolution...");
+            // Wait for Cloudflare JS challenge to complete (up to 10 seconds)
+            for _ in 0..20 {
+                thread::sleep(Duration::from_millis(500));
+                let title_check = tab.evaluate("document.title", true)?;
+                let still_challenging = match &title_check.value {
+                    Some(serde_json::Value::String(s)) => {
+                        s.contains("Just a moment") || s.contains("请稍候")
+                    }
+                    _ => false,
+                };
+                if !still_challenging {
+                    tracing::debug!("Cloudflare challenge passed!");
+                    break;
+                }
+            }
+            // Re-inject stealth after redirect
+            let _ = tab.evaluate(stealth_js, false);
+        }
+
+        // Small delay to ensure page is fully rendered
+        thread::sleep(Duration::from_millis(500));
 
         // Execute JavaScript if provided
         let result = if let Some(js_code) = js {

@@ -27,6 +27,10 @@ pub struct BookSourceFull {
     #[serde(default)]
     pub rule_search: Option<SearchRule>,
 
+    // === 发现 URL ===
+    #[serde(default)]
+    pub explore_url: String,
+
     // === 书籍信息规则 ===
     #[serde(default)]
     pub rule_book_info: Option<BookInfoRule>,
