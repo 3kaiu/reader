@@ -44,6 +44,7 @@ pub fn routes() -> Router {
             post(source::read_remote_source_file),
         )
         .route("/saveBookSources", post(source::save_book_sources))
+        .route("/injectCookies", post(source::inject_cookies))
         .route("/testBookSource", post(source::test_book_source))
         .route("/deleteBookSources", post(source::delete_book_sources))
         .route(

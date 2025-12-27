@@ -21,9 +21,9 @@ const internalFetch = ofetch.create({
   baseURL: import.meta.env.VITE_API_URL || '/reader3',
   timeout: API_TIMEOUT,
   onRequest({ options }) {
-    const userStore = useUserStore()
-    if (userStore.token) {
-      options.params = { ...options.params, accessToken: userStore.token }
+    const token = localStorage.getItem('api_token')
+    if (token) {
+      options.params = { ...options.params, accessToken: token }
     }
     // 防止 IE 缓存
     options.params = { ...options.params, v: Date.now() }
@@ -37,32 +37,34 @@ export const api = ofetch.create({
 
   // 请求拦截器
   onRequest({ options, request }) {
-    const userStore = useUserStore()
-    if (userStore.token) {
-      options.params = { ...options.params, accessToken: userStore.token }
+    const token = localStorage.getItem('api_token')
+    if (token) {
+      options.params = { ...options.params, accessToken: token }
     }
-    
+
     // 防止 IE 缓存
     options.params = { ...options.params, v: Date.now() }
-    
+
     // GET 请求缓存和去重处理
     if (options.method === 'GET') {
       const cacheKey = `${String(request)}_${JSON.stringify(options.params)}`
       const cached = requestCache.get(cacheKey)
-      
+
       // 检查缓存
       if (cached && Date.now() - cached.timestamp < API_CACHE_TTL) {
         // 返回缓存的 Promise
         return Promise.resolve(cached.data)
       }
-      
+
       // 请求去重：如果已有相同请求在进行中，复用该请求
       if (pendingRequests.has(cacheKey)) {
         return pendingRequests.get(cacheKey)!
       }
-      
+
       // 使用内部实例发送请求，避免递归调用
-      const requestPromise = internalFetch<ApiResponse>(request, options)
+      // 必须移除当前实例的拦截器，否则 internalFetch 会接收到 merged options 中的拦截器导致死循环
+      const { onRequest, onResponse, onResponseError, ...cleanOptions } = options
+      const requestPromise = internalFetch<ApiResponse>(request, cleanOptions as any)
         .then((response) => {
           // 缓存成功的响应
           if (response.isSuccess) {
@@ -75,7 +77,7 @@ export const api = ofetch.create({
           pendingRequests.delete(cacheKey)
           throw error
         })
-      
+
       pendingRequests.set(cacheKey, requestPromise)
       return requestPromise
     }
@@ -99,11 +101,11 @@ export const api = ofetch.create({
       const userStore = useUserStore()
       userStore.showLoginModal = true
     }
-    
+
     // 自动重试逻辑（仅对网络错误，最多重试3次）
     const retryCount = (request as any).retryCount || 0
     if (!response.status && retryCount < API_MAX_RETRIES) {
-      ;(request as any).retryCount = retryCount + 1
+      ; (request as any).retryCount = retryCount + 1
       // 延迟重试：1s, 2s, 4s（指数退避）
       const delay = Math.pow(2, retryCount) * API_RETRY_DELAY_MULTIPLIER
       return new Promise((resolve) => {

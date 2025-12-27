@@ -151,3 +151,27 @@ pub struct ExploreRule {
     #[serde(default)]
     pub book_url: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_deserialize_book_sources() {
+        // try to find the file relative to the project root
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("storage/data/bookSources.json");
+        
+        if !path.exists() {
+            println!("Book sources file not found at {:?}, skipping test", path);
+            return;
+        }
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        match serde_json::from_str::<Vec<BookSourceFull>>(&content) {
+            Ok(sources) => println!("Successfully parsed {} sources", sources.len()),
+            Err(e) => panic!("Failed to parse book sources: {}", e),
+        }
+    }
+}

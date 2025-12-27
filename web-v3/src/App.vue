@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { NConfigProvider, zhCN, dateZhCN, darkTheme, type GlobalThemeOverrides } from 'naive-ui'
+import { 
+  NConfigProvider, 
+  NMessageProvider, 
+  NNotificationProvider, 
+  NDialogProvider,
+  zhCN, 
+  dateZhCN, 
+  darkTheme, 
+  type GlobalThemeOverrides 
+} from 'naive-ui'
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useUserStore } from '@/stores/user'
@@ -42,16 +51,22 @@ const theme = computed(() => (settingsStore.isDark ? darkTheme : undefined))
     :locale="zhCN"
     :date-locale="dateZhCN"
   >
-    <router-view v-slot="{ Component }">
-      <Transition name="page-fade" mode="out-in">
-        <component :is="Component" />
-      </Transition>
-    </router-view>
-    
-    <!-- 全局登录弹窗 -->
-    <LoginModal v-model:show="userStore.showLoginModal" />
-    <!-- 全局确认对话框 -->
-    <ConfirmDialog />
+    <NMessageProvider>
+      <NNotificationProvider>
+        <NDialogProvider>
+          <router-view v-slot="{ Component }">
+            <Transition name="page-fade" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </router-view>
+          
+          <!-- 全局登录弹窗 -->
+          <LoginModal v-model:show="userStore.showLoginModal" />
+          <!-- 全局确认对话框 -->
+          <ConfirmDialog />
+        </NDialogProvider>
+      </NNotificationProvider>
+    </NMessageProvider>
   </NConfigProvider>
 </template>
 

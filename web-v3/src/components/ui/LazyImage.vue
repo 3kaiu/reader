@@ -135,6 +135,15 @@ function handleError() {
   hasError.value = true
   emit('error')
 }
+
+function handleImageError() {
+  // WebP 加载失败时 fallback 到原图
+  if (currentSrc.value !== props.src) {
+    currentSrc.value = props.src
+  } else {
+    handleError()
+  }
+}
 </script>
 
 <template>
@@ -161,14 +170,7 @@ function handleError() {
       :class="{ 'opacity-0': !isLoaded, 'opacity-100': isLoaded }"
       :style="maxWidth ? { maxWidth: `${maxWidth}px` } : undefined"
       @load="handleLoad"
-      @error="() => {
-        // WebP 加载失败时 fallback 到原图
-        if (currentSrc.value !== props.src) {
-          currentSrc.value = props.src
-        } else {
-          handleError()
-        }
-      }"
+      @error="handleImageError"
     />
     
     <!-- 错误状态 / 默认图标 -->
