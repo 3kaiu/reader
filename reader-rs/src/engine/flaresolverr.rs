@@ -6,7 +6,7 @@
 //! Deploy: docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
 
 use anyhow::{Context, Result};
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info};
@@ -102,23 +102,23 @@ impl FlareSolverrClient {
     }
 
     /// Check if Flaresolverr is available
-    pub async fn is_available(&self) -> bool {
+    pub fn is_available(&self) -> bool {
         let health_url = self.base_url.replace("/v1", "/health");
-        self.client.get(&health_url).send().await.is_ok()
+        self.client.get(&health_url).send().is_ok()
     }
 
     /// Solve Cloudflare challenge for a GET request
-    pub async fn solve_get(&self, url: &str) -> Result<FlareSolverrSolution> {
-        self.solve(url, None).await
+    pub fn solve_get(&self, url: &str) -> Result<FlareSolverrSolution> {
+        self.solve(url, None)
     }
 
     /// Solve Cloudflare challenge for a POST request
-    pub async fn solve_post(&self, url: &str, post_data: &str) -> Result<FlareSolverrSolution> {
-        self.solve(url, Some(post_data.to_string())).await
+    pub fn solve_post(&self, url: &str, post_data: &str) -> Result<FlareSolverrSolution> {
+        self.solve(url, Some(post_data.to_string()))
     }
 
     /// Internal solve method
-    async fn solve(&self, url: &str, post_data: Option<String>) -> Result<FlareSolverrSolution> {
+    fn solve(&self, url: &str, post_data: Option<String>) -> Result<FlareSolverrSolution> {
         let cmd = if post_data.is_some() {
             "request.post"
         } else {
@@ -143,18 +143,16 @@ impl FlareSolverrClient {
             .post(&self.base_url)
             .json(&request)
             .send()
-            .await
             .context("Failed to connect to Flaresolverr. Is it running?")?;
 
         let status = response.status();
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
+            let body = response.text().unwrap_or_default();
             anyhow::bail!("Flaresolverr returned error {}: {}", status, body);
         }
 
         let result: FlareSolverrResponse = response
             .json()
-            .await
             .context("Failed to parse Flaresolverr response")?;
 
         debug!("Flaresolverr response status: {}", result.status);

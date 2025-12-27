@@ -26,12 +26,11 @@ pub struct WebViewPool {
 #[cfg(feature = "webview")]
 impl WebViewPool {
     /// Get or create the global browser pool (lazy singleton)
-    pub fn global() -> Arc<Self> {
-        BROWSER_POOL
-            .get_or_init(|| {
-                Arc::new(Self::new_internal().expect("Failed to initialize browser pool"))
-            })
-            .clone()
+    pub fn global() -> Result<Arc<Self>> {
+        let pool = BROWSER_POOL.get_or_try_init(|| {
+            Self::new_internal().map(Arc::new)
+        })?;
+        Ok(pool.clone())
     }
 
     /// Internal: Create a new browser instance with stealth mode enabled
@@ -98,7 +97,7 @@ impl WebViewExecutor {
     /// This reuses the shared Chrome browser instance.
     pub fn new() -> Result<Self> {
         Ok(Self {
-            pool: WebViewPool::global(),
+            pool: WebViewPool::global()?,
         })
     }
 

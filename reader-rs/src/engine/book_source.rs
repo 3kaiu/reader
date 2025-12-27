@@ -51,6 +51,9 @@ pub struct BookSource {
     /// Concurrent request rate limit
     #[serde(default)]
     pub concurrent_rate: Option<String>,
+    /// TLS Fingerprint to mimic (e.g., "chrome", "safari")
+    #[serde(default)]
+    pub fingerprint: Option<String>,
 }
 
 /// Search rule configuration
@@ -185,7 +188,7 @@ impl BookSourceEngine {
         }
 
         // Create HTTP client with source-level headers
-        let http = HttpClient::with_headers(&base_url, source.header.as_deref())?;
+        let http = HttpClient::with_config(&base_url, source.header.as_deref(), source.fingerprint.as_deref())?;
         let mut analyzer = RuleAnalyzer::new(kv_store.clone())?;
         analyzer.set_base_url(&base_url);
 
@@ -1032,4 +1035,6 @@ mod tests {
         assert_eq!(source.book_source_name, "Test Source");
         assert_eq!(source.search_url.unwrap(), "/search?q={{key}}&p={{page}}");
     }
+
+
 }

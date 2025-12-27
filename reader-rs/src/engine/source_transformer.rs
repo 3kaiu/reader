@@ -647,6 +647,7 @@ mod tests {
             rule_toc: None,
             rule_content: None,
             rule_explore: None,
+            explore_url: String::new(),
             header: None,
             login_url: None,
             js_lib: None,
