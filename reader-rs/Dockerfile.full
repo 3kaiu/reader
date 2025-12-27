@@ -15,14 +15,17 @@ RUN cargo build --release && rm -rf src
 COPY reader-rs/src ./src
 RUN touch src/main.rs && cargo build --release
 
-# 构建前端
+# 构建前端 (使用 pnpm)
 FROM node:20-alpine AS frontend
 
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
-COPY web-v3/package*.json ./
-RUN npm ci --registry=https://registry.npmmirror.com
+COPY web-v3/package.json web-v3/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --registry=https://registry.npmmirror.com
 COPY web-v3 ./
-RUN npm run build
+RUN pnpm run build
 
 # 运行阶段
 FROM alpine:3.20
