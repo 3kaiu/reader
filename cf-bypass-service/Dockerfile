@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     libffi-dev \
     curl \
     python3-dev \
-    build-base
+    build-base \
+    patchelf
 
 # Install uv, Nuitka and ccache for faster recompilation
 RUN apk add --no-cache ccache
