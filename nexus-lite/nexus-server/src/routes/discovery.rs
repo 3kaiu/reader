@@ -45,7 +45,10 @@ pub async fn list_discovery(
     Query(query): Query<DiscoveryQuery>,
 ) -> Result<Json<DiscoveryResponse>, (StatusCode, String)> {
     // 1. Locate data files
-    let base_path = PathBuf::from("../cf-bypass-service/data/qidian");
+    let base_path = std::env::var("DISCOVERY_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("../cf-bypass-service/data/qidian"));
+    
     let rec_path = base_path.join("editor_recommend.json");
     let sign_path = base_path.join("new_sign.json");
 

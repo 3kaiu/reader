@@ -35,10 +35,13 @@ services:
       - ./sources:/app/sources
       # 📁 章节缓存 (可选，删除后可重建)
       - ./cache:/app/cache
+      # 📁 发现页数据 (与 cf-bypass 共享)
+      - ./data/qidian:/app/data/qidian
     environment:
       - TZ=Asia/Shanghai
       - RUST_LOG=info
       - CF_SERVICE_URL=http://cf-bypass:8000
+      - DISCOVERY_DATA_DIR=/app/data/qidian
     depends_on:
       cf-bypass:
         condition: service_healthy
@@ -59,6 +62,8 @@ services:
     container_name: cf-bypass
     restart: unless-stopped
     user: "0:0"
+    volumes:
+      - ./data/qidian:/app/data/qidian
     labels:
       - "com.centurylinklabs.watchtower.scope=reader"
     expose:
