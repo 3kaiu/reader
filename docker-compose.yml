@@ -1,48 +1,102 @@
-version: '3.8'
+# ============================================================
+# Reader 在线阅读 - NAS 独立部署版
+# ============================================================
+# 💡 完全无需克隆代码，直接拉取预构建镜像运行
+#
+# 📦 使用方法:
+#   1. 将此文件保存到 NAS 的任意目录
+#   2. 执行: docker compose -f docker-compose.standalone.yml up -d
+#   3. 访问: http://your-nas-ip:4396
+#
+# 🔄 更新方式 (二选一):
+#   A) 自动更新: Watchtower 每 6 小时检查一次，有新版本自动更新
+#   B) 手动更新: docker compose pull && docker compose up -d
+#
+# ============================================================
 
 services:
+  # ─────────────────────────────────────────────────────────
+  # 主服务: NexusLite (Rust 后端 + Vue3 前端)
+  # ─────────────────────────────────────────────────────────
   nexus-lite:
-    build: ./nexus-lite
+    image: ghcr.io/3kaiu/nexus-lite:latest
     container_name: nexus-lite
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=reader"
     ports:
-      - "8080:8080"
+      - "4396:8080"
+    volumes:
+      # 📁 持久化数据 (书架、阅读进度、分组) - 必须保留
+      - ./data:/app/data
+      # 📁 自定义书源 (可选，镜像已内置默认书源)
+      - ./sources:/app/sources
+      # 📁 章节缓存 (可选，删除后可重建)
+      - ./cache:/app/cache
     environment:
+      - TZ=Asia/Shanghai
       - RUST_LOG=info
       - CF_SERVICE_URL=http://cf-bypass:8000
-      - CF_SERVICE_KEY=${CF_API_KEY:-}
-    volumes:
-      - ./nexus-lite/data:/app/data
-      - ./nexus-lite/sources:/app/sources
-      - ./nexus-lite/cache:/app/cache
     depends_on:
       cf-bypass:
         condition: service_healthy
     networks:
-      - internal
-    restart: unless-stopped
+      - reader-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
+  # ─────────────────────────────────────────────────────────
+  # 辅助服务: CF Bypass (Cloudflare/反爬虫绕过)
+  # ─────────────────────────────────────────────────────────
   cf-bypass:
-    build: ./cf-bypass-service
+    image: ghcr.io/3kaiu/cf-bypass-service:latest
     container_name: cf-bypass
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=reader"
     expose:
       - "8000"
     environment:
-      - CF_API_KEY=${CF_API_KEY:-}
-      - JS_INTERPRETER=js2py
+      - TZ=Asia/Shanghai
       - ENABLE_STEALTH=true
-      - CF_DELAY=5
       - REQUEST_TIMEOUT=30
-      - SESSION_TTL=3600
+    networks:
+      - reader-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    networks:
-      - internal
+
+  # ─────────────────────────────────────────────────────────
+  # 自动更新: Watchtower (可选，但强烈推荐)
+  # ─────────────────────────────────────────────────────────
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
     restart: unless-stopped
+    privileged: true
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=Asia/Shanghai
+      # 🧹 自动清理旧镜像
+      - WATCHTOWER_CLEANUP=true
+      # ⏰ 检查间隔 (秒): 21600 = 6小时
+      - WATCHTOWER_POLL_INTERVAL=21600
+      # 📋 只监控指定容器
+      - WATCHTOWER_SCOPE=reader
+    labels:
+      - "com.centurylinklabs.watchtower.scope=reader"
+    networks:
+      - reader-network
 
 networks:
-  internal:
+  reader-network:
     driver: bridge
