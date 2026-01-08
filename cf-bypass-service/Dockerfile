@@ -1,6 +1,6 @@
 # =============================================================================
-# Optimized Dockerfile for cf-bypass-service
-# Using Alpine and Multi-stage builds for minimum footprint
+# ULTIMATE OPTIMIZATION for cf-bypass-service
+# Using Nuitka to compile Python into a standalone binary
 # =============================================================================
 
 # Stage 1: Builder
@@ -8,36 +8,49 @@ FROM python:3.11-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies for C extensions
+# Install build dependencies
 RUN apk add --no-cache \
     gcc \
     musl-dev \
     libffi-dev \
-    curl
+    curl \
+    python3-dev \
+    build-base
 
-# Install uv
-RUN pip install --no-cache-dir uv
+# Install uv and Nuitka
+RUN pip install --no-cache-dir uv nuitka
 
 # Copy project definition
 COPY pyproject.toml uv.lock ./
-
-# Install dependencies
-# Using --system in alpine builder to prepare the libs
 RUN uv pip install --system --no-cache -r pyproject.toml
-
-# Stage 2: Runtime
-FROM python:3.11-alpine
-WORKDIR /app
-
-# Install runtime dependencies (curl for healthcheck)
-RUN apk add --no-cache curl tzdata
-
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy source code
 COPY app.py scraper.py ./
+
+# Compile with Nuitka
+# --standalone: includes the Python interpreter
+# --onefile: packages everything into a single binary
+# --remove-output: cleans up C files
+RUN python -m nuitka \
+    --standalone \
+    --onefile \
+    --remove-output \
+    --include-package=fastapi \
+    --include-package=uvicorn \
+    --include-package=js2py \
+    --include-package=curl_cffi \
+    --output-filename=cf-bypass \
+    app.py
+
+# Stage 2: Runtime
+FROM alpine:3.19
+WORKDIR /app
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache curl tzdata ca-certificates
+
+# Copy the compiled standalone binary
+COPY --from=builder /app/cf-bypass /app/cf-bypass
 
 # Create data directory
 RUN mkdir -p /app/data/qidian
@@ -48,9 +61,7 @@ ENV PORT=8000
 ENV JS_INTERPRETER=js2py
 ENV REQUEST_TIMEOUT=90
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
 EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Run the compiled binary
+CMD ["/app/cf-bypass"]

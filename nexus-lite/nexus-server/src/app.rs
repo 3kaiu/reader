@@ -183,7 +183,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         // Merge API routes with static file serving
         // API routes take priority, then static files, fallback to index.html for SPA
         Router::new().merge(api_router).fallback_service(
-            ServeDir::new(&static_dir).not_found_service(ServeFile::new(index_path)),
+            ServeDir::new(&static_dir)
+                .precompressed_br()
+                .precompressed_gzip()
+                .not_found_service(ServeFile::new(index_path)),
         )
     } else {
         info!("Static directory not found, API-only mode");
