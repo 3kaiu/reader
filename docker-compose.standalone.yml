@@ -22,6 +22,8 @@ services:
     image: ghcr.io/3kaiu/nexus-lite:latest
     container_name: nexus-lite
     restart: unless-stopped
+    # 强制以 Root 运行以解决 NAS 挂载卷权限问题
+    user: "0:0"
     labels:
       - "com.centurylinklabs.watchtower.scope=reader"
     ports:
@@ -38,9 +40,16 @@ services:
       - RUST_LOG=info
       - CF_SERVICE_URL=http://cf-bypass:8000
     depends_on:
-      - cf-bypass
+      cf-bypass:
+        condition: service_healthy
     networks:
       - reader-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # ─────────────────────────────────────────────────────────
   # 辅助服务: CF Bypass (Cloudflare/反爬虫绕过)
@@ -49,6 +58,7 @@ services:
     image: ghcr.io/3kaiu/cf-bypass-service:latest
     container_name: cf-bypass
     restart: unless-stopped
+    user: "0:0"
     labels:
       - "com.centurylinklabs.watchtower.scope=reader"
     expose:

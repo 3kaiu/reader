@@ -1,6 +1,6 @@
 # =============================================================================
 # Multi-stage Dockerfile for NexusLite (Rust Backend + Vue Frontend)
-# ULTIMATE OPTIMIZATION: scratch + musl + UPX + Brotli Pre-compression
+# OPTIMIZED: Alpine + musl + UPX + Brotli Pre-compression
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -60,14 +60,13 @@ RUN cargo build --release --target x86_64-unknown-linux-musl --bin nexus-server
 RUN upx --best --lzma /app/target/x86_64-unknown-linux-musl/release/nexus-server
 
 # -----------------------------------------------------------------------------
-# Stage 5: Runtime (The ultimate empty container)
+# Stage 5: Runtime (Alpine for better compatibility/permissions)
 # -----------------------------------------------------------------------------
-FROM scratch
+FROM alpine:3.19
 WORKDIR /app
 
-# Copy essential system files from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+# Install minimal runtime dependencies
+RUN apk add --no-cache ca-certificates curl tzdata
 
 # Copy the statically linked and compressed binary
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/nexus-server /app/nexus-server
@@ -87,8 +86,8 @@ ENV TZ=Asia/Shanghai
 
 EXPOSE 8080
 
-# Since it's scratch, we can't use healthcheck with curl unless we copy curl and its libs.
-# For ultimate size, we omit the docker-level healthcheck or use a custom tiny Go/Rust health-checker.
-# Most NAS users prefer size over the Healthcheck badge.
+# Re-enable healthcheck since curl is available
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
 ENTRYPOINT ["/app/nexus-server"]
