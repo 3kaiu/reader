@@ -55,13 +55,21 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     // Try to load from config file, or use defaults
     let config_path = std::path::Path::new("config.json");
 
-    if config_path.exists() {
+    let mut config = if config_path.exists() {
         let content = tokio::fs::read_to_string(config_path).await?;
         let config: EngineConfig = serde_json::from_str(&content)?;
         info!("Loaded configuration from config.json");
-        Ok(config)
+        config
     } else {
         info!("Using default configuration");
-        Ok(EngineConfig::default())
+        EngineConfig::default()
+    };
+
+    // Environment overrides (convenient for Docker)
+    if let Ok(url) = std::env::var("CF_SERVICE_URL") {
+        config.cf_bypass.service_url = url;
+        info!("Overriding CF_SERVICE_URL from environment");
     }
+
+    Ok(config)
 }
