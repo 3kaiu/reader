@@ -1,6 +1,6 @@
 # =============================================================================
 # Multi-stage Dockerfile for NexusLite (Rust Backend + Vue Frontend)
-# Optimized for minimum image size with Alpine and musl
+# Optimized for minimum image size with Alpine, musl, and UPX
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -19,7 +19,6 @@ RUN pnpm build
 # -----------------------------------------------------------------------------
 FROM lukemathwalker/cargo-chef:latest-rust-1-slim AS chef
 WORKDIR /app
-# Install musl target
 RUN apt-get update && apt-get install -y musl-tools && rm -rf /var/lib/apt/lists/*
 RUN rustup target add x86_64-unknown-linux-musl
 
@@ -34,21 +33,25 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage 4: Builder (Build dependencies and binary)
 # -----------------------------------------------------------------------------
 FROM chef AS builder
-# Install build dependencies
+# Install build dependencies + UPX
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     cmake \
     perl \
+    upx-ucl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=planner /app/recipe.json recipe.json
-# Build dependencies for musl
 RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json
 
 # Build application
 COPY nexus-lite/ .
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin nexus-server
+
+# Compress binary with UPX (Ultimate Packer for eXecutables)
+# Use --best --lzma for maximum compression ratio
+RUN upx --best --lzma /app/target/x86_64-unknown-linux-musl/release/nexus-server
 
 # -----------------------------------------------------------------------------
 # Stage 5: Runtime
@@ -56,13 +59,12 @@ RUN cargo build --release --target x86_64-unknown-linux-musl --bin nexus-server
 FROM alpine:3.19
 WORKDIR /app
 
-# Install minimal runtime dependencies (curl for healthcheck)
 RUN apk add --no-cache ca-certificates curl tzdata
 
 # Create non-root user
 RUN addgroup -S nexus && adduser -S nexus -G nexus
 
-# Copy Rust binary (musl)
+# Copy Compressed Rust binary
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/nexus-server /app/nexus-server
 
 # Copy Vue frontend
@@ -71,7 +73,6 @@ COPY --from=frontend-builder /app/dist /app/static
 # Copy default book sources
 COPY nexus-lite/sources /app/sources
 
-# Permissions
 RUN mkdir -p /app/data /app/cache && chown -R nexus:nexus /app
 USER nexus
 
