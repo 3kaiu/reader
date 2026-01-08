@@ -17,7 +17,8 @@ RUN apk add --no-cache \
     python3-dev \
     build-base
 
-# Install uv and Nuitka
+# Install uv, Nuitka and ccache for faster recompilation
+RUN apk add --no-cache ccache
 RUN pip install --no-cache-dir uv nuitka
 
 # Copy project definition
@@ -29,16 +30,17 @@ COPY app.py scraper.py ./
 
 # Compile with Nuitka
 # --standalone: includes the Python interpreter
-# --onefile: packages everything into a single binary
 # --remove-output: cleans up C files
+# --jobs: Use all available cores
 RUN python -m nuitka \
     --standalone \
-    --onefile \
     --remove-output \
+    --jobs=$(nproc) \
     --include-package=fastapi \
     --include-package=uvicorn \
     --include-package=js2py \
     --include-package=curl_cffi \
+    --output-dir=build \
     --output-filename=cf-bypass \
     app.py
 
@@ -46,11 +48,11 @@ RUN python -m nuitka \
 FROM alpine:3.19
 WORKDIR /app
 
-# Install minimal runtime dependencies
-RUN apk add --no-cache curl tzdata ca-certificates
+# Install runtime dependencies (need libstdc++ for compiled python)
+RUN apk add --no-cache curl tzdata ca-certificates libstdc++
 
-# Copy the compiled standalone binary
-COPY --from=builder /app/cf-bypass /app/cf-bypass
+# Copy the compiled standalone directory
+COPY --from=builder /app/build/app.dist /app/cf-bypass
 
 # Create data directory
 RUN mkdir -p /app/data/qidian
@@ -63,5 +65,5 @@ ENV REQUEST_TIMEOUT=90
 
 EXPOSE 8000
 
-# Run the compiled binary
-CMD ["/app/cf-bypass"]
+# Run the compiled binary from the standalone folder
+CMD ["/app/cf-bypass/cf-bypass"]
