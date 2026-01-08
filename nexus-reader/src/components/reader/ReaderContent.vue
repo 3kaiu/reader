@@ -1,0 +1,300 @@
+<script setup lang="ts">
+/**
+ * 阅读器主内容区组件
+ * 支持无限滚动模式和左右翻页模式
+ */
+import { ref, watch, onMounted } from 'vue'
+import { Loader2 } from 'lucide-vue-next'
+import ChapterSummary from '@/components/book/ChapterSummary.vue'
+import { formatContent } from '@/utils/format'
+import { useRenderWorker } from '@/composables/useRenderWorker'
+import { useSettingsStore } from '@/stores/settings'
+
+// 本地类型定义
+interface LoadedChapter {
+  index: number
+  title: string
+  formattedContent?: string
+}
+
+interface SwipeLayout {
+  columnWidth: number
+  columnGap: number
+  padding: number
+}
+
+type ContentStyle = Record<string, string | number>
+
+interface Props {
+  readingMode: 'scroll' | 'swipe'
+  contentStyle: ContentStyle
+  loadedChapters: LoadedChapter[]
+  isParsing: boolean
+  isLoadingMore: boolean
+  hasNextChapter: boolean
+  formattedContent: string // 预格式化后的单章内容
+  currentChapter: LoadedChapter | null // 当前章节 (用于 swipe 模式)
+  currentChapterIndex: number
+  totalChapters: number
+  // Swipe 模式专用
+  swipePage: number
+  swipeTotalPages: number
+  swipeLayout: SwipeLayout
+  pageTransition: string
+  // 其他
+  showToolbar: boolean
+  isFullscreen: boolean
+  formattedTime: string
+  paragraphSpacing: number
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  click: []
+  loadNextChapter: []
+}>()
+
+const settingsStore = useSettingsStore()
+const swipeContentRef = ref<HTMLElement | null>(null)
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+
+// 初始化渲染 Worker
+const { renderedPages, requestRender } = useRenderWorker()
+
+// 监听内容变化并请求背景渲染
+watch(() => props.formattedContent, (newContent) => {
+  if (props.readingMode === 'swipe' && newContent) {
+    requestRender({
+      text: newContent.replace(/<[^>]*>/g, '\n'), // 简单转义用于 Canvas
+      width: window.innerWidth,
+      height: window.innerHeight,
+      fontSize: settingsStore.config.fontSize || 18,
+      lineHeight: 1.6,
+      padding: 32,
+      fontFamily: 'sans-serif',
+      color: props.contentStyle.color as string || '#000',
+      theme: settingsStore.config.theme
+    })
+  }
+}, { immediate: true })
+
+// 绘制位图到 Canvas
+const drawCurrentPage = () => {
+    if (!canvasRef.value || renderedPages.value.length === 0) return
+    const ctx = canvasRef.value.getContext('2d')
+    if (!ctx) return
+    
+    const bitmap = renderedPages.value[props.swipePage]
+    if (bitmap) {
+        ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+        ctx.drawImage(bitmap, 0, 0)
+    }
+}
+
+watch([() => props.swipePage, renderedPages], drawCurrentPage)
+
+// 暴露给父组件，供 useSwipeMode 使用
+defineExpose({
+  swipeContentRef
+})
+</script>
+
+<template>
+  <div class="reader-container">
+    <!-- 正文 (无限滚动模式) -->
+    <div 
+      v-if="readingMode === 'scroll'"
+      class="mx-auto px-6 pb-40 pt-20" 
+      :style="{ ...contentStyle, '--p-spacing': `${paragraphSpacing}em`, '--p-line-height': contentStyle.lineHeight }"
+    >
+      <!-- 多章节内容 -->
+      <template v-for="chapter in loadedChapters" :key="chapter.index">
+        <!-- 章节标题 -->
+        <div 
+          class="chapter-marker text-center py-10 mt-10 first:mt-0"
+          :data-chapter-index="chapter.index"
+        >
+          <div class="inline-block px-6 py-2 bg-primary/5 rounded-full mb-4">
+            <span class="text-xs opacity-60">第 {{ chapter.index + 1 }} 章</span>
+          </div>
+          <h2 class="chapter-title text-xl font-bold opacity-90">
+            {{ chapter.title }}
+          </h2>
+        </div>
+        
+        <!-- 智能摘要 -->
+        <ChapterSummary :chapter="chapter" />
+        
+        <!-- 章节内容 -->
+        <article class="reader-text">
+          <div v-if="chapter.formattedContent" v-html="chapter.formattedContent" />
+          <div v-else class="py-10 text-center opacity-40">
+            <Loader2 class="w-6 h-6 animate-spin mx-auto mb-2" />
+            <p class="text-xs">正在解析内容...</p>
+          </div>
+        </article>
+      </template>
+      
+      <!-- 解析中指示器 (初次加载) -->
+      <div v-if="isParsing && loadedChapters.length === 0" class="py-20 text-center">
+        <Loader2 class="w-8 h-8 animate-spin mx-auto opacity-40" />
+        <p class="text-sm opacity-40 mt-3">正在解析章节...</p>
+      </div>
+
+      <!-- 加载更多指示器 -->
+      <div v-if="isLoadingMore" class="py-12 text-center">
+        <Loader2 class="w-8 h-8 animate-spin mx-auto opacity-40" />
+        <p class="text-sm opacity-40 mt-3">正在加载下一章...</p>
+      </div>
+      
+      <!-- 已加载到末尾 -->
+      <div v-else-if="!hasNextChapter && loadedChapters.length > 0" class="py-16 text-center">
+        <div class="inline-block px-8 py-3 bg-current/5 rounded-full">
+          <p class="text-sm opacity-60">🎉 恭喜，已读完全书 🎉</p>
+        </div>
+      </div>
+      
+      <!-- 加载下一章按钮 -->
+      <div v-else-if="loadedChapters.length > 0" class="py-12 text-center">
+        <button 
+          class="px-6 py-3 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
+          @click.stop="emit('loadNextChapter')"
+        >
+          加载下一章
+        </button>
+        <p class="text-xs opacity-30 mt-3">或继续滚动自动加载</p>
+      </div>
+    </div>
+    
+    <!-- 正文 (左右翻页模式) -->
+    <div 
+      v-else
+      class="fixed inset-0 z-0 overflow-hidden"
+      :style="{
+        ...contentStyle,
+        '--p-spacing': `${paragraphSpacing}em`,
+        '--p-line-height': contentStyle.lineHeight,
+        maxWidth: 'none',
+        height: '100vh',
+        width: '100vw'
+      }"
+    >
+      <!-- 高性能 Canvas 渲染层 (硬件加速背景与过渡层) -->
+      <canvas 
+        ref="canvasRef"
+        class="fixed inset-0 pointer-events-none z-10 transition-opacity duration-500 ease-in-out"
+        :width="Math.round(1 * window.innerWidth)"
+        :height="Math.round(1 * window.innerHeight)"
+        :style="{ 
+            opacity: (isParsing || renderedPages.length === 0) ? 1 : 0.05,
+            visibility: renderedPages.length > 0 ? 'visible' : 'hidden'
+        }"
+      />
+
+      <div 
+        ref="swipeContentRef"
+        class="h-full w-full py-8 transition-opacity duration-300"
+        :class="{ 'opacity-0': isParsing }"
+        :style="{
+          columnWidth: `${swipeLayout.columnWidth}px`,
+          columnGap: `${swipeLayout.columnGap}px`,
+          paddingLeft: `${swipeLayout.padding}px`,
+          paddingRight: `${swipeLayout.padding}px`,
+          height: '100vh',
+          transform: pageTransition !== 'fade' 
+            ? `translateX(-${swipePage * 100}vw)` 
+            : 'none',
+          opacity: pageTransition === 'fade' ? 1 : undefined,
+          transition: pageTransition
+        }"
+      >
+        <!-- 章节标题 -->
+        <div class="text-center pb-8 pt-4">
+           <div class="inline-block px-4 py-1 bg-primary/5 rounded-full mb-2">
+             <span class="text-xs opacity-60">第 {{ currentChapterIndex + 1 }} 章</span>
+           </div>
+           <h2 class="chapter-title text-xl font-bold opacity-90 mb-0">
+             {{ currentChapter?.title }}
+           </h2>
+        </div>
+        
+        <!-- 智能摘要 -->
+        <div v-if="currentChapter" class="px-4 mb-4">
+           <ChapterSummary :chapter="currentChapter" />
+        </div>
+
+        <!-- 章节内容 -->
+        <article class="reader-text text-justify">
+          <div v-if="isParsing" class="h-60 flex flex-col items-center justify-center opacity-40">
+            <Loader2 class="w-8 h-8 animate-spin mb-4" />
+            <p class="text-sm">内容解析中...</p>
+          </div>
+          <div v-else v-html="formattedContent" />
+        </article>
+        
+        <!-- 本章结束提示 -->
+        <div class="h-40 flex flex-col items-center justify-center text-center opacity-60 break-inside-avoid">
+           <div class="divider mb-2">❦</div>
+           <p class="text-xs">本章完</p>
+        </div>
+      </div>
+      
+      <!-- 页码指示器 -->
+      <div 
+        class="fixed bottom-3 right-6 text-xs opacity-40 font-mono pointer-events-none z-10 transition-opacity duration-300" 
+        :class="{ 'opacity-0': showToolbar }"
+      >
+        {{ swipePage + 1 }} / {{ swipeTotalPages }}
+      </div>
+    </div>
+
+    <!-- 全屏时钟 -->
+    <div v-if="isFullscreen" class="fixed top-4 right-6 text-xs opacity-30 font-mono pointer-events-none z-50">
+      {{ formattedTime }}
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.reader-container {
+  min-height: 100vh;
+  cursor: text;
+}
+
+.reader-text :deep(.content-paragraph) {
+  text-indent: 2em;
+  word-break: break-word;
+  letter-spacing: 0.02em;
+  text-align: justify;
+  line-height: var(--p-line-height, 1.8);
+  margin-bottom: var(--p-spacing, 1.2em);
+}
+
+.chapter-title {
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+.chapter-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.3;
+}
+
+.divider {
+  font-family: serif;
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.break-inside-avoid {
+  break-inside: avoid;
+}
+</style>

@@ -1,0 +1,54 @@
+[package]
+name = "nexus-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core book source execution engine for NexusLite"
+
+[dependencies]
+nexus-core = { path = "../nexus-core" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+# HTTP Client
+reqwest = { version = "0.12", default-features = false, features = [
+    "json", "rustls-tls", "cookies", "gzip", "brotli"
+] }
+# L2: TLS Fingerprint Impersonation (optional, adds ~3MB)
+rquest = { version = "5.1", optional = true }
+
+# HTML Parsing
+scraper = "0.20"
+
+# JSON Path
+jsonpath-rust = "0.7"
+
+# Regex
+regex = "1"
+
+# Encoding (for URL handling)
+url = "2"
+urlencoding = "2"
+encoding_rs = "0.8"
+
+# Utilities
+parking_lot = "0.12"
+dashmap = "6"
+lru = "0.12"
+futures-util = "0.3.31"
+
+[features]
+default = []
+# Enable L2 TLS fingerprint impersonation for advanced anti-crawl
+tls-impersonate = ["rquest"]
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

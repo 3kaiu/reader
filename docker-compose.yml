@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  nexus-lite:
+    build: ./nexus-lite
+    container_name: nexus-lite
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - CF_SERVICE_URL=http://cf-bypass:8000
+      - CF_SERVICE_KEY=${CF_API_KEY:-}
+    volumes:
+      - ./nexus-lite/data:/app/data
+      - ./nexus-lite/sources:/app/sources
+      - ./nexus-lite/cache:/app/cache
+    depends_on:
+      cf-bypass:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: unless-stopped
+
+  cf-bypass:
+    build: ./cf-bypass-service
+    container_name: cf-bypass
+    expose:
+      - "8000"
+    environment:
+      - CF_API_KEY=${CF_API_KEY:-}
+      - JS_INTERPRETER=js2py
+      - ENABLE_STEALTH=true
+      - CF_DELAY=5
+      - REQUEST_TIMEOUT=30
+      - SESSION_TTL=3600
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - internal
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge

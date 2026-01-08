@@ -1,0 +1,42 @@
+{
+  "name": "nexus-reader",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rsbuild build",
+    "dev": "rsbuild dev --open",
+    "preview": "rsbuild preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "@mlc-ai/web-llm": "^0.2.80",
+    "@tanstack/vue-virtual": "^3.13.13",
+    "@vueuse/core": "^14.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.19",
+    "idb": "^8.0.3",
+    "lucide-vue-next": "^0.562.0",
+    "ofetch": "^1.5.1",
+    "onnxruntime-web": "^1.23.2",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "piper-tts-web": "^1.1.2",
+    "reka-ui": "^2.7.0",
+    "tailwind-merge": "^3.4.0",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@rsbuild/core": "^1.6.14",
+    "@rsbuild/plugin-vue": "^1.2.1",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.0.3",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
+  }
+}

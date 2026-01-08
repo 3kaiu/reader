@@ -1,0 +1,73 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**
+!**/src/test/**
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+.vertx
+out
+
+#/src/main/resources/application-prod.yml
+/src/main/resources/application-default.yml
+
+/src/main/resources/web
+/storage*
+/logs
+/bin
+/file-uploads
+/reader-assets
+/.lh/
+
+/simple-web/
+
+/server/logs
+/server/storage
+/server/target
+
+# Docker 运行时数据
+/data/
+
+# NexusLite
+/nexus-lite/target/
+/nexus-lite/.cargo/
+/nexus-lite/data/
+/nexus-lite/cache/
+/nexus-lite/config.json
+
+# CF Bypass Service
+cf-bypass-service/**/__pycache__/
+cf-bypass-service/**/*.pyc
+cf-bypass-service/.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store

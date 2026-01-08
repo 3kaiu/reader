@@ -1,0 +1,51 @@
+[package]
+name = "nexus-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "HTTP API server for NexusLite"
+
+[[bin]]
+name = "nexus-server"
+path = "src/main.rs"
+
+[dependencies]
+nexus-core = { path = "../nexus-core" }
+nexus-engine = { path = "../nexus-engine" }
+nexus-storage = { path = "../nexus-storage" }
+
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-trait.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+dashmap = "5.5"
+
+# Web framework
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+
+# Futures
+futures = "0.3"
+tokio-stream = "0.1"
+
+# URL parsing
+url = "2"
+
+# Rate limiting
+tower_governor = "0.4"
+governor = "0.6"
+
+# HTTP types (for extracting client IP)
+http = "1"
+
+# Metrics
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
