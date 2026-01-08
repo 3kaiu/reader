@@ -22,6 +22,8 @@ services:
     image: ghcr.io/3kaiu/nexus-lite:latest
     container_name: nexus-lite
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=reader"
     ports:
       - "4396:8080"
     volumes:
@@ -54,6 +56,8 @@ services:
     image: ghcr.io/3kaiu/cf-bypass-service:latest
     container_name: cf-bypass
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=reader"
     expose:
       - "8000"
     environment:
