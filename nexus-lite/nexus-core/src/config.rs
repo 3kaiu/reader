@@ -256,6 +256,7 @@ impl Default for CloudflareBypassConfig {
             service_url: default_cf_service_url(),
             api_key: None,
             enabled: true,
+            proxy: None,
             timeout_seconds: default_cf_timeout(),
         }
     }
