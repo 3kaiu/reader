@@ -100,6 +100,8 @@ services:
       - WATCHTOWER_POLL_INTERVAL=21600
       # 📋 只监控指定容器
       - WATCHTOWER_SCOPE=reader
+      # 🐳 适配新版 Docker API
+      - DOCKER_API_VERSION=1.44
     labels:
       - "com.centurylinklabs.watchtower.scope=reader"
     networks:

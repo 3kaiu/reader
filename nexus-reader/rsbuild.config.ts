@@ -5,6 +5,15 @@ import { pluginVue } from "@rsbuild/plugin-vue";
 export default defineConfig({
   plugins: [pluginVue()],
 
+  tools: {
+    rspack: {
+      ignoreWarnings: [
+        /Critical dependency: Accessing import.meta directly is unsupported/,
+      ],
+    },
+  },
+
+
   resolve: {
     alias: {
       "@": "./src",

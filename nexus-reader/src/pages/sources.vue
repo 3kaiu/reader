@@ -6,13 +6,11 @@
 import { ref, shallowRef, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
-  RefreshCw,
   Server,
   Trash2,
   Upload,
   Download,
   Plus,
-  Zap,
   Globe2,
   Edit2,
   FolderX,
@@ -44,6 +42,7 @@ import {
 } from "@/components/common";
 import { CheckSquare } from "lucide-vue-next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Circle, CheckCircle2 } from "lucide-vue-next";
 import SubscriptionManager from '@/components/source/SubscriptionManager.vue'
 
 
@@ -73,7 +72,6 @@ const showEdit = ref(false);
 const currentEditSource = ref<BookSource | null>(null);
 const selectedIds = shallowRef<Set<string>>(new Set());
 const isManageMode = ref(false);
-const isBatchTesting = ref(false);
 const showGroupInput = ref(false);
 const newGroupName = ref("");
 const activeTab = ref("local");
@@ -144,34 +142,7 @@ async function loadSources() {
   }
 }
 
-async function testSource(_source: BookSource) {
-  // Nexus-lite 暂不支持单源测试
-  warning("暂不支持测速功能");
-}
-
-async function batchTestSources() {
-  const toTest = filteredSources.value.filter((s: BookSource) => s._ping === undefined);
-  if (toTest.length === 0) {
-    success("所有书源已测试完毕");
-    return;
-  }
-
-  isBatchTesting.value = true;
-  let tested = 0;
-
-  for (const source of toTest) {
-    if (!isBatchTesting.value) break; // 允许中途停止
-    await testSource(source);
-    tested++;
-  }
-
-  isBatchTesting.value = false;
-  success(`已测试 ${tested} 个书源`);
-}
-
-function stopBatchTest() {
-  isBatchTesting.value = false;
-}
+// Speed test functions removed
 
 async function toggleEnable(source: BookSource, newValue: boolean) {
   source.enabled = newValue;
@@ -266,13 +237,7 @@ function toggleManageMode() {
   if (!isManageMode.value) selectedIds.value = new Set();
 }
 
-function getPingColor(ping: number) {
-  if (ping < 0) return "text-red-600 bg-red-500/10 border-red-500/20";
-  if (ping < 300) return "text-green-600 bg-green-500/10 border-green-500/20";
-  if (ping < 800)
-    return "text-yellow-600 bg-yellow-500/10 border-yellow-500/20";
-  return "text-orange-600 bg-orange-500/10 border-orange-500/20";
-}
+// function getPingColor removed
 
 // 获取所有已用分组名（排除全部和未分组）
 const existingGroups = computed(() => {
@@ -366,13 +331,6 @@ onMounted(() => loadSources());
           :search-value="searchKeyword"
           search-placeholder="搜索书源名称、URL或分组..."
           :actions="activeTab === 'local' ? [
-            {
-              label: isBatchTesting ? '停止测速' : '全量测速',
-              icon: isBatchTesting ? RefreshCw : Zap,
-              onClick: isBatchTesting ? stopBatchTest : batchTestSources,
-              variant: 'outline',
-              hideLabelOnMobile: true,
-            },
             {
               label: '导出',
               icon: Download,
@@ -503,148 +461,81 @@ onMounted(() => loadSources());
       <!-- 书源列表 (网格布局) -->
       <div
         v-else
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
       >
         <div
           v-for="source in filteredSources"
           :key="source.id"
-          class="group relative bg-card hover:bg-muted/50 rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden"
+          class="group relative bg-card hover:bg-muted/50 rounded-xl border border-transparent transition-all duration-200 cursor-pointer overflow-hidden"
           :class="{
-            'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50':
-              selectedIds.has(source.id) && isManageMode,
-            'border-border/50 hover:border-border hover:shadow-md':
-              !selectedIds.has(source.id),
-            'opacity-50': source.enabled === false && !isManageMode,
+            'bg-muted/20': selectedIds.has(source.id) && isManageMode,
+            'border-border/40 hover:border-border hover:shadow-sm': !isManageMode || !selectedIds.has(source.id),
+            'opacity-60': source.enabled === false && !isManageMode,
           }"
           @click="isManageMode ? toggleSelect(source) : openEdit(source)"
         >
-          <div class="p-4 h-full flex flex-col gap-3">
-            <!-- 顶部: 勾选框/图标 + 标题 + 操作 -->
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-start gap-3 min-w-0 flex-1">
-                <!-- 勾选框 / 图标 -->
-                <div class="shrink-0 relative mt-0.5">
-                  <div
-                    v-if="isManageMode"
-                    class="w-5 h-5 flex items-center justify-center"
-                    @click.stop="toggleSelect(source)"
-                  >
-                    <Checkbox
-                      :checked="selectedIds.has(source.id)"
-                      @update:checked="toggleSelect(source)"
-                      @click.stop
-                      class="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
-                  </div>
-                  <div
-                    v-else
-                    class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                    :class="
-                      source.enabled !== false
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted/50 text-muted-foreground'
-                    "
-                  >
-                    <Globe2 class="h-4 w-4" />
-                  </div>
+          <div class="px-3 py-3 flex items-center gap-3">
+            <!-- 1. 左侧图标 / 选中框 -->
+            <div class="shrink-0 flex items-center justify-center">
+               <div
+                  v-if="isManageMode"
+                  class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+                  :class="selectedIds.has(source.id) ? 'text-primary' : 'text-muted-foreground/30'"
+                >
+                  <CheckCircle2 v-if="selectedIds.has(source.id)" class="w-5 h-5 fill-primary/10" />
+                  <Circle v-else class="w-5 h-5" />
                 </div>
-
-                <!-- 标题 & URL -->
-                <div class="flex-1 min-w-0">
-                  <h3
-                    class="font-semibold text-sm leading-tight mb-1 text-foreground line-clamp-2"
-                  >
-                    {{ source.name }}
-                  </h3>
-                  <p
-                    class="text-xs text-muted-foreground/60 truncate font-mono"
-                  >
-                    {{
-                      source.url
-                        .replace(/https?:\/\//, "")
-                        .replace(/\/$/, "")
-                    }}
-                  </p>
+                <div
+                  v-else
+                  class="w-8 h-8 rounded-lg bg-primary/5 text-primary flex items-center justify-center"
+                  :class="{'grayscale opacity-50': !source.enabled}"
+                >
+                  <Globe2 class="h-4 w-4" />
                 </div>
-              </div>
-
-              <!-- 操作按钮 (悬浮显示) -->
-              <div
-                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                v-if="!isManageMode"
-              >
-                <button
-                  class="w-7 h-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  @click.stop="testSource(source)"
-                  title="测速"
-                  aria-label="测速"
-                >
-                  <Zap class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  class="w-7 h-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  @click.stop="openEdit(source)"
-                  title="编辑"
-                  aria-label="编辑"
-                >
-                  <Edit2 class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  class="w-7 h-7 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-colors"
-                  @click.stop="deleteSource(source)"
-                  title="删除"
-                  aria-label="删除"
-                >
-                  <Trash2 class="h-3.5 w-3.5" />
-                </button>
-              </div>
             </div>
 
-            <!-- 底部: 分组 + 测速结果 + 开关 -->
-            <div
-              class="flex items-center justify-between pt-2 border-t border-border/40"
-            >
-              <!-- 分组标签 (暂不支持) -->
-              <!-- <Badge
-                v-if="source.bookSourceGroup"
-                variant="secondary"
-                class="rounded-md px-2 py-0.5 text-xs bg-secondary/60 text-muted-foreground font-normal truncate max-w-[100px]"
-              >
-                {{ source.bookSourceGroup }}
-              </Badge>
-              <div v-else class="text-xs text-muted-foreground/40">未分组</div> -->
-              <div class="text-xs text-muted-foreground/40">已同步</div>
+            <!-- 2. 中间信息 -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center">
+              <h3 class="text-sm font-medium leading-none mb-1.5 truncate pr-2">
+                {{ source.name }}
+              </h3>
+              <p class="text-[10px] text-muted-foreground/50 font-mono truncate">
+                {{ source.url.replace(/https?:\/\//, "").replace(/\/$/, "") }}
+              </p>
+            </div>
 
-              <!-- 测速结果 + 开关 -->
-              <div class="flex items-center gap-2 shrink-0">
-                <!-- 测速结果 -->
-                <div
-                  v-if="source._bgTest"
-                  class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50"
-                >
-                  <RefreshCw class="h-3 w-3 animate-spin text-primary" />
-                  <span class="text-[10px] text-muted-foreground">测速中</span>
+            <!-- 3. 右侧操作 (Switch / Actions) -->
+            <div class="shrink-0 flex items-center h-full">
+              <!-- 管理模式下隐藏操作 -->
+              <template v-if="!isManageMode">
+                <!-- 默认显示 Switch -->
+                <div class="group-hover:hidden flex items-center">
+                   <Switch
+                      :checked="source.enabled"
+                      @update:checked="(val: boolean) => toggleEnable(source, val)"
+                      @click.stop
+                      class="scale-75 origin-right data-[state=checked]:bg-primary"
+                    />
                 </div>
-                <Badge
-                  v-else-if="source._ping !== undefined"
-                  variant="outline"
-                  class="rounded-md px-2 py-0.5 text-[10px] font-medium"
-                  :class="getPingColor(source._ping)"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-current mr-1"></div>
-                  {{ source._ping > 0 ? `${source._ping}ms` : "超时" }}
-                </Badge>
 
-                <!-- 快速开关 -->
-                <Switch
-                  v-if="!isManageMode"
-                  :key="`${source.id}-${source.enabled}`"
-                  :checked="source.enabled"
-                  @update:checked="(val: boolean) => toggleEnable(source, val)"
-                  @click.stop
-                  class="data-[state=checked]:bg-primary"
-                />
-              </div>
+                <!-- Hover 显示操作按钮 -->
+                <div class="hidden group-hover:flex items-center gap-1 -mr-1">
+                   <button
+                    class="w-7 h-7 rounded-md hover:bg-background border border-transparent hover:border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
+                    @click.stop="openEdit(source)"
+                    title="编辑"
+                  >
+                    <Edit2 class="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    class="w-7 h-7 rounded-md hover:bg-destructive hover:text-destructive-foreground hover:border-transparent border border-transparent flex items-center justify-center text-muted-foreground transition-all"
+                    @click.stop="deleteSource(source)"
+                    title="删除"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </template>
             </div>
           </div>
         </div>

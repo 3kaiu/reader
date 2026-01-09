@@ -226,20 +226,47 @@ export function getAllModels(): ModelInfo[] {
 
                 const id = model.id.toLowerCase()
 
-                // 中文友好过滤
-                const isChineseUnfriendly =
-                    id.includes('gemma') || id.includes('phi') ||
-                    id.includes('mistral') || id.includes('smollm') ||
-                    id.includes('stablelm') || id.includes('redpajama') ||
-                    id.includes('wizardmath') ||
-                    (id.includes('llama') && !id.includes('llama-3.2') && !id.includes('llama-3.1'))
+                // 过滤：只保留 7B-14B 的中大型模型 (符合 5-10GB 大小需求，适合深入分析与角色扮演)
+                // 过滤：只保留 7B-14B 的中大型模型 (符合 5-10GB 大小需求，适合深入分析与角色扮演)
+                // 仅保留对中文支持较好的厂商 (Qwen, DeepSeek, Yi, Llama 3系列)
+                // 剔除 Mistral, Hermes, Phi, Gemma 等对中文理解稍弱的模型
+                const isTargetVendor =
+                    id.includes('qwen') ||
+                    (id.includes('llama') && (id.includes('3.2') || id.includes('3.1') || id.includes('3-'))) ||
+                    id.includes('deepseek') ||
+                    id.includes('yi-')
 
-                if (isChineseUnfriendly) return false
+                if (!isTargetVendor) return false
 
-                // 排除专用模型
+                // 显式排除 Hermes, Nous, Mistral 等 (防止它们因包含 Llama 关键词而漏网)
+                if (id.includes('hermes') || id.includes('nous') || id.includes('mistral')) return false
+
+                // 大小筛选：7B - 14B
+                // 14B Q4 ~ 8-9GB
+                // 8B Q4 ~ 5-6GB
+                // 7B Q4 ~ 4-5GB
+                const isTargetSize =
+                    id.includes('7b') ||
+                    id.includes('8b') ||
+                    id.includes('9b') ||
+                    id.includes('10b') ||
+                    id.includes('11b') ||
+                    id.includes('12b') ||
+                    id.includes('13b') ||
+                    id.includes('14b')
+
+                if (!isTargetSize) return false
+
+                // 修复 bug: '1.7b' 会被 '7b' 匹配到，显式剔除小模型
+                if (id.includes('1.7b') || id.includes('1.5b') || id.includes('3.5b')) return false
+
+                // 排除量化过低或过高的版本 (仅保留推荐的 q4f16_1 或类似均衡版本)
+                if (id.includes('q0f16') || id.includes('f32')) return false
+
+                // 排除专用模型 (Coder, Math, Vision 等)
                 const isSpecialized =
                     id.includes('coder') || id.includes('code') ||
-                    id.includes('math') || id.includes('vision') || id.includes('vl')
+                    id.includes('math') || id.includes('vision') || id.includes('vl') || id.includes('embed')
 
                 if (isSpecialized) return false
 

@@ -41,6 +41,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
 import { Input } from "@/components/ui/input";
 import { bookApi, groupApi, type Book, type BookGroup } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -60,9 +68,36 @@ const { success } = useMessage();
 const { confirm } = useConfirm();
 const { handleError } = useErrorHandler();
 
-// 暗色模式
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
+
+// 响应式断点
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isDesktop = breakpoints.greater("sm");
+const menuOpen = ref(false);
+
+// 菜单配置
+const menuGroups = [
+  {
+    title: "内容管理",
+    items: [
+      { label: "书源管理", desc: "管理接入的书源站点", icon: Server, path: "/sources", color: "text-blue-500", bg: "bg-blue-500/10" },
+      { label: "替换规则", desc: "净化与替换文本内容", icon: Wand2, path: "/replace-rule", color: "text-purple-500", bg: "bg-purple-500/10" },
+    ],
+  },
+  {
+    title: "智能助理",
+    items: [
+      { label: "AI 模型", desc: "配置 LLM 助手", icon: Brain, path: "/ai-settings", color: "text-green-500", bg: "bg-green-500/10" },
+    ],
+  },
+  {
+    title: "系统",
+    items: [
+      { label: "系统设置", desc: "偏好与通用设置", icon: Settings, path: "/settings", color: "text-slate-500", bg: "bg-slate-500/10" },
+    ],
+  },
+];
 
 const booksWithStatus = computed(() => {
   return deduplicatedBooks.value.map(({ book, sourceCount }) => {
@@ -385,151 +420,127 @@ onMounted(() => {
     <div class="fixed top-0 left-0 right-0 z-40 pointer-events-none pt-safe-top">
       <div class="px-4 sm:px-6 h-[60px] flex items-center justify-between max-w-7xl mx-auto">
         
-        <!-- 左侧：品牌 (inline text style) -->
-        <div
-          class="flex items-center gap-1.5 shrink-0 pointer-events-auto"
-        >
-          <Library class="h-4 w-4 text-primary" />
-          <span class="font-semibold text-sm text-foreground/80">阅读</span>
+        <!-- 左侧：品牌 -->
+        <div class="flex items-center gap-2 shrink-0 pointer-events-auto">
+          <Library class="h-5 w-5 text-primary" />
+          <span class="font-bold text-lg text-foreground tracking-tight">阅读</span>
         </div>
 
-        <!-- 中间：胶囊导航 (Center Pill Nav) -->
-        <nav
-          class="flex items-center justify-center absolute left-1/2 -translate-x-1/2 pointer-events-auto"
-        >
-          <div
-            class="flex items-center p-1 bg-background/70 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-white/10 shadow-lg whitespace-nowrap"
-          >
-            <button
-              v-for="item in [
-                { id: 'all', label: '书架', path: '/' },
-                { id: 'discovery', label: '发现', path: '/discovery' },
-                { id: 'statistics', label: '统计', path: '/statistics' }
-              ]"
-              :key="item.id"
-              class="relative px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-[10px] text-[11px] sm:text-[13px] font-bold transition-all"
-              :class="
-                $route.path === item.path && !isManageMode
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground active:scale-[0.98]'
-              "
-              @click="
-                item.id === 'all'
-                  ? ((isManageMode = false), refresh())
-                  : $router.push(item.path)
-              "
-            >
-              {{ item.label }}
-            </button>
-            <button
-              v-if="booksWithStatus.length > 0"
-              class="relative px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-[10px] text-[11px] sm:text-[13px] font-bold transition-all"
-              :class="
-                isManageMode
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground active:scale-[0.98]'
-              "
-              @click="toggleManageMode()"
-            >
-              管理
-            </button>
-          </div>
-        </nav>
-
-        <!-- 右侧：功能区 (floating) -->
-        <div class="flex items-center gap-1.5 shrink-0 pointer-events-auto">
+        <!-- 右侧：功能区 -->
+        <div class="flex items-center gap-3 shrink-0 pointer-events-auto">
           <button
-            class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-background/70 backdrop-blur-xl border border-white/10 shadow-sm flex items-center justify-center transition-all hover:bg-background/90 active:scale-90"
+            class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
             @click="toggleDark()"
             aria-label="切换主题"
           >
-            <Sun v-if="!isDark" class="h-4 w-4 text-muted-foreground" />
-            <Moon v-else class="h-4 w-4 text-muted-foreground" />
+            <Sun v-if="!isDark" class="h-5 w-5 text-foreground" />
+            <Moon v-else class="h-5 w-5 text-foreground" />
+          </button>
+
+          <button
+            v-if="booksWithStatus.length > 0"
+            class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            @click="toggleManageMode()"
+          >
+            {{ isManageMode ? '完成' : '管理' }}
           </button>
             
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
+          <!-- Settings Menu (Responsive) -->
+          <component
+            :is="isDesktop ? DropdownMenu : Sheet"
+            v-model:open="menuOpen"
+          >
+            <component
+              :is="isDesktop ? DropdownMenuTrigger : SheetTrigger"
+              as-child
+            >
               <button
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-background/70 backdrop-blur-xl border border-white/10 shadow-sm flex items-center justify-center transition-all hover:bg-background/90 active:scale-90 outline-none"
+                class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90 outline-none"
                 aria-label="设置"
               >
-                <Settings class="h-4 w-4 text-muted-foreground" />
+                <Settings class="h-5 w-5 text-foreground" />
               </button>
-            </DropdownMenuTrigger>
+            </component>
+
+            <!-- Desktop Content -->
             <DropdownMenuContent
+              v-if="isDesktop"
               align="end"
-              class="w-64 p-2 rounded-xl border bg-popover/95 backdrop-blur-xl shadow-lg"
+              :side-offset="8"
+              class="w-72 p-2 rounded-xl border bg-popover/95 backdrop-blur-xl shadow-xl"
             >
-            <div class="space-y-0.5">
-              <!-- 内容管理组 -->
-              <DropdownMenuItem
-                @click="router.push('/sources')"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group/item"
-              >
-                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover/item:bg-primary/20 transition-colors">
-                  <Server class="h-4 w-4 text-primary" />
-                </div>
-                <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span class="text-sm font-medium text-foreground">书源管理</span>
-                  <span class="text-xs text-muted-foreground truncate"
-                    >管理及导入书源</span
+              <div class="grid gap-1">
+                <div v-for="(group, idx) in menuGroups" :key="idx">
+                  <div
+                    v-if="group.title"
+                    class="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider opacity-70"
                   >
-                </div>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                @click="router.push('/replace-rule')"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group/item"
-              >
-                <div class="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0 group-hover/item:bg-purple-500/20 transition-colors">
-                  <Wand2 class="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span class="text-sm font-medium text-foreground">替换规则</span>
-                  <span class="text-xs text-muted-foreground truncate"
-                    >净化与替换文本内容</span
+                    {{ group.title }}
+                  </div>
+                  <DropdownMenuItem
+                    v-for="item in group.items"
+                    :key="item.path"
+                    @click="router.push(item.path)"
+                    class="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors group"
                   >
+                    <div
+                      class="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 transition-colors"
+                      :class="[item.bg, 'group-hover:bg-opacity-80']"
+                    >
+                      <component :is="item.icon" class="h-4 w-4" :class="item.color" />
+                    </div>
+                    <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+                      <span class="text-[13px] font-medium text-foreground leading-none">{{ item.label }}</span>
+                      <span class="text-[11px] text-muted-foreground truncate leading-none opacity-80">{{ item.desc }}</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator v-if="idx < menuGroups.length - 1" class="my-1 opacity-50" />
                 </div>
-              </DropdownMenuItem>
+              </div>
+            </DropdownMenuContent>
 
-              <DropdownMenuSeparator class="my-1.5" />
-
-              <!-- AI 功能组 -->
-              <DropdownMenuItem
-                @click="router.push('/ai-settings')"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group/item"
-              >
-                <div class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover/item:bg-blue-500/20 transition-colors">
-                  <Brain class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span class="text-sm font-medium text-foreground">AI 模型</span>
-                  <span class="text-xs text-muted-foreground truncate"
-                    >配置 LLM 助手</span
+            <!-- Mobile Content (Bottom Sheet) -->
+            <SheetContent
+              v-else
+              side="bottom"
+              class="rounded-t-[20px] px-4 pb-8 pt-4 bg-background/95 backdrop-blur-xl border-t-0"
+            >
+              <div class="w-10 h-1 rounded-full bg-muted mx-auto mb-6 opacity-50" />
+              <SheetHeader class="mb-6 text-left px-2">
+                <SheetTitle class="text-lg font-bold">功能菜单</SheetTitle>
+              </SheetHeader>
+              
+              <div class="grid gap-6">
+                <div v-for="(group, idx) in menuGroups" :key="idx" class="space-y-3">
+                  <div
+                    v-if="group.title"
+                    class="px-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider"
                   >
+                    {{ group.title }}
+                  </div>
+                  <div class="grid grid-cols-1 gap-2">
+                    <button
+                      v-for="item in group.items"
+                      :key="item.path"
+                      @click="router.push(item.path); menuOpen = false"
+                      class="flex items-center gap-4 px-3 py-3 rounded-xl bg-secondary/30 active:scale-[0.98] transition-all border border-transparent active:border-primary/10"
+                    >
+                      <div
+                        class="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
+                        :class="item.bg"
+                      >
+                        <component :is="item.icon" class="h-5 w-5" :class="item.color" />
+                      </div>
+                      <div class="flex flex-col gap-1 items-start flex-1 min-w-0">
+                        <span class="text-[15px] font-semibold text-foreground leading-none">{{ item.label }}</span>
+                        <span class="text-[12px] text-muted-foreground truncate leading-none">{{ item.desc }}</span>
+                      </div>
+                    </button>
+                  </div>
                 </div>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator class="my-1.5" />
-
-              <!-- 系统设置 -->
-              <DropdownMenuItem
-                @click="router.push('/settings')"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group/item"
-              >
-                <div class="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-muted/80 transition-colors">
-                  <Settings class="h-4 w-4 text-muted-foreground group-hover/item:text-foreground transition-colors" />
-                </div>
-                <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span class="text-sm font-medium text-foreground">系统设置</span>
-                  <span class="text-xs text-muted-foreground truncate"
-                    >偏好与通用设置</span
-                  >
-                </div>
-              </DropdownMenuItem>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </div>
+            </SheetContent>
+          </component>
         </div>
       </div>
     </div>

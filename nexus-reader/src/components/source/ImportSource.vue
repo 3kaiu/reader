@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Upload, Link, FileJson, AlertCircle, CheckCircle2, XCircle, Rss } from 'lucide-vue-next'
 import { $post } from '@/api'
-import SourceSubscription from './SourceSubscription.vue'
+
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -253,7 +253,7 @@ function onInputChange() {
     <SheetContent class="w-full sm:max-w-lg flex flex-col h-full">
       <SheetHeader class="mb-4">
         <SheetTitle>导入书源</SheetTitle>
-        <p class="text-sm text-muted-foreground">支持阅读(Legado)书源、订阅源、书源合集等多种格式</p>
+        <p class="text-sm text-muted-foreground">直接粘贴书源 JSON 代码，或导入本地 .nxs 文件</p>
       </SheetHeader>
 
       <div class="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -285,11 +285,7 @@ function onInputChange() {
               v-model="jsonText"
               class="flex-1 w-full p-4 bg-transparent resize-none focus:outline-none text-xs font-mono leading-relaxed placeholder:text-muted-foreground/40"
               placeholder='在此粘贴书源 JSON 内容...
-
-支持格式：
-1. 标准书源: [{ "bookSourceUrl": "...", ... }]
-2. 阅读合集: { "bookSources": [...] }
-3. 订阅源配置'
+Example: { "id": "...", "name": "...", "url": "..." }'
               @input="onInputChange"
               @dragenter="isDragging = true"
               @dragleave="isDragging = false"
