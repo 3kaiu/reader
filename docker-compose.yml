@@ -130,7 +130,7 @@ services:
       - "7891:7891" # SOCKS5 Proxy
       - "9090:9090" # External Controller
     volumes:
-      - ./proxy/config.yaml:/etc/mihomo/config.yaml
+      - ./proxy:/etc/mihomo
     networks:
       - reader-network
 

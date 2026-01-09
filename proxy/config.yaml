@@ -46,5 +46,5 @@ rules:
   - DOMAIN-SUFFIX,duckduckgo.com,PROXY
   - DOMAIN-SUFFIX,google.com,PROXY
 
-  # 4. 其他没匹配到的建议走代理 (或者你可以改为 DIRECT，但 GFW 列表不一定全)
+  # 4. 其他没匹配到的建议走代理
   - MATCH,PROXY
