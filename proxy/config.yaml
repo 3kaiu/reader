@@ -1,0 +1,50 @@
+# mihomo config - Rule-based optimization
+mode: rule
+port: 7890
+socks-port: 7891
+allow-left: true
+external-controller: 0.0.0.0:9090
+
+# 自动订阅配置
+proxy-providers:
+  default:
+    type: http
+    url: "https://feature-test-9ij.pages.dev/27a38bd7-46b7-49e2-88bc-a1285c5f420e/sub"
+    interval: 3600
+    path: ./default.yaml
+    health-check:
+      enable: true
+      interval: 600
+      url: http://www.gstatic.com/generate_204
+
+proxies:
+  - name: "DIRECT"
+    type: direct
+
+proxy-groups:
+  - name: "PROXY"
+    type: url-test
+    use:
+      - default
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+rules:
+  # 1. 局域网直连
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+
+  # 2. 国内域名和 IP 直连 (加速加载)
+  - GEOSITE,cn,DIRECT
+  - GEOIP,cn,DIRECT
+
+  # 3. 常见的被墙域名强制走代理
+  - GEOSITE,gfw,PROXY
+  - DOMAIN-SUFFIX,duckduckgo.com,PROXY
+  - DOMAIN-SUFFIX,google.com,PROXY
+
+  # 4. 其他没匹配到的建议走代理 (或者你可以改为 DIRECT，但 GFW 列表不一定全)
+  - MATCH,PROXY

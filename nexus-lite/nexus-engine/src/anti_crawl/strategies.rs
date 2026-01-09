@@ -215,7 +215,7 @@ impl AntiCrawlStrategy for L6HttpStrategy {
             },
             body: ctx.body.clone(),
             timeout: 45,
-            proxy: None,
+            proxy: self.config.proxy.clone(),
         };
 
         let mut req = self.client.post(self.fetch_url()).json(&request_body);

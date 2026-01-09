@@ -233,6 +233,10 @@ pub struct CloudflareBypassConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
+    /// Optional proxy for CF bypass service
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<String>,
+
     /// Request timeout in seconds
     #[serde(default = "default_cf_timeout")]
     pub timeout_seconds: u64,

@@ -71,5 +71,10 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
         info!("Overriding CF_SERVICE_URL from environment");
     }
 
+    if let Ok(proxy) = std::env::var("CF_PROXY") {
+        config.cf_bypass.proxy = Some(proxy);
+        info!("Overriding CF_PROXY from environment");
+    }
+
     Ok(config)
 }

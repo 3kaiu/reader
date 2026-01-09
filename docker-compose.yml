@@ -41,10 +41,14 @@ services:
       - TZ=Asia/Shanghai
       - RUST_LOG=info
       - CF_SERVICE_URL=http://cf-bypass:8000
+      # 代理设置 (已自动连接到 proxy-service)
+      - CF_PROXY=http://proxy-service:7890
       - DISCOVERY_DATA_DIR=/app/data/qidian
     depends_on:
       cf-bypass:
         condition: service_healthy
+      proxy-service:
+        condition: service_started
     networks:
       - reader-network
     healthcheck:
@@ -72,6 +76,11 @@ services:
       - TZ=Asia/Shanghai
       - ENABLE_STEALTH=true
       - REQUEST_TIMEOUT=30
+      # 全局代理 (已自动连接到 proxy-service)
+      - GLOBAL_PROXY=http://proxy-service:7890
+    depends_on:
+      proxy-service:
+        condition: service_started
     networks:
       - reader-network
     healthcheck:
@@ -104,6 +113,24 @@ services:
       - DOCKER_API_VERSION=1.44
     labels:
       - "com.centurylinklabs.watchtower.scope=reader"
+    networks:
+      - reader-network
+
+  # ─────────────────────────────────────────────────────────
+  # 代理服务: Proxy Service (mihomo / clash)
+  # ─────────────────────────────────────────────────────────
+  proxy-service:
+    image: metacubex/mihomo
+    container_name: reader-proxy
+    restart: unless-stopped
+    command: >
+      -config /etc/mihomo/config.yaml
+    ports:
+      - "7890:7890" # HTTP Proxy
+      - "7891:7891" # SOCKS5 Proxy
+      - "9090:9090" # External Controller
+    volumes:
+      - ./proxy/config.yaml:/etc/mihomo/config.yaml
     networks:
       - reader-network
 

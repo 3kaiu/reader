@@ -23,6 +23,7 @@ class Config:
     api_key: str = field(default_factory=lambda: os.getenv("CF_API_KEY", ""))
     request_timeout: int = field(default_factory=lambda: int(os.getenv("REQUEST_TIMEOUT", "90")))
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
+    global_proxy: str = field(default_factory=lambda: os.getenv("GLOBAL_PROXY", ""))
 
 config = Config()
 logger.setLevel(config.log_level)
@@ -106,7 +107,6 @@ class BypassEngine:
                 "method": method,
                 "url": url,
                 "timeout": timeout,
-                "impersonate": "chrome120", # Reinforce impersonation per request
             }
             
             # Merge default headers with custom headers
@@ -119,10 +119,13 @@ class BypassEngine:
             if body:
                 kwargs["data"] = body
                 
+            
             if proxy:
                 kwargs["proxies"] = {"http": proxy, "https": proxy}
+            elif config.global_proxy:
+                kwargs["proxies"] = {"http": config.global_proxy, "https": config.global_proxy}
 
-            logger.info(f"Fetching {url} (impersonate=chrome120)")
+            logger.info(f"Fetching {url}")
             
             # Execute request
             resp: Response = await session.request(**kwargs)
