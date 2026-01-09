@@ -27,11 +27,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y musl-tools && rm -rf /var/lib/apt/lists/*
 RUN rustup target add x86_64-unknown-linux-musl
 
-# -----------------------------------------------------------------------------
 # Stage 3: Planner (Generate recipe.json)
 # -----------------------------------------------------------------------------
 FROM chef AS planner
-COPY nexus-lite/ .
+COPY nexus-lite/Cargo.toml nexus-lite/Cargo.lock ./
+COPY nexus-lite/nexus-core/Cargo.toml nexus-core/Cargo.toml
+COPY nexus-lite/nexus-engine/Cargo.toml nexus-engine/Cargo.toml
+COPY nexus-lite/nexus-storage/Cargo.toml nexus-storage/Cargo.toml
+COPY nexus-lite/nexus-server/Cargo.toml nexus-server/Cargo.toml
+RUN mkdir -p nexus-core/src nexus-engine/src nexus-storage/src nexus-server/src \
+    && touch nexus-core/src/lib.rs nexus-engine/src/lib.rs nexus-storage/src/lib.rs nexus-server/src/main.rs
 RUN cargo chef prepare --recipe-path recipe.json
 
 # -----------------------------------------------------------------------------
@@ -56,8 +61,8 @@ RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path r
 COPY nexus-lite/ .
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin nexus-server
 
-# Use UPX for extreme binary compression
-RUN upx --best --lzma /app/target/x86_64-unknown-linux-musl/release/nexus-server
+# Use UPX for fast binary compression (trade-off: slightly larger size, much faster build)
+RUN upx --fast /app/target/x86_64-unknown-linux-musl/release/nexus-server
 
 # -----------------------------------------------------------------------------
 # Stage 5: Runtime (Alpine for better compatibility/permissions)
