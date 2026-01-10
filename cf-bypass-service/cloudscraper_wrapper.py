@@ -1,0 +1,433 @@
+"""
+CloudScraper Wrapper - Maximizing Built-in Features
+Utilizes 100% of CloudScraper's free built-in anti-detection capabilities.
+Only implements features that CloudScraper lacks: caching, monitoring, session health.
+"""
+import asyncio
+import json
+import hashlib
+import logging
+from collections import defaultdict
+from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta
+from typing import Dict, Optional, Any
+from urllib.parse import urlparse
+
+import cloudscraper
+import redis
+
+from config_manager import config_manager
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("cloudscraper-wrapper")
+
+# ─────────────────────────────────────────────────────────────
+# Data Models
+# ─────────────────────────────────────────────────────────────
+
+@dataclass
+class FetchResult:
+    status: int
+    html: str
+    cookies: Dict[str, str]
+    headers: Dict[str, str]
+    cf_bypassed: bool
+    error: Optional[str] = None
+    cached: bool = False
+    duration: float = 0.0
+    
+    def to_json(self) -> str:
+        """Serialize for caching"""
+        return json.dumps(asdict(self))
+    
+    @classmethod
+    def from_json(cls, data: str) -> 'FetchResult':
+        """Deserialize from cache"""
+        return cls(**json.loads(data))
+
+# ─────────────────────────────────────────────────────────────
+# Cache Manager - CloudScraper doesn't have caching
+# ─────────────────────────────────────────────────────────────
+
+class CacheManager:
+    def __init__(self, redis_url: str = "redis://localhost:6379"):
+        try:
+            self.redis = redis.from_url(redis_url, decode_responses=True)
+            # Test connection
+            self.redis.ping()
+            logger.info("Redis cache connected")
+        except Exception as e:
+            logger.warning(f"Redis cache unavailable: {e}")
+            self.redis = None
+    
+    def generate_key(self, url: str, method: str, kwargs: dict) -> str:
+        """Generate unique cache key"""
+        key_data = {
+            'url': url,
+            'method': method,
+            'headers': kwargs.get('headers', {}),
+            'data': kwargs.get('data', '')
+        }
+        key_str = json.dumps(key_data, sort_keys=True)
+        return f"cf_bypass:{hashlib.md5(key_str.encode()).hexdigest()}"
+    
+    async def get(self, key: str) -> Optional[FetchResult]:
+        """Get from cache"""
+        if not self.redis:
+            return None
+        try:
+            data = self.redis.get(key)
+            if data:
+                result = FetchResult.from_json(data)
+                result.cached = True
+                return result
+        except Exception as e:
+            logger.warning(f"Cache get error: {e}")
+        return None
+    
+    async def set(self, key: str, result: FetchResult, ttl: int = 300) -> None:
+        """Set cache with TTL"""
+        if not self.redis:
+            return
+        try:
+            self.redis.setex(key, ttl, result.to_json())
+        except Exception as e:
+            logger.warning(f"Cache set error: {e}")
+
+# ─────────────────────────────────────────────────────────────
+# Health Monitor - CloudScraper doesn't have monitoring
+# ─────────────────────────────────────────────────────────────
+
+class HealthMonitor:
+    def __init__(self):
+        self.stats = defaultdict(lambda: {
+            'success_count': 0,
+            'error_count': 0,
+            'total_time': 0.0,
+            'last_success': None,
+            'errors': defaultdict(int)
+        })
+    
+    def record_success(self, domain: str, duration: float) -> None:
+        """Record successful request"""
+        self.stats[domain]['success_count'] += 1
+        self.stats[domain]['total_time'] += duration
+        self.stats[domain]['last_success'] = datetime.now()
+    
+    def record_error(self, domain: str, error: str) -> None:
+        """Record error"""
+        self.stats[domain]['error_count'] += 1
+        self.stats[domain]['errors'][error] += 1
+    
+    def get_stats(self) -> Dict:
+        """Get monitoring statistics"""
+        result = {}
+        for domain, stats in self.stats.items():
+            total = stats['success_count'] + stats['error_count']
+            success_rate = stats['success_count'] / total if total > 0 else 1.0
+            avg_time = stats['total_time'] / stats['success_count'] if stats['success_count'] > 0 else 0.0
+            
+            result[domain] = {
+                'success_rate': success_rate,
+                'avg_response_time': avg_time,
+                'total_requests': total,
+                'last_success': stats['last_success'].isoformat() if stats['last_success'] else None,
+                'top_errors': dict(list(stats['errors'].items())[:5])
+            }
+        return result
+
+# ─────────────────────────────────────────────────────────────
+# Session Manager - CloudScraper doesn't have session health management
+# ─────────────────────────────────────────────────────────────
+
+class SessionManager:
+    def __init__(self):
+        self.session_stats = defaultdict(lambda: {
+            'consecutive_errors': 0,
+            'last_reset': datetime.now(),
+            'total_requests': 0
+        })
+    
+    def record_success(self, domain: str) -> None:
+        """Record success, reset error count"""
+        self.session_stats[domain]['consecutive_errors'] = 0
+        self.session_stats[domain]['total_requests'] += 1
+    
+    def record_error(self, domain: str) -> None:
+        """Record error"""
+        self.session_stats[domain]['consecutive_errors'] += 1
+        self.session_stats[domain]['total_requests'] += 1
+    
+    def should_reset_session(self, domain: str) -> bool:
+        """Check if session should be reset"""
+        stats = self.session_stats[domain]
+        
+        # Reset after 5 consecutive errors
+        if stats['consecutive_errors'] >= 5:
+            logger.info(f"Resetting session for {domain} due to consecutive errors")
+            return True
+            
+        # Reset after 1 hour
+        if (datetime.now() - stats['last_reset']).seconds > 3600:
+            logger.info(f"Resetting session for {domain} due to age")
+            return True
+            
+        return False
+    
+    def mark_reset(self, domain: str) -> None:
+        """Mark session as reset"""
+        self.session_stats[domain]['last_reset'] = datetime.now()
+        self.session_stats[domain]['consecutive_errors'] = 0
+
+# Remove the old hardcoded domain configs since we now use ConfigManager
+# DOMAIN_CONFIGS is now managed by config_manager
+
+# ─────────────────────────────────────────────────────────────
+# CloudScraper Wrapper - Maximizing Built-in Features
+# ─────────────────────────────────────────────────────────────
+
+class CloudScraperWrapper:
+    def __init__(self, redis_url: str = "redis://localhost:6379"):
+        # CloudScraper instances per domain (CloudScraper handles session management)
+        self.scrapers: Dict[str, cloudscraper.CloudScraper] = {}
+        
+        # Only add what CloudScraper doesn't have
+        self.cache_manager = CacheManager(redis_url)
+        self.health_monitor = HealthMonitor()
+        self.session_manager = SessionManager()
+        
+        logger.info("CloudScraper wrapper initialized")
+    
+    def _get_domain(self, url: str) -> str:
+        """Extract domain from URL"""
+        return urlparse(url).netloc
+    
+    def _get_domain_config(self, domain: str) -> Dict:
+        """Get domain-specific configuration from config manager"""
+        domain_config = config_manager.get_config(domain)
+        return domain_config.to_cloudscraper_config()
+    
+    def _create_scraper(self, domain: str) -> cloudscraper.CloudScraper:
+        """Create CloudScraper with maximum built-in features"""
+        config = self._get_domain_config(domain)
+        domain_config = config_manager.get_config(domain)
+        
+        # Use CloudScraper's create_scraper with all built-in features
+        scraper = cloudscraper.create_scraper(**config)
+        
+        # CloudScraper built-in: Stealth mode configuration
+        # Note: CloudScraper handles stealth automatically, but we can configure delays
+        scraper.headers.update({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        })
+        
+        logger.info(f"Created CloudScraper for {domain} with {domain_config.interpreter} interpreter")
+        return scraper
+    
+    def _get_scraper(self, domain: str) -> cloudscraper.CloudScraper:
+        """Get or create CloudScraper instance"""
+        # Check if session should be reset (CloudScraper doesn't have this)
+        if self.session_manager.should_reset_session(domain):
+            if domain in self.scrapers:
+                del self.scrapers[domain]
+                self.session_manager.mark_reset(domain)
+        
+        # Create new scraper if needed
+        if domain not in self.scrapers:
+            self.scrapers[domain] = self._create_scraper(domain)
+        
+        return self.scrapers[domain]
+    
+    async def fetch(
+        self,
+        url: str,
+        method: str = "GET",
+        headers: Optional[Dict[str, str]] = None,
+        body: Optional[str] = None,
+        timeout: int = 30,
+        proxy: Optional[str] = None,
+    ) -> FetchResult:
+        """
+        Main fetch method: Cache + CloudScraper + Monitoring
+        Maximizes CloudScraper's built-in features, only adds what it lacks
+        """
+        domain = self._get_domain(url)
+        start_time = datetime.now()
+        
+        # 1. Cache check (CloudScraper doesn't have caching)
+        cache_key = self.cache_manager.generate_key(url, method, {
+            'headers': headers,
+            'data': body
+        })
+        
+        cached_result = await self.cache_manager.get(cache_key)
+        if cached_result:
+            logger.info(f"Cache hit for {url}")
+            return cached_result
+        
+        # 2. Get CloudScraper instance (with session health management)
+        scraper = self._get_scraper(domain)
+        
+        try:
+            # 3. Prepare request parameters
+            kwargs = {
+                'timeout': timeout,
+            }
+            
+            # Merge headers (let CloudScraper handle User-Agent and other fingerprinting)
+            if headers:
+                # Filter out headers that CloudScraper manages automatically
+                filtered_headers = {
+                    k: v for k, v in headers.items() 
+                    if k.lower() not in ['user-agent', 'accept', 'accept-language', 'accept-encoding']
+                }
+                if filtered_headers:
+                    kwargs['headers'] = filtered_headers
+            
+            if body:
+                kwargs['data'] = body
+            
+            # CloudScraper built-in: Proxy support
+            if proxy:
+                kwargs['proxies'] = {'http': proxy, 'https': proxy}
+            
+            # 4. Execute request using CloudScraper's built-in features
+            # CloudScraper automatically handles:
+            # - Cloudflare challenge detection and solving (v1/v2/v3/Turnstile)
+            # - Browser fingerprinting and TLS fingerprinting
+            # - JavaScript execution for challenges
+            # - Automatic retries with exponential backoff
+            # - Cookie and session management
+            # - Request header consistency
+            logger.info(f"Fetching {url} with CloudScraper")
+            
+            response = scraper.request(method, url, **kwargs)
+            
+            # 5. Process response
+            duration = (datetime.now() - start_time).total_seconds()
+            
+            # Detect if CloudScraper successfully bypassed challenges
+            cf_bypassed = True
+            if response.status_code in [403, 503]:
+                # Check for remaining challenge indicators
+                if any(indicator in response.text.lower() for indicator in [
+                    'just a moment', 'challenge-platform', 'checking your browser',
+                    'cloudflare', 'ddos protection', 'security check'
+                ]):
+                    cf_bypassed = False
+                    logger.warning(f"CloudScraper may not have fully bypassed challenges for {url}")
+            
+            # Handle encoding (especially for Chinese sites)
+            html = response.text
+            if not html and response.content:
+                # Try to decode with proper encoding
+                try:
+                    # Check for charset in content-type or meta tags
+                    content_type = response.headers.get('content-type', '').lower()
+                    if 'gbk' in content_type or 'gb2312' in content_type:
+                        html = response.content.decode('gbk', errors='replace')
+                    elif 'charset=gbk' in response.content[:2000].decode('utf-8', errors='ignore').lower():
+                        html = response.content.decode('gbk', errors='replace')
+                    else:
+                        html = response.content.decode('utf-8', errors='replace')
+                except Exception:
+                    html = response.content.decode('utf-8', errors='replace')
+            
+            result = FetchResult(
+                status=response.status_code,
+                html=html,
+                cookies=dict(response.cookies),
+                headers=dict(response.headers),
+                cf_bypassed=cf_bypassed,
+                duration=duration
+            )
+            
+            # 6. Cache successful results (CloudScraper doesn't have caching)
+            if response.status_code == 200:
+                await self.cache_manager.set(cache_key, result, ttl=900)  # 15 min for success
+            elif response.status_code in [403, 503]:
+                await self.cache_manager.set(cache_key, result, ttl=60)   # 1 min for errors
+            
+            # 7. Record success metrics (CloudScraper doesn't have monitoring)
+            self.health_monitor.record_success(domain, duration)
+            self.session_manager.record_success(domain)
+            
+            logger.info(f"CloudScraper fetch completed: {response.status_code} in {duration:.2f}s")
+            return result
+            
+        except Exception as e:
+            # 8. Error handling and monitoring (CloudScraper doesn't have this)
+            duration = (datetime.now() - start_time).total_seconds()
+            error_msg = str(e)
+            
+            logger.error(f"CloudScraper fetch failed for {url}: {error_msg}")
+            
+            # Record error metrics
+            self.health_monitor.record_error(domain, error_msg)
+            self.session_manager.record_error(domain)
+            
+            # Return error result
+            result = FetchResult(
+                status=500,
+                html="",
+                cookies={},
+                headers={},
+                cf_bypassed=False,
+                error=error_msg,
+                duration=duration
+            )
+            
+            # Cache errors briefly to avoid repeated failures
+            await self.cache_manager.set(cache_key, result, ttl=60)
+            
+            return result
+    
+    def get_cached_tokens(self, url: str) -> Optional[Dict]:
+        """Get cached tokens for compatibility with existing API"""
+        domain = self._get_domain(url)
+        if domain in self.scrapers:
+            scraper = self.scrapers[domain]
+            return {
+                "cookies": dict(scraper.cookies),
+                "user_agent": scraper.headers.get("User-Agent", "CloudScraper")
+            }
+        return None
+    
+    def get_stats(self) -> Dict:
+        """Get comprehensive statistics"""
+        health_stats = self.health_monitor.get_stats()
+        
+        return {
+            "active_sessions": len(self.scrapers),
+            "domains": list(self.scrapers.keys()),
+            "health_stats": health_stats,
+            "cache_available": self.cache_manager.redis is not None,
+            "engine": "CloudScraper",
+            "version": "5.0.0"
+        }
+    
+    async def shutdown(self):
+        """Cleanup resources"""
+        # CloudScraper sessions don't need explicit cleanup
+        self.scrapers.clear()
+        
+        # Close Redis connection if available
+        if self.cache_manager.redis:
+            try:
+                self.cache_manager.redis.close()
+            except Exception:
+                pass
+        
+        logger.info("CloudScraper wrapper shutdown complete")
+
+# ─────────────────────────────────────────────────────────────
+# Singleton instance
+# ─────────────────────────────────────────────────────────────
+
+# Create the wrapper instance
+wrapper = CloudScraperWrapper()

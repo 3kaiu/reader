@@ -71,3 +71,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 .DS_Store
+
+# Kiro AI assistant files
+.kiro/

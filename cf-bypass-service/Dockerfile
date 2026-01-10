@@ -38,7 +38,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy source code
-COPY app.py scraper.py ./
+COPY app.py cloudscraper_wrapper.py config_manager.py config_validator.py enhanced_logger.py error_handler.py ./
 
 # Create data directory
 RUN mkdir -p /app/data/qidian

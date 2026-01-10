@@ -155,11 +155,43 @@ function startHideTimer() {
 function clearHideTimer() { if (hideToolbarTimer.value) { clearTimeout(hideToolbarTimer.value); hideToolbarTimer.value = null } }
 
 // ====== 观察者与监听 ======
-const { arrivedState } = useScroll(window, { offset: { bottom: 500 } })
-watch(() => arrivedState.bottom, (isBottom) => {
-  if (isBottom && settingsStore.config.readingMode === 'scroll' && readerStore.hasNextChapter && !readerStore.isLoadingMore) {
-    readerStore.appendNextChapter()
+// 使用更小的触发距离，并添加防抖处理
+const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
+
+// 防抖处理，避免频繁触发
+const debouncedAppendNext = useThrottleFn(async () => {
+  if (readerStore.hasNextChapter && !readerStore.isLoadingMore) {
+    const success = await readerStore.appendNextChapter()
+    if (!success) {
+      // 如果加载失败，错误状态已经在store中设置，UI会显示重试按钮
+      console.warn('自动加载下一章失败，显示重试选项')
+    }
   }
+}, 1000) // 1秒内最多触发一次
+
+// 章节位置同步 - 防抖处理滚动事件
+const debouncedChapterSync = useThrottleFn(() => {
+  if (settingsStore.config.readingMode === 'scroll') {
+    readerStore.updateChapterIndexByScroll()
+  }
+}, 500) // 500ms内最多触发一次
+
+watch(() => arrivedState.bottom, (isBottom) => {
+  if (isBottom && settingsStore.config.readingMode === 'scroll') {
+    // 如果有加载错误，不自动触发，让用户手动重试
+    if (!readerStore.loadError) {
+      debouncedAppendNext()
+    }
+  }
+})
+
+// 监听滚动事件来同步章节位置
+onMounted(() => {
+  window.addEventListener('scroll', debouncedChapterSync, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', debouncedChapterSync)
 })
 
 watch(() => readerStore.content, (newContent) => {
@@ -320,7 +352,9 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :formatted-content="readerStore.formattedContent"
           :is-parsing="readerStore.isParsing"
           :has-next-chapter="readerStore.hasNextChapter"
+          :load-error="readerStore.loadError"
           @load-next-chapter="readerStore.appendNextChapter"
+          @retry-load="readerStore.retryLoadNext"
         />
 
         <ReaderTTS
@@ -352,7 +386,22 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :current-ind="readerStore.currentChapterIndex"
           :catalog-loading="readerStore.isLoading"
           :keyboard-shortcuts="KEYBOARD_SHORTCUTS" 
-          @select-chapter="async (idx) => { await readerStore.goToChapter(idx); readerStore.initInfiniteScroll(); window.scrollTo({ top: 0, behavior: 'smooth' }) }"
+          @select-chapter="async (idx) => { 
+            if (settingsStore.config.readingMode === 'scroll') {
+              await readerStore.goToChapterInScroll(idx);
+              await nextTick();
+              // 查找对应章节标记并滚动到该位置
+              const chapterMarker = document.querySelector(`[data-chapter-index='${idx}']`);
+              if (chapterMarker) {
+                chapterMarker.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            } else {
+              await readerStore.goToChapter(idx);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }"
           @refresh-catalog="readerStore.refreshChapter"
         />
 

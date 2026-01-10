@@ -1,6 +1,6 @@
 """
 CF Bypass Service - FastAPI Application
-Minimal API layer using optimized scraper module.
+Enhanced with CloudScraper v5.0 - maximizing built-in anti-detection features.
 """
 import logging
 from datetime import datetime
@@ -10,15 +10,25 @@ from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 
-from scraper import config, engine, FetchResult
+# Import new CloudScraper wrapper instead of old curl_cffi engine
+from cloudscraper_wrapper import wrapper as engine, FetchResult
+import os
+
+# Configuration (maintain compatibility)
+class Config:
+    def __init__(self):
+        self.api_key = os.getenv("CF_API_KEY", "")
+        self.log_level = os.getenv("LOG_LEVEL", "INFO")
+
+config = Config()
 
 logging.basicConfig(level=config.log_level)
 logger = logging.getLogger("cf-bypass")
 
 app = FastAPI(
     title="CF Bypass Service",
-    version="4.0.0",
-    description="Cloudflare bypass using CloudScraper v3.0 with stealth mode",
+    version="5.0.0",
+    description="Cloudflare bypass using CloudScraper with maximum built-in features + caching + monitoring",
 )
 
 app.add_middleware(
@@ -58,7 +68,7 @@ class FetchResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup():
-    logger.info("CF Bypass Service v4.0 started (CloudScraper v3.0 + Stealth)")
+    logger.info("CF Bypass Service v5.0 started (CloudScraper + Redis Cache + Monitoring)")
 
 
 @app.on_event("shutdown")
@@ -75,18 +85,21 @@ async def health():
     stats = engine.get_stats()
     return {
         "status": "healthy",
-        "version": "4.0.0",
+        "version": "5.0.0",
         "timestamp": datetime.now().isoformat(),
         "active_sessions": stats["active_sessions"],
+        "engine": stats.get("engine", "CloudScraper"),
+        "cache_available": stats.get("cache_available", False),
     }
 
 
 @app.post("/fetch", response_model=FetchResponse)
 async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
-    """Fetch URL with Cloudflare bypass (v1/v2/v3 + Turnstile)."""
+    """Fetch URL with CloudScraper's built-in Cloudflare bypass (v1/v2/v3 + Turnstile)."""
     if config.api_key and x_api_key != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API Key")
     
+    # Use new CloudScraper wrapper - interface remains identical
     result = await engine.fetch(
         url=str(request.url),
         method=request.method,
@@ -99,6 +112,7 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     if result.error:
         raise HTTPException(status_code=500, detail=result.error)
     
+    # Response format remains completely unchanged for backward compatibility
     return FetchResponse(
         status=result.status,
         html=result.html,

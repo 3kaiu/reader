@@ -46,6 +46,8 @@ interface Props {
   isFullscreen: boolean
   formattedTime: string
   paragraphSpacing: number
+  // 新增：加载失败状态
+  loadError?: string | null
 }
 
 const props = defineProps<Props>()
@@ -53,6 +55,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   click: []
   loadNextChapter: []
+  retryLoad: [] // 新增：重试加载事件
 }>()
 
 const settingsStore = useSettingsStore()
@@ -157,13 +160,39 @@ defineExpose({
       
       <!-- 加载下一章按钮 -->
       <div v-else-if="loadedChapters.length > 0" class="py-12 text-center">
-        <button 
-          class="px-6 py-3 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
-          @click.stop="emit('loadNextChapter')"
-        >
-          加载下一章
-        </button>
-        <p class="text-xs opacity-30 mt-3">或继续滚动自动加载</p>
+        <!-- 正常加载状态 -->
+        <div v-if="!loadError">
+          <button 
+            class="px-6 py-3 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
+            @click.stop="emit('loadNextChapter')"
+          >
+            加载下一章
+          </button>
+          <p class="text-xs opacity-30 mt-3">或继续滚动自动加载</p>
+        </div>
+        
+        <!-- 加载失败状态 -->
+        <div v-else class="space-y-3">
+          <div class="px-4 py-2 bg-red-500/10 rounded-lg text-red-600 dark:text-red-400">
+            <p class="text-sm">⚠️ 自动加载失败</p>
+            <p class="text-xs opacity-70 mt-1">{{ loadError }}</p>
+          </div>
+          <div class="flex gap-3 justify-center">
+            <button 
+              class="px-4 py-2 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
+              @click.stop="emit('retryLoad')"
+            >
+              🔄 重试
+            </button>
+            <button 
+              class="px-4 py-2 bg-current/10 hover:bg-current/15 rounded-full text-sm font-medium transition-colors"
+              @click.stop="emit('loadNextChapter')"
+            >
+              手动加载
+            </button>
+          </div>
+          <p class="text-xs opacity-30">网络问题可能导致加载失败</p>
+        </div>
       </div>
     </div>
     
