@@ -4,7 +4,7 @@
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Sparkles, MessageSquare, Copy, X, Users, Crown, User, Trash2 } from 'lucide-vue-next'
-import { useAIStore } from '@/stores/ai'
+import { useAIService } from '@/stores/ai'
 import { useAIInsightsStore } from '@/stores/aiInsights'
 import { useReaderStore } from '@/stores/reader'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ const props = defineProps<{
   containerRef: HTMLElement | null
 }>()
 
-const aiStore = useAIStore()
+const aiStore = useAIService()
 const insightsStore = useAIInsightsStore()
 const readerStore = useReaderStore()
 const { toast } = useToast()

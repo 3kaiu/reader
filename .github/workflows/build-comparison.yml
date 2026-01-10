@@ -1,0 +1,119 @@
+name: Build Performance Comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_both:
+        description: 'Test both pnpm and bun builds'
+        required: true
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  # =============================================================================
+  # pnpm构建测试
+  # =============================================================================
+  build-with-pnpm:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.test_both == true }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build with pnpm (测试)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.fnos
+          platforms: linux/amd64
+          push: false
+          tags: nexus-lite:pnpm-test
+          cache-from: type=gha,scope=pnpm-test
+          cache-to: type=gha,mode=max,scope=pnpm-test
+
+  # =============================================================================
+  # Bun构建测试
+  # =============================================================================
+  build-with-bun:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build with Bun (测试)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.bun
+          platforms: linux/amd64
+          push: false
+          tags: nexus-lite:bun-test
+          cache-from: type=gha,scope=bun-test
+          cache-to: type=gha,mode=max,scope=bun-test
+
+  # =============================================================================
+  # 性能对比报告
+  # =============================================================================
+  performance-report:
+    runs-on: ubuntu-latest
+    needs: [build-with-pnpm, build-with-bun]
+    if: always() && (needs.build-with-pnpm.result == 'success' || needs.build-with-bun.result == 'success')
+    
+    steps:
+      - name: Generate Performance Report
+        run: |
+          echo "# 构建性能对比报告" > performance-report.md
+          echo "" >> performance-report.md
+          echo "## 构建结果" >> performance-report.md
+          echo "" >> performance-report.md
+          
+          if [ "${{ needs.build-with-pnpm.result }}" = "success" ]; then
+            echo "✅ pnpm 构建: 成功" >> performance-report.md
+          else
+            echo "❌ pnpm 构建: 失败" >> performance-report.md
+          fi
+          
+          if [ "${{ needs.build-with-bun.result }}" = "success" ]; then
+            echo "✅ Bun 构建: 成功" >> performance-report.md
+          else
+            echo "❌ Bun 构建: 失败" >> performance-report.md
+          fi
+          
+          echo "" >> performance-report.md
+          echo "## 推荐" >> performance-report.md
+          echo "" >> performance-report.md
+          
+          if [ "${{ needs.build-with-bun.result }}" = "success" ]; then
+            echo "🎯 **推荐使用 Bun**" >> performance-report.md
+            echo "- 更快的包安装速度" >> performance-report.md
+            echo "- 更少的内存占用" >> performance-report.md
+            echo "- 更好的ARM64支持" >> performance-report.md
+          else
+            echo "🔄 **继续使用 pnpm**" >> performance-report.md
+            echo "- Bun构建失败，保持现有配置" >> performance-report.md
+          fi
+          
+          echo "" >> performance-report.md
+          echo "构建时间: $(date)" >> performance-report.md
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-comparison-report
+          path: performance-report.md

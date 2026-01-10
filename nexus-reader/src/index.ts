@@ -10,6 +10,7 @@ import { preloadManager } from './utils/lazyLoader'
 import { swCacheManager } from './utils/cacheManager'
 import { useErrorHandler } from './composables/useErrorHandler'
 import { performanceSystem, initializePerformanceSystem } from './utils/performanceIntegration'
+import { aiServiceManager } from './services/aiServiceManager'
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -80,6 +81,11 @@ initializePerformanceSystem({
     console.error('Failed to initialize performance system:', error)
 })
 
+// 初始化 AI 服务管理器
+aiServiceManager.initialize().catch(error => {
+    console.warn('AI service initialization failed:', error)
+})
+
 // 开启性能监控（向后兼容）
 performanceMonitor.startMonitoring()
 
@@ -130,8 +136,12 @@ if (import.meta.env.DEV) {
     (window as any).getPerformanceReport = () => performanceSystem.generatePerformanceReport()
     (window as any).optimizePerformance = () => performanceSystem.optimizePerformance()
     
+    // 添加 AI 服务调试
+    (window as any).aiServiceManager = aiServiceManager
+    
     console.log('🔧 Performance debugging tools available:')
     console.log('  - window.performanceSystem: Access to performance system')
     console.log('  - window.getPerformanceReport(): Generate performance report')
     console.log('  - window.optimizePerformance(): Run performance optimization')
+    console.log('  - window.aiServiceManager: Access to AI service manager')
 }

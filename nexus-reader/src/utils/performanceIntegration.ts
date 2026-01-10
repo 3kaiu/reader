@@ -4,12 +4,12 @@
  */
 
 import { performanceMonitor } from './performanceMonitor'
-import { cacheManager } from './cacheManager'
-import { memoryManager } from './memoryManager'
-import { networkOptimizer } from './networkOptimizer'
+import { generalCache, swCacheManager } from './cacheManager'
+import { globalMemoryManager } from './memoryManager'
+import { networkDetector, requestOptimizer } from './networkOptimizer'
 import { offlineManager } from './offlineManager'
 import { performanceBudget } from './performanceBudget'
-import { budgetEnforcement } from './budgetEnforcement'
+import { buildTimeBudgetEnforcer, runtimeBudgetEnforcer } from './budgetEnforcement'
 import { animationManager } from './animationManager'
 import { smoothScrollManager } from './smoothScrolling'
 import { fontLoader, registerCommonFonts } from './fontLoader'
@@ -371,39 +371,37 @@ export class PerformanceSystemManager {
     console.log('💾 Initializing cache management...')
     
     const config = this.config.cacheConfig || {}
-    cacheManager.configure({
-      maxSize: config.maxSize || 50 * 1024 * 1024, // 50MB
-      defaultTTL: config.ttl || 3600000 // 1 hour
-    })
-    
-    await cacheManager.initialize()
-    this.systems.set('caching', cacheManager)
+    // 使用 generalCache 和 swCacheManager 替代 cacheManager
+    // generalCache 已经是配置好的实例，无需额外配置
+    await swCacheManager.initialize()
+    this.systems.set('caching', { generalCache, swCacheManager })
   }
 
   private async initializeMemoryManagement(): Promise<void> {
     console.log('🧠 Initializing memory management...')
     
     const config = this.config.memoryConfig || {}
-    memoryManager.configure({
+    globalMemoryManager.configure({
       gcThreshold: config.gcThreshold || 100 * 1024 * 1024, // 100MB
       monitoringInterval: config.monitoringInterval || 30000 // 30s
     })
     
-    memoryManager.startMonitoring()
-    this.systems.set('memory', memoryManager)
+    globalMemoryManager.startMonitoring()
+    this.systems.set('memory', globalMemoryManager)
   }
 
   private async initializeNetworkOptimization(): Promise<void> {
     console.log('🌐 Initializing network optimization...')
     
     const config = this.config.networkConfig || {}
-    networkOptimizer.configure({
+    // 使用 networkDetector 和 requestOptimizer 替代 networkOptimizer
+    networkDetector.initialize()
+    requestOptimizer.configure({
       enableAdaptiveQuality: config.enableAdaptiveQuality !== false,
       enableRequestBatching: config.enableRequestBatching !== false
     })
     
-    networkOptimizer.initialize()
-    this.systems.set('network', networkOptimizer)
+    this.systems.set('network', { networkDetector, requestOptimizer })
   }
 
   private async initializeOfflineSupport(): Promise<void> {
@@ -417,13 +415,14 @@ export class PerformanceSystemManager {
     console.log('💰 Initializing performance budget enforcement...')
     
     const config = this.config.budgetConfig || {}
-    budgetEnforcement.configure({
+    // 使用 runtimeBudgetEnforcer 替代 budgetEnforcement
+    runtimeBudgetEnforcer.configure({
       enforceInProduction: config.enforceInProduction !== false,
       alertThreshold: config.alertThreshold || 0.8
     })
     
-    budgetEnforcement.startMonitoring()
-    this.systems.set('budget', budgetEnforcement)
+    runtimeBudgetEnforcer.startMonitoring()
+    this.systems.set('budget', { buildTimeBudgetEnforcer, runtimeBudgetEnforcer })
   }
 
   private async initializeAnimationOptimization(): Promise<void> {

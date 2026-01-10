@@ -6,7 +6,7 @@
 import { ref, onMounted } from 'vue'
 import { Sparkles, X, ChevronRight, Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { useAIStore } from '@/stores/ai'
+import { useAIService } from '@/stores/ai'
 import { logger } from '@/utils/logger'
 
 const props = defineProps<{
@@ -18,7 +18,7 @@ const emit = defineEmits<{
   'close': []
 }>()
 
-const aiStore = useAIStore()
+const aiStore = useAIService()
 const recapText = ref('')
 const isLoading = ref(false)
 const isVisible = ref(false)

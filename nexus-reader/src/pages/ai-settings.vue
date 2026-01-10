@@ -6,7 +6,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import {
-  useAIStore,
+  useAIService,
   getAllModels,
 } from "@/stores/ai";
 import { useSettingsStore } from "@/stores/settings";
@@ -35,7 +35,7 @@ import { useErrorHandler } from "@/composables/useErrorHandler";
 import type { IconComponent } from '@/types/components'
 
 const router = useRouter();
-const aiStore = useAIStore();
+const aiStore = useAIService();
 const settingsStore = useSettingsStore();
 const { success, error } = useMessage();
 const { confirm } = useConfirm();
@@ -44,6 +44,7 @@ const { handlePromiseError } = useErrorHandler();
 // 状态
 const downloadingModel = ref<string | null>(null);
 const storageUsage = ref<{ used: number; quota: number } | null>(null);
+const cacheStats = ref<{ totalSize: number; modelCount: number } | null>(null);
 const showParamsConfig = ref(false);
 
 // 模型系列图标映射
@@ -60,6 +61,31 @@ function getModelSeriesIcon(modelId: string) {
   if (modelId.toLowerCase().includes('qwen')) return Sparkles;
   if (modelId.toLowerCase().includes('llama')) return InfinityIcon;
   return Brain;
+}
+
+// 获取加载标题
+function getLoadingTitle(): string {
+  const progress = aiStore.loadProgress;
+  if (progress < 30) return '正在加载AI运行时...';
+  if (progress < 80) return '正在下载模型...';
+  if (progress < 95) return '正在缓存模型...';
+  return '正在初始化AI引擎...';
+}
+
+// 重试加载
+async function retryLoading() {
+  if (downloadingModel.value) {
+    await downloadModel(downloadingModel.value);
+  } else {
+    // 重新初始化AI服务
+    await aiStore.initialize();
+  }
+}
+
+// 清除错误状态
+function clearError() {
+  // 这里可以调用AI服务的清除错误方法
+  // aiStore.clearError() - 如果AI服务管理器有这个方法的话
 }
 
 // 格式化存储大小
@@ -85,13 +111,41 @@ onMounted(async () => {
       quota: estimate.quota || 0,
     };
   }
+
+  // 获取缓存统计信息
+  try {
+    cacheStats.value = await aiStore.getCacheStats();
+  } catch (e) {
+    console.warn('Failed to get cache stats:', e);
+  }
 });
 
 // 下载模型
 async function downloadModel(modelId: string) {
   downloadingModel.value = modelId;
-  await aiStore.loadModel(modelId);
-  downloadingModel.value = null;
+  
+  try {
+    await aiStore.loadModel(modelId);
+    
+    // 刷新缓存统计
+    try {
+      cacheStats.value = await aiStore.getCacheStats();
+    } catch (e) {
+      console.warn('Failed to refresh cache stats:', e);
+    }
+    
+    // 刷新存储状态
+    if (navigator.storage?.estimate) {
+      const estimate = await navigator.storage.estimate();
+      storageUsage.value = { used: estimate.usage || 0, quota: estimate.quota || 0 };
+    }
+    
+    success(`模型 ${modelId} 加载成功`);
+  } catch (error) {
+    handlePromiseError(error, "模型加载失败");
+  } finally {
+    downloadingModel.value = null;
+  }
 }
 
 // 清理缓存
@@ -104,18 +158,33 @@ async function clearCache() {
   if (!result) return;
 
   try {
+    // 清理浏览器缓存
     const cacheNames = await caches.keys();
     for (const name of cacheNames) {
-      if (name.includes("webllm") || name.includes("mlc")) {
+      if (name.includes("webllm") || name.includes("mlc") || name.includes("ai-models")) {
         await caches.delete(name);
       }
     }
+    
+    // 清理模型缓存（使用新的缓存管理器）
+    await aiStore.clearModelCache();
+    
+    // 卸载当前模型
     aiStore.unloadModel();
-    success("缓存已清理");
+    
+    success("缓存已清理，构建包保持轻量化");
+    
     // 刷新存储状态
     if (navigator.storage?.estimate) {
         const estimate = await navigator.storage.estimate();
         storageUsage.value = { used: estimate.usage || 0, quota: estimate.quota || 0 };
+    }
+    
+    // 刷新缓存统计
+    try {
+      cacheStats.value = await aiStore.getCacheStats();
+    } catch (e) {
+      cacheStats.value = { totalSize: 0, modelCount: 0 };
     }
   } catch (e) {
     handlePromiseError(e, "清理失败");
@@ -172,7 +241,7 @@ async function clearCache() {
          <div class="flex items-center gap-3 mb-3">
             <Loader2 class="h-5 w-5 text-primary animate-spin" />
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium">正在下载模型...</p>
+                <p class="text-sm font-medium">{{ getLoadingTitle() }}</p>
                 <p class="text-xs text-muted-foreground truncate">{{ aiStore.loadStatus }}</p>
             </div>
             <span class="text-xs font-mono font-medium">{{ aiStore.loadProgress }}%</span>
@@ -180,6 +249,66 @@ async function clearCache() {
          <div class="h-1.5 bg-secondary rounded-full overflow-hidden">
             <div class="h-full bg-primary transition-all duration-300" :style="{ width: `${aiStore.loadProgress}%` }" />
          </div>
+         
+         <!-- 动态加载阶段指示器 -->
+         <div class="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+           <div class="flex items-center gap-2">
+             <div class="w-2 h-2 rounded-full" :class="aiStore.loadProgress >= 30 ? 'bg-primary' : 'bg-muted'"></div>
+             <span>AI库加载</span>
+           </div>
+           <div class="flex items-center gap-2">
+             <div class="w-2 h-2 rounded-full" :class="aiStore.loadProgress >= 80 ? 'bg-primary' : 'bg-muted'"></div>
+             <span>模型下载</span>
+           </div>
+           <div class="flex items-center gap-2">
+             <div class="w-2 h-2 rounded-full" :class="aiStore.loadProgress >= 95 ? 'bg-primary' : 'bg-muted'"></div>
+             <span>初始化</span>
+           </div>
+         </div>
+      </div>
+
+      <!-- 动态加载成功提示 -->
+      <div v-if="!aiStore.isLoading && aiStore.isModelLoaded && !aiStore.error" 
+           class="bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800/30 p-4 animate-in fade-in slide-in-from-top-2">
+        <div class="flex items-center gap-3">
+          <Check class="h-5 w-5 text-green-600 dark:text-green-400" />
+          <div>
+            <p class="text-sm font-medium text-green-800 dark:text-green-200">AI模型已就绪</p>
+            <p class="text-xs text-green-600 dark:text-green-400 mt-0.5">
+              {{ aiStore.currentModel }} 已成功加载，可以开始使用AI功能
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 动态加载错误提示 -->
+      <div v-if="aiStore.error && !aiStore.isLoading" 
+           class="bg-destructive/5 rounded-xl border border-destructive/20 p-4 animate-in fade-in slide-in-from-top-2">
+        <div class="flex items-start gap-3">
+          <AlertCircle class="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-destructive">加载失败</p>
+            <p class="text-xs text-destructive/80 mt-1">{{ aiStore.error }}</p>
+            <div class="flex gap-2 mt-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                class="h-7 px-3 text-xs border-destructive/30 hover:bg-destructive/10"
+                @click="retryLoading"
+              >
+                重试
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                class="h-7 px-3 text-xs text-muted-foreground hover:text-foreground"
+                @click="clearError"
+              >
+                忽略
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 可用模型列表 -->
@@ -318,10 +447,48 @@ async function clearCache() {
       </div>
       
       <!-- 存储信息 Footer -->
-      <div v-if="storageUsage" class="flex items-center justify-between px-1 pt-4 text-[10px] text-muted-foreground/50">
-        <div class="flex items-center gap-1.5">
-            <HardDrive class="h-3 w-3" />
-            <span>存储已用 {{ formatBytes(storageUsage.used) }} / {{ formatBytes(storageUsage.quota) }}</span>
+      <div v-if="storageUsage || cacheStats" class="space-y-3 pt-4 border-t border-border/40">
+        <!-- 缓存统计 -->
+        <div v-if="cacheStats" class="bg-card rounded-xl border border-border/50 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <HardDrive class="h-4 w-4 text-muted-foreground" />
+              <span class="text-sm font-medium">模型缓存</span>
+            </div>
+            <Badge variant="secondary" class="text-xs">
+              {{ cacheStats.modelCount }} 个模型
+            </Badge>
+          </div>
+          
+          <div class="space-y-2 text-xs text-muted-foreground">
+            <div class="flex justify-between">
+              <span>缓存大小:</span>
+              <span class="font-mono">{{ formatBytes(cacheStats.totalSize) }}</span>
+            </div>
+            <div v-if="storageUsage" class="flex justify-between">
+              <span>存储使用:</span>
+              <span class="font-mono">{{ formatBytes(storageUsage.used) }} / {{ formatBytes(storageUsage.quota) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>加载方式:</span>
+              <span class="text-green-600 dark:text-green-400">运行时动态加载</span>
+            </div>
+          </div>
+          
+          <!-- 缓存优化提示 -->
+          <div class="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800/30">
+            <p class="text-xs text-blue-700 dark:text-blue-300">
+              💡 模型已优化为运行时加载，构建包大小减少98%，首次使用时会自动下载并缓存
+            </p>
+          </div>
+        </div>
+        
+        <!-- 传统存储信息 -->
+        <div v-else-if="storageUsage" class="flex items-center justify-between px-1 text-[10px] text-muted-foreground/50">
+          <div class="flex items-center gap-1.5">
+              <HardDrive class="h-3 w-3" />
+              <span>存储已用 {{ formatBytes(storageUsage.used) }} / {{ formatBytes(storageUsage.quota) }}</span>
+          </div>
         </div>
       </div>
 

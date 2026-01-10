@@ -1,49 +1,39 @@
 # =============================================================================
-# 飞牛OS优化的Dockerfile - 支持AMD64/ARM64，针对Debian基础优化
+# 飞牛OS优化的Dockerfile - 使用Bun替代pnpm，支持AMD64/ARM64
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# 阶段1: 前端构建 - 多架构支持
+# 阶段1: 前端构建 - 使用Bun
 # -----------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM oven/bun:1.1-alpine AS frontend-builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-
-# 飞牛OS优化的内存设置
-ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 WORKDIR /app
 
 # 安装构建工具
 RUN apk add --no-cache brotli gzip python3 make g++
 
-# 安装pnpm
-RUN corepack enable && corepack prepare pnpm@8 --activate
-
 # 复制依赖文件
-COPY nexus-reader/package.json nexus-reader/pnpm-lock.yaml ./
+COPY nexus-reader/package.json nexus-reader/bun.lockb* ./
 
-# 安装依赖 - 针对ARM64优化，增加重试机制
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=pnpm-cache-$TARGETPLATFORM \
-    pnpm config set network-concurrency 2 && \
-    pnpm config set network-timeout 60000 && \
-    pnpm config set registry https://registry.npmmirror.com && \
-    pnpm install --frozen-lockfile --prefer-offline || \
-    (echo "First install failed, retrying..." && pnpm install --frozen-lockfile)
+# 使用Bun安装依赖 - 比pnpm快很多
+RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-cache-$TARGETPLATFORM \
+    bun install --frozen-lockfile --production=false
 
 # 复制源代码
 COPY nexus-reader/ ./
 
-# 构建前端 - 根据架构调整并行度
+# 使用Bun构建前端 - 根据架构调整内存
 RUN --mount=type=cache,target=./.rsbuild,id=rsbuild-cache-$TARGETPLATFORM \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        NODE_OPTIONS="--max-old-space-size=1536" pnpm build --mode production; \
+        NODE_OPTIONS="--max-old-space-size=1536" bun run build; \
     else \
-        NODE_OPTIONS="--max-old-space-size=2048" pnpm build --mode production; \
+        NODE_OPTIONS="--max-old-space-size=2048" bun run build; \
     fi
 
-# 预压缩静态资源 - 并行处理
+# 预压缩静态资源
 RUN find dist -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" \) \
     -print0 | xargs -0 -P$(nproc) -I{} sh -c 'brotli -9 "$1" && gzip -9 -k "$1"' _ {}
 
@@ -123,7 +113,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-$TARGE
     fi && \
     cp target/$TARGET/release/nexus-server /app/nexus-server
 
-# 压缩二进制文件（仅AMD64，ARM64跳过以节省时间）
+# 压缩二进制文件（仅AMD64）
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ] && command -v upx >/dev/null 2>&1; then \
         upx --best /app/nexus-server; \
     fi
@@ -135,7 +125,7 @@ FROM debian:12-slim AS runtime
 
 ARG TARGETPLATFORM
 
-# 安装运行时依赖 - 飞牛OS兼容
+# 安装运行时依赖
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
@@ -154,7 +144,7 @@ COPY --from=rust-builder /app/nexus-server ./nexus-server
 COPY --from=frontend-builder /app/dist ./static
 COPY nexus-lite/sources ./sources
 
-# 创建数据目录 - 飞牛OS路径兼容
+# 创建数据目录
 RUN mkdir -p data cache logs && \
     chown -R fnos:fnos /app
 
@@ -178,7 +168,7 @@ HEALTHCHECK --interval=45s --timeout=15s --start-period=60s --retries=3 \
 
 # 添加架构信息到启动日志
 RUN echo "#!/bin/bash" > /app/start.sh && \
-    echo "echo 'Starting Nexus Reader on $TARGETPLATFORM for FnOS...'" >> /app/start.sh && \
+    echo "echo 'Starting Nexus Reader (Bun-built) on $TARGETPLATFORM for FnOS...'" >> /app/start.sh && \
     echo "exec ./nexus-server \"\$@\"" >> /app/start.sh && \
     chmod +x /app/start.sh
 

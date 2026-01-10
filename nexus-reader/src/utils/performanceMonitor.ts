@@ -1,6 +1,7 @@
 /**
  * Performance Monitor - 性能监控系统
  * 负责收集、存储和分析应用性能指标
+ * 增强版：支持AI加载性能监控
  */
 
 // 性能指标接口
@@ -16,11 +17,57 @@ export interface PerformanceMetrics {
   loadTime: number
   apiResponseTime: number
   
+  // AI性能指标
+  aiLibraryLoadTime: number | null
+  modelLoadTime: number | null
+  inferenceTime: number | null
+  ttsLoadTime: number | null
+  cacheHitRate: number | null
+  
   // 上下文信息
   timestamp: number
   userAgent: string
   networkType: string
   route: string
+}
+
+// AI性能指标接口
+export interface AIPerformanceMetrics {
+  // 库加载性能
+  libraryLoadTime: number
+  librarySize: number
+  librarySource: 'cdn' | 'cache' | 'fallback'
+  
+  // 模型加载性能
+  modelId: string
+  modelLoadTime: number
+  modelSize: number
+  modelSource: 'download' | 'cache'
+  downloadSpeed: number | null
+  
+  // 推理性能
+  inferenceTime: number
+  tokensPerSecond: number
+  totalTokens: number
+  memoryUsage: number
+  
+  // TTS性能
+  ttsEngineLoadTime: number | null
+  speechSynthesisTime: number | null
+  audioGenerationSpeed: number | null
+  
+  // 缓存性能
+  cacheHitRate: number
+  cacheSize: number
+  cacheOperationTime: number
+  
+  // 网络性能
+  networkLatency: number
+  bandwidth: number | null
+  
+  // 时间戳和上下文
+  timestamp: number
+  sessionId: string
 }
 
 // 性能会话接口
@@ -30,6 +77,7 @@ export interface PerformanceSession {
   endTime: number
   userAgent: string
   metrics: PerformanceMetrics[]
+  aiMetrics: AIPerformanceMetrics[]
   errors: PerformanceError[]
   route: string
 }
@@ -37,7 +85,7 @@ export interface PerformanceSession {
 // 性能错误接口
 export interface PerformanceError {
   timestamp: number
-  type: 'memory-leak' | 'slow-api' | 'bundle-size' | 'web-vital'
+  type: 'memory-leak' | 'slow-api' | 'bundle-size' | 'web-vital' | 'ai-load' | 'model-load' | 'inference' | 'tts-load'
   message: string
   context: any
   severity: 'low' | 'medium' | 'high' | 'critical'
@@ -56,6 +104,28 @@ export interface PerformanceCollector {
   collectMetrics(): PerformanceMetrics
   reportMetric(name: string, value: number, context?: any): void
   getMetricsHistory(timeRange: TimeRange): PerformanceMetrics[]
+  
+  // AI性能监控方法
+  reportAILibraryLoad(libraryName: string, loadTime: number, size: number, source: 'cdn' | 'cache' | 'fallback'): void
+  reportModelLoad(modelId: string, loadTime: number, size: number, source: 'download' | 'cache', downloadSpeed?: number): void
+  reportInference(modelId: string, inferenceTime: number, tokensPerSecond: number, totalTokens: number, memoryUsage: number): void
+  reportTTSLoad(engineLoadTime: number, speechTime?: number, audioSpeed?: number): void
+  reportCacheOperation(operation: string, time: number, hitRate: number, cacheSize: number): void
+  getAIMetricsHistory(timeRange: TimeRange): AIPerformanceMetrics[]
+  getAIPerformanceSummary(): AIPerformanceSummary
+}
+
+// AI性能摘要接口
+export interface AIPerformanceSummary {
+  averageLibraryLoadTime: number
+  averageModelLoadTime: number
+  averageInferenceTime: number
+  averageTTSLoadTime: number
+  cacheHitRate: number
+  totalModelsLoaded: number
+  totalInferences: number
+  memoryEfficiency: number
+  networkEfficiency: number
 }
 
 // 性能阈值配置
@@ -65,11 +135,19 @@ const PERFORMANCE_THRESHOLDS = {
   cls: 0.1,       // CLS should be < 0.1
   memory: 150,    // Memory should be < 150MB
   apiResponse: 3000, // API response should be < 3s
+  
+  // AI性能阈值
+  aiLibraryLoad: 5000,    // AI库加载应该 < 5s
+  modelLoad: 30000,       // 模型加载应该 < 30s
+  inference: 10000,       // 推理应该 < 10s
+  ttsLoad: 3000,          // TTS加载应该 < 3s
+  cacheOperation: 1000,   // 缓存操作应该 < 1s
 }
 
 // 存储键名
 const STORAGE_KEYS = {
   METRICS: 'performance_metrics',
+  AI_METRICS: 'ai_performance_metrics',
   SESSION: 'performance_session',
   ERRORS: 'performance_errors'
 }
@@ -78,6 +156,7 @@ class PerformanceMonitorImpl implements PerformanceCollector {
   private isMonitoring = false
   private currentSession: PerformanceSession | null = null
   private metricsBuffer: PerformanceMetrics[] = []
+  private aiMetricsBuffer: AIPerformanceMetrics[] = []
   private observers: PerformanceObserver[] = []
 
   constructor() {
@@ -89,10 +168,11 @@ class PerformanceMonitorImpl implements PerformanceCollector {
       id: this.generateSessionId(),
       startTime: Date.now(),
       endTime: 0,
-      userAgent: navigator.userAgent,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Test Environment',
       metrics: [],
+      aiMetrics: [],
       errors: [],
-      route: window.location.pathname
+      route: typeof window !== 'undefined' ? window.location.pathname : '/test'
     }
   }
 
@@ -150,10 +230,18 @@ class PerformanceMonitorImpl implements PerformanceCollector {
       bundleSize: this.getBundleSize(),
       loadTime: this.getLoadTime(),
       apiResponseTime: this.getAverageApiResponseTime(),
+      
+      // AI性能指标
+      aiLibraryLoadTime: this.getAverageAILibraryLoadTime(),
+      modelLoadTime: this.getAverageModelLoadTime(),
+      inferenceTime: this.getAverageInferenceTime(),
+      ttsLoadTime: this.getAverageTTSLoadTime(),
+      cacheHitRate: this.getCacheHitRate(),
+      
       timestamp: now,
-      userAgent: navigator.userAgent,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Test Environment',
       networkType: this.getNetworkType(),
-      route: window.location.pathname
+      route: typeof window !== 'undefined' ? window.location.pathname : '/test'
     }
   }
 
@@ -457,6 +545,8 @@ class PerformanceMonitorImpl implements PerformanceCollector {
 
   private getBundleSize(): number {
     // 估算当前加载的JS大小
+    if (typeof document === 'undefined') return 0
+    
     const scripts = document.querySelectorAll('script[src]')
     let totalSize = 0
     
@@ -487,6 +577,7 @@ class PerformanceMonitorImpl implements PerformanceCollector {
   }
 
   private getNetworkType(): string {
+    if (typeof navigator === 'undefined') return 'unknown'
     const connection = (navigator as any).connection
     return connection ? connection.effectiveType || 'unknown' : 'unknown'
   }
@@ -564,6 +655,447 @@ class PerformanceMonitorImpl implements PerformanceCollector {
       status,
       timestamp: Date.now()
     })
+  }
+
+  // ===== AI性能监控方法 =====
+
+  /**
+   * 报告AI库加载性能
+   */
+  reportAILibraryLoad(libraryName: string, loadTime: number, size: number, source: 'cdn' | 'cache' | 'fallback'): void {
+    const aiMetric: AIPerformanceMetrics = {
+      libraryLoadTime: loadTime,
+      librarySize: size,
+      librarySource: source,
+      modelId: '',
+      modelLoadTime: 0,
+      modelSize: 0,
+      modelSource: 'cache',
+      downloadSpeed: null,
+      inferenceTime: 0,
+      tokensPerSecond: 0,
+      totalTokens: 0,
+      memoryUsage: this.getMemoryUsage(),
+      ttsEngineLoadTime: null,
+      speechSynthesisTime: null,
+      audioGenerationSpeed: null,
+      cacheHitRate: 0,
+      cacheSize: 0,
+      cacheOperationTime: 0,
+      networkLatency: this.getNetworkLatency(),
+      bandwidth: this.getBandwidth(),
+      timestamp: Date.now(),
+      sessionId: this.currentSession?.id || ''
+    }
+
+    this.aiMetricsBuffer.push(aiMetric)
+    this.reportMetric('ai_library_load', loadTime, {
+      libraryName,
+      size,
+      source
+    })
+
+    // 检查阈值
+    if (loadTime > PERFORMANCE_THRESHOLDS.aiLibraryLoad) {
+      this.reportError({
+        timestamp: Date.now(),
+        type: 'ai-load',
+        message: `AI库 ${libraryName} 加载时间过长: ${loadTime}ms > ${PERFORMANCE_THRESHOLDS.aiLibraryLoad}ms`,
+        context: { libraryName, loadTime, size, source },
+        severity: loadTime > PERFORMANCE_THRESHOLDS.aiLibraryLoad * 2 ? 'critical' : 'high'
+      })
+    }
+
+    console.log(`🤖 AI Library Load: ${libraryName} loaded in ${loadTime}ms from ${source}`)
+  }
+
+  /**
+   * 报告模型加载性能
+   */
+  reportModelLoad(modelId: string, loadTime: number, size: number, source: 'download' | 'cache', downloadSpeed?: number): void {
+    const aiMetric: AIPerformanceMetrics = {
+      libraryLoadTime: 0,
+      librarySize: 0,
+      librarySource: 'cache',
+      modelId,
+      modelLoadTime: loadTime,
+      modelSize: size,
+      modelSource: source,
+      downloadSpeed: downloadSpeed || null,
+      inferenceTime: 0,
+      tokensPerSecond: 0,
+      totalTokens: 0,
+      memoryUsage: this.getMemoryUsage(),
+      ttsEngineLoadTime: null,
+      speechSynthesisTime: null,
+      audioGenerationSpeed: null,
+      cacheHitRate: source === 'cache' ? 1 : 0,
+      cacheSize: 0,
+      cacheOperationTime: 0,
+      networkLatency: this.getNetworkLatency(),
+      bandwidth: this.getBandwidth(),
+      timestamp: Date.now(),
+      sessionId: this.currentSession?.id || ''
+    }
+
+    this.aiMetricsBuffer.push(aiMetric)
+    this.reportMetric('model_load', loadTime, {
+      modelId,
+      size,
+      source,
+      downloadSpeed
+    })
+
+    // 检查阈值
+    if (loadTime > PERFORMANCE_THRESHOLDS.modelLoad) {
+      this.reportError({
+        timestamp: Date.now(),
+        type: 'model-load',
+        message: `模型 ${modelId} 加载时间过长: ${loadTime}ms > ${PERFORMANCE_THRESHOLDS.modelLoad}ms`,
+        context: { modelId, loadTime, size, source, downloadSpeed },
+        severity: loadTime > PERFORMANCE_THRESHOLDS.modelLoad * 2 ? 'critical' : 'high'
+      })
+    }
+
+    console.log(`🧠 Model Load: ${modelId} loaded in ${loadTime}ms from ${source}`)
+  }
+
+  /**
+   * 报告推理性能
+   */
+  reportInference(modelId: string, inferenceTime: number, tokensPerSecond: number, totalTokens: number, memoryUsage: number): void {
+    const aiMetric: AIPerformanceMetrics = {
+      libraryLoadTime: 0,
+      librarySize: 0,
+      librarySource: 'cache',
+      modelId,
+      modelLoadTime: 0,
+      modelSize: 0,
+      modelSource: 'cache',
+      downloadSpeed: null,
+      inferenceTime,
+      tokensPerSecond,
+      totalTokens,
+      memoryUsage,
+      ttsEngineLoadTime: null,
+      speechSynthesisTime: null,
+      audioGenerationSpeed: null,
+      cacheHitRate: 0,
+      cacheSize: 0,
+      cacheOperationTime: 0,
+      networkLatency: this.getNetworkLatency(),
+      bandwidth: this.getBandwidth(),
+      timestamp: Date.now(),
+      sessionId: this.currentSession?.id || ''
+    }
+
+    this.aiMetricsBuffer.push(aiMetric)
+    this.reportMetric('inference', inferenceTime, {
+      modelId,
+      tokensPerSecond,
+      totalTokens,
+      memoryUsage
+    })
+
+    // 检查阈值
+    if (inferenceTime > PERFORMANCE_THRESHOLDS.inference) {
+      this.reportError({
+        timestamp: Date.now(),
+        type: 'inference',
+        message: `推理时间过长: ${inferenceTime}ms > ${PERFORMANCE_THRESHOLDS.inference}ms`,
+        context: { modelId, inferenceTime, tokensPerSecond, totalTokens },
+        severity: inferenceTime > PERFORMANCE_THRESHOLDS.inference * 2 ? 'high' : 'medium'
+      })
+    }
+
+    console.log(`⚡ Inference: ${modelId} completed in ${inferenceTime}ms (${tokensPerSecond} tokens/s)`)
+  }
+
+  /**
+   * 报告TTS加载性能
+   */
+  reportTTSLoad(engineLoadTime: number, speechTime?: number, audioSpeed?: number): void {
+    const aiMetric: AIPerformanceMetrics = {
+      libraryLoadTime: 0,
+      librarySize: 0,
+      librarySource: 'cache',
+      modelId: '',
+      modelLoadTime: 0,
+      modelSize: 0,
+      modelSource: 'cache',
+      downloadSpeed: null,
+      inferenceTime: 0,
+      tokensPerSecond: 0,
+      totalTokens: 0,
+      memoryUsage: this.getMemoryUsage(),
+      ttsEngineLoadTime: engineLoadTime,
+      speechSynthesisTime: speechTime || null,
+      audioGenerationSpeed: audioSpeed || null,
+      cacheHitRate: 0,
+      cacheSize: 0,
+      cacheOperationTime: 0,
+      networkLatency: this.getNetworkLatency(),
+      bandwidth: this.getBandwidth(),
+      timestamp: Date.now(),
+      sessionId: this.currentSession?.id || ''
+    }
+
+    this.aiMetricsBuffer.push(aiMetric)
+    this.reportMetric('tts_load', engineLoadTime, {
+      speechTime,
+      audioSpeed
+    })
+
+    // 检查阈值
+    if (engineLoadTime > PERFORMANCE_THRESHOLDS.ttsLoad) {
+      this.reportError({
+        timestamp: Date.now(),
+        type: 'tts-load',
+        message: `TTS引擎加载时间过长: ${engineLoadTime}ms > ${PERFORMANCE_THRESHOLDS.ttsLoad}ms`,
+        context: { engineLoadTime, speechTime, audioSpeed },
+        severity: engineLoadTime > PERFORMANCE_THRESHOLDS.ttsLoad * 2 ? 'high' : 'medium'
+      })
+    }
+
+    console.log(`🔊 TTS Load: Engine loaded in ${engineLoadTime}ms`)
+  }
+
+  /**
+   * 报告缓存操作性能
+   */
+  reportCacheOperation(operation: string, time: number, hitRate: number, cacheSize: number): void {
+    const aiMetric: AIPerformanceMetrics = {
+      libraryLoadTime: 0,
+      librarySize: 0,
+      librarySource: 'cache',
+      modelId: '',
+      modelLoadTime: 0,
+      modelSize: 0,
+      modelSource: 'cache',
+      downloadSpeed: null,
+      inferenceTime: 0,
+      tokensPerSecond: 0,
+      totalTokens: 0,
+      memoryUsage: this.getMemoryUsage(),
+      ttsEngineLoadTime: null,
+      speechSynthesisTime: null,
+      audioGenerationSpeed: null,
+      cacheHitRate: hitRate,
+      cacheSize,
+      cacheOperationTime: time,
+      networkLatency: this.getNetworkLatency(),
+      bandwidth: this.getBandwidth(),
+      timestamp: Date.now(),
+      sessionId: this.currentSession?.id || ''
+    }
+
+    this.aiMetricsBuffer.push(aiMetric)
+    this.reportMetric('cache_operation', time, {
+      operation,
+      hitRate,
+      cacheSize
+    })
+
+    // 检查阈值
+    if (time > PERFORMANCE_THRESHOLDS.cacheOperation) {
+      this.reportError({
+        timestamp: Date.now(),
+        type: 'ai-load',
+        message: `缓存操作时间过长: ${operation} ${time}ms > ${PERFORMANCE_THRESHOLDS.cacheOperation}ms`,
+        context: { operation, time, hitRate, cacheSize },
+        severity: 'medium'
+      })
+    }
+
+    console.log(`💾 Cache Operation: ${operation} completed in ${time}ms (hit rate: ${(hitRate * 100).toFixed(1)}%)`)
+  }
+
+  /**
+   * 获取AI性能指标历史
+   */
+  getAIMetricsHistory(timeRange: TimeRange): AIPerformanceMetrics[] {
+    const stored = localStorage.getItem(STORAGE_KEYS.AI_METRICS)
+    if (!stored) return []
+
+    try {
+      const allMetrics: AIPerformanceMetrics[] = JSON.parse(stored)
+      return allMetrics.filter(metric => 
+        metric.timestamp >= timeRange.start && 
+        metric.timestamp <= timeRange.end
+      )
+    } catch (e) {
+      console.error('Failed to parse stored AI metrics:', e)
+      return []
+    }
+  }
+
+  /**
+   * 获取AI性能摘要
+   */
+  getAIPerformanceSummary(): AIPerformanceSummary {
+    const now = Date.now()
+    const last24Hours = now - 24 * 60 * 60 * 1000
+    
+    // 合并缓冲区和存储的指标
+    const storedMetrics = this.getAIMetricsHistory({ start: last24Hours, end: now })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+
+    if (allMetrics.length === 0) {
+      return {
+        averageLibraryLoadTime: 0,
+        averageModelLoadTime: 0,
+        averageInferenceTime: 0,
+        averageTTSLoadTime: 0,
+        cacheHitRate: 0,
+        totalModelsLoaded: 0,
+        totalInferences: 0,
+        memoryEfficiency: 0,
+        networkEfficiency: 0
+      }
+    }
+
+    const libraryLoads = allMetrics.filter(m => m.libraryLoadTime > 0)
+    const modelLoads = allMetrics.filter(m => m.modelLoadTime > 0)
+    const inferences = allMetrics.filter(m => m.inferenceTime > 0)
+    const ttsLoads = allMetrics.filter(m => m.ttsEngineLoadTime && m.ttsEngineLoadTime > 0)
+    const cacheOps = allMetrics.filter(m => m.cacheOperationTime > 0)
+
+    return {
+      averageLibraryLoadTime: libraryLoads.length > 0 ? 
+        libraryLoads.reduce((sum, m) => sum + m.libraryLoadTime, 0) / libraryLoads.length : 0,
+      averageModelLoadTime: modelLoads.length > 0 ? 
+        modelLoads.reduce((sum, m) => sum + m.modelLoadTime, 0) / modelLoads.length : 0,
+      averageInferenceTime: inferences.length > 0 ? 
+        inferences.reduce((sum, m) => sum + m.inferenceTime, 0) / inferences.length : 0,
+      averageTTSLoadTime: ttsLoads.length > 0 ? 
+        ttsLoads.reduce((sum, m) => sum + (m.ttsEngineLoadTime || 0), 0) / ttsLoads.length : 0,
+      cacheHitRate: cacheOps.length > 0 ? 
+        cacheOps.reduce((sum, m) => sum + m.cacheHitRate, 0) / cacheOps.length : 0,
+      totalModelsLoaded: modelLoads.length,
+      totalInferences: inferences.length,
+      memoryEfficiency: this.calculateMemoryEfficiency(allMetrics),
+      networkEfficiency: this.calculateNetworkEfficiency(allMetrics)
+    }
+  }
+
+  // ===== AI性能指标计算辅助方法 =====
+
+  private getAverageAILibraryLoadTime(): number | null {
+    // 合并缓冲区和存储的指标
+    const storedMetrics = this.getAIMetricsHistory({ start: 0, end: Date.now() })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+    const metrics = allMetrics.filter(m => m.libraryLoadTime > 0)
+    if (metrics.length === 0) return null
+    return metrics.reduce((sum, m) => sum + m.libraryLoadTime, 0) / metrics.length
+  }
+
+  private getAverageModelLoadTime(): number | null {
+    const storedMetrics = this.getAIMetricsHistory({ start: 0, end: Date.now() })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+    const metrics = allMetrics.filter(m => m.modelLoadTime > 0)
+    if (metrics.length === 0) return null
+    return metrics.reduce((sum, m) => sum + m.modelLoadTime, 0) / metrics.length
+  }
+
+  private getAverageInferenceTime(): number | null {
+    const storedMetrics = this.getAIMetricsHistory({ start: 0, end: Date.now() })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+    const metrics = allMetrics.filter(m => m.inferenceTime > 0)
+    if (metrics.length === 0) return null
+    return metrics.reduce((sum, m) => sum + m.inferenceTime, 0) / metrics.length
+  }
+
+  private getAverageTTSLoadTime(): number | null {
+    const storedMetrics = this.getAIMetricsHistory({ start: 0, end: Date.now() })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+    const metrics = allMetrics.filter(m => m.ttsEngineLoadTime && m.ttsEngineLoadTime > 0)
+    if (metrics.length === 0) return null
+    return metrics.reduce((sum, m) => sum + (m.ttsEngineLoadTime || 0), 0) / metrics.length
+  }
+
+  private getCacheHitRate(): number | null {
+    const storedMetrics = this.getAIMetricsHistory({ start: 0, end: Date.now() })
+    const allMetrics = [...storedMetrics, ...this.aiMetricsBuffer]
+    const metrics = allMetrics.filter(m => m.cacheOperationTime > 0)
+    if (metrics.length === 0) return null
+    return metrics.reduce((sum, m) => sum + m.cacheHitRate, 0) / metrics.length
+  }
+
+  private getNetworkLatency(): number {
+    if (typeof navigator === 'undefined') return 100
+    const connection = (navigator as any).connection
+    return connection ? connection.rtt || 100 : 100
+  }
+
+  private getBandwidth(): number | null {
+    if (typeof navigator === 'undefined') return null
+    const connection = (navigator as any).connection
+    return connection ? connection.downlink || null : null
+  }
+
+  private calculateMemoryEfficiency(metrics: AIPerformanceMetrics[]): number {
+    if (metrics.length === 0) return 0
+    
+    const memoryUsages = metrics.map(m => m.memoryUsage).filter(m => m > 0)
+    if (memoryUsages.length === 0) return 0
+    
+    const averageMemory = memoryUsages.reduce((sum, m) => sum + m, 0) / memoryUsages.length
+    // 内存效率：越低越好，这里用倒数表示效率
+    return Math.max(0, 1 - (averageMemory / 500)) // 假设500MB为基准
+  }
+
+  private calculateNetworkEfficiency(metrics: AIPerformanceMetrics[]): number {
+    if (metrics.length === 0) return 0
+    
+    const downloadSpeeds = metrics.map(m => m.downloadSpeed).filter(s => s !== null && s > 0) as number[]
+    if (downloadSpeeds.length === 0) return 0
+    
+    const averageSpeed = downloadSpeeds.reduce((sum, s) => sum + s, 0) / downloadSpeeds.length
+    // 网络效率：速度越快效率越高
+    return Math.min(1, averageSpeed / 10) // 假设10MB/s为满分
+  }
+
+  // 重写保存方法以包含AI指标
+  private saveMetrics() {
+    if (this.metricsBuffer.length === 0 && this.aiMetricsBuffer.length === 0) return
+
+    // 保存常规指标
+    if (this.metricsBuffer.length > 0) {
+      const stored = localStorage.getItem(STORAGE_KEYS.METRICS) || '[]'
+      try {
+        const allMetrics: PerformanceMetrics[] = JSON.parse(stored)
+        allMetrics.push(...this.metricsBuffer)
+        
+        // 只保留最近1000个指标
+        if (allMetrics.length > 1000) {
+          allMetrics.splice(0, allMetrics.length - 1000)
+        }
+        
+        localStorage.setItem(STORAGE_KEYS.METRICS, JSON.stringify(allMetrics))
+        this.metricsBuffer = []
+      } catch (e) {
+        console.error('Failed to save performance metrics:', e)
+      }
+    }
+
+    // 保存AI指标
+    if (this.aiMetricsBuffer.length > 0) {
+      const stored = localStorage.getItem(STORAGE_KEYS.AI_METRICS) || '[]'
+      try {
+        const allAIMetrics: AIPerformanceMetrics[] = JSON.parse(stored)
+        allAIMetrics.push(...this.aiMetricsBuffer)
+        
+        // 只保留最近1000个指标
+        if (allAIMetrics.length > 1000) {
+          allAIMetrics.splice(0, allAIMetrics.length - 1000)
+        }
+        
+        localStorage.setItem(STORAGE_KEYS.AI_METRICS, JSON.stringify(allAIMetrics))
+        this.aiMetricsBuffer = []
+      } catch (e) {
+        console.error('Failed to save AI performance metrics:', e)
+      }
+    }
   }
 }
 

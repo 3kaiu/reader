@@ -1,11 +1,13 @@
 /**
- * 音色管理 Store
+ * 音色管理 Store - 集成新的TTSServiceManager
+ * 提供Vue组合式API接口，兼容现有代码，支持动态加载
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { VoiceModel, VoiceMetadata, VoiceTrainingProgress } from '@/types/voice'
 import { logger } from '@/utils/logger'
 import { voiceApi } from '@/api'
+import { ttsServiceManager } from '@/services/ttsServiceManager'
 
 const DB_NAME = 'voice-db'
 const DB_VERSION = 1
@@ -340,18 +342,44 @@ export const useVoiceStore = defineStore('voice', () => {
     trainingProgress.value = newProgress
   }
 
-  // 初始化：加载音色列表
+  // 初始化：加载音色列表和TTS服务
   loadVoices()
+  
+  // TTS服务集成方法
+  const initializeTTSService = () => ttsServiceManager.initialize()
+  const loadTTSEngine = () => ttsServiceManager.loadEngine()
+  const speak = (text: string, voiceId?: string) => ttsServiceManager.speak(text, voiceId)
+  const stopSpeaking = () => ttsServiceManager.stop()
+  const togglePause = () => ttsServiceManager.togglePause()
+  const unloadTTSEngine = () => ttsServiceManager.unloadEngine()
+  const clearTTSCache = () => ttsServiceManager.clearTTSCache()
+  
+  // TTS模型管理方法
+  const getAvailableVoices = () => ttsServiceManager.getAvailableVoices()
+  const isTTSModelCached = (voiceId: string) => ttsServiceManager.isTTSModelCached(voiceId)
+  const preloadTTSModel = (voiceId: string) => ttsServiceManager.preloadTTSModel(voiceId)
+  const getCachedTTSModels = () => ttsServiceManager.getCachedTTSModels()
+  const removeCachedTTSModel = (voiceId: string) => ttsServiceManager.removeCachedTTSModel(voiceId)
+  
+  // TTS状态
+  const isTTSSupported = computed(() => ttsServiceManager.isSupported.value)
+  const isTTSLoading = computed(() => ttsServiceManager.isLoading.value)
+  const isTTSEngineLoaded = computed(() => ttsServiceManager.isEngineLoaded.value)
+  const ttsLoadProgress = computed(() => ttsServiceManager.loadProgress.value)
+  const ttsLoadStatus = computed(() => ttsServiceManager.loadStatus.value)
+  const ttsError = computed(() => ttsServiceManager.error.value)
+  const isSpeaking = computed(() => ttsServiceManager.isSpeaking.value)
+  const isPaused = computed(() => ttsServiceManager.isPaused.value)
+  const ttsPerformance = computed(() => ttsServiceManager.performance.value)
 
   return {
-    // 状态
+    // 原有状态和方法
     voices,
     isLoading,
     error,
     trainingProgress,
     defaultVoiceId,
     defaultVoice,
-    // 方法
     loadVoices,
     addVoice,
     deleteVoice,
@@ -360,5 +388,32 @@ export const useVoiceStore = defineStore('voice', () => {
     saveDefaultVoiceId,
     updateTrainingProgress,
     clearTrainingProgress,
+    
+    // TTS服务集成
+    initializeTTSService,
+    loadTTSEngine,
+    speak,
+    stopSpeaking,
+    togglePause,
+    unloadTTSEngine,
+    clearTTSCache,
+    
+    // TTS模型管理
+    getAvailableVoices,
+    isTTSModelCached,
+    preloadTTSModel,
+    getCachedTTSModels,
+    removeCachedTTSModel,
+    
+    // TTS状态
+    isTTSSupported,
+    isTTSLoading,
+    isTTSEngineLoaded,
+    ttsLoadProgress,
+    ttsLoadStatus,
+    ttsError,
+    isSpeaking,
+    isPaused,
+    ttsPerformance,
   }
 })

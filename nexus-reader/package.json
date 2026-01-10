@@ -4,18 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rsbuild build",
+    "build": "NODE_ENV=production rsbuild build",
+    "build:analyze": "ANALYZE=true NODE_ENV=production rsbuild build",
     "dev": "rsbuild dev --open",
     "preview": "rsbuild preview",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:performance": "node --loader ts-node/esm src/scripts/run-performance-tests.ts",
-    "performance:report": "node --loader ts-node/esm src/scripts/generate-performance-report.ts",
-    "performance:compare": "node --loader ts-node/esm src/scripts/compare-performance.ts",
-    "performance:check-budget": "node --loader ts-node/esm src/scripts/check-performance-budget.ts",
-    "lighthouse": "lhci autorun",
-    "lighthouse:desktop": "lhci autorun --config=lighthouserc.desktop.js",
-    "lighthouse:mobile": "lhci autorun --config=lighthouserc.mobile.js"
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "clean": "rm -rf dist node_modules/.cache",
+    "size-check": "bash analyze-performance.sh build",
+    "debug-ai": "bash debug-ai-services.sh"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

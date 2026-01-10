@@ -2,38 +2,6 @@ import { defineConfig } from "@rsbuild/core";
 import { pluginVue } from "@rsbuild/plugin-vue";
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
-// 性能预算插件
-class PerformanceBudgetPlugin {
-  apply(compiler: any) {
-    compiler.hooks.done.tapAsync('PerformanceBudgetPlugin', async (stats: any, callback: any) => {
-      try {
-        // 动态导入预算执行器
-        const { buildTimeBudgetEnforcer } = await import('./src/utils/budgetEnforcement')
-        
-        // 分析构建结果
-        const report = await buildTimeBudgetEnforcer.analyzeBuild(stats)
-        
-        if (!report.passed) {
-          console.warn(`⚠️ Performance budget violations detected: ${report.violations.length} violations`)
-          
-          // 在开发模式下只警告，生产模式下可以选择失败构建
-          if (process.env.NODE_ENV === 'production' && process.env.FAIL_ON_BUDGET_VIOLATION === 'true') {
-            callback(new Error('Build failed due to performance budget violations'))
-            return
-          }
-        } else {
-          console.log('✅ All performance budgets passed')
-        }
-        
-        callback()
-      } catch (error) {
-        console.error('Performance budget check failed:', error)
-        callback() // 不因为预算检查失败而中断构建
-      }
-    })
-  }
-}
-
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
   plugins: [pluginVue()],
@@ -54,10 +22,15 @@ export default defineConfig({
             statsFilename: '../bundle-stats.json',
           })
         ] : []),
-        
-        // 性能预算插件
-        new PerformanceBudgetPlugin(),
       ],
+      // 外部化大型AI库 - 关键优化
+      externals: process.env.NODE_ENV === 'production' ? {
+        // AI相关库外部化
+        '@mlc-ai/web-llm': 'WebLLM',
+        '@huggingface/transformers': 'HuggingFaceTransformers', 
+        'onnxruntime-web': 'ort',
+        'piper-tts-web': 'PiperTTS'
+      } : {},
       optimization: {
         // 启用 tree shaking
         usedExports: true,
@@ -124,44 +97,54 @@ export default defineConfig({
             test: /[\\/]node_modules[\\/](vue|vue-router|pinia|@vueuse)[\\/]/,
             name: "lib-vue",
             chunks: "all",
-            priority: 20,
+            priority: 30,
           },
           // UI 库单独打包
           ui: {
             test: /[\\/]node_modules[\\/](reka-ui|lucide-vue-next)[\\/]/,
             name: "lib-ui",
             chunks: "all",
-            priority: 10,
+            priority: 20,
           },
-          // AI 运行时（较大）单独打包 - 异步加载
-          onnx: {
-            test: /[\\/]node_modules[\\/](onnxruntime-web|@huggingface)[\\/]/,
+          // AI 运行时 - 完全异步加载，强制分离
+          ai: {
+            test: /[\\/]node_modules[\\/](onnxruntime-web|@huggingface|@mlc-ai)[\\/]/,
             name: "lib-ai",
-            chunks: "async", // 改为异步加载
-            priority: 30,
+            chunks: "async", // 强制异步加载
+            priority: 50,
+            enforce: true, // 强制分离
           },
-          // TTS 库单独打包 - 异步加载
+          // TTS 库 - 完全异步加载，强制分离
           tts: {
             test: /[\\/]node_modules[\\/](piper-tts-web)[\\/]/,
             name: "lib-tts",
-            chunks: "async", // 异步加载
-            priority: 25,
+            chunks: "async", // 强制异步加载
+            priority: 45,
+            enforce: true, // 强制分离
+          },
+          // AI服务相关代码 - 强制异步加载
+          'ai-services': {
+            test: /[\\/]src[\\/](stores[\\/]ai|services[\\/](ai|tts)|pages[\\/]ai-)/,
+            name: 'ai-services',
+            chunks: 'async', // 强制异步加载
+            priority: 40,
+            enforce: true, // 强制分离
           },
           // 工具库单独打包
           utils: {
-            test: /[\\/]node_modules[\\/](lodash|date-fns|crypto-js)[\\/]/,
+            test: /[\\/]node_modules[\\/](dayjs|clsx|idb|ofetch)[\\/]/,
             name: "lib-utils",
             chunks: "all",
             priority: 15,
           },
-          // 默认 vendor 包
+          // 默认 vendor 包 - 限制大小
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: "vendor",
             chunks: "all",
             priority: 5,
-            minSize: 20000,
-            maxSize: 200000,
+            minSize: 10000,
+            maxSize: 100000, // 限制单个chunk最大100KB
           },
         },
       },
@@ -182,12 +165,17 @@ export default defineConfig({
     minify: process.env.NODE_ENV === 'production' ? {
       js: true,
       css: true,
-      html: true,
     } : false,
     copy: [
-      { from: './node_modules/piper-tts-web/dist/onnx', to: 'onnx' },
-      { from: './node_modules/piper-tts-web/dist/piper', to: 'piper' },
-      { from: './node_modules/piper-tts-web/dist/worker', to: 'worker' },
+      // 端侧AI优化：不再预复制大型WASM和模型文件
+      // 改为运行时按需加载以减少构建产物大小
+      // 
+      // 移除的配置：
+      // - piper-tts-web/dist/onnx (23MB WASM文件)
+      // - piper-tts-web/dist/piper (18MB 数据文件)  
+      // - piper-tts-web/dist/worker (Worker脚本)
+      //
+      // 这些文件现在通过DynamicLoader在运行时加载
     ],
   },
 

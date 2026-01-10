@@ -1,16 +1,13 @@
 /**
  * AI Store - 全局 AI 状态管理
  * 
- * [Refactored v4.0]
- * 本模块已重构为模块化架构。核心逻辑分散在 ./ai/ 子模块中：
- * - engine.ts: WebLLM 引擎生命周期
- * - chat.ts: 对话与性能追踪
- * - detectors.ts: 黑话/梗/角色图谱检测
- * - summarizer.ts: 摘要/回顾/问答
- * - models.ts: 模型元数据工具
+ * [Refactored v5.0 - Service Manager Integration]
+ * 本模块现在集成了新的 AIServiceManager，提供运行时动态加载能力
+ * 同时保持向后兼容性，支持现有的所有 AI 功能
  */
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
+import { useAIService } from './ai/serviceStore'
 import * as aiModules from './ai/index'
 
 // 为保持向后兼容，重新导出常用的模型工具函数
@@ -23,30 +20,39 @@ export {
   getQuantization,
   getParams,
   saveLastModel,
+  useAIService,
 } from './ai/index'
 
 export const useAIStore = defineStore('ai', () => {
-  // --- 状态 (通过计算属性或直接引用模块中的 Ref) ---
+  // 使用新的 AI 服务管理器
+  const aiService = useAIService()
 
-  // 基础状态
-  const isSupported = aiModules.engineState.isSupported
-  const isLoading = aiModules.engineState.isLoading
-  const isModelLoaded = aiModules.engineState.isModelLoaded
-  const loadProgress = aiModules.engineState.loadProgress
-  const loadStatus = aiModules.engineState.loadStatus
-  const error = aiModules.engineState.error
-  const currentModel = aiModules.engineState.currentModel
-  const engine = aiModules.engineState.engine
+  // --- 状态 (优先使用新服务管理器的状态) ---
+  const isSupported = aiService.isSupported
+  const isLoading = aiService.isLoading
+  const isModelLoaded = aiService.isModelLoaded
+  const loadProgress = aiService.loadProgress
+  const loadStatus = aiService.loadStatus
+  const error = aiService.error
+  const currentModel = aiService.currentModel
+  const performance = aiService.performance
 
-  // 对话历史
+  // 对话历史 (保持现有功能)
   const conversationHistory = aiModules.conversationHistory
 
-  // 性能指标
-  const performance = aiModules.performanceState
+  // --- 引擎控制方法 (使用新服务管理器) ---
+  const initialize = aiService.initialize
+  const checkSupport = aiService.checkSupport
+  const loadModel = aiService.loadModel
+  const unloadModel = aiService.unloadModel
+  const isReady = aiService.isReady
+  const cleanup = aiService.cleanup
 
-  // --- 模型元数据方法 (直接映射) ---
-  const getRecommendedModels = aiModules.getRecommendedModels
-  const getAllModels = aiModules.getAllModels
+  // --- 模型管理方法 (使用新服务管理器) ---
+  const getRecommendedModels = aiService.getRecommendedModels
+  const getAllModels = aiService.getAllModels
+
+  // 保持现有的模型工具函数
   const getDefaultModel = aiModules.getDefaultModel
   const getVendor = aiModules.getVendor
   const estimateSize = aiModules.estimateSize
@@ -54,19 +60,14 @@ export const useAIStore = defineStore('ai', () => {
   const getParams = aiModules.getParams
   const saveLastModel = aiModules.saveLastModel
 
-  // --- 引擎控制方法 (映射) ---
-  const checkSupport = aiModules.checkSupport
-  const loadModel = aiModules.loadModel
-  const unloadModel = aiModules.unloadModel
-  const resetAutoUnloadTimer = aiModules.resetAutoUnloadTimer
-  const clearAutoUnloadTimer = aiModules.clearAutoUnloadTimer
+  // --- 核心 AI 推理 (使用新服务管理器) ---
+  const inference = aiService.inference
 
-  // --- 核心 AI 方法 (映射) ---
+  // --- 保持现有的高级 AI 功能 ---
   const chat = aiModules.chat
   const addToHistory = aiModules.addToHistory
   const clearHistory = aiModules.clearHistory
 
-  // --- 高级 AI 功能 (映射) ---
   const summarizeChapter = aiModules.summarizeChapter
   const recapPrevious = aiModules.recapPrevious
   const askAboutBook = aiModules.askAboutBook
@@ -76,7 +77,7 @@ export const useAIStore = defineStore('ai', () => {
   const buildCharacterGraph = aiModules.buildCharacterGraph
   const generateSmartRecap = aiModules.generateSmartRecap
 
-  // --- RAG 知识库 (映射) ---
+  // --- RAG 知识库 (保持现有功能) ---
   const rag = aiModules.useRag()
   const indexChapter = (title: string, content: string, index: number) => {
     rag.addDocuments([{
@@ -91,11 +92,14 @@ export const useAIStore = defineStore('ai', () => {
   // --- 工具方法 ---
   const analyzeInChunks = aiModules.analyzeInChunks
 
-  // 综合状态
-  const isReady = computed(() => isModelLoaded.value && engine.value !== null)
+  // 缓存管理方法
+  const getCacheStats = aiService.getCacheStats
+  const clearModelCache = aiService.clearModelCache
+  const getCachedModels = aiService.getCachedModels
+  const preloadRecommendedModels = aiService.preloadRecommendedModels
 
   return {
-    // 状态
+    // 状态 (使用新服务管理器)
     isSupported,
     isLoading,
     isModelLoaded,
@@ -103,10 +107,19 @@ export const useAIStore = defineStore('ai', () => {
     loadStatus,
     error,
     currentModel,
-    engine,
-    conversationHistory,
     performance,
+    conversationHistory,
+
+    // 计算属性
     isReady,
+
+    // 服务管理器方法
+    initialize,
+    checkSupport,
+    loadModel,
+    unloadModel,
+    cleanup,
+    inference,
 
     // 模型管理
     getRecommendedModels,
@@ -118,19 +131,10 @@ export const useAIStore = defineStore('ai', () => {
     getParams,
     saveLastModel,
 
-    // 引擎控制
-    checkSupport,
-    loadModel,
-    unloadModel,
-    resetAutoUnloadTimer,
-    clearAutoUnloadTimer,
-
-    // AI 核心
+    // AI 功能 (保持现有)
     chat,
     addToHistory,
     clearHistory,
-
-    // AI 功能
     summarizeChapter,
     recapPrevious,
     askAboutBook,
@@ -140,9 +144,22 @@ export const useAIStore = defineStore('ai', () => {
     detectMemes,
     buildCharacterGraph,
 
-    // 工具
-    // 工具
+    // RAG 知识库
     indexChapter,
+    searchRag,
+    clearRag,
+
+    // 工具方法
     analyzeInChunks,
+
+    // 缓存管理
+    getCacheStats,
+    clearModelCache,
+    getCachedModels,
+    preloadRecommendedModels,
+
+    // 兼容性方法
+    resetAutoUnloadTimer: aiModules.resetAutoUnloadTimer,
+    clearAutoUnloadTimer: aiModules.clearAutoUnloadTimer,
   }
 })

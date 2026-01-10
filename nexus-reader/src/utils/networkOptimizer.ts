@@ -198,20 +198,22 @@ export class NetworkDetector {
   startMonitoring(): void {
     if (this.updateInterval) return
 
-    this.updateInterval = window.setInterval(() => {
-      const newInfo = this.detectNetworkInfo()
-      if (this.hasNetworkChanged(newInfo)) {
-        this.networkInfo = newInfo
-        this.notifyListeners(newInfo)
-      }
-    }, 5000) // 每5秒检查一次
+    if (typeof window !== 'undefined') {
+      this.updateInterval = window.setInterval(() => {
+        const newInfo = this.detectNetworkInfo()
+        if (this.hasNetworkChanged(newInfo)) {
+          this.networkInfo = newInfo
+          this.notifyListeners(newInfo)
+        }
+      }, 5000) // 每5秒检查一次
 
-    console.log('🌐 Network monitoring started')
+      console.log('🌐 Network monitoring started')
+    }
   }
 
   // 停止监控网络变化
   stopMonitoring(): void {
-    if (this.updateInterval) {
+    if (this.updateInterval && typeof window !== 'undefined') {
       clearInterval(this.updateInterval)
       this.updateInterval = null
       console.log('🌐 Network monitoring stopped')
@@ -221,15 +223,18 @@ export class NetworkDetector {
   private initNetworkDetection(): void {
     this.networkInfo = this.detectNetworkInfo()
 
-    // 监听在线/离线状态变化
-    window.addEventListener('online', this.handleOnlineStatusChange.bind(this))
-    window.addEventListener('offline', this.handleOnlineStatusChange.bind(this))
+    // 只在浏览器环境中添加事件监听器
+    if (typeof window !== 'undefined') {
+      // 监听在线/离线状态变化
+      window.addEventListener('online', this.handleOnlineStatusChange.bind(this))
+      window.addEventListener('offline', this.handleOnlineStatusChange.bind(this))
 
-    // 监听连接变化（如果支持）
-    if ('connection' in navigator) {
-      const connection = (navigator as any).connection
-      if (connection) {
-        connection.addEventListener('change', this.handleConnectionChange.bind(this))
+      // 监听连接变化（如果支持）
+      if ('connection' in navigator) {
+        const connection = (navigator as any).connection
+        if (connection) {
+          connection.addEventListener('change', this.handleConnectionChange.bind(this))
+        }
       }
     }
   }
@@ -258,7 +263,7 @@ export class NetworkDetector {
       downlink: 0,
       rtt: 0,
       saveData: false,
-      isOnline: navigator.onLine,
+      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       connectionType: 'unknown'
     }
   }

@@ -1,22 +1,25 @@
 version: '3.8'
 
 # =============================================================================
-# 飞牛OS Docker Compose配置 - 简化直接使用版本
+# Nexus Reader 飞牛OS Docker Compose配置
+# 优化版：端侧AI + 多架构支持
 # =============================================================================
 
 services:
-  # 主应用服务
+  # 主应用服务 - 使用优化后的构建
   nexus-lite:
-    image: ghcr.io/seeu/nexus-lite:${IMAGE_TAG:-fnos-latest}
-    container_name: nexus-lite
+    image: ghcr.io/${GITHUB_OWNER:-seeu}/nexus-lite:${IMAGE_TAG:-latest}
+    container_name: nexus-reader
     restart: unless-stopped
     ports:
       - "${NEXUS_PORT:-8080}:8080"
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=${RUST_LOG:-info}
       - HOST=0.0.0.0
       - PORT=8080
       - TZ=${TZ:-Asia/Shanghai}
+      - STATIC_DIR=/app/static
+      - FNOS_OPTIMIZED=true
     volumes:
       - ${DATA_DIR:-./data}/nexus:/app/data
       - ${DATA_DIR:-./data}/cache:/app/cache
@@ -35,13 +38,16 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '1.0'
+          memory: ${NEXUS_MEMORY_LIMIT:-1G}
+          cpus: '${NEXUS_CPU_LIMIT:-2.0}'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
 
   # CloudFlare绕过服务
   cf-bypass:
-    image: ghcr.io/seeu/cf-bypass-service:${IMAGE_TAG:-fnos-latest}
-    container_name: cf-bypass
+    image: ghcr.io/${GITHUB_OWNER:-seeu}/cf-bypass-service:${IMAGE_TAG:-latest}
+    container_name: nexus-cf-bypass
     restart: unless-stopped
     ports:
       - "${CF_BYPASS_PORT:-8000}:8000"
@@ -50,6 +56,7 @@ services:
       - PORT=8000
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
+      - TZ=${TZ:-Asia/Shanghai}
     volumes:
       - ${DATA_DIR:-./data}/cf-bypass:/app/data
     networks:
@@ -68,13 +75,23 @@ services:
         limits:
           memory: 256M
           cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
 
-  # Redis缓存
+  # Redis缓存 - 飞牛OS优化配置
   redis:
     image: redis:7-alpine
     container_name: nexus-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory ${REDIS_MEMORY:-128mb}
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
     volumes:
       - ${DATA_DIR:-./data}/redis:/data
     networks:
@@ -87,9 +104,31 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: ${REDIS_MEMORY:-128M}
           cpus: '0.25'
+        reservations:
+          memory: 32M
+          cpus: '0.1'
 
 networks:
   nexus-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# 飞牛OS扩展配置（可选）
+# =============================================================================
+x-fnos-labels: &fnos-labels
+  - "fnos.app.name=nexus-reader"
+  - "fnos.app.version=${IMAGE_TAG:-latest}"
+  - "fnos.app.description=AI-powered novel reader"
+  - "fnos.app.url=http://localhost:8080"
+  - "fnos.app.icon=📚"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

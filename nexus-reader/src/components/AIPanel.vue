@@ -5,7 +5,7 @@
  */
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAIStore } from '@/stores/ai'
+import { useAIService } from '@/stores/ai'
 import { useReaderStore } from '@/stores/reader'
 import { getCache, setCache } from '@/composables/useAICache'
 import { exportAIAnalysis, downloadMarkdown } from '@/utils/aiExport'
@@ -33,7 +33,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const aiStore = useAIStore()
+const aiStore = useAIService()
 const readerStore = useReaderStore()
 const { success, error: showError } = useMessage()
 

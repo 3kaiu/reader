@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { Sparkles, Loader2, RefreshCw, Zap } from 'lucide-vue-next'
-import { useAIStore } from '@/stores/ai'
+import { useAIService } from '@/stores/ai'
 import { useSettingsStore } from '@/stores/settings'
 import { getCache, setCache } from '@/composables/useAICache'
 import { useReaderStore } from '@/stores/reader'
@@ -16,7 +16,7 @@ const props = defineProps<{
   }
 }>()
 
-const aiStore = useAIStore()
+const aiStore = useAIService()
 const settingsStore = useSettingsStore()
 const readerStore = useReaderStore()
 

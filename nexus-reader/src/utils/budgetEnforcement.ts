@@ -237,32 +237,45 @@ export class BuildTimeBudgetEnforcer {
     }
   }
 
-  // 输出JSON报告
+  // 输出JSON报告 - 浏览器兼容版本
   private async outputJsonReport(report: BuildBudgetReport): Promise<void> {
-    const fs = await import('fs').catch(() => null)
-    if (!fs) {
-      console.warn('File system not available, skipping JSON report')
+    // 在浏览器环境中，我们不能直接写文件
+    if (typeof window !== 'undefined') {
+      console.warn('File system not available in browser, skipping JSON report')
+      // 将报告存储到localStorage作为替代
+      localStorage.setItem('performance-budget-report', JSON.stringify(report, null, 2))
       return
     }
 
-    const reportJson = JSON.stringify(report, null, 2)
-    fs.writeFileSync(this.config.outputPath, reportJson)
-    console.log(`📊 Budget report saved to: ${this.config.outputPath}`)
+    // Node.js环境下的文件操作（构建时）
+    try {
+      const fs = await import('fs')
+      const reportJson = JSON.stringify(report, null, 2)
+      fs.writeFileSync(this.config.outputPath, reportJson)
+      console.log(`📊 Budget report saved to: ${this.config.outputPath}`)
+    } catch (error) {
+      console.warn('Failed to write JSON report:', error)
+    }
   }
 
-  // 输出HTML报告
+  // 输出HTML报告 - 浏览器兼容版本
   private async outputHtmlReport(report: BuildBudgetReport): Promise<void> {
     const htmlContent = this.generateHtmlReport(report)
     const htmlPath = this.config.outputPath.replace('.json', '.html')
     
-    const fs = await import('fs').catch(() => null)
-    if (!fs) {
-      console.warn('File system not available, skipping HTML report')
+    // 在浏览器环境中跳过文件操作
+    if (typeof window !== 'undefined') {
+      console.warn('File system not available in browser, skipping HTML report')
       return
     }
 
-    fs.writeFileSync(htmlPath, htmlContent)
-    console.log(`📊 HTML budget report saved to: ${htmlPath}`)
+    try {
+      const fs = await import('fs')
+      fs.writeFileSync(htmlPath, htmlContent)
+      console.log(`📊 HTML budget report saved to: ${htmlPath}`)
+    } catch (error) {
+      console.warn('Failed to write HTML report:', error)
+    }
   }
 
   // 输出控制台报告

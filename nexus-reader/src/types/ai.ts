@@ -28,13 +28,17 @@ export interface ModelCandidate {
  */
 export interface ModelInfo {
   id: string
+  name: string
+  fullName: string
   vendor: string
-  size?: string
-  params?: string
-  quantization?: string
+  size: string
+  params: string
+  quantization: string
+  description: string
+  recommended: boolean
   vram?: number
-  contextWindow?: number
-  series?: string
+  contextWindow: number
+  series: string
 }
 
 /**

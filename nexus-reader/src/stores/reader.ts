@@ -85,8 +85,8 @@ export const useReaderStore = defineStore('reader', () => {
         // AI索引 (后台任务)
         const runIndexing = async () => {
           try {
-            const { useAIStore } = await import('./ai')
-            const aiStore = useAIStore()
+            const { useAIService } = await import('./ai')
+            const aiStore = useAIService()
             await aiStore.indexChapter(
               navigationStore.catalog[index].title || '', 
               chapterContent, 

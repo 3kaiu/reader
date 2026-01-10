@@ -17,7 +17,7 @@ import { useSwipeMode } from '@/composables/useSwipeMode'
 import { useTTSReader } from '@/composables/useTTSReader'
 import { useEyeCare } from '@/composables/useEyeCare'
 import { useAIInsightsStore } from '@/stores/aiInsights'
-import { useAIStore } from '@/stores/ai'
+import { useAIService } from '@/stores/ai'
 import { useEngagementTracker } from '@/composables/useEngagementTracker'
 import { useEventManager } from '@/utils/eventManager'
 
@@ -40,7 +40,7 @@ const readerStore = useReaderStore()
 const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
 const insightsStore = useAIInsightsStore()
-const aiStore = useAIStore()
+const aiStore = useAIService()
 const tts = useTTS()
 const eyeCare = useEyeCare()
 

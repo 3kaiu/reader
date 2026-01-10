@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useAIStore } from './ai'
+import { useAIService } from './ai'
 import type { ChapterInsight, InsightCacheItem } from '@/types/insights'
 import { logger } from '@/utils/logger'
 
@@ -9,7 +9,7 @@ const STORE_NAME = 'chapter-insights'
 const MANUAL_STORE_NAME = 'manual-characters'
 
 export const useAIInsightsStore = defineStore('aiInsights', () => {
-  const aiStore = useAIStore()
+  const aiStore = useAIService()
   const currentInsight = ref<ChapterInsight | null>(null)
   const isAnalyzing = ref(false)
 
