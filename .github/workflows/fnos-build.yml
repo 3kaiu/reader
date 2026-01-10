@@ -241,7 +241,7 @@ jobs:
           echo "🚀 Starting Nexus Reader on FnOS..."
           mkdir -p data/{nexus,cache,logs,cf-bypass,redis}
           sudo chown -R 1000:1000 data/ 2>/dev/null || true
-          docker-compose up -d
+          docker compose up -d
           echo "✅ Nexus Reader started successfully!"
           echo "📱 Access: http://$(hostname -I | awk '{print $1}'):8080"
           EOF
@@ -249,14 +249,14 @@ jobs:
           cat > fnos-package/stop.sh << 'EOF'
           #!/bin/bash
           echo "🛑 Stopping Nexus Reader..."
-          docker-compose down
+          docker compose down
           echo "✅ Nexus Reader stopped successfully!"
           EOF
           
           cat > fnos-package/update.sh << 'EOF'
           #!/bin/bash
-          echo "� Updating Nexus Readerr..."
-          docker-compose pull && docker-compose up -d
+          echo "🔄 Updating Nexus Reader..."
+          docker compose pull && docker compose up -d
           echo "✅ Nexus Reader updated successfully!"
           EOF
           
@@ -275,7 +275,7 @@ jobs:
           - 启动: \`./start.sh\`
           - 停止: \`./stop.sh\`  
           - 更新: \`./update.sh\`
-          - 日志: \`docker-compose logs -f\`
+          - 日志: \`docker compose logs -f\`
           
           ## 系统要求
           - 飞牛OS 1.0+ / Docker 20.10+
@@ -370,14 +370,14 @@ jobs:
           EOF
           
           # 启动测试
-          docker-compose -f docker-compose.test.yml up -d
+          docker compose -f docker-compose.test.yml up -d
           
           # 等待服务启动 (减少等待时间)
           echo "Waiting for service to start..."
           for i in {1..12}; do
-            if docker-compose -f docker-compose.test.yml ps | grep -q "healthy"; then
+            if docker compose -f docker-compose.test.yml ps | grep -q "healthy"; then
               echo "✅ FnOS test passed - Architecture: ${{ matrix.arch }}"
-              docker-compose -f docker-compose.test.yml down
+              docker compose -f docker-compose.test.yml down
               exit 0
             fi
             echo "Attempt $i/12 - waiting..."
@@ -385,6 +385,6 @@ jobs:
           done
           
           echo "❌ FnOS test failed - Architecture: ${{ matrix.arch }}"
-          docker-compose -f docker-compose.test.yml logs
-          docker-compose -f docker-compose.test.yml down
+          docker compose -f docker-compose.test.yml logs
+          docker compose -f docker-compose.test.yml down
           exit 1
