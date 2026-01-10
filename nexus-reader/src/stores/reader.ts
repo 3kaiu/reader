@@ -1,222 +1,97 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { bookApi, type Book, type Chapter } from '../api'
+import { computed } from 'vue'
+import { type Book } from '../api'
 import { logger } from '../utils/logger'
-import { ERROR_PATTERNS, ERROR_MESSAGE_MAP, PRELOAD_CONFIG, MIN_CONTENT_LENGTH } from '../constants/reader'
-import { useOfflineStore } from './offlineStorage'
-import { formatContentAsync } from '../composables/useContentParser'
-import { perfMonitor } from '../utils/performance'
-import { useErrorHandler } from '../composables/useErrorHandler'
-// import { syncChannel } from '../utils/broadcast'
-
-const { formatErrorMessage } = useErrorHandler()
-
-// 检测内容是否有问题
-function detectContentIssue(text: string): string | null {
-  if (!text) return '章节内容为空'
-  if (text.length < MIN_CONTENT_LENGTH) {
-    // 检查是否只是短章节说明
-    if (!text.includes('第') && !text.includes('章')) {
-      return '章节内容过短，可能加载失败'
-    }
-  }
-  for (const pattern of ERROR_PATTERNS) {
-    if (text.includes(pattern)) {
-      return '书源返回受限内容，建议换一个书源'
-    }
-  }
-  return null
-}
+import { useReaderContentStore } from './reader/content'
+import { useReaderUIStore } from './reader/ui'
+import { useReaderNavigationStore } from './reader/navigation'
+import { createErrorHandler } from '../utils/errorHandler'
 
 export const useReaderStore = defineStore('reader', () => {
-  // 状态
-  const currentBook = ref<Book | null>(null)
-  const catalog = ref<Chapter[]>([])
-  const currentChapterIndex = ref(0)
-  const content = ref('')
-  const formattedContent = ref('') // 预先格式化好的 HTML
-  const isLoading = ref(false)
-  const isParsing = ref(false) // 正在解析内容
-  const isLoadingMore = ref(false)  // 加载更多章节状态
-  const error = ref<string | null>(null)
-  const contentIssue = ref<string | null>(null)  // 内容问题提示
-  const loadError = ref<string | null>(null)  // 自动加载错误状态
-
-  // 无限滚动模式: 存储已加载的章节内容
-  const loadedChapters = ref<{ index: number; title: string; content: string; formattedContent?: string }[]>([])
+  // 使用分离的子stores
+  const contentStore = useReaderContentStore()
+  const uiStore = useReaderUIStore()
+  const navigationStore = useReaderNavigationStore()
   
-  // 章节内存管理配置
-  const MAX_LOADED_CHAPTERS = 20 // 最多保留20章
-  const CHAPTER_CLEANUP_THRESHOLD = 15 // 超过15章时开始清理
+  // 创建错误处理器
+  const errorHandler = createErrorHandler({ component: 'ReaderStore' })
+
+  // 代理主要状态到子stores
+  const currentBook = computed(() => navigationStore.currentBook)
+  const catalog = computed(() => navigationStore.catalog)
+  const currentChapterIndex = computed(() => navigationStore.currentChapterIndex)
+  const content = computed(() => contentStore.content)
+  const formattedContent = computed(() => contentStore.formattedContent)
+  const isLoading = computed(() => uiStore.isLoading)
+  const isParsing = computed(() => contentStore.isParsing)
+  const isLoadingMore = computed(() => uiStore.isLoadingMore)
+  const error = computed(() => uiStore.error)
+  const contentIssue = computed(() => contentStore.contentIssue)
+  const loadError = computed(() => uiStore.loadError)
+  const loadedChapters = computed(() => contentStore.loadedChapters)
+
+  // 代理导航计算属性
+  const currentChapter = computed(() => navigationStore.currentChapter)
+  const totalChapters = computed(() => navigationStore.totalChapters)
+  const hasNextChapter = computed(() => navigationStore.hasNextChapter)
+  const hasPrevChapter = computed(() => navigationStore.hasPrevChapter)
+  const progress = computed(() => navigationStore.progress)
 
   // 阅读指标
-  const readingMetrics = ref({
-    charsRead: 0,
-    timeSpent: 0,
-    speed: 0,
-    lastUpdateTime: 0
-  })
+  const readingMetrics = computed(() => uiStore.readingMetrics)
 
-  // 更新阅读指标
-  function updateReadingMetrics(length: number) {
-    if (length > 0) {
-      readingMetrics.value.charsRead += length
-      readingMetrics.value.lastUpdateTime = Date.now()
-    }
-  }
-
-  // 缓存
-  const chapterCache = new Map<number, string>()
-
-  // 根据网络状况动态调整预加载数量
-  function getPreloadCount(): number {
-    const connection = (navigator as any).connection
-    if (!connection) return 5 // 默认值
-
-    switch (connection.effectiveType) {
-      case '4g': return 8      // 快速网络多预加载
-      case '3g': return 3      // 中等网络适当预加载
-      case '2g':
-      case 'slow-2g': return 1 // 慢速网络最少预加载
-      default: return 5
-    }
-  }
-
-  // 计算属性
-  const currentChapter = computed(() => catalog.value[currentChapterIndex.value])
-  const totalChapters = computed(() => catalog.value.length)
-  const hasNextChapter = computed(() => currentChapterIndex.value < totalChapters.value - 1)
-  const hasPrevChapter = computed(() => currentChapterIndex.value > 0)
-  const progress = computed(() =>
-    totalChapters.value > 0
-      ? Math.round((currentChapterIndex.value + 1) / totalChapters.value * 100)
-      : 0
-  )
-
-  // 打开书籍 (refresh=true 强制刷新目录，换源时使用)
+  // 主要方法 - 委托给子stores
   async function openBook(book: Book, refresh = false) {
-    currentBook.value = book
-    isLoading.value = true
-    error.value = null
-    contentIssue.value = null
-    chapterCache.clear() // 清空章节内容缓存
-    loadedChapters.value = [] // 清空已加载章节
-
-    try {
-      const res = await bookApi.getChapterList(book.sourceId, book.bookUrl)
-      if (res.isSuccess) {
-        catalog.value = res.data
-        // 换源时从第一章开始，否则恢复上次阅读位置
-        currentChapterIndex.value = refresh ? 0 : (book.lastChapterIndex || 0)
-        await loadChapter(currentChapterIndex.value)
-      } else {
-        error.value = formatErrorMessage(res.errorMsg || '加载目录失败')
+    const result = await errorHandler.handleAsync(async () => {
+      uiStore.setLoading(true)
+      uiStore.clearErrors()
+      contentStore.clearCache()
+      
+      const success = await navigationStore.openBook(book, refresh)
+      if (success) {
+        await loadChapter(navigationStore.currentChapterIndex)
       }
-    } catch (e) {
-      error.value = formatErrorMessage(e)
-    } finally {
-      isLoading.value = false
+    }, { function: 'openBook', bookId: book.id })
+    
+    if (!result.success) {
+      uiStore.setError(result.error.userMessage)
     }
+    
+    uiStore.setLoading(false)
   }
 
   // 加载章节内容
   async function loadChapter(index: number, forceRefresh = false) {
-    if (!currentBook.value || index < 0 || index >= catalog.value.length) return
+    if (!navigationStore.currentBook || index < 0 || index >= navigationStore.catalog.length) return
 
-    // 如果强制刷新，先清除缓存
-    if (forceRefresh) {
-      const offlineStore = useOfflineStore()
-      chapterCache.delete(index)
-      await offlineStore.clearCachedChapter(currentBook.value.bookUrl, index)
-    }
-
-    // 先设置索引，让UI响应
-    currentChapterIndex.value = index
-    error.value = null
-    contentIssue.value = null  // 重置内容问题状态
-
-    const loadMark = `chapter-load-${index}`
-    perfMonitor.startMark(loadMark)
-
-    // 1. 检查内存缓存
-    if (chapterCache.has(index)) {
-      const cachedContent = chapterCache.get(index)!
-      content.value = cachedContent
-      isParsing.value = true
-      formattedContent.value = await formatContentAsync(cachedContent)
-      isParsing.value = false
-      contentIssue.value = detectContentIssue(cachedContent)
-
-      perfMonitor.endMark(loadMark, 'reader-chapter-load', {
+    const result = await errorHandler.handleAsync(async () => {
+      // 先设置导航位置
+      navigationStore.goToChapter(index)
+      uiStore.clearErrors()
+      
+      // 加载内容
+      const chapterContent = await contentStore.loadChapterContent(
+        navigationStore.currentBook!,
+        navigationStore.catalog,
         index,
-        source: 'memory-cache'
-      })
-
-      // 触发预加载
-      preloadChapters(index + 1)
-      return
-    }
-
-    // 2. 检查离线缓存 (IndexedDB)
-    const offlineStore = useOfflineStore()
-    const offlineCached = await offlineStore.getCachedChapter(
-      currentBook.value.bookUrl,
-      index
-    )
-    if (offlineCached) {
-      content.value = offlineCached.content
-      chapterCache.set(index, offlineCached.content)
-      isParsing.value = true
-      formattedContent.value = await formatContentAsync(offlineCached.content)
-      isParsing.value = false
-      contentIssue.value = detectContentIssue(offlineCached.content)
-
-      perfMonitor.endMark(loadMark, 'reader-chapter-load', {
-        index,
-        source: 'indexeddb'
-      })
-
-      preloadChapters(index + 1)
-      return
-    }
-
-    // 3. 从网络加载
-    isLoading.value = true
-
-    try {
-      const networkMark = `chapter-network-${index}`
-      perfMonitor.startMark(networkMark)
-      const res = await bookApi.getBookContent(currentBook.value.sourceId, catalog.value[index].url)
-      perfMonitor.endMark(networkMark, 'reader-network-fetch', { index })
-
-      if (res.isSuccess) {
-        const chapterContent = res.data.content
-        content.value = chapterContent
-        chapterCache.set(index, chapterContent)
-
-        isParsing.value = true
-        formattedContent.value = await formatContentAsync(chapterContent)
-        isParsing.value = false
-
-        // 检测内容问题
-        contentIssue.value = detectContentIssue(chapterContent)
-        // 保存阅读进度
-        saveProgress()
-        // 更新阅读速度指标
-        updateReadingMetrics(chapterContent.length)
-
-        perfMonitor.endMark(loadMark, 'reader-chapter-load', {
-          index,
-          source: 'network',
-          length: chapterContent.length
-        })
-
-        // 5. 索引到 AI RAG 知识库 (使用 Scheduler API 优化性能)
+        forceRefresh
+      )
+      
+      if (chapterContent) {
+        // 保存进度和更新指标
+        await navigationStore.saveProgress()
+        uiStore.updateReadingMetrics(chapterContent.length)
+        
+        // AI索引 (后台任务)
         const runIndexing = async () => {
           try {
             const { useAIStore } = await import('./ai')
             const aiStore = useAIStore()
-            await aiStore.indexChapter(catalog.value[index].title || '', chapterContent, index)
+            await aiStore.indexChapter(
+              navigationStore.catalog[index].title || '', 
+              chapterContent, 
+              index
+            )
           } catch (e) { /* 忽略索引错误 */ }
         }
 
@@ -228,177 +103,108 @@ export const useReaderStore = defineStore('reader', () => {
         } else {
           runIndexing()
         }
-
-        // 触发预加载
-        preloadChapters(index + 1)
-
-        // 4. 自动缓存到离线存储
-        offlineStore.cacheChapter({
-          id: `${currentBook.value.bookUrl}:${index}`,
-          bookUrl: currentBook.value.bookUrl,
-          sourceId: currentBook.value.sourceId,
-          chapterIndex: index,
-          title: catalog.value[index]?.title || '',
-          content: chapterContent,
-          cachedAt: Date.now(),
-        }).catch(() => {
-          // 忽略缓存错误
-        })
-      } else {
-        error.value = formatErrorMessage(res.errorMsg || '加载内容失败')
       }
-    } catch (e) {
-      error.value = formatErrorMessage(e)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  // 下一章
-  function nextChapter() {
-    if (hasNextChapter.value) {
-      loadChapter(currentChapterIndex.value + 1)
-    }
-  }
-
-  // 重新加载当前章节
-  async function reloadCurrentChapter() {
-    if (!currentBook.value) return
-    await loadChapter(currentChapterIndex.value, true)
-  }
-
-  // 追加下一章 (无限滚动模式) - 增强版本，支持重试
-  async function appendNextChapter(): Promise<boolean> {
-    if (!currentBook.value || isLoadingMore.value) return false
-
-    // 找到已加载章节中最大的索引
-    const maxLoadedIndex = loadedChapters.value.length > 0
-      ? Math.max(...loadedChapters.value.map(c => c.index))
-      : currentChapterIndex.value
-
-    const nextIndex = maxLoadedIndex + 1
-    if (nextIndex >= catalog.value.length) return false
-
-    isLoadingMore.value = true
-
-    // 重试逻辑
-    const maxRetries = 3
-    let lastError: any = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        // 检查缓存
-        let chapterContent: string
-        if (chapterCache.has(nextIndex)) {
-          chapterContent = chapterCache.get(nextIndex)!
-        } else {
-          const res = await bookApi.getBookContent(currentBook.value.sourceId, catalog.value[nextIndex].url)
-          if (!res.isSuccess) {
-            lastError = new Error(res.errorMsg || '加载章节失败')
-            if (attempt < maxRetries) {
-              // 等待后重试，使用指数退避
-              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
-              continue
-            }
-            // 最后一次重试失败，跳出循环
-            break
-          }
-          chapterContent = res.data.content
-          chapterCache.set(nextIndex, chapterContent)
-        }
-
-        // 追加到已加载章节
-        const formatted = await formatContentAsync(chapterContent)
-        loadedChapters.value.push({
-          index: nextIndex,
-          title: catalog.value[nextIndex]?.title || `第${nextIndex + 1}章`,
-          content: chapterContent,
-          formattedContent: formatted
-        })
-
-        // 内存管理：清理过多的已加载章节
-        if (loadedChapters.value.length > MAX_LOADED_CHAPTERS) {
-          const toRemove = loadedChapters.value.length - CHAPTER_CLEANUP_THRESHOLD
-          const removedChapters = loadedChapters.value.splice(0, toRemove)
-          
-          // 同时清理对应的章节缓存
-          removedChapters.forEach(chapter => {
-            chapterCache.delete(chapter.index)
-          })
-          
-          logger.info(`清理了${toRemove}个章节以释放内存`, { 
-            function: 'appendNextChapter',
-            remainingChapters: loadedChapters.value.length
-          })
-        }
-
-        // 清除错误状态
-        loadError.value = null
-
-        // 触发预加载
-        preloadChapters(nextIndex + 1)
-
-        return true
-      } catch (e) {
-        lastError = e
-        if (attempt < maxRetries) {
-          // 等待后重试
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
-          continue
-        }
-      }
-    }
-
-    // 所有重试都失败了
-    logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, { 
-      function: 'appendNextChapter',
-      nextIndex,
-      attempts: maxRetries
+    }, { 
+      function: 'loadChapter', 
+      chapterIndex: index,
+      bookId: navigationStore.currentBook?.id 
     })
     
-    // 设置错误状态，供UI显示
-    loadError.value = lastError?.message || '网络连接异常，请检查网络后重试'
-    
-    isLoadingMore.value = false
-    return false
-  }
-
-  // 重试加载下一章
-  async function retryLoadNext(): Promise<boolean> {
-    loadError.value = null // 清除错误状态
-    return await appendNextChapter()
-  }
-  // 初始化无限滚动模式
-  function initInfiniteScroll() {
-    loadError.value = null // 清除错误状态
-    loadedChapters.value = [{
-      index: currentChapterIndex.value,
-      title: currentChapter.value?.title || '',
-      content: content.value,
-      formattedContent: formattedContent.value
-    }]
-  }
-
-  // 上一章
-  function prevChapter() {
-    if (hasPrevChapter.value) {
-      loadChapter(currentChapterIndex.value - 1)
+    if (!result.success) {
+      uiStore.setError(result.error.userMessage)
     }
   }
 
-  // 跳转到指定章节
+  // 导航方法
+  function nextChapter() {
+    if (navigationStore.nextChapter()) {
+      loadChapter(navigationStore.currentChapterIndex)
+    }
+  }
+
+  function prevChapter() {
+    if (navigationStore.prevChapter()) {
+      loadChapter(navigationStore.currentChapterIndex)
+    }
+  }
+
   async function goToChapter(index: number) {
-    if (index >= 0 && index < catalog.value.length) {
+    if (navigationStore.goToChapter(index)) {
       await loadChapter(index)
     }
   }
 
+  // 无限滚动相关方法
+  async function appendNextChapter(): Promise<boolean> {
+    if (!navigationStore.currentBook || uiStore.isLoadingMore) return false
+
+    // 找到已加载章节中最大的索引
+    const maxLoadedIndex = contentStore.loadedChapters.length > 0
+      ? Math.max(...contentStore.loadedChapters.map(c => c.index))
+      : navigationStore.currentChapterIndex
+
+    const nextIndex = maxLoadedIndex + 1
+    if (nextIndex >= navigationStore.catalog.length) return false
+
+    uiStore.setLoadingMore(true)
+
+    try {
+      // 重试逻辑
+      const maxRetries = 3
+      let lastError: any = null
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await contentStore.appendChapterContent(
+            navigationStore.currentBook,
+            navigationStore.catalog,
+            nextIndex
+          )
+
+          // 清除错误状态
+          uiStore.setLoadError(null)
+          return true
+        } catch (e) {
+          lastError = e
+          if (attempt < maxRetries) {
+            // 等待后重试
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+            continue
+          }
+        }
+      }
+
+      // 所有重试都失败了
+      logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, { 
+        function: 'appendNextChapter',
+        nextIndex,
+        attempts: maxRetries
+      })
+      
+      // 设置错误状态，供UI显示
+      uiStore.setLoadError(lastError?.message || '网络连接异常，请检查网络后重试')
+      return false
+    } finally {
+      uiStore.setLoadingMore(false)
+    }
+  }
+
+  async function retryLoadNext(): Promise<boolean> {
+    uiStore.setLoadError(null)
+    return await appendNextChapter()
+  }
+
+  function initInfiniteScroll() {
+    uiStore.setLoadError(null)
+    contentStore.initInfiniteScroll(navigationStore.currentChapter)
+  }
+
   // 跳转到指定章节（无限滚动模式优化版本）
   async function goToChapterInScroll(index: number) {
-    if (index < 0 || index >= catalog.value.length) return
+    if (index < 0 || index >= navigationStore.catalog.length) return
     
     // 检查目标章节是否已经在已加载章节中
-    const targetChapter = loadedChapters.value.find(ch => ch.index === index)
+    const targetChapter = contentStore.loadedChapters.find(ch => ch.index === index)
     
     if (targetChapter) {
       // 章节已加载，直接更新索引并滚动
@@ -410,65 +216,41 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
-  // 刷新当前章节 (返回刷新前的滚动比例供调用方恢复)
+  // 刷新相关方法
+  async function reloadCurrentChapter() {
+    if (!navigationStore.currentBook) return
+    await loadChapter(navigationStore.currentChapterIndex, true)
+  }
+
   async function refreshChapter(): Promise<number> {
-    if (!currentBook.value) return 0
+    if (!navigationStore.currentBook) return 0
 
     // 保存刷新前的滚动比例
     const scrollRatio = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) || 0
 
-    isLoading.value = true
+    uiStore.setLoading(true)
     try {
       // 先刷新目录
-      const catalogRes = await bookApi.getChapterList(currentBook.value.sourceId, currentBook.value.bookUrl)
-      if (catalogRes.isSuccess) {
-        catalog.value = catalogRes.data
-      }
-      // 清除当前缓存并强制刷新
-      chapterCache.delete(currentChapterIndex.value)
-      await loadChapter(currentChapterIndex.value)
-
+      await navigationStore.refreshCatalog()
+      // 强制刷新当前章节
+      await loadChapter(navigationStore.currentChapterIndex, true)
       return scrollRatio
     } finally {
-      isLoading.value = false
+      uiStore.setLoading(false)
     }
   }
 
-  // 检查章节是否已缓存
-  function isChapterCached(index: number): boolean {
-    return chapterCache.has(index)
-  }
-
-  // 保存阅读进度到服务器 (自动获取当前滚动百分比)
-  async function saveProgress() {
-    if (!currentBook.value || !currentBook.value.id) return
-
-    // 计算当前滚动百分比 (0-100)
-    const scrollHeight = document.documentElement.scrollHeight - window.innerHeight
-    const scrollPercent = scrollHeight > 0
-      ? Math.round((window.scrollY / scrollHeight) * 100)
-      : 0
-
-    try {
-      await bookApi.saveBookProgress(currentBook.value.id, currentChapterIndex.value, scrollPercent)
-    } catch (e) {
-      logger.error('保存进度失败', e as Error, { function: 'saveProgress' })
-    }
-  }
-
-  // 设置当前章节索引（不加载内容，用于滚动同步）
+  // 章节索引管理
   function setCurrentChapterIndex(index: number) {
-    if (index >= 0 && index < catalog.value.length && index !== currentChapterIndex.value) {
-      currentChapterIndex.value = index
+    if (navigationStore.setCurrentChapterIndex(index)) {
       // 保存进度
-      saveProgress()
+      navigationStore.saveProgress()
       
       // 在无限滚动模式下，确保当前章节在已加载章节列表中
-      if (loadedChapters.value.length > 0) {
-        const hasChapter = loadedChapters.value.some(ch => ch.index === index)
-        if (!hasChapter && index < loadedChapters.value.length) {
-          // 如果当前章节不在已加载列表中，但索引在范围内，可能需要重新初始化
-          logger.info(`Chapter ${index} not in loaded chapters, current loaded: ${loadedChapters.value.map(ch => ch.index).join(', ')}`)
+      if (contentStore.loadedChapters.length > 0) {
+        const hasChapter = contentStore.loadedChapters.some(ch => ch.index === index)
+        if (!hasChapter && index < contentStore.loadedChapters.length) {
+          logger.info(`Chapter ${index} not in loaded chapters, current loaded: ${contentStore.loadedChapters.map(ch => ch.index).join(', ')}`)
         }
       }
     }
@@ -476,7 +258,7 @@ export const useReaderStore = defineStore('reader', () => {
 
   // 根据滚动位置更新当前章节索引（用于无限滚动模式）
   function updateChapterIndexByScroll() {
-    if (loadedChapters.value.length === 0) return
+    if (contentStore.loadedChapters.length === 0) return
     
     // 获取当前可见的章节标记
     const chapterMarkers = document.querySelectorAll('.chapter-marker[data-chapter-index]')
@@ -486,11 +268,11 @@ export const useReaderStore = defineStore('reader', () => {
     const viewportHeight = window.innerHeight
     const viewportCenter = viewportTop + viewportHeight / 2
     
-    let currentVisibleIndex = currentChapterIndex.value
+    let currentVisibleIndex = navigationStore.currentChapterIndex
     
     // 找到最接近视口中心的章节
-    for (const marker of chapterMarkers) {
-      const element = marker as HTMLElement
+    for (let i = 0; i < chapterMarkers.length; i++) {
+      const element = chapterMarkers[i] as HTMLElement
       const rect = element.getBoundingClientRect()
       const elementTop = rect.top + viewportTop
       
@@ -503,76 +285,25 @@ export const useReaderStore = defineStore('reader', () => {
     }
     
     // 更新当前章节索引（如果有变化）
-    if (currentVisibleIndex !== currentChapterIndex.value) {
+    if (currentVisibleIndex !== navigationStore.currentChapterIndex) {
       setCurrentChapterIndex(currentVisibleIndex)
     }
   }
 
-  // 重置
-  function reset() {
-    currentBook.value = null
-    catalog.value = []
-    currentChapterIndex.value = 0
-    content.value = ''
-    error.value = null
-    contentIssue.value = null
-    loadError.value = null
-    loadedChapters.value = []
-    chapterCache.clear()
-    readingMetrics.value.lastUpdateTime = 0
+  // 工具方法
+  function isChapterCached(index: number): boolean {
+    return contentStore.isChapterCached(index)
   }
 
-  // 预加载章节
-  async function preloadChapters(startIndex: number) {
-    if (!currentBook.value || startIndex < 0 || startIndex >= catalog.value.length) return
-
-    const count = getPreloadCount()
-    const endIndex = Math.min(startIndex + count, catalog.value.length)
-    const offlineStore = useOfflineStore()
-
-    for (let i = startIndex; i < endIndex; i++) {
-      // 如果已经内存缓存了，跳过
-      if (chapterCache.has(i)) continue
-
-      // 检查离线缓存
-      const offlineCached = await offlineStore.getCachedChapter(
-        currentBook.value.bookUrl,
-        i
-      )
-      if (offlineCached) {
-        chapterCache.set(i, offlineCached.content)
-        continue
-      }
-
-      // 异步加载但不阻塞主流程
-      const sourceId = currentBook.value.sourceId
-      const bookUrl = currentBook.value.bookUrl
-      const chapter = catalog.value[i]
-
-      if (!chapter) continue
-
-      bookApi.getBookContent(sourceId, chapter.url)
-        .then(res => {
-          if (res.isSuccess) {
-            const chapterContent = res.data.content
-            chapterCache.set(i, chapterContent)
-            // 同时存入离线缓存
-            offlineStore.cacheChapter({
-              id: `${bookUrl}:${i}`,
-              bookUrl: bookUrl,
-              sourceId: sourceId,
-              chapterIndex: i,
-              title: chapter.title || '',
-              content: chapterContent,
-              cachedAt: Date.now(),
-            }).catch(() => { })
-          }
-        })
-        .catch(() => { })
-    }
+  // 重置所有状态
+  function reset() {
+    navigationStore.reset()
+    contentStore.clearCache()
+    uiStore.reset()
   }
 
   return {
+    // 状态 (computed properties that delegate to sub-stores)
     currentBook,
     catalog,
     currentChapterIndex,
@@ -590,6 +321,9 @@ export const useReaderStore = defineStore('reader', () => {
     hasPrevChapter,
     progress,
     loadedChapters,
+    readingMetrics,
+
+    // 方法 (delegate to sub-stores)
     openBook,
     loadChapter,
     reloadCurrentChapter,
@@ -604,10 +338,9 @@ export const useReaderStore = defineStore('reader', () => {
     setCurrentChapterIndex,
     updateChapterIndexByScroll,
     isChapterCached,
-    saveProgress,
-    preloadChapters,
+    saveProgress: navigationStore.saveProgress,
+    preloadChapters: contentStore.preloadChapters,
     reset,
-    readingMetrics,
-    updateReadingMetrics
+    updateReadingMetrics: uiStore.updateReadingMetrics
   }
 })

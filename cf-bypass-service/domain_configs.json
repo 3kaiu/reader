@@ -1,0 +1,62 @@
+{
+  "69shuba.com": {
+    "browser": {
+      "browser": "chrome",
+      "platform": "windows"
+    },
+    "stealth": {
+      "min_delay": 2.0,
+      "max_delay": 5.0,
+      "human_like_delays": true,
+      "randomize_headers": true
+    },
+    "proxy": {
+      "proxies": [],
+      "rotation_strategy": "smart",
+      "ban_time": 300
+    },
+    "interpreter": "js2py",
+    "timeout": 30,
+    "enabled": true
+  },
+  "hetushu.com": {
+    "browser": {
+      "browser": "firefox",
+      "platform": "linux"
+    },
+    "stealth": {
+      "min_delay": 1.5,
+      "max_delay": 4.0,
+      "human_like_delays": true,
+      "randomize_headers": true
+    },
+    "proxy": {
+      "proxies": [],
+      "rotation_strategy": "random",
+      "ban_time": 300
+    },
+    "interpreter": "nodejs",
+    "timeout": 30,
+    "enabled": true
+  },
+  "default": {
+    "browser": {
+      "browser": "chrome",
+      "platform": "windows"
+    },
+    "stealth": {
+      "min_delay": 1.0,
+      "max_delay": 3.0,
+      "human_like_delays": true,
+      "randomize_headers": true
+    },
+    "proxy": {
+      "proxies": [],
+      "rotation_strategy": "smart",
+      "ban_time": 300
+    },
+    "interpreter": "js2py",
+    "timeout": 30,
+    "enabled": true
+  }
+}

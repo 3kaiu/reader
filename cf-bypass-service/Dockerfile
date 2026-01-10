@@ -33,6 +33,10 @@ WORKDIR /app
 # Install minimal runtime dependencies
 RUN apk add --no-cache curl tzdata ca-certificates libstdc++
 
+# Create non-root user for security
+RUN addgroup -g 1000 cfbypass \
+    && adduser -u 1000 -G cfbypass -s /bin/sh -D cfbypass
+
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
@@ -40,8 +44,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy source code
 COPY app.py cloudscraper_wrapper.py config_manager.py config_validator.py enhanced_logger.py error_handler.py ./
 
-# Create data directory
-RUN mkdir -p /app/data/qidian
+# Create data directory with correct ownership
+RUN mkdir -p /app/data/qidian \
+    && chown -R cfbypass:cfbypass /app
+
+# Switch to non-root user
+USER cfbypass
 
 # Environment defaults
 ENV HOST=0.0.0.0

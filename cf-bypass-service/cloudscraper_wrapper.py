@@ -212,22 +212,38 @@ class CloudScraperWrapper:
         config = self._get_domain_config(domain)
         domain_config = config_manager.get_config(domain)
         
-        # Use CloudScraper's create_scraper with all built-in features
-        scraper = cloudscraper.create_scraper(**config)
-        
-        # CloudScraper built-in: Stealth mode configuration
-        # Note: CloudScraper handles stealth automatically, but we can configure delays
-        scraper.headers.update({
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        })
-        
-        logger.info(f"Created CloudScraper for {domain} with {domain_config.interpreter} interpreter")
-        return scraper
+        try:
+            # Use CloudScraper's create_scraper with valid parameters only
+            scraper = cloudscraper.create_scraper(**config)
+            
+            # CloudScraper built-in: Stealth mode configuration
+            # Note: CloudScraper handles stealth automatically, but we can configure delays
+            scraper.headers.update({
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
+            
+            logger.info(f"Created CloudScraper for {domain} with {domain_config.interpreter} interpreter")
+            return scraper
+            
+        except Exception as e:
+            logger.error(f"Failed to create CloudScraper for {domain}: {e}")
+            # Fallback to basic configuration
+            try:
+                scraper = cloudscraper.create_scraper(
+                    interpreter=domain_config.interpreter,
+                    browser={"browser": "chrome", "platform": "windows"}
+                )
+                logger.info(f"Created fallback CloudScraper for {domain}")
+                return scraper
+            except Exception as fallback_error:
+                logger.error(f"Fallback CloudScraper creation failed: {fallback_error}")
+                # Last resort: basic scraper
+                return cloudscraper.create_scraper()
     
     def _get_scraper(self, domain: str) -> cloudscraper.CloudScraper:
         """Get or create CloudScraper instance"""
@@ -275,8 +291,9 @@ class CloudScraperWrapper:
         
         try:
             # 3. Prepare request parameters
+            domain_config = config_manager.get_config(domain)
             kwargs = {
-                'timeout': timeout,
+                'timeout': timeout or domain_config.timeout,
             }
             
             # Merge headers (let CloudScraper handle User-Agent and other fingerprinting)

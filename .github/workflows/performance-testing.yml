@@ -1,0 +1,228 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 每天凌晨2点运行性能测试
+    - cron: '0 2 * * *'
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # 获取完整历史用于比较
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'pnpm'
+    
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+    
+    - name: Install dependencies
+      run: |
+        cd nexus-reader
+        pnpm install --frozen-lockfile
+    
+    - name: Build application
+      run: |
+        cd nexus-reader
+        pnpm build
+    
+    - name: Start application server
+      run: |
+        cd nexus-reader
+        pnpm preview &
+        sleep 10 # 等待服务器启动
+      env:
+        CI: true
+    
+    - name: Wait for server to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+    
+    - name: Install Lighthouse CI
+      run: npm install -g @lhci/cli
+    
+    - name: Run Lighthouse CI
+      run: |
+        cd nexus-reader
+        lhci autorun
+      env:
+        LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+    
+    - name: Run custom performance tests
+      run: |
+        cd nexus-reader
+        npm run test:performance
+      continue-on-error: true
+    
+    - name: Generate performance report
+      run: |
+        cd nexus-reader
+        npm run performance:report
+    
+    - name: Upload Lighthouse reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lighthouse-reports-${{ matrix.node-version }}
+        path: |
+          nexus-reader/.lighthouseci/
+          nexus-reader/performance-reports/
+        retention-days: 30
+    
+    - name: Comment PR with performance results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // 读取性能报告
+          const reportPath = path.join('nexus-reader', 'performance-reports', 'summary.json');
+          if (fs.existsSync(reportPath)) {
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            
+            const comment = `
+          ## 🚀 Performance Test Results
+          
+          ### Core Web Vitals
+          - **LCP**: ${report.lcp}ms ${report.lcp <= 2500 ? '✅' : '❌'}
+          - **FID**: ${report.fid}ms ${report.fid <= 100 ? '✅' : '❌'}
+          - **CLS**: ${report.cls} ${report.cls <= 0.1 ? '✅' : '❌'}
+          
+          ### Lighthouse Scores
+          - **Performance**: ${report.lighthouse?.performance || 'N/A'}/100
+          - **Accessibility**: ${report.lighthouse?.accessibility || 'N/A'}/100
+          - **Best Practices**: ${report.lighthouse?.bestPractices || 'N/A'}/100
+          - **SEO**: ${report.lighthouse?.seo || 'N/A'}/100
+          
+          ### Bundle Analysis
+          - **Total Size**: ${report.bundleSize}KB
+          - **Gzipped**: ${report.gzippedSize}KB
+          
+          ${report.regressions?.length > 0 ? `
+          ### ⚠️ Performance Regressions
+          ${report.regressions.map(r => `- ${r}`).join('\n')}
+          ` : ''}
+          
+          ${report.improvements?.length > 0 ? `
+          ### 🎉 Performance Improvements
+          ${report.improvements.map(i => `- ${i}`).join('\n')}
+          ` : ''}
+          
+          [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          `;
+          
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+    
+    - name: Fail if performance budget exceeded
+      run: |
+        cd nexus-reader
+        npm run performance:check-budget
+  
+  performance-comparison:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: performance-test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'pnpm'
+    
+    - name: Download current performance reports
+      uses: actions/download-artifact@v4
+      with:
+        name: lighthouse-reports-20.x
+        path: ./current-reports
+    
+    - name: Checkout base branch
+      run: git checkout ${{ github.base_ref }}
+    
+    - name: Install dependencies (base)
+      run: |
+        cd nexus-reader
+        pnpm install --frozen-lockfile
+    
+    - name: Build application (base)
+      run: |
+        cd nexus-reader
+        pnpm build
+    
+    - name: Start application server (base)
+      run: |
+        cd nexus-reader
+        pnpm preview &
+        sleep 10
+    
+    - name: Run Lighthouse CI (base)
+      run: |
+        cd nexus-reader
+        lhci autorun
+    
+    - name: Compare performance results
+      run: |
+        cd nexus-reader
+        npm run performance:compare -- --baseline=./.lighthouseci --current=../current-reports
+    
+    - name: Upload comparison report
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-comparison
+        path: nexus-reader/performance-comparison.json
+
+  performance-monitoring:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: performance-test
+    
+    steps:
+    - name: Send performance metrics to monitoring
+      run: |
+        # 发送性能指标到监控系统（如DataDog、New Relic等）
+        echo "Sending performance metrics to monitoring system"
+        # curl -X POST "https://api.datadoghq.com/api/v1/series" \
+        #   -H "Content-Type: application/json" \
+        #   -H "DD-API-KEY: ${{ secrets.DATADOG_API_KEY }}" \
+        #   -d @performance-metrics.json
+    
+    - name: Update performance dashboard
+      run: |
+        # 更新性能仪表板
+        echo "Updating performance dashboard"
+    
+    - name: Check performance alerts
+      run: |
+        # 检查性能告警
+        echo "Checking performance alerts"

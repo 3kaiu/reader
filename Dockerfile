@@ -73,6 +73,10 @@ WORKDIR /app
 # Install minimal runtime dependencies
 RUN apk add --no-cache ca-certificates curl tzdata
 
+# Create non-root user for security
+RUN addgroup -g 1000 nexus \
+    && adduser -u 1000 -G nexus -s /bin/sh -D nexus
+
 # Copy the statically linked and compressed binary
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/nexus-server /app/nexus-server
 
@@ -81,6 +85,13 @@ COPY --from=frontend-builder /app/dist /app/static
 
 # Copy default book sources
 COPY nexus-lite/sources /app/sources
+
+# Create directories with correct ownership
+RUN mkdir -p /app/data /app/cache \
+    && chown -R nexus:nexus /app
+
+# Switch to non-root user
+USER nexus
 
 # Default environment variables
 ENV RUST_LOG=info

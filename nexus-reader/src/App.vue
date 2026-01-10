@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 import { useWebSocketStore } from '@/stores/websocket'
 import LoginModal from '@/components/LoginModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import PerformanceDashboard from '@/components/PerformanceDashboard.vue'
 
 const settingsStore = useSettingsStore()
 const userStore = useUserStore()
@@ -33,6 +34,8 @@ onUnmounted(() => {
   <LoginModal v-model:show="userStore.showLoginModal" />
   <!-- 全局确认对话框 -->
   <ConfirmDialog />
+  <!-- 性能监控仪表板 (仅开发环境) -->
+  <PerformanceDashboard />
 </template>
 
 <style>

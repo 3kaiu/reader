@@ -117,17 +117,25 @@ class DomainConfig:
     
     def to_cloudscraper_config(self) -> Dict[str, Any]:
         """Convert to CloudScraper configuration format"""
-        return {
+        # Only include parameters that are actually supported by cloudscraper
+        config = {
             "interpreter": self.interpreter,
             "browser": asdict(self.browser),
             "delay": self.stealth.min_delay,
-            "disableCloudflareV1": False,
-            "disableCloudflareV2": False,
-            "disableCloudflareV3": False,
-            "disableTurnstile": False,
-            "debug": False,
-            "timeout": self.timeout
+            "debug": False
         }
+        
+        # Add proxy configuration if proxies are available
+        if self.proxy.proxies:
+            config.update({
+                "rotating_proxies": self.proxy.proxies,
+                "proxy_options": {
+                    "rotation_strategy": self.proxy.rotation_strategy,
+                    "ban_time": self.proxy.ban_time
+                }
+            })
+        
+        return config
 
 class ConfigManager:
     """Manages domain configurations with hot-reload support"""

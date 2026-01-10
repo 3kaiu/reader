@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -46,9 +48,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/ai-settings',
     name: 'ai-settings',
-    // AI 设置页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/ai-settings.vue'),
-    meta: { title: 'AI 模型' },
+    // AI 设置页面 - 按需加载（包含大依赖）
+    component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-settings.vue'),
+    meta: { title: 'AI 模型', feature: 'ai' },
   },
   {
     path: '/statistics',
@@ -67,16 +69,16 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/voice-settings',
     name: 'voice-settings',
-    // 音色管理页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/voice-settings.vue'),
-    meta: { title: '自定义音色' },
+    // 音色管理页面 - 按需加载（包含TTS依赖）
+    component: () => import(/* webpackChunkName: "tts-features" */ '@/pages/voice-settings.vue'),
+    meta: { title: '自定义音色', feature: 'tts' },
   },
   {
     path: '/ai-analysis-settings',
     name: 'ai-analysis-settings',
-    // AI 分析助手页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/ai-analysis-settings.vue'),
-    meta: { title: '网文分析助手' },
+    // AI 分析助手页面 - 按需加载（包含AI依赖）
+    component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-analysis-settings.vue'),
+    meta: { title: '网文分析助手', feature: 'ai' },
   },
 ]
 
