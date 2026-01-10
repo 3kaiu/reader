@@ -16,11 +16,11 @@ WORKDIR /app
 RUN apk add --no-cache brotli gzip python3 make g++
 
 # 复制依赖文件
-COPY nexus-reader/package.json ./
+COPY nexus-reader/package.json nexus-reader/bun.lock ./
 
 # 使用Bun安装依赖 - 比pnpm快很多
 RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-cache-$TARGETPLATFORM \
-    bun install
+    bun install --frozen-lockfile
 
 # 复制源代码
 COPY nexus-reader/ ./
@@ -38,85 +38,29 @@ RUN find dist -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -nam
     -print0 | xargs -0 -P$(nproc) -I{} sh -c 'brotli -9 "$1" && gzip -9 -k "$1"' _ {}
 
 # -----------------------------------------------------------------------------
-# 阶段2: Rust构建 - 多架构优化
+# 阶段2: Rust构建 - 使用1.92版本支持Cargo.lock v4
 # -----------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM lukemathwalker/cargo-chef:latest-rust-1.75 AS chef
+FROM rust:1.92-slim AS rust-builder
 
 ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 
 WORKDIR /app
 
-# 安装交叉编译工具
+# 安装基本构建工具
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
-    cmake \
-    perl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 根据目标平台安装工具链
-RUN case "$TARGETPLATFORM" in \
-    "linux/amd64") \
-        rustup target add x86_64-unknown-linux-gnu ;; \
-    "linux/arm64") \
-        apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
-        rustup target add aarch64-unknown-linux-gnu ;; \
-    esac
-
-FROM chef AS planner
+# 复制Rust项目
 COPY nexus-lite/ .
-RUN cargo chef prepare --recipe-path recipe.json
 
-FROM chef AS rust-builder
+# 简化构建 - 只构建当前平台，使用更新的Rust版本
+RUN cargo build --release --bin nexus-server
 
-ARG TARGETPLATFORM
-
-# 复制依赖配方
-COPY --from=planner /app/recipe.json recipe.json
-
-# 设置交叉编译环境
-ENV PKG_CONFIG_ALLOW_CROSS=1
-RUN case "$TARGETPLATFORM" in \
-    "linux/amd64") \
-        export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc && \
-        export CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc && \
-        export TARGET=x86_64-unknown-linux-gnu ;; \
-    "linux/arm64") \
-        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc && \
-        export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc && \
-        export TARGET=aarch64-unknown-linux-gnu ;; \
-    esac && \
-    echo "TARGET=$TARGET" > /tmp/target
-
-# 构建依赖
-RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-$TARGETPLATFORM \
-    --mount=type=cache,target=/usr/local/cargo/git,id=cargo-git-$TARGETPLATFORM \
-    --mount=type=cache,target=/app/target,id=cargo-target-$TARGETPLATFORM \
-    . /tmp/target && \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        RUSTFLAGS="-C target-feature=+crt-static" cargo chef cook --release --target $TARGET --recipe-path recipe.json; \
-    else \
-        RUSTFLAGS="-C target-feature=+crt-static -C codegen-units=1 -C lto=fat" cargo chef cook --release --target $TARGET --recipe-path recipe.json; \
-    fi
-
-# 复制源代码并构建
-COPY nexus-lite/ .
-RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-$TARGETPLATFORM \
-    --mount=type=cache,target=/usr/local/cargo/git,id=cargo-git-$TARGETPLATFORM \
-    --mount=type=cache,target=/app/target,id=cargo-target-$TARGETPLATFORM \
-    . /tmp/target && \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target $TARGET --bin nexus-server; \
-    else \
-        RUSTFLAGS="-C target-feature=+crt-static -C codegen-units=1 -C lto=fat" cargo build --release --target $TARGET --bin nexus-server; \
-    fi && \
-    cp target/$TARGET/release/nexus-server /app/nexus-server
-
-# 压缩二进制文件（仅AMD64）
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ] && command -v upx >/dev/null 2>&1; then \
-        upx --best /app/nexus-server; \
-    fi
+# 复制二进制文件
+RUN cp target/release/nexus-server /app/nexus-server
 
 # -----------------------------------------------------------------------------
 # 阶段3: 运行时 - 飞牛OS优化

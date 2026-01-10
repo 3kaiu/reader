@@ -104,6 +104,7 @@ jobs:
         run: |
           echo "Checking Rust code..."
           cargo check --release
+          echo "rust-version=$(rustc --version)" >> $GITHUB_OUTPUT
 
   # =============================================================================
   # Docker镜像构建 - 优化并行构建
@@ -126,7 +127,7 @@ jobs:
             needs-frontend: true
           - name: cf-bypass-service
             context: ./cf-bypass-service
-            dockerfile: ./cf-bypass-service/Dockerfile.fnos
+            dockerfile: ./cf-bypass-service/Dockerfile
             platforms: linux/amd64,linux/arm64
             needs-frontend: false
     
