@@ -1,69 +1,9 @@
 # =============================================================================
-# 飞牛OS优化的Dockerfile - 使用Bun替代pnpm，支持AMD64/ARM64
+# 飞牛OS优化的Dockerfile - 使用预构建的前端和后端产物
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# 阶段1: 前端构建 - 使用Bun
-# -----------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM oven/bun:1.1-alpine AS frontend-builder
-
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-
-WORKDIR /app
-
-# 安装构建工具
-RUN apk add --no-cache brotli gzip python3 make g++
-
-# 复制依赖文件
-COPY nexus-reader/package.json nexus-reader/bun.lock ./
-
-# 使用Bun安装依赖 - 比pnpm快很多
-RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-cache-$TARGETPLATFORM \
-    bun install --frozen-lockfile
-
-# 复制源代码
-COPY nexus-reader/ ./
-
-# 使用Bun构建前端 - 根据架构调整内存
-RUN --mount=type=cache,target=./.rsbuild,id=rsbuild-cache-$TARGETPLATFORM \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        NODE_OPTIONS="--max-old-space-size=1536" bun run build; \
-    else \
-        NODE_OPTIONS="--max-old-space-size=2048" bun run build; \
-    fi
-
-# 预压缩静态资源
-RUN find dist -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" \) \
-    -print0 | xargs -0 -P$(nproc) -I{} sh -c 'brotli -9 "$1" && gzip -9 -k "$1"' _ {}
-
-# -----------------------------------------------------------------------------
-# 阶段2: Rust构建 - 使用1.92版本支持Cargo.lock v4
-# -----------------------------------------------------------------------------
-FROM rust:1.92-slim AS rust-builder
-
-ARG TARGETPLATFORM
-
-WORKDIR /app
-
-# 安装基本构建工具
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# 复制Rust项目
-COPY nexus-lite/ .
-
-# 简化构建 - 只构建当前平台，使用更新的Rust版本
-RUN cargo build --release --bin nexus-server
-
-# 复制二进制文件
-RUN cp target/release/nexus-server /app/nexus-server
-
-# -----------------------------------------------------------------------------
-# 阶段3: 运行时 - 飞牛OS优化
+# 运行时镜像 - 飞牛OS优化，使用预构建产物
 # -----------------------------------------------------------------------------
 FROM debian:12-slim AS runtime
 
@@ -83,10 +23,13 @@ RUN groupadd -g 1000 fnos && \
 
 WORKDIR /app
 
-# 复制构建产物
-COPY --from=rust-builder /app/nexus-server ./nexus-server
-COPY --from=frontend-builder /app/dist ./static
+# 复制预构建的产物（由GitHub Actions提供）
+COPY nexus-lite/target/release/nexus-server ./nexus-server
+COPY nexus-reader/dist ./static
 COPY nexus-lite/sources ./sources
+
+# 设置二进制文件权限
+RUN chmod +x ./nexus-server
 
 # 创建数据目录
 RUN mkdir -p data cache logs && \
@@ -112,7 +55,7 @@ HEALTHCHECK --interval=45s --timeout=15s --start-period=60s --retries=3 \
 
 # 添加架构信息到启动日志
 RUN echo "#!/bin/bash" > /app/start.sh && \
-    echo "echo 'Starting Nexus Reader (Bun-built) on $TARGETPLATFORM for FnOS...'" >> /app/start.sh && \
+    echo "echo 'Starting Nexus Reader (Pre-built) on $TARGETPLATFORM for FnOS...'" >> /app/start.sh && \
     echo "exec ./nexus-server \"\$@\"" >> /app/start.sh && \
     chmod +x /app/start.sh
 
