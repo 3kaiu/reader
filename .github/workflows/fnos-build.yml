@@ -239,11 +239,47 @@ jobs:
           cat > fnos-package/start.sh << 'EOF'
           #!/bin/bash
           echo "🚀 Starting Nexus Reader on FnOS..."
+          
+          # 检查端口占用
+          check_port() {
+            local port=$1
+            local service=$2
+            if netstat -tuln 2>/dev/null | grep -q ":$port " || ss -tuln 2>/dev/null | grep -q ":$port "; then
+              echo "⚠️  警告: 端口 $port 已被占用 ($service)"
+              echo "   请修改 .env 文件中的端口配置"
+              return 1
+            fi
+            return 0
+          }
+          
+          # 读取配置文件中的端口
+          NEXUS_PORT=$(grep "^NEXUS_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8080")
+          CF_BYPASS_PORT=$(grep "^CF_BYPASS_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8001")
+          
+          # 检查端口
+          PORT_CONFLICT=false
+          check_port $NEXUS_PORT "Nexus Reader" || PORT_CONFLICT=true
+          check_port $CF_BYPASS_PORT "CF Bypass" || PORT_CONFLICT=true
+          
+          if [ "$PORT_CONFLICT" = true ]; then
+            echo ""
+            echo "💡 解决方案:"
+            echo "   1. 停止占用端口的服务"
+            echo "   2. 或修改 .env 文件中的端口配置:"
+            echo "      NEXUS_PORT=8080"
+            echo "      CF_BYPASS_PORT=8001"
+            exit 1
+          fi
+          
+          # 创建数据目录
           mkdir -p data/{nexus,cache,logs,cf-bypass,redis}
           sudo chown -R 1000:1000 data/ 2>/dev/null || true
+          
+          # 启动服务
           docker compose up -d
           echo "✅ Nexus Reader started successfully!"
-          echo "📱 Access: http://$(hostname -I | awk '{print $1}'):8080"
+          echo "📱 Access: http://$(hostname -I | awk '{print $1}'):$NEXUS_PORT"
+          echo "🔧 CF Bypass: http://$(hostname -I | awk '{print $1}'):$CF_BYPASS_PORT"
           EOF
           
           cat > fnos-package/stop.sh << 'EOF'
@@ -280,7 +316,7 @@ jobs:
           ## 系统要求
           - 飞牛OS 1.0+ / Docker 20.10+
           - 内存: 1GB+ / 存储: 2GB+
-          - 端口: 8080(主应用), 8000(CF绕过)
+          - 端口: 8080(主应用), 8001(CF绕过)
           EOF
           
           # 创建版本信息

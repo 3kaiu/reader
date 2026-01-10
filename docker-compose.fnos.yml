@@ -1,5 +1,3 @@
-version: '3.8'
-
 # =============================================================================
 # Nexus Reader 飞牛OS Docker Compose配置
 # 优化版：端侧AI + 多架构支持
@@ -50,7 +48,7 @@ services:
     container_name: nexus-cf-bypass
     restart: unless-stopped
     ports:
-      - "${CF_BYPASS_PORT:-8000}:8000"
+      - "${CF_BYPASS_PORT:-8001}:8000"
     environment:
       - HOST=0.0.0.0
       - PORT=8000
