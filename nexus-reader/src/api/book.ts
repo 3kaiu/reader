@@ -1,4 +1,4 @@
-import { $get, $post, $delete } from './client'
+import { $get, $post, $delete, $patch, $put } from './client'
 
 // 书籍类型定义
 export interface Book {
@@ -118,17 +118,11 @@ export const bookApi = {
 
   // 保存阅读进度
   saveBookProgress: (id: string, chapterIndex: number, position: number) =>
-    $get(`/bookshelf/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ chapter_index: chapterIndex, position })
-    }),
+    $patch(`/bookshelf/${id}`, { chapter_index: chapterIndex, position }),
 
   // 移动书籍到分组
   moveToGroup: (id: string, groupId: string | null) =>
-    $get(`/bookshelf/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ group_id: groupId })
-    }),
+    $put(`/bookshelf/${id}`, { group_id: groupId }),
 
   // 获取发现页数据
   getDiscovery: (period?: string) =>

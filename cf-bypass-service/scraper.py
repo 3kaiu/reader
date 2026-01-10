@@ -67,7 +67,7 @@ class BypassEngine:
         # Domain-specific impersonation
         impersonate_ver = "chrome120" # Default
         if "hetushu.com" in domain:
-            impersonate_ver = "chrome100" # Older chrome sometimes passes better if newer is flagged
+            impersonate_ver = "chrome120" # Use newer chrome to avoid TLS errors
         elif "69shuba.com" in domain:
             impersonate_ver = "chrome100"
 
@@ -111,14 +111,12 @@ class BypassEngine:
             
             # Merge default headers with custom headers
             if headers:
-                # Filter out User-Agent to prevent mismatch with TLS fingerprint (impersonate="chrome120")
-                # Cloudflare detects mismatch between TLS Client Hello and HTTP User-Agent
+                # Filter out User-Agent to prevent mismatch with TLS fingerprint
                 filtered_headers = {k: v for k, v in headers.items() if k.lower() != "user-agent"}
                 kwargs["headers"] = filtered_headers
             
             if body:
                 kwargs["data"] = body
-                
             
             if proxy:
                 kwargs["proxies"] = {"http": proxy, "https": proxy}
@@ -127,8 +125,31 @@ class BypassEngine:
 
             logger.info(f"Fetching {url}")
             
-            # Execute request
-            resp: Response = await session.request(**kwargs)
+            # Execute request with potential fallback for TLS errors
+            try:
+                resp: Response = await session.request(**kwargs)
+            except RequestsError as e:
+                err_msg = str(e).lower()
+                if "tls" in err_msg or "invalid library" in err_msg or "openssl" in err_msg:
+                    logger.warning(f"TLS error detected: {e}. Retrying with Safari profile and HTTP/2 disabled...")
+                    
+                    # Create a one-off session for fallback to avoid polluting engine state
+                    # Safari profiles often use different TLS extensions that bypass BoringSSL quirks
+                    # Disabling HTTP/2 is a common fix for BoringSSL "invalid library" errors on Alpine
+                    async with AsyncSession(
+                        impersonate="safari15_5",
+                        http2=False,
+                        headers={
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                        }
+                    ) as fallback_session:
+                        # Copy proxy settings to fallback if present
+                        fallback_kwargs = kwargs.copy()
+                        resp: Response = await fallback_session.request(**fallback_kwargs)
+                        logger.info(f"Fallback fetch successful: status={resp.status_code}")
+                else:
+                    raise e
             
             logger.info(f"Done: status={resp.status_code}")
             
@@ -147,7 +168,7 @@ class BypassEngine:
                      return FetchResult(
                         status=resp.status_code,
                         html=resp.text,
-                        cookies=resp.cookies, # curl_cffi cookies are dict-like
+                        cookies=resp.cookies,
                         headers=dict(resp.headers),
                         cf_bypassed=False,
                         error="Cloudflare challenge detected (403/503)"
@@ -159,7 +180,6 @@ class BypassEngine:
             charset = "utf-8"
             
             # Simple heuristic for GBK
-            # curl_cffi/requests might default to ISO-8859-1 or UTF-8
             lower_content = content[:2000].lower() # Check first 2KB
             if b"charset=gbk" in lower_content or b'charset="gbk"' in lower_content or b"charset='gbk'" in lower_content:
                 charset = "gbk"

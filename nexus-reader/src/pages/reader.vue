@@ -352,7 +352,7 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :current-ind="readerStore.currentChapterIndex"
           :catalog-loading="readerStore.isLoading"
           :keyboard-shortcuts="KEYBOARD_SHORTCUTS" 
-          @select-chapter="(idx) => readerStore.goToChapter(idx)"
+          @select-chapter="async (idx) => { await readerStore.goToChapter(idx); readerStore.initInfiniteScroll(); window.scrollTo({ top: 0, behavior: 'smooth' }) }"
           @refresh-catalog="readerStore.refreshChapter"
         />
 

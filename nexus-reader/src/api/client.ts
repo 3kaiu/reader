@@ -142,6 +142,24 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
 
 export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
   api<any>(url, { method: 'POST', body, ...options }).then(response => {
+    // Clear cache on POST as it typically modifies state
+    clearApiCache()
+    return (response && typeof response === 'object' && 'isSuccess' in response)
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
+
+export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) =>
+  api<any>(url, { method: 'PATCH', body, ...options }).then(response => {
+    clearApiCache()
+    return (response && typeof response === 'object' && 'isSuccess' in response)
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
+
+export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) =>
+  api<any>(url, { method: 'PUT', body, ...options }).then(response => {
+    clearApiCache()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>
       : { isSuccess: true, data: response } as ApiResponse<T>
@@ -149,6 +167,7 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
 
 export const $delete = <T>(url: string, options?: FetchOptions) =>
   api<any>(url, { method: 'DELETE', ...options }).then(response => {
+    clearApiCache()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>
       : { isSuccess: true, data: response } as ApiResponse<T>
