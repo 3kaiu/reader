@@ -1,0 +1,95 @@
+version: '3.8'
+
+# =============================================================================
+# 飞牛OS Docker Compose配置 - 简化直接使用版本
+# =============================================================================
+
+services:
+  # 主应用服务
+  nexus-lite:
+    image: ghcr.io/seeu/nexus-lite:${IMAGE_TAG:-fnos-latest}
+    container_name: nexus-lite
+    restart: unless-stopped
+    ports:
+      - "${NEXUS_PORT:-8080}:8080"
+    environment:
+      - RUST_LOG=info
+      - HOST=0.0.0.0
+      - PORT=8080
+      - TZ=${TZ:-Asia/Shanghai}
+    volumes:
+      - ${DATA_DIR:-./data}/nexus:/app/data
+      - ${DATA_DIR:-./data}/cache:/app/cache
+      - ${DATA_DIR:-./data}/logs:/app/logs
+    networks:
+      - nexus-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # CloudFlare绕过服务
+  cf-bypass:
+    image: ghcr.io/seeu/cf-bypass-service:${IMAGE_TAG:-fnos-latest}
+    container_name: cf-bypass
+    restart: unless-stopped
+    ports:
+      - "${CF_BYPASS_PORT:-8000}:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${DATA_DIR:-./data}/cf-bypass:/app/data
+    networks:
+      - nexus-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ${DATA_DIR:-./data}/redis:/data
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+
+networks:
+  nexus-network:
+    driver: bridge

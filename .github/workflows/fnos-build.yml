@@ -1,0 +1,271 @@
+name: FnOS Optimized Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  # =============================================================================
+  # 飞牛OS专用构建 - 针对Debian基础和ARM64支持
+  # =============================================================================
+  build-fnos-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        include:
+          - name: nexus-lite
+            context: .
+            dockerfile: Dockerfile.fnos
+            platforms: linux/amd64,linux/arm64
+          - name: cf-bypass-service
+            context: ./cf-bypass-service
+            dockerfile: cf-bypass-service/Dockerfile.fnos
+            platforms: linux/amd64,linux/arm64
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            image=moby/buildkit:buildx-stable-1
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=fnos-latest,enable={{is_default_branch}}
+            type=ref,event=branch,suffix=-fnos
+            type=ref,event=pr,suffix=-fnos
+            type=semver,pattern={{version}},suffix=-fnos
+            type=semver,pattern={{major}}.{{minor}},suffix=-fnos
+
+      - name: Build and push FnOS image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=fnos-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=fnos-${{ matrix.name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          # 飞牛OS优化构建参数
+          shm-size: 512m
+          ulimit: nofile=2048:2048
+
+  # =============================================================================
+  # 创建飞牛OS部署包
+  # =============================================================================
+  create-fnos-package:
+    runs-on: ubuntu-latest
+    needs: build-fnos-images
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create FnOS deployment package
+        run: |
+          mkdir -p fnos-package
+          
+          # 复制飞牛OS相关文件
+          cp docker-compose.fnos.yml fnos-package/
+          cp scripts/fnos-deploy.sh fnos-package/
+          cp fnos-config.env fnos-package/
+          
+          # 创建飞牛OS专用README
+          cat > fnos-package/README.md << 'EOF'
+          # Nexus Reader 飞牛OS部署包
+          
+          ## 飞牛OS系统要求
+          - 飞牛OS 1.0+
+          - Docker 20.10+
+          - Docker Compose 2.0+
+          - 内存: 至少1GB可用
+          - 存储: 至少3GB可用空间
+          
+          ## 快速部署
+          
+          1. 上传部署包到飞牛OS
+          2. 解压到 `/fnos/data/docker/nexus-reader/`
+          3. 运行部署脚本：
+             ```bash
+             chmod +x fnos-deploy.sh
+             ./fnos-deploy.sh
+             ```
+          
+          ## 飞牛OS特性支持
+          - ✅ ARM64架构支持
+          - ✅ 飞牛OS Docker管理集成
+          - ✅ 系统资源监控
+          - ✅ 自动备份到飞牛OS备份系统
+          - ✅ 飞牛OS用户权限集成
+          
+          ## 访问地址
+          - 主应用: http://飞牛OS_IP:8080
+          - CF绕过服务: http://飞牛OS_IP:8000
+          
+          ## 飞牛OS管理
+          可以在飞牛OS的Docker管理界面中查看和管理容器状态。
+          
+          ## 故障排除
+          
+          ### 权限问题
+          ```bash
+          # 修复飞牛OS权限
+          sudo chown -R fnos:fnos /fnos/data/docker/nexus-reader/
+          ```
+          
+          ### 网络问题
+          确保飞牛OS防火墙允许8080和8000端口访问。
+          EOF
+          
+          # 创建飞牛OS版本信息
+          cat > fnos-package/VERSION << EOF
+          VERSION=${{ github.ref_name }}
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMIT_SHA=${{ github.sha }}
+          TARGET_OS=FnOS
+          ARCHITECTURES=amd64,arm64
+          EOF
+          
+          # 创建部署包
+          tar -czf nexus-reader-fnos-${{ github.ref_name }}.tar.gz -C fnos-package .
+
+      - name: Upload FnOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-reader-fnos-package
+          path: nexus-reader-fnos-*.tar.gz
+          retention-days: 90
+
+      - name: Create Release (if tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nexus-reader-fnos-*.tar.gz
+          body: |
+            ## 飞牛OS专用部署包
+            
+            针对飞牛OS系统优化的Nexus Reader部署包，支持AMD64和ARM64架构。
+            
+            ### 飞牛OS特性
+            - 🚀 原生ARM64支持
+            - 🔧 飞牛OS Docker集成
+            - 📊 系统资源监控
+            - 💾 自动备份集成
+            - 🔐 用户权限集成
+            
+            ### 部署方法
+            1. 下载 `nexus-reader-fnos-${{ github.ref_name }}.tar.gz`
+            2. 上传到飞牛OS `/fnos/data/docker/nexus-reader/`
+            3. 解压并运行 `./fnos-deploy.sh`
+            
+            ### 系统要求
+            - 飞牛OS 1.0+
+            - 内存: 1GB+
+            - 存储: 3GB+
+          draft: false
+          prerelease: false
+
+  # =============================================================================
+  # 飞牛OS兼容性测试
+  # =============================================================================
+  test-fnos-compatibility:
+    runs-on: ubuntu-latest
+    needs: build-fnos-images
+    
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        memory: [512m, 1g]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for ARM64)
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Test FnOS compatibility
+        run: |
+          # 创建测试配置
+          cat > docker-compose.test.yml << EOF
+          version: '3.8'
+          services:
+            nexus-lite:
+              image: ${{ env.REGISTRY }}/${{ env.OWNER }}/nexus-lite:fnos-latest
+              platform: linux/${{ matrix.arch }}
+              ports:
+                - "8080:8080"
+              deploy:
+                resources:
+                  limits:
+                    memory: ${{ matrix.memory }}
+                    cpus: '1.0'
+              healthcheck:
+                test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+                interval: 30s
+                timeout: 15s
+                retries: 5
+                start_period: 90s
+          EOF
+          
+          # 启动测试
+          docker-compose -f docker-compose.test.yml up -d
+          
+          # 等待服务启动（ARM64需要更长时间）
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sleep 120
+          else
+            sleep 60
+          fi
+          
+          # 检查健康状态
+          if docker-compose -f docker-compose.test.yml ps | grep -q "healthy"; then
+            echo "✅ 飞牛OS测试通过 - 架构: ${{ matrix.arch }}, 内存: ${{ matrix.memory }}"
+          else
+            echo "❌ 飞牛OS测试失败 - 架构: ${{ matrix.arch }}, 内存: ${{ matrix.memory }}"
+            docker-compose -f docker-compose.test.yml logs
+            exit 1
+          fi
+          
+          # 清理
+          docker-compose -f docker-compose.test.yml down
