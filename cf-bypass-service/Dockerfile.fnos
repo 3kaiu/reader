@@ -32,10 +32,11 @@ COPY pyproject.toml uv.lock ./
 # 根据架构优化安装
 RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache-$TARGETPLATFORM \
     uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        /opt/venv/bin/uv pip install --no-cache -r pyproject.toml --compile-bytecode; \
+        uv pip install --no-cache --compile-bytecode -e .; \
     else \
-        /opt/venv/bin/uv pip install --no-cache -r pyproject.toml; \
+        uv pip install --no-cache -e .; \
     fi
 
 # -----------------------------------------------------------------------------

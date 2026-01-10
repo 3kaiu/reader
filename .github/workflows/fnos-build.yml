@@ -35,7 +35,7 @@ jobs:
             platforms: linux/amd64,linux/arm64
           - name: cf-bypass-service
             context: ./cf-bypass-service
-            dockerfile: cf-bypass-service/Dockerfile.fnos
+            dockerfile: Dockerfile.fnos
             platforms: linux/amd64,linux/arm64
     
     steps:
@@ -106,7 +106,6 @@ jobs:
           
           # 复制飞牛OS相关文件
           cp docker-compose.fnos.yml fnos-package/
-          cp scripts/fnos-deploy.sh fnos-package/
           cp fnos-config.env fnos-package/
           
           # 创建飞牛OS专用README
@@ -123,11 +122,11 @@ jobs:
           ## 快速部署
           
           1. 上传部署包到飞牛OS
-          2. 解压到 `/fnos/data/docker/nexus-reader/`
-          3. 运行部署脚本：
+          2. 解压到目标目录
+          3. 运行命令：
              ```bash
-             chmod +x fnos-deploy.sh
-             ./fnos-deploy.sh
+             mkdir -p data/{nexus,cache,logs,cf-bypass,redis}
+             docker-compose -f docker-compose.fnos.yml up -d
              ```
           
           ## 飞牛OS特性支持
@@ -194,8 +193,8 @@ jobs:
             
             ### 部署方法
             1. 下载 `nexus-reader-fnos-${{ github.ref_name }}.tar.gz`
-            2. 上传到飞牛OS `/fnos/data/docker/nexus-reader/`
-            3. 解压并运行 `./fnos-deploy.sh`
+            2. 解压到目标目录
+            3. 运行 `docker-compose -f docker-compose.fnos.yml up -d`
             
             ### 系统要求
             - 飞牛OS 1.0+

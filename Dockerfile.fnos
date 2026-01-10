@@ -24,10 +24,13 @@ RUN corepack enable && corepack prepare pnpm@8 --activate
 # 复制依赖文件
 COPY nexus-reader/package.json nexus-reader/pnpm-lock.yaml ./
 
-# 安装依赖 - 针对ARM64优化
+# 安装依赖 - 针对ARM64优化，增加重试机制
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,id=pnpm-cache-$TARGETPLATFORM \
-    pnpm config set network-concurrency 4 && \
-    pnpm install --frozen-lockfile --prefer-offline
+    pnpm config set network-concurrency 2 && \
+    pnpm config set network-timeout 60000 && \
+    pnpm config set registry https://registry.npmmirror.com && \
+    pnpm install --frozen-lockfile --prefer-offline || \
+    (echo "First install failed, retrying..." && pnpm install --frozen-lockfile)
 
 # 复制源代码
 COPY nexus-reader/ ./
