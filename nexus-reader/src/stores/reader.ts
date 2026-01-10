@@ -296,7 +296,8 @@ export const useReaderStore = defineStore('reader', () => {
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
               continue
             }
-            return false
+            // 最后一次重试失败，跳出循环
+            break
           }
           chapterContent = res.data.content
           chapterCache.set(nextIndex, chapterContent)
@@ -328,28 +329,17 @@ export const useReaderStore = defineStore('reader', () => {
       }
     }
 
-        // 所有重试都失败了
-        logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, { 
-          function: 'appendNextChapter',
-          nextIndex,
-          attempts: maxRetries
-        })
-        
-        // 设置错误状态，供UI显示
-        loadError.value = lastError?.message || '网络连接异常，请检查网络后重试'
-        
-        return false
-      } finally {
-        isLoadingMore.value = false
-      }
-    }
-
     // 所有重试都失败了
     logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, { 
       function: 'appendNextChapter',
       nextIndex,
       attempts: maxRetries
     })
+    
+    // 设置错误状态，供UI显示
+    loadError.value = lastError?.message || '网络连接异常，请检查网络后重试'
+    
+    isLoadingMore.value = false
     return false
   }
 
