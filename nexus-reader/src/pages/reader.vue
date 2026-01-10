@@ -19,6 +19,7 @@ import { useEyeCare } from '@/composables/useEyeCare'
 import { useAIInsightsStore } from '@/stores/aiInsights'
 import { useAIStore } from '@/stores/ai'
 import { useEngagementTracker } from '@/composables/useEngagementTracker'
+import { useEventManager } from '@/utils/eventManager'
 
 // 组件导入
 import ReaderToolbar from '@/components/reader/ReaderToolbar.vue'
@@ -122,6 +123,7 @@ const {
 } = useTTSReader({ readerStore, settingsStore, swipeContentRef, swipePage, swipeTotalPages, showTTSPanel, toast })
 
 const { startTracking, stopTracking } = useEngagementTracker(route.query.url as string, readerStore.currentChapterIndex)
+const { addEventListener, cleanup: cleanupEventListeners } = useEventManager()
 
 // ====== 导航逻辑 ======
 async function handlePrevChapter() {
@@ -187,11 +189,12 @@ watch(() => arrivedState.bottom, (isBottom) => {
 
 // 监听滚动事件来同步章节位置
 onMounted(() => {
-  window.addEventListener('scroll', debouncedChapterSync, { passive: true })
+  addEventListener(window, 'scroll', debouncedChapterSync, { passive: true })
+  addEventListener(window, 'beforeunload', () => readerStore.saveProgress())
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', debouncedChapterSync)
+  cleanupEventListeners()
 })
 
 watch(() => readerStore.content, (newContent) => {
@@ -210,11 +213,14 @@ watch(() => readerStore.content, (newContent) => {
 onMounted(() => {
   initReader()
   offlineStore.loadCacheIndex()
-  window.addEventListener('beforeunload', () => readerStore.saveProgress())
   nextTick(() => { if (selectionContainerRef.value) startTracking(selectionContainerRef.value) })
 })
 
-onBeforeUnmount(() => { if (selectionContainerRef.value) stopTracking(selectionContainerRef.value); readerStore.saveProgress() })
+onBeforeUnmount(() => { 
+  if (selectionContainerRef.value) stopTracking(selectionContainerRef.value)
+  readerStore.saveProgress()
+  cleanupEventListeners()
+})
 onUnmounted(() => { clearHideTimer(); readerStore.reset() })
 
 async function initReader() {

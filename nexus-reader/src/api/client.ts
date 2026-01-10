@@ -9,11 +9,61 @@ export interface ApiResponse<T = unknown> {
   errorMsg?: string
 }
 
-// 请求缓存 Map
+// 缓存配置
+const MAX_CACHE_SIZE = 1000
+const MAX_PENDING_REQUESTS = 100
+
+// 请求缓存 Map (LRU实现)
 const requestCache = new Map<string, { data: unknown; timestamp: number }>()
 
 // 请求去重 Map
 const pendingRequests = new Map<string, Promise<unknown>>()
+
+// LRU缓存管理
+function addToCache(key: string, value: { data: unknown; timestamp: number }) {
+  // 如果缓存已满，删除最旧的项
+  if (requestCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = requestCache.keys().next().value
+    if (firstKey) {
+      requestCache.delete(firstKey)
+    }
+  }
+  
+  // 如果key已存在，先删除再添加（实现LRU）
+  if (requestCache.has(key)) {
+    requestCache.delete(key)
+  }
+  
+  requestCache.set(key, value)
+}
+
+// 获取缓存并更新访问时间（LRU）
+function getFromCache(key: string): { data: unknown; timestamp: number } | undefined {
+  const cached = requestCache.get(key)
+  if (cached) {
+    // 重新设置以更新LRU顺序
+    requestCache.delete(key)
+    requestCache.set(key, cached)
+    return cached
+  }
+  return undefined
+}
+
+// 管理pending请求
+function addPendingRequest(key: string, promise: Promise<unknown>) {
+  // 限制并发请求数量
+  if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
+    const firstKey = pendingRequests.keys().next().value
+    if (firstKey) {
+      pendingRequests.delete(firstKey)
+    }
+  }
+  pendingRequests.set(key, promise)
+}
+
+function removePendingRequest(key: string) {
+  pendingRequests.delete(key)
+}
 
 // 判断是否应该重试
 interface FetchError {
@@ -96,10 +146,22 @@ export const api = internalFetch
 if (typeof window !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
+    const keysToDelete: string[] = []
+    
     for (const [key, value] of requestCache.entries()) {
       if (now - value.timestamp > API_CACHE_TTL) {
-        requestCache.delete(key)
+        keysToDelete.push(key)
       }
+    }
+    
+    // 批量删除过期缓存
+    keysToDelete.forEach(key => requestCache.delete(key))
+    
+    // 如果缓存仍然过大，删除最旧的项
+    if (requestCache.size > MAX_CACHE_SIZE) {
+      const excess = requestCache.size - MAX_CACHE_SIZE
+      const oldestKeys = Array.from(requestCache.keys()).slice(0, excess)
+      oldestKeys.forEach(key => requestCache.delete(key))
     }
   }, 60 * 1000)
 }
@@ -109,7 +171,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
   const method = 'GET'
   const cacheKey = `${url}_${JSON.stringify(options?.params || {})}`
 
-  const cached = requestCache.get(cacheKey)
+  const cached = getFromCache(cacheKey)
   if (cached && Date.now() - cached.timestamp < API_CACHE_TTL) {
     return Promise.resolve(cached.data as ApiResponse<T>)
   }
@@ -126,17 +188,17 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
         : { isSuccess: true, data: response }
 
       if (result.isSuccess) {
-        requestCache.set(cacheKey, { data: result, timestamp: Date.now() })
+        addToCache(cacheKey, { data: result, timestamp: Date.now() })
       }
-      pendingRequests.delete(cacheKey)
+      removePendingRequest(cacheKey)
       return result
     })
     .catch((error) => {
-      pendingRequests.delete(cacheKey)
+      removePendingRequest(cacheKey)
       throw error
     })
 
-  pendingRequests.set(cacheKey, requestPromise)
+  addPendingRequest(cacheKey, requestPromise)
   return requestPromise
 }
 

@@ -44,6 +44,10 @@ export const useReaderStore = defineStore('reader', () => {
 
   // 无限滚动模式: 存储已加载的章节内容
   const loadedChapters = ref<{ index: number; title: string; content: string; formattedContent?: string }[]>([])
+  
+  // 章节内存管理配置
+  const MAX_LOADED_CHAPTERS = 20 // 最多保留20章
+  const CHAPTER_CLEANUP_THRESHOLD = 15 // 超过15章时开始清理
 
   // 阅读指标
   const readingMetrics = ref({
@@ -311,6 +315,22 @@ export const useReaderStore = defineStore('reader', () => {
           content: chapterContent,
           formattedContent: formatted
         })
+
+        // 内存管理：清理过多的已加载章节
+        if (loadedChapters.value.length > MAX_LOADED_CHAPTERS) {
+          const toRemove = loadedChapters.value.length - CHAPTER_CLEANUP_THRESHOLD
+          const removedChapters = loadedChapters.value.splice(0, toRemove)
+          
+          // 同时清理对应的章节缓存
+          removedChapters.forEach(chapter => {
+            chapterCache.delete(chapter.index)
+          })
+          
+          logger.info(`清理了${toRemove}个章节以释放内存`, { 
+            function: 'appendNextChapter',
+            remainingChapters: loadedChapters.value.length
+          })
+        }
 
         // 清除错误状态
         loadError.value = null
