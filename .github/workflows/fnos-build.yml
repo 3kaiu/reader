@@ -97,10 +97,7 @@ jobs:
 
       - name: Setup Rust
         if: steps.rust-cache.outputs.cache-hit != 'true'
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Check Rust code
         working-directory: nexus-lite
@@ -124,12 +121,12 @@ jobs:
         include:
           - name: nexus-lite
             context: .
-            dockerfile: Dockerfile.bun
+            dockerfile: ./Dockerfile.bun
             platforms: linux/amd64,linux/arm64
             needs-frontend: true
           - name: cf-bypass-service
             context: ./cf-bypass-service
-            dockerfile: Dockerfile.fnos
+            dockerfile: ./cf-bypass-service/Dockerfile.fnos
             platforms: linux/amd64,linux/arm64
             needs-frontend: false
     

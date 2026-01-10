@@ -16,11 +16,11 @@ WORKDIR /app
 RUN apk add --no-cache brotli gzip python3 make g++
 
 # 复制依赖文件
-COPY nexus-reader/package.json nexus-reader/bun.lockb* ./
+COPY nexus-reader/package.json nexus-reader/bun.lockb ./
 
 # 使用Bun安装依赖 - 比pnpm快很多
 RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-cache-$TARGETPLATFORM \
-    bun install --frozen-lockfile --production=false
+    bun install --frozen-lockfile
 
 # 复制源代码
 COPY nexus-reader/ ./
