@@ -41,14 +41,14 @@ jobs:
           path: |
             ~/.bun/install/cache
             nexus-reader/node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/package.json') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         working-directory: nexus-reader
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build frontend
         id: build
