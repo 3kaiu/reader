@@ -8,7 +8,7 @@ version: '3.8'
 services:
   # 主应用服务 - 使用优化后的构建
   nexus-lite:
-    image: ghcr.io/${GITHUB_OWNER:-seeu}/nexus-lite:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_OWNER:-3kaiu}/nexus-lite:${IMAGE_TAG:-latest}
     container_name: nexus-reader
     restart: unless-stopped
     ports:
@@ -46,7 +46,7 @@ services:
 
   # CloudFlare绕过服务
   cf-bypass:
-    image: ghcr.io/${GITHUB_OWNER:-seeu}/cf-bypass-service:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_OWNER:-3kaiu}/cf-bypass-service:${IMAGE_TAG:-latest}
     container_name: nexus-cf-bypass
     restart: unless-stopped
     ports:
