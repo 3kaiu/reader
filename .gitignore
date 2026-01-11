@@ -1,3 +1,8 @@
+# =============================================================================
+# Nexus Reader - Git Ignore Configuration
+# =============================================================================
+
+# Java/Gradle specific
 HELP.md
 .gradle
 build/
@@ -5,7 +10,22 @@ build/
 !**/src/main/**
 !**/src/test/**
 
-### STS ###
+### IDE ###
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Eclipse
 .apt_generated
 .classpath
 .factorypath
@@ -14,63 +34,194 @@ build/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-
-### NetBeans ###
+# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
-.vscode/
+### Environment & Configuration ###
+# Environment files (CRITICAL - contains secrets)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+!.env.example
+!.env.template
 
-.vertx
-out
+# Configuration files with secrets
+config.json
+domain_configs.json
+*-config.json
+!*-config.example.json
 
-#/src/main/resources/application-prod.yml
-/src/main/resources/application-default.yml
-
-/src/main/resources/web
+### Application Data ###
+# Application storage
 /storage*
-/logs
-/bin
-/file-uploads
-/reader-assets
-/.lh/
-
-/simple-web/
-
-/server/logs
-/server/storage
-/server/target
-
-# Docker 运行时数据
 /data/
+/logs/
+/bin/
+/file-uploads/
+/reader-assets/
+/.lh/
+/simple-web/
+/server/logs/
+/server/storage/
+/server/target/
 
-# NexusLite
+### Build & Distribution ###
+# Build outputs
+/build/
+/dist/
+/out/
+.vertx
+
+# Rust builds
 /nexus-lite/target/
 /nexus-lite/.cargo/
 /nexus-lite/data/
 /nexus-lite/cache/
-/nexus-lite/config.json
 
-# CF Bypass Service
-cf-bypass-service/**/__pycache__/
-cf-bypass-service/**/*.pyc
-cf-bypass-service/.venv/
+### Dependencies ###
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
 
-# Python bytecode
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.DS_Store
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.venv/
+venv/
+ENV/
+env/
+.env/
 
-# Kiro AI assistant files
-.kiro/
+### Testing & Coverage ###
+# Test results
+/coverage/
+/test-results/
+*.lcov
+.nyc_output/
+junit.xml
+test-report.xml
+
+# Property-based testing
+.hypothesis/
+
+### Temporary & Cache Files ###
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+*.bak
+*.backup
+*.old
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+
+### Development Tools ###
+# Debugging
+.vscode/launch.json
+chrome-debug.log
+
+# Profiling
+*.prof
+*.cpuprofile
+*.heapprofile
+
+# Lighthouse
+.lighthouseci/
+
+### Docker & Containers ###
+# Docker volumes
+docker-compose.override.yml
+.dockerignore
+
+### Security & Secrets ###
+# API Keys and secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.json
+.secrets/
+
+# JWT tokens
+*.jwt
+
+### AI & ML ###
+# Model files
+*.model
+*.pkl
+*.h5
+*.pb
+models/
+checkpoints/
+
+### Monitoring & Analytics ###
+# Error reporting
+.sentry-native/
+sentry.properties
+
+# Analytics
+analytics.json
+metrics.json
+
+### Backup & Archive ###
+# Backup files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+backup/
+backups/
+
+### Project Specific ###
+# CF Bypass Service
+cf-bypass-service/__pycache__/
+cf-bypass-service/**/*.pyc
+cf-bypass-service/.venv/
+
+# Kiro AI assistant files (keep for development)
+# .kiro/
+
+# Application specific configs
+#/src/main/resources/application-prod.yml
+/src/main/resources/application-default.yml
+/src/main/resources/web
+
+# =============================================================================
+# End of .gitignore
+# =============================================================================

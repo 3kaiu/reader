@@ -1,0 +1,85 @@
+{
+  "entryPoints": [
+    "src/utils/*.ts",
+    "src/hooks/*.ts",
+    "src/api/*.ts",
+    "src/components/*.tsx"
+  ],
+  "out": "docs/api",
+  "theme": "default",
+  "name": "Nexus Reader API Documentation",
+  "includeVersion": true,
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "readme": "none",
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "EnumMember",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Function",
+    "Accessor",
+    "Method",
+    "Parameter",
+    "TypeParameter",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "GetSignature",
+    "SetSignature"
+  ],
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Components",
+    "Hooks",
+    "Utils",
+    "API",
+    "Types",
+    "*"
+  ],
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "cleanOutputDir": true,
+  "titleLink": "https://github.com/your-repo/nexus-reader",
+  "navigationLinks": {
+    "GitHub": "https://github.com/your-repo/nexus-reader",
+    "Documentation": "https://your-username.github.io/nexus-reader"
+  },
+  "sidebarLinks": {
+    "用户指南": "https://your-username.github.io/nexus-reader/README",
+    "API 文档": "https://your-username.github.io/nexus-reader/API",
+    "部署指南": "https://your-username.github.io/nexus-reader/DEPLOYMENT"
+  },
+  "customCss": "docs/assets/custom.css",
+  "gaID": "UA-XXXXXXXXX-X",
+  "gitRevision": "main",
+  "gitRemote": "origin",
+  "sourceLinkTemplate": "https://github.com/your-repo/nexus-reader/blob/{gitRevision}/{path}#L{line}",
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "typedoc-plugin-mermaid"
+  ],
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": false,
+  "logLevel": "Info",
+  "skipErrorChecking": false,
+  "preserveWatchOutput": false,
+  "help": false,
+  "version": false
+}

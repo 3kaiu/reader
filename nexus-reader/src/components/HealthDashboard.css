@@ -1,0 +1,994 @@
+/**
+ * 🏥 Health Dashboard Styles
+ * 系统健康监控仪表板样式
+ */
+
+.health-dashboard {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .health-dashboard {
+    background: #1f2937;
+    color: #f9fafb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* 加载状态 */
+.health-dashboard.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 错误状态 */
+.health-dashboard.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.error-message {
+  text-align: center;
+  color: #ef4444;
+}
+
+.error-message h3 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+.retry-button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.retry-button:hover {
+  background: #dc2626;
+}
+
+/* 头部状态 */
+.health-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-header {
+    border-bottom-color: #374151;
+  }
+}
+
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-indicator {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  font-weight: bold;
+}
+
+.status-info h2 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.status-text {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.last-check {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .last-check {
+    color: #9ca3af;
+  }
+}
+
+.health-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.check-button,
+.refresh-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.check-button:hover,
+.refresh-button:hover {
+  background: #2563eb;
+}
+
+.check-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 统计卡片 */
+.health-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stat-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+}
+
+.stat-card.healthy {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stat-card.healthy {
+    background: #064e3b;
+  }
+}
+
+.stat-card.warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stat-card.warning {
+    background: #451a03;
+  }
+}
+
+.stat-card.critical {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stat-card.critical {
+    background: #450a0a;
+  }
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stat-label {
+    color: #9ca3af;
+  }
+}
+
+/* 资源使用情况 */
+.resource-usage {
+  margin-bottom: 24px;
+}
+
+.resource-usage h3 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.resource-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resource-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.resource-bar label {
+  min-width: 80px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .progress-bar {
+    background: #4b5563;
+  }
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.resource-bar span {
+  min-width: 60px;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* 标签导航 */
+.health-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-tabs {
+    border-bottom-color: #374151;
+  }
+}
+
+.health-tabs button {
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-tabs button {
+    color: #9ca3af;
+  }
+}
+
+.health-tabs button:hover {
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-tabs button:hover {
+    color: #f9fafb;
+  }
+}
+
+.health-tabs button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+/* 标签内容 */
+.health-content {
+  min-height: 300px;
+}
+
+/* 概览标签 */
+.overview-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.overview-card {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .overview-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+}
+
+.overview-card h4 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.trend-indicator {
+  font-size: 1.125rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.trend-indicator.improving {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.trend-indicator.stable {
+  background: #f0f9ff;
+  color: #0c4a6e;
+}
+
+.trend-indicator.degrading {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.trend-indicator.unknown {
+  background: #f9fafb;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .trend-indicator.improving {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+  
+  .trend-indicator.stable {
+    background: #0c4a6e;
+    color: #7dd3fc;
+  }
+  
+  .trend-indicator.degrading {
+    background: #450a0a;
+    color: #fca5a5;
+  }
+  
+  .trend-indicator.unknown {
+    background: #374151;
+    color: #d1d5db;
+  }
+}
+
+.overview-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.overview-card li {
+  padding: 4px 0;
+  font-size: 0.875rem;
+}
+
+.recent-issues h4 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.no-issues {
+  color: #10b981;
+  font-weight: 500;
+  margin: 0;
+}
+
+.recent-issues ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.issue {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.issue.warning {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+}
+
+.issue.critical {
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  .issue.warning {
+    background: #451a03;
+    border-color: #d97706;
+  }
+  
+  .issue.critical {
+    background: #450a0a;
+    border-color: #dc2626;
+  }
+}
+
+.component-name {
+  font-weight: 500;
+}
+
+.issue-message {
+  flex: 1;
+  margin: 0 12px;
+}
+
+.issue-time {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .issue-time {
+    color: #9ca3af;
+  }
+}
+
+/* 组件标签 */
+.components-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.component-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .component-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+}
+
+.component-card.healthy {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.component-card.warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.component-card.critical {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .component-card.healthy {
+    background: #064e3b;
+  }
+  
+  .component-card.warning {
+    background: #451a03;
+  }
+  
+  .component-card.critical {
+    background: #450a0a;
+  }
+}
+
+.component-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.component-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.component-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.component-details p {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+}
+
+.component-message {
+  font-weight: 500;
+}
+
+.response-time,
+.last-check {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .response-time,
+  .last-check {
+    color: #9ca3af;
+  }
+}
+
+.component-raw-details {
+  margin-top: 12px;
+}
+
+.component-raw-details summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .component-raw-details summary {
+    color: #9ca3af;
+  }
+}
+
+.component-raw-details pre {
+  background: #f9fafb;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .component-raw-details pre {
+    background: #1f2937;
+  }
+}
+
+/* 告警标签 */
+.alerts-section {
+  margin-bottom: 24px;
+}
+
+.alerts-section h4 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.no-alerts {
+  color: #10b981;
+  font-weight: 500;
+  margin: 0;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .alert-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+}
+
+.alert-card.low {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.alert-card.medium {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.alert-card.high {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.alert-card.critical {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.alert-card.resolved {
+  opacity: 0.7;
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .alert-card.low {
+    background: #1e3a8a;
+  }
+  
+  .alert-card.medium {
+    background: #451a03;
+  }
+  
+  .alert-card.high,
+  .alert-card.critical {
+    background: #450a0a;
+  }
+  
+  .alert-card.resolved {
+    background: #064e3b;
+  }
+}
+
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.alert-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.alert-component {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.alert-severity {
+  background: #e5e7eb;
+  color: #374151;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+@media (prefers-color-scheme: dark) {
+  .alert-severity {
+    background: #4b5563;
+    color: #d1d5db;
+  }
+}
+
+.resolve-button {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.resolve-button:hover {
+  background: #059669;
+}
+
+.alert-message {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+}
+
+.alert-time {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .alert-time {
+    color: #9ca3af;
+  }
+}
+
+/* 历史标签 */
+.history-summary {
+  margin-bottom: 24px;
+}
+
+.history-summary h4 {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.history-summary p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-summary p {
+    color: #9ca3af;
+  }
+}
+
+/* 健康图表 */
+.health-chart {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  position: relative;
+  height: 200px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .health-chart {
+    background: #374151;
+    border-color: #4b5563;
+  }
+}
+
+.chart-container {
+  position: relative;
+  height: 150px;
+  width: 100%;
+}
+
+.chart-point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, 50%);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-point:hover {
+  transform: translate(-50%, 50%) scale(1.5);
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-labels {
+    color: #9ca3af;
+  }
+}
+
+/* 历史记录列表 */
+.history-list h4 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  border: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-item {
+    border-color: #4b5563;
+  }
+}
+
+.history-item.healthy {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+.history-item.warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.history-item.critical {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-item.healthy {
+    background: #064e3b;
+  }
+  
+  .history-item.warning {
+    background: #451a03;
+  }
+  
+  .history-item.critical {
+    background: #450a0a;
+  }
+}
+
+.history-time {
+  font-weight: 500;
+}
+
+.history-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: capitalize;
+}
+
+.history-score {
+  font-weight: 600;
+}
+
+.history-issues {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-issues {
+    color: #9ca3af;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .health-dashboard {
+    padding: 16px;
+  }
+  
+  .health-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .health-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .components-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .alert-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .health-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .health-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .health-tabs button {
+    flex: 1;
+    min-width: 80px;
+  }
+}

@@ -198,7 +198,7 @@ export class NetworkDetector {
   startMonitoring(): void {
     if (this.updateInterval) return
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.setInterval) {
       this.updateInterval = window.setInterval(() => {
         const newInfo = this.detectNetworkInfo()
         if (this.hasNetworkChanged(newInfo)) {
@@ -232,7 +232,7 @@ export class NetworkDetector {
       // 监听连接变化（如果支持）
       if ('connection' in navigator) {
         const connection = (navigator as any).connection
-        if (connection) {
+        if (connection && typeof connection.addEventListener === 'function') {
           connection.addEventListener('change', this.handleConnectionChange.bind(this))
         }
       }

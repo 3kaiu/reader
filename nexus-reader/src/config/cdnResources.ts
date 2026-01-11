@@ -1,81 +1,164 @@
 /**
- * CDN资源配置 - 端侧AI优化
- * 定义外部化AI库的CDN加载映射
+ * CDN Resources Configuration
+ * Defines CDN resources and their loading strategies
  */
 
 export interface CDNResource {
+  name: string
   url: string
-  globalName: string
+  type: 'script' | 'style' | 'font' | 'image' | 'data'
+  priority: 'high' | 'medium' | 'low'
+  preload?: boolean
+  fallback?: string
   integrity?: string
-  fallback?: string[]
+  globalName?: string
 }
 
-/**
- * CDN资源映射配置
- */
 export const CDN_RESOURCES: Record<string, CDNResource> = {
-  // MLC AI WebLLM - 端侧AI推理库
+  // AI/ML Libraries
   '@mlc-ai/web-llm': {
+    name: 'MLC Web LLM',
     url: 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js',
-    globalName: 'WebLLM',
-    fallback: [
-      'https://unpkg.com/@mlc-ai/web-llm@latest/dist/index.js'
-    ]
+    type: 'script',
+    priority: 'medium',
+    preload: false,
+    globalName: 'WebLLM'
   },
-
-  // HuggingFace Transformers - AI模型库
+  
   '@huggingface/transformers': {
+    name: 'Hugging Face Transformers',
     url: 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@latest/dist/transformers.min.js',
-    globalName: 'HuggingFaceTransformers',
-    fallback: [
-      'https://unpkg.com/@huggingface/transformers@latest/dist/transformers.min.js'
-    ]
+    type: 'script',
+    priority: 'medium',
+    preload: false,
+    globalName: 'Transformers'
   },
-
-  // ONNX Runtime Web - AI推理运行时
+  
   'onnxruntime-web': {
+    name: 'ONNX Runtime Web',
     url: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/ort.min.js',
-    globalName: 'ort',
-    fallback: [
-      'https://unpkg.com/onnxruntime-web@latest/dist/ort.min.js'
-    ]
+    type: 'script',
+    priority: 'medium',
+    preload: false,
+    globalName: 'ort'
   },
-
-  // Piper TTS Web - 语音合成库
+  
   'piper-tts-web': {
-    url: 'https://cdn.jsdelivr.net/npm/piper-tts-web@latest/dist/index.js',
-    globalName: 'PiperTTS',
-    fallback: [
-      'https://unpkg.com/piper-tts-web@latest/dist/index.js'
-    ]
+    name: 'Piper TTS Web',
+    url: 'https://cdn.jsdelivr.net/npm/piper-tts-web@latest/dist/piper.min.js',
+    type: 'script',
+    priority: 'low',
+    preload: false,
+    globalName: 'PiperTTS'
+  },
+  
+  'tensorflow': {
+    name: 'TensorFlow.js',
+    url: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js',
+    type: 'script',
+    priority: 'medium',
+    preload: false,
+    fallback: '/assets/js/tf-fallback.js',
+    globalName: 'tf'
+  },
+  
+  'transformers': {
+    name: 'Transformers.js',
+    url: 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js',
+    type: 'script',
+    priority: 'medium',
+    preload: false,
+    globalName: 'Transformers'
+  },
+  
+  // TTS Libraries
+  'speech-synthesis': {
+    name: 'Speech Synthesis Polyfill',
+    url: 'https://cdn.jsdelivr.net/npm/speech-synthesis-polyfill@latest/dist/speech-synthesis.min.js',
+    type: 'script',
+    priority: 'low',
+    preload: false
+  },
+  
+  // UI Libraries
+  'react': {
+    name: 'React',
+    url: 'https://unpkg.com/react@18/umd/react.production.min.js',
+    type: 'script',
+    priority: 'high',
+    preload: true,
+    integrity: 'sha384-...',
+    globalName: 'React'
+  },
+  
+  'react-dom': {
+    name: 'React DOM',
+    url: 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+    type: 'script',
+    priority: 'high',
+    preload: true,
+    integrity: 'sha384-...',
+    globalName: 'ReactDOM'
+  },
+  
+  // Fonts
+  'inter-font': {
+    name: 'Inter Font',
+    url: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+    type: 'style',
+    priority: 'medium',
+    preload: true
+  },
+  
+  // Icons
+  'lucide-icons': {
+    name: 'Lucide Icons',
+    url: 'https://unpkg.com/lucide@latest/dist/umd/lucide.js',
+    type: 'script',
+    priority: 'low',
+    preload: false
+  },
+  
+  // Utilities
+  'lodash': {
+    name: 'Lodash',
+    url: 'https://cdn.jsdelivr.net/npm/lodash@latest/lodash.min.js',
+    type: 'script',
+    priority: 'low',
+    preload: false
+  },
+  
+  // Analytics
+  'analytics': {
+    name: 'Analytics',
+    url: 'https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID',
+    type: 'script',
+    priority: 'low',
+    preload: false
   }
 }
 
-/**
- * 获取CDN资源配置
- */
-export function getCDNResource(packageName: string): CDNResource | null {
-  return CDN_RESOURCES[packageName] || null
+export const CDN_DOMAINS = [
+  'cdn.jsdelivr.net',
+  'unpkg.com',
+  'fonts.googleapis.com',
+  'www.googletagmanager.com'
+]
+
+export const CDN_PRECONNECT_HINTS = CDN_DOMAINS.map(domain => `https://${domain}`)
+
+export function getCDNResource(name: string): CDNResource | undefined {
+  return CDN_RESOURCES[name]
 }
 
-/**
- * 获取所有CDN资源的预加载链接
- */
-export function getCDNPreloadLinks(): string[] {
-  return Object.values(CDN_RESOURCES).map(resource => resource.url)
+export function getHighPriorityResources(): CDNResource[] {
+  return Object.values(CDN_RESOURCES).filter(resource => resource.priority === 'high')
 }
 
-/**
- * 检查CDN资源是否可用
- */
-export async function checkCDNAvailability(packageName: string): Promise<boolean> {
-  const resource = getCDNResource(packageName)
-  if (!resource) return false
+export function getPreloadResources(): CDNResource[] {
+  return Object.values(CDN_RESOURCES).filter(resource => resource.preload)
+}
 
-  try {
-    const response = await fetch(resource.url, { method: 'HEAD' })
-    return response.ok
-  } catch {
-    return false
-  }
+export function getResourcesByType(type: CDNResource['type']): CDNResource[] {
+  return Object.values(CDN_RESOURCES).filter(resource => resource.type === type)
 }

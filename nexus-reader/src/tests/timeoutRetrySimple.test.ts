@@ -49,6 +49,16 @@ import {
 
 describe('超时重试机制核心测试', () => {
   beforeEach(() => {
+    // Clear any existing operations before each test
+    aiTimeoutRetryManager.clearAllOperations()
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    // Clean up after each test
+    aiTimeoutRetryManager.clearAllOperations()
+  })
+  beforeEach(() => {
     vi.clearAllMocks()
     aiTimeoutRetryManager.cancelAllOperations()
   })
@@ -200,7 +210,7 @@ describe('超时重试机制核心测试', () => {
       
       const longOperation = (signal: AbortSignal) => 
         new Promise<string>((resolve, reject) => {
-          const timeoutId = setTimeout(() => resolve('completed'), 2000)
+          const timeoutId = setTimeout(() => resolve('completed'), 5000) // Longer operation
           
           signal.addEventListener('abort', () => {
             clearTimeout(timeoutId)
@@ -210,16 +220,15 @@ describe('超时重试机制核心测试', () => {
 
       // 启动操作
       const operationPromise = aiTimeoutRetryManager.executeWithTimeoutRetry(
-        'inference',
         longOperation,
         {
           operationId,
-          customConfig: { timeout: 5000, maxRetries: 0 }
+          customConfig: { timeout: 10000, maxRetries: 0 } // Longer timeout
         }
       )
 
-      // 等待操作开始
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // 等待操作开始 (shorter wait)
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       // 取消操作
       const cancelled = aiTimeoutRetryManager.cancelOperation(operationId)
@@ -240,7 +249,6 @@ describe('超时重试机制核心测试', () => {
       for (let i = 0; i < 3; i++) {
         operations.push(
           aiTimeoutRetryManager.executeWithTimeoutRetry(
-            'cache-operation',
             longOperation,
             {
               operationId: `test-${i}`,

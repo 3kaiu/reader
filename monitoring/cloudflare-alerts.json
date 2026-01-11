@@ -1,0 +1,201 @@
+{
+  "name": "Nexus Reader Production Alerts",
+  "description": "Comprehensive alerting for Nexus Reader production environment",
+  "enabled": true,
+  "alert_type": "universal",
+  "mechanisms": {
+    "email": [
+      {
+        "id": "admin@nexus-reader.com"
+      }
+    ],
+    "webhooks": [
+      {
+        "id": "slack-webhook",
+        "name": "Slack Notifications",
+        "url": "${SLACK_WEBHOOK_URL}",
+        "secret": "${WEBHOOK_SECRET}"
+      }
+    ]
+  },
+  "filters": {
+    "zones": ["${CLOUDFLARE_ZONE_ID}"],
+    "services": ["workers", "pages", "dns", "ssl"]
+  },
+  "conditions": [
+    {
+      "name": "High Error Rate",
+      "expression": "error_rate > 5",
+      "description": "Alert when error rate exceeds 5%",
+      "threshold": {
+        "field": "error_rate",
+        "comparison": "greater_than",
+        "value": 5,
+        "duration": "5m"
+      }
+    },
+    {
+      "name": "High Response Time",
+      "expression": "avg_response_time > 2000",
+      "description": "Alert when average response time exceeds 2 seconds",
+      "threshold": {
+        "field": "avg_response_time",
+        "comparison": "greater_than",
+        "value": 2000,
+        "duration": "5m"
+      }
+    },
+    {
+      "name": "Low Cache Hit Rate",
+      "expression": "cache_hit_rate < 90",
+      "description": "Alert when cache hit rate drops below 90%",
+      "threshold": {
+        "field": "cache_hit_rate",
+        "comparison": "less_than",
+        "value": 90,
+        "duration": "10m"
+      }
+    },
+    {
+      "name": "Worker CPU Limit",
+      "expression": "worker_cpu_time > 45",
+      "description": "Alert when worker CPU time approaches limit",
+      "threshold": {
+        "field": "worker_cpu_time",
+        "comparison": "greater_than",
+        "value": 45,
+        "duration": "1m"
+      }
+    },
+    {
+      "name": "KV Storage Usage",
+      "expression": "kv_storage_usage > 900",
+      "description": "Alert when KV storage usage exceeds 900MB (90% of 1GB limit)",
+      "threshold": {
+        "field": "kv_storage_usage",
+        "comparison": "greater_than",
+        "value": 900,
+        "duration": "1h"
+      }
+    },
+    {
+      "name": "Worker Request Limit",
+      "expression": "daily_worker_requests > 90000",
+      "description": "Alert when daily worker requests exceed 90% of 100k limit",
+      "threshold": {
+        "field": "daily_worker_requests",
+        "comparison": "greater_than",
+        "value": 90000,
+        "duration": "1h"
+      }
+    },
+    {
+      "name": "SSL Certificate Expiry",
+      "expression": "ssl_cert_days_until_expiry < 30",
+      "description": "Alert when SSL certificate expires in less than 30 days",
+      "threshold": {
+        "field": "ssl_cert_days_until_expiry",
+        "comparison": "less_than",
+        "value": 30,
+        "duration": "1d"
+      }
+    },
+    {
+      "name": "DNS Resolution Failure",
+      "expression": "dns_resolution_success_rate < 99",
+      "description": "Alert when DNS resolution success rate drops below 99%",
+      "threshold": {
+        "field": "dns_resolution_success_rate",
+        "comparison": "less_than",
+        "value": 99,
+        "duration": "5m"
+      }
+    },
+    {
+      "name": "Origin Server Down",
+      "expression": "origin_response_code >= 500",
+      "description": "Alert when origin server returns 5xx errors",
+      "threshold": {
+        "field": "origin_response_code",
+        "comparison": "greater_than_or_equal",
+        "value": 500,
+        "duration": "1m"
+      }
+    },
+    {
+      "name": "AI Service Quota",
+      "expression": "daily_ai_requests > 9000",
+      "description": "Alert when daily AI requests exceed 90% of 10k limit",
+      "threshold": {
+        "field": "daily_ai_requests",
+        "comparison": "greater_than",
+        "value": 9000,
+        "duration": "1h"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "type": "email",
+      "parameters": {
+        "subject": "🚨 Nexus Reader Alert: {{condition_name}}",
+        "body": "Alert triggered for Nexus Reader production environment.\n\nCondition: {{condition_name}}\nDescription: {{condition_description}}\nValue: {{current_value}}\nThreshold: {{threshold_value}}\nTime: {{timestamp}}\n\nPlease investigate immediately.\n\nDashboard: https://dash.cloudflare.com\nHealth Check: https://api.nexus-reader.com/health"
+      }
+    },
+    {
+      "type": "webhook",
+      "parameters": {
+        "webhook_id": "slack-webhook",
+        "payload": {
+          "text": "🚨 *Nexus Reader Production Alert*",
+          "attachments": [
+            {
+              "color": "danger",
+              "fields": [
+                {
+                  "title": "Condition",
+                  "value": "{{condition_name}}",
+                  "short": true
+                },
+                {
+                  "title": "Current Value",
+                  "value": "{{current_value}}",
+                  "short": true
+                },
+                {
+                  "title": "Threshold",
+                  "value": "{{threshold_value}}",
+                  "short": true
+                },
+                {
+                  "title": "Duration",
+                  "value": "{{duration}}",
+                  "short": true
+                }
+              ],
+              "actions": [
+                {
+                  "type": "button",
+                  "text": "View Dashboard",
+                  "url": "https://dash.cloudflare.com"
+                },
+                {
+                  "type": "button",
+                  "text": "Health Check",
+                  "url": "https://api.nexus-reader.com/health"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "schedule": {
+    "enabled": true,
+    "timezone": "UTC",
+    "quiet_hours": {
+      "enabled": false
+    }
+  }
+}

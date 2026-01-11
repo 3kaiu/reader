@@ -11,9 +11,16 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:properties": "node --test tests/properties/*.test.js",
+    "test:coverage": "vitest --run --coverage",
     "clean": "rm -rf dist node_modules/.cache",
     "size-check": "bash analyze-performance.sh build",
-    "debug-ai": "bash debug-ai-services.sh"
+    "debug-ai": "bash debug-ai-services.sh",
+    "docs:api": "typedoc",
+    "docs:build": "npm run docs:api && npm run docs:generate",
+    "docs:generate": "node scripts/generate-docs.js",
+    "docs:serve": "cd docs && python -m http.server 8080",
+    "docs:deploy": "npm run docs:build && gh-pages -d docs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
@@ -42,10 +49,20 @@
     "@rsbuild/plugin-vue": "^1.2.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.3",
+    "@vitest/coverage-v8": "^2.1.8",
+    "fast-check": "^4.5.3",
+    "gh-pages": "^6.2.0",
+    "glob": "^13.0.0",
     "lighthouse": "^12.2.1",
+    "marked": "^15.0.6",
+    "react-docgen": "^7.1.0",
     "tailwindcss": "^4.1.18",
     "ts-node": "^10.9.2",
+    "typedoc": "^0.27.6",
+    "typedoc-plugin-markdown": "^4.3.1",
+    "typedoc-plugin-mermaid": "^1.12.1",
     "typescript": "^5.9.3",
+    "vitest": "^2.1.8",
     "webpack-bundle-analyzer": "^5.1.1"
   }
 }

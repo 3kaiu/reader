@@ -1,0 +1,86 @@
+# GitHub Pages Configuration
+title: "Nexus Reader Documentation"
+description: "现代化个人云阅读平台 - 基于免费服务构建的企业级解决方案"
+baseurl: ""
+url: "https://your-username.github.io"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Navigation
+navigation:
+  - title: "用户指南"
+    url: "/README"
+  - title: "API 文档"
+    url: "/API"
+  - title: "部署指南"
+    url: "/DEPLOYMENT"
+  - title: "常见问题"
+    url: "/FAQ"
+
+# SEO settings
+lang: zh-CN
+author: "Nexus Reader Team"
+twitter:
+  username: nexusreader
+  card: summary_large_image
+
+# Analytics (optional)
+google_analytics: UA-XXXXXXXXX-X
+
+# Social links
+github_username: your-username
+email: support@example.com
+
+# Exclude from processing
+exclude:
+  - node_modules/
+  - package*.json
+  - "*.test.js"
+  - "*.test.ts"
+  - coverage/
+  - .nyc_output/
+
+# Include in processing
+include:
+  - _pages
+  - assets
+
+# Collections
+collections:
+  guides:
+    output: true
+    permalink: /:collection/:name/
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      author: "Nexus Reader Team"
+  - scope:
+      path: ""
+      type: "guides"
+    values:
+      layout: "guide"
+
+# Kramdown settings
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true

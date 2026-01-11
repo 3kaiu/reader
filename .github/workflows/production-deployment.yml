@@ -1,0 +1,404 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      skip_tests:
+        description: 'Skip tests (emergency deployment)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  # Pre-deployment checks
+  pre-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
+      should_deploy: ${{ steps.checks.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="$(date +%Y%m%d)-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Pre-deployment checks
+        id: checks
+        run: |
+          # Check if this is a valid deployment
+          if [[ "${{ steps.env.outputs.environment }}" == "production" ]] && [[ "${{ github.ref }}" != refs/tags/* ]] && [[ "${{ github.event_name }}" != "workflow_dispatch" ]]; then
+            echo "❌ Production deployments require tags or manual trigger"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "✅ Pre-deployment checks passed"
+
+  # Security and quality checks
+  security-checks:
+    runs-on: ubuntu-latest
+    needs: pre-deployment
+    if: needs.pre-deployment.outputs.should_deploy == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit
+        run: |
+          npm audit --audit-level=high
+          npx audit-ci --config audit-ci.json
+
+      - name: Dependency check
+        run: |
+          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC'
+
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          languages: javascript,typescript
+
+  # Run tests
+  test:
+    runs-on: ubuntu-latest
+    needs: pre-deployment
+    if: needs.pre-deployment.outputs.should_deploy == 'true' && github.event.inputs.skip_tests != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Run property tests
+        run: npm run test:properties
+        env:
+          CI: true
+
+      - name: Run integration tests
+        run: npm run test:integration
+        timeout-minutes: 10
+
+      - name: Generate test coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: nexus-reader-coverage
+
+  # Build application
+  build:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, security-checks, test]
+    if: always() && needs.pre-deployment.outputs.should_deploy == 'true' && (needs.security-checks.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped'))
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: |
+          NODE_ENV=production npm run build
+          npm run build:workers
+        env:
+          VITE_APP_VERSION: ${{ needs.pre-deployment.outputs.version }}
+          VITE_BUILD_TIME: ${{ github.run_number }}
+
+      - name: Build Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.pre-deployment.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            BUILD_VERSION=${{ needs.pre-deployment.outputs.version }}
+            NODE_ENV=production
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            cloudflare-workers/
+          retention-days: 30
+
+  # Deploy to Cloudflare
+  deploy-cloudflare:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, build]
+    environment: ${{ needs.pre-deployment.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy Cloudflare Workers
+        run: |
+          # Deploy all workers
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/api-proxy-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/sync-engine-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/analytics-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/health-monitoring-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/error-logging-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/content-classification-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/semantic-search-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/secure-api-worker.js
+          wrangler publish --env ${{ needs.pre-deployment.outputs.environment }} cloudflare-workers/kv-storage-worker.js
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Cloudflare Pages
+        run: |
+          wrangler pages publish dist --project-name nexus-reader --env ${{ needs.pre-deployment.outputs.environment }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Configure secrets
+        run: |
+          echo "${{ secrets.OPENAI_API_KEY }}" | wrangler secret put OPENAI_API_KEY --env ${{ needs.pre-deployment.outputs.environment }}
+          echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET --env ${{ needs.pre-deployment.outputs.environment }}
+          echo "${{ secrets.ENCRYPTION_KEY }}" | wrangler secret put ENCRYPTION_KEY --env ${{ needs.pre-deployment.outputs.environment }}
+          echo "${{ secrets.WEBHOOK_SECRET }}" | wrangler secret put WEBHOOK_SECRET --env ${{ needs.pre-deployment.outputs.environment }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # Health checks and verification
+  health-checks:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, deploy-cloudflare]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Run health checks
+        run: |
+          node monitoring/health-check.js
+        env:
+          PRODUCTION_BASE_URL: ${{ needs.pre-deployment.outputs.environment == 'production' && 'https://nexus-reader.com' || 'https://staging.nexus-reader.com' }}
+          PRODUCTION_API_URL: ${{ needs.pre-deployment.outputs.environment == 'production' && 'https://api.nexus-reader.com' || 'https://staging-api.nexus-reader.com' }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Performance tests
+        run: |
+          npx lighthouse-ci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # Setup monitoring
+  setup-monitoring:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, health-checks]
+    if: needs.pre-deployment.outputs.environment == 'production'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Cloudflare alerts
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/alerting/policies" \
+               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -d @monitoring/cloudflare-alerts.json
+
+      - name: Setup uptime monitoring
+        run: |
+          # Configure external uptime monitoring service
+          echo "Setting up uptime monitoring..."
+
+  # Rollback capability
+  rollback:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, health-checks]
+    if: failure() && needs.pre-deployment.outputs.environment == 'production'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Rollback deployment
+        run: |
+          echo "🚨 Deployment failed, initiating rollback..."
+          
+          # Get previous deployment
+          PREVIOUS_DEPLOYMENT=$(wrangler deployments list --json | jq -r '.[1].id')
+          
+          # Rollback workers
+          wrangler rollback $PREVIOUS_DEPLOYMENT --env production
+          
+          # Rollback pages
+          wrangler pages deployment list --project-name nexus-reader --json | jq -r '.[1].id' | xargs -I {} wrangler pages deployment rollback {}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Notifications
+  notify:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, health-checks, setup-monitoring]
+    if: always()
+    steps:
+      - name: Notify deployment status
+        run: |
+          if [[ "${{ needs.health-checks.result }}" == "success" ]]; then
+            STATUS="✅ SUCCESS"
+            COLOR="good"
+            MESSAGE="Deployment completed successfully!"
+          else
+            STATUS="❌ FAILED"
+            COLOR="danger"
+            MESSAGE="Deployment failed. Check logs for details."
+          fi
+          
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+               -H "Content-Type: application/json" \
+               -d "{
+                 \"text\": \"🚀 Nexus Reader Deployment\",
+                 \"attachments\": [{
+                   \"color\": \"$COLOR\",
+                   \"fields\": [
+                     {\"title\": \"Status\", \"value\": \"$STATUS\", \"short\": true},
+                     {\"title\": \"Environment\", \"value\": \"${{ needs.pre-deployment.outputs.environment }}\", \"short\": true},
+                     {\"title\": \"Version\", \"value\": \"${{ needs.pre-deployment.outputs.version }}\", \"short\": true},
+                     {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true}
+                   ],
+                   \"actions\": [
+                     {\"type\": \"button\", \"text\": \"View Site\", \"url\": \"https://nexus-reader.com\"},
+                     {\"type\": \"button\", \"text\": \"View Logs\", \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}
+                   ]
+                 }]
+               }"
+
+      - name: Update deployment status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ needs.health-checks.result }}' === 'success' ? 'success' : 'failure';
+            const description = status === 'success' ? 'Deployment completed successfully' : 'Deployment failed';
+            
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment?.id || 0,
+              state: status,
+              description: description,
+              environment_url: '${{ needs.pre-deployment.outputs.environment == 'production' && 'https://nexus-reader.com' || 'https://staging.nexus-reader.com' }}'
+            });
+
+  # Cleanup
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [notify]
+    if: always()
+    steps:
+      - name: Cleanup artifacts
+        run: |
+          echo "🧹 Cleaning up deployment artifacts..."
+          # Cleanup logic here

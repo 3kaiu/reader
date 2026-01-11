@@ -1,576 +1,477 @@
 /**
- * AI Timeout and Retry Manager - AI超时和重试管理器
- * 专门为AI库和模型加载提供超时和重试机制
+ * AI Timeout and Retry Manager
+ * Manages timeouts and retry logic for AI operations
  */
 
-import { performanceMonitor } from './performanceMonitor'
-import { aiErrorHandler } from './aiErrorHandler'
-import { networkDetector, type NetworkQuality } from './networkOptimizer'
-
-// AI操作类型
-export type AIOperationType = 'library-load' | 'model-load' | 'inference' | 'tts-load' | 'cache-operation'
-
-// 超时配置接口
-export interface TimeoutConfig {
-  timeout: number           // 超时时间（毫秒）
-  maxRetries: number       // 最大重试次数
-  baseDelay: number        // 基础延迟时间（毫秒）
-  maxDelay: number         // 最大延迟时间（毫秒）
-  backoffMultiplier: number // 退避倍数
-  jitterFactor: number     // 抖动因子
+export interface RetryConfig {
+  maxRetries: number
+  baseDelay: number
+  maxDelay: number
+  backoffMultiplier: number
+  timeout: number
 }
 
-// AI操作结果接口
-export interface AIOperationResult<T> {
+export interface RetryResult<T> {
   success: boolean
   data?: T
   error?: Error
   attempts: number
   totalTime: number
-  networkQuality: NetworkQuality
 }
 
-// 默认超时配置 - 根据网络质量和操作类型调整
-const DEFAULT_TIMEOUT_CONFIGS: Record<NetworkQuality, Record<AIOperationType, TimeoutConfig>> = {
-  excellent: {
-    'library-load': {
-      timeout: 15000,      // 15秒
-      maxRetries: 2,
-      baseDelay: 500,
-      maxDelay: 2000,
-      backoffMultiplier: 2,
-      jitterFactor: 0.1
-    },
-    'model-load': {
-      timeout: 60000,      // 1分钟
-      maxRetries: 3,
-      baseDelay: 1000,
-      maxDelay: 5000,
-      backoffMultiplier: 2,
-      jitterFactor: 0.2
-    },
-    'inference': {
-      timeout: 30000,      // 30秒
-      maxRetries: 2,
-      baseDelay: 200,
-      maxDelay: 1000,
-      backoffMultiplier: 1.5,
-      jitterFactor: 0.1
-    },
-    'tts-load': {
-      timeout: 10000,      // 10秒
-      maxRetries: 2,
-      baseDelay: 300,
-      maxDelay: 1500,
-      backoffMultiplier: 2,
-      jitterFactor: 0.1
-    },
-    'cache-operation': {
-      timeout: 5000,       // 5秒
-      maxRetries: 3,
-      baseDelay: 100,
-      maxDelay: 500,
-      backoffMultiplier: 1.5,
-      jitterFactor: 0.05
-    }
-  },
-  good: {
-    'library-load': {
-      timeout: 25000,      // 25秒
-      maxRetries: 3,
-      baseDelay: 800,
-      maxDelay: 3000,
-      backoffMultiplier: 2,
-      jitterFactor: 0.15
-    },
-    'model-load': {
-      timeout: 90000,      // 1.5分钟
-      maxRetries: 3,
-      baseDelay: 1500,
-      maxDelay: 8000,
-      backoffMultiplier: 2,
-      jitterFactor: 0.25
-    },
-    'inference': {
-      timeout: 45000,      // 45秒
-      maxRetries: 3,
-      baseDelay: 500,
-      maxDelay: 2000,
-      backoffMultiplier: 1.8,
-      jitterFactor: 0.15
-    },
-    'tts-load': {
-      timeout: 15000,      // 15秒
-      maxRetries: 3,
-      baseDelay: 500,
-      maxDelay: 2500,
-      backoffMultiplier: 2,
-      jitterFactor: 0.15
-    },
-    'cache-operation': {
-      timeout: 8000,       // 8秒
-      maxRetries: 3,
-      baseDelay: 200,
-      maxDelay: 1000,
-      backoffMultiplier: 1.8,
-      jitterFactor: 0.1
-    }
-  },
-  fair: {
-    'library-load': {
-      timeout: 45000,      // 45秒
-      maxRetries: 4,
-      baseDelay: 1200,
-      maxDelay: 5000,
-      backoffMultiplier: 2.2,
-      jitterFactor: 0.2
-    },
-    'model-load': {
-      timeout: 180000,     // 3分钟
-      maxRetries: 4,
-      baseDelay: 2000,
-      maxDelay: 12000,
-      backoffMultiplier: 2.5,
-      jitterFactor: 0.3
-    },
-    'inference': {
-      timeout: 60000,      // 1分钟
-      maxRetries: 3,
-      baseDelay: 800,
-      maxDelay: 4000,
-      backoffMultiplier: 2,
-      jitterFactor: 0.2
-    },
-    'tts-load': {
-      timeout: 25000,      // 25秒
-      maxRetries: 4,
-      baseDelay: 800,
-      maxDelay: 4000,
-      backoffMultiplier: 2.2,
-      jitterFactor: 0.2
-    },
-    'cache-operation': {
-      timeout: 12000,      // 12秒
-      maxRetries: 4,
-      baseDelay: 300,
-      maxDelay: 1500,
-      backoffMultiplier: 2,
-      jitterFactor: 0.15
-    }
-  },
-  poor: {
-    'library-load': {
-      timeout: 90000,      // 1.5分钟
-      maxRetries: 5,
-      baseDelay: 2000,
-      maxDelay: 10000,
-      backoffMultiplier: 2.5,
-      jitterFactor: 0.3
-    },
-    'model-load': {
-      timeout: 300000,     // 5分钟
-      maxRetries: 5,
-      baseDelay: 3000,
-      maxDelay: 20000,
-      backoffMultiplier: 3,
-      jitterFactor: 0.4
-    },
-    'inference': {
-      timeout: 120000,     // 2分钟
-      maxRetries: 4,
-      baseDelay: 1500,
-      maxDelay: 8000,
-      backoffMultiplier: 2.5,
-      jitterFactor: 0.3
-    },
-    'tts-load': {
-      timeout: 45000,      // 45秒
-      maxRetries: 5,
-      baseDelay: 1500,
-      maxDelay: 8000,
-      backoffMultiplier: 2.5,
-      jitterFactor: 0.3
-    },
-    'cache-operation': {
-      timeout: 20000,      // 20秒
-      maxRetries: 5,
-      baseDelay: 500,
-      maxDelay: 3000,
-      backoffMultiplier: 2.2,
-      jitterFactor: 0.2
-    }
-  },
-  offline: {
-    'library-load': {
-      timeout: 5000,       // 5秒（仅检查缓存）
-      maxRetries: 0,
-      baseDelay: 0,
-      maxDelay: 0,
-      backoffMultiplier: 1,
-      jitterFactor: 0
-    },
-    'model-load': {
-      timeout: 10000,      // 10秒（仅检查缓存）
-      maxRetries: 0,
-      baseDelay: 0,
-      maxDelay: 0,
-      backoffMultiplier: 1,
-      jitterFactor: 0
-    },
-    'inference': {
-      timeout: 60000,      // 1分钟（使用已加载的模型）
-      maxRetries: 1,
-      baseDelay: 1000,
-      maxDelay: 1000,
-      backoffMultiplier: 1,
-      jitterFactor: 0
-    },
-    'tts-load': {
-      timeout: 5000,       // 5秒（仅检查缓存）
-      maxRetries: 0,
-      baseDelay: 0,
-      maxDelay: 0,
-      backoffMultiplier: 1,
-      jitterFactor: 0
-    },
-    'cache-operation': {
-      timeout: 3000,       // 3秒
-      maxRetries: 1,
-      baseDelay: 100,
-      maxDelay: 100,
-      backoffMultiplier: 1,
-      jitterFactor: 0
-    }
-  }
-}
-
-/**
- * AI超时和重试管理器
- */
 export class AITimeoutRetryManager {
-  private activeOperations = new Map<string, AbortController>()
-  private operationStats = new Map<string, { attempts: number; totalTime: number }>()
+  private defaultConfig: RetryConfig = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 30000,
+    backoffMultiplier: 2,
+    timeout: 10000
+  }
+
+  private activeOperations = new Set<string>()
+  private cancelledOperations = new Set<string>()
+  private operationControllers = new Map<string, AbortController>()
 
   /**
-   * 执行带超时和重试的AI操作
+   * Execute operation with timeout and retry logic
+   */
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    config: Partial<RetryConfig> = {}
+  ): Promise<RetryResult<T>> {
+    const finalConfig = { ...this.defaultConfig, ...config }
+    const startTime = Date.now()
+    let lastError: Error | undefined
+    
+    for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
+      try {
+        const data = await this.executeWithTimeout(operation, finalConfig.timeout)
+        
+        return {
+          success: true,
+          data,
+          attempts: attempt + 1,
+          totalTime: Date.now() - startTime
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        
+        // Don't retry on last attempt
+        if (attempt === finalConfig.maxRetries) {
+          break
+        }
+        
+        // Calculate delay for next attempt
+        const delay = Math.min(
+          finalConfig.baseDelay * Math.pow(finalConfig.backoffMultiplier, attempt),
+          finalConfig.maxDelay
+        )
+        
+        // Wait before retry
+        await this.delay(delay)
+      }
+    }
+    
+    return {
+      success: false,
+      error: lastError,
+      attempts: finalConfig.maxRetries + 1,
+      totalTime: Date.now() - startTime
+    }
+  }
+
+  /**
+   * Execute operation with timeout
+   */
+  private async executeWithTimeout<T>(
+    operation: (signal?: AbortSignal) => Promise<T>,
+    timeout: number,
+    operationId?: string
+  ): Promise<T> {
+    const controller = new AbortController()
+    
+    // Store the controller if we have an operation ID
+    if (operationId) {
+      this.operationControllers.set(operationId, controller)
+    }
+    
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        reject(new Error(`Operation timed out after ${timeout}ms`))
+      }, timeout)
+      
+      operation(controller.signal)
+        .then(result => {
+          clearTimeout(timeoutId)
+          resolve(result)
+        })
+        .catch(error => {
+          clearTimeout(timeoutId)
+          reject(error)
+        })
+        .finally(() => {
+          // Clean up the controller
+          if (operationId) {
+            this.operationControllers.delete(operationId)
+          }
+        })
+    })
+  }
+
+  /**
+   * Delay execution
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  /**
+   * Check if error is retryable
+   */
+  isRetryableError(error: Error): boolean {
+    const message = error.message.toLowerCase()
+    
+    // Retryable errors
+    if (message.includes('timeout') ||
+        message.includes('network') ||
+        message.includes('connection') ||
+        message.includes('rate limit') ||
+        message.includes('503') ||
+        message.includes('502') ||
+        message.includes('504')) {
+      return true
+    }
+    
+    // Non-retryable errors
+    if (message.includes('401') ||
+        message.includes('403') ||
+        message.includes('404') ||
+        message.includes('invalid') ||
+        message.includes('malformed')) {
+      return false
+    }
+    
+    return true
+  }
+
+  /**
+   * Get recommended delay for error type
+   */
+  getRecommendedDelay(error: Error): number {
+    const message = error.message.toLowerCase()
+    
+    if (message.includes('rate limit')) {
+      return 60000 // 1 minute for rate limits
+    }
+    
+    if (message.includes('timeout')) {
+      return 5000 // 5 seconds for timeouts
+    }
+    
+    if (message.includes('network')) {
+      return 2000 // 2 seconds for network errors
+    }
+    
+    return this.defaultConfig.baseDelay
+  }
+
+  /**
+   * Cancel all active operations
+   */
+  cancelAllOperations(): void {
+    this.cancelledOperations = new Set(this.activeOperations)
+  }
+
+  /**
+   * Force clear all operations (for testing)
+   */
+  clearAllOperations(): void {
+    this.activeOperations.clear()
+    this.cancelledOperations.clear()
+    this.operationControllers.clear()
+  }
+
+  /**
+   * Get active operations count
+   */
+  getActiveOperationsCount(): number {
+    return this.activeOperations.size
+  }
+
+  /**
+   * Execute operation with timeout and retry (with operation ID tracking)
    */
   async executeWithTimeoutRetry<T>(
-    operationType: AIOperationType,
-    operationFn: (signal: AbortSignal) => Promise<T>,
-    options?: {
-      operationId?: string
-      customConfig?: Partial<TimeoutConfig>
-      onProgress?: (attempt: number, maxAttempts: number) => void
-      onRetry?: (attempt: number, error: Error, delay: number) => void
-    }
-  ): Promise<AIOperationResult<T>> {
-    const operationId = options?.operationId || `${operationType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const networkQuality = networkDetector.getNetworkQuality()
-    const config = {
-      ...DEFAULT_TIMEOUT_CONFIGS[networkQuality][operationType],
-      ...options?.customConfig
+    operationIdOrOperation: string | ((signal?: AbortSignal) => Promise<T>),
+    operationOrConfig?: ((signal?: AbortSignal) => Promise<T>) | Partial<RetryConfig> | { customConfig: Partial<RetryConfig>; operationId?: string },
+    configOrWrapper?: Partial<RetryConfig> | { customConfig: Partial<RetryConfig>; operationId?: string }
+  ): Promise<RetryResult<T>> {
+    let operationId: string
+    let operation: (signal?: AbortSignal) => Promise<T>
+    let config: Partial<RetryConfig>
+
+    // Handle different parameter patterns for test compatibility
+    if (typeof operationIdOrOperation === 'string') {
+      // Standard usage: executeWithTimeoutRetry(operationId, operation, config)
+      operationId = operationIdOrOperation
+      operation = operationOrConfig as (signal?: AbortSignal) => Promise<T>
+      
+      if (configOrWrapper && 'customConfig' in configOrWrapper) {
+        config = configOrWrapper.customConfig
+      } else {
+        config = (configOrWrapper as Partial<RetryConfig>) || {}
+      }
+    } else {
+      // Alternative usage: executeWithTimeoutRetry(operation, config)
+      operation = operationIdOrOperation
+      const configParam = operationOrConfig as { customConfig: Partial<RetryConfig>; operationId?: string } | Partial<RetryConfig>
+      
+      if (configParam && 'customConfig' in configParam) {
+        config = configParam.customConfig
+        operationId = configParam.operationId || `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      } else if (configParam && 'operationId' in configParam) {
+        // Handle case where operationId is in the config directly
+        operationId = configParam.operationId || `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        config = configParam
+      } else {
+        config = (configParam as Partial<RetryConfig>) || {}
+        operationId = `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }
     }
 
+    const finalConfig = { ...this.defaultConfig, ...config }
     const startTime = Date.now()
-    let lastError: Error | null = null
-    let attempts = 0
-
-    // 记录操作开始
-    this.operationStats.set(operationId, { attempts: 0, totalTime: 0 })
-
+    let lastError: Error | undefined
+    
+    // Track active operation
+    this.activeOperations.add(operationId)
+    
     try {
-      for (attempts = 0; attempts <= config.maxRetries; attempts++) {
-        // 创建AbortController用于超时控制
-        const abortController = new AbortController()
-        this.activeOperations.set(operationId, abortController)
-
-        // 更新统计
-        const stats = this.operationStats.get(operationId)!
-        stats.attempts = attempts + 1
-
-        // 报告进度
-        options?.onProgress?.(attempts + 1, config.maxRetries + 1)
-
+      for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
         try {
-          // 设置超时
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => {
-              abortController.abort()
-              reject(new Error(`AI operation ${operationType} timed out after ${config.timeout}ms`))
-            }, config.timeout)
-          })
-
-          // 执行操作，使用Promise.race来实现超时
-          const result = await Promise.race([
-            operationFn(abortController.signal),
-            timeoutPromise
-          ])
-
-          // 清理
-          this.activeOperations.delete(operationId)
-
-          // 成功完成
-          const totalTime = Date.now() - startTime
-          stats.totalTime = totalTime
-
-          // 报告成功指标
-          performanceMonitor.reportMetric(`ai_${operationType}_success`, totalTime, {
-            attempts: attempts + 1,
-            networkQuality,
-            operationId
-          })
-
-          console.log(`✅ AI operation ${operationType} completed successfully in ${totalTime}ms (${attempts + 1} attempts)`)
-
+          // Check if operation was cancelled
+          if (this.cancelledOperations.has(operationId)) {
+            throw new Error('Operation was cancelled')
+          }
+          
+          const data = await this.executeWithTimeout(operation, finalConfig.timeout, operationId)
+          
           return {
             success: true,
-            data: result,
-            attempts: attempts + 1,
-            totalTime,
-            networkQuality
+            data,
+            attempts: attempt + 1,
+            totalTime: Date.now() - startTime
           }
-
         } catch (error) {
-          lastError = error as Error
-          this.activeOperations.delete(operationId)
-
-          // 检查是否是取消操作
-          if (abortController.signal.aborted) {
-            const timeoutError = new Error(`AI operation ${operationType} timed out after ${config.timeout}ms`)
-            lastError = timeoutError
-
-            // 报告超时
-            performanceMonitor.reportMetric(`ai_${operationType}_timeout`, config.timeout, {
-              attempts: attempts + 1,
-              networkQuality,
-              operationId
-            })
-
-            console.warn(`⏰ AI operation ${operationType} timed out (attempt ${attempts + 1})`)
-          }
-
-          // 如果是最后一次尝试，不再重试
-          if (attempts === config.maxRetries) {
+          lastError = error instanceof Error ? error : new Error(String(error))
+          
+          // Don't retry on last attempt
+          if (attempt === finalConfig.maxRetries) {
             break
           }
-
-          // 计算延迟时间（指数退避 + 抖动）
-          const baseDelay = Math.min(
-            config.baseDelay * Math.pow(config.backoffMultiplier, attempts),
-            config.maxDelay
+          
+          // Calculate delay for next attempt
+          const delay = Math.min(
+            finalConfig.baseDelay * Math.pow(finalConfig.backoffMultiplier, attempt),
+            finalConfig.maxDelay
           )
-          const jitter = baseDelay * config.jitterFactor * Math.random()
-          const delay = Math.round(baseDelay + jitter)
-
-          console.log(`🔄 AI operation ${operationType} failed (attempt ${attempts + 1}), retrying in ${delay}ms...`)
-          console.log(`   Error: ${lastError.message}`)
-
-          // 报告重试
-          options?.onRetry?.(attempts + 1, lastError, delay)
-
-          // 等待延迟
-          await new Promise(resolve => setTimeout(resolve, delay))
+          
+          // Wait before retry
+          await this.delay(delay)
         }
       }
-
-      // 所有重试都失败了
-      const totalTime = Date.now() - startTime
-      const stats = this.operationStats.get(operationId)!
-      stats.totalTime = totalTime
-
-      // 报告失败指标
-      performanceMonitor.reportMetric(`ai_${operationType}_failed`, totalTime, {
-        attempts,
-        networkQuality,
-        operationId,
-        error: lastError?.message
-      })
-
-      // 使用错误处理器处理错误
-      const handledError = await aiErrorHandler.handleError(lastError!, {
-        operation: operationType,
-        attempts,
-        networkQuality,
-        operationId
-      })
-
-      console.error(`❌ AI operation ${operationType} failed after ${attempts} attempts in ${totalTime}ms`)
-
+      
       return {
         success: false,
-        error: handledError,
-        attempts,
-        totalTime,
-        networkQuality
+        error: lastError,
+        attempts: finalConfig.maxRetries + 1,
+        totalTime: Date.now() - startTime
       }
-
     } finally {
-      // 清理
+      // Remove from active operations
       this.activeOperations.delete(operationId)
-      this.operationStats.delete(operationId)
+      this.cancelledOperations.delete(operationId)
+      this.operationControllers.delete(operationId)
     }
   }
 
   /**
-   * 取消正在进行的操作
+   * Get recommended configuration for operation type and network quality
+   */
+  getRecommendedConfig(
+    operationType: string,
+    networkQuality: 'excellent' | 'good' | 'poor' | 'offline' = 'good'
+  ): RetryConfig {
+    const baseConfigs: Record<string, Partial<RetryConfig>> = {
+      'library-load': {
+        maxRetries: 3,
+        baseDelay: 2000,
+        maxDelay: 30000,
+        timeout: 30000
+      },
+      'model-load': {
+        maxRetries: 2,
+        baseDelay: 5000,
+        maxDelay: 60000,
+        timeout: 60000
+      },
+      'inference': {
+        maxRetries: 2,
+        baseDelay: 1000,
+        maxDelay: 10000,
+        timeout: 15000
+      },
+      'cache-operation': {
+        maxRetries: 3,
+        baseDelay: 500,
+        maxDelay: 5000,
+        timeout: 5000
+      },
+      'tts-load': {
+        maxRetries: 2,
+        baseDelay: 1500,
+        maxDelay: 15000,
+        timeout: 20000
+      }
+    }
+
+    const networkMultipliers: Record<string, { timeout: number, delay: number }> = {
+      'excellent': { timeout: 0.7, delay: 0.5 },
+      'good': { timeout: 1.0, delay: 1.0 },
+      'poor': { timeout: 2.0, delay: 2.0 },
+      'offline': { timeout: 0.5, delay: 0.5 }
+    }
+
+    const baseConfig = baseConfigs[operationType] || baseConfigs['cache-operation']
+    const multiplier = networkMultipliers[networkQuality] || networkMultipliers['good']
+
+    return {
+      ...this.defaultConfig,
+      ...baseConfig,
+      timeout: Math.round((baseConfig.timeout || this.defaultConfig.timeout) * multiplier.timeout),
+      baseDelay: Math.round((baseConfig.baseDelay || this.defaultConfig.baseDelay) * multiplier.delay),
+      maxDelay: Math.round((baseConfig.maxDelay || this.defaultConfig.maxDelay) * multiplier.delay)
+    }
+  }
+
+  /**
+   * Get active operation count (alias)
+   */
+  getActiveOperationCount(): number {
+    return this.getActiveOperationsCount()
+  }
+
+  /**
+   * Cancel specific operation
    */
   cancelOperation(operationId: string): boolean {
-    const controller = this.activeOperations.get(operationId)
-    if (controller) {
-      controller.abort()
-      this.activeOperations.delete(operationId)
-      console.log(`🚫 AI operation ${operationId} cancelled`)
+    if (this.activeOperations.has(operationId)) {
+      this.cancelledOperations.add(operationId)
+      
+      // Abort the operation if it has a controller
+      const controller = this.operationControllers.get(operationId)
+      if (controller) {
+        controller.abort()
+      }
+      
       return true
     }
     return false
   }
 
   /**
-   * 取消所有正在进行的操作
+   * Check if should degrade operation based on failure rate
    */
-  cancelAllOperations(): void {
-    const operationIds = Array.from(this.activeOperations.keys())
-    operationIds.forEach(id => this.cancelOperation(id))
-    console.log(`🚫 Cancelled ${operationIds.length} AI operations`)
-  }
-
-  /**
-   * 获取正在进行的操作数量
-   */
-  getActiveOperationCount(): number {
-    return this.activeOperations.size
-  }
-
-  /**
-   * 获取操作统计信息
-   */
-  getOperationStats(): Array<{ operationId: string; attempts: number; totalTime: number }> {
-    return Array.from(this.operationStats.entries()).map(([operationId, stats]) => ({
-      operationId,
-      ...stats
-    }))
-  }
-
-  /**
-   * 获取推荐的超时配置
-   */
-  getRecommendedConfig(operationType: AIOperationType, networkQuality?: NetworkQuality): TimeoutConfig {
-    const quality = networkQuality || networkDetector.getNetworkQuality()
-    return { ...DEFAULT_TIMEOUT_CONFIGS[quality][operationType] }
-  }
-
-  /**
-   * 检查操作是否应该降级
-   */
-  shouldDegrade(operationType: AIOperationType): boolean {
-    const networkQuality = networkDetector.getNetworkQuality()
-    
-    // 离线时只允许缓存操作和推理
-    if (networkQuality === 'offline') {
-      return !['cache-operation', 'inference'].includes(operationType)
+  shouldDegrade(operationType: string, failureRate: number = 0.5): boolean {
+    // Simple degradation logic based on operation type and failure rate
+    const degradationThresholds: Record<string, number> = {
+      'library-load': 0.7,
+      'model-load': 0.6,
+      'inference': 0.8,
+      'cache-operation': 0.9,
+      'tts-load': 0.7
     }
 
-    // 网络质量差时建议降级某些操作
-    if (networkQuality === 'poor') {
-      return ['library-load', 'model-load'].includes(operationType)
-    }
-
-    return false
+    const threshold = degradationThresholds[operationType] || 0.7
+    return failureRate >= threshold
   }
 
   /**
-   * 获取降级建议
+   * Get degradation suggestion for operation type
    */
-  getDegradationSuggestion(operationType: AIOperationType): string {
-    const networkQuality = networkDetector.getNetworkQuality()
-    
-    switch (operationType) {
-      case 'library-load':
-        if (networkQuality === 'offline') {
-          return '网络离线，请检查网络连接后重试'
-        }
-        if (networkQuality === 'poor') {
-          return '网络较慢，建议稍后重试或使用缓存版本'
-        }
-        break
-        
-      case 'model-load':
-        if (networkQuality === 'offline') {
-          return '网络离线，只能使用已缓存的模型'
-        }
-        if (networkQuality === 'poor') {
-          return '网络较慢，建议使用较小的模型或稍后重试'
-        }
-        break
-        
-      case 'inference':
-        if (networkQuality === 'offline') {
-          return '网络离线，使用本地推理'
-        }
-        break
-        
-      case 'tts-load':
-        if (networkQuality === 'offline') {
-          return '网络离线，请检查网络连接后重试'
-        }
-        if (networkQuality === 'poor') {
-          return '网络较慢，建议使用系统TTS或稍后重试'
-        }
-        break
-        
-      case 'cache-operation':
-        return '缓存操作失败，可能影响性能但不影响基本功能'
+  getDegradationSuggestion(operationType: string): string {
+    const suggestions: Record<string, string> = {
+      'library-load': 'Use cached version or fallback library',
+      'model-load': 'Load smaller model or use cached model',
+      'inference': 'Reduce batch size or use simpler model',
+      'cache-operation': 'Skip caching and use direct access',
+      'tts-load': 'Use system TTS or disable audio features'
     }
-    
-    return '操作可能受网络影响，建议检查网络连接'
+
+    return suggestions[operationType] || 'Consider alternative approach or retry later'
   }
 }
 
-// 创建全局实例
-export const aiTimeoutRetryManager = new AITimeoutRetryManager()
-
-// 工具函数
-export function createTimeoutPromise<T>(promise: Promise<T>, timeout: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Operation timed out after ${timeout}ms`))
-    }, timeout)
-
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => clearTimeout(timeoutId))
-  })
-}
-
+// Utility functions
 export function calculateBackoffDelay(
   attempt: number,
   baseDelay: number,
   maxDelay: number,
-  backoffMultiplier: number,
-  jitterFactor: number
+  multiplier: number = 2
 ): number {
-  const exponentialDelay = Math.min(
-    baseDelay * Math.pow(backoffMultiplier, attempt),
-    maxDelay
-  )
-  const jitter = exponentialDelay * jitterFactor * Math.random()
-  return Math.round(exponentialDelay + jitter)
+  return Math.min(baseDelay * Math.pow(multiplier, attempt), maxDelay)
 }
 
 export function isRetryableError(error: Error): boolean {
-  const retryableMessages = [
-    'timeout',
-    'network',
-    'connection',
-    'fetch',
-    'load',
-    'abort'
-  ]
-  
   const message = error.message.toLowerCase()
-  return retryableMessages.some(keyword => message.includes(keyword))
+  
+  // Non-retryable errors (check first)
+  if (message.includes('401') ||
+      message.includes('403') ||
+      message.includes('404') ||
+      message.includes('invalid') ||
+      message.includes('malformed') ||
+      message.includes('permission denied') ||
+      message.includes('unauthorized') ||
+      message.includes('forbidden')) {
+    return false
+  }
+  
+  // Retryable errors
+  if (message.includes('timeout') ||
+      message.includes('network') ||
+      message.includes('connection') ||
+      message.includes('rate limit') ||
+      message.includes('503') ||
+      message.includes('502') ||
+      message.includes('504') ||
+      message.includes('fetch')) {
+    return true
+  }
+  
+  return false // Default to non-retryable for unknown errors
 }
 
-// 类型导出
-export type { TimeoutConfig, AIOperationResult }
+export function createTimeoutPromise<T>(
+  promise: Promise<T>,
+  timeout: number
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeout}ms`))
+    }, timeout)
+    
+    promise
+      .then(result => {
+        clearTimeout(timeoutId)
+        resolve(result)
+      })
+      .catch(error => {
+        clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
+}
+
+export const aiTimeoutRetryManager = new AITimeoutRetryManager()

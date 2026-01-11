@@ -30,8 +30,8 @@ describe('代码分割策略属性测试', () => {
     
     // 验证AI服务代码被分离
     expect(configContent).toContain('ai-services')
-    expect(configContent).toContain('stores[\\/]ai')
-    expect(configContent).toContain('pages[\\/]ai-')
+    expect(configContent).toContain('stores[\\\\\/]ai')
+    expect(configContent).toContain('pages[\\\\\/]ai-')
   })
 
   test('属性23: 构建产物应该包含独立的AI chunk文件', async () => {

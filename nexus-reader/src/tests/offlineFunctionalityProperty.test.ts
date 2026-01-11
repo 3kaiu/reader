@@ -85,6 +85,8 @@ describe('离线功能支持属性测试 (Property 21)', () => {
 
     it('应该正确检测离线状态', async () => {
       mockNavigator.onLine = false
+      // 当离线时，connection信息应该不可用
+      delete mockNavigator.connection
       
       const status = await aiErrorHandler.detectNetworkStatus()
       

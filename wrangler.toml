@@ -1,0 +1,130 @@
+# Wrangler Configuration for Nexus Reader
+# This file configures Cloudflare Workers deployment
+
+name = "nexus-reader"
+main = "cloudflare-workers/api-proxy-worker.js"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Account configuration
+account_id = "${CLOUDFLARE_ACCOUNT_ID}"
+zone_id = "${CLOUDFLARE_ZONE_ID}"
+
+# Workers configuration
+workers_dev = false
+route = { pattern = "api.nexus-reader.com/*", zone_id = "${CLOUDFLARE_ZONE_ID}" }
+
+# Environment variables
+[env.production.vars]
+ENVIRONMENT = "production"
+API_BASE_URL = "https://api.nexus-reader.com"
+CDN_BASE_URL = "https://cdn.nexus-reader.com"
+STATIC_BASE_URL = "https://nexus-reader.com"
+
+# KV Namespaces
+[[env.production.kv_namespaces]]
+binding = "NEXUS_READER_KV"
+id = "${KV_NAMESPACE_ID}"
+preview_id = "${KV_NAMESPACE_PREVIEW_ID}"
+
+[[env.production.kv_namespaces]]
+binding = "NEXUS_READER_CACHE"
+id = "${KV_CACHE_NAMESPACE_ID}"
+preview_id = "${KV_CACHE_NAMESPACE_PREVIEW_ID}"
+
+[[env.production.kv_namespaces]]
+binding = "NEXUS_READER_ANALYTICS"
+id = "${KV_ANALYTICS_NAMESPACE_ID}"
+preview_id = "${KV_ANALYTICS_NAMESPACE_PREVIEW_ID}"
+
+# Durable Objects
+[[env.production.durable_objects.bindings]]
+name = "SYNC_ENGINE"
+class_name = "SyncEngine"
+script_name = "nexus-reader-sync"
+
+[[env.production.durable_objects.bindings]]
+name = "HEALTH_MONITOR"
+class_name = "HealthMonitor"
+script_name = "nexus-reader-health"
+
+# R2 Buckets (for file storage)
+[[env.production.r2_buckets]]
+binding = "NEXUS_READER_STORAGE"
+bucket_name = "nexus-reader-storage"
+preview_bucket_name = "nexus-reader-storage-preview"
+
+# AI Bindings
+[env.production.ai]
+binding = "AI"
+
+# Analytics Engine
+[[env.production.analytics_engine_datasets]]
+binding = "NEXUS_ANALYTICS"
+dataset = "nexus_reader_analytics"
+
+# Secrets (set via wrangler secret put)
+# OPENAI_API_KEY
+# DATABASE_URL
+# REDIS_URL
+# JWT_SECRET
+# ENCRYPTION_KEY
+# WEBHOOK_SECRET
+
+# Rate limiting
+[env.production.limits]
+cpu_ms = 50
+memory_mb = 128
+
+# Staging environment
+[env.staging]
+name = "nexus-reader-staging"
+route = { pattern = "staging-api.nexus-reader.com/*", zone_id = "${CLOUDFLARE_ZONE_ID}" }
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+API_BASE_URL = "https://staging-api.nexus-reader.com"
+CDN_BASE_URL = "https://staging-cdn.nexus-reader.com"
+STATIC_BASE_URL = "https://staging.nexus-reader.com"
+
+[[env.staging.kv_namespaces]]
+binding = "NEXUS_READER_KV"
+id = "${KV_NAMESPACE_STAGING_ID}"
+
+[[env.staging.kv_namespaces]]
+binding = "NEXUS_READER_CACHE"
+id = "${KV_CACHE_NAMESPACE_STAGING_ID}"
+
+[[env.staging.kv_namespaces]]
+binding = "NEXUS_READER_ANALYTICS"
+id = "${KV_ANALYTICS_NAMESPACE_STAGING_ID}"
+
+# Development environment
+[env.development]
+name = "nexus-reader-dev"
+workers_dev = true
+
+[env.development.vars]
+ENVIRONMENT = "development"
+API_BASE_URL = "http://localhost:3000"
+CDN_BASE_URL = "http://localhost:3000"
+STATIC_BASE_URL = "http://localhost:3000"
+
+# Build configuration
+[build]
+command = "npm run build:workers"
+cwd = "."
+watch_dir = "cloudflare-workers"
+
+# Upload rules
+[build.upload]
+format = "modules"
+dir = "dist/workers"
+main = "./index.js"
+
+# Miniflare configuration for local development
+[miniflare]
+kv_persist = true
+cache_persist = true
+d1_persist = true
+r2_persist = true

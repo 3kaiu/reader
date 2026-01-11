@@ -1,0 +1,74 @@
+# Production Dockerfile for Nexus Reader
+# Multi-stage build for optimized production image
+
+# Build stage
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY nexus-reader/package*.json ./nexus-reader/
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Build the application
+ENV NODE_ENV=production
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nexus -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application from builder stage
+COPY --from=builder --chown=nexus:nodejs /app/dist ./dist
+COPY --from=builder --chown=nexus:nodejs /app/package*.json ./
+COPY --from=builder --chown=nexus:nodejs /app/node_modules ./node_modules
+
+# Copy production configuration
+COPY --chown=nexus:nodejs .env.production ./.env
+COPY --chown=nexus:nodejs monitoring/health-check.js ./monitoring/
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data && chown -R nexus:nodejs /app/logs /app/data
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV USER=nexus
+
+# Expose port
+EXPOSE 3000
+
+# Switch to non-root user
+USER nexus
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node monitoring/health-check.js || exit 1
+
+# Start the application with dumb-init
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/server.js"]
+
+# Labels
+LABEL maintainer="Nexus Reader Team"
+LABEL version="2.0.0"
+LABEL description="Modern Personal Cloud Reading Platform"
+LABEL org.opencontainers.image.source="https://github.com/your-repo/nexus-reader"
+LABEL org.opencontainers.image.documentation="https://nexus-reader.github.io/docs"
+LABEL org.opencontainers.image.licenses="MIT"

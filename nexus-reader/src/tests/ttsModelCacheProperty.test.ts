@@ -13,7 +13,7 @@ const mockCdnResourceLoader = {
   loadResource: vi.fn()
 }
 
-vi.mock('@/utils/cdnResourceLoader', () => ({
+vi.mock('../utils/cdnResourceLoader', () => ({
   cdnResourceLoader: mockCdnResourceLoader
 }))
 
@@ -28,12 +28,12 @@ const mockModelCacheManager = {
   getCachedModelIds: vi.fn()
 }
 
-vi.mock('@/utils/modelCacheManager', () => ({
+vi.mock('../utils/modelCacheManager', () => ({
   modelCacheManager: mockModelCacheManager
 }))
 
 // Mock logger
-vi.mock('@/utils/logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -42,7 +42,7 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 // Mock broadcast channel
-vi.mock('@/utils/broadcast', () => ({
+vi.mock('../utils/broadcast', () => ({
   syncChannel: {
     publish: vi.fn()
   }

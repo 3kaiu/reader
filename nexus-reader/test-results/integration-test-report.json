@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-01-11T14:31:03.343Z",
+  "environment": {
+    "node": "v20.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "memory": {
+      "rss": 46317568,
+      "heapTotal": 6995968,
+      "heapUsed": 5032648,
+      "external": 613782,
+      "arrayBuffers": 11206
+    }
+  },
+  "configuration": {
+    "testTimeout": 300000,
+    "maxRetries": 2,
+    "reportDir": "./test-results",
+    "coverageDir": "./coverage/integration",
+    "logLevel": "info"
+  },
+  "testResults": {},
+  "performanceMetrics": {},
+  "recommendations": [
+    "Monitor performance metrics regularly",
+    "Update test data and scenarios based on production usage"
+  ]
+}

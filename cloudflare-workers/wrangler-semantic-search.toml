@@ -1,0 +1,39 @@
+name = "nexus-semantic-search"
+main = "semantic-search-worker.js"
+compatibility_date = "2024-01-01"
+
+# AI 绑定
+[ai]
+binding = "AI"
+
+# KV命名空间绑定
+[[kv_namespaces]]
+binding = "NEXUS_KV"
+id = "your-nexus-kv-id"
+preview_id = "your-nexus-kv-preview-id"
+
+# 环境变量
+[env.production.vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+SIMILARITY_THRESHOLD = "0.7"
+MAX_RESULTS = "20"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+LOG_LEVEL = "debug"
+SIMILARITY_THRESHOLD = "0.6"
+MAX_RESULTS = "10"
+
+# 路由配置
+[[env.production.routes]]
+pattern = "search.your-domain.com/*"
+zone_name = "your-domain.com"
+
+[[env.staging.routes]]
+pattern = "search-staging.your-domain.com/*"
+zone_name = "your-domain.com"
+
+# 资源限制
+[limits]
+cpu_ms = 100  # 语义搜索需要更多CPU时间

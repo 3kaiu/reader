@@ -56,6 +56,12 @@ export class DynamicLoader {
    */
   private async initializeCache(): Promise<void> {
     try {
+      // 检查localStorage是否可用
+      if (typeof localStorage === 'undefined') {
+        console.warn('localStorage is not available, skipping cache initialization')
+        return
+      }
+
       // 从localStorage恢复缓存元数据
       const cacheKeys = Object.keys(localStorage).filter(key => 
         key.startsWith(this.CACHE_PREFIX)
@@ -345,17 +351,22 @@ export class DynamicLoader {
       
       for (const key of keysToDelete) {
         this.cache.delete(key)
-        localStorage.removeItem(this.CACHE_PREFIX + key)
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(this.CACHE_PREFIX + key)
+        }
       }
     } else {
       // 清理所有缓存
       this.cache.clear()
-      const cacheKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith(this.CACHE_PREFIX)
-      )
       
-      for (const key of cacheKeys) {
-        localStorage.removeItem(key)
+      if (typeof localStorage !== 'undefined') {
+        const cacheKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith(this.CACHE_PREFIX)
+        )
+        
+        for (const key of cacheKeys) {
+          localStorage.removeItem(key)
+        }
       }
     }
   }
@@ -397,10 +408,13 @@ export class DynamicLoader {
     this.cache.set(packageName, cacheEntry)
     
     try {
-      localStorage.setItem(
-        this.CACHE_PREFIX + packageName,
-        JSON.stringify({ ...cacheEntry, data: undefined }) // 不缓存实际数据到localStorage
-      )
+      // 检查localStorage是否可用
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(
+          this.CACHE_PREFIX + packageName,
+          JSON.stringify({ ...cacheEntry, data: undefined }) // 不缓存实际数据到localStorage
+        )
+      }
     } catch (error) {
       console.warn(`Failed to cache ${packageName} metadata:`, error)
     }
@@ -514,5 +528,6 @@ export class DynamicLoader {
   }
 }
 
-// 导出单例实例
+// 导出类和单例实例
 export const dynamicLoader = DynamicLoader.getInstance()
+export default DynamicLoader
