@@ -35,11 +35,11 @@ jobs:
       rust-cache-hit: ${{ steps.rust-cache.outputs.cache-hit }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache Rust dependencies
         id: rust-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -64,7 +64,7 @@ jobs:
           echo "📦 Rust build completed - Binary size: $SIZE"
 
       - name: Upload backend binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rust-backend
           path: nexus-lite/target/release/nexus-server
@@ -95,11 +95,11 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download backend binary
         if: matrix.name == 'nexus-lite'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: rust-backend
           path: nexus-lite/target/release/
@@ -130,7 +130,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -153,7 +153,7 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create FnOS deployment package
         run: |
@@ -213,7 +213,7 @@ jobs:
           tar -czf nexus-reader-fnos-${{ github.ref_name }}.tar.gz -C fnos-package .
 
       - name: Upload FnOS package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-reader-fnos-package
           path: nexus-reader-fnos-*.tar.gz
@@ -221,7 +221,7 @@ jobs:
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: nexus-reader-fnos-*.tar.gz
           body: |
@@ -248,7 +248,7 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test FnOS deployment
         timeout-minutes: 5
