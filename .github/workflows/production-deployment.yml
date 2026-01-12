@@ -37,7 +37,7 @@ jobs:
         run: bun add -g wrangler
 
       - name: Deploy to Cloudflare Pages
-        run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader
+        run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
