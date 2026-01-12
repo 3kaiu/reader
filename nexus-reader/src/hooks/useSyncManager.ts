@@ -277,7 +277,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
   const syncItem = async (item: any, signal: AbortSignal): Promise<boolean> => {
     try {
       let endpoint = '';
-      let method = 'POST';
+      let method: string;
       let body = item.data;
 
       switch (item.type) {

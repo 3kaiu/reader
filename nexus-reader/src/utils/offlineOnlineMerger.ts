@@ -334,7 +334,7 @@ class OfflineOnlineMerger {
   private async pushToServer(operation: MergeOperation): Promise<void> {
     try {
       let endpoint = '';
-      let method = 'POST';
+      let method: string;
 
       switch (operation.type) {
         case 'reading-progress':
