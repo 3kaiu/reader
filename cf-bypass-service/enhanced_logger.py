@@ -366,7 +366,7 @@ class EnhancedLogger:
         try:
             from urllib.parse import urlparse
             return urlparse(url).netloc
-        except:
+        except Exception:
             return "unknown"
     
     def _mask_proxy_credentials(self, proxy_url: str) -> str:
@@ -381,7 +381,7 @@ class EnhancedLogger:
                     masked_netloc += f":{parsed.port}"
                 return f"{parsed.scheme}://{masked_netloc}"
             return proxy_url
-        except:
+        except Exception:
             return proxy_url
     
     def set_level(self, level):

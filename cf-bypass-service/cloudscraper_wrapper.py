@@ -283,7 +283,7 @@ class CloudScraperWrapper:
         
         cached_result = await self.cache_manager.get(cache_key)
         if cached_result:
-            logger.info(f"Cache hit for {url}")
+            logger.info("Cache hit for %s", url)
             return cached_result
         
         # 2. Get CloudScraper instance (with session health management)
@@ -321,7 +321,7 @@ class CloudScraperWrapper:
             # - Automatic retries with exponential backoff
             # - Cookie and session management
             # - Request header consistency
-            logger.info(f"Fetching {url} with CloudScraper")
+            logger.info("Fetching %s with CloudScraper", url)
             
             response = scraper.request(method, url, **kwargs)
             
@@ -337,7 +337,7 @@ class CloudScraperWrapper:
                     'cloudflare', 'ddos protection', 'security check'
                 ]):
                     cf_bypassed = False
-                    logger.warning(f"CloudScraper may not have fully bypassed challenges for {url}")
+                    logger.warning("CloudScraper may not have fully bypassed challenges for %s", url)
             
             # Handle encoding (especially for Chinese sites)
             html = response.text
@@ -382,7 +382,7 @@ class CloudScraperWrapper:
             duration = (datetime.now() - start_time).total_seconds()
             error_msg = str(e)
             
-            logger.error(f"CloudScraper fetch failed for {url}: {error_msg}")
+            logger.error("CloudScraper fetch failed for %s: %s", url, error_msg)
             
             # Record error metrics
             self.health_monitor.record_error(domain, error_msg)

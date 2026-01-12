@@ -3,7 +3,6 @@ Enhanced Error Handler for CF Bypass Service
 Provides detailed error classification, handling, and graceful degradation.
 """
 import logging
-import traceback
 from enum import Enum
 from typing import Dict, Optional, Any, Tuple
 from dataclasses import dataclass

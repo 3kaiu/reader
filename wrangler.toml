@@ -38,3 +38,12 @@ workers_dev = true
 
 [env.development.vars]
 ENVIRONMENT = "development"
+
+# Bookshelf Backup Worker (R2)
+[env.backup]
+name = "nexus-bookshelf-backup"
+main = "cloudflare-workers/bookshelf-backup-worker.js"
+
+[[env.backup.r2_buckets]]
+binding = "BACKUP_BUCKET"
+bucket_name = "nexus-backup"
