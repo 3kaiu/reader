@@ -400,36 +400,6 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
     }
   };
 
-  // 强制推送本地数据
-  const forcePushLocalData = async (item: any): Promise<void> => {
-    // 重新添加到队列，标记为强制推送
-    await offlineStorageManager.addToSyncQueue({
-      ...item,
-      forcePush: true,
-      retryCount: 0
-    });
-  };
-
-  // 标记为手动解决
-  const markForManualResolution = async (localItem: any, serverData: any): Promise<void> => {
-    // 保存冲突信息供用户手动解决
-    const conflictData = {
-      id: `conflict-${Date.now()}`,
-      type: localItem.type,
-      localData: localItem.data,
-      serverData,
-      timestamp: Date.now(),
-      resolved: false
-    };
-
-    localStorage.setItem(`sync-conflict-${conflictData.id}`, JSON.stringify(conflictData));
-
-    // 触发冲突事件
-    window.dispatchEvent(new CustomEvent('sync-conflict', {
-      detail: conflictData
-    }));
-  };
-
   // 更新同步项目重试计数
   const updateSyncItemRetryCount = async (itemId: number, retryCount: number): Promise<void> => {
     // 这里需要实现更新IndexedDB中同步项目的重试计数
