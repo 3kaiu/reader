@@ -55,7 +55,7 @@
     "glob": "^13.0.0",
     "lighthouse": "^12.2.1",
     "marked": "^17.0.1",
-    "react-docgen": "^7.1.0",
+    "react-docgen": "^8.0.2",
     "tailwindcss": "^4.1.18",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.16",
