@@ -1,55 +1,52 @@
-.PHONY: help setup start stop restart status logs update clean backup health
+.PHONY: help start stop restart status logs update clean dev
 
 help:
-	@echo "可用命令："
-	@echo "  start     - 启动服务"
+	@echo "Nexus Reader 管理命令"
+	@echo ""
+	@echo "本地开发:"
+	@echo "  dev       - 启动前端开发服务器"
+	@echo "  build     - 构建前端"
+	@echo ""
+	@echo "Docker 服务:"
+	@echo "  start     - 启动后端服务"
 	@echo "  stop      - 停止服务"
 	@echo "  restart   - 重启服务"
 	@echo "  status    - 查看状态"
 	@echo "  logs      - 查看日志"
-	@echo "  update    - 更新服务"
+	@echo "  update    - 更新镜像"
 	@echo "  clean     - 清理资源"
-	@echo "  backup    - 备份数据"
 
-# 初始化环境
-setup:
+# 前端开发
+dev:
+	@cd nexus-reader && bun run dev
+
+build:
+	@cd nexus-reader && bun run build
+
+# Docker 服务管理
+start:
 	@mkdir -p data/{nexus,cache,logs,cf-bypass,redis}
+	@docker compose -f docker-compose.fnos.yml up -d
+	@echo "✅ 后端服务已启动: http://localhost:8080"
+	@echo "🌐 前端访问: https://nexus-reader.pages.dev"
 
-# 启动服务
-start: setup
-	@docker-compose -f docker-compose.fnos.yml up -d
-	@echo "服务已启动: http://localhost:8080"
-
-# 停止服务
 stop:
-	@docker-compose -f docker-compose.fnos.yml down
+	@docker compose -f docker-compose.fnos.yml down
 
-# 重启服务
 restart:
-	@docker-compose -f docker-compose.fnos.yml restart
+	@docker compose -f docker-compose.fnos.yml restart
 
-# 查看状态
 status:
-	@docker-compose -f docker-compose.fnos.yml ps
+	@docker compose -f docker-compose.fnos.yml ps
 
-# 健康检查
-health:
-	@./health-check.sh
-
-# 查看日志
 logs:
-	@docker-compose -f docker-compose.fnos.yml logs -f
+	@docker compose -f docker-compose.fnos.yml logs -f
 
-# 更新服务
 update:
-	@docker-compose -f docker-compose.fnos.yml pull
-	@docker-compose -f docker-compose.fnos.yml up -d
+	@docker compose -f docker-compose.fnos.yml pull
+	@docker compose -f docker-compose.fnos.yml up -d
+	@echo "✅ 服务已更新"
 
-# 清理资源
 clean:
 	@docker system prune -f
-
-# 备份数据
-backup:
-	@mkdir -p backup
-	@tar -czf backup/backup-$(shell date +%Y%m%d-%H%M%S).tar.gz data/
+	@echo "✅ 已清理未使用的 Docker 资源"

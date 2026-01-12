@@ -1,24 +1,19 @@
-# Wrangler Configuration for Nexus Reader
-# Personal use - API proxy + Progress sync
+# Cloudflare Workers Configuration
+# API Proxy + Progress Sync + Bookshelf Backup
 
-name = "nexus-reader"
+name = "nexus-api-proxy"
 main = "cloudflare-workers/api-proxy-worker.js"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
-# Account configuration
-account_id = "${CLOUDFLARE_ACCOUNT_ID}"
-zone_id = "${CLOUDFLARE_ZONE_ID}"
-
-# Workers configuration
+# Development
 workers_dev = true
 
-# KV Namespaces for reading progress
+# KV for reading progress
 [[kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "${KV_PROGRESS_ID}"
 
-# Environment variables
 [vars]
 ENVIRONMENT = "production"
 
@@ -30,14 +25,6 @@ main = "cloudflare-workers/progress-sync-worker.js"
 [[env.progress.kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "${KV_PROGRESS_ID}"
-
-# Development environment
-[env.development]
-name = "nexus-reader-dev"
-workers_dev = true
-
-[env.development.vars]
-ENVIRONMENT = "development"
 
 # Bookshelf Backup Worker (R2)
 [env.backup]

@@ -1,21 +1,55 @@
-name: Simple Deployment
+name: Frontend Deployment (CF Pages)
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'nexus-reader/**'
+      - 'cloudflare-workers/**'
+      - 'wrangler.toml'
+      - '.github/workflows/production-deployment.yml'
   workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy even if no changes'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
-  group: deployment
+  group: cf-deployment
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  # 检测变更
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      worker: ${{ steps.filter.outputs.worker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'nexus-reader/**'
+            worker:
+              - 'cloudflare-workers/**'
+              - 'wrangler.toml'
+
+  # 部署前端到 CF Pages
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,16 +59,17 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-        working-directory: nexus-reader
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/bun.lock') }}
 
-      - name: Build application
-        run: bun run build
+      - name: Install & Build
         working-directory: nexus-reader
-
-      - name: Install Wrangler
-        run: bun add -g wrangler
+        run: |
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Deploy to Cloudflare Pages
         run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader --commit-dirty=true
@@ -42,8 +77,25 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy API Proxy Worker
-        run: bunx wrangler deploy
+  # 部署 Worker
+  deploy-worker:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.worker == 'true' || github.event.inputs.force_deploy == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # 跳过部署
+  skip:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend != 'true' && needs.detect-changes.outputs.worker != 'true' && github.event.inputs.force_deploy != 'true'
+    steps:
+      - run: echo "⏭️ No frontend/worker changes, skipping CF deployment"

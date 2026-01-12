@@ -132,8 +132,17 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 if (import.meta.env.DEV) {
     // 添加全局性能调试函数
     (window as any).performanceSystem = performanceSystem
-    (window as any).getPerformanceReport = () => performanceSystem.generatePerformanceReport()
-    (window as any).optimizePerformance = () => performanceSystem.optimizePerformance()
+    (window as any).getPerformanceReport = () => {
+        if (typeof performanceSystem.generatePerformanceReport === 'function') {
+            return performanceSystem.generatePerformanceReport()
+        }
+        return null
+    }
+    (window as any).optimizePerformance = async () => {
+        if (typeof performanceSystem.optimizePerformance === 'function') {
+            return performanceSystem.optimizePerformance()
+        }
+    }
     
     // 添加 AI 服务调试
     (window as any).aiServiceManager = aiServiceManager

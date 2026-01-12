@@ -1,62 +1,44 @@
 # =============================================================================
-# 飞牛OS优化的Dockerfile - 使用预构建的前端和后端产物
+# Nexus Reader API Server - 纯后端镜像
+# 前端由 Cloudflare Pages 提供，此镜像只包含 API 服务
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# 运行时镜像 - 飞牛OS优化，使用预构建产物
-# -----------------------------------------------------------------------------
-FROM debian:12-slim AS runtime
-
-ARG TARGETPLATFORM
+FROM debian:12-slim
 
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     tzdata \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
+    && rm -rf /var/lib/apt/lists/*
 
-# 创建飞牛OS兼容的用户
+# 创建用户
 RUN groupadd -g 1000 fnos && \
     useradd -u 1000 -g fnos -s /bin/bash -d /home/fnos -m fnos
 
 WORKDIR /app
 
-# 复制预构建的产物（由GitHub Actions提供）
+# 复制预构建的 Rust 二进制（由 GitHub Actions 提供）
 COPY nexus-lite/target/release/nexus-server ./nexus-server
-COPY nexus-reader/dist ./static
 COPY nexus-lite/sources ./sources
 
-# 设置二进制文件权限
-RUN chmod +x ./nexus-server
-
-# 创建数据目录
-RUN mkdir -p data cache logs && \
+# 设置权限
+RUN chmod +x ./nexus-server && \
+    mkdir -p data cache logs && \
     chown -R fnos:fnos /app
 
-# 切换到fnos用户
 USER fnos
 
-# 飞牛OS优化的环境变量
+# 环境变量 - API-only 模式
 ENV RUST_LOG=info \
     HOST=0.0.0.0 \
     PORT=8080 \
-    STATIC_DIR=/app/static \
     TZ=Asia/Shanghai \
-    RUST_BACKTRACE=0 \
-    FNOS_OPTIMIZED=true
+    API_ONLY=true
 
 EXPOSE 8080
 
-# 飞牛OS友好的健康检查
-HEALTHCHECK --interval=45s --timeout=15s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8080/api/health || exit 1
 
-# 添加架构信息到启动日志
-RUN echo "#!/bin/bash" > /app/start.sh && \
-    echo "echo 'Starting Nexus Reader (Pre-built) on $TARGETPLATFORM for FnOS...'" >> /app/start.sh && \
-    echo "exec ./nexus-server \"\$@\"" >> /app/start.sh && \
-    chmod +x /app/start.sh
-
-ENTRYPOINT ["/app/start.sh"]
+CMD ["./nexus-server"]

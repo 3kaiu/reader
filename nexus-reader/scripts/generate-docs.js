@@ -8,6 +8,7 @@
  */
 
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
@@ -242,7 +243,8 @@ async function generateCoverageReport() {
     await ensureDir(coverageDir);
     
     try {
-      execSync(`cp -r coverage/* ${coverageDir}/`, { cwd: rootDir });
+      const coverageSource = path.join(rootDir, 'coverage');
+      fsSync.cpSync(coverageSource, coverageDir, { recursive: true });
       console.log('✅ Coverage report copied to docs');
     } catch (error) {
       console.warn('⚠️  No coverage report found, skipping...');

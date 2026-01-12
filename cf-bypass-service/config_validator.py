@@ -211,10 +211,8 @@ class ConfigValidator:
         
         # Basic domain name regex
         domain_pattern = re.compile(
-            r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
-        )
-        
-        return bool(domain_pattern.match(domain))$'
+            r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*'
+            r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
         )
         
         return bool(domain_pattern.match(domain))
@@ -249,10 +247,12 @@ class ConfigValidator:
         
         return recommendations
 
+
 # Convenience functions
 def validate_config_file(config_data: Dict[str, Any]) -> Tuple[bool, Dict[str, List[str]]]:
     """Validate entire configuration file"""
     return ConfigValidator.validate_all_configs(config_data)
+
 
 def validate_proxy_list(proxy_list: List[str]) -> Dict[str, str]:
     """Validate a list of proxy URLs"""

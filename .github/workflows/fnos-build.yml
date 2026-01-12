@@ -1,11 +1,20 @@
-name: Build and Deploy for FnOS
+name: Build Docker Images for FnOS
 
 on:
   push:
     branches: [main]
     tags: ['v*']
+    paths:
+      - 'nexus-lite/**'
+      - 'cf-bypass-service/**'
+      - 'Dockerfile.bun'
+      - 'docker-compose.fnos.yml'
+      - '.github/workflows/fnos-build.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'nexus-lite/**'
+      - 'cf-bypass-service/**'
   workflow_dispatch:
 
 concurrency:
@@ -18,62 +27,7 @@ env:
 
 jobs:
   # =============================================================================
-  # 前端构建 - 使用Bun优化构建速度
-  # =============================================================================
-  build-frontend:
-    runs-on: ubuntu-latest
-    outputs:
-      frontend-size: ${{ steps.build.outputs.size }}
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            nexus-reader/node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: nexus-reader
-        run: bun install
-
-      - name: Build frontend
-        id: build
-        working-directory: nexus-reader
-        run: |
-          echo "Building optimized frontend for production..."
-          NODE_ENV=production bun run build
-          
-          # 获取构建大小
-          SIZE=$(du -sh dist/ | cut -f1)
-          echo "size=$SIZE" >> $GITHUB_OUTPUT
-          
-          echo "📊 Build completed - Size: $SIZE"
-          find dist -name "*.js" -exec du -h {} \; | sort -hr | head -5
-
-      - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: nexus-reader/dist/
-          retention-days: 1
-          compression-level: 9
-
-  # =============================================================================
-  # 后端构建 - 构建Rust二进制文件并上传
+  # 后端构建 - 只构建 Rust 二进制（前端由 CF Pages 提供）
   # =============================================================================
   build-backend:
     runs-on: ubuntu-latest
@@ -103,13 +57,10 @@ jobs:
       - name: Build Rust backend
         working-directory: nexus-lite
         run: |
-          echo "Building Rust backend for production..."
+          echo "Building Rust backend (API-only mode)..."
           cargo build --release --bin nexus-server
           
-          # 获取二进制文件信息
           SIZE=$(du -h target/release/nexus-server | cut -f1)
-          echo "rust-binary-size=$SIZE" >> $GITHUB_OUTPUT
-          
           echo "📦 Rust build completed - Binary size: $SIZE"
 
       - name: Upload backend binary
@@ -120,11 +71,11 @@ jobs:
           retention-days: 1
 
   # =============================================================================
-  # Docker镜像构建 - 优化并行构建
+  # Docker 镜像构建 - 纯后端镜像（前端由 CF Pages 提供）
   # =============================================================================
   build-docker:
     runs-on: ubuntu-latest
-    needs: [build-frontend, build-backend]
+    needs: build-backend
     permissions:
       contents: read
       packages: write
@@ -137,23 +88,14 @@ jobs:
             context: .
             dockerfile: ./Dockerfile.bun
             platforms: linux/amd64
-            needs-frontend: true
           - name: cf-bypass-service
             context: ./cf-bypass-service
             dockerfile: ./cf-bypass-service/Dockerfile
             platforms: linux/amd64,linux/arm64
-            needs-frontend: false
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download frontend artifacts
-        if: matrix.needs-frontend
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: nexus-reader/dist/
 
       - name: Download backend binary
         if: matrix.name == 'nexus-lite'
@@ -164,15 +106,9 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-            image=moby/buildkit:buildx-stable-1
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -202,23 +138,17 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=gha,scope=${{ matrix.name }}
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.name }}:buildcache
-          cache-to: |
-            type=gha,mode=max,scope=${{ matrix.name }}
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.name }}:buildcache,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
           provenance: false
           sbom: false
 
   # =============================================================================
-  # 飞牛OS部署包创建 - 优化并行处理
+  # FnOS 部署包
   # =============================================================================
   create-fnos-package:
     runs-on: ubuntu-latest
-    needs: [build-docker, build-frontend, build-backend]
+    needs: build-docker
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     
     steps:
@@ -226,109 +156,60 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create FnOS deployment package
-        env:
-          FRONTEND_SIZE: ${{ needs.build-frontend.outputs.frontend-size }}
         run: |
           mkdir -p fnos-package
           
-          # 复制部署文件
           cp docker-compose.fnos.yml fnos-package/docker-compose.yml
           cp fnos-config.env fnos-package/.env
           
-          # 创建脚本文件
           cat > fnos-package/start.sh << 'EOF'
           #!/bin/bash
           echo "🚀 Starting Nexus Reader on FnOS..."
           
-          # 检查端口占用
-          check_port() {
-            local port=$1
-            local service=$2
-            if netstat -tuln 2>/dev/null | grep -q ":$port " || ss -tuln 2>/dev/null | grep -q ":$port "; then
-              echo "⚠️  警告: 端口 $port 已被占用 ($service)"
-              echo "   请修改 .env 文件中的端口配置"
-              return 1
-            fi
-            return 0
-          }
-          
-          # 读取配置文件中的端口
           NEXUS_PORT=$(grep "^NEXUS_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8080")
           CF_BYPASS_PORT=$(grep "^CF_BYPASS_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8001")
           
-          # 检查端口
-          PORT_CONFLICT=false
-          check_port $NEXUS_PORT "Nexus Reader" || PORT_CONFLICT=true
-          check_port $CF_BYPASS_PORT "CF Bypass" || PORT_CONFLICT=true
-          
-          if [ "$PORT_CONFLICT" = true ]; then
-            echo ""
-            echo "💡 解决方案:"
-            echo "   1. 停止占用端口的服务"
-            echo "   2. 或修改 .env 文件中的端口配置:"
-            echo "      NEXUS_PORT=8080"
-            echo "      CF_BYPASS_PORT=8001"
-            exit 1
-          fi
-          
-          # 创建数据目录
           mkdir -p data/{nexus,cache,logs,cf-bypass,redis}
-          sudo chown -R 1000:1000 data/ 2>/dev/null || true
           
-          # 启动服务
           docker compose up -d
-          echo "✅ Nexus Reader started successfully!"
-          echo "📱 Access: http://$(hostname -I | awk '{print $1}'):$NEXUS_PORT"
-          echo "🔧 CF Bypass: http://$(hostname -I | awk '{print $1}'):$CF_BYPASS_PORT"
+          echo "✅ Nexus Reader started!"
+          echo "📱 API: http://$(hostname -I | awk '{print $1}'):$NEXUS_PORT"
+          echo "🌐 Frontend: https://nexus-reader.pages.dev (CF Pages)"
           EOF
           
           cat > fnos-package/stop.sh << 'EOF'
           #!/bin/bash
-          echo "🛑 Stopping Nexus Reader..."
           docker compose down
-          echo "✅ Nexus Reader stopped successfully!"
+          echo "✅ Stopped"
           EOF
           
           cat > fnos-package/update.sh << 'EOF'
           #!/bin/bash
-          echo "🔄 Updating Nexus Reader..."
           docker compose pull && docker compose up -d
-          echo "✅ Nexus Reader updated successfully!"
+          echo "✅ Updated"
           EOF
           
           chmod +x fnos-package/*.sh
           
-          # 创建简化的README
-          cat > fnos-package/README.md << EOF
-          # Nexus Reader 飞牛OS部署包
+          cat > fnos-package/README.md << 'EOF'
+          # Nexus Reader FnOS 部署包
+          
+          ## 架构说明
+          - **前端**: Cloudflare Pages (自动部署)
+          - **后端**: Docker 容器 (本地运行)
           
           ## 快速部署
-          1. 解压部署包: \`tar -xzf nexus-reader-fnos-*.tar.gz\`
-          2. 启动服务: \`./start.sh\`
-          3. 访问应用: http://飞牛OS_IP:8080
+          ```bash
+          tar -xzf nexus-reader-fnos-*.tar.gz
+          ./start.sh
+          ```
           
           ## 管理命令
-          - 启动: \`./start.sh\`
-          - 停止: \`./stop.sh\`  
-          - 更新: \`./update.sh\`
-          - 日志: \`docker compose logs -f\`
-          
-          ## 系统要求
-          - 飞牛OS 1.0+ / Docker 20.10+
-          - 内存: 1GB+ / 存储: 2GB+
-          - 端口: 8080(主应用), 8001(CF绕过)
+          - 启动: `./start.sh`
+          - 停止: `./stop.sh`
+          - 更新: `./update.sh`
           EOF
           
-          # 创建版本信息
-          cat > fnos-package/VERSION << EOF
-          VERSION=${{ github.ref_name }}
-          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          COMMIT_SHA=${{ github.sha }}
-          FRONTEND_SIZE=${FRONTEND_SIZE:-N/A}
-          ARCHITECTURES=amd64,arm64
-          EOF
-          
-          # 创建部署包
           tar -czf nexus-reader-fnos-${{ github.ref_name }}.tar.gz -C fnos-package .
 
       - name: Upload FnOS package
@@ -337,7 +218,6 @@ jobs:
           name: nexus-reader-fnos-package
           path: nexus-reader-fnos-*.tar.gz
           retention-days: 90
-          compression-level: 9
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -345,25 +225,21 @@ jobs:
         with:
           files: nexus-reader-fnos-*.tar.gz
           body: |
-            ## 🚀 Nexus Reader ${{ github.ref_name }} - 飞牛OS版本
+            ## Nexus Reader ${{ github.ref_name }}
             
-            ### 📦 部署方法
+            ### 架构
+            - 前端: Cloudflare Pages (零成本)
+            - 后端: Docker (FnOS/NAS)
+            
+            ### 部署
             ```bash
-            # 下载并部署
             wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/nexus-reader-fnos-${{ github.ref_name }}.tar.gz
             tar -xzf nexus-reader-fnos-${{ github.ref_name }}.tar.gz
             ./start.sh
             ```
-            
-            ### 📊 构建信息
-            - 支持架构: AMD64, ARM64
-            - 前端大小: ${{ needs.build-frontend.outputs.frontend-size }}
-            - 访问地址: http://飞牛OS_IP:8080
-          draft: false
-          prerelease: false
 
   # =============================================================================
-  # 飞牛OS兼容性测试 - 仅测试 amd64（ARM64 需要在 Docker 内编译）
+  # FnOS 兼容性测试
   # =============================================================================
   test-fnos:
     runs-on: ubuntu-latest
@@ -374,10 +250,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test FnOS deployment (amd64)
-        timeout-minutes: 10
+      - name: Test FnOS deployment
+        timeout-minutes: 5
         run: |
-          # 创建测试配置
           cat > docker-compose.test.yml << EOF
           services:
             nexus-lite:
@@ -387,30 +262,20 @@ jobs:
                 - "8080:8080"
               environment:
                 - RUST_LOG=info
-              healthcheck:
-                test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
-                interval: 15s
-                timeout: 10s
-                retries: 3
-                start_period: 30s
           EOF
           
-          # 启动测试
           docker compose -f docker-compose.test.yml up -d
           
-          # 等待服务启动
-          echo "Waiting for service to start..."
-          for i in {1..12}; do
-            if docker compose -f docker-compose.test.yml ps | grep -q "healthy"; then
-              echo "✅ FnOS test passed"
+          for i in {1..6}; do
+            if curl -sf http://localhost:8080/api/health; then
+              echo "✅ Test passed"
               docker compose -f docker-compose.test.yml down
               exit 0
             fi
-            echo "Attempt $i/12 - waiting..."
+            echo "Waiting... ($i/6)"
             sleep 10
           done
           
-          echo "❌ FnOS test failed"
           docker compose -f docker-compose.test.yml logs
           docker compose -f docker-compose.test.yml down
           exit 1
