@@ -7,9 +7,9 @@ import { ref, shallowRef } from 'vue'
 import { cdnResourceLoader } from '@/utils/cdnResourceLoader'
 import { logger } from '@/utils/logger'
 import { syncChannel } from '@/utils/broadcast'
-import { getDefaultModel, saveLastModel, getAllModels, type ModelInfo } from '@/stores/ai/models'
+import { getDefaultModel, saveLastModel, getAllModels } from '@/stores/ai/models'
 import { modelCacheManager } from '@/utils/modelCacheManager'
-import type { AIRequestParams } from '@/types/ai'
+import type { AIRequestParams, ModelInfo } from '@/types/ai'
 
 // WebGPU 类型声明
 declare global {
@@ -97,9 +97,10 @@ export class AIServiceManager {
       }
 
       // 预热缓存（可选）
-      const recommendedModels = this.getRecommendedModels().slice(0, 2) // 只预热前2个推荐模型
-      if (recommendedModels.length > 0) {
-        await modelCacheManager.warmupCache(recommendedModels.map(m => m.id))
+      const recommendedModels = await this.getRecommendedModels()
+      const topModels = recommendedModels.slice(0, 2) // 只预热前2个推荐模型
+      if (topModels.length > 0) {
+        await modelCacheManager.warmupCache(topModels.map(m => m.id))
       }
 
       logger.info('[AI Service] AI service manager initialized successfully')
@@ -239,40 +240,6 @@ export class AIServiceManager {
       return null
     }
   }
-  private async createAIWorker(): Promise<Worker> {
-    if (this.aiWorker) {
-      return this.aiWorker
-    }
-
-    try {
-      // 动态创建Worker，避免构建时打包
-      const workerCode = `
-        // AI Worker - 动态生成
-        import { WebWorkerMLCEngineHandler } from '@mlc-ai/web-llm'
-        
-        const handler = new WebWorkerMLCEngineHandler()
-        
-        self.onmessage = (msg) => {
-          handler.onmessage(msg)
-        }
-      `
-
-      const blob = new Blob([workerCode], { type: 'application/javascript' })
-      const workerUrl = URL.createObjectURL(blob)
-      
-      this.aiWorker = new Worker(workerUrl, { type: 'module' })
-      
-      // 清理URL对象
-      this.aiWorker.addEventListener('error', () => {
-        URL.revokeObjectURL(workerUrl)
-      })
-
-      return this.aiWorker
-    } catch (error) {
-      logger.error('[AI Service] Failed to create AI worker:', error as Error)
-      throw new Error(`AI Worker创建失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    }
-  }
 
   /**
    * 创建AI Worker
@@ -315,7 +282,10 @@ export class AIServiceManager {
   /**
    * 加载模型
    */
-  async loadModel(modelId: string = getDefaultModel()): Promise<boolean> {
+  async loadModel(modelId?: string): Promise<boolean> {
+    // 如果没有提供 modelId，获取默认模型
+    const targetModelId = modelId || await getDefaultModel()
+    
     if (this.isLoading.value) {
       logger.warn('[AI Service] Model loading already in progress')
       return false
@@ -340,17 +310,17 @@ export class AIServiceManager {
       
       return await webLocks.withExclusive('ai-engine-load', async () => {
         // 再次检查是否已加载
-        if (this.isModelLoaded.value && this.currentModel.value === modelId) {
+        if (this.isModelLoaded.value && this.currentModel.value === targetModelId) {
           this.isLoading.value = false
           return true
         }
 
         // 1. 检查模型缓存
-        let cachedModelData = await this.loadModelFromCache(modelId)
+        let cachedModelData = await this.loadModelFromCache(targetModelId)
         if (!cachedModelData) {
           // 2. 下载并缓存模型
-          await this.downloadAndCacheModel(modelId)
-          cachedModelData = await this.loadModelFromCache(modelId)
+          await this.downloadAndCacheModel(targetModelId)
+          cachedModelData = await this.loadModelFromCache(targetModelId)
         }
 
         // 3. 动态加载WebLLM库
@@ -367,7 +337,7 @@ export class AIServiceManager {
         
         const engine = await webllmLib.CreateWebWorkerMLCEngine(
           worker,
-          modelId,
+          targetModelId,
           {
             initProgressCallback: (report: any) => {
               // 40-100%用于模型初始化
@@ -380,13 +350,13 @@ export class AIServiceManager {
 
         // 6. 设置状态
         this.engine.value = engine
-        this.currentModel.value = modelId
+        this.currentModel.value = targetModelId
         this.isModelLoaded.value = true
         this.loadStatus.value = '模型加载完成'
         this.loadProgress.value = 100
 
         // 7. 保存最后使用的模型
-        saveLastModel(modelId)
+        saveLastModel(targetModelId)
 
         // 8. 启动自动卸载定时器
         this.resetAutoUnloadTimer()
@@ -394,10 +364,10 @@ export class AIServiceManager {
         // 9. 广播状态
         syncChannel.publish('ai-engine-status', { 
           status: 'loaded', 
-          modelId: modelId 
+          modelId: targetModelId 
         })
 
-        logger.info(`[AI Service] Model ${modelId} loaded successfully`)
+        logger.info(`[AI Service] Model ${targetModelId} loaded successfully`)
         return true
       })
     } catch (error) {
@@ -462,15 +432,16 @@ export class AIServiceManager {
   /**
    * 获取推荐模型列表
    */
-  getRecommendedModels(): ModelInfo[] {
-    return getAllModels().filter(model => model.recommended)
+  async getRecommendedModels(): Promise<ModelInfo[]> {
+    const models = await getAllModels()
+    return models.filter(model => model.recommended)
   }
 
   /**
    * 获取所有可用模型
    */
-  getAllModels(): ModelInfo[] {
-    return getAllModels()
+  async getAllModels(): Promise<ModelInfo[]> {
+    return await getAllModels()
   }
 
   /**
@@ -538,8 +509,9 @@ export class AIServiceManager {
    * 预加载推荐模型
    */
   async preloadRecommendedModels(): Promise<void> {
-    const recommended = this.getRecommendedModels().slice(0, 3) // 预加载前3个
-    const modelIds = recommended.map(m => m.id)
+    const recommended = await this.getRecommendedModels()
+    const topModels = recommended.slice(0, 3) // 预加载前3个
+    const modelIds = topModels.map(m => m.id)
     await modelCacheManager.warmupCache(modelIds)
   }
   async cleanup(): Promise<void> {

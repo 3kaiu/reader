@@ -3,12 +3,10 @@
  * AI 模型设置页面
  * 管理端侧 AI 模型的下载、切换、卸载
  */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import {
-  useAIService,
-  getAllModels,
-} from "@/stores/ai";
+import { useAIService } from "@/stores/ai";
+import type { ModelInfo } from "@/types/ai";
 import { useSettingsStore } from "@/stores/settings";
 import {
   ArrowLeft,
@@ -97,11 +95,18 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-// 获取模型列表（已在 store 中严格过滤）
-const models = computed(() => getAllModels());
+// 模型列表（异步加载）
+const models = ref<ModelInfo[]>([]);
 
 onMounted(async () => {
   await aiStore.checkSupport();
+
+  // 异步加载模型列表
+  try {
+    models.value = await aiStore.getAllModels();
+  } catch (e) {
+    console.warn('Failed to load models:', e);
+  }
 
   // 获取存储使用情况
   if (navigator.storage?.estimate) {

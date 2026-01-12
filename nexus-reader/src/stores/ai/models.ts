@@ -2,9 +2,24 @@
  * 🤖 AI Models - 模型元数据与推荐逻辑
  * 从 stores/ai.ts 提取的模型相关工具函数
  */
-import * as webllm from '@mlc-ai/web-llm'
 import { AI_MAX_VRAM_MB, AI_DEFAULT_CONTEXT_WINDOW } from '../../constants/ai'
 import type { WebLLMModelConfig, ModelCandidate, ModelInfo } from '../../types/ai'
+
+// WebLLM 模块缓存
+let webllmModule: any = null
+
+// 动态加载 WebLLM
+async function getWebLLM() {
+  if (!webllmModule) {
+    try {
+      webllmModule = await import('@mlc-ai/web-llm')
+    } catch (e) {
+      console.warn('Failed to load WebLLM:', e)
+      return null
+    }
+  }
+  return webllmModule
+}
 
 // ==================== 模型厂商映射 ====================
 
@@ -99,8 +114,11 @@ export function getParams(modelId: string): string {
  * 动态获取推荐模型（精选最优模型）
  * 推荐标准：参数量 1B-8B，Q4 量化，VRAM < 7GB，中文友好系列
  */
-export function getRecommendedModels(): string[] {
+export async function getRecommendedModels(): Promise<string[]> {
     try {
+        const webllm = await getWebLLM()
+        if (!webllm) return []
+        
         const modelList = webllm.prebuiltAppConfig.model_list
         if (!modelList || !Array.isArray(modelList)) {
             return []
@@ -185,14 +203,17 @@ export function getRecommendedModels(): string[] {
 // ==================== 模型列表 ====================
 
 /** 获取所有可用模型（带厂商和大小） */
-export function getAllModels(): ModelInfo[] {
+export async function getAllModels(): Promise<ModelInfo[]> {
     try {
+        const webllm = await getWebLLM()
+        if (!webllm) return []
+        
         const modelList = webllm.prebuiltAppConfig.model_list
         if (!modelList || !Array.isArray(modelList)) {
             return []
         }
 
-        const recommendedIds = new Set(getRecommendedModels())
+        const recommendedIds = new Set(await getRecommendedModels())
 
         return (modelList as unknown as WebLLMModelConfig[])
             .map((m): ModelInfo | null => {
@@ -278,8 +299,8 @@ export function getAllModels(): ModelInfo[] {
 }
 
 /** 获取所有厂商列表 */
-export function getVendors(): string[] {
-    const models = getAllModels()
+export async function getVendors(): Promise<string[]> {
+    const models = await getAllModels()
     const vendors = new Set(models.map((m) => m.vendor))
     return ['全部', ...Array.from(vendors).sort()]
 }
@@ -290,19 +311,19 @@ const STORAGE_KEY = 'ai-last-model'
 const DEFAULT_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'
 
 /** 获取默认模型（优先读取本地存储） */
-export function getDefaultModel(): string {
+export async function getDefaultModel(): Promise<string> {
     try {
         const saved = localStorage.getItem(STORAGE_KEY)
         if (saved) {
-            const availableModels = getAllModels()
+            const availableModels = await getAllModels()
             if (availableModels.some((m) => m.id === saved)) {
                 return saved
             }
         }
-        const recommended = getRecommendedModels()
+        const recommended = await getRecommendedModels()
         if (recommended.length > 0) return recommended[0]
 
-        const availableModels = getAllModels()
+        const availableModels = await getAllModels()
         if (availableModels.length > 0) return availableModels[0].id
 
         return DEFAULT_MODEL

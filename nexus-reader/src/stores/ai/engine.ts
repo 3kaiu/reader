@@ -3,10 +3,12 @@
  * 从 stores/ai.ts 提取的引擎生命周期管理
  */
 import { ref, shallowRef } from 'vue'
-import * as webllm from '@mlc-ai/web-llm'
 import { logger } from '../../utils/logger'
 import { syncChannel } from '../../utils/broadcast'
 import { getDefaultModel, saveLastModel } from './models'
+
+// WebLLM 类型 - 动态导入时使用
+type MLCEngineInterface = any
 
 // WebGPU 类型声明
 declare global {
@@ -27,7 +29,7 @@ export const engineState = {
   loadStatus: ref(''),
   error: ref<string | null>(null),
   currentModel: ref<string | null>(null),
-  engine: shallowRef<webllm.MLCEngineInterface | null>(null),
+  engine: shallowRef<MLCEngineInterface | null>(null),
 }
 
 // 性能监控
@@ -92,9 +94,12 @@ export async function checkSupport(): Promise<boolean> {
  * 加载模型 (使用 Web Worker)
  */
 export async function loadModel(
-  modelId: string = getDefaultModel()
+  modelId?: string
 ): Promise<boolean> {
   if (engineState.isLoading.value) return false
+
+  // 如果没有提供 modelId，获取默认模型
+  const targetModelId = modelId || await getDefaultModel()
 
   // 检测支持
   if (!engineState.isSupported.value) {
@@ -116,12 +121,15 @@ export async function loadModel(
         return true
       }
 
+      // 动态导入 WebLLM
+      const webllm = await import('@mlc-ai/web-llm')
+
       // 使用 Web Worker 创建引擎 (推理不阻塞 UI)
       const newEngine = await webllm.CreateWebWorkerMLCEngine(
         new Worker(new URL('../../workers/ai-worker.ts', import.meta.url), {
           type: 'module',
         }),
-        modelId,
+        targetModelId,
         {
           initProgressCallback: (report) => {
             engineState.loadProgress.value = Math.round(report.progress * 100)
@@ -131,18 +139,18 @@ export async function loadModel(
       )
 
       engineState.engine.value = newEngine
-      engineState.currentModel.value = modelId
+      engineState.currentModel.value = targetModelId
       engineState.isModelLoaded.value = true
       engineState.loadStatus.value = '模型加载完成'
 
       // 保存最后使用的模型
-      saveLastModel(modelId)
+      saveLastModel(targetModelId)
 
       // 启动自动卸载定时器
       resetAutoUnloadTimer()
 
       // 广播模型加载状态
-      syncChannel.publish('ai-engine-status', { status: 'loaded', modelId: modelId })
+      syncChannel.publish('ai-engine-status', { status: 'loaded', modelId: targetModelId })
 
       return true
     }) // 移除 ifAvailable，等待锁释放
@@ -180,7 +188,7 @@ export async function unloadModel() {
 /**
  * 获取引擎实例
  */
-export function getEngine(): webllm.MLCEngineInterface | null {
+export function getEngine(): MLCEngineInterface | null {
   return engineState.engine.value
 }
 
