@@ -6,7 +6,6 @@ Only implements features that CloudScraper lacks: caching, monitoring, session h
 import asyncio
 import json
 import hashlib
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta

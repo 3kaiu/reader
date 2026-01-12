@@ -683,9 +683,8 @@ export const healthMonitor = new HealthMonitor()
 // 便捷函数
 export async function startHealthMonitoring(config?: Partial<HealthMonitorConfig>): Promise<void> {
   if (config) {
-    // 重新创建实例以应用新配置
-    const newMonitor = new HealthMonitor(config)
-    // 这里可以考虑替换全局实例，但为了简单起见，我们只是重新配置
+    // 应用新配置到现有实例
+    Object.assign(healthMonitor, { config: { ...healthMonitor['config'], ...config } })
   }
   healthMonitor.start()
 }
@@ -696,9 +695,7 @@ export function stopHealthMonitoring(): void {
 
 export async function getSystemHealth(): Promise<SystemHealthStatus> {
   return await healthMonitor.getCurrentHealth()
-}
-
-export function getHealthHistory(hours?: number): SystemHealthStatus[] {
+}export function getHealthHistory(hours?: number): SystemHealthStatus[] {
   return healthMonitor.getHealthHistory(hours)
 }
 
