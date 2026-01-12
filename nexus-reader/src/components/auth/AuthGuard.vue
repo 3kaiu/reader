@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 
 const AUTH_WORKER_URL = import.meta.env.VITE_AUTH_WORKER_URL || ''
 
+console.log('[AuthGuard] AUTH_WORKER_URL:', AUTH_WORKER_URL || '(empty)')
+
 const isChecking = ref(true)
 const isAuthenticated = ref(false)
 const user = ref<{ provider: string; id: string; name: string; avatar?: string } | null>(null)
