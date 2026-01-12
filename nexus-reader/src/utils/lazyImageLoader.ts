@@ -178,7 +178,7 @@ export class LazyImageLoader {
   cleanup(): void {
     const imagesToRemove: HTMLImageElement[] = []
     
-    for (const [img, info] of this.images.entries()) {
+    for (const img of this.images.keys()) {
       // 移除已从DOM中删除的图片
       if (!document.contains(img)) {
         imagesToRemove.push(img)
