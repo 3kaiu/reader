@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: nexus-reader
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Generate TypeDoc
         working-directory: nexus-reader
