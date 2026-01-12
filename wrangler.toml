@@ -1,20 +1,35 @@
 # Cloudflare Workers Configuration
-# Progress Sync Worker - 阅读进度跨设备同步
 
+# ============================================
+# Progress Sync Worker - 阅读进度跨设备同步
+# ============================================
 name = "nexus-progress-sync"
 main = "cloudflare-workers/progress-sync-worker.js"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
-# 开发模式
 workers_dev = true
 
-# KV 命名空间 - 阅读进度存储
-# 需要在 Cloudflare Dashboard 创建 KV 命名空间后填入 ID
-# 或通过 GitHub Secrets 注入
 [[kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "${KV_PROGRESS_ID}"
 
 [vars]
+ENVIRONMENT = "production"
+
+# ============================================
+# GitHub Auth Worker - GitHub OAuth 认证
+# ============================================
+[env.auth]
+name = "nexus-auth"
+main = "cloudflare-workers/github-auth-worker.js"
+
+[env.auth.vars]
+# 这些值需要通过 GitHub Secrets 注入
+# GITHUB_CLIENT_ID = "xxx"
+# GITHUB_CLIENT_SECRET = "xxx"
+# AUTH_SECRET = "随机字符串用于签名"
+# ALLOWED_GITHUB_USERS = "你的GitHub用户名"
+# FRONTEND_URL = "https://nexus-reader.pages.dev"
+# WORKER_URL = "https://nexus-auth.xxx.workers.dev"
 ENVIRONMENT = "production"

@@ -5,6 +5,7 @@ import { onMounted, onUnmounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useUserStore } from '@/stores/user'
 import { useWebSocketStore } from '@/stores/websocket'
+import { AuthGuard } from '@/components/auth'
 import LoginModal from '@/components/LoginModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PerformanceDashboard from '@/components/PerformanceDashboard.vue'
@@ -23,19 +24,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Toaster />
-  <router-view v-slot="{ Component, route }">
-    <Transition name="page-slide" mode="out-in">
-      <component :is="Component" :key="route.fullPath" />
-    </Transition>
-  </router-view>
-  
-  <!-- 全局登录弹窗 -->
-  <LoginModal v-model:show="userStore.showLoginModal" />
-  <!-- 全局确认对话框 -->
-  <ConfirmDialog />
-  <!-- 性能监控仪表板 (仅开发环境) -->
-  <PerformanceDashboard />
+  <AuthGuard>
+    <Toaster />
+    <router-view v-slot="{ Component, route }">
+      <Transition name="page-slide" mode="out-in">
+        <component :is="Component" :key="route.fullPath" />
+      </Transition>
+    </router-view>
+    
+    <!-- 全局登录弹窗 -->
+    <LoginModal v-model:show="userStore.showLoginModal" />
+    <!-- 全局确认对话框 -->
+    <ConfirmDialog />
+    <!-- 性能监控仪表板 (仅开发环境) -->
+    <PerformanceDashboard />
+  </AuthGuard>
 </template>
 
 <style>

@@ -71,6 +71,7 @@ jobs:
         working-directory: nexus-reader
         env:
           VITE_PROGRESS_SYNC_URL: ${{ secrets.VITE_PROGRESS_SYNC_URL }}
+          VITE_AUTH_WORKER_URL: ${{ secrets.VITE_AUTH_WORKER_URL }}
         run: |
           bun install
           bun run build
@@ -145,7 +146,27 @@ jobs:
           sed -i "s/\${KV_PROGRESS_ID}/$KV_PROGRESS_ID/g" wrangler.toml
           wrangler deploy
           echo "✅ Progress Sync Worker deployed"
-          echo "Worker URL: https://nexus-progress-sync.${CLOUDFLARE_ACCOUNT_ID}.workers.dev"
+
+      - name: Deploy Auth Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          ALLOWED_GITHUB_USERS: ${{ secrets.ALLOWED_GITHUB_USERS }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          WORKER_URL: ${{ secrets.AUTH_WORKER_URL }}
+        run: |
+          wrangler deploy --env auth \
+            --var GITHUB_CLIENT_ID:$GITHUB_CLIENT_ID \
+            --var GITHUB_CLIENT_SECRET:$GITHUB_CLIENT_SECRET \
+            --var AUTH_SECRET:$AUTH_SECRET \
+            --var ALLOWED_GITHUB_USERS:$ALLOWED_GITHUB_USERS \
+            --var FRONTEND_URL:$FRONTEND_URL \
+            --var WORKER_URL:$WORKER_URL \
+            --var ALLOWED_ORIGIN:$FRONTEND_URL
+          echo "✅ Auth Worker deployed"
 
   # 跳过部署
   skip:
