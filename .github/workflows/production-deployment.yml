@@ -32,7 +32,7 @@ jobs:
       worker: ${{ steps.filter.outputs.worker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check changes
         uses: dorny/paths-filter@v3
@@ -52,15 +52,15 @@ jobs:
     if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/bun.lock') }}
@@ -84,7 +84,7 @@ jobs:
     if: needs.detect-changes.outputs.worker == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Deploy Worker
         run: npx wrangler deploy
