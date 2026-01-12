@@ -130,26 +130,11 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 // 开发环境性能调试
 if (import.meta.env.DEV) {
-    // 添加全局性能调试函数
-    (window as any).performanceSystem = performanceSystem
-    (window as any).getPerformanceReport = () => {
-        if (typeof performanceSystem.generatePerformanceReport === 'function') {
-            return performanceSystem.generatePerformanceReport()
-        }
-        return null
-    }
-    (window as any).optimizePerformance = async () => {
-        if (typeof performanceSystem.optimizePerformance === 'function') {
-            return performanceSystem.optimizePerformance()
-        }
-    }
+    // 暴露调试对象到 window（仅开发环境）
+    Object.assign(window, {
+        performanceSystem,
+        aiServiceManager
+    })
     
-    // 添加 AI 服务调试
-    (window as any).aiServiceManager = aiServiceManager
-    
-    console.log('🔧 Performance debugging tools available:')
-    console.log('  - window.performanceSystem: Access to performance system')
-    console.log('  - window.getPerformanceReport(): Generate performance report')
-    console.log('  - window.optimizePerformance(): Run performance optimization')
-    console.log('  - window.aiServiceManager: Access to AI service manager')
+    console.log('🔧 Debug objects available: window.performanceSystem, window.aiServiceManager')
 }
