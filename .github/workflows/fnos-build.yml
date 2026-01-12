@@ -35,11 +35,11 @@ jobs:
       rust-cache-hit: ${{ steps.rust-cache.outputs.cache-hit }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Cache Rust dependencies
         id: rust-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -64,7 +64,7 @@ jobs:
           echo "📦 Rust build completed - Binary size: $SIZE"
 
       - name: Upload backend binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: rust-backend
           path: nexus-lite/target/release/nexus-server
@@ -95,11 +95,11 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Download backend binary
         if: matrix.name == 'nexus-lite'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
           name: rust-backend
           path: nexus-lite/target/release/
@@ -130,7 +130,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -153,7 +153,16 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create FnOS deployment package
         run: |
@@ -210,10 +219,10 @@ jobs:
           - 更新: `./update.sh`
           EOF
           
-          tar -czf nexus-reader-fnos-${{ github.ref_name }}.tar.gz -C fnos-package .
+          tar -czf nexus-reader-fnos-${{ steps.version.outputs.version }}.tar.gz -C fnos-package .
 
       - name: Upload FnOS package
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: nexus-reader-fnos-package
           path: nexus-reader-fnos-*.tar.gz
@@ -248,15 +257,17 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Test FnOS deployment
         timeout-minutes: 5
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/nexus-lite:latest
         run: |
           cat > docker-compose.test.yml << EOF
           services:
             nexus-lite:
-              image: ${{ env.REGISTRY }}/${{ env.OWNER }}/nexus-lite:${{ github.head_ref || github.ref_name }}
+              image: ${IMAGE}
               platform: linux/amd64
               ports:
                 - "8080:8080"
@@ -264,6 +275,7 @@ jobs:
                 - RUST_LOG=info
           EOF
           
+          docker compose -f docker-compose.test.yml pull
           docker compose -f docker-compose.test.yml up -d
           
           for i in {1..6}; do
