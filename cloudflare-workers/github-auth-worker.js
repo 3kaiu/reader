@@ -1,6 +1,6 @@
 /**
- * GitHub OAuth Worker
- * 处理 GitHub 第三方登录认证
+ * OAuth Worker
+ * 只允许 GitHub 仓库 owner 或 Cloudflare 账户 owner 登录
  */
 
 const COOKIE_NAME = 'nexus_auth';
@@ -11,9 +11,8 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // CORS headers
     const corsHeaders = {
-      'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
+      'Access-Control-Allow-Origin': env.FRONTEND_URL || '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Credentials': 'true',
@@ -23,38 +22,40 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // 路由
     switch (path) {
-      case '/login':
-        return handleLogin(env);
-      case '/callback':
-        return handleCallback(request, env);
+      case '/login/github':
+        return handleGitHubLogin(env);
+      case '/callback/github':
+        return handleGitHubCallback(request, env);
+      case '/login/cloudflare':
+        return handleCloudflareLogin(env);
+      case '/callback/cloudflare':
+        return handleCloudflareCallback(request, env);
       case '/verify':
         return handleVerify(request, env, corsHeaders);
       case '/logout':
-        return handleLogout(corsHeaders);
+        return handleLogout(env, corsHeaders);
       case '/health':
-        return Response.json({ status: 'ok', service: 'github-auth' }, { headers: corsHeaders });
+        return Response.json({ status: 'ok' }, { headers: corsHeaders });
       default:
         return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
     }
   }
 };
 
-// 跳转到 GitHub 授权页
-function handleLogin(env) {
+// ==================== GitHub OAuth ====================
+
+function handleGitHubLogin(env) {
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: `${env.WORKER_URL}/callback`,
+    redirect_uri: `${env.WORKER_URL}/callback/github`,
     scope: 'read:user',
     state: crypto.randomUUID(),
   });
-
   return Response.redirect(`https://github.com/login/oauth/authorize?${params}`, 302);
 }
 
-// GitHub 回调处理
-async function handleCallback(request, env) {
+async function handleGitHubCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
@@ -63,13 +64,9 @@ async function handleCallback(request, env) {
   }
 
   try {
-    // 用 code 换 access_token
     const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
         client_id: env.GITHUB_CLIENT_ID,
         client_secret: env.GITHUB_CLIENT_SECRET,
@@ -82,41 +79,92 @@ async function handleCallback(request, env) {
       return Response.redirect(`${env.FRONTEND_URL}?error=${tokenData.error}`, 302);
     }
 
-    // 获取用户信息
     const userRes = await fetch('https://api.github.com/user', {
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
-        'User-Agent': 'Nexus-Reader-Auth',
+        'User-Agent': 'Nexus-Auth',
       },
     });
 
     const user = await userRes.json();
 
-    // 检查是否是允许的用户
-    const allowedUsers = (env.ALLOWED_GITHUB_USERS || '').split(',').map(u => u.trim().toLowerCase());
-    if (allowedUsers.length > 0 && allowedUsers[0] !== '' && !allowedUsers.includes(user.login.toLowerCase())) {
+    // 只允许 GitHub owner 登录
+    if (user.login.toLowerCase() !== env.GITHUB_OWNER.toLowerCase()) {
       return Response.redirect(`${env.FRONTEND_URL}?error=unauthorized`, 302);
     }
 
-    // 生成会话 token
-    const sessionToken = await generateSessionToken(user, env);
-
-    // 设置 cookie 并跳转回前端
-    const response = Response.redirect(env.FRONTEND_URL, 302);
-    const headers = new Headers(response.headers);
-    headers.set('Set-Cookie', `${COOKIE_NAME}=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`);
-    
-    return new Response(response.body, {
-      status: response.status,
-      headers,
-    });
-  } catch (error) {
-    console.error('OAuth error:', error);
+    const token = await generateToken({ provider: 'github', id: user.login, name: user.login, avatar: user.avatar_url }, env);
+    return createAuthResponse(token, env);
+  } catch (e) {
+    console.error('GitHub OAuth error:', e);
     return Response.redirect(`${env.FRONTEND_URL}?error=oauth_failed`, 302);
   }
 }
 
-// 验证会话
+// ==================== Cloudflare OAuth ====================
+
+function handleCloudflareLogin(env) {
+  const params = new URLSearchParams({
+    client_id: env.CF_CLIENT_ID,
+    redirect_uri: `${env.WORKER_URL}/callback/cloudflare`,
+    response_type: 'code',
+    scope: 'openid profile email',
+  });
+  return Response.redirect(`https://dash.cloudflare.com/oauth2/authorize?${params}`, 302);
+}
+
+async function handleCloudflareCallback(request, env) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+
+  if (!code) {
+    return Response.redirect(`${env.FRONTEND_URL}?error=no_code`, 302);
+  }
+
+  try {
+    const tokenRes = await fetch('https://dash.cloudflare.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: env.CF_CLIENT_ID,
+        client_secret: env.CF_CLIENT_SECRET,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${env.WORKER_URL}/callback/cloudflare`,
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (tokenData.error) {
+      return Response.redirect(`${env.FRONTEND_URL}?error=${tokenData.error}`, 302);
+    }
+
+    const userRes = await fetch('https://api.cloudflare.com/client/v4/user', {
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}` },
+    });
+
+    const userData = await userRes.json();
+    if (!userData.success) {
+      return Response.redirect(`${env.FRONTEND_URL}?error=cf_user_failed`, 302);
+    }
+
+    const user = userData.result;
+
+    // 只允许 Cloudflare owner 登录（通过邮箱验证）
+    if (user.email.toLowerCase() !== env.CF_OWNER_EMAIL.toLowerCase()) {
+      return Response.redirect(`${env.FRONTEND_URL}?error=unauthorized`, 302);
+    }
+
+    const token = await generateToken({ provider: 'cloudflare', id: user.id, name: user.email.split('@')[0], email: user.email }, env);
+    return createAuthResponse(token, env);
+  } catch (e) {
+    console.error('Cloudflare OAuth error:', e);
+    return Response.redirect(`${env.FRONTEND_URL}?error=oauth_failed`, 302);
+  }
+}
+
+// ==================== 通用方法 ====================
+
 async function handleVerify(request, env, corsHeaders) {
   const cookie = request.headers.get('Cookie') || '';
   const token = getCookie(cookie, COOKIE_NAME);
@@ -126,73 +174,55 @@ async function handleVerify(request, env, corsHeaders) {
   }
 
   try {
-    const payload = await verifySessionToken(token, env);
+    const payload = await verifyToken(token, env);
     if (payload) {
       return Response.json({
         authenticated: true,
-        user: {
-          login: payload.login,
-          avatar: payload.avatar,
-        },
+        user: { provider: payload.provider, id: payload.id, name: payload.name, avatar: payload.avatar },
       }, { headers: corsHeaders });
     }
-  } catch (e) {
-    // Token invalid
-  }
+  } catch (e) {}
 
   return Response.json({ authenticated: false }, { headers: corsHeaders });
 }
 
-// 登出
-function handleLogout(corsHeaders) {
+function handleLogout(env, corsHeaders) {
   const headers = new Headers(corsHeaders);
-  headers.set('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
+  headers.set('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Domain=${new URL(env.FRONTEND_URL).hostname}`);
   return new Response(JSON.stringify({ success: true }), { headers });
 }
 
-// 生成会话 token (简单的 JWT-like)
-async function generateSessionToken(user, env) {
-  const payload = {
-    login: user.login,
-    avatar: user.avatar_url,
-    exp: Date.now() + COOKIE_MAX_AGE * 1000,
-  };
-  
-  const data = btoa(JSON.stringify(payload));
-  const signature = await sign(data, env.AUTH_SECRET);
-  return `${data}.${signature}`;
+function createAuthResponse(token, env) {
+  const frontendDomain = new URL(env.FRONTEND_URL).hostname;
+  const response = Response.redirect(env.FRONTEND_URL, 302);
+  const headers = new Headers(response.headers);
+  headers.set('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${COOKIE_MAX_AGE}; Domain=${frontendDomain}`);
+  return new Response(null, { status: 302, headers });
 }
 
-// 验证会话 token
-async function verifySessionToken(token, env) {
-  const [data, signature] = token.split('.');
-  if (!data || !signature) return null;
+async function generateToken(user, env) {
+  const payload = { ...user, exp: Date.now() + COOKIE_MAX_AGE * 1000 };
+  const data = btoa(JSON.stringify(payload));
+  const sig = await sign(data, env.AUTH_SECRET);
+  return `${data}.${sig}`;
+}
 
-  const expectedSig = await sign(data, env.AUTH_SECRET);
-  if (signature !== expectedSig) return null;
-
+async function verifyToken(token, env) {
+  const [data, sig] = token.split('.');
+  if (!data || !sig) return null;
+  if (sig !== await sign(data, env.AUTH_SECRET)) return null;
   const payload = JSON.parse(atob(data));
   if (payload.exp < Date.now()) return null;
-
   return payload;
 }
 
-// 签名
 async function sign(data, secret) {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
-// 解析 cookie
-function getCookie(cookieString, name) {
-  const match = cookieString.match(new RegExp(`${name}=([^;]+)`));
+function getCookie(str, name) {
+  const match = str.match(new RegExp(`${name}=([^;]+)`));
   return match ? match[1] : null;
 }

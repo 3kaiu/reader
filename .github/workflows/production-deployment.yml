@@ -151,21 +151,17 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
-          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          ALLOWED_GITHUB_USERS: ${{ secrets.ALLOWED_GITHUB_USERS }}
-          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
-          WORKER_URL: ${{ secrets.AUTH_WORKER_URL }}
         run: |
           wrangler deploy --env auth \
-            --var GITHUB_CLIENT_ID:$GITHUB_CLIENT_ID \
-            --var GITHUB_CLIENT_SECRET:$GITHUB_CLIENT_SECRET \
-            --var AUTH_SECRET:$AUTH_SECRET \
-            --var ALLOWED_GITHUB_USERS:$ALLOWED_GITHUB_USERS \
-            --var FRONTEND_URL:$FRONTEND_URL \
-            --var WORKER_URL:$WORKER_URL \
-            --var ALLOWED_ORIGIN:$FRONTEND_URL
+            --var GITHUB_CLIENT_ID:${{ secrets.OAUTH_GITHUB_CLIENT_ID }} \
+            --var GITHUB_CLIENT_SECRET:${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }} \
+            --var GITHUB_OWNER:${{ secrets.GITHUB_OWNER }} \
+            --var CF_CLIENT_ID:${{ secrets.CF_CLIENT_ID }} \
+            --var CF_CLIENT_SECRET:${{ secrets.CF_CLIENT_SECRET }} \
+            --var CF_OWNER_EMAIL:${{ secrets.CF_OWNER_EMAIL }} \
+            --var AUTH_SECRET:${{ secrets.AUTH_SECRET }} \
+            --var FRONTEND_URL:${{ secrets.FRONTEND_URL }} \
+            --var WORKER_URL:${{ secrets.AUTH_WORKER_URL }}
           echo "✅ Auth Worker deployed"
 
   # 跳过部署
