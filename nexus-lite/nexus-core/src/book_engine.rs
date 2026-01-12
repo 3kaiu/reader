@@ -57,8 +57,6 @@ pub struct EngineMetadata {
     pub engine_type: String,
     /// Version of the source definition
     pub version: Option<String>,
-    /// Whether this engine requires L6 bypass
-    pub requires_l6: bool,
     /// Custom headers required by this source
     pub custom_headers: bool,
 }

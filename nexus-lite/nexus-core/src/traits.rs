@@ -26,14 +26,16 @@ pub trait Fetcher: Send + Sync {
     ) -> Result<FetchResponse, EngineError>;
 }
 
-/// Anti-crawl strategy interface
+/// Anti-crawl strategy interface (simplified - CF bypass only)
 #[async_trait]
 pub trait AntiCrawlStrategy: Send + Sync {
     /// Strategy name
     fn name(&self) -> &str;
 
-    /// Strategy level (1-5, lower = lighter)
-    fn level(&self) -> u8;
+    /// Strategy level (kept for compatibility)
+    fn level(&self) -> u8 {
+        6
+    }
 
     /// Check if this strategy should be applied
     fn should_apply(&self, response: &FetchResponse) -> bool;

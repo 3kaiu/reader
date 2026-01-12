@@ -114,22 +114,17 @@ impl NxsEngine {
         &self.source.name
     }
 
-    /// Fetch content with anti-crawl
+    /// Fetch content via CF bypass service
     async fn fetch(
         &self,
         url: &str,
         method: Option<&str>,
         body: Option<String>,
-        script: Option<String>,
+        _script: Option<String>,
     ) -> Result<String, EngineError> {
         use nexus_core::FetchContext;
 
-        // Force L6 for all requests as requested by user
-        let level = 6;
         let mut ctx = FetchContext::new(url, &self.source.id);
-        ctx.max_level = level;
-        ctx.min_level = level;
-        ctx.js_script = script;
         if let Some(m) = method {
             ctx.method = m.to_string();
         }
@@ -459,14 +454,9 @@ impl BookEngine for NxsEngine {
     }
 
     fn metadata(&self) -> EngineMetadata {
-        let requires_l6 = self.source.protection.as_ref()
-            .map(|p| p.to_uppercase() == "L6" || p.to_uppercase().contains("CLOUDFLARE"))
-            .unwrap_or(false);
-
         EngineMetadata {
             engine_type: "nxs".to_string(),
             version: Some(self.source.version.to_string()),
-            requires_l6,
             custom_headers: self.source.headers.is_some(),
         }
     }

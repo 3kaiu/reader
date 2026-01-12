@@ -82,7 +82,7 @@ impl FetchResponse {
     }
 }
 
-/// Fetch context for anti-crawl strategies
+/// Fetch context for requests
 #[derive(Debug, Clone)]
 pub struct FetchContext {
     pub url: String,
@@ -90,13 +90,8 @@ pub struct FetchContext {
     pub headers: HashMap<String, String>,
     pub body: Option<String>,
     pub source_id: String,
-    /// Maximum strategy level to try (won't go above this)
-    pub max_level: u8,
-    /// Minimum strategy level to start from (skips lower levels)
-    pub min_level: u8,
     pub last_response: Option<FetchResponse>,
     pub cookies: HashMap<String, String>,
-    pub js_script: Option<String>,
 }
 
 impl FetchContext {
@@ -107,11 +102,8 @@ impl FetchContext {
             headers: HashMap::new(),
             body: None,
             source_id: source_id.to_string(),
-            max_level: 6,
-            min_level: 6, // Default: start from L6 (CF Bypass)
             last_response: None,
             cookies: HashMap::new(),
-            js_script: None,
         }
     }
 }

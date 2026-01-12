@@ -214,6 +214,9 @@ class ConfigValidator:
             r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
         )
         
+        return bool(domain_pattern.match(domain))$'
+        )
+        
         return bool(domain_pattern.match(domain))
     
     @classmethod

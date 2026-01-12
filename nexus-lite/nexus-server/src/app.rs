@@ -4,10 +4,9 @@ use axum::{
     routing::{delete, get, patch, post, put},
     Router,
 };
-use nexus_core::AntiCrawlStrategy;
 use nexus_core::EngineConfig;
 use nexus_core::{EventBus, SystemEvent, SystemControlEvent};
-use nexus_engine::anti_crawl::{FallbackChain, L1BasicStrategy, L6HttpStrategy};
+use nexus_engine::anti_crawl::{FallbackChain, CfBypassStrategy};
 use nexus_engine::fetcher::HttpFetcher;
 use nexus_storage::{SledStore, ChapterCache, SourceStore};
 use std::sync::Arc;
@@ -62,14 +61,9 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     // Initialize engine components
     let fetcher = Arc::new(HttpFetcher::new(config.limits.http_timeout_seconds)?);
 
-    // Anti-crawl: L1 (Basic) -> L6 (CF Bypass HTTP Service)
-    let mut strategies: Vec<Arc<dyn AntiCrawlStrategy>> = Vec::new();
-    strategies.push(Arc::new(L1BasicStrategy::new(fetcher.client().clone())));
-
-    // L6: HTTP-based Cloudflare Bypass (cf-bypass-service v4.0)
-    strategies.push(Arc::new(L6HttpStrategy::new(config.cf_bypass.clone())));
-
-    let anti_crawl = Arc::new(FallbackChain::with_strategies(strategies));
+    // CF Bypass Strategy (direct Cloudflare bypass via cf-bypass-service)
+    let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone()));
+    let anti_crawl = Arc::new(FallbackChain::new(cf_strategy));
 
     // Initialize Engine Registry
     let engine_registry = Arc::new(EngineRegistry::new(

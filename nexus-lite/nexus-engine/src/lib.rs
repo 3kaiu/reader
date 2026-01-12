@@ -2,7 +2,7 @@
 //!
 //! High-performance book source engine for NXS format:
 //! - Compiled selectors with fallback (| syntax)
-//! - Anti-crawl strategies (L1/L6)
+//! - CF bypass via cf-bypass-service
 //! - URL resolution and query encoding
 //! - Content processing with cached regex
 //! - Circuit breaker for reliability
@@ -18,6 +18,7 @@ pub mod selector_cache;
 pub mod uri;
 
 // Public exports
+pub use anti_crawl::{CfBypassStrategy, FallbackChain};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 pub use domain_pool::{DomainPooledClient, PoolStats};
 pub use nxs_engine::NxsEngine;
