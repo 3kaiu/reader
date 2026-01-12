@@ -4,7 +4,7 @@
  * 只允许 GitHub 仓库 owner 或 Cloudflare 账户 owner 访问
  */
 import { ref, onMounted } from 'vue'
-import { Github, Loader2, ShieldAlert, Cloud } from 'lucide-vue-next'
+import { Github, Loader2, ShieldAlert } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
 const AUTH_WORKER_URL = import.meta.env.VITE_AUTH_WORKER_URL || ''
@@ -57,12 +57,6 @@ function loginWithGitHub() {
   }
 }
 
-function loginWithCloudflare() {
-  if (AUTH_WORKER_URL) {
-    window.location.href = `${AUTH_WORKER_URL}/login/cloudflare`
-  }
-}
-
 onMounted(() => {
   checkUrlError()
   checkAuth()
@@ -100,11 +94,6 @@ onMounted(() => {
         <Button size="lg" class="w-full gap-2" @click="loginWithGitHub">
           <Github class="h-5 w-5" />
           使用 GitHub 登录
-        </Button>
-        
-        <Button size="lg" variant="outline" class="w-full gap-2" @click="loginWithCloudflare">
-          <Cloud class="h-5 w-5" />
-          使用 Cloudflare 登录
         </Button>
       </div>
 
