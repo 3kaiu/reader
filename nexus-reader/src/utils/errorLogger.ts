@@ -4,6 +4,7 @@
  */
 
 import { logger } from './logger'
+import { secureRandomString } from './secureRandom'
 
 export interface ErrorContext {
   userId?: string
@@ -29,7 +30,7 @@ export interface ErrorMetrics {
 
 export enum ErrorSeverity {
   LOW = 'low',
-  MEDIUM = 'medium', 
+  MEDIUM = 'medium',
   HIGH = 'high',
   CRITICAL = 'critical'
 }
@@ -95,10 +96,10 @@ class ErrorLogger {
     const timestamp = Date.now()
     const message = typeof error === 'string' ? error : error.message
     const stack = typeof error === 'string' ? undefined : error.stack
-    
+
     // 生成错误指纹用于去重
     const fingerprint = this.generateFingerprint(message, stack, category)
-    
+
     // 更新或创建错误条目
     const existingError = this.errors.get(fingerprint)
     if (existingError) {
@@ -123,16 +124,16 @@ class ErrorLogger {
         fingerprint,
         count: 1
       }
-      
+
       this.errors.set(fingerprint, errorEntry)
     }
 
     // 记录到控制台和外部日志服务
     this.writeToLog(this.errors.get(fingerprint)!)
-    
+
     // 检查告警规则
     this.checkAlertRules()
-    
+
     return fingerprint
   }
 
@@ -156,18 +157,18 @@ class ErrorLogger {
   getMetrics(timeWindowMs: number = this.metricsWindow): ErrorMetrics {
     const now = Date.now()
     const windowStart = now - timeWindowMs
-    
+
     const recentErrors = Array.from(this.errors.values())
       .filter(error => error.timestamp >= windowStart)
-    
+
     const errorCount = recentErrors.reduce((sum, error) => sum + error.count, 0)
     const errorRate = errorCount / (timeWindowMs / 1000) // errors per second
-    
+
     const lastErrorTime = Math.max(
       ...recentErrors.map(error => error.timestamp),
       0
     )
-    
+
     // 获取最常见的错误
     const topErrors = recentErrors
       .sort((a, b) => b.count - a.count)
@@ -201,21 +202,21 @@ class ErrorLogger {
       timeWindowMs = this.metricsWindow,
       limit = 100
     } = options
-    
+
     const now = Date.now()
     const windowStart = now - timeWindowMs
-    
+
     let errors = Array.from(this.errors.values())
       .filter(error => error.timestamp >= windowStart)
-    
+
     if (category) {
       errors = errors.filter(error => error.category === category)
     }
-    
+
     if (severity) {
       errors = errors.filter(error => error.severity === severity)
     }
-    
+
     return errors
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit)
@@ -280,7 +281,7 @@ class ErrorLogger {
     const { category, olderThanMs } = options
     const now = Date.now()
     let clearedCount = 0
-    
+
     // If no options provided, clear all errors
     if (!category && !olderThanMs) {
       clearedCount = this.errors.size
@@ -288,28 +289,28 @@ class ErrorLogger {
       this.cleanupHistory.push({ timestamp: now, count: clearedCount })
       return clearedCount
     }
-    
+
     for (const [fingerprint, error] of this.errors.entries()) {
       let shouldClear = false
-      
+
       if (category && error.category === category) {
         shouldClear = true
       }
-      
+
       if (olderThanMs && (now - error.timestamp) > olderThanMs) {
         shouldClear = true
       }
-      
+
       if (shouldClear) {
         this.errors.delete(fingerprint)
         clearedCount++
       }
     }
-    
+
     if (clearedCount > 0) {
       this.cleanupHistory.push({ timestamp: now, count: clearedCount })
     }
-    
+
     return clearedCount
   }
 
@@ -318,7 +319,7 @@ class ErrorLogger {
    */
   exportErrors(format: 'json' | 'csv' = 'json'): string {
     const errors = Array.from(this.errors.values())
-    
+
     if (format === 'csv') {
       const headers = ['timestamp', 'category', 'severity', 'message', 'count', 'url']
       const rows = errors.map(error => [
@@ -329,12 +330,12 @@ class ErrorLogger {
         error.count,
         error.context.url || ''
       ])
-      
+
       return [headers, ...rows]
         .map(row => row.map(cell => `"${cell}"`).join(','))
         .join('\n')
     }
-    
+
     return JSON.stringify(errors, null, 2)
   }
 
@@ -342,7 +343,7 @@ class ErrorLogger {
     // 创建错误指纹用于去重 - 只基于消息和类别，不包含堆栈的具体行号
     const stackFirstLine = stack?.split('\n')[0] || ''
     const key = `${category || 'unknown'}:${message}:${stackFirstLine.replace(/:\d+:\d+/g, '')}`
-    
+
     // 使用更简单的哈希方法确保一致性
     let hash = 0
     for (let i = 0; i < key.length; i++) {
@@ -350,24 +351,24 @@ class ErrorLogger {
       hash = ((hash << 5) - hash) + char
       hash = hash & hash // Convert to 32bit integer
     }
-    
+
     return Math.abs(hash).toString(36).substring(0, 16)
   }
 
   private generateId(): string {
-    return `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    return `error_${Date.now()}_${secureRandomString(7)}`
   }
 
   private getSessionId(): string {
     // 获取或生成会话ID
     if (typeof sessionStorage === 'undefined') {
       // 测试环境或Node.js环境
-      return `test_session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      return `test_session_${Date.now()}_${secureRandomString(7)}`
     }
-    
+
     let sessionId = sessionStorage.getItem('nexus_session_id')
     if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      sessionId = `session_${Date.now()}_${secureRandomString(7)}`
       sessionStorage.setItem('nexus_session_id', sessionId)
     }
     return sessionId
@@ -409,7 +410,7 @@ class ErrorLogger {
       if (typeof window !== 'undefined' && 'fetch' in window) {
         // Import analytics API dynamically to avoid circular dependencies
         const { analyticsAPI } = await import('../api/analytics')
-        
+
         await analyticsAPI.sendErrorLog({
           fingerprint: error.fingerprint,
           message: error.message,
@@ -441,8 +442,8 @@ class ErrorLogger {
     this.addAlertRule({
       id: 'critical_errors',
       name: '关键错误告警',
-      condition: (_, errors) => errors.some(error => 
-        error.severity === ErrorSeverity.CRITICAL && 
+      condition: (_, errors) => errors.some(error =>
+        error.severity === ErrorSeverity.CRITICAL &&
         (Date.now() - error.timestamp) < 60000 // 1分钟内
       ),
       severity: ErrorSeverity.CRITICAL,
@@ -456,7 +457,7 @@ class ErrorLogger {
       name: 'API错误激增告警',
       condition: (_, errors) => {
         const apiErrors = errors.filter(error => error.category === ErrorCategory.API)
-        const recentApiErrors = apiErrors.filter(error => 
+        const recentApiErrors = apiErrors.filter(error =>
           (Date.now() - error.timestamp) < 5 * 60 * 1000 // 5分钟内
         )
         return recentApiErrors.length > 10
@@ -470,7 +471,7 @@ class ErrorLogger {
     this.addAlertRule({
       id: 'storage_errors',
       name: '存储错误告警',
-      condition: (_, errors) => errors.some(error => 
+      condition: (_, errors) => errors.some(error =>
         error.category === ErrorCategory.STORAGE &&
         error.severity >= ErrorSeverity.MEDIUM &&
         (Date.now() - error.timestamp) < 60000 // 1分钟内
@@ -488,7 +489,7 @@ class ErrorLogger {
 
     for (const rule of this.alertRules) {
       if (!rule.enabled) continue
-      
+
       // 检查冷却时间
       if (rule.lastTriggered && (now - rule.lastTriggered) < rule.cooldownMs) {
         continue
@@ -504,7 +505,7 @@ class ErrorLogger {
 
   private triggerAlert(rule: AlertRule, metrics: ErrorMetrics, errors: ErrorEntry[]): void {
     const alert: AlertNotification = {
-      id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      id: `alert_${Date.now()}_${secureRandomString(7)}`,
       ruleId: rule.id,
       ruleName: rule.name,
       severity: rule.severity,
@@ -535,19 +536,19 @@ class ErrorLogger {
     switch (rule.id) {
       case 'high_error_rate':
         return `检测到高错误率: ${metrics.errorRate.toFixed(2)} 错误/秒，总计 ${metrics.errorCount} 个错误`
-      
+
       case 'critical_errors':
         const criticalErrors = errors.filter(e => e.severity === ErrorSeverity.CRITICAL)
         return `检测到 ${criticalErrors.length} 个关键错误，需要立即处理`
-      
+
       case 'api_error_spike':
         const apiErrors = errors.filter(e => e.category === ErrorCategory.API)
         return `API错误激增: 5分钟内发生 ${apiErrors.length} 个API错误`
-      
+
       case 'storage_errors':
         const storageErrors = errors.filter(e => e.category === ErrorCategory.STORAGE)
         return `存储系统错误: 检测到 ${storageErrors.length} 个存储相关错误`
-      
+
       default:
         return `告警规则 "${rule.name}" 被触发，错误数量: ${errors.length}`
     }
@@ -558,25 +559,25 @@ class ErrorLogger {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer)
     }
-    
+
     this.cleanupTimer = setInterval(() => {
       const oldErrorsThreshold = Date.now() - (24 * 60 * 60 * 1000) // 24小时前
       const clearedCount = this.clearErrors({ olderThanMs: oldErrorsThreshold })
-      
+
       // 如果错误数量过多，清理最旧的错误
       if (this.errors.size > this.maxErrors) {
         const sortedErrors = Array.from(this.errors.entries())
           .sort(([, a], [, b]) => a.timestamp - b.timestamp)
-        
+
         const toDelete = sortedErrors.slice(0, this.errors.size - this.maxErrors)
         toDelete.forEach(([fingerprint]) => {
           this.errors.delete(fingerprint)
         })
-        
+
         if (toDelete.length > 0) {
-          this.cleanupHistory.push({ 
-            timestamp: Date.now(), 
-            count: clearedCount + toDelete.length 
+          this.cleanupHistory.push({
+            timestamp: Date.now(),
+            count: clearedCount + toDelete.length
           })
         }
       }
