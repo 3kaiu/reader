@@ -1,36 +1,20 @@
 # Cloudflare Workers Configuration
-# API Proxy + Progress Sync + Bookshelf Backup
+# Progress Sync Worker - 阅读进度跨设备同步
 
-name = "nexus-api-proxy"
-main = "cloudflare-workers/api-proxy-worker.js"
+name = "nexus-progress-sync"
+main = "cloudflare-workers/progress-sync-worker.js"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
-# Development
+# 开发模式
 workers_dev = true
 
-# KV for reading progress
+# KV 命名空间 - 阅读进度存储
+# 需要在 Cloudflare Dashboard 创建 KV 命名空间后填入 ID
+# 或通过 GitHub Secrets 注入
 [[kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "${KV_PROGRESS_ID}"
 
 [vars]
 ENVIRONMENT = "production"
-
-# Progress Sync Worker
-[env.progress]
-name = "nexus-progress-sync"
-main = "cloudflare-workers/progress-sync-worker.js"
-
-[[env.progress.kv_namespaces]]
-binding = "PROGRESS_KV"
-id = "${KV_PROGRESS_ID}"
-
-# Bookshelf Backup Worker (R2)
-[env.backup]
-name = "nexus-bookshelf-backup"
-main = "cloudflare-workers/bookshelf-backup-worker.js"
-
-[[env.backup.r2_buckets]]
-binding = "BACKUP_BUCKET"
-bucket_name = "nexus-backup"
