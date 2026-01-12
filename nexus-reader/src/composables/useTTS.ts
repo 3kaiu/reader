@@ -1,7 +1,6 @@
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useSettingsStore } from '../stores/settings'
 import { useVoiceStore } from '../stores/voice'
-import { logger } from '../utils/logger'
 
 /**
  * 🎙️ TTS Engine Router - 语音朗读路由

@@ -1,5 +1,4 @@
 import { ofetch, type FetchOptions } from 'ofetch'
-import { useUserStore } from '@/stores/user'
 import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
 import { apiCache, createCacheKey } from '@/utils/cacheManager'
 import { requestOptimizer, networkDetector } from '@/utils/networkOptimizer'
@@ -26,70 +25,12 @@ export interface ApiResponse<T = unknown> {
 
 // 缓存配置
 const MAX_CACHE_SIZE = 1000
-const MAX_PENDING_REQUESTS = 100
 
 // 请求缓存 Map (LRU实现)
 const requestCache = new Map<string, { data: unknown; timestamp: number }>()
 
 // 请求去重 Map
 const pendingRequests = new Map<string, Promise<unknown>>()
-
-// LRU缓存管理
-function addToCache(key: string, value: { data: unknown; timestamp: number }) {
-  // 如果缓存已满，删除最旧的项
-  if (requestCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = requestCache.keys().next().value
-    if (firstKey) {
-      requestCache.delete(firstKey)
-    }
-  }
-  
-  // 如果key已存在，先删除再添加（实现LRU）
-  if (requestCache.has(key)) {
-    requestCache.delete(key)
-  }
-  
-  requestCache.set(key, value)
-}
-
-// 获取缓存并更新访问时间（LRU）
-function getFromCache(key: string): { data: unknown; timestamp: number } | undefined {
-  const cached = requestCache.get(key)
-  if (cached) {
-    // 重新设置以更新LRU顺序
-    requestCache.delete(key)
-    requestCache.set(key, cached)
-    return cached
-  }
-  return undefined
-}
-
-// 管理pending请求
-function addPendingRequest(key: string, promise: Promise<unknown>) {
-  // 限制并发请求数量
-  if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
-    const firstKey = pendingRequests.keys().next().value
-    if (firstKey) {
-      pendingRequests.delete(firstKey)
-    }
-  }
-  pendingRequests.set(key, promise)
-}
-
-function removePendingRequest(key: string) {
-  pendingRequests.delete(key)
-}
-
-// 判断是否应该重试
-interface FetchError {
-  response?: { status: number }
-}
-const shouldRetry = (error: FetchError): boolean => {
-  // 网络错误或 5xx 服务器错误时重试
-  if (!error.response) return true // 网络错误
-  const status = error.response.status
-  return status >= 500 && status < 600
-}
 
 import { useErrorHandler } from '@/composables/useErrorHandler'
 

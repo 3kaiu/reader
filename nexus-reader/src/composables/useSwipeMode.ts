@@ -2,7 +2,7 @@
  * 📖 Swipe Mode Composable
  * 从 reader.vue 提取的翻页模式逻辑
  */
-import { ref, watch, nextTick, type Ref } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useResizeObserver, useThrottleFn } from '@vueuse/core'
 
 // 依赖接口

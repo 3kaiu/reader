@@ -7,7 +7,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { secureComm, SecureCommUtils, SecureResponse } from '../utils/secureComm'
-import { keyManager } from '../utils/keyManager'
 
 // Hook state interface
 export interface SecureCommState {

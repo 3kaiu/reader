@@ -1,4 +1,3 @@
-import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useStatisticsStore } from '@/stores/statistics'
 
 export function useEngagementTracker(bookId: string | undefined, chapterIndex: number) {

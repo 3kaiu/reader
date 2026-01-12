@@ -9,7 +9,7 @@
  * - 预取优先级队列
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 // 预取状态
 export type PrefetchStatus = 'pending' | 'loading' | 'cached' | 'failed'

@@ -7,7 +7,7 @@ import { offlineManager, offlineContentServer, type OfflineStatus } from '../uti
 import { networkDetector } from '../utils/networkOptimizer'
 import { secureRandomString } from '../utils/secureRandom'
 import { apiCache } from '../utils/cacheManager'
-import { $get, $post, $patch, $delete, type ApiResponse } from '../api/client'
+import { $get, type ApiResponse } from '../api/client'
 
 // 离线服务配置
 export interface OfflineServiceConfig {

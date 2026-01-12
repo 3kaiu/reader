@@ -12,12 +12,6 @@
  */
 
 import { logger } from '../../utils/logger'
-import type {
-  HomophoneItem,
-  SlangItem,
-  MemeItem,
-  CharacterGraph,
-} from '../../types/ai'
 
 // 长章节阈值
 export const LONG_CHAPTER_THRESHOLD = 5000

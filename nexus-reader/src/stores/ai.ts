@@ -6,7 +6,6 @@
  * 同时保持向后兼容性，支持现有的所有 AI 功能
  */
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
 import { useAIService } from './ai/serviceStore'
 import * as aiModules from './ai/index'
 

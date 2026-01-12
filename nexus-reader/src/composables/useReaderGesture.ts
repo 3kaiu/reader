@@ -1,16 +1,15 @@
 /**
  * 👆 useReaderGesture - 阅读器交互手势逻辑
  */
-import { ref } from 'vue'
-import { useSwipe, onLongPress } from '@vueuse/core'
+import { onLongPress } from '@vueuse/core'
+import type { Ref } from 'vue'
 
 interface ReaderGestureOptions {
   onToggleToolbar: () => void
-  onToggleZenMode: () => void
   onPrevPage: () => void
   onNextPage: () => void
   onLongPress?: (e: MouseEvent | TouchEvent) => void
-  containerRef: ref<HTMLElement | null>
+  containerRef: Ref<HTMLElement | null>
   readingMode: 'scroll' | 'swipe'
   zenMode: boolean
 }
@@ -18,7 +17,6 @@ interface ReaderGestureOptions {
 export function useReaderGesture(options: ReaderGestureOptions) {
   const {
     onToggleToolbar,
-    onToggleZenMode,
     onPrevPage,
     onNextPage,
     onLongPress: onLongPressCb,

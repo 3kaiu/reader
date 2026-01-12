@@ -10,7 +10,7 @@
  * - 个性化阅读建议
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { openDB, type IDBPDatabase } from 'idb'
 import { secureRandomString } from '../utils/secureRandom'
 

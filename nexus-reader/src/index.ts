@@ -24,7 +24,7 @@ app.use(pinia)
 app.use(router)
 
 // 全局错误处理
-app.config.errorHandler = (err, instance, info) => {
+app.config.errorHandler = (err, _instance, info) => {
     console.error('[Vue Error]', err, info)
     const { handleError } = useErrorHandler()
     handleError(err, `Vue Error: ${info}`)
@@ -104,12 +104,11 @@ router.beforeEach((to, from, next) => {
     next()
 })
 
-router.afterEach((to, from) => {
+router.afterEach((to, _from) => {
     const startTime = (to.meta as any)._routeStartTime
     if (startTime) {
         const duration = performance.now() - startTime
         performanceMonitor.reportMetric('route_change', duration, {
-            from: from.path,
             to: to.path
         })
     }
@@ -123,7 +122,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
             .then((registration) => {
                 console.log('SW 注册成功:', registration.scope)
             })
-            .catch((error) => {
+            .catch((_error) => {
                 // Service Worker 注册失败（生产环境）
             })
     })

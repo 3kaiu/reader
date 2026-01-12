@@ -3,11 +3,10 @@
  * Manages Text-to-Speech functionality with delay loading
  */
 
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { cdnResourceLoader } from '@/utils/cdnResourceLoader'
 import { modelCacheManager } from '@/utils/modelCacheManager'
 import { logger } from '@/utils/logger'
-import { syncChannel } from '@/utils/broadcast'
 
 export interface TTSPerformance {
   totalCharacters: number
