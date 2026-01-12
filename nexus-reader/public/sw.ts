@@ -127,6 +127,11 @@ self.addEventListener('fetch', (event) => {
 
 // 接收来自主线程的消息
 self.addEventListener('message', (event) => {
+    // 验证消息来源以防止恶意网站通过 SW 篡改缓存
+    if (event.origin && event.origin !== self.location.origin) {
+        return
+    }
+
     if (event.data.type === 'CACHE_CHAPTER') {
         const { url, content } = event.data
         caches.open(CHAPTER_CACHE_NAME).then((cache) => {

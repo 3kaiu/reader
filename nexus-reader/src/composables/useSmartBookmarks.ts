@@ -11,6 +11,7 @@
 
 import { ref, computed } from 'vue'
 import { openDB, type IDBPDatabase } from 'idb'
+import { secureRandomString } from '../utils/secureRandom'
 
 // 数据库配置
 const DB_NAME = 'nexus-bookmarks'
@@ -65,7 +66,7 @@ async function getDB(): Promise<IDBPDatabase> {
  * 生成书签 ID
  */
 function generateId(): string {
-  return `bm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `bm_${Date.now()}_${secureRandomString(6)}`
 }
 
 /**

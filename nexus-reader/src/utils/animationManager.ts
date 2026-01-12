@@ -4,6 +4,7 @@
  */
 
 // Performance monitoring integration
+import { secureRandomString } from './secureRandom'
 
 // 动画类型
 export type AnimationType = 'fade' | 'slide' | 'scale' | 'rotate' | 'bounce' | 'elastic' | 'custom'
@@ -101,7 +102,7 @@ export class AnimationManager {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const id = this.generateAnimationId()
-      
+
       // 检查并发动画限制
       if (this.animations.size >= this.performanceConfig.maxConcurrentAnimations) {
         this.cancelOldestAnimation()
@@ -132,7 +133,7 @@ export class AnimationManager {
 
       // 获取关键帧
       const keyframes = customKeyframes || this.getKeyframes(type, element)
-      
+
       // 创建Web Animation
       try {
         const animation = element.animate(keyframes, {
@@ -230,9 +231,9 @@ export class AnimationManager {
 
   // 弹跳动画
   bounce(element: HTMLElement, intensity = 1, duration = 600): Promise<void> {
-    return this.animate(element, 'bounce', { 
-      duration, 
-      easing: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' 
+    return this.animate(element, 'bounce', {
+      duration,
+      easing: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)'
     }, [
       { transform: 'scale(1)' },
       { transform: `scale(${1 + intensity * 0.1})` },
@@ -254,8 +255,8 @@ export class AnimationManager {
 
   // 脉冲动画
   pulse(element: HTMLElement, scale = 1.05, duration = 1000): Promise<void> {
-    return this.animate(element, 'custom', { 
-      duration, 
+    return this.animate(element, 'custom', {
+      duration,
       iterations: 'infinite',
       direction: 'alternate'
     }, [
@@ -336,7 +337,7 @@ export class AnimationManager {
       // 视觉反馈
       if (this.touchConfig.enableVisualFeedback) {
         const keyframes: Keyframe[] = []
-        
+
         if (config.type === 'scale' || config.type === 'both') {
           keyframes.push(
             { transform: 'scale(1)', opacity: 1 },
@@ -350,7 +351,7 @@ export class AnimationManager {
         }
 
         try {
-          await this.animate(element, 'custom', { 
+          await this.animate(element, 'custom', {
             duration: config.duration,
             fill: 'forwards'
           }, keyframes)
@@ -367,7 +368,7 @@ export class AnimationManager {
       // 恢复原状
       if (this.touchConfig.enableVisualFeedback) {
         const keyframes: Keyframe[] = []
-        
+
         if (config.type === 'scale' || config.type === 'both') {
           keyframes.push(
             { transform: `scale(${config.intensity})`, opacity: config.type === 'both' ? 0.8 : 1 },
@@ -381,7 +382,7 @@ export class AnimationManager {
         }
 
         try {
-          await this.animate(element, 'custom', { 
+          await this.animate(element, 'custom', {
             duration: config.duration,
             fill: 'forwards'
           }, keyframes)
@@ -409,8 +410,8 @@ export class AnimationManager {
       element.removeEventListener('mouseleave', handleTouchEnd)
     }
 
-    // 将清理函数存储在元素上
-    ;(element as any)._touchFeedbackCleanup = cleanup
+      // 将清理函数存储在元素上
+      ; (element as any)._touchFeedbackCleanup = cleanup
   }
 
   // 移除触摸反馈
@@ -430,7 +431,7 @@ export class AnimationManager {
     performanceScore: number
   } {
     const active = Array.from(this.animations.values()).filter(a => a.state === 'running').length
-    
+
     return {
       active,
       total: this.animations.size,
@@ -445,7 +446,7 @@ export class AnimationManager {
     if (this.animations.size > this.performanceConfig.maxConcurrentAnimations) {
       const sortedAnimations = Array.from(this.animations.values())
         .sort((a, b) => a.startTime - b.startTime)
-      
+
       const toCancel = sortedAnimations.slice(0, sortedAnimations.length - this.performanceConfig.maxConcurrentAnimations)
       toCancel.forEach(animation => this.cancelAnimation(animation.id))
     }
@@ -480,12 +481,12 @@ export class AnimationManager {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement
-            
+
             // 检查是否是可交互元素
             if (this.isInteractiveElement(element)) {
               this.addTouchFeedback(element)
             }
-            
+
             // 检查子元素
             const interactiveChildren = element.querySelectorAll('button, a, [role="button"], [tabindex]')
             interactiveChildren.forEach((child) => {
@@ -502,7 +503,7 @@ export class AnimationManager {
   private isInteractiveElement(element: HTMLElement): boolean {
     const interactiveTags = ['button', 'a', 'input', 'select', 'textarea']
     const interactiveRoles = ['button', 'link', 'tab', 'menuitem']
-    
+
     return (
       interactiveTags.includes(element.tagName.toLowerCase()) ||
       interactiveRoles.includes(element.getAttribute('role') || '') ||
@@ -538,7 +539,7 @@ export class AnimationManager {
   }
 
   private generateAnimationId(): string {
-    return `anim_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+    return `anim_${Date.now()}_${secureRandomString(6)}`
   }
 
   private cancelOldestAnimation(): void {
@@ -562,17 +563,17 @@ export class AnimationManager {
     if (instance) {
       instance.state = 'finished'
       instance.endTime = performance.now()
-      
+
       // 报告性能指标
       if (this.performanceConfig.enablePerformanceMonitoring) {
         this.reportAnimationComplete(instance)
       }
-      
+
       // 清理GPU加速
       if (this.performanceConfig.enableGPUAcceleration) {
         instance.element.style.willChange = 'auto'
       }
-      
+
       this.animations.delete(id)
     }
   }
@@ -601,7 +602,7 @@ export class AnimationManager {
   private calculatePerformanceScore(): number {
     const frameRateScore = Math.min(100, (this.frameRate / this.performanceConfig.frameRateTarget) * 100)
     const concurrencyScore = Math.max(0, 100 - (this.animations.size / this.performanceConfig.maxConcurrentAnimations) * 50)
-    
+
     return Math.round((frameRateScore + concurrencyScore) / 2)
   }
 
@@ -617,7 +618,7 @@ export class AnimationManager {
   // 清理资源
   destroy(): void {
     this.cancelAllAnimations()
-    
+
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame)
     }

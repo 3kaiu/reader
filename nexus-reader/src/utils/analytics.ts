@@ -1,7 +1,7 @@
+import { secureRandomString } from './secureRandom';
+
 /**
  * Analytics Tracking System
- * Integrates with Cloudflare Analytics and provides custom event tracking
- * Validates Requirement 7.1: Analytics tracking for performance metrics
  */
 
 export interface AnalyticsEvent {
@@ -39,7 +39,7 @@ class AnalyticsManager {
   constructor() {
     this.sessionId = this.generateSessionId();
     this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    
+
     if (typeof window !== 'undefined') {
       this.initializePerformanceTracking();
       this.setupNetworkStatusTracking();
@@ -52,7 +52,7 @@ class AnalyticsManager {
    */
   public initialize(userId?: string): void {
     this.userId = userId;
-    
+
     if (typeof window !== 'undefined') {
       this.trackEvent('session_start', {
         userAgent: navigator.userAgent,
@@ -77,7 +77,7 @@ class AnalyticsManager {
     };
 
     this.eventQueue.push(event);
-    
+
     // In test environment, immediately process events
     if (typeof window === 'undefined' || process.env.NODE_ENV === 'test') {
       this.processEventQueue();
@@ -114,9 +114,9 @@ class AnalyticsManager {
       });
       return;
     }
-    
+
     const performanceEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-    
+
     this.trackEvent('page_view', {
       page,
       referrer: referrer || document.referrer,
@@ -163,7 +163,7 @@ class AnalyticsManager {
       });
       return;
     }
-    
+
     const memoryInfo = (performance as any).memory;
     const storageEstimate = navigator.storage?.estimate();
 
@@ -174,8 +174,8 @@ class AnalyticsManager {
         memoryLimit: memoryInfo?.jsHeapSizeLimit,
         storageUsed: estimate?.usage,
         storageQuota: estimate?.quota,
-        storageUsagePercent: estimate?.usage && estimate?.quota 
-          ? (estimate.usage / estimate.quota) * 100 
+        storageUsagePercent: estimate?.usage && estimate?.quota
+          ? (estimate.usage / estimate.quota) * 100
           : undefined,
       });
     });
@@ -185,7 +185,7 @@ class AnalyticsManager {
    * Generate unique session ID
    */
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${secureRandomString(9)}`;
   }
 
   /**
@@ -193,7 +193,7 @@ class AnalyticsManager {
    */
   private initializePerformanceTracking(): void {
     if (typeof window === 'undefined' || !('PerformanceObserver' in window)) return;
-    
+
     this.performanceObserver = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         if (entry.entryType === 'measure') {
@@ -214,7 +214,7 @@ class AnalyticsManager {
    */
   private setupNetworkStatusTracking(): void {
     if (typeof window === 'undefined') return;
-    
+
     window.addEventListener('online', () => {
       this.isOnline = true;
       this.trackEvent('network_status', { status: 'online' });
@@ -232,7 +232,7 @@ class AnalyticsManager {
    */
   private setupBeforeUnloadHandler(): void {
     if (typeof window === 'undefined') return;
-    
+
     window.addEventListener('beforeunload', () => {
       this.trackEvent('session_end', {
         duration: Date.now() - parseInt(this.sessionId.split('-')[0]),
@@ -247,7 +247,7 @@ class AnalyticsManager {
    */
   private getCurrentPerformanceMetrics(): PerformanceMetrics | undefined {
     if (typeof window === 'undefined') return undefined;
-    
+
     const memoryInfo = (performance as any).memory;
     const connection = (navigator as any).connection;
 
@@ -266,7 +266,7 @@ class AnalyticsManager {
    */
   private getFirstContentfulPaint(): number | undefined {
     if (typeof window === 'undefined') return undefined;
-    
+
     const paintEntries = performance.getEntriesByType('paint');
     const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
     return fcpEntry?.startTime;
@@ -277,11 +277,11 @@ class AnalyticsManager {
    */
   private calculateCacheHitRate(): number {
     if (typeof window === 'undefined') return 0;
-    
+
     const resourceEntries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
     if (resourceEntries.length === 0) return 0;
 
-    const cachedResources = resourceEntries.filter(entry => 
+    const cachedResources = resourceEntries.filter(entry =>
       entry.transferSize === 0 || entry.transferSize < entry.encodedBodySize
     );
 
@@ -348,8 +348,8 @@ class AnalyticsManager {
 
     // Use sendBeacon for reliable delivery on page unload
     if ('sendBeacon' in navigator) {
-      navigator.sendBeacon('/api/analytics', JSON.stringify({ 
-        events: this.eventQueue 
+      navigator.sendBeacon('/api/analytics', JSON.stringify({
+        events: this.eventQueue
       }));
     }
   }

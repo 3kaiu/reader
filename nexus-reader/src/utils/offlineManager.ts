@@ -5,6 +5,7 @@
 
 import { networkDetector } from './networkOptimizer'
 import { apiCache, generalCache } from './cacheManager'
+import { secureRandomString } from './secureRandom'
 
 // 离线操作接口
 export interface OfflineOperation {
@@ -81,7 +82,7 @@ export class OfflineManager {
 
     this.operationQueue.push(queuedOperation)
     this.persistOperationQueue()
-    
+
     console.log('📱 Operation queued for offline sync:', queuedOperation.type)
     this.notifyListeners()
   }
@@ -95,7 +96,7 @@ export class OfflineManager {
 
     this.cachedContent.set(content.id, cachedItem)
     this.persistCachedContent()
-    
+
     console.log('💾 Content cached for offline access:', content.type, content.id)
     this.notifyListeners()
   }
@@ -116,7 +117,7 @@ export class OfflineManager {
 
     if (query) {
       const lowerQuery = query.toLowerCase()
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.id.toLowerCase().includes(lowerQuery) ||
         item.url.toLowerCase().includes(lowerQuery) ||
         (typeof item.data === 'string' && item.data.toLowerCase().includes(lowerQuery))
@@ -318,7 +319,7 @@ export class OfflineManager {
         // 刚刚上线
         console.log('🌐 Back online')
         this.lastOnlineTime = Date.now()
-        
+
         // 自动同步队列中的操作
         setTimeout(() => {
           this.syncQueuedOperations().catch(console.error)
@@ -391,7 +392,7 @@ export class OfflineManager {
   }
 
   private generateOperationId(): string {
-    return `offline_op_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+    return `offline_op_${Date.now()}_${secureRandomString(9)}`
   }
 
   private persistOperationQueue(): void {
@@ -458,7 +459,7 @@ export class OfflineContentServer {
   async serveFromCache(url: string): Promise<any> {
     // 生成缓存键
     const cacheKey = this.generateCacheKey(url)
-    
+
     // 首先尝试从离线管理器获取
     const cached = this.offlineManager.getCachedContent(cacheKey)
     if (cached) {
@@ -486,7 +487,7 @@ export class OfflineContentServer {
   // 检查内容是否可离线访问
   isContentAvailableOffline(url: string): boolean {
     const cacheKey = this.generateCacheKey(url)
-    
+
     return (
       this.offlineManager.getCachedContent(cacheKey) !== null ||
       apiCache.has(cacheKey) ||
@@ -502,7 +503,7 @@ export class OfflineContentServer {
     timestamp: number
   }> {
     const offlineContent = this.offlineManager.getOfflineAvailableContent()
-    
+
     return offlineContent.map(content => ({
       url: content.url,
       type: content.type,
@@ -539,7 +540,7 @@ if (typeof window !== 'undefined') {
   // 监听离线状态变化
   offlineManager.addStatusListener((status) => {
     console.log('📱 Offline status changed:', status)
-    
+
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('offline_status', status.isOnline ? 1 : 0, {
         queuedOperations: status.queuedOperations,
@@ -555,17 +556,17 @@ export function formatOfflineDuration(duration: number): string {
   if (duration < 60000) {
     return '刚刚离线'
   }
-  
+
   const minutes = Math.floor(duration / 60000)
   if (minutes < 60) {
     return `离线 ${minutes} 分钟`
   }
-  
+
   const hours = Math.floor(minutes / 60)
   if (hours < 24) {
     return `离线 ${hours} 小时`
   }
-  
+
   const days = Math.floor(hours / 24)
   return `离线 ${days} 天`
 }

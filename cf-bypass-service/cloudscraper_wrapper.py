@@ -17,9 +17,11 @@ import cloudscraper
 import redis
 
 from config_manager import config_manager
+from enhanced_logger import EnhancedLogger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("cloudscraper-wrapper")
+# Use EnhancedLogger for sanitized logging (escapes CRLF)
+enhanced_logger = EnhancedLogger("cloudscraper-wrapper")
+logger = enhanced_logger.logger
 
 # ─────────────────────────────────────────────────────────────
 # Data Models

@@ -4,6 +4,7 @@
  */
 
 import { performanceBudgetManager, type BudgetViolation } from './performanceBudget'
+import { secureRandomString } from './secureRandom'
 
 // 构建时预算配置
 export interface BuildTimeBudgetConfig {
@@ -84,10 +85,10 @@ export class BuildTimeBudgetEnforcer {
     try {
       // 分析包大小
       const bundleAnalysis = this.analyzeBundleSize(stats)
-      
+
       // 检查预算违规
       const budgetResult = await this.checkBuildBudgets(bundleAnalysis)
-      
+
       // 生成报告
       const report: BuildBudgetReport = {
         timestamp,
@@ -249,10 +250,14 @@ export class BuildTimeBudgetEnforcer {
 
     // Node.js环境下的文件操作（构建时）
     try {
-      const fs = await import('fs')
-      const reportJson = JSON.stringify(report, null, 2)
-      fs.writeFileSync(this.config.outputPath, reportJson)
-      console.log(`📊 Budget report saved to: ${this.config.outputPath}`)
+      if (typeof window === 'undefined') {
+        // Use dynamic import with a variable to skip static analysis by bundlers
+        const fsModule = 'fs'
+        const fs = await import(fsModule)
+        const reportJson = JSON.stringify(report, null, 2)
+        fs.writeFileSync(this.config.outputPath, reportJson)
+        console.log(`📊 Budget report saved to: ${this.config.outputPath}`)
+      }
     } catch (error) {
       console.warn('Failed to write JSON report:', error)
     }
@@ -262,7 +267,7 @@ export class BuildTimeBudgetEnforcer {
   private async outputHtmlReport(report: BuildBudgetReport): Promise<void> {
     const htmlContent = this.generateHtmlReport(report)
     const htmlPath = this.config.outputPath.replace('.json', '.html')
-    
+
     // 在浏览器环境中跳过文件操作
     if (typeof window !== 'undefined') {
       console.warn('File system not available in browser, skipping HTML report')
@@ -270,9 +275,12 @@ export class BuildTimeBudgetEnforcer {
     }
 
     try {
-      const fs = await import('fs')
-      fs.writeFileSync(htmlPath, htmlContent)
-      console.log(`📊 HTML budget report saved to: ${htmlPath}`)
+      if (typeof window === 'undefined') {
+        const fsModule = 'fs'
+        const fs = await import(fsModule)
+        fs.writeFileSync(htmlPath, htmlContent)
+        console.log(`📊 HTML budget report saved to: ${htmlPath}`)
+      }
     } catch (error) {
       console.warn('Failed to write HTML report:', error)
     }
@@ -281,7 +289,7 @@ export class BuildTimeBudgetEnforcer {
   // 输出控制台报告
   private outputConsoleReport(report: BuildBudgetReport): void {
     console.log('\n📊 Performance Budget Report')
-    console.log('=' .repeat(50))
+    console.log('='.repeat(50))
     console.log(`Build ID: ${report.buildId}`)
     console.log(`Timestamp: ${new Date(report.timestamp).toISOString()}`)
     console.log(`Status: ${report.passed ? '✅ PASSED' : '❌ FAILED'}`)
@@ -303,7 +311,7 @@ export class BuildTimeBudgetEnforcer {
       })
     }
 
-    console.log('=' .repeat(50))
+    console.log('='.repeat(50))
   }
 
   // 生成HTML报告
@@ -373,7 +381,7 @@ export class BuildTimeBudgetEnforcer {
 
   // 辅助方法
   private generateBuildId(): string {
-    return `build_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+    return `build_${Date.now()}_${secureRandomString(6)}`
   }
 
   private getAssetType(filename: string): string {
@@ -396,12 +404,12 @@ export class BuildTimeBudgetEnforcer {
 
   private calculateInitialSize(chunks: ChunkInfo[], assets: AssetInfo[]): number {
     // 计算初始加载所需的资源大小
-    const initialChunks = chunks.filter(chunk => 
-      chunk.name === 'main' || 
-      chunk.name === 'runtime' || 
+    const initialChunks = chunks.filter(chunk =>
+      chunk.name === 'main' ||
+      chunk.name === 'runtime' ||
       chunk.name === 'vendor'
     )
-    
+
     return initialChunks.reduce((sum, chunk) => sum + chunk.size, 0)
   }
 
@@ -447,8 +455,8 @@ export class BuildTimeBudgetEnforcer {
 
     let totalPenalty = 0
     violations.forEach(violation => {
-      const penalty = violation.severity === 'critical' ? 25 : 
-                     violation.severity === 'error' ? 15 : 8
+      const penalty = violation.severity === 'critical' ? 25 :
+        violation.severity === 'error' ? 15 : 8
       totalPenalty += penalty
     })
 
@@ -492,10 +500,10 @@ export class RuntimeBudgetEnforcer {
   private async checkRuntimeBudgets(): Promise<void> {
     try {
       const result = await performanceBudgetManager.checkBudgets()
-      
+
       if (!result.passed) {
         console.warn(`🚨 Runtime budget violations detected: ${result.violations.length} violations`)
-        
+
         // 触发警告或采取纠正措施
         this.handleRuntimeViolations(result.violations)
       }
@@ -507,7 +515,7 @@ export class RuntimeBudgetEnforcer {
   // 处理违规
   private handleViolation(violation: BudgetViolation): void {
     this.violations.push(violation)
-    
+
     // 通知监听器
     this.listeners.forEach(listener => {
       try {
@@ -541,7 +549,7 @@ export class RuntimeBudgetEnforcer {
   // 处理严重违规
   private handleCriticalViolation(violation: BudgetViolation): void {
     console.error('🚨 CRITICAL performance budget violation:', violation)
-    
+
     // 可以采取紧急措施，如清理缓存、减少功能等
     if (violation.type === 'memory') {
       this.triggerMemoryCleanup()
@@ -551,7 +559,7 @@ export class RuntimeBudgetEnforcer {
   // 处理错误级违规
   private handleErrorViolation(violation: BudgetViolation): void {
     console.warn('⚠️ ERROR performance budget violation:', violation)
-    
+
     // 可以降级某些功能
     if (violation.type === 'network') {
       this.enableDataSavingMode()
@@ -561,7 +569,7 @@ export class RuntimeBudgetEnforcer {
   // 处理警告级违规
   private handleWarningViolation(violation: BudgetViolation): void {
     console.info('ℹ️ WARNING performance budget violation:', violation)
-    
+
     // 记录警告，可能显示用户提示
   }
 

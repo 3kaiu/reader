@@ -4,6 +4,11 @@
  */
 
 self.onmessage = (e: MessageEvent) => {
+    // 验证消息来源
+    if (e.origin && e.origin !== self.location.origin) {
+        return
+    }
+
     const { text, type } = e.data
 
     if (type === 'format') {

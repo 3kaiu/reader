@@ -12,6 +12,7 @@
 
 import { ref, computed, watch } from 'vue'
 import { openDB, type IDBPDatabase } from 'idb'
+import { secureRandomString } from '../utils/secureRandom'
 
 // 数据库配置
 const DB_NAME = 'nexus-analytics'
@@ -77,7 +78,7 @@ async function getDB(): Promise<IDBPDatabase> {
 }
 
 function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `session_${Date.now()}_${secureRandomString(6)}`
 }
 
 /**

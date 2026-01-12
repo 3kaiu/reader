@@ -22,6 +22,11 @@ interface PageData {
 }
 
 self.onmessage = async (e: MessageEvent) => {
+  // 验证消息来源以防止 XSS/CSRF
+  if (e.origin && e.origin !== self.location.origin) {
+    return
+  }
+
   const { type, options } = e.data
 
   if (type === 'render-chapter') {

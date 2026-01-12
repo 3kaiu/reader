@@ -672,12 +672,15 @@ export class PrivacyLogger {
    */
   private async persistLog(logEntry: PrivacyLogEntry): Promise<void> {
     try {
-      // Only persist non-personal logs to regular storage
-      if (logEntry.privacy !== PrivacyLevel.PERSONAL || !this.config.encryptPersonalLogs) {
+      // Only persist public logs to regular storage in clear text
+      if (logEntry.privacy === PrivacyLevel.PUBLIC) {
         const logKey = `privacy-log-${logEntry.id}`
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(logKey, JSON.stringify(logEntry))
         }
+      } else {
+        // Encrypt everything else (INTERNAL, CONFIDENTIAL, PERSONAL)
+        await this.storeEncryptedLog(logEntry)
       }
     } catch (error) {
       // Silently ignore localStorage errors in test environments

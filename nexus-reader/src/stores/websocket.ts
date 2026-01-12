@@ -70,7 +70,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const data = JSON.parse(event.data)
         handleMessage(data)
       } catch (e) {
-        console.error('Failed to parse WS message:', event.data)
+        const safeData = typeof event.data === 'string' ? event.data.replace(/[\r\n]/g, '') : 'non-string data'
+        console.error('Failed to parse WS message:', safeData)
       }
     }
 
@@ -152,7 +153,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
   }
 
   const handleMessage = (msg: WSMessage) => {
-    console.log('WS Message:', msg)
+    // Sanitize message for logging to prevent injection
+    const safeMsg = JSON.stringify(msg).replace(/[\r\n]/g, '')
+    console.log('WS Message:', safeMsg)
     lastMessage.value = msg
 
     switch (msg.type) {

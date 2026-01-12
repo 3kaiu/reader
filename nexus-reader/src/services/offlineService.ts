@@ -5,6 +5,7 @@
 
 import { offlineManager, offlineContentServer, type OfflineStatus } from '../utils/offlineManager'
 import { networkDetector } from '../utils/networkOptimizer'
+import { secureRandomString } from '../utils/secureRandom'
 import { apiCache } from '../utils/cacheManager'
 import { $get, $post, $patch, $delete, type ApiResponse } from '../api/client'
 
@@ -125,7 +126,7 @@ export class OfflineService {
   // 获取离线可用内容列表
   getOfflineContent(): OfflineContentItem[] {
     const availableContent = offlineContentServer.getAvailableOfflineContent()
-    
+
     return availableContent.map(content => {
       const [contentId, type] = this.parseCacheKey(content.url)
       return {
@@ -144,8 +145,8 @@ export class OfflineService {
 
   // 缓存内容供离线使用
   async cacheContentForOffline(
-    contentId: string, 
-    type: OfflineContentType, 
+    contentId: string,
+    type: OfflineContentType,
     priority = 5
   ): Promise<void> {
     try {
@@ -156,7 +157,7 @@ export class OfflineService {
 
       if (response.isSuccess) {
         const cacheKey = this.generateCacheKey(contentId, type)
-        
+
         offlineManager.cacheContent({
           id: cacheKey,
           type: type as any,
@@ -192,7 +193,7 @@ export class OfflineService {
 
     for (let i = 0; i < items.length; i += concurrency) {
       const batch = items.slice(i, i + concurrency)
-      
+
       const batchPromises = batch.map(async (item) => {
         try {
           await this.cacheContentForOffline(item.contentId, item.type, item.priority)
@@ -220,7 +221,7 @@ export class OfflineService {
     try {
       const cacheKey = this.generateCacheKey(contentId, type)
       const cached = offlineManager.getCachedContent(cacheKey)
-      
+
       if (cached) {
         console.log(`📱 Serving content from offline cache: ${type}/${contentId}`)
         return cached.data as T
@@ -249,7 +250,7 @@ export class OfflineService {
     isUrgent = false
   ): void {
     const operation = {
-      id: `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      id: `${type}_${Date.now()}_${secureRandomString(6)}`,
       type,
       description,
       data,
@@ -327,7 +328,7 @@ export class OfflineService {
   }
 
   // 获取离线服务状态
-  getStatus(): OfflineStatus & { 
+  getStatus(): OfflineStatus & {
     isInitialized: boolean
     syncInProgress: boolean
     config: OfflineServiceConfig
@@ -343,7 +344,7 @@ export class OfflineService {
   // 更新配置
   updateConfig(newConfig: Partial<OfflineServiceConfig>): void {
     this.config = { ...this.config, ...newConfig }
-    
+
     // 重新配置自动同步
     if (this.config.enableAutoSync) {
       offlineManager.startAutoSync(this.config.syncInterval)
@@ -402,13 +403,13 @@ export class OfflineService {
   private async performInitialSync(): Promise<void> {
     try {
       console.log('🔄 Performing initial sync...')
-      
+
       // 同步用户设置
       await this.syncUserSettings()
-      
+
       // 同步阅读进度
       await this.syncReadingProgress()
-      
+
       // 同步书签
       await this.syncBookmarks()
 
@@ -441,7 +442,7 @@ export class OfflineService {
   private async updateCachedContent(): Promise<void> {
     // 更新已缓存的内容
     const offlineContent = this.getOfflineContent()
-    
+
     for (const item of offlineContent) {
       if (item.isEssential) {
         try {
@@ -470,7 +471,7 @@ export class OfflineService {
 
   private handleNetworkChange(networkInfo: any): void {
     console.log('🌐 Network changed in offline service:', networkInfo)
-    
+
     if (networkInfo.isOnline && this.config.enableAutoSync) {
       // 网络恢复时自动同步
       setTimeout(() => {

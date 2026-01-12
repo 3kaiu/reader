@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { offlineStorageManager } from '../utils/offlineStorageManager';
 import { conflictResolver, ConflictResolutionStrategy } from '../utils/conflictResolver';
+import { secureRandomString } from '../utils/secureRandom';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -175,7 +176,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
 
     try {
       const syncQueue = await offlineStorageManager.getSyncQueue();
-      
+
       if (syncQueue.length === 0) {
         setSyncStatus(prev => ({
           ...prev,
@@ -184,7 +185,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
           lastSyncTime: Date.now(),
           pendingChanges: 0
         }));
-        
+
         localStorage.setItem('last-sync-time', Date.now().toString());
         return true;
       }
@@ -200,10 +201,10 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
         }
 
         const item = syncQueue[i];
-        
+
         try {
           const success = await syncItem(item, abortControllerRef.current.signal);
-          
+
           if (success) {
             await offlineStorageManager.removeSyncQueueItem(item.id!);
             syncedCount++;
@@ -236,7 +237,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
 
       // 更新同步状态
       const remainingQueue = await offlineStorageManager.getSyncQueue();
-      
+
       setSyncStatus(prev => ({
         ...prev,
         isSyncing: false,
@@ -258,7 +259,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
 
     } catch (error) {
       console.error('Sync failed:', error);
-      
+
       setSyncStatus(prev => ({
         ...prev,
         isSyncing: false,
@@ -344,8 +345,8 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
     );
 
     if (conflictDetection.hasConflict) {
-      const conflictId = `conflict-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+      const conflictId = `conflict-${Date.now()}-${secureRandomString(9)}`;
+
       // 根据配置的冲突解决策略处理
       const resolution = await conflictResolver.resolveConflict(
         localItem.data,
@@ -357,7 +358,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
 
       // 应用解决方案
       await applyConflictResolution(localItem.type, resolution.resolvedData);
-      
+
       console.log(`Conflict resolved using ${config.conflictResolution} strategy:`, resolution);
     } else {
       // 没有冲突，直接应用服务器数据
@@ -422,7 +423,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
     };
 
     localStorage.setItem(`sync-conflict-${conflictData.id}`, JSON.stringify(conflictData));
-    
+
     // 触发冲突事件
     window.dispatchEvent(new CustomEvent('sync-conflict', {
       detail: conflictData
@@ -489,7 +490,7 @@ export const useSyncManager = (): SyncStatus & SyncActions & { config: SyncConfi
       ...prev,
       syncError: null
     }));
-    
+
     await syncNow();
   }, [syncNow]);
 

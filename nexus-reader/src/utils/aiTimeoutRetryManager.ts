@@ -2,6 +2,7 @@
  * AI Timeout and Retry Manager
  * Manages timeouts and retry logic for AI operations
  */
+import { secureRandomString } from './secureRandom'
 
 export interface RetryConfig {
   maxRetries: number
@@ -42,11 +43,11 @@ export class AITimeoutRetryManager {
     const finalConfig = { ...this.defaultConfig, ...config }
     const startTime = Date.now()
     let lastError: Error | undefined
-    
+
     for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
       try {
         const data = await this.executeWithTimeout(operation, finalConfig.timeout)
-        
+
         return {
           success: true,
           data,
@@ -55,23 +56,23 @@ export class AITimeoutRetryManager {
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        
+
         // Don't retry on last attempt
         if (attempt === finalConfig.maxRetries) {
           break
         }
-        
+
         // Calculate delay for next attempt
         const delay = Math.min(
           finalConfig.baseDelay * Math.pow(finalConfig.backoffMultiplier, attempt),
           finalConfig.maxDelay
         )
-        
+
         // Wait before retry
         await this.delay(delay)
       }
     }
-    
+
     return {
       success: false,
       error: lastError,
@@ -89,18 +90,18 @@ export class AITimeoutRetryManager {
     operationId?: string
   ): Promise<T> {
     const controller = new AbortController()
-    
+
     // Store the controller if we have an operation ID
     if (operationId) {
       this.operationControllers.set(operationId, controller)
     }
-    
+
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         controller.abort()
         reject(new Error(`Operation timed out after ${timeout}ms`))
       }, timeout)
-      
+
       operation(controller.signal)
         .then(result => {
           clearTimeout(timeoutId)
@@ -131,27 +132,27 @@ export class AITimeoutRetryManager {
    */
   isRetryableError(error: Error): boolean {
     const message = error.message.toLowerCase()
-    
+
     // Retryable errors
     if (message.includes('timeout') ||
-        message.includes('network') ||
-        message.includes('connection') ||
-        message.includes('rate limit') ||
-        message.includes('503') ||
-        message.includes('502') ||
-        message.includes('504')) {
+      message.includes('network') ||
+      message.includes('connection') ||
+      message.includes('rate limit') ||
+      message.includes('503') ||
+      message.includes('502') ||
+      message.includes('504')) {
       return true
     }
-    
+
     // Non-retryable errors
     if (message.includes('401') ||
-        message.includes('403') ||
-        message.includes('404') ||
-        message.includes('invalid') ||
-        message.includes('malformed')) {
+      message.includes('403') ||
+      message.includes('404') ||
+      message.includes('invalid') ||
+      message.includes('malformed')) {
       return false
     }
-    
+
     return true
   }
 
@@ -160,19 +161,19 @@ export class AITimeoutRetryManager {
    */
   getRecommendedDelay(error: Error): number {
     const message = error.message.toLowerCase()
-    
+
     if (message.includes('rate limit')) {
       return 60000 // 1 minute for rate limits
     }
-    
+
     if (message.includes('timeout')) {
       return 5000 // 5 seconds for timeouts
     }
-    
+
     if (message.includes('network')) {
       return 2000 // 2 seconds for network errors
     }
-    
+
     return this.defaultConfig.baseDelay
   }
 
@@ -216,7 +217,7 @@ export class AITimeoutRetryManager {
       // Standard usage: executeWithTimeoutRetry(operationId, operation, config)
       operationId = operationIdOrOperation
       operation = operationOrConfig as (signal?: AbortSignal) => Promise<T>
-      
+
       if (configOrWrapper && 'customConfig' in configOrWrapper) {
         config = configOrWrapper.customConfig
       } else {
@@ -226,27 +227,27 @@ export class AITimeoutRetryManager {
       // Alternative usage: executeWithTimeoutRetry(operation, config)
       operation = operationIdOrOperation
       const configParam = operationOrConfig as { customConfig: Partial<RetryConfig>; operationId?: string } | Partial<RetryConfig>
-      
+
       if (configParam && 'customConfig' in configParam) {
         config = configParam.customConfig
-        operationId = configParam.operationId || `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        operationId = configParam.operationId || `op-${Date.now()}-${secureRandomString(9)}`
       } else if (configParam && 'operationId' in configParam) {
         // Handle case where operationId is in the config directly
-        operationId = configParam.operationId || `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        operationId = configParam.operationId || `op-${Date.now()}-${secureRandomString(9)}`
         config = configParam
       } else {
         config = (configParam as Partial<RetryConfig>) || {}
-        operationId = `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        operationId = `op-${Date.now()}-${secureRandomString(9)}`
       }
     }
 
     const finalConfig = { ...this.defaultConfig, ...config }
     const startTime = Date.now()
     let lastError: Error | undefined
-    
+
     // Track active operation
     this.activeOperations.add(operationId)
-    
+
     try {
       for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
         try {
@@ -254,9 +255,9 @@ export class AITimeoutRetryManager {
           if (this.cancelledOperations.has(operationId)) {
             throw new Error('Operation was cancelled')
           }
-          
+
           const data = await this.executeWithTimeout(operation, finalConfig.timeout, operationId)
-          
+
           return {
             success: true,
             data,
@@ -265,23 +266,23 @@ export class AITimeoutRetryManager {
           }
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error))
-          
+
           // Don't retry on last attempt
           if (attempt === finalConfig.maxRetries) {
             break
           }
-          
+
           // Calculate delay for next attempt
           const delay = Math.min(
             finalConfig.baseDelay * Math.pow(finalConfig.backoffMultiplier, attempt),
             finalConfig.maxDelay
           )
-          
+
           // Wait before retry
           await this.delay(delay)
         }
       }
-      
+
       return {
         success: false,
         error: lastError,
@@ -368,13 +369,13 @@ export class AITimeoutRetryManager {
   cancelOperation(operationId: string): boolean {
     if (this.activeOperations.has(operationId)) {
       this.cancelledOperations.add(operationId)
-      
+
       // Abort the operation if it has a controller
       const controller = this.operationControllers.get(operationId)
       if (controller) {
         controller.abort()
       }
-      
+
       return true
     }
     return false
@@ -425,31 +426,31 @@ export function calculateBackoffDelay(
 
 export function isRetryableError(error: Error): boolean {
   const message = error.message.toLowerCase()
-  
+
   // Non-retryable errors (check first)
   if (message.includes('401') ||
-      message.includes('403') ||
-      message.includes('404') ||
-      message.includes('invalid') ||
-      message.includes('malformed') ||
-      message.includes('permission denied') ||
-      message.includes('unauthorized') ||
-      message.includes('forbidden')) {
+    message.includes('403') ||
+    message.includes('404') ||
+    message.includes('invalid') ||
+    message.includes('malformed') ||
+    message.includes('permission denied') ||
+    message.includes('unauthorized') ||
+    message.includes('forbidden')) {
     return false
   }
-  
+
   // Retryable errors
   if (message.includes('timeout') ||
-      message.includes('network') ||
-      message.includes('connection') ||
-      message.includes('rate limit') ||
-      message.includes('503') ||
-      message.includes('502') ||
-      message.includes('504') ||
-      message.includes('fetch')) {
+    message.includes('network') ||
+    message.includes('connection') ||
+    message.includes('rate limit') ||
+    message.includes('503') ||
+    message.includes('502') ||
+    message.includes('504') ||
+    message.includes('fetch')) {
     return true
   }
-  
+
   return false // Default to non-retryable for unknown errors
 }
 
@@ -461,7 +462,7 @@ export function createTimeoutPromise<T>(
     const timeoutId = setTimeout(() => {
       reject(new Error(`Operation timed out after ${timeout}ms`))
     }, timeout)
-    
+
     promise
       .then(result => {
         clearTimeout(timeoutId)

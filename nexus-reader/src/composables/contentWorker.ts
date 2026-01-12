@@ -9,6 +9,11 @@ interface WorkerMessage {
 }
 
 self.onmessage = (e: MessageEvent<WorkerMessage>) => {
+  // 验证消息来源以防止 XSS/CSRF
+  if (e.origin && e.origin !== self.location.origin) {
+    return
+  }
+
   const { type, text } = e.data
 
   if (type === 'format') {

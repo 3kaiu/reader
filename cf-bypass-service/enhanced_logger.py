@@ -65,10 +65,22 @@ class CloudScraperFormatter(logging.Formatter):
             )
     
     def format(self, record):
+        # Sanitize message and any extra attributes to prevent log injection
+        if hasattr(record, 'msg') and isinstance(record.msg, str):
+            record.msg = self._sanitize_str(record.msg)
+            
+        for attr in ['url', 'domain', 'challenge_type', 'proxy_used', 'session_id']:
+            if hasattr(record, attr) and isinstance(getattr(record, attr), str):
+                setattr(record, attr, self._sanitize_str(getattr(record, attr)))
+
         if self.use_json:
             return self._format_json(record)
         else:
             return self._format_text(record)
+
+    def _sanitize_str(self, s: str) -> str:
+        """Escape CRLF characters to prevent log injection"""
+        return s.replace('\r', '\\r').replace('\n', '\\n')
     
     def _format_json(self, record) -> str:
         """Format log record as JSON"""
@@ -143,9 +155,16 @@ class EnhancedLogger:
     
     def _log_with_context(self, level: int, category: LogCategory, message: str, **kwargs):
         """Log with structured context"""
+        # Sanitize message
+        sanitized_message = message.replace('\r', '\\r').replace('\n', '\\n')
+        
         extra = {'category': category.value}
-        extra.update(kwargs)
-        self.logger.log(level, message, extra=extra)
+        for k, v in kwargs.items():
+            if isinstance(v, str):
+                extra[k] = v.replace('\r', '\\r').replace('\n', '\\n')
+            else:
+                extra[k] = v
+        self.logger.log(level, sanitized_message, extra=extra)
     
     def request_start(self, url: str, method: str = "GET", domain: str = None, **kwargs):
         """Log request start"""

@@ -5,6 +5,7 @@
  */
 
 import type { AnalyticsEvent, PerformanceMetrics } from '../utils/analytics';
+import { secureRandomString } from '../utils/secureRandom';
 
 export interface AnalyticsConfig {
   endpoint: string;
@@ -312,7 +313,7 @@ class AnalyticsAPI {
    * Generate session ID
    */
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return `${Date.now()}-${secureRandomString(9)}`;
   }
 
   /**
@@ -342,7 +343,7 @@ class AnalyticsAPI {
 
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt < this.config.retryAttempts) {
           await this.delay(this.config.retryDelay * attempt);
         }

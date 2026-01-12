@@ -3,6 +3,7 @@
  * 用于跨标签页同步状态 (阅读位置, AI 引擎状态, TTS 状态)
  */
 import { logger } from './logger'
+import { secureRandomString } from './secureRandom'
 
 export type BroadcastType =
   | 'reading-progress'
@@ -17,7 +18,7 @@ export interface BroadcastMessage {
 }
 
 const CHANNEL_NAME = 'nexus-reader-sync'
-const TAB_ID = Math.random().toString(36).substring(2, 9)
+const TAB_ID = secureRandomString(7)
 
 class NexusBroadcast {
   private channel: BroadcastChannel | null = null
