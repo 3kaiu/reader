@@ -1816,7 +1816,7 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
- "dashmap 5.5.3",
+ "dashmap 6.1.0",
  "futures",
  "governor",
  "http",
