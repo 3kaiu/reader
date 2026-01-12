@@ -57,18 +57,20 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.5"
 
       - name: Cache dependencies
         uses: actions/cache@v5
         with:
-          path: ~/.bun/install/cache
+          path: |
+            ~/.bun/install/cache
+            nexus-reader/node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/bun.lock') }}
 
       - name: Install & Build
         working-directory: nexus-reader
         run: |
-          bun install --frozen-lockfile
+          bun install
           bun run build
 
       - name: Deploy to Cloudflare Pages
