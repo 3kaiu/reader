@@ -83,7 +83,7 @@ export function detectSentiment(text: string): SentimentType {
       return 'angry'
     }
     // 兴奋关键词
-    if (/[太厉害好棒太好了哈哈]/.test(trimmed)) {
+    if (/[太厉害好棒哈]/.test(trimmed)) {
       return 'excited'
     }
     return 'excited'
