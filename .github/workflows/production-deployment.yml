@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  NODE_VERSION: '18'
-
 permissions:
   contents: read
   packages: write
@@ -23,32 +20,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: nexus-reader/package-lock.json
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
         working-directory: nexus-reader
 
       - name: Build application
-        run: npm run build
+        run: bun run build
         working-directory: nexus-reader
 
       - name: Install Wrangler
-        run: npm install -g wrangler
+        run: bun add -g wrangler
 
       - name: Deploy to Cloudflare Pages
-        run: wrangler pages deploy nexus-reader/dist --project-name nexus-reader
+        run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy API Proxy Worker
-        run: wrangler deploy
+        run: bunx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

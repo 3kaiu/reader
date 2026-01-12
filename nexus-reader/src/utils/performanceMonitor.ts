@@ -3,6 +3,30 @@
  * Monitors and tracks application performance metrics
  */
 
+// Performance thresholds for scoring
+export const PERFORMANCE_THRESHOLDS = {
+  lcp: 2500,        // 2.5s for LCP (Largest Contentful Paint)
+  fid: 100,         // 100ms for FID (First Input Delay)
+  cls: 0.1,         // 0.1 for CLS (Cumulative Layout Shift)
+  memory: 100,      // 100MB memory usage
+  apiResponse: 500, // 500ms for API response
+}
+
+// Error severity levels
+export interface PerformanceError {
+  id: string
+  timestamp: number
+  message: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  context?: any
+}
+
+// Time range for metrics history
+export interface TimeRange {
+  start: number
+  end: number
+}
+
 export interface PerformanceMetrics {
   memory: {
     used: number
@@ -32,11 +56,11 @@ export class PerformanceMonitor {
     network: { requests: 0, totalSize: 0, averageResponseTime: 0 },
     errors: { count: 0, rate: 0 }
   }
-  
+
   private observers: PerformanceObserver[] = []
   private startTime = Date.now()
   private running = false
-  
+
   // AI performance tracking
   private aiMetrics = {
     libraryLoads: [] as Array<{ name: string, time: number, size?: number, source?: string }>,
@@ -45,7 +69,7 @@ export class PerformanceMonitor {
     ttsLoads: [] as Array<{ engineTime: number, speechTime?: number, speed?: number }>,
     cacheOps: [] as Array<{ operation: string, time: number, hit?: boolean, size?: number }>
   }
-  
+
   private metricsHistory: any[] = []
 
   constructor() {
@@ -67,7 +91,7 @@ export class PerformanceMonitor {
   recordNetworkRequest(size: number, responseTime: number): void {
     this.metrics.network.requests++
     this.metrics.network.totalSize += size
-    
+
     // Update average response time
     const totalTime = this.metrics.network.averageResponseTime * (this.metrics.network.requests - 1) + responseTime
     this.metrics.network.averageResponseTime = totalTime / this.metrics.network.requests
@@ -138,10 +162,10 @@ export class PerformanceMonitor {
   ): void {
     const sourceText = source ? ` from ${source}` : ''
     console.log(`🤖 AI Library Load: ${libraryName} loaded in ${loadTime}ms${sourceText}`)
-    
+
     // Store metrics
     this.aiMetrics.libraryLoads.push({ name: libraryName, time: loadTime, size, source })
-    
+
     // Check thresholds
     if (loadTime > 5000) {
       console.warn('⚠️ Performance issue:', {
@@ -163,10 +187,10 @@ export class PerformanceMonitor {
   ): void {
     const sourceText = source === 'cache' ? 'from cache' : `loaded in ${loadTime}ms from ${source || 'download'}`
     console.log(`🧠 Model Load: ${modelId} ${sourceText}`)
-    
+
     // Store metrics
     this.aiMetrics.modelLoads.push({ id: modelId, time: loadTime, size, source, speed: downloadSpeed })
-    
+
     // Check thresholds
     if (loadTime > 30000) {
       console.warn('⚠️ Performance issue:', {
@@ -187,16 +211,16 @@ export class PerformanceMonitor {
     tokensPerSecond?: number
   ): void {
     console.log(`⚡ Inference: ${modelId} completed in ${inferenceTime}ms (${tokensPerSecond || 0} tokens/s)`)
-    
+
     // Store metrics
-    this.aiMetrics.inferences.push({ 
-      id: modelId, 
-      time: inferenceTime, 
-      tokens: tokensGenerated, 
-      memory: memoryUsage, 
-      speed: tokensPerSecond 
+    this.aiMetrics.inferences.push({
+      id: modelId,
+      time: inferenceTime,
+      tokens: tokensGenerated,
+      memory: memoryUsage,
+      speed: tokensPerSecond
     })
-    
+
     // Check thresholds
     if (inferenceTime > 10000) {
       console.warn('⚠️ Performance issue:', {
@@ -215,10 +239,10 @@ export class PerformanceMonitor {
     audioSpeed?: number
   ): void {
     console.log(`🔊 TTS Load: Engine loaded in ${engineLoadTime}ms`)
-    
+
     // Store metrics
     this.aiMetrics.ttsLoads.push({ engineTime: engineLoadTime, speechTime, speed: audioSpeed })
-    
+
     // Check thresholds
     if (engineLoadTime > 3000) {
       console.warn('⚠️ Performance issue:', {
@@ -238,10 +262,10 @@ export class PerformanceMonitor {
   ): void {
     const hitRate = typeof hit === 'boolean' ? (hit ? 100 : 0) : (typeof hit === 'number' ? hit * 100 : 0)
     console.log(`💾 Cache Operation: ${operation} completed in ${time}ms (hit rate: ${hitRate.toFixed(1)}%)`)
-    
+
     // Store metrics
     this.aiMetrics.cacheOps.push({ operation, time, hit, size: cacheSize })
-    
+
     // Check thresholds
     if (time > 1000) {
       console.warn('⚠️ Performance issue:', {
@@ -269,14 +293,14 @@ export class PerformanceMonitor {
     cacheHitRate?: number
     ttsLoadTime?: number
   } {
-    const avgLibraryLoadTime = this.aiMetrics.libraryLoads.length > 0 
+    const avgLibraryLoadTime = this.aiMetrics.libraryLoads.length > 0
       ? this.aiMetrics.libraryLoads.reduce((sum, load) => sum + load.time, 0) / this.aiMetrics.libraryLoads.length
       : 0
-      
+
     const avgModelLoadTime = this.aiMetrics.modelLoads.length > 0
       ? this.aiMetrics.modelLoads.reduce((sum, load) => sum + load.time, 0) / this.aiMetrics.modelLoads.length
       : 0
-      
+
     const avgInferenceTime = this.aiMetrics.inferences.length > 0
       ? this.aiMetrics.inferences.reduce((sum, inf) => sum + inf.time, 0) / this.aiMetrics.inferences.length
       : 0
@@ -284,7 +308,7 @@ export class PerformanceMonitor {
     const avgCacheHitRate = this.aiMetrics.cacheOps.length > 0
       ? this.aiMetrics.cacheOps.filter(op => op.hit === true).length / this.aiMetrics.cacheOps.length
       : 0
-      
+
     const avgTTSLoadTime = this.aiMetrics.ttsLoads.length > 0
       ? this.aiMetrics.ttsLoads.reduce((sum, load) => sum + load.engineTime, 0) / this.aiMetrics.ttsLoads.length
       : 0
@@ -311,7 +335,7 @@ export class PerformanceMonitor {
    */
   collectMetrics(): any {
     const summary = this.getAIPerformanceSummary()
-    
+
     return {
       ...summary,
       timestamp: Date.now()
@@ -328,12 +352,12 @@ export class PerformanceMonitor {
         timestamp: Date.now(),
         ...currentMetrics
       })
-      
+
       // Limit history size
       if (this.metricsHistory.length > 100) {
         this.metricsHistory = this.metricsHistory.slice(-100)
       }
-      
+
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('performance-metrics-history', JSON.stringify(this.metricsHistory))
       }
@@ -356,13 +380,13 @@ export class PerformanceMonitor {
     } catch (error) {
       console.warn('Failed to load metrics history:', error)
     }
-    
+
     if (timeRange) {
-      return this.metricsHistory.filter(metric => 
+      return this.metricsHistory.filter(metric =>
         metric.timestamp >= timeRange.start && metric.timestamp <= timeRange.end
       )
     }
-    
+
     return [...this.metricsHistory]
   }
 
@@ -371,6 +395,20 @@ export class PerformanceMonitor {
    */
   startMonitoring(): void {
     this.start()
+  }
+
+  /**
+   * Report custom metric
+   */
+  reportMetric(name: string, value: number, context?: any): void {
+    console.log(`📊 Custom Metric: ${name} = ${value}`, context)
+  }
+
+  /**
+   * Get metrics history for time range
+   */
+  getMetricsHistory(timeRange?: TimeRange): any[] {
+    return this.getAIMetricsHistory(timeRange)
   }
 
   /**
@@ -445,7 +483,7 @@ export class PerformanceMonitor {
       cacheOps: []
     }
     this.metricsHistory = []
-    
+
     // Clear localStorage if available
     if (typeof localStorage !== 'undefined') {
       try {
