@@ -1,5 +1,5 @@
-# Wrangler Configuration for Nexus Reader (Simplified)
-# Personal use - single API proxy worker only
+# Wrangler Configuration for Nexus Reader
+# Personal use - API proxy + Progress sync
 
 name = "nexus-reader"
 main = "cloudflare-workers/api-proxy-worker.js"
@@ -13,14 +13,25 @@ zone_id = "${CLOUDFLARE_ZONE_ID}"
 # Workers configuration
 workers_dev = true
 
+# KV Namespaces for reading progress
+[[kv_namespaces]]
+binding = "PROGRESS_KV"
+id = "${KV_PROGRESS_ID}"
+
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
 
-# Secrets (set via wrangler secret put)
-# - None required for basic proxy
+# Progress Sync Worker
+[env.progress]
+name = "nexus-progress-sync"
+main = "cloudflare-workers/progress-sync-worker.js"
 
-# Development environment (default)
+[[env.progress.kv_namespaces]]
+binding = "PROGRESS_KV"
+id = "${KV_PROGRESS_ID}"
+
+# Development environment
 [env.development]
 name = "nexus-reader-dev"
 workers_dev = true
