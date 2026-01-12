@@ -42,7 +42,7 @@ encoding_rs = "0.8"
 # Utilities
 parking_lot = "0.12"
 dashmap = "6"
-lru = "0.13"
+lru = "0.16"
 futures-util = "0.3.31"
 
 [features]
