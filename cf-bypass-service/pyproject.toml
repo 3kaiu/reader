@@ -11,7 +11,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "uvicorn>=0.24.0",
     "js2py>=0.74",
-    "urllib3<2.0.0",
+    "urllib3>=2.0.0",
     "curl_cffi>=0.5.10",
     "redis>=5.0.0",
     "hypothesis>=6.0.0",

@@ -6,6 +6,7 @@
  */
 
 import { encryptionManager, type EncryptedData } from './encryption'
+import { secureRandomString } from './secureRandom'
 
 // Key types
 export type KeyType = 'user' | 'session' | 'device' | 'sync' | 'backup'
@@ -100,20 +101,20 @@ export class KeyManager {
     if (typeof localStorage !== 'undefined') {
       // Try to get existing device ID from localStorage
       let deviceId = localStorage.getItem('nexus-device-id')
-      
+
       if (!deviceId) {
         // Generate new device ID
         const timestamp = Date.now().toString(36)
-        const random = Math.random().toString(36).substring(2)
+        const random = secureRandomString(12)
         deviceId = `device-${timestamp}-${random}`
         localStorage.setItem('nexus-device-id', deviceId)
       }
-      
+
       return deviceId
     } else {
       // Fallback for non-browser environments (tests, Node.js)
       const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2)
+      const random = secureRandomString(12)
       return `device-${timestamp}-${random}`
     }
   }
@@ -122,8 +123,8 @@ export class KeyManager {
    * Create a new encryption key
    */
   async createKey(
-    type: KeyType, 
-    userId?: string, 
+    type: KeyType,
+    userId?: string,
     permissions: string[] = [],
     expiresIn?: number
   ): Promise<string> {
@@ -190,7 +191,7 @@ export class KeyManager {
     try {
       // Decrypt the key
       const keyString = await encryptionManager.decryptWithPassword(
-        storedKey.encryptedKey, 
+        storedKey.encryptedKey,
         this.masterKey
       )
 
@@ -245,7 +246,7 @@ export class KeyManager {
    */
   async revokeKey(keyId: string): Promise<void> {
     this.keys.delete(keyId)
-    
+
     // Clear rotation timer
     const timer = this.rotationTimers.get(keyId)
     if (timer) {
@@ -262,14 +263,14 @@ export class KeyManager {
    */
   listKeys(type?: KeyType, userId?: string): KeyMetadata[] {
     const keys: KeyMetadata[] = []
-    
+
     for (const storedKey of this.keys.values()) {
       if (type && storedKey.metadata.type !== type) continue
       if (userId && storedKey.metadata.userId !== userId) continue
-      
+
       keys.push({ ...storedKey.metadata })
     }
-    
+
     return keys.sort((a, b) => b.created - a.created)
   }
 
@@ -279,9 +280,9 @@ export class KeyManager {
   hasPermission(keyId: string, permission: string): boolean {
     const storedKey = this.keys.get(keyId)
     if (!storedKey) return false
-    
-    return storedKey.metadata.permissions.includes(permission) || 
-           storedKey.metadata.permissions.includes('*')
+
+    return storedKey.metadata.permissions.includes(permission) ||
+      storedKey.metadata.permissions.includes('*')
   }
 
   /**
@@ -293,10 +294,10 @@ export class KeyManager {
     expires: number
   }> {
     const expiration = expiresIn || 24 * 60 * 60 * 1000 // Default 24 hours
-    
+
     // Create session key
     const keyId = await this.createKey('session', userId, permissions, expiration)
-    
+
     // Generate session token using the actual keyId that was created
     const tokenData = {
       keyId,
@@ -305,15 +306,15 @@ export class KeyManager {
       created: Date.now(),
       expires: Date.now() + expiration
     }
-    
+
     const token = await encryptionManager.hashData(JSON.stringify(tokenData))
-    
+
     // Store the token data with the key for validation
     const storedKey = this.keys.get(keyId)
     if (storedKey) {
       storedKey.tokenData = tokenData
     }
-    
+
     return {
       token,
       keyId,
@@ -332,18 +333,18 @@ export class KeyManager {
     // Find matching session key by comparing tokens
     for (const [keyId, storedKey] of this.keys.entries()) {
       if (storedKey.metadata.type !== 'session') continue
-      
+
       // Use stored token data if available
       if (storedKey.tokenData) {
         const expectedToken = await encryptionManager.hashData(JSON.stringify(storedKey.tokenData))
-        
+
         if (expectedToken === token) {
           // Check if token is expired
           if (Date.now() > storedKey.tokenData.expires) {
             await this.revokeKey(keyId)
             return { valid: false }
           }
-          
+
           return {
             valid: true,
             keyId,
@@ -352,7 +353,7 @@ export class KeyManager {
         }
       }
     }
-    
+
     return { valid: false }
   }
 
@@ -365,7 +366,7 @@ export class KeyManager {
       deviceId: this.deviceId,
       exported: Date.now()
     }
-    
+
     return await encryptionManager.encryptWithPassword(JSON.stringify(keyData), backupPassword)
   }
 
@@ -376,12 +377,12 @@ export class KeyManager {
     try {
       const keyDataString = await encryptionManager.decryptWithPassword(encryptedBackup, backupPassword)
       const keyData = JSON.parse(keyDataString)
-      
+
       // Validate backup structure
       if (!keyData.keys || !Array.isArray(keyData.keys)) {
         throw new Error('Invalid backup format')
       }
-      
+
       // Import keys
       for (const [keyId, storedKey] of keyData.keys) {
         this.keys.set(keyId, storedKey)
@@ -402,13 +403,13 @@ export class KeyManager {
       clearTimeout(timer)
     }
     this.rotationTimers.clear()
-    
+
     // Clear keys
     this.keys.clear()
-    
+
     // Clear persistent storage
     await this.clearPersistedKeys()
-    
+
     // Clear master key
     this.masterKey = null
   }
@@ -418,7 +419,7 @@ export class KeyManager {
    */
   private async generateKeyId(type: KeyType, userId?: string): Promise<string> {
     const timestamp = Date.now().toString(36)
-    const random = Math.random().toString(36).substring(2)
+    const random = secureRandomString(12)
     const prefix = userId ? `${type}-${userId}` : type
     return `${prefix}-${timestamp}-${random}`
   }
@@ -428,7 +429,7 @@ export class KeyManager {
    */
   private scheduleKeyRotation(keyId: string, type: KeyType): void {
     const policy = DEFAULT_KEY_POLICIES[type]
-    
+
     const timer = setTimeout(async () => {
       try {
         await this.rotateKey(keyId)
@@ -436,7 +437,7 @@ export class KeyManager {
         console.error(`Failed to rotate key ${keyId}:`, error)
       }
     }, policy.rotationInterval)
-    
+
     this.rotationTimers.set(keyId, timer)
   }
 
@@ -456,13 +457,13 @@ export class KeyManager {
   private async cleanupExpiredKeys(): Promise<void> {
     const now = Date.now()
     const expiredKeys: string[] = []
-    
+
     for (const [keyId, storedKey] of this.keys.entries()) {
       if (storedKey.metadata.expires && now > storedKey.metadata.expires) {
         expiredKeys.push(keyId)
       }
     }
-    
+
     for (const keyId of expiredKeys) {
       await this.revokeKey(keyId)
     }
@@ -493,7 +494,7 @@ export class KeyManager {
           if (key && key.startsWith('nexus-key-')) {
             const keyId = key.replace('nexus-key-', '')
             const keyData = localStorage.getItem(key)
-            
+
             if (keyData) {
               const storedKey: StoredKey = JSON.parse(keyData)
               this.keys.set(keyId, storedKey)
@@ -527,14 +528,14 @@ export class KeyManager {
     try {
       if (typeof localStorage !== 'undefined') {
         const keysToRemove: string[] = []
-        
+
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
           if (key && key.startsWith('nexus-key-')) {
             keysToRemove.push(key)
           }
         }
-        
+
         for (const key of keysToRemove) {
           localStorage.removeItem(key)
         }
@@ -590,7 +591,7 @@ export const KeyUtils = {
     try {
       await KeyUtils.initializeForUser(userId, password)
       const session = await keyManager.generateSessionToken(userId, ['read', 'write', 'sync'])
-      
+
       return {
         success: true,
         sessionToken: session.token,

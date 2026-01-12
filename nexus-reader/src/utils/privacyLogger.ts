@@ -5,6 +5,7 @@
  */
 
 import { encryptionManager } from './encryption'
+import { secureRandomString } from './secureRandom'
 
 // Log levels
 export enum LogLevel {
@@ -107,7 +108,7 @@ export class PrivacyLogger {
     metadata?: Partial<PrivacyLogEntry['metadata']>,
     skipContextSanitization?: boolean
   ): Promise<void>
-  
+
   /**
    * Simplified log method for testing compatibility
    */
@@ -127,14 +128,14 @@ export class PrivacyLogger {
     skipContextSanitization?: boolean
   ): Promise<PrivacyLogEntry | void> {
     // Handle simplified interface (level, message, context)
-    if (typeof categoryOrMessage === 'string' && 
-        (typeof privacyOrContext === 'object' || privacyOrContext === undefined) &&
-        messageOrMetadata === undefined) {
-      
+    if (typeof categoryOrMessage === 'string' &&
+      (typeof privacyOrContext === 'object' || privacyOrContext === undefined) &&
+      messageOrMetadata === undefined) {
+
       const level = levelOrCategory as LogLevel
       const message = categoryOrMessage
       const context = privacyOrContext as Record<string, any> | undefined
-      
+
       return await this.logSimple(level, message, context)
     }
 
@@ -144,7 +145,7 @@ export class PrivacyLogger {
     const privacy = privacyOrContext as PrivacyLevel
     const message = messageOrMetadata as string
     const context = contextOrSkip as Record<string, any> | undefined
-    
+
     try {
       // Create log entry
       const logEntry: PrivacyLogEntry = {
@@ -196,13 +197,13 @@ export class PrivacyLogger {
     message: string,
     context?: Record<string, any>
   ): Promise<PrivacyLogEntry> {
-    const logLevel = typeof level === 'string' ? 
+    const logLevel = typeof level === 'string' ?
       (level.toUpperCase() as LogLevel) : level
-    
+
     // Determine category and privacy level based on context
     let category = LogCategory.SYSTEM
     let privacy = PrivacyLevel.PUBLIC
-    
+
     if (context?.userId) {
       privacy = PrivacyLevel.PERSONAL
       category = LogCategory.USER_ACTION
@@ -300,7 +301,7 @@ export class PrivacyLogger {
     details?: Record<string, any>
   ): Promise<void> {
     const sanitizedDetails = await this.removePersonalData(details || {})
-    
+
     await this.log(
       LogLevel.INFO,
       LogCategory.USER_ACTION,
@@ -322,13 +323,13 @@ export class PrivacyLogger {
     severity: 'low' | 'medium' | 'high' | 'critical',
     context?: Record<string, any>
   ): Promise<void> {
-    const level = severity === 'critical' ? LogLevel.CRITICAL : 
-                  severity === 'high' ? LogLevel.ERROR :
-                  severity === 'medium' ? LogLevel.WARN : LogLevel.INFO
+    const level = severity === 'critical' ? LogLevel.CRITICAL :
+      severity === 'high' ? LogLevel.ERROR :
+        severity === 'medium' ? LogLevel.WARN : LogLevel.INFO
 
     // Use security-specific sanitization
     const sanitizedContext = await this.sanitizeSecurityContext(context || {})
-    
+
     // Create sanitized message that includes context info but redacts sensitive data
     let sanitizedMessage = `Security event: ${event}`
     if (sanitizedContext && Object.keys(sanitizedContext).length > 0) {
@@ -337,7 +338,7 @@ export class PrivacyLogger {
           return `${key}=${value}`
         })
         .join(', ')
-      
+
       if (contextStr) {
         sanitizedMessage += `: ${contextStr}`
       }
@@ -414,7 +415,7 @@ export class PrivacyLogger {
     includePersonalData: boolean = false
   ): Promise<string> {
     const logs = this.getLogs()
-    const exportLogs = includePersonalData ? logs : 
+    const exportLogs = includePersonalData ? logs :
       logs.filter(log => log.privacy !== PrivacyLevel.PERSONAL)
 
     if (format === 'csv') {
@@ -454,7 +455,7 @@ export class PrivacyLogger {
     anonymizationStatus: boolean
   } {
     const logs = Array.from(this.logs.values())
-    
+
     const logsByPrivacyLevel = logs.reduce((acc, log) => {
       acc[log.privacy] = (acc[log.privacy] || 0) + 1
       return acc
@@ -465,9 +466,9 @@ export class PrivacyLogger {
       return acc
     }, {} as Record<LogCategory, number>)
 
-    const oldestLog = logs.reduce((oldest, log) => 
+    const oldestLog = logs.reduce((oldest, log) =>
       log.timestamp < oldest ? log.timestamp : oldest, Date.now())
-    const retentionCompliance = (Date.now() - oldestLog) <= 
+    const retentionCompliance = (Date.now() - oldestLog) <=
       (this.config.retentionDays * 24 * 60 * 60 * 1000)
 
     return {
@@ -492,18 +493,18 @@ export class PrivacyLogger {
       // Email addresses - handle all email patterns including edge cases with whitespace
       // Match any characters (including whitespace) followed by @ and domain
       sanitized = sanitized.replace(/[A-Za-z0-9._%+-\s]*@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL_REDACTED]')
-      
+
       // Phone numbers
       sanitized = sanitized.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]')
-      
+
       // IP addresses
       if (this.config.maskIpAddresses) {
         sanitized = sanitized.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP]')
       }
-      
+
       // Credit card numbers
       sanitized = sanitized.replace(/\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, '[CARD]')
-      
+
       // Social security numbers
       sanitized = sanitized.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]')
     }
@@ -516,17 +517,17 @@ export class PrivacyLogger {
    */
   private async sanitizeMessageForSecurity(message: string): Promise<string> {
     let sanitized = message
-    
+
     // Replace security field values in the message
     const securityFields = ['password', 'token', 'secret', 'key', 'hash', 'signature', 'apiKey']
-    
+
     for (const field of securityFields) {
       // Match patterns like "field=value" where value goes until ", nextfield=" or end of string
       // Use a more specific pattern that handles commas in values
       const pattern = new RegExp(`(${field}=)([^]*?)(?=,\\s+\\w+=|$)`, 'gi')
       sanitized = sanitized.replace(pattern, '$1[SECURITY_REDACTED]')
     }
-    
+
     return sanitized
   }
 
@@ -546,7 +547,7 @@ export class PrivacyLogger {
     // Remove or anonymize sensitive fields
     if (this.config.removePersonalData) {
       const sensitiveFields = ['password', 'token', 'secret', 'key', 'email', 'phone', 'address']
-      
+
       for (const field of sensitiveFields) {
         if (sanitized[field]) {
           sanitized[field] = '[REDACTED]'
@@ -565,7 +566,7 @@ export class PrivacyLogger {
 
     // Always remove sensitive security data
     const securityFields = ['password', 'token', 'secret', 'key', 'hash', 'signature', 'apiKey']
-    
+
     for (const field of securityFields) {
       if (sanitized[field] !== undefined) {
         // Always redact security fields, even if they're whitespace-only
@@ -586,7 +587,7 @@ export class PrivacyLogger {
    */
   private async removePersonalData(data: Record<string, any>): Promise<Record<string, any>> {
     const cleaned = { ...data }
-    
+
     const personalFields = [
       'name', 'firstName', 'lastName', 'email', 'phone', 'address',
       'birthDate', 'ssn', 'passport', 'license', 'personalId'
@@ -636,12 +637,12 @@ export class PrivacyLogger {
     // Handle IPv4 addresses
     const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
     const match = ip.match(ipv4Pattern)
-    
+
     if (match) {
       const [, first, second] = match
       return `${first}.${second}.xxx.xxx`
     }
-    
+
     // For invalid or non-standard IPs, return masked placeholder
     return '[IP_MASKED]'
   }
@@ -656,7 +657,7 @@ export class PrivacyLogger {
         logData,
         `privacy-log-${this.sessionId}`
       )
-      
+
       // Store encrypted log with special prefix
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(`encrypted-log-${logEntry.id}`, JSON.stringify(encryptedLog))
@@ -739,7 +740,7 @@ export class PrivacyLogger {
    */
   private generateLogId(): string {
     const timestamp = Date.now().toString(36)
-    const random = Math.random().toString(36).substring(2)
+    const random = secureRandomString(12)
     return `log-${timestamp}-${random}`
   }
 
@@ -748,7 +749,7 @@ export class PrivacyLogger {
    */
   private generateSessionId(): string {
     const timestamp = Date.now().toString(36)
-    const random = Math.random().toString(36).substring(2)
+    const random = secureRandomString(12)
     return `session-${timestamp}-${random}`
   }
 
@@ -775,9 +776,9 @@ export class PrivacyLogger {
    * Get logs by privacy level (for testing)
    */
   getLogsByPrivacyLevel(privacyLevel: PrivacyLevel | string): PrivacyLogEntry[] {
-    const level = typeof privacyLevel === 'string' ? 
+    const level = typeof privacyLevel === 'string' ?
       privacyLevel.toUpperCase() : privacyLevel
-    
+
     return Array.from(this.logs.values()).filter(log => {
       const logPrivacy = (log.privacy || log.privacyLevel || '').toString().toUpperCase()
       return logPrivacy === level
@@ -789,7 +790,7 @@ export class PrivacyLogger {
    */
   exportLogs(format: 'json' | 'csv' = 'json'): string {
     const logs = Array.from(this.logs.values())
-    
+
     if (format === 'csv') {
       return this.exportToCsv(logs)
     } else {
@@ -808,11 +809,11 @@ export class PrivacyLogger {
     privacyLevelDistribution: Record<string, number>
   } {
     const logs = Array.from(this.logs.values())
-    
+
     const piiCleanedCount = logs.filter(log => log.piiCleaned).length
     const anonymizedCount = logs.filter(log => log.anonymized).length
     const encryptedCount = logs.filter(log => log.encrypted).length
-    
+
     const privacyLevelDistribution = logs.reduce((acc, log) => {
       const level = log.privacyLevel || log.privacy
       acc[level] = (acc[level] || 0) + 1
@@ -840,7 +841,7 @@ export class PrivacyLogger {
       /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/, // Credit card
       /\b\d{3}-\d{2}-\d{4}\b/ // SSN
     ]
-    
+
     return piiPatterns.some(pattern => pattern.test(message))
   }
 
