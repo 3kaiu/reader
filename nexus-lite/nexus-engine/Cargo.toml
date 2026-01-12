@@ -29,7 +29,7 @@ rquest = { version = "5.1", optional = true }
 scraper = "0.20"
 
 # JSON Path
-jsonpath-rust = "0.7"
+jsonpath-rust = "1.0"
 
 # Regex
 regex = "1"
