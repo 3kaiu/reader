@@ -21,15 +21,16 @@ on:
 permissions:
   contents: read
   actions: write
+  packages: write
 
 concurrency:
   group: production-deployment
   cancel-in-progress: true
 
 env:
-  # HuggingFace Space 名称 (自动拼接用户名)
   CF_BYPASS_SPACE_NAME: cf-bypass-service
   NEXUS_LITE_SPACE_NAME: nexus-lite
+  REGISTRY: ghcr.io
 
 jobs:
   # =============================================================================
@@ -43,11 +44,8 @@ jobs:
       cf-bypass: ${{ steps.filter.outputs.cf-bypass }}
       nexus-lite: ${{ steps.filter.outputs.nexus-lite }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check changes
-        uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
@@ -78,25 +76,18 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # 获取 HuggingFace 用户名
           RESPONSE=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" https://huggingface.co/api/whoami-v2)
           USERNAME=$(echo "$RESPONSE" | jq -r '.name // empty')
-          
           if [ -z "$USERNAME" ]; then
             echo "❌ Failed to get HuggingFace username"
-            echo "Response: $RESPONSE"
             exit 1
           fi
-          
           echo "username=$USERNAME" >> $GITHUB_OUTPUT
           echo "cf_bypass_space=${USERNAME}/${{ env.CF_BYPASS_SPACE_NAME }}" >> $GITHUB_OUTPUT
           echo "nexus_lite_space=${USERNAME}/${{ env.NEXUS_LITE_SPACE_NAME }}" >> $GITHUB_OUTPUT
           echo "cf_bypass_url=https://${USERNAME}-${{ env.CF_BYPASS_SPACE_NAME }}.hf.space" >> $GITHUB_OUTPUT
           echo "nexus_lite_url=https://${USERNAME}-${{ env.NEXUS_LITE_SPACE_NAME }}.hf.space" >> $GITHUB_OUTPUT
-          
           echo "✅ HuggingFace username: $USERNAME"
-          echo "   cf-bypass space: ${USERNAME}/${{ env.CF_BYPASS_SPACE_NAME }}"
-          echo "   nexus-lite space: ${USERNAME}/${{ env.NEXUS_LITE_SPACE_NAME }}"
 
   # =============================================================================
   # 获取 Workers subdomain
@@ -114,7 +105,6 @@ jobs:
         run: |
           SUBDOMAIN=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result.subdomain // empty')
-          
           if [ -z "$SUBDOMAIN" ]; then
             echo "❌ Failed to get workers subdomain"
             exit 1
@@ -123,17 +113,95 @@ jobs:
           echo "✅ Workers subdomain: $SUBDOMAIN"
 
   # =============================================================================
-  # 部署 cf-bypass-service 到 HuggingFace Spaces
+  # 构建并推送 cf-bypass-service 镜像到 GHCR
+  # =============================================================================
+  build-cf-bypass:
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/cf-bypass-service
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./cf-bypass-service
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # 构建并推送 nexus-lite 镜像到 GHCR
+  # =============================================================================
+  build-nexus-lite:
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/nexus-lite
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nexus-lite
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # 部署 cf-bypass-service 到 HuggingFace (拉取 GHCR 镜像)
   # =============================================================================
   deploy-cf-bypass:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-hf-username]
-    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
+    needs: [build-cf-bypass, get-hf-username]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -150,92 +218,67 @@ jobs:
         run: |
           python << 'EOF'
           import os
-          from huggingface_hub import HfApi, create_repo, repo_exists
-          
+          from huggingface_hub import create_repo, repo_exists
           token = os.environ["HF_TOKEN"]
           space_id = os.environ["HF_SPACE"]
-          
           if not repo_exists(space_id, repo_type="space", token=token):
               print(f"🔨 Creating HuggingFace Space: {space_id}")
-              create_repo(
-                  repo_id=space_id,
-                  repo_type="space",
-                  space_sdk="docker",
-                  private=False,
-                  token=token
-              )
-              print(f"✅ Space created")
+              create_repo(repo_id=space_id, repo_type="space", space_sdk="docker", private=False, token=token)
           else:
               print(f"✅ Space already exists: {space_id}")
           EOF
 
-      - name: Check if deployment needed
-        id: check
+      - name: Push minimal Dockerfile to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
-        run: |
-          # 计算本地文件的 hash (包含 README.md)
-          LOCAL_HASH=$(find cf-bypass-service -type f \( -name "*.py" -o -name "*.json" -o -name "Dockerfile" -o -name "*.toml" -o -name "README.md" \) | sort | xargs cat | sha256sum | cut -d' ' -f1)
-          echo "Local hash: $LOCAL_HASH"
-          
-          # 尝试获取远程的 hash (存储在 .deploy-hash 文件中)
-          REMOTE_HASH=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" \
-            "https://huggingface.co/spaces/${HF_SPACE}/raw/main/.deploy-hash" 2>/dev/null || echo "")
-          echo "Remote hash: $REMOTE_HASH"
-          
-          if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "✅ No changes detected, skipping deployment"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-            echo "hash=$LOCAL_HASH" >> $GITHUB_OUTPUT
-            echo "📦 Changes detected, will deploy"
-          fi
-
-      - name: Push to HuggingFace Space
-        if: steps.check.outputs.skip != 'true'
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
-          DEPLOY_HASH: ${{ steps.check.outputs.hash }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/cf-bypass-service:latest
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           
           git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-space || {
-            mkdir -p hf-space
-            cd hf-space
-            git init
+            mkdir -p hf-space && cd hf-space && git init
             git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
             cd ..
           }
           
           rm -rf hf-space/* 2>/dev/null || true
-          cp -r cf-bypass-service/* hf-space/
           
-          # 写入部署 hash 用于下次比较
-          echo "$DEPLOY_HASH" > hf-space/.deploy-hash
+          # 创建 README.md (HF Space 配置)
+          cat > hf-space/README.md << 'EOFREADME'
+          ---
+          title: CF Bypass Service
+          emoji: 🔓
+          colorFrom: blue
+          colorTo: purple
+          sdk: docker
+          app_file: Dockerfile
+          pinned: false
+          ---
+          EOFREADME
+          
+          # 创建 Dockerfile，使用 ARG 传递认证信息
+          IMAGE_LOWER=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
+          cat > hf-space/Dockerfile << EOFDOCKER
+          FROM ${IMAGE_LOWER}
+          EOFDOCKER
           
           cd hf-space
           git add -A
           git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
           git push -u origin main || git push -u origin master
-          
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
 
   # =============================================================================
-  # 部署 nexus-lite 到 HuggingFace Spaces
+  # 部署 nexus-lite 到 HuggingFace (拉取 GHCR 镜像)
   # =============================================================================
   deploy-nexus-lite:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-hf-username]
-    if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
+    needs: [build-nexus-lite, get-hf-username]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -252,107 +295,60 @@ jobs:
         run: |
           python << 'EOF'
           import os
-          from huggingface_hub import HfApi, create_repo, repo_exists
-          
+          from huggingface_hub import create_repo, repo_exists
           token = os.environ["HF_TOKEN"]
           space_id = os.environ["HF_SPACE"]
-          
           if not repo_exists(space_id, repo_type="space", token=token):
               print(f"🔨 Creating HuggingFace Space: {space_id}")
-              create_repo(
-                  repo_id=space_id,
-                  repo_type="space",
-                  space_sdk="docker",
-                  private=False,
-                  token=token
-              )
-              print(f"✅ Space created")
+              create_repo(repo_id=space_id, repo_type="space", space_sdk="docker", private=False, token=token)
           else:
               print(f"✅ Space already exists: {space_id}")
           EOF
 
-      - name: Check if deployment needed
-        id: check
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
-        run: |
-          # 计算本地文件的 hash (排除 target 目录，包含 README.md)
-          LOCAL_HASH=$(find nexus-lite -type f \( -name "*.rs" -o -name "*.toml" -o -name "*.json" -o -name "*.nxs" -o -name "Dockerfile" -o -name "README.md" \) ! -path "*/target/*" | sort | xargs cat | sha256sum | cut -d' ' -f1)
-          echo "Local hash: $LOCAL_HASH"
-          
-          REMOTE_HASH=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" \
-            "https://huggingface.co/spaces/${HF_SPACE}/raw/main/.deploy-hash" 2>/dev/null || echo "")
-          echo "Remote hash: $REMOTE_HASH"
-          
-          if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "✅ No changes detected, skipping deployment"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-            echo "hash=$LOCAL_HASH" >> $GITHUB_OUTPUT
-            echo "📦 Changes detected, will deploy"
-          fi
-
-      - name: Push to HuggingFace Space
-        if: steps.check.outputs.skip != 'true'
+      - name: Push minimal Dockerfile to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
           CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}
-          DEPLOY_HASH: ${{ steps.check.outputs.hash }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/nexus-lite:latest
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           
           git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-nexus || {
-            mkdir -p hf-nexus
-            cd hf-nexus
-            git init
+            mkdir -p hf-nexus && cd hf-nexus && git init
             git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
             cd ..
           }
           
           rm -rf hf-nexus/* 2>/dev/null || true
           
-          # 复制 nexus-lite 源码 (排除 target 和 cache)
-          cp nexus-lite/Dockerfile hf-nexus/
-          cp nexus-lite/README.md hf-nexus/
-          cp nexus-lite/Cargo.toml nexus-lite/Cargo.lock hf-nexus/
-          cp -r nexus-lite/nexus-core hf-nexus/
-          cp -r nexus-lite/nexus-engine hf-nexus/
-          cp -r nexus-lite/nexus-storage hf-nexus/
-          cp -r nexus-lite/nexus-server hf-nexus/
-          cp -r nexus-lite/sources hf-nexus/
+          # 创建 README.md
+          cat > hf-nexus/README.md << 'EOFREADME'
+          ---
+          title: Nexus Lite
+          emoji: 📚
+          colorFrom: green
+          colorTo: blue
+          sdk: docker
+          app_file: Dockerfile
+          pinned: false
+          ---
+          EOFREADME
           
-          # 创建配置文件
-          cat > hf-nexus/config.json << EOFCONFIG
-          {
-            "server": {
-              "host": "0.0.0.0",
-              "port": 7860,
-              "enableCors": true,
-              "allowedOrigins": []
-            },
-            "storage": {
-              "sourcesDir": "./sources"
-            },
-            "cfBypass": {
-              "serviceUrl": "${CF_BYPASS_URL}",
-              "enabled": true,
-              "timeoutSeconds": 60
-            }
-          }
-          EOFCONFIG
+          # 创建 Dockerfile，拉取 GHCR 镜像并注入配置
+          IMAGE_LOWER=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
+          cat > hf-nexus/Dockerfile << EOFDOCKER
+          FROM ${IMAGE_LOWER}
           
-          # 写入部署 hash
-          echo "$DEPLOY_HASH" > hf-nexus/.deploy-hash
+          # 注入运行时配置
+          RUN echo '{"server":{"host":"0.0.0.0","port":7860,"enableCors":true,"allowedOrigins":[]},"storage":{"sourcesDir":"./sources"},"cfBypass":{"serviceUrl":"${CF_BYPASS_URL}","enabled":true,"timeoutSeconds":60}}' > /app/config.json
+          EOFDOCKER
           
           cd hf-nexus
           git add -A
           git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
           git push -u origin main || git push -u origin master
-          
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
 
   # =============================================================================
@@ -363,107 +359,54 @@ jobs:
     needs: [detect-changes, get-subdomain, get-hf-username]
     if: needs.detect-changes.outputs.worker == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      - name: Create KV namespace if not exists
+      - name: Create KV namespaces
         id: kv
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          KV_LIST=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
-          
-          KV_ID=$(echo "$KV_LIST" | jq -r '.result[] | select(.title | contains("nexus-progress")) | .id' | head -1)
-          
-          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
-            echo "Creating KV namespace..."
-            CREATE_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data '{"title":"nexus-progress-sync-PROGRESS_KV"}')
-            KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
-          fi
-          echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
+          create_kv() {
+            local NAME=$1
+            local VAR_NAME=$2
+            KV_LIST=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+            KV_ID=$(echo "$KV_LIST" | jq -r ".result[] | select(.title | contains(\"$NAME\")) | .id" | head -1)
+            if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
+              CREATE_RESULT=$(curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "{\"title\":\"$NAME\"}")
+              KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
+            fi
+            echo "${VAR_NAME}=$KV_ID" >> $GITHUB_OUTPUT
+          }
+          create_kv "nexus-progress" "kv_id"
+          create_kv "nexus-content-cache" "content_cache_kv_id"
+          create_kv "nexus-decoder" "decoder_kv_id"
 
-      - name: Create Content Cache KV namespace if not exists
-        id: content_cache_kv
+      - name: Deploy Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          KV_LIST=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          # Update KV IDs in wrangler.toml
+          sed -i "s/\${KV_PROGRESS_ID}/${{ steps.kv.outputs.kv_id }}/g" wrangler.toml
+          sed -i "s/\${KV_CONTENT_CACHE_ID}/${{ steps.kv.outputs.content_cache_kv_id }}/g" wrangler.toml
+          sed -i "s/\${KV_DECODER_ID}/${{ steps.kv.outputs.decoder_kv_id }}/g" wrangler.toml
           
-          KV_ID=$(echo "$KV_LIST" | jq -r '.result[] | select(.title | contains("nexus-content-cache")) | .id' | head -1)
-          
-          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
-            echo "Creating Content Cache KV namespace..."
-            CREATE_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data '{"title":"nexus-content-cache-CONTENT_CACHE_KV"}')
-            KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
-          fi
-          echo "content_cache_kv_id=$KV_ID" >> $GITHUB_OUTPUT
-          echo "✅ Content Cache KV namespace ID: $KV_ID"
-
-      - name: Create Decoder KV namespace if not exists
-        id: decoder_kv
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          KV_LIST=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
-          
-          KV_ID=$(echo "$KV_LIST" | jq -r '.result[] | select(.title | contains("nexus-decoder")) | .id' | head -1)
-          
-          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
-            echo "Creating Decoder KV namespace..."
-            CREATE_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data '{"title":"nexus-decoder-DECODER_KV"}')
-            KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
-          fi
-          echo "decoder_kv_id=$KV_ID" >> $GITHUB_OUTPUT
-          echo "✅ Decoder KV namespace ID: $KV_ID"
-
-      - name: Deploy Progress Sync Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          KV_ID="${{ steps.kv.outputs.kv_id }}"
-          sed -i "s/\${KV_PROGRESS_ID}/$KV_ID/g" wrangler.toml
+          # Deploy Progress Sync Worker
           wrangler deploy --var AUTH_SECRET:${{ secrets.AUTH_SECRET }}
-          echo "✅ Progress Sync Worker deployed (with auth)"
-
-      - name: Deploy Auth Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-        run: |
-          AUTH_WORKER_URL="https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev"
           
-          if [ -z "$AUTH_SECRET" ]; then
-            AUTH_SECRET=$(openssl rand -hex 32)
-          fi
-          
+          # Deploy Auth Worker
           wrangler deploy --env auth \
             --var GITHUB_CLIENT_ID:${{ secrets.OAUTH_GITHUB_CLIENT_ID }} \
             --var GITHUB_CLIENT_SECRET:${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }} \
@@ -471,109 +414,34 @@ jobs:
             --var CF_CLIENT_ID:${{ secrets.CF_CLIENT_ID }} \
             --var CF_CLIENT_SECRET:${{ secrets.CF_CLIENT_SECRET }} \
             --var CF_OWNER_EMAIL:${{ secrets.CF_OWNER_EMAIL }} \
-            --var AUTH_SECRET:${AUTH_SECRET} \
+            --var AUTH_SECRET:${{ secrets.AUTH_SECRET }} \
             --var FRONTEND_URL:https://nexus-reader.pages.dev \
-            --var WORKER_URL:${AUTH_WORKER_URL}
-          echo "✅ Auth Worker deployed"
-
-      - name: Deploy Proxy Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          CONTENT_CACHE_KV_ID="${{ steps.content_cache_kv.outputs.content_cache_kv_id }}"
-          sed -i "s/\${KV_CONTENT_CACHE_ID}/$CONTENT_CACHE_KV_ID/g" wrangler.toml
+            --var WORKER_URL:https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
+          
+          # Deploy Proxy Worker
           wrangler deploy --env proxy \
             --var NEXUS_LITE_URL:${{ needs.get-hf-username.outputs.nexus_lite_url }} \
             --var CF_BYPASS_URL:${{ needs.get-hf-username.outputs.cf_bypass_url }} \
             --var AUTH_SECRET:${{ secrets.AUTH_SECRET }}
-          echo "✅ Proxy Worker deployed (with KV cache + auth)"
-
-      - name: Deploy Decoder Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          DECODER_KV_ID="${{ steps.decoder_kv.outputs.decoder_kv_id }}"
-          sed -i "s/\${KV_DECODER_ID}/$DECODER_KV_ID/g" wrangler.toml
+          
+          # Deploy Decoder Worker
           wrangler deploy --env decoder \
             --var AUTH_SECRET:${{ secrets.AUTH_SECRET }} \
             --var GROQ_API_KEY:${{ secrets.GROQ_API_KEY }} \
             --var HF_API_KEY:${{ secrets.HF_TOKEN }}
-          echo "✅ Decoder Worker deployed (with AI + KV)"
-
-      - name: Initialize Decoder KV Data (if empty)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          DECODER_KV_ID="${{ steps.decoder_kv.outputs.decoder_kv_id }}"
           
-          # 检查是否已有数据 (通过检查 global 词典)
-          EXISTING=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:dict:global" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" 2>/dev/null || echo "")
-          
-          if [ -z "$EXISTING" ] || [ "$EXISTING" = "null" ] || [ "$EXISTING" = "" ]; then
-            echo "📦 Initializing decoder KV data..."
-            
-            # 上传公共词典
-            if [ -f "cloudflare-workers/decoder-data/dictionaries/global.json" ]; then
-              curl -s -X PUT \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:dict:global" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data-binary @cloudflare-workers/decoder-data/dictionaries/global.json
-              echo "  ✅ Global dictionary uploaded"
-            fi
-            
-            # 上传知识图谱 - 人物
-            if [ -f "cloudflare-workers/decoder-data/knowledge/persons.json" ]; then
-              curl -s -X PUT \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:persons" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data-binary @cloudflare-workers/decoder-data/knowledge/persons.json
-              echo "  ✅ Persons knowledge graph uploaded"
-            fi
-            
-            # 上传知识图谱 - 公司
-            if [ -f "cloudflare-workers/decoder-data/knowledge/companies.json" ]; then
-              curl -s -X PUT \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:companies" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data-binary @cloudflare-workers/decoder-data/knowledge/companies.json
-              echo "  ✅ Companies knowledge graph uploaded"
-            fi
-            
-            # 上传知识图谱 - 事件
-            if [ -f "cloudflare-workers/decoder-data/knowledge/events.json" ]; then
-              curl -s -X PUT \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:events" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data-binary @cloudflare-workers/decoder-data/knowledge/events.json
-              echo "  ✅ Events knowledge graph uploaded"
-            fi
-            
-            echo "✅ Decoder KV data initialized"
-          else
-            echo "✅ Decoder KV data already exists, skipping initialization"
-          fi
+          echo "✅ All Workers deployed"
 
   # =============================================================================
   # 部署前端到 CF Pages
   # =============================================================================
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-subdomain, get-hf-username]
+    needs: [detect-changes, get-subdomain]
     if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.5"
 
@@ -597,10 +465,10 @@ jobs:
           bun run build
 
       - name: Deploy to Cloudflare Pages
-        run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader --commit-dirty=true --commit-message="Deploy from GitHub Actions"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bunx wrangler pages deploy nexus-reader/dist --project-name nexus-reader --commit-dirty=true --commit-message="Deploy from GitHub Actions"
 
       - name: Cleanup old deployments
         env:
@@ -610,7 +478,6 @@ jobs:
           DEPLOYMENTS=$(curl -s -X GET \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/nexus-reader/deployments" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result[3:][].id')
-          
           for DEPLOY_ID in $DEPLOYMENTS; do
             curl -s -X DELETE \
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/nexus-reader/deployments/${DEPLOY_ID}" \
@@ -623,7 +490,7 @@ jobs:
   # =============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-hf-username, deploy-cf-bypass, deploy-nexus-lite, deploy-worker, deploy-frontend]
+    needs: [detect-changes, get-hf-username, build-cf-bypass, build-nexus-lite, deploy-cf-bypass, deploy-nexus-lite, deploy-worker, deploy-frontend]
     if: always()
     steps:
       - name: Deployment Summary
@@ -632,13 +499,20 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Architecture" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "CF Pages (Frontend) → CF Worker (Proxy) → HuggingFace (nexus-lite) → HuggingFace (cf-bypass)" >> $GITHUB_STEP_SUMMARY
+          echo "GitHub Actions (Build) → GHCR (Images) → HuggingFace (Pull & Run)" >> $GITHUB_STEP_SUMMARY
+          echo "CF Pages (Frontend) → CF Worker (Proxy) → HuggingFace (nexus-lite)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| cf-bypass-service | ${{ needs.build-cf-bypass.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| nexus-lite | ${{ needs.build-nexus-lite.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | URL |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| CF Pages (Frontend) | ${{ needs.deploy-frontend.result || 'skipped' }} | https://nexus-reader.pages.dev |" >> $GITHUB_STEP_SUMMARY
+          echo "| CF Pages | ${{ needs.deploy-frontend.result || 'skipped' }} | https://nexus-reader.pages.dev |" >> $GITHUB_STEP_SUMMARY
           echo "| CF Workers | ${{ needs.deploy-worker.result || 'skipped' }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| HF cf-bypass | ${{ needs.deploy-cf-bypass.result || 'skipped' }} | ${{ needs.get-hf-username.outputs.cf_bypass_url }} |" >> $GITHUB_STEP_SUMMARY
           echo "| HF nexus-lite | ${{ needs.deploy-nexus-lite.result || 'skipped' }} | ${{ needs.get-hf-username.outputs.nexus_lite_url }} |" >> $GITHUB_STEP_SUMMARY
