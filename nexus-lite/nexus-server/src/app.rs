@@ -103,6 +103,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/sources/health", get(routes::source::source_health))
         // Search
         .route("/api/search", post(routes::search::search))
+        .route("/api/search/stream", post(routes::search::search_stream))
         .route("/ws/search", get(ws::ws_handler))
         // Books
         .route("/api/book", get(routes::book::book_info))

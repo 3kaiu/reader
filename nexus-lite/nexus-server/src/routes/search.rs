@@ -1,8 +1,16 @@
 //! Search routes
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::sse::{Event, KeepAlive, Sse},
+    Json,
+};
+use futures::stream::Stream;
 use nexus_core::BookItem;
 use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
+use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 use crate::app::AppState;
@@ -33,7 +41,16 @@ pub struct SearchError {
     pub error: String,
 }
 
-/// Search across multiple sources
+/// SSE 搜索事件
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SearchEvent {
+    Result { data: BookItem },
+    Error { source_id: String, error: String },
+    Done { total: usize },
+}
+
+/// Search across multiple sources (returns all results at once)
 pub async fn search(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
@@ -89,4 +106,75 @@ pub async fn search(
         total,
         errors,
     }))
+}
+
+/// SSE 流式搜索 - 实时推送搜索结果
+pub async fn search_stream(
+    State(state): State<AppState>,
+    Json(req): Json<SearchRequest>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    info!("SSE Search for '{}' in {:?}", req.keyword, req.sources);
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(100);
+
+    // Get sources to search
+    let sources = if req.sources.is_empty() {
+        state.engine_registry.source_store().get_all()
+    } else {
+        req.sources
+            .iter()
+            .filter_map(|id| state.engine_registry.source_store().get(id))
+            .collect()
+    };
+
+    // Spawn search task
+    tokio::spawn(async move {
+        if sources.is_empty() {
+            let event = SearchEvent::Done { total: 0 };
+            let _ = tx
+                .send(Ok(Event::default()
+                    .event("done")
+                    .data(serde_json::to_string(&event).unwrap_or_default())))
+                .await;
+            return;
+        }
+
+        let mut search_rx = state.orchestrator.search(
+            sources.iter().map(|s| s.id.clone()).collect(),
+            req.keyword.clone(),
+        );
+
+        let mut total = 0usize;
+
+        while let Some(result) = search_rx.recv().await {
+            let event = match result {
+                crate::orchestrator::SearchResult::Item(item) => {
+                    total += 1;
+                    let event = SearchEvent::Result { data: item };
+                    Event::default()
+                        .event("result")
+                        .data(serde_json::to_string(&event).unwrap_or_default())
+                }
+                crate::orchestrator::SearchResult::Error { source_id, error } => {
+                    let event = SearchEvent::Error { source_id, error };
+                    Event::default()
+                        .event("error")
+                        .data(serde_json::to_string(&event).unwrap_or_default())
+                }
+                crate::orchestrator::SearchResult::Done => {
+                    let event = SearchEvent::Done { total };
+                    Event::default()
+                        .event("done")
+                        .data(serde_json::to_string(&event).unwrap_or_default())
+                }
+            };
+
+            if tx.send(Ok(event)).await.is_err() {
+                // Client disconnected
+                break;
+            }
+        }
+    });
+
+    Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default())
 }
