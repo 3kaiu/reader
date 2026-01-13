@@ -24,7 +24,7 @@ const decoderFetch = ofetch.create({
   retryDelay: 1000,
   onRequest({ options }) {
     // 添加认证 token
-    const token = localStorage.getItem('api_token')
+    const token = localStorage.getItem('nexus_auth_token')
     if (token) {
       options.headers = {
         ...options.headers,

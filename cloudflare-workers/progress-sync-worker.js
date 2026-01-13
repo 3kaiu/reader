@@ -13,9 +13,16 @@ const ALLOWED_ORIGINS = [
 
 // 验证认证 Token (与 proxy-worker 相同逻辑)
 async function verifyAuth(request, env) {
-  const cookie = request.headers.get('Cookie') || '';
-  const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
-  const token = tokenMatch ? tokenMatch[1] : request.headers.get('Authorization')?.replace('Bearer ', '');
+  // 优先从 Authorization header 获取 token
+  const authHeader = request.headers.get('Authorization') || '';
+  let token = authHeader.replace('Bearer ', '');
+  
+  // 兼容 Cookie 方式
+  if (!token) {
+    const cookie = request.headers.get('Cookie') || '';
+    const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
+    token = tokenMatch ? tokenMatch[1] : null;
+  }
   
   if (!token) return null;
   

@@ -352,27 +352,35 @@ export default {
     }
     
     // 路由（带缓存策略）
+    // 注意: 后端 nexus-lite 的所有 API 路由都以 /api 开头
+    // 前端请求 /xxx 需要转发到后端 /api/xxx
+    const apiPath = path.startsWith('/api/') ? path : `/api${path}`;
+    
     switch (true) {
       // 章节内容 - 长期缓存
       case path === '/content' || path.startsWith('/content/'):
-        return proxyToHF(request, env, nexusUrl, path + url.search, true, CONFIG.CONTENT_CACHE_TTL);
+        return proxyToHF(request, env, nexusUrl, apiPath + url.search, true, CONFIG.CONTENT_CACHE_TTL);
       
       // 目录 - 中期缓存
       case path === '/toc' || path.startsWith('/toc/'):
-        return proxyToHF(request, env, nexusUrl, path + url.search, true, CONFIG.TOC_CACHE_TTL);
+        return proxyToHF(request, env, nexusUrl, apiPath + url.search, true, CONFIG.TOC_CACHE_TTL);
       
       // 搜索 - 短期缓存
       case path === '/search':
-        return proxyToHF(request, env, nexusUrl, path + url.search, true, CONFIG.SEARCH_CACHE_TTL);
+        return proxyToHF(request, env, nexusUrl, apiPath + url.search, true, CONFIG.SEARCH_CACHE_TTL);
       
-      // CF Bypass 代理
+      // CF Bypass 代理 (不需要 /api 前缀)
       case path.startsWith('/cf-bypass'):
         const cfPath = path.replace('/cf-bypass', '') || '/';
         return proxyToHF(request, env, cfBypassUrl, cfPath + url.search, false, 0);
       
+      // WebSocket 搜索 (不需要 /api 前缀，后端路由是 /ws/search)
+      case path === '/ws/search':
+        return proxyToHF(request, env, nexusUrl, path + url.search, false, 0);
+      
       // 其他 API - 不缓存
       default:
-        return proxyToHF(request, env, nexusUrl, path + url.search, false, 0);
+        return proxyToHF(request, env, nexusUrl, apiPath + url.search, false, 0);
     }
   },
   

@@ -1493,9 +1493,16 @@ class DecoderEngine {
 
 /** 验证认证 Token */
 async function verifyAuth(request: Request, env: Env): Promise<{ userId: string } | null> {
-  const cookie = request.headers.get('Cookie') || '';
-  const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
-  const token = tokenMatch ? tokenMatch[1] : request.headers.get('Authorization')?.replace('Bearer ', '');
+  // 优先从 Authorization header 获取 token
+  const authHeader = request.headers.get('Authorization') || '';
+  let token = authHeader.replace('Bearer ', '');
+  
+  // 兼容 Cookie 方式
+  if (!token) {
+    const cookie = request.headers.get('Cookie') || '';
+    const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
+    token = tokenMatch ? tokenMatch[1] : '';
+  }
   
   if (!token) return null;
   
@@ -1515,10 +1522,11 @@ async function verifyAuth(request: Request, env: Env): Promise<{ userId: string 
     
     if (sig !== expectedSigB64) return null;
     
-    const payload = JSON.parse(atob(data)) as { exp: number; userId: string };
+    const payload = JSON.parse(atob(data)) as { exp: number; id: string };
     if (payload.exp < Date.now()) return null;
     
-    return { userId: payload.userId };
+    // 使用 id 字段（与 auth worker 生成的 token 一致）
+    return { userId: payload.id };
   } catch {
     return null;
   }
