@@ -211,11 +211,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 删除旧的 bun 缓存，只保留当前的
+          # 删除所有旧缓存，只保留当前 bun 缓存
           CURRENT_KEY="bun-${{ hashFiles('nexus-reader/bun.lock') }}"
-          gh cache list --json key,id -q ".[] | select(.key != \"$CURRENT_KEY\" and (.key | startswith(\"bun-\"))) | .id" | while read -r id; do
-            echo "Deleting old cache: $id"
-            gh cache delete "$id" || true
+          
+          # 获取所有缓存并删除旧的
+          gh cache list --json key,id -L 100 | jq -r ".[] | select(.key != \"$CURRENT_KEY\") | .id" | while read -r id; do
+            if [ -n "$id" ]; then
+              echo "Deleting cache: $id"
+              gh cache delete "$id" || true
+            fi
           done
           echo "✅ Old caches cleaned up"
 

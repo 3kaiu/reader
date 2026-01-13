@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   # 构建完成后清理
   workflow_run:
-    workflows: ["Build and Deploy for FnOS", "Simple Deployment"]
+    workflows: ["Build Docker Images for FnOS", "Frontend Deployment (CF Pages)"]
     types: [completed]
 
 jobs:
@@ -38,7 +38,16 @@ jobs:
             const cacheGroups = {};
             for (const cache of caches) {
               // 提取基础 key (去掉 hash 部分)
-              const baseKey = cache.key.replace(/-[a-f0-9]{40}$/, '').replace(/#\d+$/, '');
+              let baseKey = cache.key;
+              
+              // buildkit-blob 缓存按 scope 分组
+              if (cache.key.startsWith('buildkit-blob-')) {
+                const scopeMatch = cache.ref?.match(/refs\/heads\/(\w+)/);
+                baseKey = `buildkit-${scopeMatch ? scopeMatch[1] : 'default'}`;
+              } else {
+                baseKey = cache.key.replace(/-[a-f0-9]{40}$/, '').replace(/#\d+$/, '');
+              }
+              
               if (!cacheGroups[baseKey]) {
                 cacheGroups[baseKey] = [];
               }
@@ -49,13 +58,14 @@ jobs:
             let freedSize = 0;
             
             for (const [baseKey, groupCaches] of Object.entries(cacheGroups)) {
-              // 按最后使用时间排序，保留最新的 2 个
+              // 按最后使用时间排序
               groupCaches.sort((a, b) => 
                 new Date(b.last_accessed_at) - new Date(a.last_accessed_at)
               );
               
-              // 删除旧的缓存，只保留最新 2 个
-              const toDelete = groupCaches.slice(2);
+              // buildkit 缓存只保留最新 1 个，其他保留 1 个
+              const keepCount = 1;
+              const toDelete = groupCaches.slice(keepCount);
               
               for (const cache of toDelete) {
                 try {
@@ -73,13 +83,13 @@ jobs:
               }
             }
             
-            // 删除超过 7 天未使用的缓存
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            // 删除超过 3 天未使用的缓存
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
             
             for (const cache of caches) {
               const lastAccessed = new Date(cache.last_accessed_at);
-              if (lastAccessed < sevenDaysAgo) {
+              if (lastAccessed < threeDaysAgo) {
                 try {
                   await github.rest.actions.deleteActionsCacheById({
                     owner,
