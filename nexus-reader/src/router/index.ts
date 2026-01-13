@@ -78,6 +78,13 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-analysis-settings.vue'),
     meta: { title: '网文分析助手', feature: 'ai' },
   },
+  {
+    path: '/decoder-dictionary',
+    name: 'decoder-dictionary',
+    // 解密词典页面预取
+    component: () => import(/* webpackPrefetch: true */ '@/pages/decoder-dictionary.vue'),
+    meta: { title: '解密词典' },
+  },
 ]
 
 const router = createRouter({
