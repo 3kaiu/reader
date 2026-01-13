@@ -8,10 +8,6 @@ const CACHE_NAME = `reader-cache-v${CACHE_VERSION}`
 const CHAPTER_CACHE_NAME = `reader-chapters-v${CACHE_VERSION}`
 const MODEL_CACHE_NAME = `reader-models-v${CACHE_VERSION}`
 
-// 最大缓存数量限制（防止缓存无限增长）
-const MAX_CACHE_ITEMS = 100
-const MAX_CHAPTER_CACHE_ITEMS = 50
-
 // 需要预缓存的静态资源
 const STATIC_ASSETS = [
     '/',

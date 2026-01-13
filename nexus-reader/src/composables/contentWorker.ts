@@ -33,7 +33,6 @@ function formatContent(text: string): string {
 }
 
 function escapeHtml(text: string): string {
-  const div = { innerHTML: '' }
   const map: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
