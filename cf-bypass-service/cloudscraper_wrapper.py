@@ -8,7 +8,7 @@ import hashlib
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 from urllib.parse import urlparse
 
 import cloudscraper
