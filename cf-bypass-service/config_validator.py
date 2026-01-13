@@ -5,7 +5,7 @@ Validates CloudScraper configurations, proxy lists, and browser settings.
 import re
 import logging
 import ipaddress
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ Manages domain-specific CloudScraper configurations with validation.
 """
 import json
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
