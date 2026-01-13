@@ -18,6 +18,16 @@ const error = ref<string | null>(null)
 
 function checkUrlError() {
   const params = new URLSearchParams(window.location.search)
+  
+  // 处理登录成功返回的 token
+  const token = params.get('token')
+  if (token) {
+    localStorage.setItem('nexus_auth_token', token)
+    // 清除 URL 中的 token
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+  }
+  
+  // 处理错误
   const urlError = params.get('error')
   if (urlError) {
     if (urlError === 'unauthorized') {
@@ -25,7 +35,7 @@ function checkUrlError() {
     } else {
       error.value = `登录失败: ${urlError}`
     }
-    window.history.replaceState({}, '', window.location.pathname)
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
   }
 }
 
@@ -37,13 +47,26 @@ async function checkAuth() {
     return
   }
 
+  // 先检查本地 token
+  const token = localStorage.getItem('nexus_auth_token')
+  if (!token) {
+    isAuthenticated.value = false
+    isChecking.value = false
+    return
+  }
+
   try {
-    const res = await fetch(`${AUTH_WORKER_URL}/verify`, { credentials: 'include' })
+    const res = await fetch(`${AUTH_WORKER_URL}/verify`, { 
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
     const data = await res.json()
     
     isAuthenticated.value = data.authenticated
     if (data.authenticated && data.user) {
       user.value = data.user
+    } else {
+      // Token 无效，清除
+      localStorage.removeItem('nexus_auth_token')
     }
   } catch (e) {
     console.error('Auth check failed:', e)

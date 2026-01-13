@@ -59,7 +59,7 @@ const internalFetch = ofetch.create({
     const startTime = performance.now()
     ;(options as any)._startTime = startTime
 
-    const token = localStorage.getItem('api_token')
+    const token = localStorage.getItem('nexus_auth_token')
     if (token) {
       // Use Authorization header instead of URL params for better security
       options.headers = { 
@@ -105,7 +105,7 @@ const internalFetch = ofetch.create({
 
     if (response.status === 401) {
       // 处理鉴权失效
-      localStorage.removeItem('api_token')
+      localStorage.removeItem('nexus_auth_token')
     }
 
     if (response.status >= 400 && !silent) {

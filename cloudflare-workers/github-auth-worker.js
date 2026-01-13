@@ -166,8 +166,15 @@ async function handleCloudflareCallback(request, env) {
 // ==================== 通用方法 ====================
 
 async function handleVerify(request, env, corsHeaders) {
-  const cookie = request.headers.get('Cookie') || '';
-  const token = getCookie(cookie, COOKIE_NAME);
+  // 优先从 Authorization header 获取 token
+  const authHeader = request.headers.get('Authorization') || '';
+  let token = authHeader.replace('Bearer ', '');
+  
+  // 兼容 Cookie 方式
+  if (!token) {
+    const cookie = request.headers.get('Cookie') || '';
+    token = getCookie(cookie, COOKIE_NAME);
+  }
 
   if (!token) {
     return Response.json({ authenticated: false }, { headers: corsHeaders });
@@ -193,12 +200,10 @@ function handleLogout(env, corsHeaders) {
 }
 
 function createAuthResponse(token, env) {
-  const response = Response.redirect(env.FRONTEND_URL, 302);
-  const headers = new Headers(response.headers);
-  // 不设置 Domain，让 Cookie 绑定到 Auth Worker 域
-  // SameSite=None 允许跨域请求携带 Cookie
-  headers.set('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${COOKIE_MAX_AGE}`);
-  return new Response(null, { status: 302, headers });
+  // 通过 URL 参数传递 token，前端存到 localStorage
+  const redirectUrl = new URL(env.FRONTEND_URL);
+  redirectUrl.searchParams.set('token', token);
+  return Response.redirect(redirectUrl.toString(), 302);
 }
 
 async function generateToken(user, env) {
