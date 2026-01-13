@@ -395,6 +395,27 @@ jobs:
           fi
           echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
 
+      - name: Create R2 bucket if not exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 检查 R2 bucket 是否存在
+          BUCKETS=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          
+          if ! echo "$BUCKETS" | jq -e '.result[] | select(.name == "nexus-content-cache")' > /dev/null 2>&1; then
+            echo "Creating R2 bucket..."
+            curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data '{"name":"nexus-content-cache"}'
+            echo "✅ R2 bucket created"
+          else
+            echo "✅ R2 bucket already exists"
+          fi
+
       - name: Deploy Progress Sync Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -436,10 +457,9 @@ jobs:
         run: |
           wrangler deploy --env proxy \
             --var NEXUS_LITE_URL:${{ needs.get-hf-username.outputs.nexus_lite_url }} \
-            --var CF_BYPASS_URL:${{ needs.get-hf-username.outputs.cf_bypass_url }}
-          echo "✅ Proxy Worker deployed"
-          echo "   NEXUS_LITE_URL: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
-          echo "   CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
+            --var CF_BYPASS_URL:${{ needs.get-hf-username.outputs.cf_bypass_url }} \
+            --var AUTH_SECRET:${{ secrets.AUTH_SECRET }}
+          echo "✅ Proxy Worker deployed (with R2 cache + auth)"
 
   # =============================================================================
   # 部署前端到 CF Pages

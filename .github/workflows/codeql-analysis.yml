@@ -2,11 +2,16 @@ name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main" ]
+    paths:
+      - '**.js'
+      - '**.ts'
+      - '**.py'
+      - '**.rs'
   pull_request:
     branches: [ "main" ]
   schedule:
-    - cron: '30 2 * * 1'  # Weekly on Monday at 2:30 AM UTC
+    - cron: '0 3 1 * *'  # 每月1号凌晨3点
 
 jobs:
   analyze-javascript:
