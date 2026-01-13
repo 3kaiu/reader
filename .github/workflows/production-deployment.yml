@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: cf-deployment
@@ -169,7 +170,8 @@ jobs:
           path: |
             ~/.bun/install/cache
             nexus-reader/node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('nexus-reader/bun.lock') }}
+          key: bun-${{ hashFiles('nexus-reader/bun.lock') }}
+          save-always: false
 
       - name: Install & Build
         working-directory: nexus-reader
@@ -204,6 +206,18 @@ jobs:
               -H "Content-Type: application/json"
           done
           echo "✅ Cleanup completed"
+
+      - name: Cleanup old GitHub caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 删除旧的 bun 缓存，只保留当前的
+          CURRENT_KEY="bun-${{ hashFiles('nexus-reader/bun.lock') }}"
+          gh cache list --json key,id -q ".[] | select(.key != \"$CURRENT_KEY\" and (.key | startswith(\"bun-\"))) | .id" | while read -r id; do
+            echo "Deleting old cache: $id"
+            gh cache delete "$id" || true
+          done
+          echo "✅ Old caches cleaned up"
 
   # 跳过部署
   skip:
