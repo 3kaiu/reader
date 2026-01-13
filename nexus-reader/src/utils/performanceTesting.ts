@@ -3,7 +3,7 @@
  * 提供自动化性能测试和Lighthouse集成
  */
 
-import { performanceMonitor } from './performanceMonitor'
+// performanceMonitor is accessed via window.performanceMonitor for optional integration
 
 // 测试配置
 export interface PerformanceTestConfig {

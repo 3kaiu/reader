@@ -4,7 +4,7 @@
  */
 
 import { adaptiveImageQuality } from './networkOptimizer'
-import { performanceMonitor } from './performanceMonitor'
+// performanceMonitor is accessed via window.performanceMonitor for optional integration
 
 // 懒加载配置
 export interface LazyLoadConfig {
@@ -467,7 +467,6 @@ export class LazyImageLoader {
 
   private getConcurrency(): number {
     // 根据网络质量和设备性能调整并发数
-    const networkQuality = adaptiveImageQuality.getCurrentConfig()
     const connection = (navigator as any).connection
     
     if (connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g') {

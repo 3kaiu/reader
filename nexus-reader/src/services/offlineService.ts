@@ -249,16 +249,6 @@ export class OfflineService {
     description: string,
     isUrgent = false
   ): void {
-    const operation = {
-      id: `${type}_${Date.now()}_${secureRandomString(6)}`,
-      type,
-      description,
-      data,
-      timestamp: Date.now(),
-      retryCount: 0,
-      isUrgent
-    }
-
     // 根据操作类型确定API端点
     const { method, url } = this.getOperationEndpoint(type, data)
 
