@@ -444,6 +444,14 @@ onMounted(() => {
           </button>
 
           <button
+            class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
+            @click="goSearch()"
+            aria-label="搜索"
+          >
+            <Search class="h-5 w-5 text-foreground" />
+          </button>
+
+          <button
             v-if="booksWithStatus.length > 0"
             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             @click="toggleManageMode()"
