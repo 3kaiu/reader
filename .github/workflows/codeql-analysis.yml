@@ -20,21 +20,21 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@v3
       with:
-        languages: javascript
+        languages: javascript-typescript
         queries: security-extended,security-and-quality
 
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      uses: github/codeql-action/autobuild@v3
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@v3
       with:
-        category: "/language:javascript"
+        category: "/language:javascript-typescript"
 
   analyze-python:
     name: Analyze Python
@@ -47,19 +47,19 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@v3
       with:
         languages: python
         queries: security-extended,security-and-quality
 
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      uses: github/codeql-action/autobuild@v3
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@v3
       with:
         category: "/language:python"
 
@@ -69,10 +69,11 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      security-events: write
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
@@ -84,9 +85,22 @@ jobs:
       with:
         workspaces: nexus-lite
 
-    - name: Run Clippy
+    - name: Install clippy-sarif and sarif-fmt
+      run: cargo install clippy-sarif sarif-fmt
+
+    - name: Run Clippy with SARIF output
       working-directory: ./nexus-lite
-      run: cargo clippy --all-targets --all-features 2>&1 || true
+      run: |
+        cargo clippy --all-targets --all-features --message-format=json 2>&1 | \
+          clippy-sarif | tee ../rust-results.sarif | sarif-fmt
+      continue-on-error: true
+
+    - name: Upload Rust analysis results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: rust-results.sarif
+        category: "/language:rust"
+      if: always()
 
   security-report:
     name: Generate Security Report
