@@ -239,11 +239,14 @@ watch([rows, windowWidth], () => {
 async function getBooks() {
   try {
     const res = await bookApi.getBookshelf();
-    if (res.isSuccess) {
+    if (res.isSuccess && Array.isArray(res.data)) {
       books.value = res.data;
+    } else {
+      books.value = [];
     }
   } catch (e) {
     logger.error("加载书架失败", e as Error, { function: "getBooks" });
+    books.value = [];
   } finally {
     loading.value = false;
     refreshing.value = false;
@@ -254,11 +257,14 @@ async function getGroups() {
   groupLoading.value = true;
   try {
     const res = await groupApi.getBookGroups();
-    if (res.isSuccess) {
-      groups.value = res.data || [];
+    if (res.isSuccess && Array.isArray(res.data)) {
+      groups.value = res.data;
+    } else {
+      groups.value = [];
     }
   } catch (e) {
     logger.error("加载分组失败", e as Error);
+    groups.value = [];
   } finally {
     groupLoading.value = false;
   }
