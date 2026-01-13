@@ -16,6 +16,7 @@ id = "${KV_PROGRESS_ID}"
 
 [vars]
 ENVIRONMENT = "production"
+# AUTH_SECRET 通过 wrangler deploy --var 注入
 
 # ============================================
 # GitHub Auth Worker - GitHub OAuth 认证

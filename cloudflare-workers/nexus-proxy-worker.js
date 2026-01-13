@@ -379,7 +379,7 @@ export default {
   },
   
   // 定时任务 - 保活
-  async scheduled(event, env, ctx) {
+  async scheduled(_event, env, ctx) {
     console.log('Running scheduled keepalive...');
     ctx.waitUntil(keepAlive(env));
   },

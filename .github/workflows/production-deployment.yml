@@ -423,8 +423,8 @@ jobs:
         run: |
           KV_ID="${{ steps.kv.outputs.kv_id }}"
           sed -i "s/\${KV_PROGRESS_ID}/$KV_ID/g" wrangler.toml
-          wrangler deploy
-          echo "✅ Progress Sync Worker deployed"
+          wrangler deploy --var AUTH_SECRET:${{ secrets.AUTH_SECRET }}
+          echo "✅ Progress Sync Worker deployed (with auth)"
 
       - name: Deploy Auth Worker
         env:

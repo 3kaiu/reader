@@ -1,23 +1,81 @@
 /**
  * Cloudflare Worker for Reading Progress Sync
  * Uses KV to store reading progress across devices
+ * 
+ * 认证保护 - 只允许已登录用户访问
  */
+
+const ALLOWED_ORIGINS = [
+  'https://nexus-reader.pages.dev',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+// 验证认证 Token (与 proxy-worker 相同逻辑)
+async function verifyAuth(request, env) {
+  const cookie = request.headers.get('Cookie') || '';
+  const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
+  const token = tokenMatch ? tokenMatch[1] : request.headers.get('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) return null;
+  
+  try {
+    const [data, sig] = token.split('.');
+    if (!data || !sig) return null;
+    
+    const key = await crypto.subtle.importKey(
+      'raw', 
+      new TextEncoder().encode(env.AUTH_SECRET), 
+      { name: 'HMAC', hash: 'SHA-256' }, 
+      false, 
+      ['sign']
+    );
+    const expectedSig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+    const expectedSigB64 = btoa(String.fromCharCode(...new Uint8Array(expectedSig)));
+    
+    if (sig !== expectedSigB64) return null;
+    
+    const payload = JSON.parse(atob(data));
+    if (payload.exp < Date.now()) return null;
+    
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const origin = request.headers.get('Origin') || '';
 
-    // CORS headers
+    // CORS headers - 限制来源
+    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
     };
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Health check - 公开
+    if (path === '/health') {
+      return Response.json({ status: 'ok', service: 'progress-sync' }, { headers: corsHeaders });
+    }
+
+    // ========== 以下端点需要认证 ==========
+    const user = await verifyAuth(request, env);
+    if (!user) {
+      return Response.json({ 
+        error: 'Unauthorized',
+        message: 'Please login first'
+      }, { status: 401, headers: corsHeaders });
     }
 
     // Route: /progress/:bookId
@@ -30,11 +88,6 @@ export default {
     // Route: /progress (list all)
     if (path === '/progress' && request.method === 'GET') {
       return handleListProgress(env, corsHeaders);
-    }
-
-    // Health check
-    if (path === '/health') {
-      return Response.json({ status: 'ok', service: 'progress-sync' }, { headers: corsHeaders });
     }
 
     return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
