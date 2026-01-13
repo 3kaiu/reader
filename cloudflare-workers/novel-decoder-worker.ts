@@ -109,6 +109,37 @@ export interface BookMeta {
   tags?: string[];
 }
 
+/** 书籍上下文状态 (11.1) */
+export interface BookState {
+  bookId: string;
+  meta: BookMeta;
+  // 已识别的人物别名链 (书中"老汪"="汪洋"=真实人物X)
+  aliasChains: {
+    bookAlias: string;        // 书中称呼: "老汪"
+    realName?: string;        // 真实姓名: "汪洋"
+    entityId?: string;        // 知识图谱实体ID
+  }[];
+  // 统计信息
+  stats: {
+    totalDecoded: number;     // 已解码章节数
+    totalEntities: number;    // 已识别实体数
+    lastUpdated: number;      // 最后更新时间
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 词条确认记录 (用于自动提升) */
+export interface EntryConfirmation {
+  entryId: string;
+  original: string;
+  real: string;
+  category: EntityCategory;
+  confirmedInBooks: string[]; // 在哪些书中被确认
+  totalConfirmCount: number;
+  lastConfirmedAt: number;
+}
+
 /** 解码请求 */
 export interface DecodeRequest {
   bookId: string;
@@ -492,6 +523,261 @@ class DictionaryManager {
     if (globalResults.length > 0) return globalResults[0];
     
     return null;
+  }
+}
+
+// ============================================
+// 书籍状态管理 (11.1)
+// ============================================
+
+class BookStateManager {
+  private env: Env;
+  private stateCache: Map<string, BookState> = new Map();
+  
+  constructor(env: Env) {
+    this.env = env;
+  }
+  
+  /** 获取书籍状态 */
+  async getBookState(bookId: string): Promise<BookState | null> {
+    // 先检查缓存
+    if (this.stateCache.has(bookId)) {
+      return this.stateCache.get(bookId)!;
+    }
+    
+    try {
+      const data = await this.env.DECODER_KV.get(`decoder:book:${bookId}:state`);
+      if (data) {
+        const state = JSON.parse(data) as BookState;
+        this.stateCache.set(bookId, state);
+        return state;
+      }
+    } catch (e) {
+      console.error(`Failed to load book state ${bookId}:`, e);
+    }
+    
+    return null;
+  }
+  
+  /** 创建或更新书籍状态 */
+  async saveBookState(state: BookState): Promise<void> {
+    state.updatedAt = Date.now();
+    
+    try {
+      await this.env.DECODER_KV.put(
+        `decoder:book:${state.bookId}:state`,
+        JSON.stringify(state)
+      );
+      this.stateCache.set(state.bookId, state);
+    } catch (e) {
+      console.error(`Failed to save book state ${state.bookId}:`, e);
+    }
+  }
+  
+  /** 初始化书籍状态 */
+  async initBookState(bookId: string, meta: BookMeta): Promise<BookState> {
+    const existing = await this.getBookState(bookId);
+    if (existing) {
+      // 更新 meta 如果提供了新的
+      existing.meta = { ...existing.meta, ...meta };
+      await this.saveBookState(existing);
+      return existing;
+    }
+    
+    const now = Date.now();
+    const state: BookState = {
+      bookId,
+      meta,
+      aliasChains: [],
+      stats: {
+        totalDecoded: 0,
+        totalEntities: 0,
+        lastUpdated: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    await this.saveBookState(state);
+    return state;
+  }
+  
+  /** 添加别名链 */
+  async addAliasChain(
+    bookId: string,
+    bookAlias: string,
+    realName?: string,
+    entityId?: string
+  ): Promise<void> {
+    const state = await this.getBookState(bookId);
+    if (!state) return;
+    
+    // 检查是否已存在
+    const existing = state.aliasChains.find(a => a.bookAlias === bookAlias);
+    if (existing) {
+      existing.realName = realName || existing.realName;
+      existing.entityId = entityId || existing.entityId;
+    } else {
+      state.aliasChains.push({ bookAlias, realName, entityId });
+    }
+    
+    await this.saveBookState(state);
+  }
+  
+  /** 更新统计信息 */
+  async updateStats(bookId: string, entitiesCount: number): Promise<void> {
+    const state = await this.getBookState(bookId);
+    if (!state) return;
+    
+    state.stats.totalDecoded += 1;
+    state.stats.totalEntities += entitiesCount;
+    state.stats.lastUpdated = Date.now();
+    
+    await this.saveBookState(state);
+  }
+  
+  /** 通过书中别名查找真实名称 */
+  async resolveAlias(bookId: string, alias: string): Promise<string | null> {
+    const state = await this.getBookState(bookId);
+    if (!state) return null;
+    
+    const chain = state.aliasChains.find(a => a.bookAlias === alias);
+    return chain?.realName || null;
+  }
+}
+
+// ============================================
+// 词条自动提升管理 (11.4)
+// ============================================
+
+class EntryPromotionManager {
+  private env: Env;
+  
+  constructor(env: Env) {
+    this.env = env;
+  }
+  
+  /** 记录词条确认 */
+  async recordConfirmation(
+    entry: DictionaryEntry,
+    bookId: string
+  ): Promise<EntryConfirmation> {
+    const key = `decoder:promotion:${entry.original}`;
+    
+    let confirmation: EntryConfirmation;
+    
+    try {
+      const existing = await this.env.DECODER_KV.get(key);
+      if (existing) {
+        confirmation = JSON.parse(existing) as EntryConfirmation;
+        
+        // 检查是否已在此书中确认过
+        if (!confirmation.confirmedInBooks.includes(bookId)) {
+          confirmation.confirmedInBooks.push(bookId);
+          confirmation.totalConfirmCount += 1;
+        }
+        confirmation.lastConfirmedAt = Date.now();
+      } else {
+        confirmation = {
+          entryId: entry.id,
+          original: entry.original,
+          real: entry.real,
+          category: entry.category,
+          confirmedInBooks: [bookId],
+          totalConfirmCount: 1,
+          lastConfirmedAt: Date.now(),
+        };
+      }
+      
+      await this.env.DECODER_KV.put(key, JSON.stringify(confirmation));
+    } catch (e) {
+      console.error('Failed to record confirmation:', e);
+      // 返回默认值
+      confirmation = {
+        entryId: entry.id,
+        original: entry.original,
+        real: entry.real,
+        category: entry.category,
+        confirmedInBooks: [bookId],
+        totalConfirmCount: 1,
+        lastConfirmedAt: Date.now(),
+      };
+    }
+    
+    return confirmation;
+  }
+  
+  /** 检查是否应该自动提升 */
+  shouldPromote(confirmation: EntryConfirmation): boolean {
+    // 在不同书籍中被确认的次数达到阈值
+    return confirmation.confirmedInBooks.length >= CONFIG.AUTO_PROMOTION_THRESHOLD;
+  }
+  
+  /** 提升词条到分类词典 */
+  async promoteToCategory(
+    entry: DictionaryEntry,
+    categoryType: BookType
+  ): Promise<boolean> {
+    try {
+      // 读取分类词典
+      const categoryKey = `dictionaries/category/${categoryType}.json`;
+      const obj = await this.env.DECODER_DATA.get(categoryKey);
+      
+      let entries: DictionaryEntry[] = [];
+      if (obj) {
+        entries = JSON.parse(await obj.text());
+      }
+      
+      // 检查是否已存在
+      const existingIdx = entries.findIndex(e => e.original === entry.original);
+      
+      const promotedEntry: DictionaryEntry = {
+        ...entry,
+        id: existingIdx >= 0 ? entries[existingIdx].id : generateId(),
+        level: 'category',
+        categoryTags: [categoryType],
+        source: 'community', // 社区贡献
+        updatedAt: Date.now(),
+      };
+      
+      if (existingIdx >= 0) {
+        // 更新现有词条，增加确认次数
+        entries[existingIdx] = {
+          ...entries[existingIdx],
+          ...promotedEntry,
+          confirmCount: entries[existingIdx].confirmCount + 1,
+        };
+      } else {
+        entries.push(promotedEntry);
+      }
+      
+      // 保存回 R2
+      await this.env.DECODER_DATA.put(categoryKey, JSON.stringify(entries, null, 2));
+      
+      console.log(`Promoted entry "${entry.original}" to category ${categoryType}`);
+      return true;
+    } catch (e) {
+      console.error('Failed to promote entry:', e);
+      return false;
+    }
+  }
+  
+  /** 处理用户确认并检查是否需要提升 */
+  async handleUserConfirmation(
+    entry: DictionaryEntry,
+    bookId: string,
+    bookType?: BookType
+  ): Promise<{ promoted: boolean; confirmation: EntryConfirmation }> {
+    // 记录确认
+    const confirmation = await this.recordConfirmation(entry, bookId);
+    
+    // 检查是否需要提升
+    if (this.shouldPromote(confirmation) && bookType) {
+      const promoted = await this.promoteToCategory(entry, bookType);
+      return { promoted, confirmation };
+    }
+    
+    return { promoted: false, confirmation };
   }
 }
 
@@ -964,6 +1250,8 @@ class DecoderEngine {
   private contextAnalyzer: ContextAnalyzer;
   private ruleEngine: RuleEngine;
   private aiEngine: AIInferenceEngine;
+  private bookStateManager: BookStateManager;
+  private promotionManager: EntryPromotionManager;
   private env: Env;
   
   constructor(env: Env) {
@@ -973,14 +1261,31 @@ class DecoderEngine {
     this.contextAnalyzer = new ContextAnalyzer();
     this.ruleEngine = new RuleEngine();
     this.aiEngine = new AIInferenceEngine(env);
+    this.bookStateManager = new BookStateManager(env);
+    this.promotionManager = new EntryPromotionManager(env);
   }
   
   /** 初始化 */
-  async init(bookId?: string, bookType?: BookType): Promise<void> {
+  async init(bookId?: string, bookType?: BookType, bookMeta?: BookMeta): Promise<void> {
     await Promise.all([
       this.dictionary.load(bookId, bookType),
       this.knowledgeGraph.load(),
     ]);
+    
+    // 初始化书籍状态
+    if (bookId && bookMeta) {
+      await this.bookStateManager.initBookState(bookId, bookMeta);
+    }
+  }
+  
+  /** 获取书籍状态管理器 */
+  getBookStateManager(): BookStateManager {
+    return this.bookStateManager;
+  }
+  
+  /** 获取词条提升管理器 */
+  getPromotionManager(): EntryPromotionManager {
+    return this.promotionManager;
   }
   
   /** 提取潜在加密词 */
@@ -1107,8 +1412,8 @@ class DecoderEngine {
       console.error('Cache read error:', e);
     }
     
-    // 初始化
-    await this.init(bookId, bookMeta?.type);
+    // 初始化（包含书籍状态）
+    await this.init(bookId, bookMeta?.type, bookMeta);
     this.aiEngine.resetCallCount();
     
     // 分析上下文
@@ -1188,6 +1493,15 @@ class DecoderEngine {
       });
     } catch (e) {
       console.error('Cache write error:', e);
+    }
+    
+    // 更新书籍统计信息 (11.1)
+    if (bookId && entities.length > 0) {
+      try {
+        await this.bookStateManager.updateStats(bookId, entities.length);
+      } catch (e) {
+        console.error('Update book stats error:', e);
+      }
     }
     
     return response;
@@ -1488,6 +1802,159 @@ async function handleExportDictionary(request: Request, env: Env, userId: string
   }
 }
 
+/** GET /book/:bookId/state - 获取书籍状态 (11.1) */
+async function handleGetBookState(request: Request, env: Env, bookId: string): Promise<Response> {
+  const origin = request.headers.get('Origin') || '';
+  
+  try {
+    const decoder = new DecoderEngine(env);
+    const state = await decoder.getBookStateManager().getBookState(bookId);
+    
+    if (!state) {
+      return new Response(JSON.stringify({ error: 'Book state not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    return new Response(JSON.stringify(state), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  } catch (e) {
+    console.error('Get book state error:', e);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+}
+
+/** PUT /book/:bookId/state - 更新书籍状态 (11.1) */
+async function handleUpdateBookState(request: Request, env: Env, bookId: string): Promise<Response> {
+  const origin = request.headers.get('Origin') || '';
+  
+  try {
+    const body = await request.json() as {
+      meta?: BookMeta;
+      aliasChain?: { bookAlias: string; realName?: string; entityId?: string };
+    };
+    
+    const decoder = new DecoderEngine(env);
+    const stateManager = decoder.getBookStateManager();
+    
+    // 初始化或获取现有状态
+    let state = await stateManager.getBookState(bookId);
+    if (!state && body.meta) {
+      state = await stateManager.initBookState(bookId, body.meta);
+    } else if (!state) {
+      return new Response(JSON.stringify({ error: 'Book state not found, provide meta to create' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    // 更新 meta
+    if (body.meta) {
+      state.meta = { ...state.meta, ...body.meta };
+      await stateManager.saveBookState(state);
+    }
+    
+    // 添加别名链
+    if (body.aliasChain) {
+      await stateManager.addAliasChain(
+        bookId,
+        body.aliasChain.bookAlias,
+        body.aliasChain.realName,
+        body.aliasChain.entityId
+      );
+      state = await stateManager.getBookState(bookId);
+    }
+    
+    return new Response(JSON.stringify(state), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  } catch (e) {
+    console.error('Update book state error:', e);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+}
+
+/** POST /dictionary/confirm - 用户确认词条并检查自动提升 (11.4) */
+async function handleConfirmEntry(request: Request, env: Env, userId: string): Promise<Response> {
+  const origin = request.headers.get('Origin') || '';
+  
+  try {
+    const body = await request.json() as {
+      entry: DictionaryEntry;
+      bookId: string;
+      bookType?: BookType;
+    };
+    
+    if (!body.entry || !body.bookId) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    const decoder = new DecoderEngine(env);
+    const promotionManager = decoder.getPromotionManager();
+    
+    // 处理用户确认
+    const { promoted, confirmation } = await promotionManager.handleUserConfirmation(
+      body.entry,
+      body.bookId,
+      body.bookType
+    );
+    
+    // 同时保存到书籍词典
+    const bookDictKey = `decoder:book:${body.bookId}:dictionary`;
+    const existing = await env.DECODER_KV.get(bookDictKey);
+    const entries: DictionaryEntry[] = existing ? JSON.parse(existing) : [];
+    
+    const now = Date.now();
+    const updatedEntry: DictionaryEntry = {
+      ...body.entry,
+      level: 'book',
+      bookId: body.bookId,
+      confirmCount: (body.entry.confirmCount || 0) + 1,
+      source: 'user',
+      updatedAt: now,
+    };
+    
+    const idx = entries.findIndex(e => e.original === updatedEntry.original);
+    if (idx >= 0) {
+      entries[idx] = updatedEntry;
+    } else {
+      entries.push(updatedEntry);
+    }
+    
+    await env.DECODER_KV.put(bookDictKey, JSON.stringify(entries));
+    
+    return new Response(JSON.stringify({
+      success: true,
+      entry: updatedEntry,
+      promoted,
+      confirmation: {
+        totalConfirmCount: confirmation.totalConfirmCount,
+        confirmedInBooks: confirmation.confirmedInBooks.length,
+        threshold: CONFIG.AUTO_PROMOTION_THRESHOLD,
+      },
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  } catch (e) {
+    console.error('Confirm entry error:', e);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+}
+
 // ============================================
 // Worker 入口
 // ============================================
@@ -1551,11 +2018,28 @@ export default {
       case path === '/dictionary/export' && request.method === 'GET':
         return handleExportDictionary(request, env, user.userId);
       
+      // 用户确认词条 (11.4)
+      case path === '/dictionary/confirm' && request.method === 'POST':
+        return handleConfirmEntry(request, env, user.userId);
+      
       default:
-        return new Response(JSON.stringify({ error: 'Not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-        });
+        break;
     }
+    
+    // 书籍状态路由 (11.1)
+    const bookStateMatch = path.match(/^\/book\/([^/]+)\/state$/);
+    if (bookStateMatch) {
+      const bookId = bookStateMatch[1];
+      if (request.method === 'GET') {
+        return handleGetBookState(request, env, bookId);
+      } else if (request.method === 'PUT') {
+        return handleUpdateBookState(request, env, bookId);
+      }
+    }
+    
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
   },
 };
