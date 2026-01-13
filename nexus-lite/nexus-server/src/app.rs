@@ -98,8 +98,8 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         // Sources
         .route("/api/sources", get(routes::source::list_sources))
         .route("/api/sources", post(routes::source::add_source))
-        .route("/api/sources/:id", get(routes::source::get_source))
-        .route("/api/sources/:id", delete(routes::source::delete_source))
+        .route("/api/sources/{id}", get(routes::source::get_source))
+        .route("/api/sources/{id}", delete(routes::source::delete_source))
         .route("/api/sources/health", get(routes::source::source_health))
         // Search
         .route("/api/search", post(routes::search::search))
@@ -112,20 +112,20 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/bookshelf", get(routes::bookshelf::list))
         .route("/api/bookshelf", post(routes::bookshelf::add))
         .route(
-            "/api/bookshelf/:id",
+            "/api/bookshelf/{id}",
             patch(routes::bookshelf::update_progress),
         )
-        .route("/api/bookshelf/:id", put(routes::bookshelf::move_to_group))
-        .route("/api/bookshelf/:id", delete(routes::bookshelf::remove))
+        .route("/api/bookshelf/{id}", put(routes::bookshelf::move_to_group))
+        .route("/api/bookshelf/{id}", delete(routes::bookshelf::remove))
         // Groups
         .route("/api/groups", get(routes::group::list_groups))
         .route("/api/groups", post(routes::group::save_group))
-        .route("/api/groups/:id", delete(routes::group::delete_group))
+        .route("/api/groups/{id}", delete(routes::group::delete_group))
         // Replace Rules
         .route("/api/replace_rules", get(routes::replace_rules::list_rules))
         .route("/api/replace_rules", post(routes::replace_rules::save_rule))
         .route(
-            "/api/replace_rules/:id",
+            "/api/replace_rules/{id}",
             delete(routes::replace_rules::delete_rule),
         )
         // Discovery
@@ -134,7 +134,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/ai/mappings", get(routes::ai::list_mapping_rules))
         .route("/api/ai/mappings", post(routes::ai::save_mapping_rule))
         .route(
-            "/api/ai/mappings/:id",
+            "/api/ai/mappings/{id}",
             delete(routes::ai::delete_mapping_rule),
         )
         .route("/api/ai/history", get(routes::ai::list_analysis_history))
@@ -153,15 +153,15 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
             post(routes::voice::save_voice_metadata),
         )
         .route(
-            "/api/voice/metadata/:id",
+            "/api/voice/metadata/{id}",
             delete(routes::voice::delete_voice_metadata),
         )
         .route(
-            "/api/voice/config/:key",
+            "/api/voice/config/{key}",
             get(routes::voice::get_voice_config),
         )
         .route(
-            "/api/voice/config/:key",
+            "/api/voice/config/{key}",
             post(routes::voice::save_voice_config),
         )
         .with_state(state.clone());
