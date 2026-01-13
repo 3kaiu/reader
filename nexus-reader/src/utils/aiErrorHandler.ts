@@ -142,7 +142,7 @@ export class AIErrorHandler {
     // If we have fetch API and no connection info, try to verify connectivity
     if (typeof fetch !== 'undefined' && !status.effectiveType && status.online) {
       try {
-        const response = await Promise.race([
+        await Promise.race([
           fetch('/favicon.ico', {
             method: 'HEAD',
             cache: 'no-cache',

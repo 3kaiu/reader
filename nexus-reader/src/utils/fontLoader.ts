@@ -3,8 +3,6 @@
  * 防止布局偏移并优化字体加载性能
  */
 
-import { performanceMonitor } from './performanceMonitor'
-
 // 字体配置
 export interface FontConfig {
   family: string
