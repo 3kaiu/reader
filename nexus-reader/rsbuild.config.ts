@@ -1,5 +1,8 @@
-import { defineConfig } from "@rsbuild/core";
+import { defineConfig, loadEnv } from "@rsbuild/core";
 import { pluginVue } from "@rsbuild/plugin-vue";
+
+// Load environment variables
+const { publicVars } = loadEnv({ prefixes: ['VITE_'] });
 
 // Only import bundle analyzer when needed
 const getBundleAnalyzerPlugin = async () => {
@@ -22,6 +25,11 @@ export default defineConfig(async () => {
 
   return {
     plugins: [pluginVue()],
+    
+    // Inject VITE_* environment variables
+    source: {
+      define: publicVars,
+    },
 
     tools: {
       rspack: {
