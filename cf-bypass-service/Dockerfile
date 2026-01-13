@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir \
 
 # Copy source code
 COPY app.py cloudscraper_wrapper.py config_manager.py config_validator.py enhanced_logger.py error_handler.py ./
+COPY domain_configs.json ./
 
 # Create data directory
 RUN mkdir -p /app/data
