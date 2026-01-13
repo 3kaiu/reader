@@ -175,8 +175,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
         run: |
-          # 计算本地文件的 hash
-          LOCAL_HASH=$(find cf-bypass-service -type f -name "*.py" -o -name "*.json" -o -name "Dockerfile" -o -name "*.toml" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+          # 计算本地文件的 hash (包含 README.md)
+          LOCAL_HASH=$(find cf-bypass-service -type f \( -name "*.py" -o -name "*.json" -o -name "Dockerfile" -o -name "*.toml" -o -name "README.md" \) | sort | xargs cat | sha256sum | cut -d' ' -f1)
           echo "Local hash: $LOCAL_HASH"
           
           # 尝试获取远程的 hash (存储在 .deploy-hash 文件中)
@@ -277,8 +277,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
         run: |
-          # 计算本地文件的 hash (排除 target 目录)
-          LOCAL_HASH=$(find nexus-lite -type f \( -name "*.rs" -o -name "*.toml" -o -name "*.json" -o -name "*.nxs" -o -name "Dockerfile" \) ! -path "*/target/*" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+          # 计算本地文件的 hash (排除 target 目录，包含 README.md)
+          LOCAL_HASH=$(find nexus-lite -type f \( -name "*.rs" -o -name "*.toml" -o -name "*.json" -o -name "*.nxs" -o -name "Dockerfile" -o -name "README.md" \) ! -path "*/target/*" | sort | xargs cat | sha256sum | cut -d' ' -f1)
           echo "Local hash: $LOCAL_HASH"
           
           REMOTE_HASH=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" \
@@ -317,6 +317,7 @@ jobs:
           
           # 复制 nexus-lite 源码 (排除 target 和 cache)
           cp nexus-lite/Dockerfile hf-nexus/
+          cp nexus-lite/README.md hf-nexus/
           cp nexus-lite/Cargo.toml nexus-lite/Cargo.lock hf-nexus/
           cp -r nexus-lite/nexus-core hf-nexus/
           cp -r nexus-lite/nexus-engine hf-nexus/
