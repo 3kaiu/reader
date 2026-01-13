@@ -8,7 +8,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = 5
   let socket: WebSocket | null = null
-  let eventSource: EventSource | null = null
+  let sseAbortController: AbortController | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let pongTimer: ReturnType<typeof setTimeout> | null = null
@@ -139,10 +139,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
   }
 
   const cancelSearch = () => {
-    // 取消 SSE 连接
-    if (eventSource) {
-      eventSource.close()
-      eventSource = null
+    // 取消 SSE 请求
+    if (sseAbortController) {
+      sseAbortController.abort()
+      sseAbortController = null
     }
     // 取消 WebSocket 搜索
     send({ type: 'cancel_search' })
@@ -164,10 +164,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
 
     // 取消之前的搜索
-    if (eventSource) {
-      eventSource.close()
-      eventSource = null
+    if (sseAbortController) {
+      sseAbortController.abort()
     }
+    sseAbortController = new AbortController()
 
     searchState.value.isSearching = true
     searchState.value.results = []
@@ -184,7 +184,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ keyword, sources: [] })
+        body: JSON.stringify({ keyword, sources: [] }),
+        signal: sseAbortController.signal
       })
 
       if (!response.ok) {
@@ -231,6 +232,11 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
       }
     } catch (e) {
+      // 忽略取消错误
+      if (e instanceof Error && e.name === 'AbortError') {
+        console.log('SSE search cancelled')
+        return
+      }
       console.error('SSE search error:', e)
       toast({
         title: "搜索失败",
@@ -239,6 +245,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
       })
     } finally {
       searchState.value.isSearching = false
+      sseAbortController = null
     }
   }
 
@@ -347,8 +354,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
     if (socket) {
       socket.close()
     }
-    if (eventSource) {
-      eventSource.close()
+    if (sseAbortController) {
+      sseAbortController.abort()
     }
     if (reconnectTimer) {
       clearTimeout(reconnectTimer)
