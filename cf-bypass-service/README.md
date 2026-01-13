@@ -1,3 +1,12 @@
+---
+title: CF Bypass Service
+emoji: 🔓
+colorFrom: green
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # CF Bypass Service
 
 Cloudflare bypass service using CloudScraper with built-in anti-detection features.

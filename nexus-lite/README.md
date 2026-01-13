@@ -1,3 +1,12 @@
+---
+title: Nexus Lite
+emoji: 📚
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # Nexus-Lite
 
 轻量级小说聚合引擎，支持多书源搜索和内容抓取。
