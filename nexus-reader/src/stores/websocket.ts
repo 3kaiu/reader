@@ -56,6 +56,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const url = new URL(apiUrl)
         const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
         wsUrl = `${protocol}//${url.host}/ws/search`
+      } else if (import.meta.env.PROD) {
+        // 生产环境但没有配置 API URL - 禁用 WebSocket
+        console.warn('WebSocket disabled: VITE_API_URL not configured in production')
+        return
       } else {
         // 开发环境回退到当前 host
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

@@ -15,7 +15,12 @@ const userStore = useUserStore()
 const wsStore = useWebSocketStore()
 
 onMounted(() => {
-  wsStore.connect()
+  // WebSocket 连接是可选的，失败不应阻塞应用
+  try {
+    wsStore.connect()
+  } catch (e) {
+    console.warn('WebSocket connection failed, app will continue without real-time features:', e)
+  }
 })
 
 onUnmounted(() => {

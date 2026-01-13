@@ -471,16 +471,39 @@ jobs:
             nexus-reader/node_modules
           key: bun-${{ hashFiles('nexus-reader/bun.lock') }}
 
+      - name: Verify subdomain
+        run: |
+          if [ -z "${{ needs.get-subdomain.outputs.subdomain }}" ]; then
+            echo "❌ ERROR: Workers subdomain is empty!"
+            exit 1
+          fi
+          echo "✅ Workers subdomain: ${{ needs.get-subdomain.outputs.subdomain }}"
+
       - name: Install & Build
         working-directory: nexus-reader
-        env:
-          VITE_API_URL: https://nexus-proxy.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
-          VITE_PROGRESS_SYNC_URL: https://nexus-progress-sync.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
-          VITE_AUTH_WORKER_URL: https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
-          VITE_DECODER_URL: https://nexus-decoder.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
         run: |
           bun install
+          
+          # 显式设置环境变量并验证
+          export VITE_API_URL="https://nexus-proxy.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev"
+          export VITE_PROGRESS_SYNC_URL="https://nexus-progress-sync.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev"
+          export VITE_AUTH_WORKER_URL="https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev"
+          export VITE_DECODER_URL="https://nexus-decoder.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev"
+          
+          echo "🔧 Build environment:"
+          echo "  VITE_API_URL=$VITE_API_URL"
+          echo "  VITE_PROGRESS_SYNC_URL=$VITE_PROGRESS_SYNC_URL"
+          echo "  VITE_AUTH_WORKER_URL=$VITE_AUTH_WORKER_URL"
+          echo "  VITE_DECODER_URL=$VITE_DECODER_URL"
+          
           bun run build
+          
+          # 验证构建产物中包含正确的 URL
+          if grep -r "nexus-proxy" dist/ > /dev/null 2>&1; then
+            echo "✅ Build contains correct API URL"
+          else
+            echo "⚠️ WARNING: Build may not contain correct API URL"
+          fi
 
       - name: Deploy to Cloudflare Pages
         env:
