@@ -1,0 +1,47 @@
+[
+  {
+    "id": "company-001",
+    "realName": "腾讯",
+    "aliases": ["鹅厂", "TX", "某讯", "企鹅", "小马哥的公司"],
+    "founders": ["马化腾", "张志东"],
+    "products": ["QQ", "微信", "王者荣耀"],
+    "location": "深圳",
+    "foundedYear": 1998
+  },
+  {
+    "id": "company-002",
+    "realName": "阿里巴巴",
+    "aliases": ["阿里", "某里", "马芸的公司", "杭州那家"],
+    "founders": ["马云"],
+    "products": ["淘宝", "天猫", "支付宝"],
+    "location": "杭州",
+    "foundedYear": 1999
+  },
+  {
+    "id": "company-003",
+    "realName": "网易",
+    "aliases": ["猪厂", "某易", "丁三石的公司"],
+    "founders": ["丁磊"],
+    "products": ["网易邮箱", "网易云音乐", "阴阳师"],
+    "location": "广州",
+    "foundedYear": 1997
+  },
+  {
+    "id": "company-004",
+    "realName": "京东",
+    "aliases": ["狗厂", "某东", "强东的公司"],
+    "founders": ["刘强东"],
+    "products": ["京东商城"],
+    "location": "北京",
+    "foundedYear": 1998
+  },
+  {
+    "id": "company-005",
+    "realName": "字节跳动",
+    "aliases": ["字节", "某节", "头条", "抖音公司"],
+    "founders": ["张一鸣"],
+    "products": ["今日头条", "抖音", "TikTok"],
+    "location": "北京",
+    "foundedYear": 2012
+  }
+]

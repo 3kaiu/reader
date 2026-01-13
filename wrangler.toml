@@ -56,3 +56,31 @@ ENVIRONMENT = "production"
 # 定时保活任务 - 每25分钟 ping 一次 HF Spaces
 [env.proxy.triggers]
 crons = ["*/25 * * * *"]
+
+# ============================================
+# Novel Decoder Worker - 网文解密系统
+# ============================================
+[env.decoder]
+name = "nexus-decoder"
+main = "cloudflare-workers/novel-decoder-worker.ts"
+compatibility_flags = ["nodejs_compat"]
+
+# R2 存储 - 词典和知识图谱
+[[env.decoder.r2_buckets]]
+binding = "DECODER_DATA"
+bucket_name = "nexus-decoder-data"
+
+# KV 存储 - 用户数据和缓存
+[[env.decoder.kv_namespaces]]
+binding = "DECODER_KV"
+id = "${KV_DECODER_ID}"
+
+# AI 绑定
+[env.decoder.ai]
+binding = "AI"
+
+[env.decoder.vars]
+# AUTH_SECRET = "与其他 worker 相同的密钥"
+# GROQ_API_KEY = "可选，Groq API 密钥"
+# HF_API_KEY = "可选，HuggingFace API 密钥"
+ENVIRONMENT = "production"

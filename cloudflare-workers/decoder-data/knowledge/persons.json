@@ -1,0 +1,73 @@
+[
+  {
+    "id": "person-001",
+    "realName": "邓小平",
+    "aliases": ["大领导", "小平同志", "总设计师", "老人家"],
+    "features": {
+      "dialect": "四川话",
+      "habits": ["抽烟", "打桥牌"],
+      "appearance": ["身材矮小"],
+      "quotes": ["不管黑猫白猫，抓到老鼠就是好猫", "发展才是硬道理"]
+    },
+    "timeline": [
+      {
+        "position": "中央军委主席",
+        "organization": "中央军委",
+        "startDate": "1981-06",
+        "endDate": "1989-11"
+      },
+      {
+        "position": "中央顾问委员会主任",
+        "organization": "中央顾问委员会",
+        "startDate": "1982-09",
+        "endDate": "1987-11"
+      }
+    ],
+    "relations": [
+      {
+        "type": "colleague",
+        "targetId": "person-002",
+        "description": "与廖承志共事"
+      }
+    ]
+  },
+  {
+    "id": "person-002",
+    "realName": "廖承志",
+    "aliases": ["廖公", "廖主任"],
+    "features": {
+      "habits": ["抽烟", "吃肥肉"],
+      "appearance": []
+    },
+    "timeline": [
+      {
+        "position": "主任",
+        "organization": "国务院侨务办公室",
+        "startDate": "1978-01",
+        "endDate": "1983-06"
+      },
+      {
+        "position": "副委员长",
+        "organization": "全国人大常委会",
+        "startDate": "1983-06",
+        "endDate": "1983-06"
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-003",
+    "realName": "黄镇",
+    "aliases": ["领导", "黄部长"],
+    "features": {},
+    "timeline": [
+      {
+        "position": "部长",
+        "organization": "文化部",
+        "startDate": "1977-12",
+        "endDate": "1982-05"
+      }
+    ],
+    "relations": []
+  }
+]

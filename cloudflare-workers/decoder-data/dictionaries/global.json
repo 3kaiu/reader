@@ -1,0 +1,58 @@
+[
+  {
+    "id": "dict-001",
+    "original": "马芸",
+    "real": "马云",
+    "category": "person",
+    "aliases": ["杰克马", "风清扬"],
+    "description": "阿里巴巴创始人",
+    "level": "global",
+    "confidence": 95,
+    "confirmCount": 100,
+    "source": "system",
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000
+  },
+  {
+    "id": "dict-002",
+    "original": "鹅厂",
+    "real": "腾讯",
+    "category": "company",
+    "aliases": ["TX", "某讯", "企鹅"],
+    "description": "腾讯公司",
+    "level": "global",
+    "confidence": 95,
+    "confirmCount": 100,
+    "source": "system",
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000
+  },
+  {
+    "id": "dict-003",
+    "original": "猪厂",
+    "real": "网易",
+    "category": "company",
+    "aliases": ["某易", "丁三石的公司"],
+    "description": "网易公司",
+    "level": "global",
+    "confidence": 95,
+    "confirmCount": 100,
+    "source": "system",
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000
+  },
+  {
+    "id": "dict-004",
+    "original": "海子里",
+    "real": "中南海",
+    "category": "place",
+    "aliases": ["海子", "那个地方"],
+    "description": "中南海，中央政府所在地",
+    "level": "global",
+    "confidence": 95,
+    "confirmCount": 100,
+    "source": "system",
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000
+  }
+]

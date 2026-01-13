@@ -2,6 +2,9 @@
 # Nexus Reader - Git Ignore
 # =============================================================================
 
+# Kiro IDE
+.kiro/
+
 # Environment & Secrets
 .env
 .env.*
