@@ -128,12 +128,12 @@ function handleOptions(request) {
   });
 }
 
-// 代理请求到 HuggingFace (带 R2 缓存)
+// 代理请求到 HuggingFace (带缓存)
 async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheTTL = 0) {
   const url = new URL(path, targetUrl);
   const origin = request.headers.get('Origin') || '';
   
-  // 尝试从 R2 缓存获取
+  // 尝试从缓存获取
   const cacheKey = getCacheKey(path, Object.fromEntries(url.searchParams));
   if (useCache && request.method === 'GET') {
     const cached = await getFromCache(env, cacheKey);
@@ -166,11 +166,21 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
     });
     newHeaders.set('X-Cache', 'MISS');
     
+    // SSE 响应 - 直接流式转发，不缓存
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('text/event-stream')) {
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      });
+    }
+    
     // 成功响应且需要缓存
     if (useCache && response.ok && request.method === 'GET') {
       const body = await response.text();
       // 异步存入缓存
-      env.ctx?.waitUntil(saveToCache(env, cacheKey, body, response.headers.get('Content-Type') || 'application/json', cacheTTL));
+      env.ctx?.waitUntil(saveToCache(env, cacheKey, body, contentType || 'application/json', cacheTTL));
       
       return new Response(body, {
         status: response.status,
@@ -365,9 +375,13 @@ export default {
       case path === '/toc' || path.startsWith('/toc/'):
         return proxyToHF(request, env, nexusUrl, apiPath + url.search, true, CONFIG.TOC_CACHE_TTL);
       
-      // 搜索 - 短期缓存
+      // 搜索 - 短期缓存 (普通搜索)
       case path === '/search':
         return proxyToHF(request, env, nexusUrl, apiPath + url.search, true, CONFIG.SEARCH_CACHE_TTL);
+      
+      // SSE 流式搜索 - 不缓存，直接流式转发
+      case path === '/search/stream':
+        return proxyToHF(request, env, nexusUrl, apiPath + url.search, false, 0);
       
       // CF Bypass 代理 (不需要 /api 前缀)
       case path.startsWith('/cf-bypass'):
