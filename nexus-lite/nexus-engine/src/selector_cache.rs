@@ -37,9 +37,9 @@ impl FallbackSelector {
         let mut attr = "text".to_string();
 
         for part in parts {
-            if part.starts_with('@') {
+            if let Some(stripped) = part.strip_prefix('@') {
                 // Standalone attribute directive (e.g. "@href" as a fallback separator)
-                attr = part[1..].to_string();
+                attr = stripped.to_string();
             } else if !part.is_empty() {
                 // Check for inline attribute syntax: "selector@attr"
                 // But be careful not to split CSS attribute selectors like [data-id="value"]

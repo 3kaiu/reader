@@ -60,7 +60,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         while let Ok(event) = bus_rx.recv().await {
             let response = WsResponse::System(event);
             if let Ok(json) = serde_json::to_string(&response) {
-                if tx_events.send(Message::Text(json)).is_err() {
+                if tx_events.send(Message::Text(json.into())).is_err() {
                     break;
                 }
             }
@@ -75,7 +75,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 if json.get("type").and_then(|v| v.as_str()) == Some("ping") {
                     let response = WsResponse::Pong;
                     if let Ok(json) = serde_json::to_string(&response) {
-                        let _ = tx.send(Message::Text(json));
+                        let _ = tx.send(Message::Text(json.into()));
                     }
                     continue;
                 }
@@ -85,7 +85,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             let req: SearchRequest = match serde_json::from_str(&text) {
                 Ok(req) => req,
                 Err(e) => {
-                    let _ = tx.send(Message::Text(format!("Invalid request: {}", e)));
+                    let _ = tx.send(Message::Text(format!("Invalid request: {}", e).into()));
                     continue;
                 }
             };
@@ -124,7 +124,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     };
 
                     if let Ok(json) = serde_json::to_string(&response) {
-                        if tx_search.send(Message::Text(json)).is_err() {
+                        if tx_search.send(Message::Text(json.into())).is_err() {
                             break;
                         }
                     }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 /// Global engine configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct EngineConfig {
     /// Server configuration
     #[serde(default)]
@@ -28,17 +29,6 @@ pub struct EngineConfig {
     pub cf_bypass: CloudflareBypassConfig,
 }
 
-impl Default for EngineConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            limits: ResourceLimits::default(),
-            storage: StorageConfig::default(),
-            logging: LoggingConfig::default(),
-            cf_bypass: CloudflareBypassConfig::default(),
-        }
-    }
-}
 
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

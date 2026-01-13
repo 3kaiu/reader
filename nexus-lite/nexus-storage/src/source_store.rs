@@ -43,7 +43,7 @@ impl SourceStore {
         {
             let path = entry.path();
             // Only load .nxs files
-            if path.extension().map_or(false, |ext| ext == "nxs") {
+            if path.extension().is_some_and(|ext| ext == "nxs") {
                 match self.load_file(&path).await {
                     Ok(n) => count += n,
                     Err(e) => error!("Failed to load {:?}: {}", path, e),

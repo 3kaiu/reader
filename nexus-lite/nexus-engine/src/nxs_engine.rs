@@ -367,7 +367,7 @@ impl NxsEngine {
         rules: &[ReplaceRule],
     ) -> Result<String, EngineError> {
         let html = self
-            .fetch(&chapter_url, None, None, self.source.content.script.clone())
+            .fetch(chapter_url, None, None, self.source.content.script.clone())
             .await?;
         let doc = Html::parse_document(&html);
 
