@@ -1,63 +1,41 @@
 # =============================================================================
-# High-Performance Dockerfile for cf-bypass-service
-# Optimized for small size and fast build times using Alpine multi-stage
+# Dockerfile for cf-bypass-service
+# Optimized for HuggingFace Spaces deployment
 # =============================================================================
 
-# Stage 1: Builder
-FROM python:3.11-alpine AS builder
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install build dependencies for C extensions (required by curl_cffi, etc.)
-RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    libffi-dev \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    python3-dev \
-    build-base
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
-
-# Copy project definition
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies into a specific site-packages
-RUN uv pip install --system --no-cache -r pyproject.toml
-
-# Stage 2: Runtime
-FROM python:3.11-alpine
-WORKDIR /app
-
-# Install minimal runtime dependencies
-RUN apk add --no-cache curl tzdata ca-certificates libstdc++
-
-# Create non-root user for security
-RUN addgroup -g 1000 cfbypass \
-    && adduser -u 1000 -G cfbypass -s /bin/sh -D cfbypass
-
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Install Python dependencies
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir \
+    fastapi>=0.104.0 \
+    uvicorn>=0.24.0 \
+    cloudscraper>=1.2.70 \
+    pydantic>=2.5.0 \
+    cachetools>=5.3.0 \
+    js2py>=0.74
 
 # Copy source code
 COPY app.py cloudscraper_wrapper.py config_manager.py config_validator.py enhanced_logger.py error_handler.py ./
 
-# Create data directory with correct ownership
-RUN mkdir -p /app/data/qidian \
-    && chown -R cfbypass:cfbypass /app
+# Create data directory
+RUN mkdir -p /app/data
 
-# Switch to non-root user
-USER cfbypass
-
-# Environment defaults
+# HuggingFace Spaces requires port 7860
 ENV HOST=0.0.0.0
-ENV PORT=8000
+ENV PORT=7860
 ENV JS_INTERPRETER=js2py
 ENV REQUEST_TIMEOUT=90
 
-EXPOSE 8000
+EXPOSE 7860
 
-# Run with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run with uvicorn on port 7860 (HuggingFace requirement)
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
