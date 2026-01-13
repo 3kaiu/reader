@@ -1,9 +1,6 @@
-# =============================================================================
-# Dockerfile for nexus-lite (HuggingFace Spaces deployment)
-# Multi-stage build for minimal image size
-# =============================================================================
+# Nexus-Lite Dockerfile for HuggingFace Spaces
+# Using official Rust image for build
 
-# Stage 1: Build
 FROM rust:1.85-slim-bookworm AS builder
 
 WORKDIR /app
@@ -24,7 +21,7 @@ COPY nexus-server ./nexus-server
 # Build release binary
 RUN cargo build --release --package nexus-server
 
-# Stage 2: Runtime
+# Runtime stage
 FROM debian:bookworm-slim
 
 WORKDIR /app
@@ -52,5 +49,4 @@ ENV RUST_LOG=info
 
 EXPOSE 7860
 
-# Run the server
 CMD ["./nexus-server"]

@@ -53,55 +53,14 @@ export async function detectSlangWithAI(content: string): Promise<SlangItem[]> {
 
 /**
  * 搜索增强 - 黑话/行话检测 (带缓存)
+ * 注意: 后端无对应搜索端点，直接使用 AI 版本
  */
 export async function detectSlang(content: string): Promise<SlangItem[]> {
-  const { searchApi } = await import('../../api/search')
-  const { extractCandidateTerms } = await import('../../utils/termExtractor')
-  const { getCachedBatch, setCacheBatch } = await import('../searchCache')
-
-  const candidates = extractCandidateTerms(content, { maxTerms: 10 })
-  if (candidates.length === 0) return []
-
-  try {
-    const cached = await getCachedBatch(candidates)
-    const uncachedTerms = candidates.filter(t => !cached.has(t))
-
-    const cachedResults: SlangItem[] = []
-    cached.forEach((result) => {
-      if (result.meaning) {
-        cachedResults.push({
-          term: result.term,
-          meaning: result.meaning,
-          category: result.category as SlangItem['category'],
-          source: 'cache' as const
-        })
-      }
-    })
-
-    let apiResults: SlangItem[] = []
-    if (uncachedTerms.length > 0) {
-      const response = await searchApi.searchBatch(uncachedTerms, 'slang')
-      const validResults = response.results.filter(r => r.meaning && r.source !== 'none')
-      if (validResults.length > 0) {
-        await setCacheBatch(validResults)
-      }
-
-      apiResults = validResults.map(r => ({
-        term: r.term,
-        meaning: r.meaning,
-        category: r.category as SlangItem['category'],
-        source: r.source as SlangItem['source']
-      }))
-    }
-
-    return [...cachedResults, ...apiResults]
-  } catch (e) {
-    logger.error('黑话检测执行失败', e as Error, { function: 'detectSlang' })
-    if (engineState.isModelLoaded.value) {
-      return detectSlangWithAI(content)
-    }
-    return []
+  // 后端无 /search/term 等端点，直接使用 AI 降级版本
+  if (engineState.isModelLoaded.value) {
+    return detectSlangWithAI(content)
   }
+  return []
 }
 
 /**
@@ -125,60 +84,14 @@ export async function detectMemesWithAI(content: string): Promise<MemeItem[]> {
 
 /**
  * 搜索增强 - 梗典识别 (带缓存)
+ * 注意: 后端无对应搜索端点，直接使用 AI 版本
  */
 export async function detectMemes(content: string): Promise<MemeItem[]> {
-  const { searchApi } = await import('../../api/search')
-  const { extractQuotedTerms } = await import('../../utils/termExtractor')
-  const { getCachedBatch, setCacheBatch } = await import('../searchCache')
-
-  const candidates = extractQuotedTerms(content, 10)
-  if (candidates.length === 0) {
-    if (engineState.isModelLoaded.value) return detectMemesWithAI(content)
-    return []
+  // 后端无 /search/term 等端点，直接使用 AI 降级版本
+  if (engineState.isModelLoaded.value) {
+    return detectMemesWithAI(content)
   }
-
-  try {
-    const cached = await getCachedBatch(candidates)
-    const uncachedTerms = candidates.filter(t => !cached.has(t))
-
-    const cachedResults: MemeItem[] = []
-    cached.forEach((result) => {
-      if (result.meaning) {
-        cachedResults.push({
-          reference: result.term,
-          origin: result.category || '网络',
-          explanation: result.meaning,
-          source: 'cache' as const
-        })
-      }
-    })
-
-    let apiResults: MemeItem[] = []
-    if (uncachedTerms.length > 0) {
-      const response = await searchApi.searchBatch(uncachedTerms, 'meme')
-      const validResults = response.results.filter(r => r.meaning && r.source !== 'none')
-      if (validResults.length > 0) {
-        await setCacheBatch(validResults)
-      }
-
-      apiResults = validResults.map(r => ({
-        reference: r.term,
-        origin: r.related?.[0] || '网络',
-        explanation: r.meaning,
-        source: r.source as 'local' | 'search'
-      }))
-    }
-
-    const searchResults = [...cachedResults, ...apiResults]
-    if (searchResults.length === 0 && engineState.isModelLoaded.value) {
-      return detectMemesWithAI(content)
-    }
-
-    return searchResults
-  } catch (e) {
-    if (engineState.isModelLoaded.value) return detectMemesWithAI(content)
-    return []
-  }
+  return []
 }
 
 /**

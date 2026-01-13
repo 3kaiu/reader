@@ -404,27 +404,9 @@ class ErrorLogger {
     }
   }
 
-  private async sendToExternalLogging(error: ErrorEntry): Promise<void> {
-    try {
-      // 发送到Cloudflare Analytics或其他日志服务
-      if (typeof window !== 'undefined' && 'fetch' in window) {
-        // Import analytics API dynamically to avoid circular dependencies
-        const { analyticsAPI } = await import('../api/analytics')
-
-        await analyticsAPI.sendErrorLog({
-          fingerprint: error.fingerprint,
-          message: error.message,
-          category: error.category,
-          severity: error.severity,
-          stack: error.stack,
-          context: error.context
-        }).catch(() => {
-          // 静默失败，避免递归错误
-        })
-      }
-    } catch {
-      // 静默失败，避免递归错误
-    }
+  private async sendToExternalLogging(_error: ErrorEntry): Promise<void> {
+    // TODO: 实现外部日志服务集成
+    // 当前后端无对应端点，暂时禁用
   }
 
   private initializeDefaultAlertRules(): void {
