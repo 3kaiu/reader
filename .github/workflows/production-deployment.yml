@@ -153,6 +153,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Cleanup old GHCR images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: reader/cf-bypass-service
+          package-type: container
+          min-versions-to-keep: 2
+          delete-only-untagged-versions: false
+        continue-on-error: true
+
   # =============================================================================
   # 构建并推送 nexus-lite 镜像到 GHCR
   # =============================================================================
@@ -193,6 +202,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Cleanup old GHCR images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: reader/nexus-lite
+          package-type: container
+          min-versions-to-keep: 2
+          delete-only-untagged-versions: false
+        continue-on-error: true
 
   # =============================================================================
   # 部署 cf-bypass-service 到 HuggingFace (拉取 GHCR 镜像)

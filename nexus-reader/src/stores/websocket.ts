@@ -41,16 +41,28 @@ export const useWebSocketStore = defineStore('websocket', () => {
   }
 
   const connect = () => {
+    // 如果已经在连接中或已连接，跳过
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
       return
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    // Use proxy path /ws/search
-    const wsUrl = `${protocol}//${host}/ws/search`
+    try {
+      // WebSocket 应该连接到 API 服务器（Proxy Worker），不是 Pages
+      const apiUrl = import.meta.env.VITE_API_URL || ''
+      let wsUrl: string
+      
+      if (apiUrl) {
+        // 使用配置的 API URL
+        const url = new URL(apiUrl)
+        const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+        wsUrl = `${protocol}//${url.host}/ws/search`
+      } else {
+        // 开发环境回退到当前 host
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        wsUrl = `${protocol}//${window.location.host}/ws/search`
+      }
 
-    console.log('Connecting to WebSocket:', wsUrl)
+      console.log('Connecting to WebSocket:', wsUrl)
 
     socket = new WebSocket(wsUrl)
 
@@ -86,6 +98,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     socket.onerror = (error) => {
       console.error('WebSocket error:', error)
       socket?.close()
+    }
+    } catch (e) {
+      console.error('Failed to create WebSocket:', e)
+      // 不阻塞应用，静默失败
     }
   }
 
