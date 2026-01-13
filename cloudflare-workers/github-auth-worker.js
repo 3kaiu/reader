@@ -188,15 +188,16 @@ async function handleVerify(request, env, corsHeaders) {
 
 function handleLogout(env, corsHeaders) {
   const headers = new Headers(corsHeaders);
-  headers.set('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Domain=${new URL(env.FRONTEND_URL).hostname}`);
+  headers.set('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0`);
   return new Response(JSON.stringify({ success: true }), { headers });
 }
 
 function createAuthResponse(token, env) {
-  const frontendDomain = new URL(env.FRONTEND_URL).hostname;
   const response = Response.redirect(env.FRONTEND_URL, 302);
   const headers = new Headers(response.headers);
-  headers.set('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${COOKIE_MAX_AGE}; Domain=${frontendDomain}`);
+  // 不设置 Domain，让 Cookie 绑定到 Auth Worker 域
+  // SameSite=None 允许跨域请求携带 Cookie
+  headers.set('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${COOKIE_MAX_AGE}`);
   return new Response(null, { status: 302, headers });
 }
 
