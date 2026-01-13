@@ -94,7 +94,8 @@ preloadManager.preloadBasedOnNetwork()
 
 // 初始化 Service Worker 缓存管理器
 if (process.env.NODE_ENV === 'production') {
-  swCacheManager
+  // swCacheManager 在导入时自动初始化
+  void swCacheManager
 }
 
 // 监控路由变化性能
