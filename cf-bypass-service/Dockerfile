@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir \
     cloudscraper>=1.2.70 \
     pydantic>=2.5.0 \
     cachetools>=5.3.0 \
-    js2py>=0.74
+    js2py>=0.74 \
+    redis>=5.0.0
 
 # Copy source code
 COPY app.py cloudscraper_wrapper.py config_manager.py config_validator.py enhanced_logger.py error_handler.py ./
