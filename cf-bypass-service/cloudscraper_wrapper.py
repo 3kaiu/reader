@@ -3,12 +3,11 @@ CloudScraper Wrapper - Maximizing Built-in Features
 Utilizes 100% of CloudScraper's free built-in anti-detection capabilities.
 Only implements features that CloudScraper lacks: caching, monitoring, session health.
 """
-import asyncio
 import json
 import hashlib
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Optional, Any
 from urllib.parse import urlparse
 

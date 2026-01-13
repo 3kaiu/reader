@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 
 # Import new CloudScraper wrapper instead of old curl_cffi engine
-from cloudscraper_wrapper import wrapper as engine, FetchResult
+from cloudscraper_wrapper import wrapper as engine
 import os
 
 # Configuration (maintain compatibility)
