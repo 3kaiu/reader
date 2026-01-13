@@ -36,15 +36,16 @@ main = "cloudflare-workers/github-auth-worker.js"
 ENVIRONMENT = "production"
 
 # ============================================
-# Nexus Proxy Worker - HuggingFace 代理 + 保活 + R2缓存
+# Nexus Proxy Worker - HuggingFace 代理 + 保活
 # ============================================
 [env.proxy]
 name = "nexus-proxy"
 main = "cloudflare-workers/nexus-proxy-worker.js"
 
-[[env.proxy.r2_buckets]]
-binding = "CONTENT_CACHE"
-bucket_name = "nexus-content-cache"
+# 使用 KV 替代 R2 进行缓存（KV 不需要信用卡）
+[[env.proxy.kv_namespaces]]
+binding = "CONTENT_CACHE_KV"
+id = "${KV_CONTENT_CACHE_ID}"
 
 [env.proxy.vars]
 # HuggingFace Space URLs (通过 wrangler deploy --var 注入)
@@ -65,12 +66,7 @@ name = "nexus-decoder"
 main = "cloudflare-workers/novel-decoder-worker.ts"
 compatibility_flags = ["nodejs_compat"]
 
-# R2 存储 - 词典和知识图谱
-[[env.decoder.r2_buckets]]
-binding = "DECODER_DATA"
-bucket_name = "nexus-decoder-data"
-
-# KV 存储 - 用户数据和缓存
+# KV 存储 - 词典、知识图谱、用户数据和缓存
 [[env.decoder.kv_namespaces]]
 binding = "DECODER_KV"
 id = "${KV_DECODER_ID}"

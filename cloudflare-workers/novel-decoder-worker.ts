@@ -234,26 +234,6 @@ export interface AIInferResponse {
 // Cloudflare Workers 类型 (简化版)
 // ============================================
 
-interface R2Bucket {
-  get(key: string): Promise<R2ObjectBody | null>;
-  put(key: string, value: string | ArrayBuffer | ReadableStream, options?: R2PutOptions): Promise<R2Object>;
-  delete(key: string): Promise<void>;
-}
-
-interface R2ObjectBody {
-  text(): Promise<string>;
-  json<T>(): Promise<T>;
-  customMetadata?: Record<string, string>;
-}
-
-interface R2Object {
-  key: string;
-}
-
-interface R2PutOptions {
-  customMetadata?: Record<string, string>;
-}
-
 interface KVNamespace {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
@@ -274,10 +254,7 @@ interface ExecutionContext {
 // ============================================
 
 export interface Env {
-  // R2 存储
-  DECODER_DATA: R2Bucket;
-  
-  // KV 存储
+  // KV 存储 - 词典、知识图谱、用户数据和缓存（不需要信用卡）
   DECODER_KV: KVNamespace;
   
   // AI 服务
@@ -425,7 +402,7 @@ class DictionaryIndex {
   }
 }
 
-/** 三层词典管理器 */
+/** 三层词典管理器 (使用 KV 存储) */
 class DictionaryManager {
   private globalDict: DictionaryIndex = new DictionaryIndex();
   private categoryDicts: Map<BookType, DictionaryIndex> = new Map();
@@ -460,9 +437,10 @@ class DictionaryManager {
   
   private async loadGlobalDict(): Promise<void> {
     try {
-      const obj = await this.env.DECODER_DATA.get('dictionaries/global.json');
-      if (obj) {
-        const entries: DictionaryEntry[] = JSON.parse(await obj.text());
+      // 使用 KV 存储公共词典
+      const data = await this.env.DECODER_KV.get('decoder:dict:global');
+      if (data) {
+        const entries: DictionaryEntry[] = JSON.parse(data);
         entries.forEach(e => this.globalDict.addEntry(e));
       }
     } catch (e) {
@@ -472,10 +450,11 @@ class DictionaryManager {
   
   private async loadCategoryDict(type: BookType): Promise<void> {
     try {
-      const obj = await this.env.DECODER_DATA.get(`dictionaries/category/${type}.json`);
-      if (obj) {
+      // 使用 KV 存储分类词典
+      const data = await this.env.DECODER_KV.get(`decoder:dict:category:${type}`);
+      if (data) {
         const index = new DictionaryIndex();
-        const entries: DictionaryEntry[] = JSON.parse(await obj.text());
+        const entries: DictionaryEntry[] = JSON.parse(data);
         entries.forEach(e => index.addEntry(e));
         this.categoryDicts.set(type, index);
       }
@@ -713,19 +692,19 @@ class EntryPromotionManager {
     return confirmation.confirmedInBooks.length >= CONFIG.AUTO_PROMOTION_THRESHOLD;
   }
   
-  /** 提升词条到分类词典 */
+  /** 提升词条到分类词典 (使用 KV 存储) */
   async promoteToCategory(
     entry: DictionaryEntry,
     categoryType: BookType
   ): Promise<boolean> {
     try {
-      // 读取分类词典
-      const categoryKey = `dictionaries/category/${categoryType}.json`;
-      const obj = await this.env.DECODER_DATA.get(categoryKey);
+      // 读取分类词典 (从 KV)
+      const categoryKey = `decoder:dict:category:${categoryType}`;
+      const data = await this.env.DECODER_KV.get(categoryKey);
       
       let entries: DictionaryEntry[] = [];
-      if (obj) {
-        entries = JSON.parse(await obj.text());
+      if (data) {
+        entries = JSON.parse(data);
       }
       
       // 检查是否已存在
@@ -751,8 +730,8 @@ class EntryPromotionManager {
         entries.push(promotedEntry);
       }
       
-      // 保存回 R2
-      await this.env.DECODER_DATA.put(categoryKey, JSON.stringify(entries, null, 2));
+      // 保存回 KV
+      await this.env.DECODER_KV.put(categoryKey, JSON.stringify(entries));
       
       console.log(`Promoted entry "${entry.original}" to category ${categoryType}`);
       return true;
@@ -797,29 +776,29 @@ class KnowledgeGraph {
     this.env = env;
   }
   
-  /** 加载知识图谱 */
+  /** 加载知识图谱 (使用 KV 存储) */
   async load(): Promise<void> {
     if (this.loaded) return;
     
     try {
       // 加载人物
-      const personsObj = await this.env.DECODER_DATA.get('knowledge/persons.json');
-      if (personsObj) {
-        const data: PersonEntity[] = JSON.parse(await personsObj.text());
+      const personsData = await this.env.DECODER_KV.get('decoder:knowledge:persons');
+      if (personsData) {
+        const data: PersonEntity[] = JSON.parse(personsData);
         data.forEach(p => this.persons.set(p.id, p));
       }
       
       // 加载公司
-      const companiesObj = await this.env.DECODER_DATA.get('knowledge/companies.json');
-      if (companiesObj) {
-        const data: CompanyEntity[] = JSON.parse(await companiesObj.text());
+      const companiesData = await this.env.DECODER_KV.get('decoder:knowledge:companies');
+      if (companiesData) {
+        const data: CompanyEntity[] = JSON.parse(companiesData);
         data.forEach(c => this.companies.set(c.id, c));
       }
       
       // 加载事件
-      const eventsObj = await this.env.DECODER_DATA.get('knowledge/events.json');
-      if (eventsObj) {
-        const data: EventEntity[] = JSON.parse(await eventsObj.text());
+      const eventsData = await this.env.DECODER_KV.get('decoder:knowledge:events');
+      if (eventsData) {
+        const data: EventEntity[] = JSON.parse(eventsData);
         data.forEach(e => this.events.set(e.id, e));
       }
       
@@ -1583,7 +1562,7 @@ async function handleDecode(request: Request, env: Env): Promise<Response> {
   }
 }
 
-/** GET /dictionary - 获取词典 */
+/** GET /dictionary - 获取词典 (使用 KV 存储) */
 async function handleGetDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const url = new URL(request.url);
@@ -1594,21 +1573,21 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
   try {
     const entries: DictionaryEntry[] = [];
     
-    // 公共词典
+    // 公共词典 (从 KV)
     if (level === 'all' || level === 'global') {
-      const obj = await env.DECODER_DATA.get('dictionaries/global.json');
-      if (obj) {
-        const data = JSON.parse(await obj.text()) as DictionaryEntry[];
-        entries.push(...data);
+      const data = await env.DECODER_KV.get('decoder:dict:global');
+      if (data) {
+        const globalEntries = JSON.parse(data) as DictionaryEntry[];
+        entries.push(...globalEntries);
       }
     }
     
-    // 分类词典
+    // 分类词典 (从 KV)
     if ((level === 'all' || level === 'category') && category) {
-      const obj = await env.DECODER_DATA.get(`dictionaries/category/${category}.json`);
-      if (obj) {
-        const data = JSON.parse(await obj.text()) as DictionaryEntry[];
-        entries.push(...data);
+      const data = await env.DECODER_KV.get(`decoder:dict:category:${category}`);
+      if (data) {
+        const categoryEntries = JSON.parse(data) as DictionaryEntry[];
+        entries.push(...categoryEntries);
       }
     }
     

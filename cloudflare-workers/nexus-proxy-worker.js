@@ -4,7 +4,7 @@
  * 功能：
  * 1. 代理请求到 HuggingFace Spaces (nexus-lite + cf-bypass)
  * 2. 保活机制 - 防止 HF Space 休眠
- * 3. R2 缓存 - 章节内容缓存，加速阅读
+ * 3. KV 缓存 - 章节内容缓存，加速阅读（不需要信用卡）
  * 4. 认证保护 - 只允许已登录用户访问
  * 5. CORS 处理
  */
@@ -71,53 +71,45 @@ async function verifyAuth(request, env) {
   }
 }
 
-// 生成 R2 缓存 key
+// 生成 KV 缓存 key
 function getCacheKey(path, params) {
   const key = `cache:${path}:${JSON.stringify(params || {})}`;
   return key.replace(/[^a-zA-Z0-9:_-]/g, '_').substring(0, 512);
 }
 
-// 从 R2 获取缓存
+// 从 KV 获取缓存
 async function getFromCache(env, key) {
-  if (!env.CONTENT_CACHE) return null;
+  if (!env.CONTENT_CACHE_KV) return null;
   
   try {
-    const obj = await env.CONTENT_CACHE.get(key);
-    if (!obj) return null;
+    const data = await env.CONTENT_CACHE_KV.get(key, { type: 'json' });
+    if (!data) return null;
     
-    const metadata = obj.customMetadata || {};
-    const expiry = parseInt(metadata.expiry || '0');
-    
-    if (expiry && Date.now() > expiry) {
-      // 过期了，异步删除
-      env.CONTENT_CACHE.delete(key);
-      return null;
-    }
-    
+    // KV 自动处理过期，无需手动检查
     return {
-      body: await obj.text(),
-      contentType: metadata.contentType || 'application/json'
+      body: data.body,
+      contentType: data.contentType || 'application/json'
     };
   } catch (e) {
-    console.error('R2 get error:', e);
+    console.error('KV get error:', e);
     return null;
   }
 }
 
-// 存入 R2 缓存
+// 存入 KV 缓存
 async function saveToCache(env, key, body, contentType, ttlSeconds) {
-  if (!env.CONTENT_CACHE) return;
+  if (!env.CONTENT_CACHE_KV) return;
   
   try {
-    await env.CONTENT_CACHE.put(key, body, {
-      customMetadata: {
-        contentType,
-        expiry: String(Date.now() + ttlSeconds * 1000),
-        cachedAt: new Date().toISOString()
-      }
+    await env.CONTENT_CACHE_KV.put(key, JSON.stringify({
+      body,
+      contentType,
+      cachedAt: new Date().toISOString()
+    }), {
+      expirationTtl: ttlSeconds
     });
   } catch (e) {
-    console.error('R2 put error:', e);
+    console.error('KV put error:', e);
   }
 }
 
