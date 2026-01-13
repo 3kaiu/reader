@@ -4,9 +4,7 @@
  * Handles global setup and teardown for the entire integration test suite
  */
 
-import { execSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
-import { resolve } from 'path';
 
 export async function setup() {
   console.log('🚀 Starting global integration test setup...');

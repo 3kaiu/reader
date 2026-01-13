@@ -4,7 +4,7 @@
  * 运行自定义性能测试套件
  */
 
-import { performanceTestRunner, defaultTestSuite, type PerformanceTestSuite } from '../utils/performanceTesting'
+import { performanceTestRunner, type PerformanceTestSuite } from '../utils/performanceTesting'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 

@@ -23,7 +23,6 @@ export function usePiperTTS() {
   const engine = shallowRef<PiperWebWorkerEngine | null>(null)
   const voiceProvider = new HuggingFaceVoiceProvider()
 
-  const currentVoice = ref<string | null>(null)
   const isSpeaking = ref(false)
   const isPaused = ref(false)
 
