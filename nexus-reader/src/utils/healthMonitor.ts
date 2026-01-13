@@ -319,10 +319,8 @@ export class HealthMonitor {
       overall = 'critical'
     } else if (warningCount > 0 || averageScore < 80) {
       overall = 'warning'
-    } else if (averageScore >= 80) {
-      overall = 'healthy'
     } else {
-      overall = 'unknown'
+      overall = 'healthy'
     }
 
     return {
