@@ -26,10 +26,10 @@ const decoderFetch = ofetch.create({
     // 添加认证 token
     const token = localStorage.getItem('nexus_auth_token')
     if (token) {
-      options.headers = {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      }
+      // 使用 HeadersInit 兼容的方式设置 headers
+      const headers = new Headers(options.headers as HeadersInit)
+      headers.set('Authorization', `Bearer ${token}`)
+      options.headers = headers
     }
   },
 })
