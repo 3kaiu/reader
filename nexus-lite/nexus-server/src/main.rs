@@ -65,7 +65,19 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
         EngineConfig::default()
     };
 
-    // Environment overrides (convenient for Docker)
+    // Environment overrides (convenient for Docker/HuggingFace)
+    if let Ok(host) = std::env::var("HOST") {
+        config.server.host = host;
+        info!("Overriding HOST from environment");
+    }
+
+    if let Ok(port) = std::env::var("PORT") {
+        if let Ok(p) = port.parse::<u16>() {
+            config.server.port = p;
+            info!("Overriding PORT from environment: {}", p);
+        }
+    }
+
     if let Ok(url) = std::env::var("CF_SERVICE_URL") {
         config.cf_bypass.service_url = url;
         info!("Overriding CF_SERVICE_URL from environment");
@@ -74,6 +86,11 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     if let Ok(proxy) = std::env::var("CF_PROXY") {
         config.cf_bypass.proxy = Some(proxy);
         info!("Overriding CF_PROXY from environment");
+    }
+
+    if let Ok(origins) = std::env::var("ALLOWED_ORIGINS") {
+        config.server.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
+        info!("Overriding ALLOWED_ORIGINS from environment");
     }
 
     Ok(config)

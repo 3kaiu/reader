@@ -33,3 +33,20 @@ main = "cloudflare-workers/github-auth-worker.js"
 # FRONTEND_URL = "https://nexus-reader.pages.dev"
 # WORKER_URL = "https://nexus-auth.xxx.workers.dev"
 ENVIRONMENT = "production"
+
+# ============================================
+# Nexus Proxy Worker - HuggingFace 代理 + 保活
+# ============================================
+[env.proxy]
+name = "nexus-proxy"
+main = "cloudflare-workers/nexus-proxy-worker.js"
+
+[env.proxy.vars]
+# HuggingFace Space URLs (通过 wrangler deploy --var 注入)
+# NEXUS_LITE_URL = "https://xxx-nexus-lite.hf.space"
+# CF_BYPASS_URL = "https://xxx-cf-bypass-service.hf.space"
+ENVIRONMENT = "production"
+
+# 定时保活任务 - 每25分钟 ping 一次 HF Spaces
+[env.proxy.triggers]
+crons = ["*/25 * * * *"]

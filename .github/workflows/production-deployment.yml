@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'nexus-reader/**'
+      - 'nexus-lite/**'
       - 'cloudflare-workers/**'
       - 'cf-bypass-service/**'
       - 'wrangler.toml'
@@ -25,6 +26,11 @@ concurrency:
   group: production-deployment
   cancel-in-progress: true
 
+env:
+  # HuggingFace Space 名称 (自动拼接用户名)
+  CF_BYPASS_SPACE_NAME: cf-bypass-service
+  NEXUS_LITE_SPACE_NAME: nexus-lite
+
 jobs:
   # =============================================================================
   # 检测变更
@@ -35,6 +41,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       worker: ${{ steps.filter.outputs.worker }}
       cf-bypass: ${{ steps.filter.outputs.cf-bypass }}
+      nexus-lite: ${{ steps.filter.outputs.nexus-lite }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +58,45 @@ jobs:
               - 'wrangler.toml'
             cf-bypass:
               - 'cf-bypass-service/**'
+            nexus-lite:
+              - 'nexus-lite/**'
+
+  # =============================================================================
+  # 获取 HuggingFace 用户名
+  # =============================================================================
+  get-hf-username:
+    runs-on: ubuntu-latest
+    outputs:
+      username: ${{ steps.whoami.outputs.username }}
+      cf_bypass_space: ${{ steps.whoami.outputs.cf_bypass_space }}
+      nexus_lite_space: ${{ steps.whoami.outputs.nexus_lite_space }}
+      cf_bypass_url: ${{ steps.whoami.outputs.cf_bypass_url }}
+      nexus_lite_url: ${{ steps.whoami.outputs.nexus_lite_url }}
+    steps:
+      - name: Get HuggingFace username
+        id: whoami
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # 获取 HuggingFace 用户名
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" https://huggingface.co/api/whoami-v2)
+          USERNAME=$(echo "$RESPONSE" | jq -r '.name // empty')
+          
+          if [ -z "$USERNAME" ]; then
+            echo "❌ Failed to get HuggingFace username"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "username=$USERNAME" >> $GITHUB_OUTPUT
+          echo "cf_bypass_space=${USERNAME}/${{ env.CF_BYPASS_SPACE_NAME }}" >> $GITHUB_OUTPUT
+          echo "nexus_lite_space=${USERNAME}/${{ env.NEXUS_LITE_SPACE_NAME }}" >> $GITHUB_OUTPUT
+          echo "cf_bypass_url=https://${USERNAME}-${{ env.CF_BYPASS_SPACE_NAME }}.hf.space" >> $GITHUB_OUTPUT
+          echo "nexus_lite_url=https://${USERNAME}-${{ env.NEXUS_LITE_SPACE_NAME }}.hf.space" >> $GITHUB_OUTPUT
+          
+          echo "✅ HuggingFace username: $USERNAME"
+          echo "   cf-bypass space: ${USERNAME}/${{ env.CF_BYPASS_SPACE_NAME }}"
+          echo "   nexus-lite space: ${USERNAME}/${{ env.NEXUS_LITE_SPACE_NAME }}"
 
   # =============================================================================
   # 获取 Workers subdomain
@@ -77,11 +123,243 @@ jobs:
           echo "✅ Workers subdomain: $SUBDOMAIN"
 
   # =============================================================================
+  # 部署 cf-bypass-service 到 HuggingFace Spaces
+  # =============================================================================
+  deploy-cf-bypass:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, get-hf-username]
+    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Create Space if not exists
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
+        run: |
+          python << 'EOF'
+          import os
+          from huggingface_hub import HfApi, create_repo, repo_exists
+          
+          token = os.environ["HF_TOKEN"]
+          space_id = os.environ["HF_SPACE"]
+          
+          if not repo_exists(space_id, repo_type="space", token=token):
+              print(f"🔨 Creating HuggingFace Space: {space_id}")
+              create_repo(
+                  repo_id=space_id,
+                  repo_type="space",
+                  space_sdk="docker",
+                  private=False,
+                  token=token
+              )
+              print(f"✅ Space created")
+          else:
+              print(f"✅ Space already exists: {space_id}")
+          EOF
+
+      - name: Check if deployment needed
+        id: check
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
+        run: |
+          # 计算本地文件的 hash
+          LOCAL_HASH=$(find cf-bypass-service -type f -name "*.py" -o -name "*.json" -o -name "Dockerfile" -o -name "*.toml" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+          echo "Local hash: $LOCAL_HASH"
+          
+          # 尝试获取远程的 hash (存储在 .deploy-hash 文件中)
+          REMOTE_HASH=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" \
+            "https://huggingface.co/spaces/${HF_SPACE}/raw/main/.deploy-hash" 2>/dev/null || echo "")
+          echo "Remote hash: $REMOTE_HASH"
+          
+          if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "✅ No changes detected, skipping deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "hash=$LOCAL_HASH" >> $GITHUB_OUTPUT
+            echo "📦 Changes detected, will deploy"
+          fi
+
+      - name: Push to HuggingFace Space
+        if: steps.check.outputs.skip != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
+          DEPLOY_HASH: ${{ steps.check.outputs.hash }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-space || {
+            mkdir -p hf-space
+            cd hf-space
+            git init
+            git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
+            cd ..
+          }
+          
+          rm -rf hf-space/* 2>/dev/null || true
+          cp -r cf-bypass-service/* hf-space/
+          
+          # 写入部署 hash 用于下次比较
+          echo "$DEPLOY_HASH" > hf-space/.deploy-hash
+          
+          cd hf-space
+          git add -A
+          git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
+          git push -u origin main || git push -u origin master
+          
+          echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
+
+  # =============================================================================
+  # 部署 nexus-lite 到 HuggingFace Spaces
+  # =============================================================================
+  deploy-nexus-lite:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, get-hf-username]
+    if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Create Space if not exists
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
+        run: |
+          python << 'EOF'
+          import os
+          from huggingface_hub import HfApi, create_repo, repo_exists
+          
+          token = os.environ["HF_TOKEN"]
+          space_id = os.environ["HF_SPACE"]
+          
+          if not repo_exists(space_id, repo_type="space", token=token):
+              print(f"🔨 Creating HuggingFace Space: {space_id}")
+              create_repo(
+                  repo_id=space_id,
+                  repo_type="space",
+                  space_sdk="docker",
+                  private=False,
+                  token=token
+              )
+              print(f"✅ Space created")
+          else:
+              print(f"✅ Space already exists: {space_id}")
+          EOF
+
+      - name: Check if deployment needed
+        id: check
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
+        run: |
+          # 计算本地文件的 hash (排除 target 目录)
+          LOCAL_HASH=$(find nexus-lite -type f \( -name "*.rs" -o -name "*.toml" -o -name "*.json" -o -name "*.nxs" -o -name "Dockerfile" \) ! -path "*/target/*" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+          echo "Local hash: $LOCAL_HASH"
+          
+          REMOTE_HASH=$(curl -s -H "Authorization: Bearer ${HF_TOKEN}" \
+            "https://huggingface.co/spaces/${HF_SPACE}/raw/main/.deploy-hash" 2>/dev/null || echo "")
+          echo "Remote hash: $REMOTE_HASH"
+          
+          if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "✅ No changes detected, skipping deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "hash=$LOCAL_HASH" >> $GITHUB_OUTPUT
+            echo "📦 Changes detected, will deploy"
+          fi
+
+      - name: Push to HuggingFace Space
+        if: steps.check.outputs.skip != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
+          CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}
+          DEPLOY_HASH: ${{ steps.check.outputs.hash }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-nexus || {
+            mkdir -p hf-nexus
+            cd hf-nexus
+            git init
+            git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
+            cd ..
+          }
+          
+          rm -rf hf-nexus/* 2>/dev/null || true
+          
+          # 复制 nexus-lite 源码 (排除 target 和 cache)
+          cp nexus-lite/Dockerfile hf-nexus/
+          cp nexus-lite/Cargo.toml nexus-lite/Cargo.lock hf-nexus/
+          cp -r nexus-lite/nexus-core hf-nexus/
+          cp -r nexus-lite/nexus-engine hf-nexus/
+          cp -r nexus-lite/nexus-storage hf-nexus/
+          cp -r nexus-lite/nexus-server hf-nexus/
+          cp -r nexus-lite/sources hf-nexus/
+          
+          # 创建配置文件
+          cat > hf-nexus/config.json << EOFCONFIG
+          {
+            "server": {
+              "host": "0.0.0.0",
+              "port": 7860,
+              "enableCors": true,
+              "allowedOrigins": []
+            },
+            "storage": {
+              "sourcesDir": "./sources"
+            },
+            "cfBypass": {
+              "serviceUrl": "${CF_BYPASS_URL}",
+              "enabled": true,
+              "timeoutSeconds": 60
+            }
+          }
+          EOFCONFIG
+          
+          # 写入部署 hash
+          echo "$DEPLOY_HASH" > hf-nexus/.deploy-hash
+          
+          cd hf-nexus
+          git add -A
+          git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
+          git push -u origin main || git push -u origin master
+          
+          echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
+
+  # =============================================================================
   # 部署 CF Workers
   # =============================================================================
   deploy-worker:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-subdomain]
+    needs: [detect-changes, get-subdomain, get-hf-username]
     if: needs.detect-changes.outputs.worker == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - name: Checkout
@@ -151,12 +429,24 @@ jobs:
             --var WORKER_URL:${AUTH_WORKER_URL}
           echo "✅ Auth Worker deployed"
 
+      - name: Deploy Proxy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler deploy --env proxy \
+            --var NEXUS_LITE_URL:${{ needs.get-hf-username.outputs.nexus_lite_url }} \
+            --var CF_BYPASS_URL:${{ needs.get-hf-username.outputs.cf_bypass_url }}
+          echo "✅ Proxy Worker deployed"
+          echo "   NEXUS_LITE_URL: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
+          echo "   CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
+
   # =============================================================================
   # 部署前端到 CF Pages
   # =============================================================================
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-subdomain]
+    needs: [detect-changes, get-subdomain, get-hf-username]
     if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - name: Checkout
@@ -178,6 +468,7 @@ jobs:
       - name: Install & Build
         working-directory: nexus-reader
         env:
+          VITE_API_URL: https://nexus-proxy.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
           VITE_PROGRESS_SYNC_URL: https://nexus-progress-sync.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
           VITE_AUTH_WORKER_URL: https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
         run: |
@@ -207,101 +498,26 @@ jobs:
           echo "✅ Old deployments cleaned up"
 
   # =============================================================================
-  # 部署 cf-bypass-service 到 HuggingFace Spaces
-  # =============================================================================
-  deploy-huggingface:
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: true
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install huggingface_hub
-        run: pip install huggingface_hub
-
-      - name: Create Space if not exists
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ secrets.HF_SPACE }}  # 格式: username/space-name
-        run: |
-          python << 'EOF'
-          import os
-          from huggingface_hub import HfApi, create_repo, repo_exists
-          
-          token = os.environ["HF_TOKEN"]
-          space_id = os.environ["HF_SPACE"]
-          
-          api = HfApi(token=token)
-          
-          # 检查 Space 是否存在
-          if not repo_exists(space_id, repo_type="space", token=token):
-              print(f"🔨 Creating HuggingFace Space: {space_id}")
-              create_repo(
-                  repo_id=space_id,
-                  repo_type="space",
-                  space_sdk="docker",
-                  private=False,
-                  token=token
-              )
-              print(f"✅ Space created: https://huggingface.co/spaces/{space_id}")
-          else:
-              print(f"✅ Space already exists: {space_id}")
-          EOF
-
-      - name: Push to HuggingFace Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ secrets.HF_SPACE }}
-        run: |
-          # 配置 git
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          
-          # 克隆 HuggingFace Space 仓库
-          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-space || {
-            # 如果克隆失败（新建的空仓库），初始化一个
-            mkdir -p hf-space
-            cd hf-space
-            git init
-            git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
-            cd ..
-          }
-          
-          # 复制 cf-bypass-service 文件到 HuggingFace Space
-          rm -rf hf-space/* 2>/dev/null || true
-          cp -r cf-bypass-service/* hf-space/
-          
-          # 提交并推送
-          cd hf-space
-          git add -A
-          git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push -u origin main || git push -u origin master
-          
-          echo "✅ Deployed to HuggingFace Space: https://huggingface.co/spaces/${HF_SPACE}"
-
-  # =============================================================================
   # 部署摘要
   # =============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [detect-changes, deploy-worker, deploy-frontend, deploy-huggingface]
+    needs: [detect-changes, get-hf-username, deploy-cf-bypass, deploy-nexus-lite, deploy-worker, deploy-frontend]
     if: always()
     steps:
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| CF Workers | ${{ needs.deploy-worker.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CF Pages (Frontend) | ${{ needs.deploy-frontend.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| HuggingFace (cf-bypass) | ${{ needs.deploy-huggingface.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "CF Pages (Frontend) → CF Worker (Proxy) → HuggingFace (nexus-lite) → HuggingFace (cf-bypass)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| CF Pages (Frontend) | ${{ needs.deploy-frontend.result || 'skipped' }} | https://nexus-reader.pages.dev |" >> $GITHUB_STEP_SUMMARY
+          echo "| CF Workers | ${{ needs.deploy-worker.result || 'skipped' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| HF cf-bypass | ${{ needs.deploy-cf-bypass.result || 'skipped' }} | ${{ needs.get-hf-username.outputs.cf_bypass_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| HF nexus-lite | ${{ needs.deploy-nexus-lite.result || 'skipped' }} | ${{ needs.get-hf-username.outputs.nexus_lite_url }} |" >> $GITHUB_STEP_SUMMARY
