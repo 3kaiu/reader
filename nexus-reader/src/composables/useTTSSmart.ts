@@ -79,7 +79,7 @@ export function detectSentiment(text: string): SentimentType {
   // 感叹句
   if (trimmed.endsWith('！') || trimmed.endsWith('!')) {
     // 愤怒关键词
-    if (/[混你妈该去死滚蛋]/.test(trimmed)) {
+    if (/[混你妈该去滚蛋]|死/.test(trimmed)) {
       return 'angry'
     }
     // 兴奋关键词

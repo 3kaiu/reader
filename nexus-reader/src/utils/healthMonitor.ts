@@ -7,8 +7,6 @@ import { logger } from './logger'
 import { storageHealth } from './storageHealth'
 import { performanceSystem } from './performanceIntegration'
 import { globalMemoryManager } from './memoryManager'
-import { networkDetector } from './networkOptimizer'
-import { offlineManager } from './offlineManager'
 
 // 健康检查结果
 export interface HealthCheckResult {

@@ -4,6 +4,7 @@
  */
 
 import { networkDetector } from './networkOptimizer'
+// performanceMonitor is accessed via window.performanceMonitor for optional integration
 
 // 加载状态类型
 export type LoadingState = 'idle' | 'loading' | 'loaded' | 'error' | 'timeout'
