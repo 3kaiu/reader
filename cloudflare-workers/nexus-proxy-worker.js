@@ -221,9 +221,9 @@ async function handleHealth(env) {
     services: {}
   };
   
-  // 检查 nexus-lite
+  // 检查 nexus-lite (后端健康检查端点是 /api/health)
   try {
-    const nexusResp = await fetch(`${nexusUrl}/health`, { 
+    const nexusResp = await fetch(`${nexusUrl}/api/health`, { 
       method: 'GET',
       signal: AbortSignal.timeout(10000)
     });
@@ -273,9 +273,9 @@ async function keepAlive(env) {
   
   const results = [];
   
-  // Ping nexus-lite
+  // Ping nexus-lite (后端健康检查端点是 /api/health)
   try {
-    await fetch(`${nexusUrl}/health`, { 
+    await fetch(`${nexusUrl}/api/health`, { 
       method: 'GET',
       signal: AbortSignal.timeout(60000) // 60秒超时，等待冷启动
     });
