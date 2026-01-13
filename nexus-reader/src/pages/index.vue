@@ -123,6 +123,12 @@ const groups = ref<BookGroup[]>([]);
 const currentGroupId = ref<string | number>("all");
 const groupLoading = ref(false);
 
+// 过滤掉空分组（没有书籍的分组）
+const nonEmptyGroups = computed(() => {
+  const bookGroupIds = new Set(books.value.map(b => b.groupId).filter(Boolean));
+  return groups.value.filter(g => bookGroupIds.has(String(g.groupId)));
+});
+
 // 快速创建分组
 const showCreateGroupDialog = ref(false);
 const newGroupName = ref("");
@@ -547,7 +553,7 @@ onMounted(() => {
 
     <main class="px-4 sm:px-6 max-w-7xl mx-auto pt-[62px] pb-12">
       <!-- 分组导航栏 -->
-      <section class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1">
+      <section v-if="nonEmptyGroups.length > 0" class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1">
         <button
           class="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
           :class="currentGroupId === 'all' 
@@ -558,7 +564,7 @@ onMounted(() => {
           全部
         </button>
         <button
-          v-for="group in groups"
+          v-for="group in nonEmptyGroups"
           :key="group.groupId"
           class="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
           :class="currentGroupId === group.groupId 
