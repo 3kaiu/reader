@@ -438,7 +438,7 @@ class CloudScraperWrapper:
             try:
                 self.cache_manager.redis.close()
             except Exception:
-                pass
+                pass  # Ignore errors during shutdown cleanup
         
         logger.info("CloudScraper wrapper shutdown complete")
 
