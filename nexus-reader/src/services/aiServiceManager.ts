@@ -316,11 +316,10 @@ export class AIServiceManager {
         }
 
         // 1. 检查模型缓存
-        let cachedModelData = await this.loadModelFromCache(targetModelId)
+        const cachedModelData = await this.loadModelFromCache(targetModelId)
         if (!cachedModelData) {
           // 2. 下载并缓存模型
           await this.downloadAndCacheModel(targetModelId)
-          cachedModelData = await this.loadModelFromCache(targetModelId)
         }
 
         // 3. 动态加载WebLLM库
