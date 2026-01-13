@@ -75,7 +75,7 @@ function formatErrorMessage(error: Error | string | unknown): string {
     errorMessage = error.message || error.name || "未知错误";
   }
   // 处理对象类型的错误（包含 message 属性）
-  else if (typeof error === "object" && error !== null) {
+  else if (typeof error === "object") {
     const err = error as Record<string, unknown>;
     errorMessage = String(
       err.message || err.error || err.errorMsg || "未知错误"
