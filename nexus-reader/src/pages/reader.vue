@@ -18,6 +18,7 @@ import { useTTSReader } from '@/composables/useTTSReader'
 import { useEyeCare } from '@/composables/useEyeCare'
 import { useAIInsightsStore } from '@/stores/aiInsights'
 import { useAIService } from '@/stores/ai'
+import { useDecoderStore } from '@/stores/decoder'
 import { useEngagementTracker } from '@/composables/useEngagementTracker'
 import { useEventManager } from '@/utils/eventManager'
 
@@ -32,6 +33,9 @@ import { KEYBOARD_SHORTCUTS, MOOD_COLORS } from '@/constants/reader'
 import ParagraphSelectionMenu from '@/components/ParagraphSelectionMenu.vue'
 import BreakReminder from '@/components/BreakReminder.vue'
 import SmartRecap from '@/components/reader/SmartRecap.vue'
+import DecoderStatusIndicator from '@/components/decoder/DecoderStatusIndicator.vue'
+import DecoderSettingsSheet from '@/components/decoder/DecoderSettingsSheet.vue'
+import DecoderCard from '@/components/decoder/DecoderCard.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,6 +45,7 @@ const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
 const insightsStore = useAIInsightsStore()
 const aiStore = useAIService()
+const decoderStore = useDecoderStore()
 const tts = useTTS()
 const eyeCare = useEyeCare()
 
@@ -59,6 +64,7 @@ const showInsightsPanel = ref(false)
 const showKeyboardHelp = ref(false)
 const showVoiceSettings = ref(false)
 const showSmartRecap = ref(false)
+const showDecoderSettings = ref(false)
 const recapChapters = ref<Array<{ title: string, content: string }>>([])
 const hideToolbarTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
@@ -149,6 +155,130 @@ async function handleRefresh() {
 
 function goBack() { router.push('/') }
 
+// ====== 解密功能 ======
+async function handleToggleDecoder(enabled: boolean) {
+  const bookUrl = route.query.url as string
+  if (!bookUrl) return
+  
+  decoderStore.updateBookSettings(bookUrl, { enabled })
+  
+  if (enabled) {
+    // 启用时立即解码当前章节
+    await decodeCurrentChapter()
+  }
+}
+
+async function decodeCurrentChapter() {
+  const bookUrl = route.query.url as string
+  const sourceId = route.query.source as string
+  if (!bookUrl || !readerStore.content) return
+  
+  const { useDecoder } = await import('@/composables/useDecoder')
+  const decoder = useDecoder()
+  
+  decoderStore.setDecoding(true)
+  
+  try {
+    const result = await decoder.decodeChapter(
+      bookUrl,
+      readerStore.currentChapter?.url || '',
+      readerStore.content,
+      {
+        type: decoderStore.currentSettings.bookType || 'urban',
+        tags: readerStore.currentBook?.tags,
+      }
+    )
+    
+    if (result) {
+      decoderStore.setDecodeResult(result.entities, result.context)
+    } else {
+      decoderStore.setDecodeError(decoder.error.value || '解码失败')
+    }
+  } catch (e) {
+    decoderStore.setDecodeError(e instanceof Error ? e.message : '解码失败')
+  }
+}
+
+// 监听章节变化，自动解码
+watch(() => readerStore.currentChapterIndex, async () => {
+  if (decoderStore.isEnabled) {
+    await decodeCurrentChapter()
+  }
+})
+
+// 处理实体点击
+function handleEntityClick(entity: any, event: MouseEvent) {
+  // 计算卡片位置
+  const rect = (event.target as HTMLElement).getBoundingClientRect()
+  const position = {
+    x: rect.left + rect.width / 2,
+    y: rect.bottom + 8,
+  }
+  
+  // 确保卡片不超出屏幕
+  const cardWidth = 288
+  const screenWidth = window.innerWidth
+  const screenHeight = window.innerHeight
+  
+  if (position.x - cardWidth / 2 < 16) {
+    position.x = cardWidth / 2 + 16
+  } else if (position.x + cardWidth / 2 > screenWidth - 16) {
+    position.x = screenWidth - cardWidth / 2 - 16
+  }
+  
+  if (position.y + 300 > screenHeight) {
+    position.y = rect.top - 8
+  }
+  
+  decoderStore.selectEntity(entity, position)
+}
+
+// 处理实体确认
+async function handleConfirmEntity(entity: any) {
+  const { useDecoder } = await import('@/composables/useDecoder')
+  const decoder = useDecoder()
+  const bookUrl = route.query.url as string
+  
+  const success = await decoder.confirmEntity(
+    entity,
+    bookUrl,
+    decoderStore.currentSettings.bookType || undefined
+  )
+  
+  if (success) {
+    decoderStore.closeCard()
+    toast({ title: '已确认', duration: 2000 })
+  }
+}
+
+// 处理实体纠正
+async function handleCorrectEntity(entity: any, newReal: string) {
+  const { useDecoder } = await import('@/composables/useDecoder')
+  const decoder = useDecoder()
+  const bookUrl = route.query.url as string
+  
+  const success = await decoder.correctEntity(
+    entity,
+    newReal,
+    bookUrl,
+    decoderStore.currentSettings.bookType || undefined
+  )
+  
+  if (success) {
+    decoderStore.closeCard()
+    toast({ title: '已纠正', duration: 2000 })
+    // 重新解码
+    await decodeCurrentChapter()
+  }
+}
+
+// 处理实体关联
+async function handleLinkEntity(entity: any, targetAlias: any) {
+  decoderStore.addAliasChain(entity.original, targetAlias.realName, targetAlias.entityId)
+  decoderStore.closeCard()
+  toast({ title: '已关联', duration: 2000 })
+}
+
 // ====== 自动控制 ======
 function startHideTimer() {
   clearHideTimer()
@@ -227,6 +357,10 @@ async function initReader() {
   const { url: bookUrl, source: sourceId } = route.query
   if (!bookUrl || !sourceId) { toast({ title: '缺少书籍信息', variant: 'destructive' }); router.push('/'); return }
   settingsStore.applyAutoNightMode()
+  
+  // 初始化解密 store
+  decoderStore.setCurrentBook(bookUrl as string)
+  
   try {
     const res = await bookApi.getBookInfo(sourceId as string, bookUrl as string)
     if (res.isSuccess) {
@@ -327,6 +461,9 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :is-tts-speaking="ttsIsSpeaking"
           :is-tts-paused="ttsIsPaused"
           :is-eye-care-enabled="eyeCare.config.value.enabled"
+          :book-url="route.query.url as string"
+          :is-decoder-enabled="decoderStore.isEnabled"
+          :is-decoding="decoderStore.isDecoding"
           @back="goBack"
           @toggle-catalog="showCatalog = true"
           @toggle-fullscreen="toggleFullscreen"
@@ -341,6 +478,8 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           @prev-chapter="handlePrevChapter"
           @next-chapter="handleNextChapter"
           @open-source-picker="showSourcePicker = true"
+          @toggle-decoder="handleToggleDecoder"
+          @open-decoder-settings="showDecoderSettings = true"
         />
 
         <ReaderContent
@@ -359,8 +498,11 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :is-parsing="readerStore.isParsing"
           :has-next-chapter="readerStore.hasNextChapter"
           :load-error="readerStore.loadError"
+          :decoder-enabled="decoderStore.isEnabled"
+          :decoder-entities="decoderStore.currentEntities"
           @load-next-chapter="readerStore.appendNextChapter"
           @retry-load="readerStore.retryLoadNext"
+          @entity-click="handleEntityClick"
         />
 
         <ReaderTTS
@@ -421,6 +563,37 @@ const formattedTime = useDateFormat(useNow(), 'HH:mm')
           :last-chapters="recapChapters"
           @close="showSmartRecap = false"
         />
+        
+        <!-- 解密状态指示器 -->
+        <DecoderStatusIndicator
+          v-if="decoderStore.isEnabled"
+          :is-decoding="decoderStore.isDecoding"
+          :error="decoderStore.decodeError"
+          :entities-count="decoderStore.validEntitiesCount"
+          :has-decoded="decoderStore.currentEntities.length > 0 || decoderStore.decodeError !== null"
+          @retry="decodeCurrentChapter"
+        />
+        
+        <!-- 解密设置面板 -->
+        <DecoderSettingsSheet
+          v-model:open="showDecoderSettings"
+          :book-url="route.query.url as string"
+        />
+        
+        <!-- 解密卡片 -->
+        <Teleport to="body">
+          <DecoderCard
+            v-if="decoderStore.selectedEntity"
+            :entity="decoderStore.selectedEntity"
+            :position="decoderStore.cardPosition"
+            :visible="decoderStore.showCard"
+            :known-aliases="decoderStore.knownAliases"
+            @close="decoderStore.closeCard"
+            @confirm="handleConfirmEntity"
+            @correct="handleCorrectEntity"
+            @link-entity="handleLinkEntity"
+          />
+        </Teleport>
       </template>
     </ReaderGesture>
   </div>

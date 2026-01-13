@@ -2,7 +2,7 @@
   {
     "id": "person-001",
     "realName": "邓小平",
-    "aliases": ["大领导", "小平同志", "总设计师", "老人家"],
+    "aliases": ["大领导", "小平同志", "总设计师", "老人家", "矮个子领导"],
     "features": {
       "dialect": "四川话",
       "habits": ["抽烟", "打桥牌"],
@@ -23,51 +23,174 @@
         "endDate": "1987-11"
       }
     ],
-    "relations": [
-      {
-        "type": "colleague",
-        "targetId": "person-002",
-        "description": "与廖承志共事"
-      }
-    ]
+    "relations": []
   },
   {
     "id": "person-002",
-    "realName": "廖承志",
-    "aliases": ["廖公", "廖主任"],
+    "realName": "马云",
+    "aliases": ["马芸", "杰克马", "风清扬", "大马", "马老师", "外星人"],
     "features": {
-      "habits": ["抽烟", "吃肥肉"],
-      "appearance": []
+      "appearance": ["长相独特", "个子不高"],
+      "quotes": ["我对钱没有兴趣", "996是福报"]
     },
     "timeline": [
       {
-        "position": "主任",
-        "organization": "国务院侨务办公室",
-        "startDate": "1978-01",
-        "endDate": "1983-06"
-      },
-      {
-        "position": "副委员长",
-        "organization": "全国人大常委会",
-        "startDate": "1983-06",
-        "endDate": "1983-06"
+        "position": "创始人、董事长",
+        "organization": "阿里巴巴",
+        "startDate": "1999-04",
+        "endDate": "2019-09"
       }
     ],
     "relations": []
   },
   {
     "id": "person-003",
-    "realName": "黄镇",
-    "aliases": ["领导", "黄部长"],
-    "features": {},
+    "realName": "马化腾",
+    "aliases": ["小马哥", "马总", "Pony", "企鹅之父"],
+    "features": {
+      "appearance": ["戴眼镜"],
+      "habits": ["低调"]
+    },
     "timeline": [
       {
-        "position": "部长",
-        "organization": "文化部",
-        "startDate": "1977-12",
-        "endDate": "1982-05"
+        "position": "创始人、CEO",
+        "organization": "腾讯",
+        "startDate": "1998-11",
+        "endDate": null
       }
     ],
     "relations": []
+  },
+  {
+    "id": "person-004",
+    "realName": "刘强东",
+    "aliases": ["强东", "东哥", "大强子", "京东老板"],
+    "features": {
+      "appearance": ["身材高大"],
+      "habits": []
+    },
+    "timeline": [
+      {
+        "position": "创始人、CEO",
+        "organization": "京东",
+        "startDate": "1998-06",
+        "endDate": null
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-005",
+    "realName": "丁磊",
+    "aliases": ["丁三石", "猪厂老板", "养猪的"],
+    "features": {
+      "habits": ["养猪", "玩游戏"]
+    },
+    "timeline": [
+      {
+        "position": "创始人、CEO",
+        "organization": "网易",
+        "startDate": "1997-06",
+        "endDate": null
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-006",
+    "realName": "张一鸣",
+    "aliases": ["一鸣", "字节老板", "头条老板"],
+    "features": {
+      "habits": ["延迟满足"]
+    },
+    "timeline": [
+      {
+        "position": "创始人、CEO",
+        "organization": "字节跳动",
+        "startDate": "2012-03",
+        "endDate": "2021-05"
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-007",
+    "realName": "雷军",
+    "aliases": ["雷布斯", "雷总", "Are you OK"],
+    "features": {
+      "quotes": ["Are you OK", "站在风口上，猪都能飞起来"]
+    },
+    "timeline": [
+      {
+        "position": "创始人、CEO",
+        "organization": "小米",
+        "startDate": "2010-04",
+        "endDate": null
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-008",
+    "realName": "任正非",
+    "aliases": ["任总", "老任", "华为老板"],
+    "features": {
+      "habits": ["低调", "军人作风"]
+    },
+    "timeline": [
+      {
+        "position": "创始人、CEO",
+        "organization": "华为",
+        "startDate": "1987-09",
+        "endDate": null
+      }
+    ],
+    "relations": []
+  },
+  {
+    "id": "person-009",
+    "realName": "王健林",
+    "aliases": ["王首富", "老王", "万达老板", "国民公公"],
+    "features": {
+      "quotes": ["先定一个小目标，比如挣它一个亿"]
+    },
+    "timeline": [
+      {
+        "position": "创始人、董事长",
+        "organization": "万达集团",
+        "startDate": "1988-01",
+        "endDate": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "family",
+        "targetId": "person-010",
+        "description": "父子关系"
+      }
+    ]
+  },
+  {
+    "id": "person-010",
+    "realName": "王思聪",
+    "aliases": ["王校长", "国民老公", "小王"],
+    "features": {
+      "habits": ["玩游戏", "养狗"]
+    },
+    "timeline": [
+      {
+        "position": "董事长",
+        "organization": "普思资本",
+        "startDate": "2011-01",
+        "endDate": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "family",
+        "targetId": "person-009",
+        "description": "父子关系"
+      }
+    ]
   }
 ]

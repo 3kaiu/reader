@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * 解密卡片组件
+ * 解密卡片组件 (增强版)
  * 显示加密词的真实指代、置信度、推理依据
+ * 支持确认、纠正、实体关联功能
  */
 import { ref, computed } from 'vue'
 import {
   X,
   Check,
   Edit3,
+  Link2,
   ChevronDown,
   ChevronUp,
   User,
@@ -15,8 +17,16 @@ import {
   MapPin,
   Calendar,
   Users,
+  Search,
 } from 'lucide-vue-next'
-import type { DecodedEntity, Candidate, EntityCategory } from '@/types/decoder'
+import type { DecodedEntity, EntityCategory } from '@/types/decoder'
+
+/** 已知别名 */
+interface KnownAlias {
+  alias: string
+  realName?: string
+  entityId?: string
+}
 
 interface Props {
   /** 解码后的实体 */
@@ -25,21 +35,28 @@ interface Props {
   position?: { x: number; y: number }
   /** 是否显示 */
   visible?: boolean
+  /** 跨书已知别名 */
+  knownAliases?: KnownAlias[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: true,
+  knownAliases: () => [],
 })
 
 const emit = defineEmits<{
   close: []
   confirm: [entity: DecodedEntity]
   correct: [entity: DecodedEntity, newReal: string]
+  linkEntity: [entity: DecodedEntity, targetAlias: KnownAlias]
 }>()
 
+// 状态
 const showAllCandidates = ref(false)
 const isEditing = ref(false)
+const isLinking = ref(false)
 const editValue = ref('')
+const linkSearchQuery = ref('')
 
 /** 获取类别图标 */
 function getCategoryIcon(category: EntityCategory) {
@@ -107,10 +124,33 @@ const displayCandidates = computed(() => {
 /** 是否有更多候选 */
 const hasMoreCandidates = computed(() => props.entity.candidates.length > 1)
 
+/** 过滤后的已知别名 (用于关联搜索) */
+const filteredAliases = computed(() => {
+  if (!linkSearchQuery.value) return props.knownAliases
+  const query = linkSearchQuery.value.toLowerCase()
+  return props.knownAliases.filter(
+    (a) =>
+      a.alias.toLowerCase().includes(query) ||
+      a.realName?.toLowerCase().includes(query)
+  )
+})
+
+/** 当前实体的已知别名 (显示在卡片中) */
+const entityAliases = computed(() => {
+  const bestMatch = props.entity.bestMatch
+  if (!bestMatch) return []
+  
+  // 查找与当前实体相关的别名
+  return props.knownAliases.filter(
+    (a) => a.realName === bestMatch.real || a.entityId === props.entity.id
+  )
+})
+
 /** 开始编辑 */
 function startEdit() {
   editValue.value = props.entity.bestMatch?.real || ''
   isEditing.value = true
+  isLinking.value = false
 }
 
 /** 提交编辑 */
@@ -125,6 +165,25 @@ function submitEdit() {
 function cancelEdit() {
   isEditing.value = false
   editValue.value = ''
+}
+
+/** 开始关联 */
+function startLink() {
+  isLinking.value = true
+  isEditing.value = false
+  linkSearchQuery.value = ''
+}
+
+/** 选择关联实体 */
+function selectLinkTarget(alias: KnownAlias) {
+  emit('linkEntity', props.entity, alias)
+  isLinking.value = false
+}
+
+/** 取消关联 */
+function cancelLink() {
+  isLinking.value = false
+  linkSearchQuery.value = ''
 }
 
 /** 确认当前结果 */
@@ -231,6 +290,20 @@ const cardStyle = computed(() => {
         </template>
       </button>
 
+      <!-- 跨书别名显示 -->
+      <div v-if="entityAliases.length > 0" class="mt-3 pt-3 border-t border-border">
+        <div class="text-xs text-muted-foreground mb-2">其他书中的别名:</div>
+        <div class="flex flex-wrap gap-1">
+          <span
+            v-for="alias in entityAliases"
+            :key="alias.alias"
+            class="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full"
+          >
+            {{ alias.alias }}
+          </span>
+        </div>
+      </div>
+
       <!-- 编辑模式 -->
       <div v-if="isEditing" class="mt-3 pt-3 border-t border-border">
         <div class="text-xs text-muted-foreground mb-2">输入正确的指代:</div>
@@ -250,6 +323,53 @@ const cardStyle = computed(() => {
             确定
           </button>
         </div>
+        <button
+          class="mt-2 text-xs text-muted-foreground hover:text-foreground"
+          @click="cancelEdit"
+        >
+          取消
+        </button>
+      </div>
+
+      <!-- 关联模式 -->
+      <div v-else-if="isLinking" class="mt-3 pt-3 border-t border-border">
+        <div class="text-xs text-muted-foreground mb-2">选择要关联的实体:</div>
+        
+        <!-- 搜索框 -->
+        <div class="relative mb-2">
+          <Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+          <input
+            v-model="linkSearchQuery"
+            type="text"
+            class="w-full pl-7 pr-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="搜索已知实体..."
+          />
+        </div>
+        
+        <!-- 实体列表 -->
+        <div class="max-h-32 overflow-y-auto space-y-1">
+          <button
+            v-for="alias in filteredAliases"
+            :key="alias.alias"
+            class="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors"
+            @click="selectLinkTarget(alias)"
+          >
+            <span class="font-medium">{{ alias.realName || alias.alias }}</span>
+            <span v-if="alias.realName" class="text-xs text-muted-foreground ml-1">
+              ({{ alias.alias }})
+            </span>
+          </button>
+          <div v-if="filteredAliases.length === 0" class="text-xs text-muted-foreground text-center py-2">
+            暂无已知实体
+          </div>
+        </div>
+        
+        <button
+          class="mt-2 text-xs text-muted-foreground hover:text-foreground"
+          @click="cancelLink"
+        >
+          取消
+        </button>
       </div>
 
       <!-- 操作按钮 -->
@@ -267,6 +387,14 @@ const cardStyle = computed(() => {
         >
           <Edit3 class="w-4 h-4" />
           纠错
+        </button>
+        <button
+          v-if="knownAliases.length > 0"
+          class="flex-1 py-1.5 text-sm bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 rounded flex items-center justify-center gap-1 transition-colors"
+          @click="startLink"
+        >
+          <Link2 class="w-4 h-4" />
+          关联
         </button>
       </div>
     </div>

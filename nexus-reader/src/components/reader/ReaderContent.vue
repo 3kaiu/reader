@@ -25,6 +25,14 @@ interface SwipeLayout {
 
 type ContentStyle = Record<string, string | number>
 
+// 解密实体类型
+interface DecodedEntity {
+  id: string
+  original: string
+  position: { start: number; end: number }
+  bestMatch: { real: string; confidence: number; category: string } | null
+}
+
 interface Props {
   readingMode: 'scroll' | 'swipe'
   contentStyle: ContentStyle
@@ -48,6 +56,9 @@ interface Props {
   paragraphSpacing: number
   // 新增：加载失败状态
   loadError?: string | null
+  // 解密相关
+  decoderEnabled?: boolean
+  decoderEntities?: DecodedEntity[]
 }
 
 const props = defineProps<Props>()
@@ -56,6 +67,7 @@ const emit = defineEmits<{
   click: []
   loadNextChapter: []
   retryLoad: [] // 新增：重试加载事件
+  entityClick: [entity: DecodedEntity, event: MouseEvent] // 解密实体点击
 }>()
 
 const settingsStore = useSettingsStore()
@@ -64,6 +76,63 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 // 初始化渲染 Worker
 const { renderedPages, requestRender } = useRenderWorker()
+
+/** 处理解密高亮的内容 */
+function applyDecoderHighlight(html: string, entities: DecodedEntity[]): string {
+  if (!entities || entities.length === 0) return html
+  
+  // 提取纯文本用于位置匹配
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+  const plainText = tempDiv.textContent || ''
+  
+  // 过滤有效实体并按位置排序
+  const validEntities = entities
+    .filter((e) => e.bestMatch !== null)
+    .sort((a, b) => b.position.start - a.position.start) // 从后往前替换
+  
+  // 在 HTML 中查找并替换
+  let result = html
+  for (const entity of validEntities) {
+    const original = entity.original
+    const confidence = entity.bestMatch!.confidence
+    const colorClass = confidence >= 80 ? 'decoder-high' : confidence >= 50 ? 'decoder-medium' : 'decoder-low'
+    
+    // 使用正则替换，避免替换 HTML 标签内的内容
+    const regex = new RegExp(`(?<![<\\w])${escapeRegex(original)}(?![\\w>])`, 'g')
+    result = result.replace(regex, (match) => {
+      return `<span class="decoder-entity ${colorClass}" data-entity-id="${entity.id}" title="${entity.bestMatch!.real} (${confidence}%)">${match}</span>`
+    })
+  }
+  
+  return result
+}
+
+/** 转义正则特殊字符 */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 处理实体点击 (通过事件委托) */
+function handleContentClick(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('decoder-entity')) {
+    const entityId = target.dataset.entityId
+    if (entityId && props.decoderEntities) {
+      const entity = props.decoderEntities.find(e => e.id === entityId)
+      if (entity) {
+        emit('entityClick', entity, event)
+      }
+    }
+  }
+}
+
+/** 获取带高亮的章节内容 */
+function getHighlightedContent(content: string | undefined): string {
+  if (!content) return ''
+  if (!props.decoderEnabled || !props.decoderEntities?.length) return content
+  return applyDecoderHighlight(content, props.decoderEntities)
+}
 
 // 监听内容变化并请求背景渲染
 watch(() => props.formattedContent, (newContent) => {
@@ -130,8 +199,8 @@ defineExpose({
         <ChapterSummary :chapter="chapter" />
         
         <!-- 章节内容 -->
-        <article class="reader-text">
-          <div v-if="chapter.formattedContent" v-html="chapter.formattedContent" />
+        <article class="reader-text" @click="handleContentClick">
+          <div v-if="chapter.formattedContent" v-html="getHighlightedContent(chapter.formattedContent)" />
           <div v-else class="py-10 text-center opacity-40">
             <Loader2 class="w-6 h-6 animate-spin mx-auto mb-2" />
             <p class="text-xs">正在解析内容...</p>
@@ -254,12 +323,12 @@ defineExpose({
         </div>
 
         <!-- 章节内容 -->
-        <article class="reader-text text-justify">
+        <article class="reader-text text-justify" @click="handleContentClick">
           <div v-if="isParsing" class="h-60 flex flex-col items-center justify-center opacity-40">
             <Loader2 class="w-8 h-8 animate-spin mb-4" />
             <p class="text-sm">内容解析中...</p>
           </div>
-          <div v-else v-html="formattedContent" />
+          <div v-else v-html="getHighlightedContent(formattedContent)" />
         </article>
         
         <!-- 本章结束提示 -->
@@ -325,5 +394,42 @@ defineExpose({
 
 .break-inside-avoid {
   break-inside: avoid;
+}
+
+/* 解密高亮样式 */
+.reader-text :deep(.decoder-entity) {
+  cursor: pointer;
+  border-bottom: 2px dotted currentColor;
+  padding-bottom: 1px;
+  transition: all 0.2s ease;
+}
+
+.reader-text :deep(.decoder-entity:hover) {
+  background-color: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+  border-bottom-style: solid;
+}
+
+.reader-text :deep(.decoder-high) {
+  border-color: rgb(34, 197, 94);
+}
+
+.reader-text :deep(.decoder-high:hover) {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.reader-text :deep(.decoder-medium) {
+  border-color: rgb(234, 179, 8);
+}
+
+.reader-text :deep(.decoder-medium:hover) {
+  background-color: rgba(234, 179, 8, 0.1);
+}
+
+.reader-text :deep(.decoder-low) {
+  border-color: rgb(239, 68, 68);
+}
+
+.reader-text :deep(.decoder-low:hover) {
+  background-color: rgba(239, 68, 68, 0.1);
 }
 </style>

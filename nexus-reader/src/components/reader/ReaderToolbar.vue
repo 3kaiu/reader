@@ -6,7 +6,7 @@
 import { 
   ArrowLeft, List, Moon, Sun, RotateCcw,
   ArrowLeftRight, Type, Eye, Sparkles, Users, X,
-  Pause, Play, Volume2, Settings, Trash2
+  Pause, Play, Volume2, Settings, Trash2, Loader2
 } from 'lucide-vue-next'
 import { storageHealth } from '@/utils/storageHealth'
 import ReaderNavigation from './ReaderNavigation.vue'
@@ -27,6 +27,10 @@ interface Props {
   isTTSPaused: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
+  // 解密相关
+  bookUrl?: string
+  isDecoderEnabled?: boolean
+  isDecoding?: boolean
 }
 
 const props = defineProps<Props>()
@@ -46,6 +50,9 @@ const emit = defineEmits<{
   prevChapter: []
   nextChapter: []
   openSourcePicker: []
+  // 解密相关
+  toggleDecoder: [enabled: boolean]
+  openDecoderSettings: []
 }>()
 </script>
 
@@ -204,6 +211,25 @@ const emit = defineEmits<{
                 <Sparkles class="w-5 h-5" />
               </div>
               <span class="toolbar-item-label font-medium">AI</span>
+            </button>
+
+            <!-- 解密按钮 -->
+            <button 
+              v-if="bookUrl"
+              class="toolbar-item group relative"
+              :class="{ 'text-purple-500': isDecoderEnabled }"
+              @click="emit('toggleDecoder', !isDecoderEnabled)"
+              @contextmenu.prevent="emit('openDecoderSettings')"
+            >
+              <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
+                <Loader2 v-if="isDecoding" class="w-5 h-5 animate-spin" />
+                <Sparkles v-else class="w-5 h-5" />
+              </div>
+              <span class="toolbar-item-label">{{ isDecoderEnabled ? '解密中' : '解密' }}</span>
+              <span
+                v-if="isDecoderEnabled && !isDecoding"
+                class="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full animate-pulse"
+              />
             </button>
 
             <button class="toolbar-item group" @click="emit('toggleInsights')">

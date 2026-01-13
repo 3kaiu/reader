@@ -502,6 +502,65 @@ jobs:
             --var HF_API_KEY:${{ secrets.HF_TOKEN }}
           echo "✅ Decoder Worker deployed (with AI + KV)"
 
+      - name: Initialize Decoder KV Data (if empty)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          DECODER_KV_ID="${{ steps.decoder_kv.outputs.decoder_kv_id }}"
+          
+          # 检查是否已有数据 (通过检查 global 词典)
+          EXISTING=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:dict:global" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" 2>/dev/null || echo "")
+          
+          if [ -z "$EXISTING" ] || [ "$EXISTING" = "null" ] || [ "$EXISTING" = "" ]; then
+            echo "📦 Initializing decoder KV data..."
+            
+            # 上传公共词典
+            if [ -f "cloudflare-workers/decoder-data/dictionaries/global.json" ]; then
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:dict:global" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data-binary @cloudflare-workers/decoder-data/dictionaries/global.json
+              echo "  ✅ Global dictionary uploaded"
+            fi
+            
+            # 上传知识图谱 - 人物
+            if [ -f "cloudflare-workers/decoder-data/knowledge/persons.json" ]; then
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:persons" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data-binary @cloudflare-workers/decoder-data/knowledge/persons.json
+              echo "  ✅ Persons knowledge graph uploaded"
+            fi
+            
+            # 上传知识图谱 - 公司
+            if [ -f "cloudflare-workers/decoder-data/knowledge/companies.json" ]; then
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:companies" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data-binary @cloudflare-workers/decoder-data/knowledge/companies.json
+              echo "  ✅ Companies knowledge graph uploaded"
+            fi
+            
+            # 上传知识图谱 - 事件
+            if [ -f "cloudflare-workers/decoder-data/knowledge/events.json" ]; then
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${DECODER_KV_ID}/values/decoder:knowledge:events" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data-binary @cloudflare-workers/decoder-data/knowledge/events.json
+              echo "  ✅ Events knowledge graph uploaded"
+            fi
+            
+            echo "✅ Decoder KV data initialized"
+          else
+            echo "✅ Decoder KV data already exists, skipping initialization"
+          fi
+
   # =============================================================================
   # 部署前端到 CF Pages
   # =============================================================================
@@ -532,6 +591,7 @@ jobs:
           VITE_API_URL: https://nexus-proxy.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
           VITE_PROGRESS_SYNC_URL: https://nexus-progress-sync.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
           VITE_AUTH_WORKER_URL: https://nexus-auth.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
+          VITE_DECODER_URL: https://nexus-decoder.${{ needs.get-subdomain.outputs.subdomain }}.workers.dev
         run: |
           bun install
           bun run build
