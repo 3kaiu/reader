@@ -4,7 +4,6 @@
  */
 
 import { networkDetector } from './networkOptimizer'
-import { performanceMonitor } from './performanceMonitor'
 
 // 加载状态类型
 export type LoadingState = 'idle' | 'loading' | 'loaded' | 'error' | 'timeout'
