@@ -5,7 +5,6 @@
 
 import { offlineManager, offlineContentServer, type OfflineStatus } from '../utils/offlineManager'
 import { networkDetector } from '../utils/networkOptimizer'
-import { secureRandomString } from '../utils/secureRandom'
 import { apiCache } from '../utils/cacheManager'
 import { $get, type ApiResponse } from '../api/client'
 
