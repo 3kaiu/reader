@@ -562,5 +562,41 @@ export class AIServiceManager {
   }
 }
 
-// 导出单例实例
-export const aiServiceManager = AIServiceManager.getInstance()
+// 延迟初始化的单例实例
+let _aiServiceManager: AIServiceManager | null = null
+
+export function getAIServiceManager(): AIServiceManager {
+  if (!_aiServiceManager) {
+    _aiServiceManager = AIServiceManager.getInstance()
+  }
+  return _aiServiceManager
+}
+
+// 为了向后兼容，提供一个 getter
+export const aiServiceManager = {
+  get instance() {
+    return getAIServiceManager()
+  },
+  // 代理所有属性和方法
+  get isSupported() { return getAIServiceManager().isSupported },
+  get isLoading() { return getAIServiceManager().isLoading },
+  get isModelLoaded() { return getAIServiceManager().isModelLoaded },
+  get loadProgress() { return getAIServiceManager().loadProgress },
+  get loadStatus() { return getAIServiceManager().loadStatus },
+  get error() { return getAIServiceManager().error },
+  get currentModel() { return getAIServiceManager().currentModel },
+  get performance() { return getAIServiceManager().performance },
+  initialize: () => getAIServiceManager().initialize(),
+  detectWebGPUSupport: () => getAIServiceManager().detectWebGPUSupport(),
+  loadModel: (modelId?: string) => getAIServiceManager().loadModel(modelId),
+  unloadModel: () => getAIServiceManager().unloadModel(),
+  inference: (prompt: string, params?: Partial<AIRequestParams>) => getAIServiceManager().inference(prompt, params),
+  isReady: () => getAIServiceManager().isReady(),
+  getRecommendedModels: () => getAIServiceManager().getRecommendedModels(),
+  getAllModels: () => getAIServiceManager().getAllModels(),
+  cleanup: () => getAIServiceManager().cleanup(),
+  getCacheStats: () => getAIServiceManager().getCacheStats(),
+  clearModelCache: () => getAIServiceManager().clearModelCache(),
+  getCachedModels: () => getAIServiceManager().getCachedModels(),
+  preloadRecommendedModels: () => getAIServiceManager().preloadRecommendedModels(),
+}

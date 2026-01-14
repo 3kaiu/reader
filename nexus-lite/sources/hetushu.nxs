@@ -4,14 +4,14 @@
   "name": "和图书",
   "url": "https://www.hetushu.com",
   "search": {
-    "path": "/search/?keyword={q}",
-    "list": "ul.book_list li",
+    "path": "https://html.duckduckgo.com/html/?q=site%3Ahetushu.com+{q}",
+    "method": "GET",
+    "list": "div.result",
+    "result_filter": "/book/",
     "item": {
-      "name": "h3 a",
-      "author": ".author",
-      "url": "h3 a@href",
-      "cover": "img@src",
-      "intro": ".intro"
+      "name": "a.result__a",
+      "url": "a.result__url@href",
+      "intro": "a.result__snippet"
     }
   },
   "book": {
