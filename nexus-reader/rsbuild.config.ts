@@ -39,8 +39,11 @@ export default defineConfig(async () => {
         plugins: [
           ...(analyzerPlugin ? [analyzerPlugin] : []),
         ],
-        // AI库使用动态导入，不需要外部化
-        // externals 已移除 - 这些库通过 lazy loading 按需加载
+        // 将大型 AI 库外部化，从 CDN 加载以避免超过 Cloudflare Pages 25MB 限制
+        externals: {
+          '@huggingface/transformers': 'HuggingFaceTransformers',
+          'onnxruntime-web': 'ort',
+        },
         optimization: {
           usedExports: true,
           sideEffects: false,
@@ -83,6 +86,21 @@ export default defineConfig(async () => {
             rel: "prefetch",
             href: "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css",
             as: "style",
+          },
+        },
+        // AI 库从 CDN 加载 (避免超过 Cloudflare Pages 25MB 限制)
+        {
+          tag: "script",
+          attrs: {
+            src: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js",
+            defer: true,
+          },
+        },
+        {
+          tag: "script",
+          attrs: {
+            src: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/dist/transformers.min.js",
+            defer: true,
           },
         },
       ],

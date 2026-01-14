@@ -17,13 +17,22 @@ let extractor: any = null
 
 /**
  * 动态加载 transformers 模块
+ * 优先使用 CDN 加载的全局变量，回退到动态导入
  */
 async function getTransformers() {
   if (!transformersModule) {
-    transformersModule = await import('@huggingface/transformers')
+    // 优先使用 CDN 加载的全局变量
+    if (typeof window !== 'undefined' && (window as any).HuggingFaceTransformers) {
+      transformersModule = (window as any).HuggingFaceTransformers
+    } else {
+      // 回退到动态导入
+      transformersModule = await import('@huggingface/transformers')
+    }
     // 配置環境
-    transformersModule.env.allowLocalModels = false
-    transformersModule.env.useBrowserCache = true
+    if (transformersModule.env) {
+      transformersModule.env.allowLocalModels = false
+      transformersModule.env.useBrowserCache = true
+    }
   }
   return transformersModule
 }
