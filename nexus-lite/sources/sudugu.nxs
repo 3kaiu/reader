@@ -1,0 +1,36 @@
+{
+  "$v": 2,
+  "id": "sudugu",
+  "name": "速读谷",
+  "url": "https://www.sudugu.org",
+  "search": {
+    "path": "/i/sor.aspx?key={q}",
+    "method": "GET",
+    "list": "div.item",
+    "item": {
+      "name": "h3 a",
+      "author": "a[href*='/zuozhe/']",
+      "url": "h3 a@href",
+      "cover": "img@src",
+      "intro": "div.itemtxt p:last-child"
+    }
+  },
+  "book": {
+    "name": "h1 a",
+    "author": "p:contains('作者')",
+    "intro": "div.des",
+    "cover": "div.item img@src",
+    "toc": "a[href*='#dir']@href"
+  },
+  "toc": {
+    "list": "div.mulu ul li a",
+    "item": {
+      "name": "text",
+      "url": "href"
+    }
+  },
+  "content": {
+    "body": "div.con",
+    "filter": ["script", "style", ".ad"]
+  }
+}
