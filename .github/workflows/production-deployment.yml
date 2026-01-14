@@ -149,17 +149,23 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
+          HF_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          python << 'EOF'
+          import os
+          import shutil
+          from huggingface_hub import HfApi
           
-          # 创建新目录并初始化
-          mkdir -p hf-space
-          cp -r cf-bypass-service/* hf-space/
+          token = os.environ["HF_TOKEN"]
+          space_id = os.environ["HF_SPACE"]
           
-          # 创建 README.md (HF Space 配置)
-          cat > hf-space/README.md << 'EOFREADME'
-          ---
+          # 准备上传目录
+          upload_dir = "hf-upload"
+          shutil.rmtree(upload_dir, ignore_errors=True)
+          shutil.copytree("cf-bypass-service", upload_dir)
+          
+          # 创建 README.md
+          readme = """---
           title: CF Bypass Service
           emoji: 🔓
           colorFrom: blue
@@ -168,15 +174,21 @@ jobs:
           app_file: Dockerfile
           pinned: false
           ---
-          EOFREADME
+          """.replace("          ", "")
           
-          cd hf-space
-          git init
-          git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
-          git add -A
-          git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push --force origin HEAD:main
-          echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
+          with open(f"{upload_dir}/README.md", "w") as f:
+              f.write(readme)
+          
+          # 上传到 HuggingFace
+          api = HfApi(token=token)
+          api.upload_folder(
+              folder_path=upload_dir,
+              repo_id=space_id,
+              repo_type="space",
+              commit_message=f"Deploy from GitHub: {os.environ.get('GITHUB_SHA', 'manual')[:7]}"
+          )
+          print(f"✅ Deployed to: {os.environ['HF_URL']}")
+          EOF
 
   # =============================================================================
   # 部署 nexus-lite 到 HuggingFace (直接推送源代码构建)
@@ -218,17 +230,25 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
           CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}
+          HF_URL: ${{ needs.get-hf-username.outputs.nexus_lite_url }}
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          python << 'EOF'
+          import os
+          import shutil
+          import json
+          from huggingface_hub import HfApi
           
-          # 创建新目录并复制源代码
-          mkdir -p hf-nexus
-          cp -r nexus-lite/* hf-nexus/
+          token = os.environ["HF_TOKEN"]
+          space_id = os.environ["HF_SPACE"]
+          cf_bypass_url = os.environ["CF_BYPASS_URL"]
           
-          # 更新 README.md (HF Space 配置)
-          cat > hf-nexus/README.md << 'EOFREADME'
-          ---
+          # 准备上传目录
+          upload_dir = "hf-upload"
+          shutil.rmtree(upload_dir, ignore_errors=True)
+          shutil.copytree("nexus-lite", upload_dir)
+          
+          # 创建 README.md
+          readme = """---
           title: Nexus Lite
           emoji: 📚
           colorFrom: green
@@ -237,35 +257,42 @@ jobs:
           app_file: Dockerfile
           pinned: false
           ---
-          EOFREADME
+          """.replace("          ", "")
+          
+          with open(f"{upload_dir}/README.md", "w") as f:
+              f.write(readme)
           
           # 注入 cf-bypass URL 到 config.json
-          cat > hf-nexus/nexus-server/config.json << EOFCONFIG
-          {
-            "server": {
-              "host": "0.0.0.0",
-              "port": 7860,
-              "enableCors": true,
-              "allowedOrigins": []
-            },
-            "storage": {
-              "sourcesDir": "./sources"
-            },
-            "cfBypass": {
-              "serviceUrl": "${CF_BYPASS_URL}",
-              "enabled": true,
-              "timeoutSeconds": 60
-            }
+          config = {
+              "server": {
+                  "host": "0.0.0.0",
+                  "port": 7860,
+                  "enableCors": True,
+                  "allowedOrigins": []
+              },
+              "storage": {
+                  "sourcesDir": "./sources"
+              },
+              "cfBypass": {
+                  "serviceUrl": cf_bypass_url,
+                  "enabled": True,
+                  "timeoutSeconds": 60
+              }
           }
-          EOFCONFIG
           
-          cd hf-nexus
-          git init
-          git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
-          git add -A
-          git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push --force origin HEAD:main
-          echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
+          with open(f"{upload_dir}/nexus-server/config.json", "w") as f:
+              json.dump(config, f, indent=2)
+          
+          # 上传到 HuggingFace
+          api = HfApi(token=token)
+          api.upload_folder(
+              folder_path=upload_dir,
+              repo_id=space_id,
+              repo_type="space",
+              commit_message=f"Deploy from GitHub: {os.environ.get('GITHUB_SHA', 'manual')[:7]}"
+          )
+          print(f"✅ Deployed to: {os.environ['HF_URL']}")
+          EOF
 
   # =============================================================================
   # 部署 CF Workers
