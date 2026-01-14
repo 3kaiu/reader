@@ -98,18 +98,13 @@ export default defineConfig(async () => {
             as: "style",
           },
         },
-        // AI 库从 CDN 加载 (避免超过 Cloudflare Pages 25MB 限制)
+        // AI 库: ONNX Runtime 从 CDN 加载 (避免超过 Cloudflare Pages 25MB 限制)
+        // Note: @huggingface/transformers v3.x is an ES module that doesn't expose globals,
+        // so we rely on dynamic import() in useEmbedding.ts instead of CDN script tag
         {
           tag: "script",
           attrs: {
             src: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js",
-            defer: true,
-          },
-        },
-        {
-          tag: "script",
-          attrs: {
-            src: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/dist/transformers.min.js",
             defer: true,
           },
         },
