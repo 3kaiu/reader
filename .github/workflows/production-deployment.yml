@@ -21,7 +21,6 @@ on:
 permissions:
   contents: read
   actions: write
-  packages: write
 
 concurrency:
   group: production-deployment
@@ -30,7 +29,6 @@ concurrency:
 env:
   CF_BYPASS_SPACE_NAME: cf-bypass-service
   NEXUS_LITE_SPACE_NAME: nexus-lite
-  REGISTRY: ghcr.io
 
 jobs:
   # =============================================================================
@@ -113,111 +111,12 @@ jobs:
           echo "✅ Workers subdomain: $SUBDOMAIN"
 
   # =============================================================================
-  # 构建并推送 cf-bypass-service 镜像到 GHCR
-  # =============================================================================
-  build-cf-bypass:
-    runs-on: ubuntu-latest
-    needs: [detect-changes]
-    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/cf-bypass-service
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./cf-bypass-service
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Cleanup old GHCR images
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: reader/cf-bypass-service
-          package-type: container
-          min-versions-to-keep: 2
-          delete-only-untagged-versions: false
-        continue-on-error: true
-
-  # =============================================================================
-  # 构建并推送 nexus-lite 镜像到 GHCR
-  # =============================================================================
-  build-nexus-lite:
-    runs-on: ubuntu-latest
-    needs: [detect-changes]
-    if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/nexus-lite
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./nexus-lite
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Cleanup old GHCR images
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: reader/nexus-lite
-          package-type: container
-          min-versions-to-keep: 2
-          delete-only-untagged-versions: false
-        continue-on-error: true
-
-  # =============================================================================
-  # 部署 cf-bypass-service 到 HuggingFace (拉取 GHCR 镜像)
+  # 部署 cf-bypass-service 到 HuggingFace (直接推送源代码构建)
   # =============================================================================
   deploy-cf-bypass:
     runs-on: ubuntu-latest
-    needs: [build-cf-bypass, get-hf-username]
+    needs: [detect-changes, get-hf-username]
+    if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -246,12 +145,10 @@ jobs:
               print(f"✅ Space already exists: {space_id}")
           EOF
 
-      - name: Push minimal Dockerfile to HF Space
+      - name: Push source code to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.cf_bypass_space }}
-          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/cf-bypass-service:latest
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -262,7 +159,9 @@ jobs:
             cd ..
           }
           
-          rm -rf hf-space/* 2>/dev/null || true
+          # 清空并复制源代码
+          rm -rf hf-space/* hf-space/.* 2>/dev/null || true
+          cp -r cf-bypass-service/* hf-space/
           
           # 创建 README.md (HF Space 配置)
           cat > hf-space/README.md << 'EOFREADME'
@@ -277,24 +176,19 @@ jobs:
           ---
           EOFREADME
           
-          # 创建 Dockerfile，使用 ARG 传递认证信息
-          IMAGE_LOWER=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
-          cat > hf-space/Dockerfile << EOFDOCKER
-          FROM ${IMAGE_LOWER}
-          EOFDOCKER
-          
           cd hf-space
           git add -A
           git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push -u origin main || git push -u origin master
+          git push --force origin HEAD:main || git push --force origin HEAD:master
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
 
   # =============================================================================
-  # 部署 nexus-lite 到 HuggingFace (拉取 GHCR 镜像)
+  # 部署 nexus-lite 到 HuggingFace (直接推送源代码构建)
   # =============================================================================
   deploy-nexus-lite:
     runs-on: ubuntu-latest
-    needs: [build-nexus-lite, get-hf-username]
+    needs: [detect-changes, get-hf-username]
+    if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -323,12 +217,11 @@ jobs:
               print(f"✅ Space already exists: {space_id}")
           EOF
 
-      - name: Push minimal Dockerfile to HF Space
+      - name: Push source code to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ needs.get-hf-username.outputs.nexus_lite_space }}
           CF_BYPASS_URL: ${{ needs.get-hf-username.outputs.cf_bypass_url }}
-          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/nexus-lite:latest
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -339,9 +232,11 @@ jobs:
             cd ..
           }
           
-          rm -rf hf-nexus/* 2>/dev/null || true
+          # 清空并复制源代码
+          rm -rf hf-nexus/* hf-nexus/.* 2>/dev/null || true
+          cp -r nexus-lite/* hf-nexus/
           
-          # 创建 README.md
+          # 更新 README.md (HF Space 配置)
           cat > hf-nexus/README.md << 'EOFREADME'
           ---
           title: Nexus Lite
@@ -354,19 +249,30 @@ jobs:
           ---
           EOFREADME
           
-          # 创建 Dockerfile，拉取 GHCR 镜像并注入配置
-          IMAGE_LOWER=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
-          cat > hf-nexus/Dockerfile << EOFDOCKER
-          FROM ${IMAGE_LOWER}
-          
-          # 注入运行时配置
-          RUN echo '{"server":{"host":"0.0.0.0","port":7860,"enableCors":true,"allowedOrigins":[]},"storage":{"sourcesDir":"./sources"},"cfBypass":{"serviceUrl":"${CF_BYPASS_URL}","enabled":true,"timeoutSeconds":60}}' > /app/config.json
-          EOFDOCKER
+          # 注入 cf-bypass URL 到 config.json
+          cat > hf-nexus/nexus-server/config.json << EOFCONFIG
+          {
+            "server": {
+              "host": "0.0.0.0",
+              "port": 7860,
+              "enableCors": true,
+              "allowedOrigins": []
+            },
+            "storage": {
+              "sourcesDir": "./sources"
+            },
+            "cfBypass": {
+              "serviceUrl": "${CF_BYPASS_URL}",
+              "enabled": true,
+              "timeoutSeconds": 60
+            }
+          }
+          EOFCONFIG
           
           cd hf-nexus
           git add -A
           git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push -u origin main || git push -u origin master
+          git push --force origin HEAD:main || git push --force origin HEAD:master
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
 
   # =============================================================================
@@ -516,7 +422,7 @@ jobs:
   # =============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [detect-changes, get-hf-username, build-cf-bypass, build-nexus-lite, deploy-cf-bypass, deploy-nexus-lite, deploy-worker, deploy-frontend]
+    needs: [detect-changes, get-hf-username, deploy-cf-bypass, deploy-nexus-lite, deploy-worker, deploy-frontend]
     if: always()
     steps:
       - name: Deployment Summary
@@ -525,15 +431,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Architecture" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "GitHub Actions (Build) → GHCR (Images) → HuggingFace (Pull & Run)" >> $GITHUB_STEP_SUMMARY
+          echo "GitHub Actions → Push Source → HuggingFace (Build & Run)" >> $GITHUB_STEP_SUMMARY
           echo "CF Pages (Frontend) → CF Worker (Proxy) → HuggingFace (nexus-lite)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| cf-bypass-service | ${{ needs.build-cf-bypass.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| nexus-lite | ${{ needs.build-nexus-lite.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | URL |" >> $GITHUB_STEP_SUMMARY
