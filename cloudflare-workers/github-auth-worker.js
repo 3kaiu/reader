@@ -5,21 +5,31 @@
 
 const COOKIE_NAME = 'nexus_auth';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
+const ALLOWED_ORIGINS = [
+  'https://nexus-reader.pages.dev',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const origin = request.headers.get('Origin') || '';
+
+    // 检查 origin 是否允许
+    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (env.FRONTEND_URL || ALLOWED_ORIGINS[0]);
 
     const corsHeaders = {
-      'Access-Control-Allow-Origin': env.FRONTEND_URL || '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Credentials': 'true',
     };
 
+    // 处理 preflight 请求
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     switch (path) {
