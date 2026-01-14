@@ -153,14 +153,8 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           
-          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-space || {
-            mkdir -p hf-space && cd hf-space && git init
-            git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
-            cd ..
-          }
-          
-          # 清空并复制源代码
-          rm -rf hf-space/* hf-space/.* 2>/dev/null || true
+          # 创建新目录并初始化
+          mkdir -p hf-space
           cp -r cf-bypass-service/* hf-space/
           
           # 创建 README.md (HF Space 配置)
@@ -177,9 +171,11 @@ jobs:
           EOFREADME
           
           cd hf-space
+          git init
+          git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
           git add -A
-          git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push --force origin HEAD:main || git push --force origin HEAD:master
+          git commit -m "Deploy from GitHub: ${{ github.sha }}"
+          git push --force origin HEAD:main
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.cf_bypass_url }}"
 
   # =============================================================================
@@ -226,14 +222,8 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           
-          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf-nexus || {
-            mkdir -p hf-nexus && cd hf-nexus && git init
-            git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
-            cd ..
-          }
-          
-          # 清空并复制源代码
-          rm -rf hf-nexus/* hf-nexus/.* 2>/dev/null || true
+          # 创建新目录并复制源代码
+          mkdir -p hf-nexus
           cp -r nexus-lite/* hf-nexus/
           
           # 更新 README.md (HF Space 配置)
@@ -270,9 +260,11 @@ jobs:
           EOFCONFIG
           
           cd hf-nexus
+          git init
+          git remote add origin https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}
           git add -A
-          git diff --staged --quiet || git commit -m "Deploy from GitHub: ${{ github.sha }}"
-          git push --force origin HEAD:main || git push --force origin HEAD:master
+          git commit -m "Deploy from GitHub: ${{ github.sha }}"
+          git push --force origin HEAD:main
           echo "✅ Deployed to: ${{ needs.get-hf-username.outputs.nexus_lite_url }}"
 
   # =============================================================================
