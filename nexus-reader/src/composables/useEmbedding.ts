@@ -2,12 +2,10 @@
  * 🧠 useEmbedding - 端側向量生成
  * 使用 transformers.js + WebGPU 生成文本 Embedding
  */
-import { pipeline, env } from '@huggingface/transformers'
 import { ref } from 'vue'
 
-// 配置環境
-env.allowLocalModels = false
-env.useBrowserCache = true
+// 动态导入的模块引用
+let transformersModule: any = null
 
 export const embeddingState = {
   isLoading: ref(false),
@@ -16,6 +14,19 @@ export const embeddingState = {
 }
 
 let extractor: any = null
+
+/**
+ * 动态加载 transformers 模块
+ */
+async function getTransformers() {
+  if (!transformersModule) {
+    transformersModule = await import('@huggingface/transformers')
+    // 配置環境
+    transformersModule.env.allowLocalModels = false
+    transformersModule.env.useBrowserCache = true
+  }
+  return transformersModule
+}
 
 /**
  * 加載 Embedding 模型
@@ -27,6 +38,7 @@ export async function loadEmbeddingModel(modelId = 'Xenova/all-MiniLM-L6-v2') {
   embeddingState.progress.value = 0
 
   try {
+    const { pipeline } = await getTransformers()
     extractor = await pipeline('feature-extraction', modelId, {
       device: 'webgpu', // 強制使用 WebGPU
       progress_callback: (p: any) => {
@@ -40,6 +52,7 @@ export async function loadEmbeddingModel(modelId = 'Xenova/all-MiniLM-L6-v2') {
   } catch (e) {
     console.error('[Embedding] 加載失敗，嘗試回退到 CPU:', e)
     try {
+      const { pipeline } = await getTransformers()
       extractor = await pipeline('feature-extraction', modelId, {
         device: 'wasm',
       })

@@ -3,8 +3,17 @@
  * 处理 WASM 加载、模型下载、音频生成与播放
  */
 import { ref, shallowRef } from 'vue'
-import { PiperWebWorkerEngine, OnnxWebGPUWorkerRuntime, HuggingFaceVoiceProvider } from 'piper-tts-web'
 import { logger } from '../utils/logger'
+
+// 动态导入的模块引用
+let piperModule: any = null
+
+async function getPiperModule() {
+  if (!piperModule) {
+    piperModule = await import('piper-tts-web')
+  }
+  return piperModule
+}
 
 // 语音模型类型定义
 export interface PiperVoice {
@@ -20,8 +29,8 @@ export function usePiperTTS() {
   const isSupported = ref(true)
   const isLoaded = ref(false)
   const isLoading = ref(false)
-  const engine = shallowRef<PiperWebWorkerEngine | null>(null)
-  const voiceProvider = new HuggingFaceVoiceProvider()
+  const engine = shallowRef<any>(null)
+  let voiceProvider: any = null
 
   const isSpeaking = ref(false)
   const isPaused = ref(false)
@@ -40,6 +49,9 @@ export function usePiperTTS() {
       const { webLocks } = await import('../utils/webLocks')
       await webLocks.withExclusive('piper-tts-load', async () => {
         if (engine.value) return
+
+        const { PiperWebWorkerEngine, OnnxWebGPUWorkerRuntime, HuggingFaceVoiceProvider } = await getPiperModule()
+        voiceProvider = new HuggingFaceVoiceProvider()
 
         // 优先试用 WebGPU 运行时，如果不支持会自动降级（piper-tts-web 内部处理）
         engine.value = new PiperWebWorkerEngine({
@@ -123,6 +135,10 @@ export function usePiperTTS() {
    */
   async function getVoices(): Promise<PiperVoice[]> {
     try {
+      if (!voiceProvider) {
+        const { HuggingFaceVoiceProvider } = await getPiperModule()
+        voiceProvider = new HuggingFaceVoiceProvider()
+      }
       const list = await voiceProvider.list()
       const { opfsStorage } = await import('../utils/opfs')
 

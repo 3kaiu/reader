@@ -39,13 +39,8 @@ export default defineConfig(async () => {
         plugins: [
           ...(analyzerPlugin ? [analyzerPlugin] : []),
         ],
-        // 外部化大型AI库 - 关键优化
-        externals: process.env.NODE_ENV === 'production' ? {
-          '@mlc-ai/web-llm': 'WebLLM',
-          '@huggingface/transformers': 'HuggingFaceTransformers',
-          'onnxruntime-web': 'ort',
-          'piper-tts-web': 'PiperTTS'
-        } : {},
+        // AI库使用动态导入，不需要外部化
+        // externals 已移除 - 这些库通过 lazy loading 按需加载
         optimization: {
           usedExports: true,
           sideEffects: false,
