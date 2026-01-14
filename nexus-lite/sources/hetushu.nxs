@@ -5,11 +5,11 @@
   "url": "https://www.hetushu.com",
   "search": {
     "path": "/search/?keyword={q}",
-    "list": "dl.list dd",
+    "list": "ul.book_list li",
     "item": {
-      "name": "h4 a",
-      "author": "h4 span",
-      "url": "h4 a@href",
+      "name": "h3 a",
+      "author": ".author",
+      "url": "h3 a@href",
       "cover": "img@src",
       "intro": ".intro"
     }
