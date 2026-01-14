@@ -1,5 +1,6 @@
 # Nexus-Lite Dockerfile for HuggingFace Spaces
 # Using official Rust image for build
+# Cache bust: 20260113-v2
 
 FROM rust:1.85-slim-bookworm AS builder
 
