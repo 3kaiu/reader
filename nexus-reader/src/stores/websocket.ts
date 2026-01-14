@@ -184,7 +184,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ keyword, sources: [] }),
+        body: JSON.stringify({ keyword }),
         signal: sseAbortController.signal
       })
 
@@ -290,8 +290,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     searchState.value.progress = { current: 0, total: 0 }
 
     send({
-      keyword,
-      sources: []
+      keyword
     })
   }
 
