@@ -218,10 +218,11 @@ class CloudScraperWrapper:
             
             # CloudScraper built-in: Stealth mode configuration
             # Note: CloudScraper handles stealth automatically, but we can configure delays
+            # Don't request compressed content to avoid decompression issues
             scraper.headers.update({
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Encoding': 'identity',
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',

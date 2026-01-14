@@ -9,16 +9,14 @@
     "Referer": "https://www.69shuba.com"
   },
   "search": {
-    "path": "/search",
-    "method": "POST",
-    "body": "searchkey={q}",
-    "content_type": "application/x-www-form-urlencoded",
-    "list": ".newbox ul li",
+    "path": "https://html.duckduckgo.com/html/?q=site%3A69shuba.com+{q}",
+    "method": "GET",
+    "list": "div.result",
+    "result_filter": "/book/",
     "item": {
-      "name": ".newnav h3 a",
-      "url": ".newnav h3 a@href",
-      "author": ".newnav .author",
-      "intro": ".newnav .intro"
+      "name": "a.result__a",
+      "url": "a.result__url@href",
+      "intro": "a.result__snippet"
     }
   },
   "book": {
