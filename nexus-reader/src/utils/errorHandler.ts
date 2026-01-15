@@ -15,20 +15,26 @@ export interface ErrorContext {
 
 export interface ErrorInfo {
   message: string
-  code?: string
+  code: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   userMessage: string
   retryable: boolean
   context?: ErrorContext
 }
 
-// 错误类型映射
+// 错误类型映射 - 合并了所有错误类型
 const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
-  // 网络错误
+  // === 网络错误 ===
   'NetworkError': {
     code: 'NETWORK_ERROR',
     severity: 'medium',
     userMessage: '网络连接异常，请检查网络后重试',
+    retryable: true
+  },
+  'NetworkException': {
+    code: 'NETWORK_EXCEPTION',
+    severity: 'medium',
+    userMessage: '网络连接失败，请检查网络后重试',
     retryable: true
   },
   'TimeoutError': {
@@ -37,18 +43,54 @@ const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
     userMessage: '请求超时，请稍后重试',
     retryable: true
   },
+  'TimeoutException': {
+    code: 'TIMEOUT_EXCEPTION',
+    severity: 'medium',
+    userMessage: '请求超时，请重试或检查书源连通性',
+    retryable: true
+  },
   'fetch failed': {
     code: 'FETCH_FAILED',
     severity: 'medium',
     userMessage: '网络请求失败，请检查网络连接',
     retryable: true
   },
+  'Failed to fetch': {
+    code: 'FETCH_FAILED',
+    severity: 'medium',
+    userMessage: '无法连接到服务器，请检查网络或代理设置',
+    retryable: true
+  },
+  'Network request failed': {
+    code: 'NETWORK_REQUEST_FAILED',
+    severity: 'medium',
+    userMessage: '网络异常，请确认服务器与书源均可连接',
+    retryable: true
+  },
+  'ERR_NAME_NOT_RESOLVED': {
+    code: 'DNS_ERROR',
+    severity: 'medium',
+    userMessage: '无法解析域名，请检查 DNS 或书源地址',
+    retryable: true
+  },
+  'ERR_CONNECTION_REFUSED': {
+    code: 'CONNECTION_REFUSED',
+    severity: 'medium',
+    userMessage: '服务器拒绝连接，请检查服务是否在线',
+    retryable: true
+  },
   
-  // API错误
+  // === API/认证错误 ===
   'Unauthorized': {
     code: 'UNAUTHORIZED',
     severity: 'high',
     userMessage: '登录已过期，请重新登录',
+    retryable: false
+  },
+  'NEED_LOGIN': {
+    code: 'NEED_LOGIN',
+    severity: 'high',
+    userMessage: '请先登录 Nexus 账号',
     retryable: false
   },
   'Forbidden': {
@@ -63,14 +105,32 @@ const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
     userMessage: '请求的资源不存在',
     retryable: false
   },
+  'NotFound': {
+    code: 'NOT_FOUND',
+    severity: 'medium',
+    userMessage: '请求的资源已丢失或不存在',
+    retryable: false
+  },
   'Internal Server Error': {
     code: 'SERVER_ERROR',
     severity: 'high',
     userMessage: '服务器内部错误，请稍后重试',
     retryable: true
   },
+  'ServerError': {
+    code: 'SERVER_ERROR',
+    severity: 'high',
+    userMessage: '服务器内部异常，正在尝试自我恢复...',
+    retryable: true
+  },
+  'BadRequest': {
+    code: 'BAD_REQUEST',
+    severity: 'medium',
+    userMessage: '请求指令有误，请刷新页面后重试',
+    retryable: false
+  },
   
-  // 书源错误
+  // === 书源/解析错误 ===
   '加载目录失败': {
     code: 'CATALOG_LOAD_FAILED',
     severity: 'medium',
@@ -89,8 +149,62 @@ const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
     userMessage: '当前书源内容受限，建议换一个书源',
     retryable: false
   },
+  'TocEmptyException': {
+    code: 'TOC_EMPTY',
+    severity: 'medium',
+    userMessage: '目录为空或无法提取，书源解析规则可能已过期',
+    retryable: true
+  },
+  'SourceException': {
+    code: 'SOURCE_ERROR',
+    severity: 'medium',
+    userMessage: '书源规则匹配失败，请尝试刷新或切换引擎',
+    retryable: true
+  },
+  'ContentEmptyException': {
+    code: 'CONTENT_EMPTY',
+    severity: 'medium',
+    userMessage: '正文提取失败，章节内容可能已被屏蔽或需要重新加载',
+    retryable: true
+  },
+  'ConcurrentException': {
+    code: 'CONCURRENT_LIMIT',
+    severity: 'medium',
+    userMessage: '当前并发请求过多，书源已限制频率，请稍候',
+    retryable: true
+  },
+  'NullPointerException': {
+    code: 'NULL_POINTER',
+    severity: 'medium',
+    userMessage: '处理响应数据时发生空引用，请反馈书源异常',
+    retryable: true
+  },
+  'SSLException': {
+    code: 'SSL_ERROR',
+    severity: 'medium',
+    userMessage: '与书源建立安全连接失败（SSL 握手错误），请换源',
+    retryable: false
+  },
+  'UnknownHostException': {
+    code: 'UNKNOWN_HOST',
+    severity: 'medium',
+    userMessage: '书源地址找不到（域名解析失败），请确认书源有效性',
+    retryable: false
+  },
+  'Empty group name': {
+    code: 'EMPTY_GROUP_NAME',
+    severity: 'low',
+    userMessage: '分组名称不能为空',
+    retryable: false
+  },
+  'Book not found': {
+    code: 'BOOK_NOT_FOUND',
+    severity: 'medium',
+    userMessage: '找不到该书籍的相关记录',
+    retryable: false
+  },
   
-  // 存储错误
+  // === 存储错误 ===
   'QuotaExceededError': {
     code: 'STORAGE_QUOTA_EXCEEDED',
     severity: 'medium',
@@ -104,7 +218,7 @@ const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
     retryable: true
   },
   
-  // 解析错误
+  // === 解析错误 ===
   'SyntaxError': {
     code: 'PARSE_ERROR',
     severity: 'low',
@@ -115,6 +229,14 @@ const ERROR_MAPPINGS: Record<string, Partial<ErrorInfo>> = {
     code: 'TYPE_ERROR',
     severity: 'medium',
     userMessage: '数据格式错误，请重试',
+    retryable: true
+  },
+  
+  // === 通用错误 ===
+  'UnknownError': {
+    code: 'UNKNOWN_ERROR',
+    severity: 'medium',
+    userMessage: '发生未知系统错误，请查看日志或重试',
     retryable: true
   }
 }
@@ -152,9 +274,36 @@ export function processError(
   } else if (typeof error === 'string') {
     originalMessage = error
     errorName = 'UnknownError'
+  } else if (typeof error === 'object' && error !== null) {
+    // 处理对象类型的错误（包含 message 属性）
+    const err = error as Record<string, unknown>
+    originalMessage = String(err.message || err.error || err.errorMsg || '未知错误')
+    errorName = 'UnknownError'
   } else {
     originalMessage = String(error)
     errorName = 'UnknownError'
+  }
+  
+  // 移除 Java 异常前缀，只保留冒号后的信息
+  if (originalMessage.includes('Exception:')) {
+    const parts = originalMessage.split(':')
+    if (parts.length > 1) {
+      const cleanMessage = parts.slice(1).join(':').trim()
+      // 只有在清理后的消息非空且不只是空白时才使用
+      if (cleanMessage && cleanMessage.trim().length > 0) {
+        originalMessage = cleanMessage
+      }
+    }
+  }
+  
+  // 如果是很长的技术性错误，简化显示
+  let simplifiedMessage = originalMessage
+  if (
+    originalMessage.length > 100 &&
+    originalMessage.includes('.') &&
+    originalMessage.includes('Exception')
+  ) {
+    simplifiedMessage = '操作失败，请稍后重试'
   }
   
   // 尝试匹配已知错误类型
@@ -164,7 +313,8 @@ export function processError(
     message: originalMessage,
     code: matchedInfo?.code || 'UNKNOWN_ERROR',
     severity: matchedInfo?.severity || 'medium',
-    userMessage: matchedInfo?.userMessage || '操作失败，请重试',
+    // 确保 userMessage 非空
+    userMessage: matchedInfo?.userMessage || (simplifiedMessage.trim() || '操作失败，请重试'),
     retryable: matchedInfo?.retryable ?? true,
     context
   }
