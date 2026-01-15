@@ -4,6 +4,77 @@ import { apiCache, createCacheKey } from '@/utils/cacheManager'
 import { requestOptimizer, networkDetector } from '@/utils/networkOptimizer'
 import { offlineManager, offlineContentServer } from '@/utils/offlineManager'
 
+// 错误消息翻译映射（技术性错误 -> 用户友好消息）
+const ERROR_MESSAGE_MAP: Record<string, string> = {
+  // 网络错误
+  'Network request failed': '网络连接失败，请检查网络后重试',
+  'Request timeout': '请求超时，请稍后重试',
+  'Failed to fetch': '无法连接到服务器，请检查网络',
+  
+  // 业务错误
+  'Source not found': '书源不存在，请选择其他书源',
+  'Book not found': '书籍不存在或已被删除',
+  'Chapter not found': '章节不存在',
+  'Rule mismatch': '内容解析失败，请尝试其他书源',
+  
+  // 服务器错误
+  'Internal server error': '服务器内部错误，请稍后重试',
+  'Service temporarily unavailable': '服务暂时不可用，请稍后重试',
+  'Bad request': '请求参数错误，请重试',
+  
+  // 认证错误
+  'Unauthorized': '登录已过期，请重新登录',
+  'Forbidden': '没有权限访问此资源',
+}
+
+// 将技术性错误消息转换为用户友好的消息
+function translateErrorMessage(errorMsg: string): string {
+  // 精确匹配
+  if (ERROR_MESSAGE_MAP[errorMsg]) {
+    return ERROR_MESSAGE_MAP[errorMsg]
+  }
+  
+  // 模糊匹配
+  for (const [pattern, friendlyMsg] of Object.entries(ERROR_MESSAGE_MAP)) {
+    if (errorMsg.toLowerCase().includes(pattern.toLowerCase())) {
+      return friendlyMsg
+    }
+  }
+  
+  // 如果没有匹配，返回原消息（可能是已经用户友好的消息）
+  return errorMsg
+}
+
+// 将 HTTP 状态码转换为用户友好的消息
+function translateHttpError(status: number, error?: unknown): string {
+  const errorMsg = error instanceof Error ? error.message : String(error)
+  
+  switch (status) {
+    case 400:
+      return '请求参数错误，请检查后重试'
+    case 401:
+      return '登录已过期，请重新登录'
+    case 403:
+      return '没有权限访问此资源'
+    case 404:
+      return '请求的资源不存在'
+    case 408:
+      return '请求超时，请稍后重试'
+    case 429:
+      return '请求过于频繁，请稍后再试'
+    case 500:
+      return '服务器内部错误，请稍后重试'
+    case 502:
+      return '服务器暂时不可用，请稍后重试'
+    case 503:
+      return '服务正在维护中，请稍后重试'
+    case 504:
+      return '服务器响应超时，请稍后重试'
+    default:
+      return translateErrorMessage(errorMsg) || `请求失败 (${status})`
+  }
+}
+
 // 导入性能监控
 let performanceMonitor: any = null
 try {
@@ -85,9 +156,14 @@ const internalFetch = ofetch.create({
     if (data && typeof data === 'object' && data.isSuccess === false && !silent) {
       try {
         const handler = getGlobalErrorHandler()
-        handler.handleError(data.errorMsg || '业务操作失败', '', true)
+        // 将技术性错误消息转换为用户友好的消息
+        const userFriendlyMessage = translateErrorMessage(data.errorMsg || '业务操作失败')
+        handler.handleError(userFriendlyMessage, '', true)
       } catch (e) {
-        console.error('[API Interceptor] Failed to report business error', e)
+        // 使用 logger 而不是 console.error
+        if (import.meta.env.DEV) {
+          console.error('[API Interceptor] Failed to report business error', e)
+        }
       }
     }
   },
@@ -111,9 +187,14 @@ const internalFetch = ofetch.create({
     if (response.status >= 400 && !silent) {
       try {
         const handler = getGlobalErrorHandler()
-        handler.handleError(error || `HTTP Error ${response.status}`, `请求失败 (${response.status})`, true)
+        // 将 HTTP 错误转换为用户友好的消息
+        const userFriendlyMessage = translateHttpError(response.status, error)
+        handler.handleError(userFriendlyMessage, `请求失败 (${response.status})`, true)
       } catch (e) {
-        console.error('[API Interceptor] Global error handler failed', e)
+        // 使用 logger 而不是 console.error
+        if (import.meta.env.DEV) {
+          console.error('[API Interceptor] Global error handler failed', e)
+        }
       }
     }
   },

@@ -35,12 +35,15 @@ async function verifyAuth(request, env) {
       new TextEncoder().encode(env.AUTH_SECRET), 
       { name: 'HMAC', hash: 'SHA-256' }, 
       false, 
-      ['sign']
+      ['sign', 'verify']
     );
     const expectedSig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
     const expectedSigB64 = btoa(String.fromCharCode(...new Uint8Array(expectedSig)));
     
-    if (sig !== expectedSigB64) return null;
+    // 常量时间比较签名（防止时序攻击）
+    if (!constantTimeEqual(sig, expectedSigB64)) {
+      return null;
+    }
     
     const payload = JSON.parse(atob(data));
     if (payload.exp < Date.now()) return null;
@@ -49,6 +52,20 @@ async function verifyAuth(request, env) {
   } catch {
     return null;
   }
+}
+
+// 常量时间字符串比较（防止时序攻击）
+function constantTimeEqual(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  
+  return result === 0;
 }
 
 export default {

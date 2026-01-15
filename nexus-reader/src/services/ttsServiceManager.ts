@@ -241,6 +241,8 @@ export class TTSServiceManager {
     try {
       // Load TTS library from CDN
       const piperTTS = await cdnResourceLoader.loadResource('piper-tts-web', {
+        timeout: 30000,
+        retries: 2,
         onProgress: (progress: any) => {
           this.loadProgress.value = Math.round(progress.percentage * 100)
           this.loadStatus.value = progress.status || 'Loading...'
@@ -259,10 +261,15 @@ export class TTSServiceManager {
 
       logger.info('TTS engine loaded successfully')
     } catch (err) {
-      this.error.value = err instanceof Error ? err.message : 'Failed to load TTS engine'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load TTS engine'
+      this.error.value = `本地 TTS 库加载失败: ${errorMessage}。将使用浏览器内置语音合成。`
       this.isEngineLoaded.value = false
+      this.loadStatus.value = '加载失败，使用浏览器内置 TTS'
       logger.error('TTS engine loading failed:', err)
-      throw err
+      
+      // 降级策略：不抛出错误，允许使用浏览器内置 TTS
+      // 标记为不支持本地 TTS，但可以使用浏览器 TTS
+      this.isSupported.value = false
     } finally {
       this.isLoading.value = false
     }

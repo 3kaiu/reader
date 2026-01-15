@@ -171,7 +171,15 @@ export class AIServiceManager {
       return webllmLib
     } catch (error) {
       logger.error('[AI Service] Failed to load WebLLM library:', error as Error)
-      throw new Error(`AI库加载失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      
+      // 降级策略：提示用户使用云端 AI 或稍后重试
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      this.error.value = `本地 AI 库加载失败: ${errorMessage}。您可以使用云端 AI 功能，或稍后重试。`
+      this.loadStatus.value = '加载失败，建议使用云端 AI'
+      
+      // 不抛出错误，允许用户继续使用其他功能
+      // 如果后续需要本地 AI，可以再次尝试加载
+      throw new Error(`AI库加载失败: ${errorMessage}。请使用云端 AI 功能或稍后重试。`)
     }
   }
 
