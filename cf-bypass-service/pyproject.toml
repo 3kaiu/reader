@@ -15,4 +15,5 @@ dependencies = [
     "curl_cffi>=0.5.10",
     "redis>=5.0.0",
     "hypothesis>=6.0.0",
+    "xxhash>=3.0.0",
 ]

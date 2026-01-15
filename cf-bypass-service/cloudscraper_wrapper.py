@@ -16,6 +16,7 @@ import redis
 
 from config_manager import config_manager
 from enhanced_logger import EnhancedLogger
+from performance_optimizer import PerformanceOptimizer
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
 enhanced_logger = EnhancedLogger("cloudscraper-wrapper")
@@ -196,7 +197,15 @@ class CloudScraperWrapper:
         self.health_monitor = HealthMonitor()
         self.session_manager = SessionManager()
         
-        logger.info("CloudScraper wrapper initialized")
+        # Performance optimizer for Phase 1 optimizations
+        self.performance_optimizer = PerformanceOptimizer(
+            enable_parallel=True,
+            enable_batch=True,
+            max_workers=10,
+            batch_size=10
+        )
+        
+        logger.info("CloudScraper wrapper initialized with performance optimizations")
     
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL"""
@@ -208,11 +217,17 @@ class CloudScraperWrapper:
         return domain_config.to_cloudscraper_config()
     
     def _create_scraper(self, domain: str) -> cloudscraper.CloudScraper:
-        """Create CloudScraper with maximum built-in features"""
+        """Create CloudScraper with maximum built-in features + optimized interpreter"""
         config = self._get_domain_config(domain)
         domain_config = config_manager.get_config(domain)
         
+        # Use performance optimizer to select best JS interpreter
+        best_interpreter = self.performance_optimizer.get_best_interpreter(domain)
+        
         try:
+            # Override interpreter with optimized selection
+            config['interpreter'] = best_interpreter
+            
             # Use CloudScraper's create_scraper with valid parameters only
             scraper = cloudscraper.create_scraper(**config)
             
@@ -228,7 +243,7 @@ class CloudScraperWrapper:
                 'Upgrade-Insecure-Requests': '1',
             })
             
-            logger.info(f"Created CloudScraper for {domain} with {domain_config.interpreter} interpreter")
+            logger.info(f"Created CloudScraper for {domain} with {best_interpreter} interpreter (optimized)")
             return scraper
             
         except Exception as e:
@@ -276,8 +291,8 @@ class CloudScraperWrapper:
         domain = self._get_domain(url)
         start_time = datetime.now()
         
-        # 1. Cache check (CloudScraper doesn't have caching)
-        cache_key = self.cache_manager.generate_key(url, method, {
+        # 1. Cache check (CloudScraper doesn't have caching) - using optimized cache key
+        cache_key = self.performance_optimizer.generate_cache_key(url, method, {
             'headers': headers,
             'data': body
         })
@@ -416,9 +431,49 @@ class CloudScraperWrapper:
             }
         return None
     
+    async def fetch_parallel(self, requests: list) -> list:
+        """
+        Fetch multiple URLs in parallel using performance optimizer
+        
+        Args:
+            requests: List of dicts with keys: url, method, headers, body, timeout, proxy
+        
+        Returns:
+            List of FetchResult objects
+        """
+        logger.info(f"Parallel fetch: {len(requests)} requests")
+        
+        # Use performance optimizer's parallel engine
+        return await self.performance_optimizer.fetch_parallel(
+            requests,
+            lambda **kwargs: self.fetch(**kwargs)
+        )
+    
+    async def fetch_batch(self, urls: list, **common_kwargs) -> list:
+        """
+        Batch fetch multiple URLs with common parameters
+        
+        Args:
+            urls: List of URLs to fetch
+            **common_kwargs: Common parameters for all requests (method, headers, etc.)
+        
+        Returns:
+            List of FetchResult objects
+        """
+        logger.info(f"Batch fetch: {len(urls)} URLs")
+        
+        # Build request list
+        requests = [
+            {'url': url, **common_kwargs}
+            for url in urls
+        ]
+        
+        return await self.fetch_parallel(requests)
+    
     def get_stats(self) -> Dict:
-        """Get comprehensive statistics"""
+        """Get comprehensive statistics including performance metrics"""
         health_stats = self.health_monitor.get_stats()
+        perf_stats = self.performance_optimizer.get_comprehensive_stats()
         
         return {
             "active_sessions": len(self.scrapers),
@@ -426,11 +481,15 @@ class CloudScraperWrapper:
             "health_stats": health_stats,
             "cache_available": self.cache_manager.redis is not None,
             "engine": "CloudScraper",
-            "version": "5.0.0"
+            "version": "5.0.0",
+            "performance": perf_stats
         }
     
     async def shutdown(self):
         """Cleanup resources"""
+        # Shutdown performance optimizer
+        await self.performance_optimizer.shutdown()
+        
         # CloudScraper sessions don't need explicit cleanup
         self.scrapers.clear()
         
