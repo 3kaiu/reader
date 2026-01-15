@@ -1773,6 +1773,238 @@ async function handleExportDictionary(request: Request, env: Env, userId: string
   }
 }
 
+/** DELETE /dictionary/:id - 删除词典条目 */
+async function handleDeleteDictionary(
+  request: Request,
+  env: Env,
+  userId: string,
+  entryId: string
+): Promise<Response> {
+  const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
+  const url = new URL(request.url);
+  const level = (url.searchParams.get('level') || 'user') as DictionaryLevel;
+  const bookId = url.searchParams.get('bookId');
+  const category = url.searchParams.get('category') as BookType | null;
+  
+  // Validate parameters
+  if (level === 'book' && !bookId) {
+    return new Response(JSON.stringify({
+      error: 'Missing required parameter',
+      parameter: 'bookId'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+  
+  if (level === 'category' && !category) {
+    return new Response(JSON.stringify({
+      error: 'Missing required parameter',
+      parameter: 'category'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+  
+  try {
+    // Determine KV key based on level
+    let key: string;
+    if (level === 'user') {
+      key = `decoder:user:${userId}:dictionary`;
+    } else if (level === 'book') {
+      key = `decoder:book:${bookId}:dictionary`;
+    } else {
+      key = `decoder:dict:category:${category}`;
+    }
+    
+    // Get current dictionary
+    const data = await env.DECODER_KV.get(key);
+    if (!data) {
+      return new Response(JSON.stringify({
+        error: 'Dictionary not found'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    const entries: DictionaryEntry[] = JSON.parse(data);
+    
+    // Find and remove entry
+    const initialLength = entries.length;
+    const filtered = entries.filter(e => e.id !== entryId);
+    
+    if (filtered.length === initialLength) {
+      return new Response(JSON.stringify({
+        error: 'Entry not found',
+        id: entryId
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    // Save updated dictionary
+    await env.DECODER_KV.put(key, JSON.stringify(filtered));
+    
+    logger.info(`Deleted dictionary entry ${entryId} from ${level} dictionary`);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      deletedId: entryId,
+      level,
+      message: 'Entry deleted successfully'
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+    
+  } catch (e) {
+    logger.error('Delete dictionary error:', e);
+    return new Response(JSON.stringify({
+      error: 'Internal server error'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+}
+
+/** DELETE /dictionary/batch - 批量删除词典条目 */
+async function handleBatchDeleteDictionary(
+  request: Request,
+  env: Env,
+  userId: string
+): Promise<Response> {
+  const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
+  
+  try {
+    const body = await request.json() as {
+      ids: string[];
+      level?: DictionaryLevel;
+      bookId?: string;
+      category?: BookType;
+    };
+    
+    // Validate input
+    if (!Array.isArray(body.ids) || body.ids.length === 0) {
+      return new Response(JSON.stringify({
+        error: 'Invalid request',
+        message: 'IDs array cannot be empty'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    if (body.ids.length > 100) {
+      return new Response(JSON.stringify({
+        error: 'Invalid request',
+        message: 'Too many IDs (max 100)'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    const level = body.level || 'user';
+    
+    // Validate level-specific parameters
+    if (level === 'book' && !body.bookId) {
+      return new Response(JSON.stringify({
+        error: 'Missing required parameter',
+        parameter: 'bookId'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    if (level === 'category' && !body.category) {
+      return new Response(JSON.stringify({
+        error: 'Missing required parameter',
+        parameter: 'category'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    // Determine KV key
+    let key: string;
+    if (level === 'user') {
+      key = `decoder:user:${userId}:dictionary`;
+    } else if (level === 'book') {
+      key = `decoder:book:${body.bookId}:dictionary`;
+    } else {
+      key = `decoder:dict:category:${body.category}`;
+    }
+    
+    // Get current dictionary
+    const data = await env.DECODER_KV.get(key);
+    if (!data) {
+      return new Response(JSON.stringify({
+        success: true,
+        deleted: 0,
+        failed: body.ids.length,
+        details: {
+          deletedIds: [],
+          failedIds: body.ids
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+    
+    const entries: DictionaryEntry[] = JSON.parse(data);
+    const idsToDelete = new Set(body.ids);
+    const deletedIds: string[] = [];
+    
+    // Filter out entries to delete
+    const filtered = entries.filter(e => {
+      if (idsToDelete.has(e.id)) {
+        deletedIds.push(e.id);
+        return false;
+      }
+      return true;
+    });
+    
+    // Determine failed IDs
+    const failedIds = body.ids.filter(id => !deletedIds.includes(id));
+    
+    // Save updated dictionary
+    await env.DECODER_KV.put(key, JSON.stringify(filtered));
+    
+    logger.info(`Batch deleted ${deletedIds.length} entries from ${level} dictionary`);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      deleted: deletedIds.length,
+      failed: failedIds.length,
+      details: {
+        deletedIds,
+        failedIds
+      }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+    
+  } catch (e) {
+    logger.error('Batch delete dictionary error:', e);
+    return new Response(JSON.stringify({
+      error: 'Internal server error'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    });
+  }
+}
+
 /** GET /book/:bookId/state - 获取书籍状态 (11.1) */
 async function handleGetBookState(request: Request, env: Env, bookId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
@@ -1999,8 +2231,22 @@ export default {
       case path === '/dictionary/confirm' && request.method === 'POST':
         return handleConfirmEntry(request, env, userId);
       
+      // 批量删除词典条目
+      case path === '/dictionary/batch' && request.method === 'DELETE':
+        return handleBatchDeleteDictionary(request, env, userId);
+      
       default:
         break;
+    }
+    
+    // 删除单个词典条目 (需要动态路由匹配)
+    const deleteDictMatch = path.match(/^\/dictionary\/([^/]+)$/);
+    if (deleteDictMatch && request.method === 'DELETE') {
+      const entryId = deleteDictMatch[1];
+      // 确保不是 /dictionary/batch
+      if (entryId !== 'batch') {
+        return handleDeleteDictionary(request, env, userId, entryId);
+      }
     }
     
     // 书籍状态路由 (11.1)

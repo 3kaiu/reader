@@ -27,6 +27,7 @@ pub struct SledStore {
     ai_history: Tree,
     voice_meta: Tree,
     voice_config: Tree,
+    source_status: Tree, // Source enabled/disabled status
 
     // Health tracker (in-memory, not persisted)
     health: Arc<HealthTracker>,
@@ -63,6 +64,9 @@ impl SledStore {
                 .map_err(|e| EngineError::Database(e.to_string()))?,
             voice_config: db
                 .open_tree("voice_config")
+                .map_err(|e| EngineError::Database(e.to_string()))?,
+            source_status: db
+                .open_tree("source_status")
                 .map_err(|e| EngineError::Database(e.to_string()))?,
             db,
             health: Arc::new(HealthTracker::new()),
@@ -333,6 +337,32 @@ impl SledStore {
     pub fn save_voice_config(&self, key: &str, value: &str) -> Result<(), EngineError> {
         self.voice_config
             .insert(key, value.as_bytes())
+            .map_err(|e| EngineError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    // ========== Source Status ==========
+
+    /// Get source enabled status (default: true if not set)
+    pub fn get_source_status(&self, source_id: &str) -> Result<bool, EngineError> {
+        match self
+            .source_status
+            .get(source_id)
+            .map_err(|e| EngineError::Database(e.to_string()))?
+        {
+            Some(bytes) => {
+                // Store as "1" for enabled, "0" for disabled
+                Ok(bytes[0] == b'1')
+            }
+            None => Ok(true), // Default to enabled
+        }
+    }
+
+    /// Set source enabled status
+    pub fn set_source_status(&self, source_id: &str, enabled: bool) -> Result<(), EngineError> {
+        let value = if enabled { b"1" } else { b"0" };
+        self.source_status
+            .insert(source_id, value)
             .map_err(|e| EngineError::Database(e.to_string()))?;
         Ok(())
     }

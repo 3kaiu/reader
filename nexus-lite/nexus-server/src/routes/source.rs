@@ -4,25 +4,51 @@ use axum::{
     Json,
 };
 use nexus_core::NxsSource;
+use serde::{Deserialize, Serialize};
 
 use crate::app::AppState;
 
+/// Source with enabled status
+#[derive(Serialize)]
+pub struct SourceWithStatus {
+    #[serde(flatten)]
+    pub source: NxsSource,
+    pub enabled: bool,
+}
+
 /// List all sources
-pub async fn list_sources(State(state): State<AppState>) -> Json<Vec<NxsSource>> {
-    Json(state.engine_registry.source_store().get_all())
+pub async fn list_sources(State(state): State<AppState>) -> Json<Vec<SourceWithStatus>> {
+    let sources = state.engine_registry.source_store().get_all();
+    let sources_with_status: Vec<SourceWithStatus> = sources
+        .into_iter()
+        .map(|source| {
+            let enabled = state
+                .store
+                .get_source_status(&source.id)
+                .unwrap_or(true);
+            SourceWithStatus { source, enabled }
+        })
+        .collect();
+    Json(sources_with_status)
 }
 
 /// Get a single source
 pub async fn get_source(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<NxsSource>, StatusCode> {
-    state
+) -> Result<Json<SourceWithStatus>, StatusCode> {
+    let source = state
         .engine_registry
         .source_store()
         .get(&id)
-        .map(Json)
-        .ok_or(StatusCode::NOT_FOUND)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let enabled = state
+        .store
+        .get_source_status(&id)
+        .unwrap_or(true);
+    
+    Ok(Json(SourceWithStatus { source, enabled }))
 }
 
 /// Add a new source
@@ -86,4 +112,35 @@ pub async fn source_health(State(state): State<AppState>) -> Json<Vec<SourceHeal
         .collect();
 
     Json(info)
+}
+
+/// Request body for updating source status
+#[derive(Deserialize)]
+pub struct UpdateStatusRequest {
+    pub enabled: bool,
+}
+
+/// Update source enabled status
+pub async fn update_source_status(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<UpdateStatusRequest>,
+) -> Result<Json<SourceWithStatus>, (StatusCode, String)> {
+    // Check if source exists
+    let source = state
+        .engine_registry
+        .source_store()
+        .get(&id)
+        .ok_or((StatusCode::NOT_FOUND, format!("Source not found: {}", id)))?;
+    
+    // Update status in database
+    state
+        .store
+        .set_source_status(&id, body.enabled)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    Ok(Json(SourceWithStatus {
+        source,
+        enabled: body.enabled,
+    }))
 }
