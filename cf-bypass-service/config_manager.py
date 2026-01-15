@@ -1,14 +1,41 @@
 """
 Configuration Manager for CF Bypass Service
 Manages domain-specific CloudScraper configurations with validation.
+
+Integrated with validation logic for high cohesion.
 """
 import json
 import logging
-from typing import Dict, List, Any
+import re
+import ipaddress
+from typing import Dict, List, Any, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────
+# Validation Constants
+# ─────────────────────────────────────────────────────────────
+
+VALID_BROWSERS = ["chrome", "firefox", "safari", "edge", "opera"]
+VALID_PLATFORMS = ["windows", "linux", "darwin", "android", "ios"]
+VALID_INTERPRETERS = ["js2py", "nodejs", "v8"]
+VALID_PROXY_SCHEMES = ["http", "https", "socks4", "socks5"]
+VALID_ROTATION_STRATEGIES = ["sequential", "random", "smart"]
+
+MAX_DELAY = 60.0
+MIN_DELAY = 0.1
+MAX_TIMEOUT = 300
+MIN_TIMEOUT = 5
+MAX_BAN_TIME = 3600
+
+
+# ─────────────────────────────────────────────────────────────
+# Configuration Data Classes
+# ─────────────────────────────────────────────────────────────
 
 @dataclass
 class BrowserConfig:
@@ -18,16 +45,21 @@ class BrowserConfig:
     
     def validate(self) -> bool:
         """Validate browser configuration"""
-        valid_browsers = ["chrome", "firefox", "safari", "edge"]
-        valid_platforms = ["windows", "linux", "darwin", "android", "ios"]
+        if self.browser not in VALID_BROWSERS:
+            raise ValueError(f"Invalid browser: {self.browser}. Must be one of {VALID_BROWSERS}")
         
-        if self.browser not in valid_browsers:
-            raise ValueError(f"Invalid browser: {self.browser}. Must be one of {valid_browsers}")
+        if self.platform not in VALID_PLATFORMS:
+            raise ValueError(f"Invalid platform: {self.platform}. Must be one of {VALID_PLATFORMS}")
         
-        if self.platform not in valid_platforms:
-            raise ValueError(f"Invalid platform: {self.platform}. Must be one of {valid_platforms}")
+        # Check invalid combinations
+        if self.browser == "safari" and self.platform not in ["darwin", "ios"]:
+            raise ValueError("Safari browser is only available on darwin (macOS) and ios platforms")
+        
+        if self.browser == "edge" and self.platform not in ["windows", "android"]:
+            logger.warning("Edge browser is primarily available on windows and android platforms")
         
         return True
+
 
 @dataclass
 class StealthConfig:
@@ -39,16 +71,17 @@ class StealthConfig:
     
     def validate(self) -> bool:
         """Validate stealth configuration"""
-        if self.min_delay < 0 or self.max_delay < 0:
-            raise ValueError("Delays must be non-negative")
+        if self.min_delay < MIN_DELAY or self.max_delay < MIN_DELAY:
+            raise ValueError(f"Delays must be >= {MIN_DELAY}")
         
         if self.min_delay > self.max_delay:
             raise ValueError("min_delay must be <= max_delay")
         
-        if self.max_delay > 30:
+        if self.max_delay > MAX_DELAY:
             logger.warning(f"max_delay {self.max_delay}s is very high, may impact performance")
         
         return True
+
 
 @dataclass
 class ProxyConfig:
@@ -63,29 +96,19 @@ class ProxyConfig:
     
     def validate(self) -> bool:
         """Validate proxy configuration"""
-        valid_strategies = ["sequential", "random", "smart"]
+        if self.rotation_strategy not in VALID_ROTATION_STRATEGIES:
+            raise ValueError(f"Invalid rotation_strategy: {self.rotation_strategy}. Must be one of {VALID_ROTATION_STRATEGIES}")
         
-        if self.rotation_strategy not in valid_strategies:
-            raise ValueError(f"Invalid rotation_strategy: {self.rotation_strategy}. Must be one of {valid_strategies}")
-        
-        if self.ban_time < 0:
-            raise ValueError("ban_time must be non-negative")
+        if self.ban_time < 0 or self.ban_time > MAX_BAN_TIME:
+            raise ValueError(f"ban_time must be between 0 and {MAX_BAN_TIME}")
         
         # Validate proxy URLs
         for proxy in self.proxies:
-            if not self._validate_proxy_url(proxy):
+            if not _validate_proxy_url(proxy):
                 raise ValueError(f"Invalid proxy URL: {proxy}")
         
         return True
-    
-    def _validate_proxy_url(self, proxy: str) -> bool:
-        """Validate proxy URL format"""
-        if not proxy:
-            return False
-        
-        # Basic validation for proxy URL format
-        valid_schemes = ["http://", "https://", "socks4://", "socks5://"]
-        return any(proxy.startswith(scheme) for scheme in valid_schemes)
+
 
 @dataclass
 class DomainConfig:
@@ -100,13 +123,11 @@ class DomainConfig:
     
     def validate(self) -> bool:
         """Validate complete domain configuration"""
-        valid_interpreters = ["js2py", "nodejs", "v8"]
+        if self.interpreter not in VALID_INTERPRETERS:
+            raise ValueError(f"Invalid interpreter: {self.interpreter}. Must be one of {VALID_INTERPRETERS}")
         
-        if self.interpreter not in valid_interpreters:
-            raise ValueError(f"Invalid interpreter: {self.interpreter}. Must be one of {valid_interpreters}")
-        
-        if self.timeout <= 0:
-            raise ValueError("timeout must be positive")
+        if self.timeout < MIN_TIMEOUT or self.timeout > MAX_TIMEOUT:
+            raise ValueError(f"timeout must be between {MIN_TIMEOUT} and {MAX_TIMEOUT}")
         
         # Validate sub-configurations
         self.browser.validate()
@@ -117,7 +138,6 @@ class DomainConfig:
     
     def to_cloudscraper_config(self) -> Dict[str, Any]:
         """Convert to CloudScraper configuration format"""
-        # Only include parameters that are actually supported by cloudscraper
         config = {
             "interpreter": self.interpreter,
             "browser": asdict(self.browser),
@@ -136,6 +156,64 @@ class DomainConfig:
             })
         
         return config
+
+
+# ─────────────────────────────────────────────────────────────
+# Validation Helper Functions
+# ─────────────────────────────────────────────────────────────
+
+def _validate_proxy_url(proxy_url: str) -> bool:
+    """Validate a single proxy URL"""
+    if not proxy_url or not isinstance(proxy_url, str):
+        return False
+    
+    try:
+        parsed = urlparse(proxy_url)
+        
+        # Check scheme
+        if parsed.scheme not in VALID_PROXY_SCHEMES:
+            return False
+        
+        # Check hostname
+        if not parsed.hostname:
+            return False
+        
+        # Validate hostname (IP or domain)
+        hostname = parsed.hostname
+        try:
+            ipaddress.ip_address(hostname)
+        except ValueError:
+            # Not an IP, validate as domain name
+            if not _is_valid_domain(hostname):
+                return False
+        
+        # Check port
+        if parsed.port is not None:
+            if not (1 <= parsed.port <= 65535):
+                return False
+        
+        return True
+        
+    except Exception:
+        return False
+
+
+def _is_valid_domain(domain: str) -> bool:
+    """Validate domain name format"""
+    if not domain or len(domain) > 253:
+        return False
+    
+    domain_pattern = re.compile(
+        r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*'
+        r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
+    )
+    
+    return bool(domain_pattern.match(domain))
+
+
+# ─────────────────────────────────────────────────────────────
+# Configuration Manager
+# ─────────────────────────────────────────────────────────────
 
 class ConfigManager:
     """Manages domain configurations with hot-reload support"""
