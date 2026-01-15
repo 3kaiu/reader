@@ -1,5 +1,21 @@
 import { $get, $post, $delete, $patch, $put } from './client'
 
+// 安全解码 URL，避免双重编码
+// Vue Router hash 模式会自动编码查询参数，但 ofetch 的 params 也会编码
+// 所以需要先解码，让 ofetch 重新编码
+function safeDecodeUrl(url: string): string {
+  try {
+    // 如果 URL 包含编码字符（%），尝试解码
+    if (url.includes('%')) {
+      return decodeURIComponent(url)
+    }
+    return url
+  } catch {
+    // 解码失败，返回原始值
+    return url
+  }
+}
+
 // 书籍类型定义
 export interface Book {
   id?: string
@@ -79,14 +95,20 @@ export const bookApi = {
     $get<Book[]>('/bookshelf'),
 
   // 获取章节列表
-  getChapterList: (source: string, url: string) =>
-    $get<Chapter[]>('/chapters', {
-      params: { source, url },
-    }),
+  getChapterList: (source: string, url: string) => {
+    // 解码 URL，避免双重编码
+    const decodedUrl = safeDecodeUrl(url)
+    return $get<Chapter[]>('/chapters', {
+      params: { source, url: decodedUrl },
+    })
+  },
 
   // 获取章节内容
-  getBookContent: (source: string, url: string) =>
-    $get<ChapterContent>('/content', { params: { source, url } }),
+  getBookContent: (source: string, url: string) => {
+    // 解码 URL，避免双重编码
+    const decodedUrl = safeDecodeUrl(url)
+    return $get<ChapterContent>('/content', { params: { source, url: decodedUrl } })
+  },
 
   // 搜索书籍 (Nexus-lite 使用 POST /search)
   search: (keyword: string) => $post<SearchResponse>('/search', { keyword }),
@@ -113,8 +135,11 @@ export const bookApi = {
   deleteBook: (id: string) => $delete(`/bookshelf/${id}`),
 
   // 获取书籍详细信息
-  getBookInfo: (source: string, url: string) =>
-    $get<Book>('/book', { params: { source, url } }),
+  getBookInfo: (source: string, url: string) => {
+    // 解码 URL，避免双重编码（Vue Router hash 模式会自动编码查询参数）
+    const decodedUrl = safeDecodeUrl(url)
+    return $get<Book>('/book', { params: { source, url: decodedUrl } })
+  },
 
   // 保存阅读进度
   saveBookProgress: (id: string, chapterIndex: number, position: number) =>
