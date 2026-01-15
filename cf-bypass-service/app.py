@@ -12,6 +12,7 @@ from pydantic import BaseModel, HttpUrl
 
 # Import new CloudScraper wrapper instead of old curl_cffi engine
 from cloudscraper_wrapper import wrapper as engine
+from phase2_config import phase2_config
 import os
 
 # Configuration (maintain compatibility)
@@ -216,3 +217,12 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
         )
         for result in results
     ]
+
+
+@app.get("/config")
+async def get_config():
+    """Get current Phase 2 configuration."""
+    return {
+        "phase2": phase2_config.to_dict(),
+        "version": "5.0.0"
+    }

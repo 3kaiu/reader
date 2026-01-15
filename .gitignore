@@ -60,6 +60,8 @@ nexus-lite/cache/
 # Python
 cf-bypass-service/.venv/
 cf-bypass-service/__pycache__/
+cf-bypass-service/.hypothesis/
+cf-bypass-service/.pytest_cache/
 
 # Lock files (use bun.lock for frontend)
 package-lock.json
