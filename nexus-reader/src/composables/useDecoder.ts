@@ -358,6 +358,50 @@ export function useDecoder() {
     }
   }
 
+  /**
+   * 删除词典条目
+   */
+  async function deleteDictionaryEntry(
+    entryId: string,
+    params?: {
+      level?: DictionaryLevel
+      bookId?: string
+      category?: BookType
+    }
+  ): Promise<void> {
+    try {
+      await decoderApi.deleteDictionaryEntry(entryId, params)
+    } catch (e) {
+      logger.error('Delete dictionary entry failed:', e)
+      throw e
+    }
+  }
+
+  /**
+   * 批量删除词典条目
+   */
+  async function batchDeleteDictionaryEntries(data: {
+    ids: string[]
+    level?: DictionaryLevel
+    bookId?: string
+    category?: BookType
+  }): Promise<{
+    success: boolean
+    deleted: number
+    failed: number
+    details: {
+      deletedIds: string[]
+      failedIds: string[]
+    }
+  }> {
+    try {
+      return await decoderApi.batchDeleteDictionaryEntries(data)
+    } catch (e) {
+      logger.error('Batch delete dictionary entries failed:', e)
+      throw e
+    }
+  }
+
   return {
     // 状态
     isLoading: computed(() => isLoading.value),
@@ -378,6 +422,8 @@ export function useDecoder() {
     loadDictionary,
     importEntries,
     exportEntries,
+    deleteDictionaryEntry,
+    batchDeleteDictionaryEntries,
 
     // 书籍状态
     getBookState,

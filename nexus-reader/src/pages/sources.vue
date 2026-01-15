@@ -145,8 +145,17 @@ async function loadSources() {
 // Speed test functions removed
 
 async function toggleEnable(source: BookSource, newValue: boolean) {
+  const previousValue = source.enabled;
   source.enabled = newValue;
-  // TODO: 后端支持保存状态时启用
+  
+  try {
+    await sourceApi.updateSourceStatus(source.id, newValue);
+    success(newValue ? '已启用书源' : '已禁用书源');
+  } catch (e) {
+    // 回滚状态
+    source.enabled = previousValue;
+    handlePromiseError(e, '更新书源状态失败');
+  }
 }
 
 async function deleteSource(source: BookSource) {

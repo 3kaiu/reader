@@ -1,4 +1,4 @@
-import { $post, $get, $delete } from './client'
+import { $post, $get, $delete, $put } from './client'
 
 export interface BookSource {
     id: string
@@ -20,6 +20,10 @@ export const sourceApi = {
 
     // 删除书源
     deleteBookSource: (id: string) => $delete(`/sources/${id}`),
+
+    // 更新书源状态
+    updateSourceStatus: (id: string, enabled: boolean) => 
+        $put<BookSource>(`/sources/${id}/status`, { enabled }),
 
     // 搜索书源 (Nexus-lite 搜索书籍时会自动在内部处理多源)
     // 如果有特定的源搜索需求，可以保留占位或根据需求添加

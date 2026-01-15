@@ -227,10 +227,21 @@ async function deleteEntry(entry: DictionaryEntry) {
   })
   if (!result) return
 
-  // TODO: 实现删除 API
-  entries.value = entries.value.filter((e) => e.id !== entry.id)
-  selectedEntries.value.delete(entry.id)
-  success('删除成功')
+  try {
+    loading.value = true
+    await decoder.deleteDictionaryEntry(entry.id, {
+      level: entry.level,
+      bookId: entry.bookId,
+      category: entry.category,
+    })
+    entries.value = entries.value.filter((e) => e.id !== entry.id)
+    selectedEntries.value.delete(entry.id)
+    success('删除成功')
+  } catch (e) {
+    handlePromiseError(e, '删除词条失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 切换管理模式
@@ -267,11 +278,33 @@ async function batchDelete() {
   })
   if (!result) return
 
-  // TODO: 实现批量删除 API
-  entries.value = entries.value.filter((e) => !selectedEntries.value.has(e.id))
-  selectedEntries.value.clear()
-  isManageMode.value = false
-  success('删除成功')
+  try {
+    loading.value = true
+    const ids = Array.from(selectedEntries.value)
+    // 获取第一个条目的 level 信息（假设批量删除的条目在同一层级）
+    const firstEntry = entries.value.find((e) => selectedEntries.value.has(e.id))
+    const response = await decoder.batchDeleteDictionaryEntries({
+      ids,
+      level: firstEntry?.level,
+      bookId: firstEntry?.bookId,
+      category: firstEntry?.category,
+    })
+    
+    // 从列表中移除已删除的条目
+    entries.value = entries.value.filter((e) => !response.details.deletedIds.includes(e.id))
+    selectedEntries.value.clear()
+    isManageMode.value = false
+    
+    if (response.failed > 0) {
+      success(`删除成功 ${response.deleted} 条，失败 ${response.failed} 条`)
+    } else {
+      success(`成功删除 ${response.deleted} 条词条`)
+    }
+  } catch (e) {
+    handlePromiseError(e, '批量删除失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 导出词典

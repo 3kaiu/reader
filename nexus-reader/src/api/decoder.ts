@@ -109,6 +109,57 @@ export async function confirmEntry(data: {
 }
 
 /**
+ * 删除词典条目
+ */
+export async function deleteDictionaryEntry(
+  entryId: string,
+  params?: {
+    level?: DictionaryLevel
+    bookId?: string
+    category?: BookType
+  }
+): Promise<{ success: boolean; deletedId: string; level: DictionaryLevel; message: string }> {
+  return decoderFetch<{ success: boolean; deletedId: string; level: DictionaryLevel; message: string }>(
+    `/dictionary/${encodeURIComponent(entryId)}`,
+    {
+      method: 'DELETE',
+      params,
+    }
+  )
+}
+
+/**
+ * 批量删除词典条目
+ */
+export async function batchDeleteDictionaryEntries(data: {
+  ids: string[]
+  level?: DictionaryLevel
+  bookId?: string
+  category?: BookType
+}): Promise<{
+  success: boolean
+  deleted: number
+  failed: number
+  details: {
+    deletedIds: string[]
+    failedIds: string[]
+  }
+}> {
+  return decoderFetch<{
+    success: boolean
+    deleted: number
+    failed: number
+    details: {
+      deletedIds: string[]
+      failedIds: string[]
+    }
+  }>('/dictionary/batch', {
+    method: 'DELETE',
+    body: data,
+  })
+}
+
+/**
  * 获取书籍状态
  */
 export async function getBookState(bookId: string): Promise<BookState> {

@@ -76,16 +76,21 @@ success("测试功能开发中，请稍后");
 **位置**: `nexus-reader/src/pages/decoder-dictionary.vue:230-232`
 
 ```typescript
-// TODO: 实现删除 API
-entries.value = entries.value.filter((e) => e.id !== entry.id)
+// 已实现删除 API
+await decoder.deleteDictionaryEntry(entry.id, {
+  level: entry.level,
+  bookId: entry.bookId,
+  category: entry.category,
+})
 ```
 
-**状态**: 🔴 需要实现（后端 API）  
+**状态**: ✅ 已完成  
 **优先级**: P2 - 中  
-**建议**: 
-- 在 novel-decoder-worker.ts 中添加 DELETE /dictionary/:id 端点
-- 前端调用该 API
-- 添加错误处理
+**完成日期**: 2025-01-15  
+**说明**: 
+- 已在 novel-decoder-worker.ts 中添加 DELETE /dictionary/:id 端点
+- 前端调用该 API 并包含错误处理
+- 添加加载状态和用户反馈
 
 **预估工作量**: 1 天
 
@@ -96,16 +101,22 @@ entries.value = entries.value.filter((e) => e.id !== entry.id)
 **位置**: `nexus-reader/src/pages/decoder-dictionary.vue:270-272`
 
 ```typescript
-// TODO: 实现批量删除 API
-entries.value = entries.value.filter((e) => !selectedEntries.value.has(e.id))
+// 已实现批量删除 API
+const response = await decoder.batchDeleteDictionaryEntries({
+  ids,
+  level: firstEntry?.level,
+  bookId: firstEntry?.bookId,
+  category: firstEntry?.category,
+})
 ```
 
-**状态**: 🔴 需要实现（后端 API）  
+**状态**: ✅ 已完成  
 **优先级**: P2 - 中  
-**建议**: 
-- 在 novel-decoder-worker.ts 中添加 DELETE /dictionary/batch 端点
-- 前端调用该 API
-- 添加错误处理
+**完成日期**: 2025-01-15  
+**说明**: 
+- 已在 novel-decoder-worker.ts 中添加 DELETE /dictionary/batch 端点
+- 前端调用该 API 并处理部分成功场景
+- 添加错误处理和用户反馈
 
 **预估工作量**: 1 天
 
@@ -117,16 +128,26 @@ entries.value = entries.value.filter((e) => !selectedEntries.value.has(e.id))
 
 ```typescript
 async function toggleEnable(source: BookSource, newValue: boolean) {
+  const previousValue = source.enabled;
   source.enabled = newValue;
-  // TODO: 后端支持保存状态时启用
+  
+  try {
+    await sourceApi.updateSourceStatus(source.id, newValue);
+    success(newValue ? '已启用书源' : '已禁用书源');
+  } catch (e) {
+    source.enabled = previousValue;
+    handlePromiseError(e, '更新书源状态失败');
+  }
 }
 ```
 
-**状态**: 🔴 需要实现（后端 API）  
+**状态**: ✅ 已完成  
 **优先级**: P2 - 中  
-**建议**: 
-- 在后端添加保存书源状态的 API
-- 前端调用该 API
+**完成日期**: 2025-01-15  
+**说明**: 
+- 已在 Nexus Lite 中添加 PUT /api/sources/:id/status 端点
+- 使用 sled 数据库的 source_status tree 存储状态
+- 前端调用该 API 并包含状态回滚机制
 - 添加错误处理和用户反馈
 
 **预估工作量**: 1-2 天
@@ -178,8 +199,8 @@ private async sendToExternalLogging(_error: ErrorEntry): Promise<void> {
 ## 📊 统计
 
 - **总计**: 8 个 TODO
-- **已完成**: 1 个 (✅)
-- **需要实现**: 4 个（P2）
+- **已完成**: 4 个 (✅)
+- **需要实现**: 1 个（P2）
 - **待评估**: 3 个（P3）
 
 ## 🎯 建议处理顺序
