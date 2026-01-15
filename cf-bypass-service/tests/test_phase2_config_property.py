@@ -217,12 +217,18 @@ class TestPhase2ConfigProperties:
         assert 'connection_pool' in config_dict
         assert 'adaptive_retry' in config_dict
         assert 'memory_optimization' in config_dict
-        assert 'auto_recovery' in config_dict
+        assert 'health_monitoring' in config_dict
         
         # Verify session_pool structure
         assert 'enabled' in config_dict['session_pool']
         assert 'pool_size' in config_dict['session_pool']
         assert 'min_threshold' in config_dict['session_pool']
+        
+        # Verify health_monitoring structure
+        assert 'enabled' in config_dict['health_monitoring']
+        assert 'auto_recovery_enabled' in config_dict['health_monitoring']
+        assert 'degraded_error_rate' in config_dict['health_monitoring']
+        assert 'slow_response_multiplier' in config_dict['health_monitoring']
         
         # Verify all values are JSON-serializable types
         import json
