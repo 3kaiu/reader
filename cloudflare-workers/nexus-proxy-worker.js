@@ -9,6 +9,9 @@
  * 5. CORS 处理
  */
 
+// 导入共享认证模块
+import { verifyAuth } from './shared/auth.ts';
+
 // 配置
 const CONFIG = {
   // 缓存 TTL
@@ -34,66 +37,6 @@ function corsHeaders(origin) {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };
-}
-
-// 验证认证 Token
-async function verifyAuth(request, env) {
-  // 优先从 Authorization header 获取 token
-  const authHeader = request.headers.get('Authorization') || '';
-  let token = authHeader.replace('Bearer ', '');
-  
-  // 兼容 Cookie 方式
-  if (!token) {
-    const cookie = request.headers.get('Cookie') || '';
-    const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
-    token = tokenMatch ? tokenMatch[1] : null;
-  }
-  
-  if (!token) return null;
-  
-  try {
-    const [data, sig] = token.split('.');
-    if (!data || !sig) return null;
-    
-    // 验证签名 - 使用常量时间比较防止时序攻击
-    const key = await crypto.subtle.importKey(
-      'raw', 
-      new TextEncoder().encode(env.AUTH_SECRET), 
-      { name: 'HMAC', hash: 'SHA-256' }, 
-      false, 
-      ['sign', 'verify']
-    );
-    
-    // 计算期望的签名
-    const expectedSig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
-    const expectedSigB64 = btoa(String.fromCharCode(...new Uint8Array(expectedSig)));
-    
-    // 常量时间比较签名（防止时序攻击）
-    if (!constantTimeEqual(sig, expectedSigB64)) {
-      return null;
-    }
-    
-    const payload = JSON.parse(atob(data));
-    if (payload.exp < Date.now()) return null;
-    
-    return payload;
-  } catch (e) {
-    return null;
-  }
-}
-
-// 常量时间字符串比较（防止时序攻击）
-function constantTimeEqual(a, b) {
-  if (a.length !== b.length) {
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  
-  return result === 0;
 }
 
 // 生成 KV 缓存 key

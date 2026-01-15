@@ -9,6 +9,9 @@
  * 5. 上下文分析与缓存
  */
 
+// 导入共享认证模块
+import { verifyAuth, type AuthEnv, type TokenPayload } from './shared/auth.ts';
+
 // ============================================
 // 核心类型定义
 // ============================================
@@ -1491,64 +1494,6 @@ class DecoderEngine {
 // API 处理函数
 // ============================================
 
-/** 验证认证 Token */
-async function verifyAuth(request: Request, env: Env): Promise<{ userId: string } | null> {
-  // 优先从 Authorization header 获取 token
-  const authHeader = request.headers.get('Authorization') || '';
-  let token = authHeader.replace('Bearer ', '');
-  
-  // 兼容 Cookie 方式
-  if (!token) {
-    const cookie = request.headers.get('Cookie') || '';
-    const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
-    token = tokenMatch ? tokenMatch[1] : '';
-  }
-  
-  if (!token) return null;
-  
-  try {
-    const [data, sig] = token.split('.');
-    if (!data || !sig) return null;
-    
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(env.AUTH_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify']
-    );
-    const expectedSig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
-    const expectedSigB64 = btoa(String.fromCharCode(...new Uint8Array(expectedSig)));
-    
-    // 常量时间比较签名（防止时序攻击）
-    if (!constantTimeEqual(sig, expectedSigB64)) {
-      return null;
-    }
-    
-    const payload = JSON.parse(atob(data)) as { exp: number; id: string };
-    if (payload.exp < Date.now()) return null;
-    
-    // 使用 id 字段（与 auth worker 生成的 token 一致）
-    return { userId: payload.id };
-  } catch {
-    return null;
-  }
-}
-
-/** 常量时间字符串比较（防止时序攻击） */
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  
-  return result === 0;
-}
-
 /** 处理 OPTIONS 预检请求 */
 function handleOptions(request: Request): Response {
   const origin = request.headers.get('Origin') || '';
@@ -2000,6 +1945,9 @@ export default {
       });
     }
     
+    // 从 token payload 中提取 userId
+    const userId = user.id;
+    
     // 路由
     switch (true) {
       // 解码章节
@@ -2008,23 +1956,23 @@ export default {
       
       // 获取词典
       case path === '/dictionary' && request.method === 'GET':
-        return handleGetDictionary(request, env, user.userId);
+        return handleGetDictionary(request, env, userId);
       
       // 更新词典
       case path === '/dictionary' && request.method === 'PUT':
-        return handleUpdateDictionary(request, env, user.userId);
+        return handleUpdateDictionary(request, env, userId);
       
       // 导入词典
       case path === '/dictionary/import' && request.method === 'POST':
-        return handleImportDictionary(request, env, user.userId);
+        return handleImportDictionary(request, env, userId);
       
       // 导出词典
       case path === '/dictionary/export' && request.method === 'GET':
-        return handleExportDictionary(request, env, user.userId);
+        return handleExportDictionary(request, env, userId);
       
       // 用户确认词条 (11.4)
       case path === '/dictionary/confirm' && request.method === 'POST':
-        return handleConfirmEntry(request, env, user.userId);
+        return handleConfirmEntry(request, env, userId);
       
       default:
         break;
