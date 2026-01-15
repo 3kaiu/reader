@@ -11,6 +11,7 @@
 
 // 导入共享认证模块
 import { verifyAuth, type AuthEnv, type TokenPayload } from './shared/auth.ts';
+import { createLogger, type Logger, type LoggerEnv } from './shared/logger.ts';
 
 // ============================================
 // 核心类型定义
@@ -256,7 +257,7 @@ interface ExecutionContext {
 // 环境变量类型
 // ============================================
 
-export interface Env {
+export interface Env extends AuthEnv, LoggerEnv {
   // KV 存储 - 词典、知识图谱、用户数据和缓存（不需要信用卡）
   DECODER_KV: KVNamespace;
   
@@ -412,10 +413,12 @@ class DictionaryManager {
   private bookDicts: Map<string, DictionaryIndex> = new Map();
   
   private env: Env;
+  private logger: Logger;
   private loaded = false;
   
-  constructor(env: Env) {
+  constructor(env: Env, logger: Logger) {
     this.env = env;
+    this.logger = logger;
   }
   
   /** 加载词典 */
@@ -447,7 +450,7 @@ class DictionaryManager {
         entries.forEach(e => this.globalDict.addEntry(e));
       }
     } catch (e) {
-      console.error('Failed to load global dictionary:', e);
+      this.logger.error('Failed to load global dictionary:', e);
     }
   }
   
@@ -462,7 +465,7 @@ class DictionaryManager {
         this.categoryDicts.set(type, index);
       }
     } catch (e) {
-      console.error(`Failed to load category dictionary ${type}:`, e);
+      this.logger.error(`Failed to load category dictionary ${type}:`, e);
     }
   }
   
@@ -476,7 +479,7 @@ class DictionaryManager {
         this.bookDicts.set(bookId, index);
       }
     } catch (e) {
-      console.error(`Failed to load book dictionary ${bookId}:`, e);
+      this.logger.error(`Failed to load book dictionary ${bookId}:`, e);
     }
   }
   
@@ -514,10 +517,12 @@ class DictionaryManager {
 
 class BookStateManager {
   private env: Env;
+  private logger: Logger;
   private stateCache: Map<string, BookState> = new Map();
   
-  constructor(env: Env) {
+  constructor(env: Env, logger: Logger) {
     this.env = env;
+    this.logger = logger;
   }
   
   /** 获取书籍状态 */
@@ -535,7 +540,7 @@ class BookStateManager {
         return state;
       }
     } catch (e) {
-      console.error(`Failed to load book state ${bookId}:`, e);
+      this.logger.error(`Failed to load book state ${bookId}:`, e);
     }
     
     return null;
@@ -552,7 +557,7 @@ class BookStateManager {
       );
       this.stateCache.set(state.bookId, state);
     } catch (e) {
-      console.error(`Failed to save book state ${state.bookId}:`, e);
+      this.logger.error(`Failed to save book state ${state.bookId}:`, e);
     }
   }
   
@@ -634,9 +639,11 @@ class BookStateManager {
 
 class EntryPromotionManager {
   private env: Env;
+  private logger: Logger;
   
-  constructor(env: Env) {
+  constructor(env: Env, logger: Logger) {
     this.env = env;
+    this.logger = logger;
   }
   
   /** 记录词条确认 */
@@ -673,7 +680,7 @@ class EntryPromotionManager {
       
       await this.env.DECODER_KV.put(key, JSON.stringify(confirmation));
     } catch (e) {
-      console.error('Failed to record confirmation:', e);
+      this.logger.error('Failed to record confirmation:', e);
       // 返回默认值
       confirmation = {
         entryId: entry.id,
@@ -736,10 +743,10 @@ class EntryPromotionManager {
       // 保存回 KV
       await this.env.DECODER_KV.put(categoryKey, JSON.stringify(entries));
       
-      console.log(`Promoted entry "${entry.original}" to category ${categoryType}`);
+      this.logger.info(`Promoted entry "${entry.original}" to category ${categoryType}`);
       return true;
     } catch (e) {
-      console.error('Failed to promote entry:', e);
+      this.logger.error('Failed to promote entry:', e);
       return false;
     }
   }
@@ -773,10 +780,12 @@ class KnowledgeGraph {
   private events: Map<string, EventEntity> = new Map();
   
   private env: Env;
+  private logger: Logger;
   private loaded = false;
   
-  constructor(env: Env) {
+  constructor(env: Env, logger: Logger) {
     this.env = env;
+    this.logger = logger;
   }
   
   /** 加载知识图谱 (使用 KV 存储) */
@@ -807,7 +816,7 @@ class KnowledgeGraph {
       
       this.loaded = true;
     } catch (e) {
-      console.error('Failed to load knowledge graph:', e);
+      this.logger.error('Failed to load knowledge graph:', e);
     }
   }
   
@@ -954,10 +963,12 @@ class ContextAnalyzer {
 
 class AIInferenceEngine {
   private env: Env;
+  private logger: Logger;
   private callCount = 0;
   
-  constructor(env: Env) {
+  constructor(env: Env, logger: Logger) {
     this.env = env;
+    this.logger = logger;
   }
   
   /** 重置调用计数 */
@@ -1032,7 +1043,7 @@ ${request.text}
         return JSON.parse(jsonMatch[0]) as AIInferResponse;
       }
     } catch (e) {
-      console.error('Workers AI error:', e);
+      this.logger.error('Workers AI error:', e);
     }
     
     return null;
@@ -1065,7 +1076,7 @@ ${request.text}
         return JSON.parse(jsonMatch[0]) as AIInferResponse;
       }
     } catch (e) {
-      console.error('Groq API error:', e);
+      this.logger.error('Groq API error:', e);
     }
     
     return null;
@@ -1097,7 +1108,7 @@ ${request.text}
         return JSON.parse(jsonMatch[0]) as AIInferResponse;
       }
     } catch (e) {
-      console.error('HuggingFace API error:', e);
+      this.logger.error('HuggingFace API error:', e);
     }
     
     return null;
@@ -1106,7 +1117,7 @@ ${request.text}
   /** 推理 - 按优先级尝试: CF Workers AI → Groq → HF */
   async infer(request: AIInferRequest): Promise<AIInferResponse | null> {
     if (!this.canCall()) {
-      console.warn('AI call limit reached');
+      this.logger.warn('AI call limit reached');
       return null;
     }
     
@@ -1235,16 +1246,18 @@ class DecoderEngine {
   private bookStateManager: BookStateManager;
   private promotionManager: EntryPromotionManager;
   private env: Env;
+  private logger: Logger;
   
   constructor(env: Env) {
     this.env = env;
-    this.dictionary = new DictionaryManager(env);
-    this.knowledgeGraph = new KnowledgeGraph(env);
+    this.logger = createLogger(env);
+    this.dictionary = new DictionaryManager(env, this.logger);
+    this.knowledgeGraph = new KnowledgeGraph(env, this.logger);
     this.contextAnalyzer = new ContextAnalyzer();
     this.ruleEngine = new RuleEngine();
-    this.aiEngine = new AIInferenceEngine(env);
-    this.bookStateManager = new BookStateManager(env);
-    this.promotionManager = new EntryPromotionManager(env);
+    this.aiEngine = new AIInferenceEngine(env, this.logger);
+    this.bookStateManager = new BookStateManager(env, this.logger);
+    this.promotionManager = new EntryPromotionManager(env, this.logger);
   }
   
   /** 初始化 */
@@ -1391,7 +1404,7 @@ class DecoderEngine {
         return result;
       }
     } catch (e) {
-      console.error('Cache read error:', e);
+      this.logger.error('Cache read error:', e);
     }
     
     // 初始化（包含书籍状态）
@@ -1474,7 +1487,7 @@ class DecoderEngine {
         expirationTtl: CONFIG.DECODE_CACHE_TTL,
       });
     } catch (e) {
-      console.error('Cache write error:', e);
+      this.logger.error('Cache write error:', e);
     }
     
     // 更新书籍统计信息 (11.1)
@@ -1482,7 +1495,7 @@ class DecoderEngine {
       try {
         await this.bookStateManager.updateStats(bookId, entities.length);
       } catch (e) {
-        console.error('Update book stats error:', e);
+        this.logger.error('Update book stats error:', e);
       }
     }
     
@@ -1506,6 +1519,7 @@ function handleOptions(request: Request): Response {
 /** POST /decode - 解码章节 */
 async function handleDecode(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const body = await request.json() as DecodeRequest;
@@ -1524,7 +1538,7 @@ async function handleDecode(request: Request, env: Env): Promise<Response> {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Decode error:', e);
+    logger.error('Decode error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1535,6 +1549,7 @@ async function handleDecode(request: Request, env: Env): Promise<Response> {
 /** GET /dictionary - 获取词典 (使用 KV 存储) */
 async function handleGetDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   const url = new URL(request.url);
   const level = url.searchParams.get('level') || 'all';
   const bookId = url.searchParams.get('bookId');
@@ -1583,7 +1598,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Get dictionary error:', e);
+    logger.error('Get dictionary error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1594,6 +1609,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
 /** PUT /dictionary - 更新词典 */
 async function handleUpdateDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const body = await request.json() as {
@@ -1664,8 +1680,12 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
       
       // 检查是否达到自动提升阈值
       if (fullEntry.confirmCount >= CONFIG.AUTO_PROMOTION_THRESHOLD) {
-        // TODO: 自动提升到分类词典
-        console.log(`Entry "${fullEntry.original}" reached promotion threshold`);
+        // Implement auto-promotion logic
+        const decoder = new DecoderEngine(env);
+        const promotionManager = decoder.getPromotionManager();
+        if (fullEntry.categoryTags && fullEntry.categoryTags.length > 0) {
+          await promotionManager.promoteToCategory(fullEntry, fullEntry.categoryTags[0]);
+        }
       }
     }
     
@@ -1673,7 +1693,7 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Update dictionary error:', e);
+    logger.error('Update dictionary error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1684,6 +1704,7 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
 /** POST /dictionary/import - 导入词典 */
 async function handleImportDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const body = await request.json() as { entries: DictionaryEntry[] };
@@ -1718,7 +1739,7 @@ async function handleImportDictionary(request: Request, env: Env, userId: string
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Import dictionary error:', e);
+    logger.error('Import dictionary error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1729,6 +1750,7 @@ async function handleImportDictionary(request: Request, env: Env, userId: string
 /** GET /dictionary/export - 导出词典 */
 async function handleExportDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const key = `decoder:user:${userId}:dictionary`;
@@ -1743,7 +1765,7 @@ async function handleExportDictionary(request: Request, env: Env, userId: string
       },
     });
   } catch (e) {
-    console.error('Export dictionary error:', e);
+    logger.error('Export dictionary error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1754,6 +1776,7 @@ async function handleExportDictionary(request: Request, env: Env, userId: string
 /** GET /book/:bookId/state - 获取书籍状态 (11.1) */
 async function handleGetBookState(request: Request, env: Env, bookId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const decoder = new DecoderEngine(env);
@@ -1770,7 +1793,7 @@ async function handleGetBookState(request: Request, env: Env, bookId: string): P
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Get book state error:', e);
+    logger.error('Get book state error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1781,6 +1804,7 @@ async function handleGetBookState(request: Request, env: Env, bookId: string): P
 /** PUT /book/:bookId/state - 更新书籍状态 (11.1) */
 async function handleUpdateBookState(request: Request, env: Env, bookId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const body = await request.json() as {
@@ -1823,7 +1847,7 @@ async function handleUpdateBookState(request: Request, env: Env, bookId: string)
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Update book state error:', e);
+    logger.error('Update book state error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -1834,6 +1858,7 @@ async function handleUpdateBookState(request: Request, env: Env, bookId: string)
 /** POST /dictionary/confirm - 用户确认词条并检查自动提升 (11.4) */
 async function handleConfirmEntry(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   try {
     const body = await request.json() as {
@@ -1896,7 +1921,7 @@ async function handleConfirmEntry(request: Request, env: Env, userId: string): P
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   } catch (e) {
-    console.error('Confirm entry error:', e);
+    logger.error('Confirm entry error:', e);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },

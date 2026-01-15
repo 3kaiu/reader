@@ -3,6 +3,8 @@
  * 只允许 GitHub 仓库 owner 或 Cloudflare 账户 owner 登录
  */
 
+import { createLogger } from './shared/logger.ts';
+
 const COOKIE_NAME = 'nexus_auth';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
 const ALLOWED_ORIGINS = [
@@ -68,6 +70,7 @@ function handleGitHubLogin(env) {
 async function handleGitHubCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
+  const logger = createLogger(env);
 
   if (!code) {
     return Response.redirect(`${env.FRONTEND_URL}?error=no_code`, 302);
@@ -106,7 +109,7 @@ async function handleGitHubCallback(request, env) {
     const token = await generateToken({ provider: 'github', id: user.login, name: user.login, avatar: user.avatar_url }, env);
     return createAuthResponse(token, env);
   } catch (e) {
-    console.error('GitHub OAuth error:', e);
+    logger.error('GitHub OAuth error:', e);
     return Response.redirect(`${env.FRONTEND_URL}?error=oauth_failed`, 302);
   }
 }
@@ -126,6 +129,7 @@ function handleCloudflareLogin(env) {
 async function handleCloudflareCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
+  const logger = createLogger(env);
 
   if (!code) {
     return Response.redirect(`${env.FRONTEND_URL}?error=no_code`, 302);
@@ -168,7 +172,7 @@ async function handleCloudflareCallback(request, env) {
     const token = await generateToken({ provider: 'cloudflare', id: user.id, name: user.email.split('@')[0], email: user.email }, env);
     return createAuthResponse(token, env);
   } catch (e) {
-    console.error('Cloudflare OAuth error:', e);
+    logger.error('Cloudflare OAuth error:', e);
     return Response.redirect(`${env.FRONTEND_URL}?error=oauth_failed`, 302);
   }
 }

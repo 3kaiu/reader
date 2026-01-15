@@ -11,6 +11,7 @@
 
 // 导入共享认证模块
 import { verifyAuth } from './shared/auth.ts';
+import { createLogger } from './shared/logger.ts';
 
 // 配置
 const CONFIG = {
@@ -46,7 +47,7 @@ function getCacheKey(path, params) {
 }
 
 // 从 KV 获取缓存
-async function getFromCache(env, key) {
+async function getFromCache(env, key, logger) {
   if (!env.CONTENT_CACHE_KV) return null;
   
   try {
@@ -59,13 +60,13 @@ async function getFromCache(env, key) {
       contentType: data.contentType || 'application/json'
     };
   } catch (e) {
-    console.error('KV get error:', e);
+    logger.error('KV get error:', e);
     return null;
   }
 }
 
 // 存入 KV 缓存
-async function saveToCache(env, key, body, contentType, ttlSeconds) {
+async function saveToCache(env, key, body, contentType, ttlSeconds, logger) {
   if (!env.CONTENT_CACHE_KV) return;
   
   try {
@@ -77,7 +78,7 @@ async function saveToCache(env, key, body, contentType, ttlSeconds) {
       expirationTtl: ttlSeconds
     });
   } catch (e) {
-    console.error('KV put error:', e);
+    logger.error('KV put error:', e);
   }
 }
 
@@ -94,6 +95,7 @@ function handleOptions(request) {
 async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheTTL = 0) {
   const url = new URL(path, targetUrl);
   const origin = request.headers.get('Origin') || '';
+  const logger = createLogger(env);
   
   // 修复双重编码问题：如果 url 参数被双重编码，尝试解码一次
   // 这作为防御性措施，主要修复应该在前端
@@ -111,14 +113,14 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
       }
     } catch (e) {
       // 解码失败，保持原样
-      console.warn('Failed to decode URL parameter:', e);
+      logger.warn('Failed to decode URL parameter:', e);
     }
   }
   
   // 尝试从缓存获取
   const cacheKey = getCacheKey(path, Object.fromEntries(url.searchParams));
   if (useCache && request.method === 'GET') {
-    const cached = await getFromCache(env, cacheKey);
+    const cached = await getFromCache(env, cacheKey, logger);
     if (cached) {
       return new Response(cached.body, {
         headers: {
@@ -162,7 +164,7 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
     if (useCache && response.ok && request.method === 'GET') {
       const body = await response.text();
       // 异步存入缓存
-      env.ctx?.waitUntil(saveToCache(env, cacheKey, body, contentType || 'application/json', cacheTTL));
+      env.ctx?.waitUntil(saveToCache(env, cacheKey, body, contentType || 'application/json', cacheTTL, logger));
       
       return new Response(body, {
         status: response.status,
@@ -176,7 +178,7 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
       headers: newHeaders,
     });
   } catch (error) {
-    console.error('Proxy error:', error);
+    logger.error('Proxy error:', error);
     return new Response(JSON.stringify({ 
       error: 'Service temporarily unavailable',
       message: 'Backend service is starting up, please retry in 30 seconds',
@@ -382,7 +384,8 @@ export default {
   
   // 定时任务 - 保活
   async scheduled(_event, env, ctx) {
-    console.log('Running scheduled keepalive...');
+    const logger = createLogger(env);
+    logger.info('Running scheduled keepalive...');
     ctx.waitUntil(keepAlive(env));
   },
 };
