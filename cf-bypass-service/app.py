@@ -249,3 +249,74 @@ async def warmup(domain: str, x_api_key: str = Header(None)):
         raise HTTPException(status_code=500, detail=result.get("error", "Warmup failed"))
     
     return result
+
+
+@app.post("/recover")
+async def recover(domain: str, x_api_key: str = Header(None)):
+    """
+    Manually trigger recovery for a domain.
+    Resets all sessions and clears session pool for the specified domain.
+    Useful for forcing recovery without waiting for auto-recovery.
+    """
+    if config.api_key and x_api_key != config.api_key:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    
+    # Check if enhanced health monitoring is enabled
+    if not phase2_config.health_monitoring_enabled:
+        raise HTTPException(
+            status_code=400, 
+            detail="Health monitoring is not enabled. Cannot perform manual recovery."
+        )
+    
+    # Check if health monitor has the required methods
+    if not hasattr(engine.health_monitor, 'reset_domain_stats'):
+        raise HTTPException(
+            status_code=400,
+            detail="Enhanced health monitor is not available. Cannot perform manual recovery."
+        )
+    
+    try:
+        # Get health status before recovery
+        health_before = engine.health_monitor.get_health_stats(domain)
+        
+        # Perform recovery actions
+        logger.info(f"Manual recovery triggered for domain: {domain}")
+        
+        # Reset all sessions for the domain
+        if domain in engine.scrapers:
+            del engine.scrapers[domain]
+            logger.info(f"Removed session for domain: {domain}")
+        
+        # Reset session pool for the domain if pool is enabled
+        if engine.session_pool_manager:
+            if domain in engine.session_pool_manager._pools:
+                engine.session_pool_manager._pools[domain].clear()
+                logger.info(f"Cleared session pool for domain: {domain}")
+        
+        # Reset health stats for the domain
+        engine.health_monitor.reset_domain_stats(domain)
+        
+        # Get health status after recovery
+        health_after = engine.health_monitor.get_health_stats(domain)
+        
+        return {
+            "success": True,
+            "domain": domain,
+            "message": f"Recovery completed for {domain}",
+            "health_before": health_before,
+            "health_after": health_after,
+            "actions_taken": [
+                action for action in [
+                    "Reset domain sessions",
+                    "Cleared session pool" if engine.session_pool_manager else None,
+                    "Reset health statistics"
+                ] if action is not None
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Manual recovery failed for {domain}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Recovery failed: {str(e)}"
+        )
