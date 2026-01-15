@@ -90,13 +90,19 @@ class ConnectionPoolManager:
             f"retries={max_retries}, backoff={backoff_factor}"
         )
     
-    def configure_adapter(self, session: Any, domain: str = "default") -> None:
+    def configure_adapter(
+        self, 
+        session: Any, 
+        domain: str = "default",
+        retry_config: Optional[Any] = None
+    ) -> None:
         """
         Configure HTTP adapter with optimal connection pool settings
         
         Args:
             session: CloudScraper session to configure
             domain: Domain name for statistics tracking
+            retry_config: Optional RetryConfig from AdaptiveRetryManager
         
         Performance impact:
         - Connection reuse: 30-50% faster requests
@@ -107,13 +113,22 @@ class ConnectionPoolManager:
             from requests.adapters import HTTPAdapter
             from urllib3.util.retry import Retry
             
-            # Create retry strategy
-            retry_strategy = Retry(
-                total=self.max_retries,
-                backoff_factor=self.backoff_factor,
-                status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
-            )
+            # Use provided retry config or create default
+            if retry_config:
+                # Use adaptive retry config
+                retry_strategy = retry_config.to_urllib3_retry()
+                logger.debug(
+                    f"Using adaptive retry config for {domain}: "
+                    f"{retry_config.max_retries} retries, {retry_config.backoff_factor}x backoff"
+                )
+            else:
+                # Create default retry strategy
+                retry_strategy = Retry(
+                    total=self.max_retries,
+                    backoff_factor=self.backoff_factor,
+                    status_forcelist=[429, 500, 502, 503, 504],
+                    allowed_methods=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
+                )
             
             # Create HTTP adapter with optimal settings
             adapter = HTTPAdapter(

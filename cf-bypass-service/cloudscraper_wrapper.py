@@ -19,6 +19,7 @@ from core.utils import EnhancedLogger
 from performance_optimizer import PerformanceOptimizer
 from session_pool_manager import SessionPoolManager, SessionInfo
 from connection_pool_manager import ConnectionPoolManager
+from adaptive_retry_manager import AdaptiveRetryManager
 from phase2_config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
@@ -235,6 +236,27 @@ class CloudScraperWrapper:
                 f"maxsize={phase2_config.pool_maxsize})"
             )
         
+        # Adaptive retry manager for Phase 2 optimizations (if enabled)
+        self.adaptive_retry_manager = None
+        if phase2_config.adaptive_retry_enabled:
+            self.adaptive_retry_manager = AdaptiveRetryManager(
+                high_reliability_max=phase2_config.retry_high_reliability_max,
+                medium_reliability_max=phase2_config.retry_medium_reliability_max,
+                low_reliability_max=phase2_config.retry_low_reliability_max,
+                high_backoff=phase2_config.retry_high_backoff,
+                medium_backoff=phase2_config.retry_medium_backoff,
+                low_backoff=phase2_config.retry_low_backoff,
+                success_rate_high=phase2_config.retry_success_rate_high,
+                success_rate_medium=phase2_config.retry_success_rate_medium,
+                enable_monitoring=True
+            )
+            logger.info(
+                f"Adaptive retry manager initialized "
+                f"(high={phase2_config.retry_high_reliability_max}, "
+                f"medium={phase2_config.retry_medium_reliability_max}, "
+                f"low={phase2_config.retry_low_reliability_max})"
+            )
+        
         logger.info("CloudScraper wrapper initialized with performance optimizations")
     
     def _get_domain(self, url: str) -> str:
@@ -263,7 +285,12 @@ class CloudScraperWrapper:
             
             # Apply connection pool optimization if enabled
             if self.connection_pool_manager:
-                self.connection_pool_manager.configure_adapter(scraper, domain)
+                # Get adaptive retry config if available
+                retry_config = None
+                if self.adaptive_retry_manager:
+                    retry_config = self.adaptive_retry_manager.get_retry_config(domain)
+                
+                self.connection_pool_manager.configure_adapter(scraper, domain, retry_config)
                 logger.debug(f"Applied connection pool optimization to {domain}")
             
             # CloudScraper built-in: Stealth mode configuration
@@ -450,6 +477,10 @@ class CloudScraperWrapper:
             self.health_monitor.record_success(domain, duration)
             self.session_manager.record_success(domain)
             
+            # Record successful attempt for adaptive retry
+            if self.adaptive_retry_manager:
+                self.adaptive_retry_manager.record_attempt(domain, success=True)
+            
             # Return session to pool if it came from pool
             if session_info:
                 session_info.record_success()
@@ -468,6 +499,12 @@ class CloudScraperWrapper:
             # Record error metrics
             self.health_monitor.record_error(domain, error_msg)
             self.session_manager.record_error(domain)
+            
+            # Record failed attempt for adaptive retry
+            if self.adaptive_retry_manager:
+                self.adaptive_retry_manager.record_attempt(domain, success=False)
+                # Format error with retry statistics
+                error_msg = self.adaptive_retry_manager.format_exhausted_error(domain, error_msg)
             
             # Record connection error if connection pool is enabled
             if self.connection_pool_manager:
@@ -605,6 +642,13 @@ class CloudScraperWrapper:
                 "global": self.connection_pool_manager.get_pool_stats(),
                 "by_domain": self.connection_pool_manager.get_all_domain_stats(),
                 "configuration": self.connection_pool_manager.get_configuration()
+            }
+        
+        # Add adaptive retry stats if enabled
+        if self.adaptive_retry_manager:
+            stats["adaptive_retry"] = {
+                "by_domain": self.adaptive_retry_manager.get_retry_stats(),
+                "configuration": self.adaptive_retry_manager.get_configuration()
             }
         
         return stats
