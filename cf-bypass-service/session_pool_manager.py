@@ -1,14 +1,20 @@
 """
 Session Pool Manager for CF Bypass Service
 Manages a pool of pre-initialized CloudScraper sessions for fast request handling.
+
+Performance optimizations:
+- Uses deque for O(1) pop operations instead of list O(n)
+- Caches datetime.now() calls to reduce object creation
+- In-place filtering for stale session removal
+- Consolidated statistics updates
 """
 import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from collections import defaultdict
+from typing import Dict, Deque, List, Optional, Any
+from collections import defaultdict, deque
 import cloudscraper
 
 from phase2_config import phase2_config
@@ -32,17 +38,20 @@ class SessionInfo:
     error_count: int = 0
     session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     
-    def is_stale(self, max_age_hours: int = 1) -> bool:
+    def is_stale(self, max_age_hours: int = 1, now: Optional[datetime] = None) -> bool:
         """
         Check if session is stale based on age
         
         Args:
             max_age_hours: Maximum age in hours before session is considered stale
+            now: Current time (optional, for performance optimization)
         
         Returns:
             True if session is stale, False otherwise
         """
-        age = datetime.now() - self.created_at
+        if now is None:
+            now = datetime.now()
+        age = now - self.created_at
         return age.total_seconds() > (max_age_hours * 3600)
     
     def is_error_prone(self, threshold: float = 0.5) -> bool:
@@ -59,16 +68,16 @@ class SessionInfo:
             return False
         return (self.error_count / self.request_count) > threshold
     
-    def record_success(self) -> None:
+    def record_success(self, now: Optional[datetime] = None) -> None:
         """Record a successful request"""
         self.request_count += 1
-        self.last_used = datetime.now()
+        self.last_used = now if now else datetime.now()
     
-    def record_error(self) -> None:
+    def record_error(self, now: Optional[datetime] = None) -> None:
         """Record a failed request"""
         self.request_count += 1
         self.error_count += 1
-        self.last_used = datetime.now()
+        self.last_used = now if now else datetime.now()
 
 
 @dataclass
@@ -147,8 +156,8 @@ class SessionPoolManager:
         self.max_age_hours = max_age_hours or phase2_config.session_max_age_hours
         self.create_session_func = create_session_func
         
-        # Pool storage: domain -> list of SessionInfo
-        self.pools: Dict[str, List[SessionInfo]] = defaultdict(list)
+        # Pool storage: domain -> deque of SessionInfo (O(1) popleft instead of O(n) pop(0))
+        self.pools: Dict[str, Deque[SessionInfo]] = defaultdict(deque)
         
         # Statistics: domain -> PoolStats
         self.stats: Dict[str, PoolStats] = defaultdict(lambda: PoolStats(domain=''))
@@ -235,7 +244,7 @@ class SessionPoolManager:
     
     def get_session(self, domain: str) -> Optional[SessionInfo]:
         """
-        Get a session from the pool
+        Get a session from the pool (O(1) operation using deque)
         
         Args:
             domain: Domain to get session for
@@ -248,8 +257,8 @@ class SessionPoolManager:
         stats.domain = domain
         
         if pool:
-            # Get oldest session (FIFO)
-            session_info = pool.pop(0)
+            # Get oldest session (FIFO) - O(1) with deque.popleft()
+            session_info = pool.popleft()
             stats.hits += 1
             stats.pool_size = len(pool)
             
@@ -277,11 +286,14 @@ class SessionPoolManager:
             domain: Domain the session belongs to
             session_info: Session to return
         """
+        # Cache current time for performance
+        now = datetime.now()
+        
         # Check if session is still healthy
-        if session_info.is_stale(self.max_age_hours) or session_info.is_error_prone():
+        if session_info.is_stale(self.max_age_hours, now) or session_info.is_error_prone():
             logger.debug(
                 f"Not returning session to pool for {domain}: "
-                f"stale={session_info.is_stale(self.max_age_hours)}, "
+                f"stale={session_info.is_stale(self.max_age_hours, now)}, "
                 f"error_prone={session_info.is_error_prone()}"
             )
             self.stats[domain].stale_sessions_removed += 1
@@ -373,24 +385,33 @@ class SessionPoolManager:
                 logger.error(f"Error in replenishment loop: {e}")
     
     async def _health_check_loop(self) -> None:
-        """Background task for checking and removing stale sessions"""
+        """Background task for checking and removing stale sessions (optimized in-place filtering)"""
         while self._running:
             try:
                 await asyncio.sleep(300)  # Check every 5 minutes
                 
+                # Cache current time for all checks
+                now = datetime.now()
+                
                 for domain, pool in self.pools.items():
-                    # Remove stale sessions
+                    # In-place filtering: only rebuild if needed
                     original_size = len(pool)
-                    pool[:] = [
+                    
+                    # Filter out stale sessions in-place
+                    healthy_sessions = deque(
                         s for s in pool
-                        if not s.is_stale(self.max_age_hours) and not s.is_error_prone()
-                    ]
-                    removed = original_size - len(pool)
+                        if not s.is_stale(self.max_age_hours, now) and not s.is_error_prone()
+                    )
+                    
+                    removed = original_size - len(healthy_sessions)
                     
                     if removed > 0:
+                        # Replace pool with filtered version
+                        self.pools[domain] = healthy_sessions
+                        
                         logger.info(f"Removed {removed} stale sessions from {domain} pool")
                         self.stats[domain].stale_sessions_removed += removed
-                        self.stats[domain].pool_size = len(pool)
+                        self.stats[domain].pool_size = len(healthy_sessions)
                         
                         # Trigger replenishment
                         await self.replenish_pool(domain)
