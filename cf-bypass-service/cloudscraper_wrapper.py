@@ -21,6 +21,7 @@ from session_pool_manager import SessionPoolManager, SessionInfo
 from connection_pool_manager import ConnectionPoolManager
 from adaptive_retry_manager import AdaptiveRetryManager
 from memory_manager import MemoryManager
+from health_monitor import EnhancedHealthMonitor
 from phase2_config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
@@ -199,7 +200,23 @@ class CloudScraperWrapper:
         
         # Only add what CloudScraper doesn't have
         self.cache_manager = CacheManager(redis_url)
-        self.health_monitor = HealthMonitor()
+        
+        # Use EnhancedHealthMonitor for Phase 2 (if enabled) or basic HealthMonitor
+        if phase2_config.health_monitoring_enabled:
+            self.health_monitor = EnhancedHealthMonitor(
+                degraded_error_rate_threshold=phase2_config.health_degraded_error_rate,
+                slow_response_multiplier=phase2_config.health_slow_response_multiplier,
+                baseline_window_size=phase2_config.health_baseline_window_size,
+                enable_auto_recovery=phase2_config.health_auto_recovery_enabled
+            )
+            logger.info(
+                f"Enhanced health monitor initialized "
+                f"(degraded_threshold={phase2_config.health_degraded_error_rate}, "
+                f"slow_multiplier={phase2_config.health_slow_response_multiplier}x)"
+            )
+        else:
+            self.health_monitor = HealthMonitor()
+        
         self.session_manager = SessionManager()
         
         # Performance optimizer for Phase 1 optimizations
@@ -526,6 +543,30 @@ class CloudScraperWrapper:
             if self.adaptive_retry_manager:
                 self.adaptive_retry_manager.record_attempt(domain, success=True)
             
+            # Check for degraded domains and trigger auto-recovery (Phase 2)
+            if phase2_config.health_monitoring_enabled and phase2_config.health_auto_recovery_enabled:
+                # Define recovery function for degraded domains
+                def recover_domain(degraded_domain: str):
+                    logger.warning(f"Auto-recovery triggered for degraded domain: {degraded_domain}")
+                    # Reset all sessions for the degraded domain
+                    if degraded_domain in self.scrapers:
+                        del self.scrapers[degraded_domain]
+                        logger.info(f"Removed session for degraded domain: {degraded_domain}")
+                    
+                    # Reset session pool for the domain if pool is enabled
+                    if self.session_pool_manager:
+                        # Clear pool for this domain
+                        if degraded_domain in self.session_pool_manager._pools:
+                            self.session_pool_manager._pools[degraded_domain].clear()
+                            logger.info(f"Cleared session pool for degraded domain: {degraded_domain}")
+                    
+                    # Reset health stats for the domain
+                    if hasattr(self.health_monitor, 'reset_domain_stats'):
+                        self.health_monitor.reset_domain_stats(degraded_domain)
+                
+                # Trigger recovery if domain is degraded
+                self.health_monitor.trigger_recovery(domain, recover_domain)
+            
             # Return session to pool if it came from pool
             if session_info:
                 session_info.record_success()
@@ -664,7 +705,12 @@ class CloudScraperWrapper:
     
     def get_stats(self) -> Dict:
         """Get comprehensive statistics including performance metrics"""
-        health_stats = self.health_monitor.get_stats()
+        # Get health stats - use enhanced method if available
+        if hasattr(self.health_monitor, 'get_health_stats'):
+            health_stats = self.health_monitor.get_health_stats()
+        else:
+            health_stats = self.health_monitor.get_stats()
+        
         perf_stats = self.performance_optimizer.get_comprehensive_stats()
         
         stats = {
@@ -699,6 +745,13 @@ class CloudScraperWrapper:
         # Add memory stats if enabled
         if self.memory_manager:
             stats["memory"] = self.memory_manager.get_memory_stats()
+        
+        # Add enhanced health monitoring stats if enabled
+        if phase2_config.health_monitoring_enabled and hasattr(self.health_monitor, 'get_degraded_domains'):
+            stats["health_monitoring"] = {
+                "degraded_domains": self.health_monitor.get_degraded_domains(),
+                "auto_recovery_enabled": phase2_config.health_auto_recovery_enabled
+            }
         
         return stats
     

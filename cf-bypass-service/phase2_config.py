@@ -50,10 +50,12 @@ class Phase2Config:
     cache_size_limit: int = 10000
     cleanup_interval_minutes: int = 5
     
-    # Auto-recovery Configuration
-    auto_recovery_enabled: bool = True
-    degraded_error_rate_threshold: float = 0.5
-    slow_response_multiplier: float = 2.0
+    # Health Monitoring and Auto-recovery Configuration
+    health_monitoring_enabled: bool = True
+    health_auto_recovery_enabled: bool = True
+    health_degraded_error_rate: float = 0.5
+    health_slow_response_multiplier: float = 2.0
+    health_baseline_window_size: int = 100
     
     # Domain-specific overrides
     domain_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -190,18 +192,37 @@ class Phase2Config:
             name='PHASE2_AGGRESSIVE_CLEANUP_THRESHOLD'
         )
         
-        # Auto-recovery
-        config.auto_recovery_enabled = cls._parse_bool(
-            os.getenv('PHASE2_AUTO_RECOVERY_ENABLED', 'true'),
+        # Health Monitoring and Auto-recovery
+        config.health_monitoring_enabled = cls._parse_bool(
+            os.getenv('PHASE2_HEALTH_MONITORING_ENABLED', 'true'),
             default=True,
-            name='PHASE2_AUTO_RECOVERY_ENABLED'
+            name='PHASE2_HEALTH_MONITORING_ENABLED'
         )
-        config.degraded_error_rate_threshold = cls._parse_float(
-            os.getenv('PHASE2_DEGRADED_ERROR_RATE', '0.5'),
+        config.health_auto_recovery_enabled = cls._parse_bool(
+            os.getenv('PHASE2_HEALTH_AUTO_RECOVERY_ENABLED', 'true'),
+            default=True,
+            name='PHASE2_HEALTH_AUTO_RECOVERY_ENABLED'
+        )
+        config.health_degraded_error_rate = cls._parse_float(
+            os.getenv('PHASE2_HEALTH_DEGRADED_ERROR_RATE', '0.5'),
             default=0.5,
             min_value=0.1,
             max_value=0.9,
-            name='PHASE2_DEGRADED_ERROR_RATE'
+            name='PHASE2_HEALTH_DEGRADED_ERROR_RATE'
+        )
+        config.health_slow_response_multiplier = cls._parse_float(
+            os.getenv('PHASE2_HEALTH_SLOW_RESPONSE_MULTIPLIER', '2.0'),
+            default=2.0,
+            min_value=1.5,
+            max_value=5.0,
+            name='PHASE2_HEALTH_SLOW_RESPONSE_MULTIPLIER'
+        )
+        config.health_baseline_window_size = cls._parse_int(
+            os.getenv('PHASE2_HEALTH_BASELINE_WINDOW_SIZE', '100'),
+            default=100,
+            min_value=10,
+            max_value=1000,
+            name='PHASE2_HEALTH_BASELINE_WINDOW_SIZE'
         )
         
         logger.info("Phase 2 configuration loaded from environment")
@@ -370,10 +391,12 @@ class Phase2Config:
                 'aggressive_cleanup_threshold': self.aggressive_cleanup_threshold,
                 'cache_size_limit': self.cache_size_limit
             },
-            'auto_recovery': {
-                'enabled': self.auto_recovery_enabled,
-                'degraded_error_rate_threshold': self.degraded_error_rate_threshold,
-                'slow_response_multiplier': self.slow_response_multiplier
+            'health_monitoring': {
+                'enabled': self.health_monitoring_enabled,
+                'auto_recovery_enabled': self.health_auto_recovery_enabled,
+                'degraded_error_rate': self.health_degraded_error_rate,
+                'slow_response_multiplier': self.health_slow_response_multiplier,
+                'baseline_window_size': self.health_baseline_window_size
             }
         }
 
