@@ -18,6 +18,7 @@ from config_manager import config_manager
 from core.utils import EnhancedLogger
 from performance_optimizer import PerformanceOptimizer
 from session_pool_manager import SessionPoolManager, SessionInfo
+from connection_pool_manager import ConnectionPoolManager
 from phase2_config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
@@ -218,6 +219,22 @@ class CloudScraperWrapper:
             )
             logger.info(f"Session pool manager initialized (size={phase2_config.session_pool_size})")
         
+        # Connection pool manager for Phase 2 optimizations (if enabled)
+        self.connection_pool_manager = None
+        if phase2_config.connection_pool_enabled:
+            self.connection_pool_manager = ConnectionPoolManager(
+                pool_connections=phase2_config.pool_connections,
+                pool_maxsize=phase2_config.pool_maxsize,
+                max_retries=phase2_config.pool_max_retries,
+                backoff_factor=phase2_config.pool_backoff_factor,
+                enable_monitoring=True
+            )
+            logger.info(
+                f"Connection pool manager initialized "
+                f"(connections={phase2_config.pool_connections}, "
+                f"maxsize={phase2_config.pool_maxsize})"
+            )
+        
         logger.info("CloudScraper wrapper initialized with performance optimizations")
     
     def _get_domain(self, url: str) -> str:
@@ -243,6 +260,11 @@ class CloudScraperWrapper:
             
             # Use CloudScraper's create_scraper with valid parameters only
             scraper = cloudscraper.create_scraper(**config)
+            
+            # Apply connection pool optimization if enabled
+            if self.connection_pool_manager:
+                self.connection_pool_manager.configure_adapter(scraper, domain)
+                logger.debug(f"Applied connection pool optimization to {domain}")
             
             # CloudScraper built-in: Stealth mode configuration
             # Note: CloudScraper handles stealth automatically, but we can configure delays
@@ -365,7 +387,19 @@ class CloudScraperWrapper:
             # - Request header consistency
             logger.info("Fetching %s with CloudScraper", url)
             
+            # Track connection pool usage if enabled
+            connection_reused = False
+            if self.connection_pool_manager:
+                # Check if this is likely a connection reuse (heuristic)
+                # In a real implementation, we'd need to hook into urllib3's connection pool
+                # For now, we assume reuse after the first request to a domain
+                connection_reused = domain in self.scrapers or (session_info is not None)
+            
             response = scraper.request(method, url, **kwargs)
+            
+            # Record connection pool usage
+            if self.connection_pool_manager:
+                self.connection_pool_manager.record_connection_use(domain, hit=connection_reused)
             
             # 5. Process response
             duration = (datetime.now() - start_time).total_seconds()
@@ -434,6 +468,10 @@ class CloudScraperWrapper:
             # Record error metrics
             self.health_monitor.record_error(domain, error_msg)
             self.session_manager.record_error(domain)
+            
+            # Record connection error if connection pool is enabled
+            if self.connection_pool_manager:
+                self.connection_pool_manager.record_connection_error(domain)
             
             # Record error on session if it came from pool
             if session_info:
@@ -560,6 +598,14 @@ class CloudScraperWrapper:
         # Add session pool stats if enabled
         if self.session_pool_manager:
             stats["session_pool"] = self.session_pool_manager.get_pool_stats()
+        
+        # Add connection pool stats if enabled
+        if self.connection_pool_manager:
+            stats["connection_pool"] = {
+                "global": self.connection_pool_manager.get_pool_stats(),
+                "by_domain": self.connection_pool_manager.get_all_domain_stats(),
+                "configuration": self.connection_pool_manager.get_configuration()
+            }
         
         return stats
     

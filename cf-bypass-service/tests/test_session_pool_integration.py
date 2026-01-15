@@ -285,6 +285,12 @@ class TestSessionPoolIntegration:
             mock_config.session_pool_size = 3
             mock_config.session_pool_min_threshold = 1
             mock_config.session_max_age_hours = 1
+            # Add connection pool config to avoid validation errors
+            mock_config.connection_pool_enabled = True
+            mock_config.pool_connections = 20
+            mock_config.pool_maxsize = 50
+            mock_config.pool_max_retries = 3
+            mock_config.pool_backoff_factor = 0.3
             
             wrapper = CloudScraperWrapper()
             wrapper.session_pool_manager.create_session_func = create_mock_session
