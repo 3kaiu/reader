@@ -79,6 +79,11 @@ class FetchResponse(BaseModel):
 async def startup():
     logger.info("CF Bypass Service v5.0 started (CloudScraper + Redis Cache + Monitoring + Performance Optimizations)")
     await engine.performance_optimizer.start()
+    
+    # Start session pool manager if enabled
+    if engine.session_pool_manager:
+        await engine.session_pool_manager.start()
+        logger.info("Session pool manager started")
 
 
 @app.on_event("shutdown")
@@ -226,3 +231,21 @@ async def get_config():
         "phase2": phase2_config.to_dict(),
         "version": "5.0.0"
     }
+
+
+@app.post("/warmup")
+async def warmup(domain: str, x_api_key: str = Header(None)):
+    """
+    Warmup session pool for a domain.
+    Pre-creates sessions to eliminate cold start latency.
+    Expected improvement: 70-80% faster first request.
+    """
+    if config.api_key and x_api_key != config.api_key:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    
+    result = await engine.warmup_domain(domain)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Warmup failed"))
+    
+    return result

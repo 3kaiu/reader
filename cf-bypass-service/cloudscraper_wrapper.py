@@ -17,6 +17,8 @@ import redis
 from config_manager import config_manager
 from enhanced_logger import EnhancedLogger
 from performance_optimizer import PerformanceOptimizer
+from session_pool_manager import SessionPoolManager, SessionInfo
+from phase2_config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
 enhanced_logger = EnhancedLogger("cloudscraper-wrapper")
@@ -205,6 +207,17 @@ class CloudScraperWrapper:
             batch_size=10
         )
         
+        # Session pool manager for Phase 2 optimizations (if enabled)
+        self.session_pool_manager = None
+        if phase2_config.session_pool_enabled:
+            self.session_pool_manager = SessionPoolManager(
+                pool_size=phase2_config.session_pool_size,
+                min_threshold=phase2_config.session_pool_min_threshold,
+                max_age_hours=phase2_config.session_max_age_hours,
+                create_session_func=self._create_scraper
+            )
+            logger.info(f"Session pool manager initialized (size={phase2_config.session_pool_size})")
+        
         logger.info("CloudScraper wrapper initialized with performance optimizations")
     
     def _get_domain(self, url: str) -> str:
@@ -261,8 +274,21 @@ class CloudScraperWrapper:
                 # Last resort: basic scraper
                 return cloudscraper.create_scraper()
     
-    def _get_scraper(self, domain: str) -> cloudscraper.CloudScraper:
-        """Get or create CloudScraper instance"""
+    def _get_scraper(self, domain: str) -> tuple[cloudscraper.CloudScraper, Optional[SessionInfo]]:
+        """
+        Get or create CloudScraper instance
+        
+        Returns:
+            Tuple of (scraper, session_info) where session_info is None if not from pool
+        """
+        # If session pool is enabled, try to get from pool first
+        if self.session_pool_manager:
+            session_info = self.session_pool_manager.get_session(domain)
+            if session_info:
+                logger.debug(f"Using pooled session for {domain}")
+                return session_info.session, session_info
+        
+        # Fallback to traditional session management
         # Check if session should be reset (CloudScraper doesn't have this)
         if self.session_manager.should_reset_session(domain):
             if domain in self.scrapers:
@@ -273,7 +299,7 @@ class CloudScraperWrapper:
         if domain not in self.scrapers:
             self.scrapers[domain] = self._create_scraper(domain)
         
-        return self.scrapers[domain]
+        return self.scrapers[domain], None
     
     async def fetch(
         self,
@@ -303,7 +329,7 @@ class CloudScraperWrapper:
             return cached_result
         
         # 2. Get CloudScraper instance (with session health management)
-        scraper = self._get_scraper(domain)
+        scraper, session_info = self._get_scraper(domain)
         
         try:
             # 3. Prepare request parameters
@@ -390,6 +416,11 @@ class CloudScraperWrapper:
             self.health_monitor.record_success(domain, duration)
             self.session_manager.record_success(domain)
             
+            # Return session to pool if it came from pool
+            if session_info:
+                session_info.record_success()
+                self.session_pool_manager.return_session(domain, session_info)
+            
             logger.info(f"CloudScraper fetch completed: {response.status_code} in {duration:.2f}s")
             return result
             
@@ -403,6 +434,13 @@ class CloudScraperWrapper:
             # Record error metrics
             self.health_monitor.record_error(domain, error_msg)
             self.session_manager.record_error(domain)
+            
+            # Record error on session if it came from pool
+            if session_info:
+                session_info.record_error()
+                # Don't return error-prone sessions to pool
+                if not session_info.is_error_prone():
+                    self.session_pool_manager.return_session(domain, session_info)
             
             # Return error result
             result = FetchResult(
@@ -470,12 +508,46 @@ class CloudScraperWrapper:
         
         return await self.fetch_parallel(requests)
     
+    async def warmup_domain(self, domain: str) -> Dict:
+        """
+        Warmup session pool for a domain
+        
+        Args:
+            domain: Domain to warmup
+        
+        Returns:
+            Dictionary with warmup status and statistics
+        """
+        if not self.session_pool_manager:
+            return {
+                "success": False,
+                "error": "Session pool is not enabled"
+            }
+        
+        try:
+            await self.session_pool_manager.warmup_domain(domain)
+            stats = self.session_pool_manager.get_pool_stats(domain)
+            
+            return {
+                "success": True,
+                "domain": domain,
+                "pool_size": stats.get('pool_size', 0),
+                "warmup_time": stats.get('warmup_times', [])[-1] if stats.get('warmup_times') else 0,
+                "stats": stats
+            }
+        except Exception as e:
+            logger.error(f"Failed to warmup domain {domain}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def get_stats(self) -> Dict:
         """Get comprehensive statistics including performance metrics"""
         health_stats = self.health_monitor.get_stats()
         perf_stats = self.performance_optimizer.get_comprehensive_stats()
         
-        return {
+        stats = {
             "active_sessions": len(self.scrapers),
             "domains": list(self.scrapers.keys()),
             "health_stats": health_stats,
@@ -484,9 +556,19 @@ class CloudScraperWrapper:
             "version": "5.0.0",
             "performance": perf_stats
         }
+        
+        # Add session pool stats if enabled
+        if self.session_pool_manager:
+            stats["session_pool"] = self.session_pool_manager.get_pool_stats()
+        
+        return stats
     
     async def shutdown(self):
         """Cleanup resources"""
+        # Shutdown session pool manager
+        if self.session_pool_manager:
+            await self.session_pool_manager.stop()
+        
         # Shutdown performance optimizer
         await self.performance_optimizer.shutdown()
         
