@@ -15,7 +15,7 @@ import cloudscraper
 import redis
 
 from config_manager import config_manager
-from enhanced_logger import EnhancedLogger
+from core.utils import EnhancedLogger
 from performance_optimizer import PerformanceOptimizer
 from session_pool_manager import SessionPoolManager, SessionInfo
 from phase2_config import phase2_config
