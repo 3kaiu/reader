@@ -20,6 +20,7 @@ from performance_optimizer import PerformanceOptimizer
 from session_pool_manager import SessionPoolManager, SessionInfo
 from connection_pool_manager import ConnectionPoolManager
 from adaptive_retry_manager import AdaptiveRetryManager
+from memory_manager import MemoryManager
 from phase2_config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
@@ -257,6 +258,23 @@ class CloudScraperWrapper:
                 f"low={phase2_config.retry_low_reliability_max})"
             )
         
+        # Memory manager for Phase 2 optimizations (if enabled)
+        self.memory_manager = None
+        if phase2_config.memory_optimization_enabled:
+            self.memory_manager = MemoryManager(
+                streaming_threshold_mb=phase2_config.streaming_threshold_mb,
+                idle_session_timeout_hours=phase2_config.idle_session_timeout_hours,
+                aggressive_cleanup_threshold=phase2_config.aggressive_cleanup_threshold,
+                cache_size_limit=phase2_config.cache_size_limit,
+                cleanup_interval_minutes=phase2_config.cleanup_interval_minutes,
+                enable_monitoring=True
+            )
+            logger.info(
+                f"Memory manager initialized "
+                f"(streaming_threshold={phase2_config.streaming_threshold_mb}MB, "
+                f"idle_timeout={phase2_config.idle_session_timeout_hours}h)"
+            )
+        
         logger.info("CloudScraper wrapper initialized with performance optimizations")
     
     def _get_domain(self, url: str) -> str:
@@ -292,6 +310,11 @@ class CloudScraperWrapper:
                 
                 self.connection_pool_manager.configure_adapter(scraper, domain, retry_config)
                 logger.debug(f"Applied connection pool optimization to {domain}")
+            
+            # Enable compression if memory manager is enabled
+            if self.memory_manager:
+                self.memory_manager.enable_compression(scraper)
+                logger.debug(f"Enabled compression for {domain}")
             
             # CloudScraper built-in: Stealth mode configuration
             # Note: CloudScraper handles stealth automatically, but we can configure delays
@@ -379,6 +402,28 @@ class CloudScraperWrapper:
         
         # 2. Get CloudScraper instance (with session health management)
         scraper, session_info = self._get_scraper(domain)
+        
+        # Record session use for memory management
+        if self.memory_manager and session_info:
+            self.memory_manager.record_session_use(session_info.session_id)
+        
+        # Check memory pressure and trigger cleanup if needed
+        if self.memory_manager:
+            memory_stats = self.memory_manager.check_memory_pressure()
+            if memory_stats.is_high_pressure:
+                logger.warning(
+                    f"High memory pressure detected ({memory_stats.percent:.1f}%), "
+                    f"triggering aggressive cleanup"
+                )
+                # Trigger aggressive cleanup
+                def cleanup_session(session_id):
+                    # Remove from scrapers if it exists
+                    for d, s in list(self.scrapers.items()):
+                        if hasattr(s, 'session_id') and s.session_id == session_id:
+                            del self.scrapers[d]
+                            break
+                
+                self.memory_manager.trigger_aggressive_cleanup(cleanup_session)
         
         try:
             # 3. Prepare request parameters
@@ -650,6 +695,10 @@ class CloudScraperWrapper:
                 "by_domain": self.adaptive_retry_manager.get_retry_stats(),
                 "configuration": self.adaptive_retry_manager.get_configuration()
             }
+        
+        # Add memory stats if enabled
+        if self.memory_manager:
+            stats["memory"] = self.memory_manager.get_memory_stats()
         
         return stats
     
