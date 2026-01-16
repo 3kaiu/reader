@@ -80,3 +80,62 @@ binding = "AI"
 # GROQ_API_KEY = "可选，Groq API 密钥"
 # HF_API_KEY = "可选，HuggingFace API 密钥"
 ENVIRONMENT = "production"
+
+# ============================================
+# Unified Worker - 整合代理、认证、进度同步
+# ============================================
+# 这是一个整合了 3 个 worker 的统一版本：
+# - nexus-proxy-worker.js (代理 + 缓存 + 保活)
+# - github-auth-worker.js (GitHub OAuth 认证)
+# - progress-sync-worker.js (阅读进度同步)
+#
+# 优势：
+# - 单一部署点，维护更简单
+# - 统一的中间件系统（CORS、认证、日志）
+# - 一致的错误处理
+# - 代码减少 37.5%（~300 行）
+#
+# 使用方法：
+# 1. 部署: wrangler deploy --env unified
+# 2. 测试所有路由是否正常工作
+# 3. 逐步切换生产流量
+# 4. 可选：弃用旧的 3 个 workers
+# ============================================
+[env.unified]
+name = "nexus-unified"
+main = "cloudflare-workers/unified-worker.js"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# KV 命名空间 - 内容缓存
+[[env.unified.kv_namespaces]]
+binding = "CONTENT_CACHE_KV"
+id = "${KV_CONTENT_CACHE_ID}"
+
+# KV 命名空间 - 进度同步
+[[env.unified.kv_namespaces]]
+binding = "PROGRESS_KV"
+id = "${KV_PROGRESS_ID}"
+
+[env.unified.vars]
+# HuggingFace Space URLs (通过 wrangler deploy --var 或 GitHub Secrets 注入)
+# NEXUS_LITE_URL = "https://xxx-nexus-lite.hf.space"
+# CF_BYPASS_URL = "https://xxx-cf-bypass-service.hf.space"
+
+# GitHub OAuth 配置
+# GITHUB_CLIENT_ID = "your_github_oauth_client_id"
+# GITHUB_CLIENT_SECRET = "your_github_oauth_client_secret"
+# ALLOWED_GITHUB_USERS = "your_github_username"
+
+# 认证密钥（与其他 workers 保持一致）
+# AUTH_SECRET = "your_random_secret_string_at_least_32_chars"
+
+# 前端和 Worker URLs
+# FRONTEND_URL = "https://nexus-reader.pages.dev"
+# WORKER_URL = "https://nexus-unified.xxx.workers.dev"
+
+ENVIRONMENT = "production"
+
+# 定时保活任务 - 每25分钟 ping 一次 HF Spaces
+[env.unified.triggers]
+crons = ["*/25 * * * *"]
