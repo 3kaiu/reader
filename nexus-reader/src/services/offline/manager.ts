@@ -7,6 +7,7 @@ import { networkDetector } from '../network/optimizer'
 import { secureRandomString } from '../../utils/secureRandom'
 import { nexusDB, StoreNames, type OfflineContent, type SyncTask } from '../../utils/db'
 import { syncManager } from '../syncManager'
+import { logger } from '../../utils/logger'
 
 // 离线操作接口
 export interface OfflineOperation {
