@@ -1,5 +1,5 @@
 import { ref, shallowRef } from 'vue'
-import { perfMonitor } from '../utils/performance'
+import { perfMonitor } from '../services/performance/monitor'
 
 /**
  * useContentParser - 异步内容解析 Hook

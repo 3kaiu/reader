@@ -5,8 +5,9 @@
 
 import { ref } from 'vue'
 import { AdaptiveLoader } from '@/utils/adaptiveAssetLoader'
-import { modelCacheManager } from '@/utils/modelCacheManager'
+import { modelCacheManager } from '@/services/ai/modelCache'
 import { logger } from '@/utils/logger'
+import type { PiperVoice } from '@/types/voice'
 
 export interface TTSPerformance {
   totalCharacters: number
@@ -40,13 +41,7 @@ export class TTSServiceManager {
   private engine: TTSEngine | null = null
   private audioContext: AudioContext | null = null
   private isInitialized = false
-  private availableVoices = [
-    'zh_CN-huayan-medium',
-    'en_US-amy-medium',
-    'zh_CN-xiaoyan-medium',
-    'en_US-jenny-medium',
-    'zh_CN-xiaoxiao-medium'
-  ]
+  private availableVoices: PiperVoice[] = []
 
   constructor() {
     this.checkWebAudioSupport()
@@ -186,8 +181,44 @@ export class TTSServiceManager {
     }
   }
 
-  getAvailableVoices(): string[] {
-    return [...this.availableVoices]
+  async getAvailableVoices(): Promise<PiperVoice[]> {
+    if (this.availableVoices.length > 0) {
+      return [...this.availableVoices]
+    }
+
+    try {
+      // 动态获取 Piper 语音列表
+      const { HuggingFaceVoiceProvider } = await import('piper-tts-web')
+      const voiceProvider = new HuggingFaceVoiceProvider()
+      const list = await voiceProvider.list()
+
+      // 检查缓存状态
+      const cachedModelIds = await this.getCachedTTSModels()
+
+      const voices: PiperVoice[] = []
+      for (const [key, data] of Object.entries(list) as [string, any][]) {
+        if (!key.includes('zh') && !key.includes('en')) continue // 简化：只保留中英文
+
+        // 检查是否已下载（在 modelCache 中的 tts-{key}）
+        const isDesc = data.files && Object.keys(data.files).length > 0
+
+        voices.push({
+          key,
+          name: key.split('-').pop() || key,
+          language: data.language?.code || 'unknown',
+          quality: data.quality || 'medium',
+          numSpeakers: data.num_speakers || 1,
+          files: data.files || {},
+          isDownloaded: cachedModelIds.includes(key)
+        })
+      }
+
+      this.availableVoices = voices
+      return voices
+    } catch (err) {
+      logger.error('Failed to get available voices:', err)
+      return []
+    }
   }
 
   async isTTSModelCached(voiceId: string): Promise<boolean> {

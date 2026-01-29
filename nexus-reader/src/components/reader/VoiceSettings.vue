@@ -7,7 +7,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Check, Download, Loader2, Volume2, Globe, Zap, Settings2 } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import { useTTS } from '@/composables/useTTS'
-import type { PiperVoice } from '@/composables/usePiperTTS'
+import type { PiperVoice } from '@/types/voice'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -22,7 +22,8 @@ const isLoadingVoices = ref(false)
 async function loadVoices() {
   isLoadingVoices.value = true
   try {
-    piperVoices.value = await tts.getPiperVoices()
+    // @ts-ignore
+    piperVoices.value = await tts.getAvailableVoices()
   } finally {
     isLoadingVoices.value = false
   }

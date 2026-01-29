@@ -3,11 +3,10 @@
  * 提供离线检测、缓存内容服务和离线操作队列
  */
 
-import { networkDetector } from './networkOptimizer'
-import { apiCache, generalCache } from './cacheManager'
-import { secureRandomString } from './secureRandom'
-import { nexusDB, StoreNames, type OfflineContent, type SyncTask } from './db'
-import { syncManager } from '../services/syncManager'
+import { networkDetector } from '../network/optimizer'
+import { secureRandomString } from '../../utils/secureRandom'
+import { nexusDB, StoreNames, type OfflineContent, type SyncTask } from '../../utils/db'
+import { syncManager } from '../syncManager'
 
 // 离线操作接口
 export interface OfflineOperation {
@@ -321,15 +320,13 @@ export class OfflineManager {
 
   private async fetchContentForCaching(id: string): Promise<any> {
     // 这里应该实现实际的内容获取逻辑
+    // 这里应该实现实际的内容获取逻辑
     // 示例：从API缓存或通用缓存中获取
-    const cached = apiCache.get(id) || generalCache.get(id)
-    if (cached) {
-      return {
-        type: 'api-response',
-        url: `/api/content/${id}`,
-        data: cached
-      }
-    }
+    // [Refactor] apiCache removed
+
+    // 如果缓存中没有，可能需要从服务器获取
+    // 这里返回null表示无法获取
+    return null
 
     // 如果缓存中没有，可能需要从服务器获取
     // 这里返回null表示无法获取
@@ -470,20 +467,6 @@ export class OfflineContentServer {
       return cached.data
     }
 
-    // 尝试从API缓存获取
-    const apiCached = apiCache.get(cacheKey)
-    if (apiCached) {
-      console.log('📱 Serving from API cache:', url)
-      return apiCached
-    }
-
-    // 尝试从通用缓存获取
-    const generalCached = generalCache.get(cacheKey)
-    if (generalCached) {
-      console.log('📱 Serving from general cache:', url)
-      return generalCached
-    }
-
     throw new Error('Content not available offline')
   }
 
@@ -492,9 +475,7 @@ export class OfflineContentServer {
     const cacheKey = this.generateCacheKey(url)
 
     return (
-      this.offlineManager.getCachedContent(cacheKey) !== null ||
-      apiCache.has(cacheKey) ||
-      generalCache.has(cacheKey)
+      this.offlineManager.getCachedContent(cacheKey) !== null
     )
   }
 

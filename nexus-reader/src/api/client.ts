@@ -1,9 +1,9 @@
 import { ofetch, type FetchOptions } from 'ofetch'
 import { decode, encode } from '@msgpack/msgpack'
 import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
-import { requestOptimizer, networkDetector } from '@/utils/networkOptimizer'
-import { perfMonitor } from '@/utils/performance'
-import { offlineManager, offlineContentServer } from '@/utils/offlineManager'
+import { requestOptimizer, networkDetector } from '@/services/network/optimizer'
+import { perfMonitor } from '@/services/performance/monitor'
+import { offlineManager, offlineContentServer } from '@/services/offline/manager'
 
 // 错误消息翻译映射（技术性错误 -> 用户友好消息）
 const ERROR_MESSAGE_MAP: Record<string, string> = {
@@ -330,15 +330,44 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
-  return requestOptimizer.requestWithRetry(() =>
-    api<any>(url, { method: 'POST', body, ...options })
-  apiCacheMap.clear()
+  return requestOptimizer.requestWithRetry(async () => {
+    const response = await api<any>(url, { method: 'POST', body, ...options })
+    apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
-    ? response as ApiResponse<T>
-    : { isSuccess: true, data: response } as ApiResponse<T>
-})
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
 }
 
+export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => {
+  return requestOptimizer.requestWithRetry(async () => {
+    const response = await api<any>(url, { method: 'PUT', body, ...options })
+    apiCacheMap.clear()
+    return (response && typeof response === 'object' && 'isSuccess' in response)
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
+}
+
+export const $delete = <T>(url: string, options?: FetchOptions) => {
+  return requestOptimizer.requestWithRetry(async () => {
+    const response = await api<any>(url, { ...options, method: 'DELETE' })
+    apiCacheMap.clear()
+    return (response && typeof response === 'object' && 'isSuccess' in response)
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
+}
+
+export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) => {
+  return requestOptimizer.requestWithRetry(async () => {
+    const response = await api<any>(url, { method: 'PATCH', body, ...options })
+    apiCacheMap.clear()
+    return (response && typeof response === 'object' && 'isSuccess' in response)
+      ? response as ApiResponse<T>
+      : { isSuccess: true, data: response } as ApiResponse<T>
+  })
+}
 
 /**
  * 清理 API 请求缓存

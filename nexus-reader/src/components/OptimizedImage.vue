@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { adaptiveImageQuality, networkDetector, type NetworkQuality } from '../utils/networkOptimizer'
+import { adaptiveImageQuality, networkDetector, type NetworkQuality } from '../services/network/optimizer'
 import { imageCache } from '../utils/cacheManager'
 
 interface Props {

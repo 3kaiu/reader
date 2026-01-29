@@ -4,11 +4,11 @@
  */
 
 import { ref, shallowRef } from 'vue'
-import { AdaptiveLoader } from '@/utils/adaptiveAssetLoader'
-import { logger } from '@/utils/logger'
-import { syncChannel } from '@/utils/broadcast'
-import { getDefaultModel, saveLastModel, getAllModels } from '@/stores/ai/models'
-import { modelCacheManager } from '@/utils/modelCacheManager'
+import { AdaptiveLoader } from '../../utils/adaptiveAssetLoader'
+import { logger } from '../../utils/logger'
+import { syncChannel } from '../../utils/broadcast'
+import { getDefaultModel, saveLastModel, getAllModels } from '../../stores/ai/models'
+import { modelCacheManager } from './modelCache'
 import type { AIRequestParams, ModelInfo } from '@/types/ai'
 
 // WebGPU 类型声明

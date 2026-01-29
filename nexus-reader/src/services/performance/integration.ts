@@ -3,11 +3,41 @@
  * 简化版本 - 只使用实际存在的 API
  */
 
-import { perfMonitor } from './performance'
+import { perfMonitor } from './monitor'
 
 // 性能系统配置
 export interface PerformanceSystemConfig {
   enableMonitoring?: boolean
+  enableCaching?: boolean
+  enableMemoryManagement?: boolean
+  enableNetworkOptimization?: boolean
+  enableOfflineSupport?: boolean
+  enableBudgetEnforcement?: boolean
+  enableAnimationOptimization?: boolean
+  enableSmoothScrolling?: boolean
+  enableFontOptimization?: boolean
+  enableThemeTransitions?: boolean
+  enableTesting?: boolean
+  monitoringConfig?: {
+    sampleRate?: number
+    enableRealTimeReporting?: boolean
+  }
+  cacheConfig?: {
+    maxSize?: number
+    ttl?: number
+  }
+  memoryConfig?: {
+    gcThreshold?: number
+    monitoringInterval?: number
+  }
+  networkConfig?: {
+    enableAdaptiveQuality?: boolean
+    enableRequestBatching?: boolean
+  }
+  budgetConfig?: {
+    enforceInProduction?: boolean
+    alertThreshold?: number
+  }
 }
 
 // 性能系统状态

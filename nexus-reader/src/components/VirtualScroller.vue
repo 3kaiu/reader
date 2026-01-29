@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { performanceMonitor } from '../utils/performanceMonitor'
+import { perfMonitor } from '../services/performance/monitor'
 
 interface VirtualScrollerItem {
   index: number

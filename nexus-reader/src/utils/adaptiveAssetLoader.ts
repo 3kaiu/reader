@@ -2,7 +2,7 @@
  * 🛠️ Adaptive Asset Loader
  * 根据硬件算力与电量配额动态裁剪加载项
  */
-import { hardwareScheduler, PowerMode } from './hardwareScheduler'
+import { hardwareScheduler, PowerMode } from '../services/hardware/scheduler'
 import { logger } from './logger'
 
 export class AdaptiveLoader {

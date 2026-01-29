@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { networkDetector, type NetworkQuality } from '../utils/networkOptimizer'
+import { networkDetector, type NetworkQuality } from '../services/network/optimizer'
 import { progressiveLoader, type LoadingStatus, type LoadingPriority } from '../utils/progressiveLoader'
 
 interface Props {

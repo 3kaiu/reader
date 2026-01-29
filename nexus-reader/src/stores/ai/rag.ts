@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { embed, cosineSimilarity } from '../../composables/useEmbedding'
 import { nexusDB, StoreNames } from '../../utils/db'
-import { hardwareScheduler } from '../../utils/hardwareScheduler'
+import { hardwareScheduler } from '../../services/hardware/scheduler'
 
 export interface RagDocument {
   id: string

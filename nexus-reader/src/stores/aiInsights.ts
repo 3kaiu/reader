@@ -221,43 +221,43 @@ JSON 结构示例：
               }
             })
           })
-        }
-        cursor.continue()
-      } else {
-        // 加上那些只在手动标注里出现但还没在 AI 洞察里出现的（虽然比较少见）
-        Object.entries(manualRoles).forEach(([name, role]) => {
-          if (!charactersMap.has(name)) {
-            charactersMap.set(name, {
-              name,
-              description: '手动标注人物',
-              ties: [],
-              appearances: 0,
-              role,
-              isManual: true
-            })
-          }
-        })
+          cursor.continue()
+        } else {
+          // Cursor exhausted - aggregate results
+          // 加上那些只在手动标注里出现但还没在 AI 洞察里出现的（虽然比较少见）
+          Object.entries(manualRoles).forEach(([name, role]) => {
+            if (!charactersMap.has(name)) {
+              charactersMap.set(name, {
+                name,
+                description: '手动标注人物',
+                ties: [],
+                appearances: 0,
+                role,
+                isManual: true
+              })
+            }
+          })
 
-        allCharacters.value = Array.from(charactersMap.values()).sort((a, b) => {
-          // 排序逻辑：主角 > 配角 > 其他 (次数)
-          const roleWeight = { protagonist: 100, supporting: 50, others: 10 }
-          const weightA = (roleWeight[a.role as keyof typeof roleWeight] || 0) + a.appearances
-          const weightB = (roleWeight[b.role as keyof typeof roleWeight] || 0) + b.appearances
-          return weightB - weightA
-        })
-        resolve()
+          allCharacters.value = Array.from(charactersMap.values()).sort((a, b) => {
+            // 排序逻辑：主角 > 配角 > 其他 (次数)
+            const roleWeight = { protagonist: 100, supporting: 50, others: 10 }
+            const weightA = (roleWeight[a.role as keyof typeof roleWeight] || 0) + a.appearances
+            const weightB = (roleWeight[b.role as keyof typeof roleWeight] || 0) + b.appearances
+            return weightB - weightA
+          })
+          resolve()
+        }
       }
-    }
     })
   }
 
-return {
-  currentInsight,
-  allCharacters,
-  allTies,
-  isAnalyzing,
-  analyzeChapter,
-  loadBookInsights,
-  markAsCharacter
-}
+  return {
+    currentInsight,
+    allCharacters,
+    allTies,
+    isAnalyzing,
+    analyzeChapter,
+    loadBookInsights,
+    markAsCharacter
+  }
 })

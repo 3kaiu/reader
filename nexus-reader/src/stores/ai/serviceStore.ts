@@ -4,7 +4,7 @@
  */
 
 import { computed } from 'vue'
-import { aiServiceManager } from '@/services/aiServiceManager'
+import { aiServiceManager } from '@/services/ai/service'
 import type { ModelInfo, AIRequestParams } from '@/types/ai'
 
 /**
@@ -26,7 +26,7 @@ export function useAIService() {
   const checkSupport = () => aiServiceManager.detectWebGPUSupport()
   const loadModel = (modelId?: string) => aiServiceManager.loadModel(modelId)
   const unloadModel = () => aiServiceManager.unloadModel()
-  const inference = (prompt: string, params?: Partial<AIRequestParams>) => 
+  const inference = (prompt: string, params?: Partial<AIRequestParams>) =>
     aiServiceManager.inference(prompt, params)
   const isReady = () => aiServiceManager.isReady()
   const getRecommendedModels = () => aiServiceManager.getRecommendedModels()
@@ -49,7 +49,7 @@ export function useAIService() {
     error,
     currentModel,
     performance,
-    
+
     // 方法
     initialize,
     checkSupport,
@@ -60,7 +60,7 @@ export function useAIService() {
     getRecommendedModels,
     getAllModels,
     cleanup,
-    
+
     // 缓存管理
     getCacheStats,
     clearModelCache,

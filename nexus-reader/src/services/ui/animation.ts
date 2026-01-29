@@ -4,7 +4,7 @@
  */
 
 // Performance monitoring integration
-import { secureRandomString } from './secureRandom'
+import { secureRandomString } from '../../utils/secureRandom'
 
 // 动画类型
 export type AnimationType = 'fade' | 'slide' | 'scale' | 'rotate' | 'bounce' | 'elastic' | 'custom'
@@ -153,6 +153,11 @@ export class AnimationManager {
         instance.animation = animation
         instance.state = 'running'
 
+        // 报告动画开始
+        if (this.performanceConfig.enablePerformanceMonitoring) {
+          this.reportAnimationStart(instance)
+        }
+
         // 监听动画事件
         animation.addEventListener('finish', () => {
           instance.onComplete?.()
@@ -257,7 +262,7 @@ export class AnimationManager {
   pulse(element: HTMLElement, scale = 1.05, duration = 1000): Promise<void> {
     return this.animate(element, 'custom', {
       duration,
-      iterations: 'infinite',
+      iterations: Infinity,
       direction: 'alternate'
     }, [
       { transform: 'scale(1)' },
@@ -503,18 +508,6 @@ export class AnimationManager {
 
     document.addEventListener('touchstart', handleInteraction, { passive: true })
     document.addEventListener('mousedown', handleInteraction, { passive: true })
-  }
-
-  private isInteractiveElement(element: HTMLElement): boolean {
-    const interactiveTags = ['button', 'a', 'input', 'select', 'textarea']
-    const interactiveRoles = ['button', 'link', 'tab', 'menuitem']
-
-    return (
-      interactiveTags.includes(element.tagName.toLowerCase()) ||
-      interactiveRoles.includes(element.getAttribute('role') || '') ||
-      element.hasAttribute('tabindex') ||
-      element.hasAttribute('onclick')
-    )
   }
 
   private enableGPUAcceleration(element: HTMLElement): void {

@@ -23,6 +23,7 @@ sled = "0.34"
 
 # High-performance in-memory cache
 moka = { version = "0.12", features = ["future"] }
+memmap2 = "0.9"
 
 # Sync primitives
 parking_lot = "0.12"

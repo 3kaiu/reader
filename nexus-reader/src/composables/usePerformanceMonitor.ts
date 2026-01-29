@@ -6,7 +6,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import {
   perfMonitor,
   type PerformanceMetric
-} from '../utils/performance'
+} from '../services/performance/monitor'
 
 export function usePerformanceMonitor() {
   // 响应式状态

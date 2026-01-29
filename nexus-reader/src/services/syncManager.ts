@@ -5,8 +5,8 @@
 
 import { logger } from '../utils/logger'
 import { nexusDB, StoreNames, type SyncTask } from '../utils/db'
-import { networkDetector } from '../utils/networkOptimizer'
-import { hardwareScheduler, PowerMode } from '../utils/hardwareScheduler'
+import { networkDetector } from './network/optimizer'
+import { hardwareScheduler, PowerMode } from './hardware/scheduler'
 
 export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
 

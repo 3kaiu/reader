@@ -287,27 +287,29 @@ impl NxsEngine {
         let url = self.abs_url(toc_url);
         let html = self.fetch(&url, None, None, None).await?;
 
-        // 1. Initial parse to check for redirects
-        let mut doc = Html::parse_document(&html);
+        // 1. Check for redirect (Sync operation)
+        // Parse doc locally in this block so it drops before we ever await
+        let redirect_url = {
+            let doc = Html::parse_document(&html);
+            self.compiled
+                .book_toc
+                .select_and_extract(&doc)
+                .map(|u| self.abs_url(&u))
+        };
 
-        let redirect_url = self
-            .compiled
-            .book_toc
-            .select_and_extract(&doc)
-            .map(|u| self.abs_url(&u));
-
-        // 2. Handle redirect if necessary
-        let final_doc = if let Some(real_toc_url) = redirect_url {
-            if real_toc_url != url && !real_toc_url.contains('#') {
-                // Drop old doc before await to be safe with !Send types
-                drop(doc);
-                let new_html = self.fetch(&real_toc_url, None, None, None).await?;
+        // 2. Decide if we need to fetch (Sync/Async boundary)
+        let final_doc = if let Some(real_url) = redirect_url {
+            if real_url != url && !real_url.contains('#') {
+                // Fetch new content
+                let new_html = self.fetch(&real_url, None, None, None).await?;
                 Html::parse_document(&new_html)
             } else {
-                doc
+                // No valid redirect, use original
+                Html::parse_document(&html)
             }
         } else {
-            doc
+            // No redirect found, use original
+            Html::parse_document(&html)
         };
 
         let items = self.compiled.toc_list.select_all(&final_doc);

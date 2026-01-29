@@ -9,7 +9,7 @@ import { logger } from '../../utils/logger'
 import { ERROR_PATTERNS, MIN_CONTENT_LENGTH } from '../../constants/reader'
 import { useOfflineStore } from '../offlineStorage'
 import { formatContentAsync } from '../../composables/useContentParser'
-import { perfMonitor } from '../../utils/performance'
+import { perfMonitor } from '../../services/performance/monitor'
 
 // 检测内容是否有问题
 function detectContentIssue(text: string): string | null {

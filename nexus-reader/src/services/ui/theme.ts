@@ -3,7 +3,7 @@
  * 提供平滑的暗色模式切换和主题过渡效果
  */
 
-import { animationManager } from './animationManager'
+import { animationManager } from './animation'
 
 // 主题类型
 export type Theme = 'light' | 'dark' | 'auto'
@@ -178,10 +178,10 @@ export class ThemeTransitionManager {
   optimizeThemeTransitions(): void {
     // 预加载所有主题
     this.preloadAllThemes()
-    
+
     // 设置CSS变量过渡
     this.setupCSSTransitions()
-    
+
     // 启用硬件加速
     this.enableHardwareAcceleration()
   }
@@ -265,13 +265,13 @@ export class ThemeTransitionManager {
 
   private getSystemPreference(): 'light' | 'dark' {
     if (typeof window === 'undefined') return 'light'
-    
+
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   }
 
   private shouldReduceMotion(): boolean {
     if (typeof window === 'undefined') return false
-    
+
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches
   }
 
@@ -320,10 +320,10 @@ export class ThemeTransitionManager {
     if (typeof window === 'undefined') return
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
       this.state.systemPreference = e.matches ? 'dark' : 'light'
-      
+
       // 如果当前是auto模式，自动切换主题
       if (this.state.current === 'auto') {
         this.applyTheme(this.state.systemPreference)
@@ -338,7 +338,7 @@ export class ThemeTransitionManager {
     if (typeof window === 'undefined') return
 
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    
+
     const handleChange = () => {
       // 当用户偏好改变时，可以调整动画设置
       console.log('Reduced motion preference changed:', mediaQuery.matches)
@@ -444,9 +444,9 @@ export class ThemeTransitionManager {
   // 清理资源
   destroy(): void {
     if (this.mediaQuery) {
-      this.mediaQuery.removeEventListener('change', () => {})
+      this.mediaQuery.removeEventListener('change', () => { })
     }
-    
+
     this.observers = []
     this.themes.clear()
   }
@@ -504,9 +504,9 @@ export function useTheme() {
     currentTheme: readonly(currentTheme),
     effectiveTheme: readonly(effectiveTheme),
     isTransitioning: readonly(isTransitioning),
-    switchTheme: (theme: Theme, options?: TransitionOptions) => 
+    switchTheme: (theme: Theme, options?: TransitionOptions) =>
       themeTransitionManager.switchTheme(theme, options),
-    toggleTheme: (options?: TransitionOptions) => 
+    toggleTheme: (options?: TransitionOptions) =>
       themeTransitionManager.toggleTheme(options)
   }
 }

@@ -68,3 +68,13 @@ export interface TTSConfig {
   pitch: number; // 音调 0.5-2
   volume: number; // 音量 0-1
 }
+
+export interface PiperVoice {
+  key: string
+  name: string
+  language: string
+  quality: string
+  numSpeakers: number
+  files: Record<string, { sizeBytes: number; md5Digest: string }>
+  isDownloaded?: boolean
+}

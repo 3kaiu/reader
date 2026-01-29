@@ -121,7 +121,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import VirtualScroller from './VirtualScroller.vue'
 import { batchRequestManager } from '../utils/batchRequestManager'
-import { offlineService } from '../services/offlineService'
+import { offlineService } from '../services/offline/service'
 
 interface Chapter {
   id: string

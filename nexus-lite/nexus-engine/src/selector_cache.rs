@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Mutex};
 
 /// Global selector cache - shared across all engine instances
 /// Uses DashMap for lock-free concurrent access
@@ -9,12 +9,12 @@ static GLOBAL_SELECTOR_CACHE: LazyLock<DashMap<String, Arc<FallbackSelector>>> =
     LazyLock::new(DashMap::new);
 
 /// A compiled fallback selector - tries each selector in order until one matches
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FallbackSelector {
     /// Original rule string (for debugging)
     pub rule: String,
     /// Compiled selectors to try in order
-    pub selectors: Vec<Selector>,
+    pub selectors: Mutex<Vec<Selector>>,
     /// Attribute to extract (text, href, src, html, etc.)
     pub attr: String,
 }
@@ -27,7 +27,7 @@ impl FallbackSelector {
         if rule.is_empty() {
             return Ok(Self {
                 rule: String::new(),
-                selectors: vec![],
+                selectors: Mutex::new(vec![]),
                 attr: "text".to_string(),
             });
         }
@@ -84,14 +84,14 @@ impl FallbackSelector {
 
         Ok(Self {
             rule: rule.to_string(),
-            selectors,
+            selectors: Mutex::new(selectors),
             attr,
         })
     }
 
     /// Check if the selector is effectively empty
     pub fn is_empty(&self) -> bool {
-        self.selectors.is_empty() && self.rule.is_empty()
+        self.selectors.lock().unwrap().is_empty() && self.rule.is_empty()
     }
 
     /// Get or compile from global cache (thread-safe, cross-engine)
@@ -123,7 +123,8 @@ impl FallbackSelector {
 
     /// Select from a parent element and extract
     pub fn select_from_and_extract(&self, el: &ElementRef) -> Option<String> {
-        for selector in &self.selectors {
+        let selectors = self.selectors.lock().unwrap();
+        for selector in selectors.iter() {
             if let Some(target) = el.select(selector).next() {
                 return extract_attr(target, &self.attr);
             }
@@ -133,7 +134,8 @@ impl FallbackSelector {
 
     /// Extract data using the compiled selectors from the root
     pub fn extract(&self, html: &Html) -> Option<String> {
-        for selector in &self.selectors {
+        let selectors = self.selectors.lock().unwrap();
+        for selector in selectors.iter() {
             if let Some(element) = html.select(selector).next() {
                 return extract_attr(element, &self.attr);
             }
@@ -143,7 +145,8 @@ impl FallbackSelector {
 
     /// Select all matching elements as ElementRefs
     pub fn select_all<'a>(&self, html: &'a Html) -> Vec<ElementRef<'a>> {
-        for selector in &self.selectors {
+        let selectors = self.selectors.lock().unwrap();
+        for selector in selectors.iter() {
             let elements: Vec<_> = html.select(selector).collect();
             if !elements.is_empty() {
                 return elements;
@@ -155,7 +158,8 @@ impl FallbackSelector {
     /// Extract multiple values
     pub fn extract_all(&self, html: &Html) -> Vec<String> {
         let mut results = Vec::new();
-        for selector in &self.selectors {
+        let selectors = self.selectors.lock().unwrap();
+        for selector in selectors.iter() {
             let elements = html.select(selector);
             for element in elements {
                 if let Some(v) = extract_attr(element, &self.attr) {

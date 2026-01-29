@@ -1921,6 +1921,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "memmap2",
  "moka",
  "nexus-core",
  "notify",

@@ -2,7 +2,7 @@
  * 性能监控工具
  * 用于追踪关键业务指标：内容解析耗时、首屏渲染、网络延迟等
  */
-import { logger } from './logger'
+import { logger } from '../../utils/logger'
 
 export interface PerformanceMetric {
     name: string

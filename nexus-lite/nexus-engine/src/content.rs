@@ -59,18 +59,17 @@ pub fn apply_replace_rules(content: String, rules: &[ReplaceRule], source_id: &s
         }
     }
 
-    let mut current_content = Cow::Owned(content);
+    let mut current_content: std::borrow::Cow<str> = Cow::Owned(content);
 
     // 2. Batch process String patterns using Aho-Corasick (O(N) Complexity)
     if !string_patterns.is_empty() {
         if let Ok(ac) = AhoCorasick::new(&string_patterns) {
             let mut result = String::with_capacity(current_content.len());
-            if let Ok(_) = ac.replace_all_with(&current_content, &mut result, |_, _, w| {
-                w.push_str(&string_replacements[_.as_usize()]);
+            ac.replace_all_with(&current_content, &mut result, |mat, _, w| {
+                w.push_str(&string_replacements[mat.pattern().as_usize()]);
                 true
-            }) {
-                current_content = Cow::Owned(result);
-            }
+            });
+            current_content = Cow::Owned(result);
         }
     }
 

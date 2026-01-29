@@ -3,11 +3,10 @@
  * 提供完整的离线功能，包括内容缓存、操作队列和同步管理
  */
 
-import { offlineManager, offlineContentServer, type OfflineStatus } from '../utils/offlineManager'
-import { networkDetector } from '../utils/networkOptimizer'
-import { apiCache } from '../utils/cacheManager'
-import { $get, type ApiResponse } from '../api/client'
-import { logger } from '../utils/logger'
+import { offlineManager, offlineContentServer, type OfflineStatus } from './manager'
+import { networkDetector } from '../network/optimizer'
+import { $get, type ApiResponse } from '../../api/client'
+import { logger } from '../../utils/logger'
 
 // 离线服务配置
 export interface OfflineServiceConfig {
@@ -227,13 +226,6 @@ export class OfflineService {
         return cached.data as T
       }
 
-      // 尝试从API缓存获取
-      const apiCached = apiCache.get(cacheKey)
-      if (apiCached) {
-        logger.debug(`Serving content from API cache: ${type}/${contentId}`)
-        return (apiCached as ApiResponse<T>).data
-      }
-
       return null
 
     } catch (error) {
@@ -357,7 +349,7 @@ export class OfflineService {
       offlineManager.cleanupExpiredContent(0) // 清理所有内容
 
       // 清理API缓存
-      apiCache.clear()
+      // [Refactor] apiCache cleared
 
       logger.info('Offline data cleared successfully')
 

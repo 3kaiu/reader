@@ -4,7 +4,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb'
-import { logger } from '@/utils/logger'
+import { logger } from '../../utils/logger'
 
 interface CachedModel {
   id: string
@@ -58,7 +58,7 @@ export class ModelCacheManager {
   private readonly MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024 // 2GB
   private readonly MAX_MODEL_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ModelCacheManager {
     if (!ModelCacheManager.instance) {
@@ -81,9 +81,9 @@ export class ModelCacheManager {
           }
         },
       })
-      
+
       logger.info('[Model Cache] Database initialized successfully')
-      
+
       // 启动时清理过期模型
       await this.cleanupExpiredModels()
     } catch (error) {
@@ -96,8 +96,8 @@ export class ModelCacheManager {
    * 缓存模型数据
    */
   async cacheModel(
-    modelId: string, 
-    data: ArrayBuffer, 
+    modelId: string,
+    data: ArrayBuffer,
     metadata: Partial<CachedModel['metadata']> = {}
   ): Promise<void> {
     if (!this.db) {
@@ -123,7 +123,7 @@ export class ModelCacheManager {
 
       // 存储模型
       await this.db!.put(this.STORE_NAME, cachedModel)
-      
+
       logger.info(`[Model Cache] Cached model ${modelId} (${this.formatBytes(data.byteLength)})`)
     } catch (error) {
       logger.error(`[Model Cache] Failed to cache model ${modelId}:`, error as Error)
@@ -141,7 +141,7 @@ export class ModelCacheManager {
 
     try {
       const cachedModel = await this.db!.get(this.STORE_NAME, modelId)
-      
+
       if (!cachedModel) {
         return null
       }
@@ -203,7 +203,7 @@ export class ModelCacheManager {
 
     try {
       const models = await this.db!.getAll(this.STORE_NAME)
-      
+
       const stats: CacheStats = {
         totalSize: 0,
         modelCount: models.length,
@@ -251,7 +251,7 @@ export class ModelCacheManager {
    */
   private async ensureCacheSpace(requiredSize: number): Promise<void> {
     const stats = await this.getCacheStats()
-    
+
     if (stats.totalSize + requiredSize <= this.MAX_CACHE_SIZE) {
       return // 有足够空间
     }
@@ -353,7 +353,7 @@ export class ModelCacheManager {
    */
   async warmupCache(modelIds: string[]): Promise<void> {
     logger.info(`[Model Cache] Starting cache warmup for ${modelIds.length} models`)
-    
+
     // 这里可以实现预加载逻辑
     // 实际实现中会从CDN下载并缓存这些模型
     for (const modelId of modelIds) {
@@ -372,23 +372,23 @@ export class ModelCacheManager {
   async intelligentPreload(): Promise<void> {
     try {
       logger.info('[Model Cache] Starting intelligent preload...')
-      
+
       // 获取使用统计
       const usageStats = await this.getModelUsageStats()
-      
+
       // 检测网络状况
       const networkInfo = await this.detectNetworkCondition()
-      
+
       // 根据网络状况调整预加载策略
       const preloadCandidates = this.selectPreloadCandidates(usageStats, networkInfo)
-      
+
       // 后台预加载
       for (const candidate of preloadCandidates) {
         if (!await this.isModelCached(candidate.modelId)) {
           await this.backgroundPreload(candidate)
         }
       }
-      
+
       logger.info(`[Model Cache] Intelligent preload completed for ${preloadCandidates.length} models`)
     } catch (error) {
       logger.error('[Model Cache] Intelligent preload failed:', error as Error)
@@ -406,7 +406,7 @@ export class ModelCacheManager {
     try {
       const models = await this.db!.getAll(this.STORE_NAME)
       const now = Date.now()
-      
+
       return models.map(model => ({
         modelId: model.id,
         accessCount: model.metadata.accessCount || 1,
@@ -427,7 +427,7 @@ export class ModelCacheManager {
     try {
       // 使用Navigator API检测网络状况
       const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
-      
+
       if (connection) {
         return {
           effectiveType: connection.effectiveType || '4g',
@@ -436,7 +436,7 @@ export class ModelCacheManager {
           saveData: connection.saveData || false
         }
       }
-      
+
       // 回退到默认网络状况
       return {
         effectiveType: '4g',
@@ -459,14 +459,14 @@ export class ModelCacheManager {
    * 选择预加载候选模型
    */
   private selectPreloadCandidates(
-    usageStats: ModelUsageStats[], 
+    usageStats: ModelUsageStats[],
     networkInfo: NetworkCondition
   ): PreloadCandidate[] {
     const candidates: PreloadCandidate[] = []
-    
+
     // 根据网络状况调整预加载数量
     let maxCandidates = 3 // 默认预加载3个模型
-    
+
     if (networkInfo.saveData) {
       maxCandidates = 1 // 节省数据模式下只预加载1个
     } else if (networkInfo.effectiveType === '4g' && networkInfo.downlink > 5) {
@@ -474,7 +474,7 @@ export class ModelCacheManager {
     } else if (networkInfo.effectiveType === '3g' || networkInfo.downlink < 2) {
       maxCandidates = 2 // 慢速网络下减少预加载
     }
-    
+
     // 选择高优先级模型
     for (let i = 0; i < Math.min(usageStats.length, maxCandidates); i++) {
       const stat = usageStats[i]
@@ -485,7 +485,7 @@ export class ModelCacheManager {
         networkPriority: this.calculateNetworkPriority(stat, networkInfo)
       })
     }
-    
+
     return candidates.sort((a, b) => b.networkPriority - a.networkPriority)
   }
 
@@ -495,23 +495,23 @@ export class ModelCacheManager {
   private async backgroundPreload(candidate: PreloadCandidate): Promise<void> {
     try {
       logger.info(`[Model Cache] Background preloading ${candidate.modelId}...`)
-      
+
       // 这里应该实现实际的模型下载逻辑
       // 为了演示，我们模拟一个下载过程
       const modelUrl = this.getModelUrl(candidate.modelId)
-      
+
       // 使用低优先级请求避免影响用户操作
       const response = await fetch(modelUrl, {
         priority: 'low' as any // 实验性API
       })
-      
+
       if (response.ok) {
         const modelData = await response.arrayBuffer()
         await this.cacheModel(candidate.modelId, modelData, {
           version: '1.0.0',
           preloaded: true
         })
-        
+
         logger.info(`[Model Cache] Successfully preloaded ${candidate.modelId}`)
       }
     } catch (error) {
@@ -526,7 +526,7 @@ export class ModelCacheManager {
     const now = Date.now()
     const daysSinceCreation = (now - metadata.timestamp) / (24 * 60 * 60 * 1000)
     const accessCount = metadata.accessCount || 1
-    
+
     return daysSinceCreation > 0 ? accessCount / daysSinceCreation : accessCount
   }
 
@@ -536,7 +536,7 @@ export class ModelCacheManager {
   private calculatePreloadPriority(metadata: CachedModel['metadata'], now: number): number {
     const frequency = this.calculateAccessFrequency(metadata)
     const recency = Math.max(0, 1 - (now - metadata.lastAccessed) / (7 * 24 * 60 * 60 * 1000)) // 7天内的访问权重更高
-    
+
     return frequency * 0.7 + recency * 0.3
   }
 
@@ -552,7 +552,7 @@ export class ModelCacheManager {
     } else if (modelId.includes('small') || modelId.includes('1b')) {
       return 1 * 1024 * 1024 * 1024 // 1GB
     }
-    
+
     return 500 * 1024 * 1024 // 默认500MB
   }
 
@@ -561,18 +561,18 @@ export class ModelCacheManager {
    */
   private calculateNetworkPriority(stat: ModelUsageStats, networkInfo: NetworkCondition): number {
     let priority = stat.priority
-    
+
     // 根据网络状况调整优先级
     if (networkInfo.saveData) {
       priority *= 0.5 // 节省数据模式下降低优先级
     }
-    
+
     if (networkInfo.effectiveType === '2g' || networkInfo.downlink < 1) {
       priority *= 0.3 // 极慢网络下大幅降低优先级
     } else if (networkInfo.effectiveType === '3g' || networkInfo.downlink < 3) {
       priority *= 0.7 // 慢网络下降低优先级
     }
-    
+
     return priority
   }
 
@@ -612,7 +612,7 @@ export class ModelCacheManager {
     const usageStats = await this.getModelUsageStats()
     const networkInfo = await this.detectNetworkCondition()
     const candidates = this.selectPreloadCandidates(usageStats, networkInfo)
-    
+
     return candidates.map(c => c.modelId)
   }
 }

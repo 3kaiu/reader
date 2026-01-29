@@ -5,12 +5,9 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router'
 import './styles/main.css'
-import { performanceMonitor } from './utils/performanceMonitor'
-import { preloadManager } from './utils/lazyLoader'
-import { swCacheManager } from './utils/cacheManager'
 import { useErrorHandler } from './composables/useErrorHandler'
-import { performanceSystem, initializePerformanceSystem } from './utils/performanceIntegration'
-import { aiServiceManager } from './services/aiServiceManager'
+import { performanceSystem, initializePerformanceSystem } from './services/performance/integration'
+import { aiServiceManager } from './services/ai/service'
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -51,28 +48,28 @@ initializePerformanceSystem({
     enableFontOptimization: true,
     enableThemeTransitions: true,
     enableTesting: import.meta.env.DEV, // 仅在开发环境启用测试
-    
+
     // 具体配置
     monitoringConfig: {
         sampleRate: import.meta.env.PROD ? 0.1 : 1, // 生产环境降低采样率
         enableRealTimeReporting: import.meta.env.DEV
     },
-    
+
     cacheConfig: {
         maxSize: 100 * 1024 * 1024, // 100MB
         ttl: 3600000 // 1小时
     },
-    
+
     memoryConfig: {
         gcThreshold: 150 * 1024 * 1024, // 150MB
         monitoringInterval: 30000 // 30秒
     },
-    
+
     networkConfig: {
         enableAdaptiveQuality: true,
         enableRequestBatching: true
     },
-    
+
     budgetConfig: {
         enforceInProduction: false,
         alertThreshold: 0.8
@@ -86,33 +83,16 @@ aiServiceManager.initialize().catch(error => {
     console.warn('AI service initialization failed:', error)
 })
 
-// 开启性能监控（向后兼容）
-performanceMonitor.startMonitoring()
-
-// 启动预加载管理器
-preloadManager.preloadBasedOnNetwork()
-
-// 初始化 Service Worker 缓存管理器
-if (process.env.NODE_ENV === 'production') {
-  // swCacheManager 在导入时自动初始化，这里确保模块被加载
-  swCacheManager.getStats?.()
-}
 
 // 监控路由变化性能
 router.beforeEach((to, from, next) => {
     const startTime = performance.now()
-    ;(to.meta as any)._routeStartTime = startTime
+        ; (to.meta as any)._routeStartTime = startTime
     next()
 })
 
 router.afterEach((to, _from) => {
-    const startTime = (to.meta as any)._routeStartTime
-    if (startTime) {
-        const duration = performance.now() - startTime
-        performanceMonitor.reportMetric('route_change', duration, {
-            to: to.path
-        })
-    }
+    // Performance monitoring could be re-enabled here via new system
 })
 
 // 注册 Service Worker (仅在生产环境)
@@ -136,6 +116,6 @@ if (import.meta.env.DEV) {
         performanceSystem,
         aiServiceManager
     })
-    
+
     console.log('🔧 Debug objects available: window.performanceSystem, window.aiServiceManager')
 }
