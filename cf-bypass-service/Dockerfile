@@ -22,7 +22,8 @@ RUN pip install --no-cache-dir \
     pydantic>=2.5.0 \
     cachetools>=5.3.0 \
     js2py>=0.74 \
-    redis>=5.0.0
+    redis>=5.0.0 \
+    psutil>=5.9.0
 
 # Copy source code
 COPY *.py ./
