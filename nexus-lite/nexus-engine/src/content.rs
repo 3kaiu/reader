@@ -30,11 +30,15 @@ pub fn get_or_compile_regex(pattern: &str) -> Option<Arc<Regex>> {
     }
 }
 
-/// Apply regex replacement rules to content (uses cached regex compilation)
+/// Apply replacement rules to content (Optimized via Aho-Corasick for batch string matching)
 pub fn apply_replace_rules(content: String, rules: &[ReplaceRule], source_id: &str) -> String {
+    use aho_corasick::AhoCorasick;
     use std::borrow::Cow;
 
-    let mut current_content = Cow::Owned(content);
+    // 1. Separate rules into String patterns and Regex patterns
+    let mut string_patterns = Vec::new();
+    let mut string_replacements = Vec::new();
+    let mut regex_rules = Vec::new();
 
     for rule in rules {
         if !rule.is_enabled {
@@ -47,22 +51,36 @@ pub fn apply_replace_rules(content: String, rules: &[ReplaceRule], source_id: &s
             }
         }
 
-        let replacement = rule.replacement.as_deref().unwrap_or("");
-
         if rule.is_regex {
-            if let Some(re) = get_or_compile_regex(&rule.pattern) {
-                // replace_all returns Cow. If no match, it's Borrowed.
-                // We only update if it becomes Owned (meaning a replacement occurred).
-                let result = re.replace_all(&current_content, replacement);
-                if let Cow::Owned(new_s) = result {
-                    current_content = Cow::Owned(new_s);
-                }
-            }
+            regex_rules.push(rule);
         } else {
-            // Standard replace also returns a new String if matched.
-            // We can check contains() first to avoid allocation if no match.
-            if current_content.contains(&rule.pattern) {
-                current_content = Cow::Owned(current_content.replace(&rule.pattern, replacement));
+            string_patterns.push(rule.pattern.clone());
+            string_replacements.push(rule.replacement.as_deref().unwrap_or("").to_string());
+        }
+    }
+
+    let mut current_content = Cow::Owned(content);
+
+    // 2. Batch process String patterns using Aho-Corasick (O(N) Complexity)
+    if !string_patterns.is_empty() {
+        if let Ok(ac) = AhoCorasick::new(&string_patterns) {
+            let mut result = String::with_capacity(current_content.len());
+            if let Ok(_) = ac.replace_all_with(&current_content, &mut result, |_, _, w| {
+                w.push_str(&string_replacements[_.as_usize()]);
+                true
+            }) {
+                current_content = Cow::Owned(result);
+            }
+        }
+    }
+
+    // 3. Sequential process Regex patterns (Fallback for non-string rules)
+    for rule in regex_rules {
+        let replacement = rule.replacement.as_deref().unwrap_or("");
+        if let Some(re) = get_or_compile_regex(&rule.pattern) {
+            let result = re.replace_all(&current_content, replacement);
+            if let Cow::Owned(new_s) = result {
+                current_content = Cow::Owned(new_s);
             }
         }
     }

@@ -5,8 +5,10 @@
 //!
 //! Optimized for NAS deployments with configurable memory limits.
 
+use memmap2::Mmap;
 use moka::future::Cache;
 use nexus_core::EngineError;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -72,7 +74,7 @@ impl ChapterCache {
         self.disk_dir.join(format!("{}.txt", key))
     }
 
-    /// Get cached content (L1 memory -> L2 disk)
+    /// Get cached content (L1 memory -> L2 disk via Mmap)
     pub async fn get(&self, book_id: &str, chapter_index: usize) -> Option<String> {
         let key = self.cache_key(book_id, chapter_index);
 
@@ -83,14 +85,25 @@ impl ChapterCache {
             return Some(content);
         }
 
-        // L2: Try disk
+        // L2: Try disk via Mmap
         let path = self.disk_path(&key);
         if path.exists() {
-            if let Ok(content) = tokio::fs::read_to_string(&path).await {
+            let path_clone = path.clone();
+            // Using spawn_blocking for Mmap as it's a synchronous OS operation
+            let content = tokio::task::spawn_blocking(move || {
+                let file = File::open(&path_clone).ok()?;
+                let mmap = unsafe { Mmap::map(&file).ok()? };
+                String::from_utf8(mmap.to_vec()).ok()
+            })
+            .await
+            .ok()
+            .flatten();
+
+            if let Some(content) = content {
                 // Promote to L1 memory
                 self.memory.insert(key.clone(), content.clone()).await;
                 self.hits.fetch_add(1, Ordering::Relaxed);
-                debug!("Cache HIT (L2 disk, promoted to L1): {}", key);
+                debug!("Cache HIT (L2 disk/mmap, promoted to L1): {}", key);
                 return Some(content);
             }
         }
@@ -170,7 +183,9 @@ impl ChapterCache {
         let pattern = format!("{}_", book_id);
 
         // Clear from L1 memory (invalidate matching keys)
-        let _ = self.memory.invalidate_entries_if(move |k, _| k.starts_with(&pattern));
+        let _ = self
+            .memory
+            .invalidate_entries_if(move |k, _| k.starts_with(&pattern));
 
         // Clear from L2 disk
         if let Ok(mut entries) = tokio::fs::read_dir(&self.disk_dir).await {
@@ -251,9 +266,11 @@ impl ChapterCache {
             return Ok(());
         }
 
-        debug!("Disk cache cleanup: {}MB > {}MB limit", 
-               total_size / 1024 / 1024, 
-               self.max_disk_mb);
+        debug!(
+            "Disk cache cleanup: {}MB > {}MB limit",
+            total_size / 1024 / 1024,
+            self.max_disk_mb
+        );
 
         // Sort by modification time (oldest first)
         entries.sort_by_key(|k| k.2);
@@ -271,8 +288,11 @@ impl ChapterCache {
 
         self.disk_size
             .store(total_size - removed_size, Ordering::Relaxed);
-        
-        info!("Disk cache cleanup: removed {}MB", removed_size / 1024 / 1024);
+
+        info!(
+            "Disk cache cleanup: removed {}MB",
+            removed_size / 1024 / 1024
+        );
         Ok(())
     }
 
@@ -281,11 +301,15 @@ impl ChapterCache {
         let hits = self.hits.load(Ordering::Relaxed);
         let misses = self.misses.load(Ordering::Relaxed);
         let total = hits + misses;
-        
+
         CacheStats {
             hits,
             misses,
-            hit_rate: if total > 0 { hits as f64 / total as f64 } else { 0.0 },
+            hit_rate: if total > 0 {
+                hits as f64 / total as f64
+            } else {
+                0.0
+            },
             disk_size_mb: self.disk_size.load(Ordering::Relaxed) / 1024 / 1024,
             memory_entry_count: self.memory.entry_count(),
         }
@@ -301,4 +325,3 @@ pub struct CacheStats {
     pub disk_size_mb: u64,
     pub memory_entry_count: u64,
 }
-

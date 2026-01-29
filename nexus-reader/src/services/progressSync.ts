@@ -110,8 +110,24 @@ async function loadFromCloud(bookId: string): Promise<ReadingProgress | null> {
   }
 }
 
+// 跨标签页同步 (BroadcastChannel)
+const BROADCAST_CHANNEL_NAME = 'nexus_progress_sync'
+let broadcastChannel: BroadcastChannel | null = null
+
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME)
+  broadcastChannel.onmessage = (event) => {
+    const { type, progress } = event.data
+    if (type === 'PROGRESS_UPDATE') {
+      logger.debug(`[Sync] Received progress update from another tab for book: ${progress.bookId}`)
+      // 发出自定义事件或由组件订阅（Pinia 会由 persistedstate 结合广播处理更佳，此处做底层保障）
+      window.dispatchEvent(new CustomEvent('nexus:progress-sync', { detail: progress }))
+    }
+  }
+}
+
 /**
- * Save reading progress (debounced, local + cloud)
+ * Save reading progress (debounced, local + cloud + broadcast)
  */
 export async function saveProgress(
   bookId: string,
@@ -128,7 +144,10 @@ export async function saveProgress(
   // Always save locally immediately (now async)
   await saveLocal(progress)
 
-  // Debounce cloud sync
+  // 1. 跨标签页广播
+  broadcastChannel?.postMessage({ type: 'PROGRESS_UPDATE', progress })
+
+  // 2. 延迟云端同步
   const existingTimer = saveTimers.get(bookId)
   if (existingTimer) {
     clearTimeout(existingTimer)

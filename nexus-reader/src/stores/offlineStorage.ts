@@ -247,7 +247,7 @@ export const useOfflineStore = defineStore('offline', () => {
     let downloadAbortController: AbortController | null = null
 
     /**
-     * 批量下载书籍章节
+     * 批量下载书籍章节 (并行流水线优化)
      */
     async function downloadBook(
         bookUrl: string,
@@ -267,46 +267,50 @@ export const useOfflineStore = defineStore('offline', () => {
         let success = 0
         let failed = 0
 
-        try {
-            for (const chapter of chapters) {
-                // 检查是否被取消
-                if (downloadAbortController.signal.aborted) {
-                    break
-                }
+        const CONCURRENCY = 3 // 并发下载窗口大小
+        const queue = [...chapters]
 
-                // 跳过已缓存的章节
+        const runWorker = async () => {
+            while (queue.length > 0 && !downloadAbortController?.signal.aborted) {
+                const chapter = queue.shift()!
+
                 if (isChapterCached(bookUrl, chapter.index)) {
                     success++
-                } else {
-                    try {
-                        const content = await fetchContent(chapter.url)
-                        await cacheChapter({
-                            id: `${bookUrl}:${chapter.index}`,
-                            bookUrl,
-                            sourceId,
-                            chapterIndex: chapter.index,
-                            title: chapter.title,
-                            content,
-                            cachedAt: Date.now(),
-                        })
-                        success++
-                    } catch (e) {
-                        if ((e as Error).message === 'STORAGE_QUOTA_EXCEEDED') {
-                            // 存储空间不足，停止下载
-                            console.warn('存储空间不足，停止下载')
-                            break
-                        }
-                        failed++
-                        console.warn(`下载章节失败: ${chapter.title}`, e)
-                    }
-
-                    // 添加小延迟避免请求过快 (仅对网络请求)
-                    await new Promise(r => setTimeout(r, 100))
+                    downloadProgress.value.current++
+                    continue
                 }
 
-                // 统一更新进度
+                try {
+                    const content = await fetchContent(chapter.url)
+                    await cacheChapter({
+                        id: `${bookUrl}:${chapter.index}`,
+                        bookUrl,
+                        sourceId,
+                        chapterIndex: chapter.index,
+                        title: chapter.title,
+                        content,
+                        cachedAt: Date.now(),
+                    })
+                    success++
+                } catch (e) {
+                    if ((e as Error).message === 'STORAGE_QUOTA_EXCEEDED') {
+                        downloadAbortController?.abort()
+                        break
+                    }
+                    failed++
+                    console.warn(`下载章节失败: ${chapter.title}`, e)
+                }
+
                 downloadProgress.value.current++
+                // 给 I/O 留一点微小的喘息时间
+                await new Promise(r => setTimeout(r, 50))
             }
+        }
+
+        try {
+            // 启动多个并行工作者
+            const workers = Array.from({ length: CONCURRENCY }, () => runWorker())
+            await Promise.all(workers)
         } finally {
             isDownloading.value = false
             downloadAbortController = null

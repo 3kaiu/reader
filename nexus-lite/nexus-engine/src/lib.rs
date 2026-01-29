@@ -14,6 +14,7 @@ pub mod content;
 pub mod domain_pool;
 pub mod fetcher;
 pub mod nxs_engine;
+pub mod purifier;
 pub mod selector_cache;
 pub mod uri;
 

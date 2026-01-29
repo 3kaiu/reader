@@ -4,6 +4,8 @@
  */
 import { ref } from 'vue'
 import { embed, cosineSimilarity } from '../../composables/useEmbedding'
+import { nexusDB, StoreNames } from '../../utils/db'
+import { hardwareScheduler } from '../../utils/hardwareScheduler'
 
 export interface RagDocument {
   id: string
@@ -16,23 +18,71 @@ export function useRag() {
   const documents = ref<RagDocument[]>([])
 
   /**
-   * 添加文檔並異步生成向量
+   * 添加文檔并实现滑动窗口分块 (Sliding Window Chunking)
    */
   async function addDocuments(docs: RagDocument[]) {
-    // 先添加純文本，確保快速響應
-    documents.value.push(...docs)
+    const quota = hardwareScheduler.getQuota()
+    const chunkedDocs: RagDocument[] = []
 
-    // 異步生成向量 (WebGPU)
     for (const doc of docs) {
-      if (!doc.vector) {
-        try {
-          // 只取前 500 字符生成語義向量，節省計算
-          doc.vector = await embed(doc.content.slice(0, 500))
-        } catch (e) {
-          console.warn('[RAG] 向量生成失敗:', e)
+      if (doc.content.length <= 1200) {
+        chunkedDocs.push(doc)
+      } else {
+        const windowSize = 1000
+        const overlap = 150
+        let start = 0
+        let chunkIdx = 0
+
+        while (start < doc.content.length) {
+          const end = Math.min(start + windowSize, doc.content.length)
+          chunkedDocs.push({
+            ...doc,
+            id: `${doc.id}_chunk_${chunkIdx++}`,
+            content: doc.content.substring(start, end),
+            metadata: { ...doc.metadata, is_chunk: true, chunk_index: chunkIdx }
+          })
+
+          if (end === doc.content.length) break
+          start += (windowSize - overlap)
         }
       }
     }
+
+    // 持久化存储
+    for (const chunk of chunkedDocs) {
+      await nexusDB.put(StoreNames.PROGRESS, { id: `rag_doc_${chunk.id}`, data: chunk })
+      await updateInvertedIndex(chunk)
+    }
+
+    documents.value.push(...chunkedDocs)
+
+    // 异步生成向量 (由硬件配额决定)
+    if (quota.allowVectorization) {
+      for (const doc of chunkedDocs) {
+        if (!doc.vector) {
+          try {
+            doc.vector = await embed(doc.content)
+            await nexusDB.put(StoreNames.PROGRESS, { id: `rag_doc_${doc.id}`, data: doc })
+          } catch (e) {
+            console.warn('[RAG] Vectorization failed', e)
+          }
+        }
+      }
+    }
+  }
+
+  async function updateInvertedIndex(doc: RagDocument) {
+    const tokens = tokenize(doc.content)
+    for (const token of tokens) {
+      const key = `rag_idx_${token}`
+      const existing: any = await nexusDB.get(StoreNames.RULES, key)
+      const docIds = existing ? [...existing.docIds, doc.id] : [doc.id]
+      await nexusDB.put(StoreNames.RULES, { id: key, docIds: Array.from(new Set(docIds)) })
+    }
+  }
+
+  function tokenize(text: string): string[] {
+    return text.toLowerCase().split(/[^\w\u4e00-\u9fa5]+/).filter(t => t.length > 1)
   }
 
   /**
@@ -45,53 +95,45 @@ export function useRag() {
   /**
    * 混和檢索 (Hybrid Search)
    */
-  async function search(query: string, limit = 3): Promise<RagDocument[]> {
-    if (documents.value.length === 0) return []
+  async function search(query: string, limit = 5): Promise<RagDocument[]> {
+    const tokens = tokenize(query)
+    if (tokens.length === 0) return []
 
-    // 1. 生成加密查詢向量
-    let queryVector: number[] | null = null
-    try {
-      queryVector = await embed(query)
-    } catch (e) {
-      console.warn('[RAG] 查詢向量生成失敗，回退到純文本檢索')
+    // 1. 索引检索候选集
+    const candidateIds = new Set<string>()
+    for (const token of tokens) {
+      const entry: any = await nexusDB.get(StoreNames.RULES, `rag_idx_${token}`)
+      if (entry) {
+        entry.docIds.forEach((id: string) => candidateIds.add(id))
+      }
     }
 
-    // 性能優化：預分詞並過濾無效词
-    const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 0)
+    if (candidateIds.size === 0) return []
 
-    // 性能優化：預編譯聚合正則，避免在循環中重複創建 RegExp 對象
-    const queryRegex = tokens.length > 0
-      ? new RegExp(tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi')
-      : null
+    // 2. 加载候选文档并打分
+    const candidates: RagDocument[] = []
+    for (const id of candidateIds) {
+      const stored: any = await nexusDB.get(StoreNames.PROGRESS, `rag_doc_${id}`)
+      if (stored) candidates.push(stored.data)
+    }
 
-    const scores = documents.value.map(doc => {
+    const queryVector = await (async () => {
+      try { return await embed(query) } catch { return null }
+    })()
+
+    const scores = candidates.map(doc => {
       let bm25Score = 0
-      let semanticScore = 0
+      tokens.forEach(t => {
+        if (doc.content.toLowerCase().includes(t)) bm25Score += 1
+      })
 
-      // BM25 關鍵字得分 (優化版：一次掃描)
-      if (queryRegex) {
-        const content = doc.content
-        const matches = content.match(queryRegex)
-        if (matches) {
-          // 簡單模擬計分：匹配項總數 * 加權
-          bm25Score = matches.length * 1.5
-        }
-      }
-
-      // 語義相似度得分
-      if (queryVector && doc.vector) {
-        semanticScore = cosineSimilarity(queryVector, doc.vector)
-      }
-
-      // 權重融合 (0.3 BM25 + 0.7 Semantic)
-      const normalizedBm25 = Math.min(bm25Score / 10, 1)
-      const finalScore = (normalizedBm25 * 0.3) + (semanticScore * 0.7)
-
+      const semanticScore = queryVector && doc.vector ? cosineSimilarity(queryVector, doc.vector) : 0
+      const finalScore = (Math.min(bm25Score / 5, 1) * 0.3) + (semanticScore * 0.7)
       return { doc, score: finalScore }
     })
 
     return scores
-      .filter(s => s.score > 0.1) // 過濾低相關度
+      .filter(s => s.score > 0.1)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(s => s.doc)

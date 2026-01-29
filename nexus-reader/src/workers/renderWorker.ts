@@ -30,69 +30,93 @@ self.onmessage = async (e: MessageEvent) => {
   const { type, options } = e.data
 
   if (type === 'render-chapter') {
-    const pages = await renderChapter(options)
-    // 使用转移所有权 (Transferable objects) 以获得最高性能
-    const bitmaps = pages.map(p => p.bitmap)
-    self.postMessage({ type: 'render-complete', pages }, bitmaps as any)
+    const { index } = options
+    renderChapter(options, index).catch(err => {
+      self.postMessage({ type: 'render-error', error: err.message, index })
+    })
   }
 }
 
-async function renderChapter(options: RenderOptions): Promise<PageData[]> {
+async function renderChapter(options: RenderOptions, index: number): Promise<void> {
   const {
     text, width, height, fontSize, lineHeight,
-    padding, fontFamily, color
+    padding, fontFamily // color and theme handled by GPU shader
   } = options
 
-  const canvas = new OffscreenCanvas(width, height)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return []
-
-  ctx.font = `${fontSize}px ${fontFamily}`
-  ctx.textBaseline = 'top'
-  ctx.fillStyle = color
+  // 预估字符数以分配 SharedArrayBuffer (每个字符 3 个 float: charCode, x, y)
+  const MAX_CHARS_PER_PAGE = 2000
+  const bufferSize = MAX_CHARS_PER_PAGE * 3 * 4 // 4 bytes per float
 
   const paragraphs = text.split('\n').filter(p => p.trim())
-  const pages: PageData[] = []
 
   let currentPageIndex = 0
   let currentY = padding
   const contentWidth = width - padding * 2
   const contentHeight = height - padding * 2
 
-  // 绘制逻辑
-  const drawPage = () => {
-    const bitmap = canvas.transferToImageBitmap()
-    pages.push({ bitmap, index: currentPageIndex++ })
+  let pageBuffer = new SharedArrayBuffer(bufferSize)
+  let pageData = new Float32Array(pageBuffer)
+  let charPointer = 0
 
-    // 清空画布准备下一页
-    ctx.clearRect(0, 0, width, height)
-    // 重新填充背景 (可选，视主题而定)
-    // ctx.fillStyle = theme === 'night' ? '#1c1c1e' : '#ffffff';
-    // ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = color
+  const sendPage = () => {
+    // 发送布局网格数据，附带有效字符数
+    self.postMessage({
+      type: 'render-page-mesh',
+      index,
+      page: {
+        buffer: pageBuffer,
+        charCount: charPointer / 3,
+        index: currentPageIndex++
+      }
+    })
+
+    // 重置缓冲区准备下一页
+    pageBuffer = new SharedArrayBuffer(bufferSize)
+    pageData = new Float32Array(pageBuffer)
+    charPointer = 0
     currentY = padding
   }
 
-  for (const para of paragraphs) {
-    const lines = wrapText(ctx, para.trim(), contentWidth)
+  // 模拟简单的字体度量 (实际开发中应由 Wasm/Fontdue 提供)
+  const avgCharWidth = fontSize * 0.6
 
-    for (const line of lines) {
-      if (currentY + fontSize * lineHeight > contentHeight) {
-        drawPage()
+  for (const para of paragraphs) {
+    const words = para.trim().split('') // 简单按字符切分进行布局
+    let currentX = padding
+
+    for (const char of words) {
+      if (currentX + avgCharWidth > contentWidth + padding) {
+        currentX = padding
+        currentY += fontSize * lineHeight
       }
 
-      ctx.fillText(line, padding, currentY)
-      currentY += fontSize * lineHeight
+      if (currentY + fontSize * lineHeight > contentHeight + padding) {
+        sendPage()
+        currentX = padding
+      }
+
+      // 将布局信息存入二进制网格
+      pageData[charPointer++] = char.charCodeAt(0)
+      pageData[charPointer++] = currentX
+      pageData[charPointer++] = currentY
+
+      currentX += avgCharWidth
     }
 
     // 段落间距
-    currentY += fontSize * 0.5
+    currentY += fontSize * lineHeight + fontSize * 0.5
+    if (currentY + fontSize * lineHeight > contentHeight + padding) {
+      sendPage()
+    }
   }
 
-  // 最后一页
-  drawPage()
+  // 发送最后一页
+  if (charPointer > 0) {
+    sendPage()
+  }
 
-  return pages
+  // 发送完成信号
+  self.postMessage({ type: 'render-complete', totalPages: currentPageIndex, index })
 }
 
 /**

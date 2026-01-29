@@ -6,11 +6,13 @@
 import { logger } from '../utils/logger'
 import { nexusDB, StoreNames, type SyncTask } from '../utils/db'
 import { networkDetector } from '../utils/networkOptimizer'
+import { hardwareScheduler, PowerMode } from '../utils/hardwareScheduler'
 
 export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
 
 class SyncManager {
   private isProcessing = false
+  private pollingTimer: any = null
   private retryLimits: Record<SyncPriority, number> = {
     CRITICAL: 10,
     NORMAL: 5,
@@ -22,18 +24,25 @@ class SyncManager {
    */
   async addTask(task: Omit<SyncTask, 'id' | 'timestamp' | 'retryCount'>): Promise<string> {
     const id = `sync_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+    // 如果是极低功耗模式且不是 CRITICAL 任务，降低优先级或延迟添加
+    const quota = hardwareScheduler.getQuota()
+    let priority = task.priority as SyncPriority
+    if (quota.mode === PowerMode.ULTRA_LOW && priority !== 'CRITICAL') {
+      priority = 'IDLE'
+    }
+
     const syncTask: SyncTask = {
       ...task,
+      priority,
       id,
       timestamp: Date.now(),
       retryCount: 0
     }
 
     await nexusDB.put(StoreNames.SYNC_QUEUE, syncTask)
-    logger.debug(`[Sync] Task added: ${task.type} (${task.priority})`)
 
-    // 如果是 CRITICAL 任务，立即尝试触发处理
-    if (task.priority === 'CRITICAL') {
+    if (priority === 'CRITICAL') {
       this.processQueue().catch(err => logger.error('[Sync] Queue processing error', err))
     }
 
@@ -41,50 +50,82 @@ class SyncManager {
   }
 
   /**
-   * 启动定期同步（由全局服务调用）
+   * 启动定期同步（环境感知版）
    */
-  startpolling(intervalMs = 30000) {
-    setInterval(() => {
+  startPolling() {
+    if (this.pollingTimer) clearInterval(this.pollingTimer)
+
+    const quota = hardwareScheduler.getQuota()
+    logger.info(`[Sync] Starting polling with interval: ${quota.syncIntervalMs}ms (${quota.mode})`)
+
+    this.pollingTimer = setInterval(() => {
       if (networkDetector.isOnline()) {
         this.processQueue().catch(err => logger.error('[Sync] Polling error', err))
       }
-    }, intervalMs)
+    }, quota.syncIntervalMs)
+
+    // 监听模式变化并重新调度
+    // 此处简化处理，实际可根据 hardwareScheduler 的事件进行更新
   }
 
   /**
-   * 处理任务队列
+   * 处理任务队列 (分布式互斥 + 硬件感知版)
    */
   async processQueue(): Promise<void> {
     if (this.isProcessing || !networkDetector.isOnline()) return
 
+    const quota = hardwareScheduler.getQuota()
+    if (quota.mode === PowerMode.ULTRA_LOW && !this.hasCriticalTasks()) {
+      logger.debug('[Sync] Skipping sync: Ultra low power mode and no critical tasks.')
+      return
+    }
+
+    if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+      try {
+        await navigator.locks.request('nexus_sync_queue_lock', { ifAvailable: true }, async (lock) => {
+          if (!lock) return
+          await this.internalProcessQueue(quota.maxConcurrentTasks)
+        })
+      } catch (err) {
+        await this.internalProcessQueue(quota.maxConcurrentTasks)
+      }
+    } else {
+      await this.internalProcessQueue(quota.maxConcurrentTasks)
+    }
+  }
+
+  private async hasCriticalTasks(): Promise<boolean> {
+    const tasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
+    return tasks.some(t => t.priority === 'CRITICAL')
+  }
+
+  private async internalProcessQueue(limit: number): Promise<void> {
     this.isProcessing = true
     try {
-      const tasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
+      let tasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
       if (tasks.length === 0) return
 
-      // 按优先级排序: CRITICAL > NORMAL > IDLE
-      const sortedTasks = tasks.sort((a, b) => {
+      // 按优先级排序
+      tasks.sort((a, b) => {
         const priorityScore = { CRITICAL: 0, NORMAL: 1, IDLE: 2 }
         return priorityScore[a.priority as SyncPriority] - priorityScore[b.priority as SyncPriority]
       })
 
-      logger.info(`[Sync] Processing queue: ${sortedTasks.length} tasks...`)
+      // 根据硬件配额限制任务数
+      const tasksToProcess = tasks.slice(0, limit)
 
-      for (const task of sortedTasks) {
+      for (const task of tasksToProcess) {
         if (!networkDetector.isOnline()) break
 
         try {
           await this.executeTask(task)
           await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
-          logger.debug(`[Sync] Task success: ${task.id}`)
         } catch (error) {
           task.retryCount++
           if (task.retryCount >= this.retryLimits[task.priority as SyncPriority]) {
             await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
-            logger.warn(`[Sync] Task discarded after max retries: ${task.id}`)
           } else {
             await nexusDB.put(StoreNames.SYNC_QUEUE, task)
-            logger.error(`[Sync] Task failed (retry ${task.retryCount}): ${task.id}`, error as Error)
           }
         }
       }
@@ -100,11 +141,9 @@ class SyncManager {
       body: task.data ? JSON.stringify(task.data) : undefined
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
   }
 }
 
 export const syncManager = new SyncManager()
-syncManager.startpolling() // 默认 30s 轮询
+syncManager.startPolling()

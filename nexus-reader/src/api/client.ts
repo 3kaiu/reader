@@ -1,4 +1,5 @@
 import { ofetch, type FetchOptions } from 'ofetch'
+import { decode, encode } from '@msgpack/msgpack'
 import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
 import { apiCache, createCacheKey } from '@/utils/cacheManager'
 import { requestOptimizer, networkDetector } from '@/utils/networkOptimizer'
@@ -10,18 +11,18 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
   'Network request failed': '网络连接失败，请检查网络后重试',
   'Request timeout': '请求超时，请稍后重试',
   'Failed to fetch': '无法连接到服务器，请检查网络',
-  
+
   // 业务错误
   'Source not found': '书源不存在，请选择其他书源',
   'Book not found': '书籍不存在或已被删除',
   'Chapter not found': '章节不存在',
   'Rule mismatch': '内容解析失败，请尝试其他书源',
-  
+
   // 服务器错误
   'Internal server error': '服务器内部错误，请稍后重试',
   'Service temporarily unavailable': '服务暂时不可用，请稍后重试',
   'Bad request': '请求参数错误，请重试',
-  
+
   // 认证错误
   'Unauthorized': '登录已过期，请重新登录',
   'Forbidden': '没有权限访问此资源',
@@ -33,14 +34,14 @@ function translateErrorMessage(errorMsg: string): string {
   if (ERROR_MESSAGE_MAP[errorMsg]) {
     return ERROR_MESSAGE_MAP[errorMsg]
   }
-  
+
   // 模糊匹配
   for (const [pattern, friendlyMsg] of Object.entries(ERROR_MESSAGE_MAP)) {
     if (errorMsg.toLowerCase().includes(pattern.toLowerCase())) {
       return friendlyMsg
     }
   }
-  
+
   // 如果没有匹配，返回原消息（可能是已经用户友好的消息）
   return errorMsg
 }
@@ -48,7 +49,7 @@ function translateErrorMessage(errorMsg: string): string {
 // 将 HTTP 状态码转换为用户友好的消息
 function translateHttpError(status: number, error?: unknown): string {
   const errorMsg = error instanceof Error ? error.message : String(error)
-  
+
   switch (status) {
     case 400:
       return '请求参数错误，请检查后重试'
@@ -128,17 +129,29 @@ const internalFetch = ofetch.create({
   onRequest({ options }) {
     // 记录请求开始时间
     const startTime = performance.now()
-    ;(options as any)._startTime = startTime
+      ; (options as any)._startTime = startTime
 
     const token = localStorage.getItem('nexus_auth_token')
     if (token) {
-      // Use Authorization header instead of URL params for better security
-      options.headers = { 
-        ...options.headers, 
-        'Authorization': `Bearer ${token}` 
+      options.headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+      }
+    }
+
+    // 如果指定了使用 msgpack 发送请求
+    if ((options as any).msgpack && options.body) {
+      options.body = encode(options.body)
+      options.headers = {
+        ...options.headers,
+        'Content-Type': 'application/x-msgpack',
+        'Accept': 'application/x-msgpack'
       }
     }
   },
+
+  // ... (existing code omitted for brevity)
+
   onResponse({ response, options }) {
     // 监控 API 响应时间
     const startTime = (options as any)._startTime
@@ -148,7 +161,21 @@ const internalFetch = ofetch.create({
       performanceMonitor.reportApiResponse(endpoint, responseTime, response.status)
     }
 
-    // 业务级别错误拦截 (如果 isSuccess 为 false)
+    // 处理二进制消息 (MessagePack)
+    const contentType = response.headers.get('content-type')
+    if (contentType === 'application/x-msgpack') {
+      try {
+        // ofetch 默认会将数据读为 _data
+        const buffer = response._data
+        if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+          response._data = decode(new Uint8Array(buffer))
+        }
+      } catch (e) {
+        console.error('[API] Failed to decode MessagePack', e)
+      }
+    }
+
+    // 业务级别错误拦截
     const data = response._data
     // 如果 options 中显式指定 silent: true，则不显示全避提示
     const silent = (options as any).silent === true
@@ -208,16 +235,16 @@ if (typeof window !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
     const keysToDelete: string[] = []
-    
+
     for (const [key, value] of requestCache.entries()) {
       if (now - value.timestamp > API_CACHE_TTL) {
         keysToDelete.push(key)
       }
     }
-    
+
     // 批量删除过期缓存
     keysToDelete.forEach(key => requestCache.delete(key))
-    
+
     // 如果缓存仍然过大，删除最旧的项
     if (requestCache.size > MAX_CACHE_SIZE) {
       const excess = requestCache.size - MAX_CACHE_SIZE
@@ -250,7 +277,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
   // 使用请求优化器进行去重请求
   return requestOptimizer.deduplicateRequest(cacheKey, async () => {
     const response = await internalFetch<any>(url, { ...options, method })
-    
+
     // 适配 Nexus-lite: 如果已经是包装后的格式则直接返回，否则手动包装
     const result: ApiResponse<T> = (response && typeof response === 'object' && 'isSuccess' in response)
       ? response
@@ -259,7 +286,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
     if (result.isSuccess) {
       // 使用新的缓存管理器
       apiCache.set(cacheKey, result, API_CACHE_TTL)
-      
+
       // 缓存到离线管理器（用于离线访问）
       offlineManager.cacheContent({
         id: cacheKey,
@@ -270,7 +297,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
         priority: 5
       })
     }
-    
+
     return result
   })
 }
@@ -288,7 +315,7 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
-  return requestOptimizer.requestWithRetry(() => 
+  return requestOptimizer.requestWithRetry(() =>
     api<any>(url, { method: 'POST', body, ...options })
   ).then(response => {
     // Clear cache on POST as it typically modifies state
@@ -312,7 +339,7 @@ export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) =
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
-  return requestOptimizer.requestWithRetry(() => 
+  return requestOptimizer.requestWithRetry(() =>
     api<any>(url, { method: 'PATCH', body, ...options })
   ).then(response => {
     apiCache.clear()
@@ -335,7 +362,7 @@ export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => 
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
-  return requestOptimizer.requestWithRetry(() => 
+  return requestOptimizer.requestWithRetry(() =>
     api<any>(url, { method: 'PUT', body, ...options })
   ).then(response => {
     apiCache.clear()
@@ -357,7 +384,7 @@ export const $delete = <T>(url: string, options?: FetchOptions) => {
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
-  return requestOptimizer.requestWithRetry(() => 
+  return requestOptimizer.requestWithRetry(() =>
     api<any>(url, { method: 'DELETE', ...options })
   ).then(response => {
     apiCache.clear()
