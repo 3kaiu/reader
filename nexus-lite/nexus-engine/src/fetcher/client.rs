@@ -25,17 +25,16 @@ impl HttpFetcher {
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
             // Connection pool optimization
-            .pool_max_idle_per_host(20)           // Increased from 5 for high concurrency
-            .pool_idle_timeout(Duration::from_secs(90))  // Keep connections alive longer
+            .pool_max_idle_per_host(20) // Increased from 5 for high concurrency
+            .pool_idle_timeout(Duration::from_secs(90)) // Keep connections alive longer
             // TCP optimization
-            .tcp_keepalive(Duration::from_secs(60))  // Prevent connection drops
-            .tcp_nodelay(true)                       // Reduce latency
+            .tcp_keepalive(Duration::from_secs(60)) // Prevent connection drops
+            .tcp_nodelay(true) // Reduce latency
             // Compression
             .gzip(true)
             .brotli(true)
             // Session
             .cookie_store(true)
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()
             .map_err(|e| EngineError::Network(e.to_string()))?;
 
@@ -87,6 +86,14 @@ impl HttpFetcher {
                 reqwest::header::ACCEPT_LANGUAGE,
                 HeaderValue::from_static("zh-CN,zh;q=0.9,en;q=0.8"),
             );
+        }
+
+        // Random User-Agent if not provided
+        if !header_map.contains_key("User-Agent") {
+            let ua = crate::fetcher::user_agents::get_random_user_agent();
+            if let Ok(val) = HeaderValue::from_str(ua) {
+                header_map.insert(reqwest::header::USER_AGENT, val);
+            }
         }
 
         header_map

@@ -20,6 +20,7 @@ pub async fn list(
     state
         .store
         .get_all()
+        .await
         .map(Json)
         .map_err(|e| internal_error(e.to_string()))
 }
@@ -42,7 +43,8 @@ pub async fn add(
     // Check if already exists
     if state
         .store
-        .exists(&req.source_id, &req.book_url)
+        .exists(req.source_id.clone(), req.book_url.clone())
+        .await
         .map_err(|e| internal_error(e.to_string()))?
     {
         return Err(conflict("Book already in bookshelf"));
@@ -89,7 +91,8 @@ pub async fn add(
 
     state
         .store
-        .add(&item)
+        .add(item.clone())
+        .await
         .map_err(|e| internal_error(e.to_string()))?;
 
     Ok(Json(item))
@@ -109,7 +112,8 @@ pub async fn update_progress(
 ) -> Result<StatusCode, ApiErrorResponse> {
     state
         .store
-        .update_progress(&id, req.chapter_index, req.position)
+        .update_progress(id, req.chapter_index, req.position)
+        .await
         .map(|_| StatusCode::OK)
         .map_err(|e| internal_error(e.to_string()))
 }
@@ -120,7 +124,8 @@ pub async fn remove(
 ) -> Result<StatusCode, ApiErrorResponse> {
     state
         .store
-        .remove(&id)
+        .remove(id)
+        .await
         .map(|_| StatusCode::NO_CONTENT)
         .map_err(|e| internal_error(e.to_string()))
 }
@@ -138,7 +143,8 @@ pub async fn move_to_group(
 ) -> Result<StatusCode, ApiErrorResponse> {
     state
         .store
-        .move_to_group(&id, req.group_id)
+        .move_to_group(id, req.group_id)
+        .await
         .map(|_| StatusCode::OK)
         .map_err(|e| internal_error(e.to_string()))
 }

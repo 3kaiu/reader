@@ -3,7 +3,7 @@
  * 负责章节内容的加载、缓存和格式化
  */
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { bookApi, type Book, type Chapter } from '../../api'
 import { logger } from '../../utils/logger'
 import { ERROR_PATTERNS, MIN_CONTENT_LENGTH } from '../../constants/reader'
@@ -34,17 +34,24 @@ export const useReaderContentStore = defineStore('reader-content', () => {
   const formattedContent = ref('') // 预先格式化好的 HTML
   const isParsing = ref(false) // 正在解析内容
   const contentIssue = ref<string | null>(null)  // 内容问题提示
-  
+
   // 无限滚动模式: 存储已加载的章节内容
   const loadedChapters = ref<{ index: number; title: string; content: string; formattedContent?: string }[]>([])
-  
+
   // 章节内存管理配置
   const MAX_LOADED_CHAPTERS = 20 // 最多保留20章
   const CHAPTER_CLEANUP_THRESHOLD = 15 // 超过15章时开始清理
-  
+
+  // O(1) access to max loaded index (chapters are appended in order)
+  const maxLoadedChapterIndex = computed(() => {
+    const chapters = loadedChapters.value
+    if (chapters.length === 0) return -1
+    return chapters[chapters.length - 1].index
+  })
+
   // 缓存
   const chapterCache = new Map<number, string>()
-  
+
   // 根据网络状况动态调整预加载数量
   function getPreloadCount(): number {
     const connection = (navigator as any).connection
@@ -58,7 +65,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
       default: return 5
     }
   }
-  
+
   // 加载章节内容
   async function loadChapterContent(
     book: Book,
@@ -159,7 +166,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
         }).catch(() => {
           // 忽略缓存错误
         })
-        
+
         return chapterContent
       } else {
         throw new Error(res.errorMsg || '加载内容失败')
@@ -168,7 +175,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
       throw e
     }
   }
-  
+
   // 追加下一章内容（无限滚动模式）
   async function appendChapterContent(
     book: Book,
@@ -176,7 +183,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
     nextIndex: number
   ): Promise<string> {
     let chapterContent: string
-    
+
     if (chapterCache.has(nextIndex)) {
       chapterContent = chapterCache.get(nextIndex)!
     } else {
@@ -201,13 +208,13 @@ export const useReaderContentStore = defineStore('reader-content', () => {
     if (loadedChapters.value.length > MAX_LOADED_CHAPTERS) {
       const toRemove = loadedChapters.value.length - CHAPTER_CLEANUP_THRESHOLD
       const removedChapters = loadedChapters.value.splice(0, toRemove)
-      
+
       // 同时清理对应的章节缓存
       removedChapters.forEach(chapter => {
         chapterCache.delete(chapter.index)
       })
-      
-      logger.info(`清理了${toRemove}个章节以释放内存`, { 
+
+      logger.info(`清理了${toRemove}个章节以释放内存`, {
         function: 'appendChapterContent',
         remainingChapters: loadedChapters.value.length
       })
@@ -215,10 +222,10 @@ export const useReaderContentStore = defineStore('reader-content', () => {
 
     // 触发预加载
     preloadChapters(book, catalog, nextIndex + 1)
-    
+
     return chapterContent
   }
-  
+
   // 初始化无限滚动模式
   function initInfiniteScroll(currentChapter: { title: string }) {
     loadedChapters.value = [{
@@ -228,7 +235,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
       formattedContent: formattedContent.value
     }]
   }
-  
+
   // 预加载章节
   async function preloadChapters(book: Book, catalog: Chapter[], startIndex: number) {
     if (!book || startIndex < 0 || startIndex >= catalog.length) return
@@ -272,12 +279,12 @@ export const useReaderContentStore = defineStore('reader-content', () => {
         .catch(() => { })
     }
   }
-  
+
   // 检查章节是否已缓存
   function isChapterCached(index: number): boolean {
     return chapterCache.has(index)
   }
-  
+
   // 清理缓存
   function clearCache() {
     chapterCache.clear()
@@ -286,7 +293,7 @@ export const useReaderContentStore = defineStore('reader-content', () => {
     formattedContent.value = ''
     contentIssue.value = null
   }
-  
+
   return {
     // 状态
     content,
@@ -294,7 +301,8 @@ export const useReaderContentStore = defineStore('reader-content', () => {
     isParsing,
     contentIssue,
     loadedChapters,
-    
+    maxLoadedChapterIndex,
+
     // 方法
     loadChapterContent,
     appendChapterContent,

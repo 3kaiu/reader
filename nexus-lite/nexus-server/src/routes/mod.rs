@@ -62,7 +62,7 @@ impl<T> ApiResponse<T> {
 /// Enhanced health check handler with dependency status
 pub async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     let source_count = state.engine_registry.source_count();
-    let database = state.store.get_all().is_ok();
+    let database = state.store.get_all().await.is_ok();
     let cf_bypass_configured = state.config.cf_bypass.enabled;
 
     Json(HealthResponse {

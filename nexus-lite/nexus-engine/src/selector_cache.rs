@@ -175,14 +175,21 @@ impl FallbackSelector {
 /// Simple helper to extract an attribute from a single selector
 pub fn extract_attr(element: ElementRef, attr: &str) -> Option<String> {
     match attr {
-        "text" => Some(
-            element
-                .text()
-                .collect::<Vec<_>>()
-                .join("\n")
-                .trim()
-                .to_string(),
-        ),
+        "text" => {
+            let text = element.text().fold(String::new(), |mut acc, part| {
+                if !acc.is_empty() {
+                    acc.push('\n');
+                }
+                acc.push_str(part.trim());
+                acc
+            });
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
         "html" => Some(element.html().trim().to_string()),
         "inner_html" => Some(element.inner_html().trim().to_string()),
         _ => element.value().attr(attr).map(|s| s.to_string()),
@@ -202,11 +209,15 @@ impl SelectorCache {
     }
 
     pub fn get_or_compile(&mut self, rule: &str) -> Result<&FallbackSelector, String> {
-        if !self.cache.contains_key(rule) {
+        // Use entry API for safe get-or-insert pattern
+        use std::collections::hash_map::Entry;
+
+        if let Entry::Vacant(entry) = self.cache.entry(rule.to_string()) {
             let selector = FallbackSelector::compile(rule)?;
-            self.cache.insert(rule.to_string(), selector);
+            entry.insert(selector);
         }
-        Ok(self.cache.get(rule).unwrap())
+        // Safe: entry above guarantees key exists
+        Ok(self.cache.get(rule).expect("selector just inserted"))
     }
 
     pub fn get(&self, key: &str) -> Option<&FallbackSelector> {

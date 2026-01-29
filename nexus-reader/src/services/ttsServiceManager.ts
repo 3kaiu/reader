@@ -6,6 +6,7 @@
 import { ref } from 'vue'
 import { cdnResourceLoader } from '@/utils/cdnResourceLoader'
 import { modelCacheManager } from '@/utils/modelCacheManager'
+import { workerBus } from '@/utils/workerBus'
 import { logger } from '@/utils/logger'
 
 export interface TTSPerformance {
@@ -42,7 +43,7 @@ export class TTSServiceManager {
   private isInitialized = false
   private availableVoices = [
     'zh_CN-huayan-medium',
-    'en_US-amy-medium', 
+    'en_US-amy-medium',
     'zh_CN-xiaoyan-medium',
     'en_US-jenny-medium',
     'zh_CN-xiaoxiao-medium'
@@ -79,7 +80,7 @@ export class TTSServiceManager {
 
     try {
       this.checkWebAudioSupport()
-      
+
       if (!this.isSupported.value) {
         // Don't throw error, just mark as unsupported
         this.error.value = 'TTS not supported in this environment'
@@ -90,7 +91,7 @@ export class TTSServiceManager {
 
       // Initialize model cache manager
       await modelCacheManager.initialize()
-      
+
       this.isInitialized = true
       logger.info('TTS Service Manager initialized')
     } catch (err) {
@@ -132,8 +133,14 @@ export class TTSServiceManager {
       }
 
       // Perform speech synthesis
-      const audioBuffer = await this.engine.speak(text, { voiceId })
-      
+      workerBus.updateStatus('tts-worker', 'BUSY')
+      let audioBuffer: ArrayBuffer
+      try {
+        audioBuffer = await this.engine.speak(text, { voiceId })
+      } finally {
+        workerBus.updateStatus('tts-worker', 'IDLE')
+      }
+
       // Update performance metrics
       const endTime = Date.now()
       const generationTime = endTime - startTime
@@ -144,11 +151,49 @@ export class TTSServiceManager {
         lastUpdated: endTime
       }
 
+      // Play the audio
+      await this.playAudio(audioBuffer)
+
       return audioBuffer
     } catch (err) {
       this.error.value = err instanceof Error ? err.message : 'Speech synthesis failed'
       logger.error('TTS speak failed:', err)
       throw err
+    }
+  }
+
+  /**
+   * Play audio buffer using Web Audio API
+   */
+  private async playAudio(audioData: ArrayBuffer): Promise<void> {
+    try {
+      if (!this.audioContext) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+        this.audioContext = new AudioContextClass()
+      }
+
+      if (this.audioContext!.state === 'suspended') {
+        await this.audioContext!.resume()
+      }
+
+      // Decode audio data
+      // Note: decodeAudioData detaches the buffer, so we need to copy it if we want to return it later
+      // But here we can just use a slice for decoding
+      const audioBuffer = await this.audioContext!.decodeAudioData(audioData.slice(0))
+
+      const source = this.audioContext!.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(this.audioContext!.destination)
+
+      return new Promise((resolve) => {
+        source.onended = () => {
+          resolve()
+        }
+        source.start(0)
+      })
+    } catch (err) {
+      logger.error('Audio playback failed:', err)
+      throw new Error('Failed to play audio')
     }
   }
 
@@ -168,7 +213,7 @@ export class TTSServiceManager {
   async preloadTTSModel(voiceId: string): Promise<void> {
     try {
       const modelId = `tts-${voiceId}`
-      
+
       // Check if already cached
       const isCached = await modelCacheManager.isModelCached(modelId)
       if (isCached) {
@@ -178,13 +223,13 @@ export class TTSServiceManager {
       // Download model
       const modelUrl = `https://huggingface.co/rhasspy/piper-voices/resolve/main/${voiceId}.onnx`
       const response = await fetch(modelUrl)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to download model: ${response.statusText}`)
       }
 
       const modelData = await response.arrayBuffer()
-      
+
       // Cache the model
       await modelCacheManager.cacheModel(modelId, modelData, {
         version: '1.0.0',
@@ -259,6 +304,9 @@ export class TTSServiceManager {
       this.loadProgress.value = 100
       this.loadStatus.value = 'Ready'
 
+      // 注册到 WorkerBus
+      workerBus.register('tts-worker', 'TTS')
+
       logger.info('TTS engine loaded successfully')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load TTS engine'
@@ -266,7 +314,7 @@ export class TTSServiceManager {
       this.isEngineLoaded.value = false
       this.loadStatus.value = '加载失败，使用浏览器内置 TTS'
       logger.error('TTS engine loading failed:', err)
-      
+
       // 降级策略：不抛出错误，允许使用浏览器内置 TTS
       // 标记为不支持本地 TTS，但可以使用浏览器 TTS
       this.isSupported.value = false
@@ -299,5 +347,5 @@ export class TTSServiceManager {
   }
 }
 
-// Export singleton instance
-export const ttsServiceManager = new TTSServiceManager()
+// Export singleton instance via getInstance to ensure single instance
+export const ttsServiceManager = TTSServiceManager.getInstance()

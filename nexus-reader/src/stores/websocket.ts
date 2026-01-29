@@ -176,7 +176,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     try {
       // 获取认证 token
       const token = localStorage.getItem('nexus_auth_token')
-      
+
       // 使用 fetch + ReadableStream 来处理 SSE (因为 EventSource 不支持 POST 和自定义 headers)
       const response = await fetch(`${apiUrl}/search/stream`, {
         method: 'POST',
@@ -199,36 +199,53 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
       const decoder = new TextDecoder()
       let buffer = ''
+      // Persist event state across buffer boundaries
+      let pendingEvent = ''
+      let pendingData = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
-        
-        // 解析 SSE 事件
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // 保留不完整的行
 
-        let currentEvent = ''
-        let currentData = ''
+        // Process complete lines from buffer
+        let newlineIndex: number
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trim()
+          buffer = buffer.slice(newlineIndex + 1)
 
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            currentEvent = line.slice(6).trim()
-          } else if (line.startsWith('data:')) {
-            currentData = line.slice(5).trim()
-          } else if (line === '' && currentData) {
-            // 空行表示事件结束
-            try {
-              const parsed = JSON.parse(currentData)
-              handleSSEEvent(currentEvent, parsed)
-            } catch (e) {
-              console.error('Failed to parse SSE data:', currentData)
+          if (line === '') {
+            // Empty line = event boundary, dispatch if we have data
+            if (pendingData) {
+              try {
+                const parsed = JSON.parse(pendingData)
+                handleSSEEvent(pendingEvent, parsed)
+              } catch (e) {
+                console.error('Failed to parse SSE data:', pendingData)
+              }
             }
-            currentEvent = ''
-            currentData = ''
+            // Reset for next event
+            pendingEvent = ''
+            pendingData = ''
+          } else if (line.startsWith('event:')) {
+            pendingEvent = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            // Allow multi-line data by appending
+            const dataValue = line.slice(5).trim()
+            pendingData = pendingData ? pendingData + '\n' + dataValue : dataValue
           }
+          // Ignore other lines (comments, id:, retry:, etc.)
+        }
+      }
+
+      // Handle any remaining data after stream ends
+      if (pendingData) {
+        try {
+          const parsed = JSON.parse(pendingData)
+          handleSSEEvent(pendingEvent, parsed)
+        } catch (e) {
+          console.error('Failed to parse final SSE data:', pendingData)
         }
       }
     } catch (e) {

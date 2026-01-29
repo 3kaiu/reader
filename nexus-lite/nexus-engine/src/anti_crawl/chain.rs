@@ -25,7 +25,10 @@ impl FallbackChain {
     }
 
     /// Create with custom circuit breaker config
-    pub fn with_config(strategy: Arc<dyn AntiCrawlStrategy>, breaker_config: CircuitBreakerConfig) -> Self {
+    pub fn with_config(
+        strategy: Arc<dyn AntiCrawlStrategy>,
+        breaker_config: CircuitBreakerConfig,
+    ) -> Self {
         Self {
             strategy,
             breakers: DashMap::new(),
@@ -34,14 +37,16 @@ impl FallbackChain {
     }
 
     /// Get or create circuit breaker for a source
-    fn get_breaker(&self, source_id: &str) -> dashmap::mapref::one::Ref<'_, String, CircuitBreaker> {
-        if !self.breakers.contains_key(source_id) {
-            self.breakers.insert(
-                source_id.to_string(),
-                CircuitBreaker::new(self.breaker_config.clone()),
-            );
-        }
-        self.breakers.get(source_id).unwrap()
+    fn get_breaker(
+        &self,
+        source_id: &str,
+    ) -> dashmap::mapref::one::Ref<'_, String, CircuitBreaker> {
+        // Use entry API to avoid TOCTOU race condition
+        self.breakers
+            .entry(source_id.to_string())
+            .or_insert_with(|| CircuitBreaker::new(self.breaker_config.clone()));
+        // Safe: entry above guarantees key exists
+        self.breakers.get(source_id).expect("breaker just inserted")
     }
 
     /// Execute fetch with circuit breaker

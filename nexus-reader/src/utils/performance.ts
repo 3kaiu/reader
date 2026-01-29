@@ -79,12 +79,12 @@ class PerformanceMonitor {
 
     /**
      * 监控 Web Vitals
+     * Note: Using native PerformanceObserver API for LCP/FID/CLS monitoring
      */
     observeWebVitals() {
         if (typeof window === 'undefined') return
 
-        // TODO: 之后可以引入 web-vitals 库
-        // 简单实现 LCP 监听
+        // Native Web Vitals monitoring using PerformanceObserver
         try {
             const observer = new PerformanceObserver((entryList) => {
                 for (const entry of entryList.getEntries()) {
@@ -98,8 +98,9 @@ class PerformanceMonitor {
             observer.observe({ type: 'largest-contentful-paint', buffered: true })
             observer.observe({ type: 'first-input', buffered: true })
             observer.observe({ type: 'layout-shift', buffered: true })
-        } catch (e) {
-            // 浏览器不支持
+        } catch {
+            // Browser doesn't support PerformanceObserver or specific entry types
+            logger.debug('Web Vitals monitoring not available')
         }
     }
 }

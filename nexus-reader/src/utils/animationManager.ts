@@ -162,12 +162,12 @@ export class AnimationManager {
           instance.onCancel?.()
         })
 
-        this.animations.set(id, instance)
-
-        // 报告性能指标
-        if (this.performanceConfig.enablePerformanceMonitoring) {
-          this.reportAnimationStart(instance)
+        // 启动性能监测循环
+        if (this.performanceConfig.enablePerformanceMonitoring && !this.animationFrame) {
+          this.initializePerformanceMonitoring()
         }
+
+        this.animations.set(id, instance)
 
       } catch (error) {
         reject(error)
@@ -323,6 +323,9 @@ export class AnimationManager {
       ...options
     }
 
+      // 标记已通过委托绑定
+      ; (element as any)._hasTouchFeedback = true
+
     let isPressed = false
 
     const handleTouchStart = async (_event: TouchEvent | MouseEvent) => {
@@ -461,6 +464,12 @@ export class AnimationManager {
     if (!this.performanceConfig.enablePerformanceMonitoring) return
 
     const measureFrameRate = () => {
+      // 如果没有活跃动画且无性能限制需求，停止 rAF 以省电
+      if (this.animations.size === 0 && this.performanceConfig.enableAdaptiveQuality) {
+        this.animationFrame = null
+        return
+      }
+
       const now = performance.now()
       if (this.lastFrameTime > 0) {
         const delta = now - this.lastFrameTime
@@ -471,33 +480,29 @@ export class AnimationManager {
       this.animationFrame = requestAnimationFrame(measureFrameRate)
     }
 
-    measureFrameRate()
+    if (!this.animationFrame) {
+      measureFrameRate()
+    }
   }
 
   private setupTouchFeedback(): void {
-    // 为所有可交互元素自动添加触摸反馈
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const element = node as HTMLElement
+    // 性能优化：废弃 MutationObserver 全量扫描，改用事件委托 (Event Delegation)
+    if (typeof document === 'undefined') return
 
-            // 检查是否是可交互元素
-            if (this.isInteractiveElement(element)) {
-              this.addTouchFeedback(element)
-            }
+    const handleInteraction = (event: TouchEvent | MouseEvent) => {
+      const target = event.target as HTMLElement
+      // 向上寻找最近的可交互元素
+      const interactiveElement = target.closest('button, a, [role="button"], [tabindex], input, select, textarea') as HTMLElement
 
-            // 检查子元素
-            const interactiveChildren = element.querySelectorAll('button, a, [role="button"], [tabindex]')
-            interactiveChildren.forEach((child) => {
-              this.addTouchFeedback(child as HTMLElement)
-            })
-          }
-        })
-      })
-    })
+      if (interactiveElement && !(interactiveElement as any)._hasTouchFeedback) {
+        this.addTouchFeedback(interactiveElement)
+        // 标记已绑定，避免重复绑定（事件委托下其实只需要第一次触发时检测。
+        // addTouchFeedback 内部会处理按压状态。
+      }
+    }
 
-    observer.observe(document.body, { childList: true, subtree: true })
+    document.addEventListener('touchstart', handleInteraction, { passive: true })
+    document.addEventListener('mousedown', handleInteraction, { passive: true })
   }
 
   private isInteractiveElement(element: HTMLElement): boolean {

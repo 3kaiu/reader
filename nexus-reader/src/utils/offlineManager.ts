@@ -6,6 +6,8 @@
 import { networkDetector } from './networkOptimizer'
 import { apiCache, generalCache } from './cacheManager'
 import { secureRandomString } from './secureRandom'
+import { nexusDB, StoreNames, type OfflineContent, type SyncTask } from './db'
+import { syncManager } from '../services/syncManager'
 
 // 离线操作接口
 export interface OfflineOperation {
@@ -52,7 +54,8 @@ export class OfflineManager {
 
   constructor() {
     this.initOfflineDetection()
-    this.loadPersistedData()
+    // Trigger async load
+    this.loadPersistedData().catch(err => console.error('Failed to load offline data', err))
   }
 
   // 获取离线状态
@@ -72,16 +75,26 @@ export class OfflineManager {
   }
 
   // 添加离线操作到队列
-  queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retryCount'>): void {
+  async queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
+    const id = this.generateOperationId()
     const queuedOperation: OfflineOperation = {
       ...operation,
-      id: this.generateOperationId(),
+      id,
       timestamp: Date.now(),
       retryCount: 0
     }
 
     this.operationQueue.push(queuedOperation)
-    this.persistOperationQueue()
+    await this.persistOperationQueue()
+
+    // 同时添加到全局 SyncManager
+    await syncManager.addTask({
+      type: operation.type,
+      method: operation.method,
+      url: operation.url,
+      data: operation.data,
+      priority: 'NORMAL' // 默认普通优先级
+    })
 
     console.log('📱 Operation queued for offline sync:', queuedOperation.type)
     this.notifyListeners()
@@ -168,65 +181,20 @@ export class OfflineManager {
     }
   }
 
-  // 手动同步队列中的操作
+  // 手动同步队列中的操作 (现在代理给 SyncManager)
   async syncQueuedOperations(): Promise<void> {
-    if (!this.isOnline || this.operationQueue.length === 0) {
-      return
-    }
-
-    console.log(`🔄 Syncing ${this.operationQueue.length} queued operations...`)
-
-    const operations = [...this.operationQueue]
-    const successfulOperations: string[] = []
-
-    for (const operation of operations) {
-      try {
-        await this.executeOperation(operation)
-        successfulOperations.push(operation.id)
-        console.log('✅ Operation synced successfully:', operation.type, operation.id)
-      } catch (error) {
-        operation.retryCount++
-        console.error('❌ Operation sync failed:', operation.type, operation.id, error)
-
-        // 如果重试次数超过限制，移除操作
-        if (operation.retryCount >= operation.maxRetries) {
-          successfulOperations.push(operation.id)
-          console.warn('⚠️ Operation removed after max retries:', operation.id)
-        }
-      }
-    }
-
-    // 移除成功的操作
-    this.operationQueue = this.operationQueue.filter(
-      op => !successfulOperations.includes(op.id)
-    )
-
-    this.persistOperationQueue()
-    this.notifyListeners()
-
-    console.log(`✅ Sync completed. ${successfulOperations.length} operations processed.`)
+    logger.info('🔄 Triggering sync via SyncManager...')
+    await syncManager.processQueue()
   }
 
-  // 启动自动同步
+  // 启动自动同步 (由 SyncManager 接管，此处保留空实现或代理)
   startAutoSync(interval = 30000): void {
-    if (this.syncInterval) return
-
-    this.syncInterval = window.setInterval(() => {
-      if (this.isOnline && this.operationQueue.length > 0) {
-        this.syncQueuedOperations().catch(console.error)
-      }
-    }, interval)
-
-    console.log('🔄 Auto sync started')
+    logger.info('🔄 Auto sync is now handled by SyncManager')
   }
 
   // 停止自动同步
   stopAutoSync(): void {
-    if (this.syncInterval) {
-      clearInterval(this.syncInterval)
-      this.syncInterval = null
-      console.log('⏹️ Auto sync stopped')
-    }
+    // SyncManager 负责轮询，这里暂不处理
   }
 
   // 获取离线可用的内容列表
@@ -391,40 +359,75 @@ export class OfflineManager {
     return maxAges[type] || 24 * 60 * 60 * 1000
   }
 
-  private generateOperationId(): string {
-    return `offline_op_${Date.now()}_${secureRandomString(9)}`
-  }
-
-  private persistOperationQueue(): void {
+  private async persistOperationQueue(): Promise<void> {
     try {
-      localStorage.setItem('offline_operations', JSON.stringify(this.operationQueue))
+      // For simplicity, we can store the whole queue as one entry or map them.
+      // StoreNames.SYNC_QUEUE is designed for individual tasks.
+      // Let's clear and re-add or just use a single key for the whole queue to minimize complexity for now.
+      // To strictly follow the "Unified DB" schema, we should map them.
+
+      const db = await nexusDB.getDB()
+      const tx = db.transaction(StoreNames.SYNC_QUEUE, 'readwrite')
+      const store = tx.objectStore(StoreNames.SYNC_QUEUE)
+
+      await store.clear()
+      for (const op of this.operationQueue) {
+        await store.put({
+          ...op,
+          // Map internal types to DB types if necessary
+        })
+      }
+      await tx.done
     } catch (error) {
       console.error('Failed to persist operation queue:', error)
     }
   }
 
-  private persistCachedContent(): void {
+  private async persistCachedContent(): Promise<void> {
     try {
-      const contentArray = Array.from(this.cachedContent.entries())
-      localStorage.setItem('offline_content', JSON.stringify(contentArray))
+      const db = await nexusDB.getDB()
+      const tx = db.transaction(StoreNames.OFFLINE_CONTENT, 'readwrite')
+      const store = tx.objectStore(StoreNames.OFFLINE_CONTENT)
+
+      // Since map can be large, we only put what's new or just clear and put all
+      // For a 100MB target, we should avoid clearing all every time.
+      // In this refactor, we'll just put all for now as the in-memory cache is the source of truth.
+      await store.clear()
+      for (const item of this.cachedContent.values()) {
+        await store.put(item)
+      }
+      await tx.done
     } catch (error) {
       console.error('Failed to persist cached content:', error)
     }
   }
 
-  private loadPersistedData(): void {
+  private async loadPersistedData(): Promise<void> {
     try {
-      // 加载操作队列
-      const operations = localStorage.getItem('offline_operations')
-      if (operations) {
-        this.operationQueue = JSON.parse(operations)
+      // 1. Load from IndexedDB
+      const dbTasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
+      this.operationQueue = dbTasks as any
+
+      const dbContent = await nexusDB.getAll(StoreNames.OFFLINE_CONTENT)
+      this.cachedContent = new Map(dbContent.map(c => [c.id, c]))
+
+      // 2. Legacy Migration
+      const legacyOps = localStorage.getItem('offline_operations')
+      if (legacyOps) {
+        const parsed = JSON.parse(legacyOps)
+        this.operationQueue.push(...parsed)
+        localStorage.removeItem('offline_operations')
       }
 
-      // 加载缓存内容
-      const content = localStorage.getItem('offline_content')
-      if (content) {
-        const contentArray: Array<[string, CachedContent]> = JSON.parse(content)
-        this.cachedContent = new Map(contentArray)
+      const legacyContent = localStorage.getItem('offline_content')
+      if (legacyContent) {
+        const contentArray: Array<[string, any]> = JSON.parse(legacyContent)
+        contentArray.forEach(([id, item]) => {
+          if (!this.cachedContent.has(id)) {
+            this.cachedContent.set(id, item)
+          }
+        })
+        localStorage.removeItem('offline_content')
       }
 
       console.log(`📱 Loaded offline data: ${this.operationQueue.length} operations, ${this.cachedContent.size} cached items`)

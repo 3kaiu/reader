@@ -52,8 +52,12 @@ impl DomainPooledClient {
     /// Get or create client for a domain
     pub fn get_client(&self, url: &str) -> Arc<Client> {
         let domain = Self::get_domain(url).unwrap_or_else(|| "default".to_string());
+        self.get_client_by_domain(&domain)
+    }
 
-        if let Some(client) = self.pools.get(&domain) {
+    /// Get client using a pre-parsed domain (Performance optimization)
+    pub fn get_client_by_domain(&self, domain: &str) -> Arc<Client> {
+        if let Some(client) = self.pools.get(domain) {
             return Arc::clone(&client);
         }
 
@@ -63,12 +67,14 @@ impl DomainPooledClient {
                 .timeout(self.timeout)
                 .pool_max_idle_per_host(self.max_connections_per_host)
                 .pool_idle_timeout(Duration::from_secs(60))
+                .tcp_keepalive(Duration::from_secs(60))
+                .tcp_nodelay(true)
                 .build()
                 .unwrap_or_default(),
         );
 
         debug!("Created new connection pool for domain: {}", domain);
-        self.pools.insert(domain, Arc::clone(&client));
+        self.pools.insert(domain.to_string(), Arc::clone(&client));
         client
     }
 

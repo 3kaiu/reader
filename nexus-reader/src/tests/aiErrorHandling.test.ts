@@ -75,7 +75,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'AI库加载失败: Request timeout'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -85,7 +85,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'AI库加载失败: Network error'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -95,7 +95,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'AI库加载失败: Invalid response'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -105,7 +105,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'AI库加载失败: Missing WebLLM methods'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
   })
@@ -120,7 +120,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'Worker创建失败: Worker creation failed'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -130,14 +130,14 @@ describe('AI Error Handling - Simplified', () => {
         addEventListener: vi.fn(),
         postMessage: vi.fn()
       }
-      
+
       global.Worker = vi.fn().mockReturnValue(mockWorker) as any
 
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = 'Worker运行时错误'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
   })
@@ -148,7 +148,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = '模型下载失败'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -157,7 +157,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = 'VRAM不足'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
 
@@ -166,7 +166,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.error.value = '模型文件损坏'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
     })
   })
@@ -174,19 +174,19 @@ describe('AI Error Handling - Simplified', () => {
   describe('Inference Errors', () => {
     it('should handle inference timeout errors', async () => {
       mockAiServiceManager.error.value = '推理超时'
-      
+
       expect(mockAiServiceManager.error.value).toContain('推理超时')
     })
 
     it('should handle malformed inference responses', async () => {
       mockAiServiceManager.error.value = '推理响应格式错误'
-      
+
       expect(mockAiServiceManager.error.value).toContain('推理响应格式错误')
     })
 
     it('should handle engine crash during inference', async () => {
       mockAiServiceManager.error.value = '推理引擎崩溃'
-      
+
       expect(mockAiServiceManager.error.value).toContain('推理引擎崩溃')
     })
   })
@@ -194,7 +194,7 @@ describe('AI Error Handling - Simplified', () => {
   describe('Resource Cleanup Errors', () => {
     it('should handle unload errors gracefully', async () => {
       mockAiServiceManager.unloadModel.mockRejectedValue(new Error('Unload failed'))
-      
+
       try {
         await mockAiServiceManager.unloadModel()
       } catch (error) {
@@ -208,7 +208,7 @@ describe('AI Error Handling - Simplified', () => {
           throw new Error('Termination failed')
         })
       }
-      
+
       expect(() => mockWorker.terminate()).toThrow('Termination failed')
     })
   })
@@ -218,14 +218,14 @@ describe('AI Error Handling - Simplified', () => {
       // First attempt fails
       mockAiServiceManager.error.value = '加载失败'
       mockAiServiceManager.loadModel.mockResolvedValueOnce(false)
-      
+
       let result = await mockAiServiceManager.loadModel('test-model')
       expect(result).toBe(false)
-      
+
       // Second attempt succeeds
       mockAiServiceManager.error.value = null
       mockAiServiceManager.loadModel.mockResolvedValueOnce(true)
-      
+
       result = await mockAiServiceManager.loadModel('test-model')
       expect(result).toBe(true)
     })
@@ -233,64 +233,64 @@ describe('AI Error Handling - Simplified', () => {
 
   describe('Network Detection', () => {
     it('should handle offline CDN loading gracefully', async () => {
-      // Mock navigator.onLine safely
+      // Mock navigator.onLine safely using Vitest stubGlobal
       const originalNavigator = global.navigator
-      global.navigator = {
+      vi.stubGlobal('navigator', {
         ...originalNavigator,
         onLine: false
-      } as Navigator
+      })
 
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = '网络离线，无法加载AI库'
 
       const result = await mockAiServiceManager.loadModel('test-model')
-      
+
       expect(result).toBe(false)
-      
+
       // Restore navigator
-      global.navigator = originalNavigator
+      vi.unstubAllGlobals()
     })
 
     it('should provide meaningful offline error messages', async () => {
       // Mock navigator.onLine safely
       const originalNavigator = global.navigator
-      global.navigator = {
+      vi.stubGlobal('navigator', {
         ...originalNavigator,
         onLine: false
-      } as Navigator
+      })
 
       mockAiServiceManager.error.value = '网络离线，请检查网络连接后重试'
-      
+
       expect(mockAiServiceManager.error.value).toContain('网络离线')
-      
+
       // Restore navigator
-      global.navigator = originalNavigator
+      vi.unstubAllGlobals()
     })
   })
 
   describe('Cached Model Usage', () => {
     it('should continue working with loaded model when offline', async () => {
       mockAiServiceManager.isModelLoaded.value = true
-      
+
       // Mock navigator.onLine safely
       const originalNavigator = global.navigator
-      global.navigator = {
+      vi.stubGlobal('navigator', {
         ...originalNavigator,
         onLine: false
-      } as Navigator
+      })
 
       // Should still work with cached model
       expect(mockAiServiceManager.isModelLoaded.value).toBe(true)
-      
+
       // Restore navigator
-      global.navigator = originalNavigator
+      vi.unstubAllGlobals()
     })
   })
 
   describe('Graceful Degradation', () => {
     it('should provide helpful error messages for offline scenarios', async () => {
       mockAiServiceManager.error.value = '当前离线状态，AI功能暂时不可用。请连接网络后重试。'
-      
+
       expect(mockAiServiceManager.error.value).toContain('离线状态')
       expect(mockAiServiceManager.error.value).toContain('连接网络')
     })
@@ -299,7 +299,7 @@ describe('AI Error Handling - Simplified', () => {
       mockAiServiceManager.isLoading.value = false
       mockAiServiceManager.isModelLoaded.value = false
       mockAiServiceManager.error.value = '离线错误'
-      
+
       expect(mockAiServiceManager.isLoading.value).toBe(false)
       expect(mockAiServiceManager.isModelLoaded.value).toBe(false)
       expect(mockAiServiceManager.error.value).toContain('离线错误')

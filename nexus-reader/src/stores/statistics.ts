@@ -150,17 +150,20 @@ export const useStatisticsStore = defineStore('statistics', () => {
         }
     })
 
-    // 最近7天记录 (用于热力图)
+    // 记录热图数据 (最近7天)
     const recentDays = computed(() => {
         const days: { date: string; minutes: number }[] = []
+        // 预先建立日期映射以提高查询速度
+        const recordMap = new Map<string, number>()
+        state.value.dailyRecords.forEach(r => recordMap.set(r.date, r.minutes))
+
         for (let i = 6; i >= 0; i--) {
             const date = new Date()
             date.setDate(date.getDate() - i)
             const dateStr = formatDate(date)
-            const record = state.value.dailyRecords.find(r => r.date === dateStr)
             days.push({
                 date: dateStr,
-                minutes: record?.minutes || 0,
+                minutes: recordMap.get(dateStr) || 0,
             })
         }
         return days
@@ -188,10 +191,16 @@ export const useStatisticsStore = defineStore('statistics', () => {
 
         if (!bookStat.engagement) bookStat.engagement = []
 
+        // 当记录较多时，使用 find 可能会有性能压力
+        // 但 EngagementRecord 通常只针对当前阅读章节，数量有限
         const record = bookStat.engagement.find(e => e.chapterIndex === chapterIndex && e.chunkIndex === chunkIndex)
         if (record) {
             record.seconds += seconds
         } else {
+            // 限制单个书籍的投入度记录数量，避免状态过大
+            if (bookStat.engagement.length > 1000) {
+                bookStat.engagement.shift() // 移除最早的记录
+            }
             bookStat.engagement.push({ chapterIndex, chunkIndex, seconds })
         }
     }

@@ -25,7 +25,8 @@ RUN pip install --no-cache-dir \
     redis>=5.0.0
 
 # Copy source code
-COPY app.py cloudscraper_wrapper.py config_manager.py enhanced_logger.py error_handler.py performance_optimizer.py phase2_config.py session_pool_manager.py ./
+COPY *.py ./
+COPY core ./core
 COPY domain_configs.json ./
 
 # Create data directory

@@ -19,13 +19,23 @@ import { CACHE_TTL } from './shared/cache.ts';
 
 const COOKIE_NAME = 'nexus_auth';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
+const OAUTH_STATE_TTL = 600; // 10 minutes
 
 async function handleGitHubLogin(env) {
+  const state = crypto.randomUUID();
+  
+  // Store state in KV for CSRF validation
+  if (env.PROGRESS_KV) {
+    await env.PROGRESS_KV.put(`oauth_state:${state}`, Date.now().toString(), {
+      expirationTtl: OAUTH_STATE_TTL
+    });
+  }
+  
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
     redirect_uri: `${env.WORKER_URL}/callback/github`,
     scope: 'read:user',
-    state: crypto.randomUUID(),
+    state,
   });
   return Response.redirect(`https://github.com/login/oauth/authorize?${params}`, 302);
 }
@@ -33,10 +43,27 @@ async function handleGitHubLogin(env) {
 async function handleGitHubCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
   const logger = createLogger(env);
 
   if (!code) {
     return Response.redirect(`${env.FRONTEND_URL}?error=no_code`, 302);
+  }
+
+  // Validate OAuth state to prevent CSRF attacks
+  if (!state) {
+    logger.warn('OAuth callback missing state parameter');
+    return Response.redirect(`${env.FRONTEND_URL}?error=missing_state`, 302);
+  }
+
+  if (env.PROGRESS_KV) {
+    const storedState = await env.PROGRESS_KV.get(`oauth_state:${state}`);
+    if (!storedState) {
+      logger.warn('OAuth state validation failed - invalid or expired state');
+      return Response.redirect(`${env.FRONTEND_URL}?error=invalid_state`, 302);
+    }
+    // Delete used state to prevent replay attacks
+    await env.PROGRESS_KV.delete(`oauth_state:${state}`);
   }
 
   try {
@@ -264,7 +291,10 @@ async function handleProgress(request, env, bookId, corsHeaders) {
           updatedAt: Date.now(),
         };
         
-        await KV.put(`progress:${bookId}`, JSON.stringify(progress));
+        // 性能优化：将关键进度直接存入 metadata，以便在列表查询时一次性拉取，规避 O(N) get
+        await KV.put(`progress:${bookId}`, JSON.stringify(progress), {
+          metadata: progress
+        });
         return Response.json(progress, { headers: corsHeaders });
       } catch (e) {
         return Response.json({ error: 'Invalid request body' }, { status: 400, headers: corsHeaders });
@@ -283,16 +313,28 @@ async function handleProgress(request, env, bookId, corsHeaders) {
 
 async function handleListProgress(env, corsHeaders) {
   const KV = env.PROGRESS_KV;
-  const list = await KV.list({ prefix: 'progress:' });
+  const results = [];
   
-  const results = await Promise.all(
-    list.keys.map(async (key) => {
-      const data = await KV.get(key.name, 'json');
-      return data;
-    })
-  );
+  // 性能优化：使用 metadata 一次性拉取所有结果，彻底规避后端 O(N) 循环 fetch
+  let cursor = undefined;
+  do {
+    const listResult = await KV.list({ 
+      prefix: 'progress:', 
+      cursor, 
+      limit: 1000,
+      include: ['metadata'] 
+    });
+    
+    listResult.keys.forEach(key => {
+      if (key.metadata) {
+        results.push(key.metadata);
+      }
+    });
 
-  return Response.json(results.filter(Boolean), { headers: corsHeaders });
+    cursor = listResult.list_complete ? undefined : listResult.cursor;
+  } while (cursor);
+  
+  return Response.json(results, { headers: corsHeaders });
 }
 
 // ==================== Main Handler ====================

@@ -7,6 +7,7 @@ import { offlineManager, offlineContentServer, type OfflineStatus } from '../uti
 import { networkDetector } from '../utils/networkOptimizer'
 import { apiCache } from '../utils/cacheManager'
 import { $get, type ApiResponse } from '../api/client'
+import { logger } from '../utils/logger'
 
 // 离线服务配置
 export interface OfflineServiceConfig {
@@ -83,7 +84,7 @@ export class OfflineService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    console.log('📱 Initializing offline service...')
+    logger.info('Initializing offline service...')
 
     try {
       // 启动离线管理器的自动同步
@@ -108,10 +109,10 @@ export class OfflineService {
       }
 
       this.isInitialized = true
-      console.log('✅ Offline service initialized successfully')
+      logger.info('Offline service initialized successfully')
 
     } catch (error) {
-      console.error('❌ Failed to initialize offline service:', error)
+      logger.error('Failed to initialize offline service:', error as Error)
       throw error
     }
   }
@@ -149,7 +150,7 @@ export class OfflineService {
     priority = 5
   ): Promise<void> {
     try {
-      console.log(`💾 Caching content for offline: ${type}/${contentId}`)
+      logger.debug(`Caching content for offline: ${type}/${contentId}`)
 
       const url = this.getContentUrl(contentId, type)
       const response = await $get(url)
@@ -166,13 +167,13 @@ export class OfflineService {
           priority
         })
 
-        console.log(`✅ Content cached successfully: ${type}/${contentId}`)
+        logger.debug(`Content cached successfully: ${type}/${contentId}`)
       } else {
         throw new Error(`Failed to fetch content: ${response.errorMsg}`)
       }
 
     } catch (error) {
-      console.error(`❌ Failed to cache content ${type}/${contentId}:`, error)
+      logger.error(`Failed to cache content ${type}/${contentId}:`, error as Error)
       throw error
     }
   }
@@ -181,7 +182,7 @@ export class OfflineService {
   async batchCacheContent(
     items: Array<{ contentId: string; type: OfflineContentType; priority?: number }>
   ): Promise<{ success: number; failed: number }> {
-    console.log(`📦 Batch caching ${items.length} items...`)
+    logger.info(`Batch caching ${items.length} items...`)
 
     let success = 0
     let failed = 0
@@ -198,7 +199,7 @@ export class OfflineService {
           await this.cacheContentForOffline(item.contentId, item.type, item.priority)
           success++
         } catch (error) {
-          console.warn(`Failed to cache ${item.type}/${item.contentId}:`, error)
+          logger.warn(`Failed to cache ${item.type}/${item.contentId}:`, error)
           failed++
         }
       })
@@ -211,7 +212,7 @@ export class OfflineService {
       }
     }
 
-    console.log(`📦 Batch caching completed: ${success} success, ${failed} failed`)
+    logger.info(`Batch caching completed: ${success} success, ${failed} failed`)
     return { success, failed }
   }
 
@@ -222,21 +223,21 @@ export class OfflineService {
       const cached = offlineManager.getCachedContent(cacheKey)
 
       if (cached) {
-        console.log(`📱 Serving content from offline cache: ${type}/${contentId}`)
+        logger.debug(`Serving content from offline cache: ${type}/${contentId}`)
         return cached.data as T
       }
 
       // 尝试从API缓存获取
       const apiCached = apiCache.get(cacheKey)
       if (apiCached) {
-        console.log(`📱 Serving content from API cache: ${type}/${contentId}`)
+        logger.debug(`Serving content from API cache: ${type}/${contentId}`)
         return (apiCached as ApiResponse<T>).data
       }
 
       return null
 
     } catch (error) {
-      console.error(`❌ Failed to get offline content ${type}/${contentId}:`, error)
+      logger.error(`Failed to get offline content ${type}/${contentId}:`, error as Error)
       return null
     }
   }
@@ -259,7 +260,7 @@ export class OfflineService {
       maxRetries: isUrgent ? 5 : 3
     })
 
-    console.log(`📝 Queued offline operation: ${type} - ${description}`)
+    logger.debug(`Queued offline operation: ${type} - ${description}`)
   }
 
   // 执行完整同步
@@ -276,7 +277,7 @@ export class OfflineService {
     const startTime = performance.now()
 
     try {
-      console.log('🔄 Starting full sync...')
+      logger.info('Starting full sync...')
 
       // 同步队列中的操作
       await offlineManager.syncQueuedOperations()
@@ -297,11 +298,11 @@ export class OfflineService {
         duration
       }
 
-      console.log(`✅ Full sync completed in ${duration.toFixed(0)}ms`)
+      logger.info(`Full sync completed in ${duration.toFixed(0)}ms`)
       return result
 
     } catch (error) {
-      console.error('❌ Full sync failed:', error)
+      logger.error('Full sync failed:', error as Error)
       return {
         success: false,
         syncedOperations: 0,
@@ -341,13 +342,13 @@ export class OfflineService {
       offlineManager.stopAutoSync()
     }
 
-    console.log('⚙️ Offline service config updated:', this.config)
+    logger.info('Offline service config updated')
   }
 
   // 清理离线数据
   async clearOfflineData(): Promise<void> {
     try {
-      console.log('🧹 Clearing offline data...')
+      logger.info('Clearing offline data...')
 
       // 清空操作队列
       offlineManager.clearQueue?.()
@@ -358,10 +359,10 @@ export class OfflineService {
       // 清理API缓存
       apiCache.clear()
 
-      console.log('✅ Offline data cleared successfully')
+      logger.info('Offline data cleared successfully')
 
     } catch (error) {
-      console.error('❌ Failed to clear offline data:', error)
+      logger.error('Failed to clear offline data:', error as Error)
       throw error
     }
   }
@@ -391,7 +392,7 @@ export class OfflineService {
 
   private async performInitialSync(): Promise<void> {
     try {
-      console.log('🔄 Performing initial sync...')
+      logger.debug('Performing initial sync...')
 
       // 同步用户设置
       await this.syncUserSettings()
@@ -402,16 +403,16 @@ export class OfflineService {
       // 同步书签
       await this.syncBookmarks()
 
-      console.log('✅ Initial sync completed')
+      logger.debug('Initial sync completed')
 
     } catch (error) {
-      console.warn('⚠️ Initial sync failed:', error)
+      logger.warn('Initial sync failed:', error)
     }
   }
 
   private async preloadEssentialContent(): Promise<void> {
     try {
-      console.log('📦 Preloading essential content...')
+      logger.debug('Preloading essential content...')
 
       const essentialItems = [
         { contentId: 'user-settings', type: 'user-settings' as OfflineContentType, priority: 10 },
@@ -421,10 +422,10 @@ export class OfflineService {
 
       await this.batchCacheContent(essentialItems)
 
-      console.log('✅ Essential content preloaded')
+      logger.debug('Essential content preloaded')
 
     } catch (error) {
-      console.warn('⚠️ Failed to preload essential content:', error)
+      logger.warn('Failed to preload essential content:', error)
     }
   }
 
@@ -437,7 +438,7 @@ export class OfflineService {
         try {
           await this.cacheContentForOffline(item.id, item.type, item.priority)
         } catch (error) {
-          console.warn(`Failed to update cached content ${item.type}/${item.id}:`, error)
+          logger.warn(`Failed to update cached content ${item.type}/${item.id}:`, error)
         }
       }
     }
@@ -459,7 +460,7 @@ export class OfflineService {
   }
 
   private handleNetworkChange(networkInfo: any): void {
-    console.log('🌐 Network changed in offline service:', networkInfo)
+    logger.debug('Network changed in offline service')
 
     if (networkInfo.isOnline && this.config.enableAutoSync) {
       // 网络恢复时自动同步
@@ -475,7 +476,7 @@ export class OfflineService {
       try {
         listener(status)
       } catch (error) {
-        console.error('Offline status listener error:', error)
+        logger.error('Offline status listener error:', error as Error)
       }
     })
   }

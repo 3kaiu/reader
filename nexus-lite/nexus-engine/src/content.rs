@@ -32,7 +32,9 @@ pub fn get_or_compile_regex(pattern: &str) -> Option<Arc<Regex>> {
 
 /// Apply regex replacement rules to content (uses cached regex compilation)
 pub fn apply_replace_rules(content: String, rules: &[ReplaceRule], source_id: &str) -> String {
-    let mut content = content;
+    use std::borrow::Cow;
+
+    let mut current_content = Cow::Owned(content);
 
     for rule in rules {
         if !rule.is_enabled {
@@ -45,18 +47,27 @@ pub fn apply_replace_rules(content: String, rules: &[ReplaceRule], source_id: &s
             }
         }
 
+        let replacement = rule.replacement.as_deref().unwrap_or("");
+
         if rule.is_regex {
-            // Use cached regex compilation
             if let Some(re) = get_or_compile_regex(&rule.pattern) {
-                content = re
-                    .replace_all(&content, rule.replacement.as_deref().unwrap_or(""))
-                    .to_string();
+                // replace_all returns Cow. If no match, it's Borrowed.
+                // We only update if it becomes Owned (meaning a replacement occurred).
+                let result = re.replace_all(&current_content, replacement);
+                if let Cow::Owned(new_s) = result {
+                    current_content = Cow::Owned(new_s);
+                }
             }
         } else {
-            content = content.replace(&rule.pattern, rule.replacement.as_deref().unwrap_or(""));
+            // Standard replace also returns a new String if matched.
+            // We can check contains() first to avoid allocation if no match.
+            if current_content.contains(&rule.pattern) {
+                current_content = Cow::Owned(current_content.replace(&rule.pattern, replacement));
+            }
         }
     }
-    content
+
+    current_content.into_owned()
 }
 
 #[cfg(test)]

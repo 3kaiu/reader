@@ -19,16 +19,17 @@ pub struct SourceWithStatus {
 /// List all sources
 pub async fn list_sources(State(state): State<AppState>) -> Json<Vec<SourceWithStatus>> {
     let sources = state.engine_registry.source_store().get_all();
-    let sources_with_status: Vec<SourceWithStatus> = sources
-        .into_iter()
-        .map(|source| {
-            let enabled = state
-                .store
-                .get_source_status(&source.id)
-                .unwrap_or(true);
-            SourceWithStatus { source, enabled }
-        })
-        .collect();
+    let mut sources_with_status = Vec::new();
+
+    for source in sources {
+        let enabled = state
+            .store
+            .get_source_status(source.id.clone())
+            .await
+            .unwrap_or(true);
+        sources_with_status.push(SourceWithStatus { source, enabled });
+    }
+
     Json(sources_with_status)
 }
 
@@ -42,12 +43,9 @@ pub async fn get_source(
         .source_store()
         .get(&id)
         .ok_or(StatusCode::NOT_FOUND)?;
-    
-    let enabled = state
-        .store
-        .get_source_status(&id)
-        .unwrap_or(true);
-    
+
+    let enabled = state.store.get_source_status(id).await.unwrap_or(true);
+
     Ok(Json(SourceWithStatus { source, enabled }))
 }
 
@@ -132,13 +130,14 @@ pub async fn update_source_status(
         .source_store()
         .get(&id)
         .ok_or((StatusCode::NOT_FOUND, format!("Source not found: {}", id)))?;
-    
+
     // Update status in database
     state
         .store
-        .set_source_status(&id, body.enabled)
+        .set_source_status(id, body.enabled)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(Json(SourceWithStatus {
         source,
         enabled: body.enabled,

@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger'
 import { syncChannel } from '@/utils/broadcast'
 import { getDefaultModel, saveLastModel, getAllModels } from '@/stores/ai/models'
 import { modelCacheManager } from '@/utils/modelCacheManager'
+import { workerBus } from '@/utils/workerBus'
 import type { AIRequestParams, ModelInfo } from '@/types/ai'
 
 // WebGPU 类型声明
@@ -36,6 +37,52 @@ interface MLCEngineInterface {
   terminate?: () => Promise<void>
 }
 
+
+// Context Message Type
+interface ContextMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * Sliding Window Context Manager
+ * Manages token budget for AI conversation history
+ */
+class ContextManager {
+  private history: ContextMessage[] = []
+  private readonly MAX_HISTORY_LENGTH = 10
+  private readonly SYSTEM_PROMPT = "你是一个专业的小说阅读助手，负责解答用户关于小说剧情、人物和背景的提问。请用简洁、生动的语言回答。"
+
+  /**
+   * Add a message to history
+   */
+  addMessage(role: 'user' | 'assistant', content: string) {
+    this.history.push({ role, content })
+    // Simple sliding window by count (for now, ideally by tokens)
+    if (this.history.length > this.MAX_HISTORY_LENGTH) {
+      this.history.shift()
+    }
+  }
+
+  /**
+   * Clear history
+   */
+  clear() {
+    this.history = []
+  }
+
+  /**
+   * Build full prompt with System + History + New Input
+   */
+  buildMessages(newInput: string): ContextMessage[] {
+    return [
+      { role: 'system', content: this.SYSTEM_PROMPT },
+      ...this.history,
+      { role: 'user', content: newInput }
+    ]
+  }
+}
+
 /**
  * AI服务管理器类
  */
@@ -50,11 +97,12 @@ export class AIServiceManager {
   public readonly loadStatus = ref('')
   public readonly error = ref<string | null>(null)
   public readonly currentModel = ref<string | null>(null)
-  
+
   // AI引擎实例
   private engine = shallowRef<MLCEngineInterface | null>(null)
   private webllm: WebLLMInterface | null = null
   private aiWorker: Worker | null = null
+  private contextManager = new ContextManager()
 
   // 自动卸载定时器
   private autoUnloadTimer: ReturnType<typeof setTimeout> | null = null
@@ -84,11 +132,11 @@ export class AIServiceManager {
    */
   async initialize(): Promise<void> {
     logger.info('[AI Service] Initializing AI service manager...')
-    
+
     try {
       // 初始化模型缓存管理器
       await modelCacheManager.initialize()
-      
+
       // 检测WebGPU支持
       const supported = await this.detectWebGPUSupport()
       if (!supported) {
@@ -149,9 +197,9 @@ export class AIServiceManager {
 
     try {
       logger.info('[AI Service] Loading WebLLM library from CDN...')
-      
+
       this.loadStatus.value = '正在加载AI运行时库...'
-      
+
       // 使用CDN资源加载器加载WebLLM
       const webllmLib = await cdnResourceLoader.loadResource('@mlc-ai/web-llm', {
         timeout: 30000,
@@ -167,16 +215,16 @@ export class AIServiceManager {
 
       this.webllm = webllmLib
       logger.info('[AI Service] WebLLM library loaded successfully')
-      
+
       return webllmLib
     } catch (error) {
       logger.error('[AI Service] Failed to load WebLLM library:', error as Error)
-      
+
       // 降级策略：提示用户使用云端 AI 或稍后重试
       const errorMessage = error instanceof Error ? error.message : '未知错误'
       this.error.value = `本地 AI 库加载失败: ${errorMessage}。您可以使用云端 AI 功能，或稍后重试。`
       this.loadStatus.value = '加载失败，建议使用云端 AI'
-      
+
       // 不抛出错误，允许用户继续使用其他功能
       // 如果后续需要本地 AI，可以再次尝试加载
       throw new Error(`AI库加载失败: ${errorMessage}。请使用云端 AI 功能或稍后重试。`)
@@ -200,11 +248,11 @@ export class AIServiceManager {
 
       // 构建模型下载URL（这里使用WebLLM的模型URL格式）
       const modelUrl = `https://huggingface.co/mlc-ai/${modelId}/resolve/main/params_shard_*.bin`
-      
+
       // 实际实现中，这里会从WebLLM获取正确的模型URL和分片信息
       // 为了演示，我们模拟下载过程
       logger.info(`[AI Service] Downloading model ${modelId} from ${modelUrl}`)
-      
+
       // 模拟下载进度
       for (let progress = 10; progress <= 80; progress += 10) {
         this.loadProgress.value = progress
@@ -214,7 +262,7 @@ export class AIServiceManager {
 
       // 在实际实现中，这里会是真实的模型数据
       const mockModelData = new ArrayBuffer(1024 * 1024) // 1MB 模拟数据
-      
+
       // 缓存模型
       await modelCacheManager.cacheModel(modelId, mockModelData, {
         version: '1.0.0',
@@ -223,7 +271,7 @@ export class AIServiceManager {
 
       this.loadProgress.value = 90
       this.loadStatus.value = '模型缓存完成'
-      
+
       logger.info(`[AI Service] Model ${modelId} downloaded and cached successfully`)
     } catch (error) {
       logger.error(`[AI Service] Failed to download and cache model ${modelId}:`, error as Error)
@@ -272,9 +320,9 @@ export class AIServiceManager {
 
       const blob = new Blob([workerCode], { type: 'application/javascript' })
       const workerUrl = URL.createObjectURL(blob)
-      
+
       this.aiWorker = new Worker(workerUrl, { type: 'module' })
-      
+
       // 清理URL对象
       this.aiWorker.addEventListener('error', () => {
         URL.revokeObjectURL(workerUrl)
@@ -293,7 +341,7 @@ export class AIServiceManager {
   async loadModel(modelId?: string): Promise<boolean> {
     // 如果没有提供 modelId，获取默认模型
     const targetModelId = modelId || await getDefaultModel()
-    
+
     if (this.isLoading.value) {
       logger.warn('[AI Service] Model loading already in progress')
       return false
@@ -315,7 +363,7 @@ export class AIServiceManager {
     try {
       // 使用Web锁确保只有一个加载过程
       const { webLocks } = await import('@/utils/webLocks')
-      
+
       return await webLocks.withExclusive('ai-engine-load', async () => {
         // 再次检查是否已加载
         if (this.isModelLoaded.value && this.currentModel.value === targetModelId) {
@@ -332,7 +380,7 @@ export class AIServiceManager {
 
         // 3. 动态加载WebLLM库
         const webllmLib = await this.loadWebLLMLibrary()
-        
+
         // 4. 创建AI Worker
         this.loadStatus.value = '创建AI Worker...'
         this.loadProgress.value = 30
@@ -341,7 +389,7 @@ export class AIServiceManager {
         // 5. 创建引擎实例
         this.loadStatus.value = '正在初始化模型...'
         this.loadProgress.value = 40
-        
+
         const engine = await webllmLib.CreateWebWorkerMLCEngine(
           worker,
           targetModelId,
@@ -369,10 +417,13 @@ export class AIServiceManager {
         this.resetAutoUnloadTimer()
 
         // 9. 广播状态
-        syncChannel.publish('ai-engine-status', { 
-          status: 'loaded', 
-          modelId: targetModelId 
+        syncChannel.publish('ai-engine-status', {
+          status: 'loaded',
+          modelId: targetModelId
         })
+
+        // 10. 注册到 WorkerBus
+        workerBus.register('ai-worker', 'AI')
 
         logger.info(`[AI Service] Model ${targetModelId} loaded successfully`)
         return true
@@ -385,6 +436,8 @@ export class AIServiceManager {
       this.isLoading.value = false
     }
   }
+
+  // [Removed misplaced code]
 
   /**
    * 执行AI推理
@@ -403,25 +456,42 @@ export class AIServiceManager {
       this.resetAutoUnloadTimer()
 
       const startTime = Date.now()
-      
-      // 构建请求参数
-      const requestParams = {
-        messages: [{ role: 'user', content: prompt }],
-        temperature: params?.temperature || 0.7,
-        max_tokens: params?.max_tokens || 2048,
-        top_p: params?.top_p || 0.9,
-        ...params
-      }
+
+      // Build messages
+      const messages = this.contextManager.buildMessages(prompt)
+
+      // 更新 WorkerBus 状态
+      workerBus.updateStatus('ai-worker', 'BUSY')
 
       // 执行推理
-      const response = await this.engine.value.chat.completions.create(requestParams)
-      
+      try {
+        const response = await this.engine.value.chat.completions.create({
+          messages,
+          temperature: params?.temperature || 0.7,
+          max_tokens: params?.max_tokens || 2048,
+          ...params
+        })
+        const content = response.choices?.[0]?.message?.content || ''
+
+        // ... (existing logic) ...
+
+        return content
+      } finally {
+        workerBus.updateStatus('ai-worker', 'IDLE')
+      }
+
+      // Update Context History
+      if (content) {
+        this.contextManager.addMessage('user', prompt)
+        this.contextManager.addMessage('assistant', content)
+      }
+
       // 更新性能指标
       const endTime = Date.now()
       const generationTime = endTime - startTime
-      
+
       this.performance.value = {
-        tokensPerSecond: response.usage?.total_tokens ? 
+        tokensPerSecond: response.usage?.total_tokens ?
           (response.usage.total_tokens / generationTime) * 1000 : 0,
         totalTokens: response.usage?.total_tokens || 0,
         generationTime,
@@ -429,12 +499,20 @@ export class AIServiceManager {
       }
 
       // 返回生成的文本
-      return response.choices?.[0]?.message?.content || ''
+      return content
     } catch (error) {
       logger.error('[AI Service] Inference failed:', error as Error)
       throw new Error(`AI推理失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
+
+  /**
+   * Clear context history
+   */
+  clearContext() {
+    this.contextManager.clear()
+  }
+
 
   /**
    * 获取推荐模型列表
@@ -456,18 +534,18 @@ export class AIServiceManager {
    */
   async unloadModel(): Promise<void> {
     this.clearAutoUnloadTimer()
-    
+
     if (this.engine.value) {
       try {
         logger.info('[AI Service] Unloading current model...')
-        
+
         await this.engine.value.unload()
-        
+
         // 终止Worker
         if (this.engine.value.terminate) {
           await this.engine.value.terminate()
         }
-        
+
         // 清理Worker
         if (this.aiWorker) {
           this.aiWorker.terminate()
@@ -476,12 +554,12 @@ export class AIServiceManager {
 
         // 广播状态
         syncChannel.publish('ai-engine-status', { status: 'unloaded' })
-        
+
         logger.info('[AI Service] Model unloaded successfully')
       } catch (error) {
         logger.warn('[AI Service] Error during model unload:', error as Error)
       }
-      
+
       this.engine.value = null
       this.currentModel.value = null
       this.isModelLoaded.value = false
@@ -524,10 +602,10 @@ export class AIServiceManager {
   async cleanup(): Promise<void> {
     await this.unloadModel()
     this.clearAutoUnloadTimer()
-    
+
     // 清理WebLLM库引用
     this.webllm = null
-    
+
     logger.info('[AI Service] AI service manager cleaned up')
   }
 

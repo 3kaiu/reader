@@ -9,14 +9,16 @@ use nexus_core::ReplaceRule;
 use uuid::Uuid;
 
 use crate::app::AppState;
-use crate::error::{ApiErrorResponse, internal_error};
+use crate::error::{internal_error, ApiErrorResponse};
 
 /// List all replace rules
 pub async fn list_rules(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ReplaceRule>>, ApiErrorResponse> {
-    state.store
+    state
+        .store
         .get_replace_rules()
+        .await
         .map(Json)
         .map_err(|e| internal_error(e.to_string()))
 }
@@ -30,8 +32,10 @@ pub async fn save_rule(
         rule.id = Uuid::new_v4().to_string();
     }
 
-    state.store
-        .save_replace_rule(&rule)
+    state
+        .store
+        .save_replace_rule(rule.clone())
+        .await
         .map(|_| Json(rule))
         .map_err(|e| internal_error(e.to_string()))
 }
@@ -41,8 +45,10 @@ pub async fn delete_rule(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    state.store
-        .delete_replace_rule(&id)
+    state
+        .store
+        .delete_replace_rule(id)
+        .await
         .map(|_| StatusCode::NO_CONTENT)
         .map_err(|e| internal_error(e.to_string()))
 }

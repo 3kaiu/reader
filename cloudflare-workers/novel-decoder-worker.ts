@@ -44,7 +44,7 @@ export interface DictionaryEntry {
   category: EntityCategory;
   aliases?: string[];         // 其他别名: ["杰克马", "风清扬"]
   description?: string;       // 描述: "阿里巴巴创始人"
-  
+
   // 分层信息
   level: DictionaryLevel;
   categoryTags?: BookType[];  // 适用的书籍类型
@@ -260,15 +260,15 @@ interface ExecutionContext {
 export interface Env extends AuthEnv, LoggerEnv {
   // KV 存储 - 词典、知识图谱、用户数据和缓存（不需要信用卡）
   DECODER_KV: KVNamespace;
-  
+
   // AI 服务
   AI: Ai;                     // CF Workers AI
   GROQ_API_KEY?: string;
   HF_API_KEY?: string;
-  
+
   // 认证
   AUTH_SECRET: string;
-  
+
   // 上下文
   ctx?: ExecutionContext;
 }
@@ -281,17 +281,17 @@ const CONFIG = {
   // 缓存 TTL
   DECODE_CACHE_TTL: 7 * 24 * 60 * 60,  // 解码结果缓存 7 天
   DICTIONARY_CACHE_TTL: 60 * 60,        // 词典缓存 1 小时
-  
+
   // AI 限制
   MAX_AI_CALLS_PER_CHAPTER: 10,
   AI_TIMEOUT_MS: 10000,
-  
+
   // 词条自动提升阈值
   AUTO_PROMOTION_THRESHOLD: 3,
-  
+
   // 置信度阈值
   HIGH_CONFIDENCE_THRESHOLD: 70,
-  
+
   // 允许的源
   ALLOWED_ORIGINS: [
     'https://nexus-reader.pages.dev',
@@ -306,8 +306,8 @@ const CONFIG = {
 
 /** CORS 头 */
 function corsHeaders(origin: string): Record<string, string> {
-  const allowedOrigin = CONFIG.ALLOWED_ORIGINS.includes(origin) 
-    ? origin 
+  const allowedOrigin = CONFIG.ALLOWED_ORIGINS.includes(origin)
+    ? origin
     : CONFIG.ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
@@ -331,7 +331,7 @@ function generateId(): string {
 export function validateDictionaryEntry(entry: unknown): entry is DictionaryEntry {
   if (!entry || typeof entry !== 'object') return false;
   const e = entry as Record<string, unknown>;
-  
+
   // 必填字段
   if (typeof e.id !== 'string' || e.id.length === 0) return false;
   if (typeof e.original !== 'string' || e.original.length === 0) return false;
@@ -343,14 +343,14 @@ export function validateDictionaryEntry(entry: unknown): entry is DictionaryEntr
   if (!['system', 'user', 'ai', 'community'].includes(e.source as string)) return false;
   if (typeof e.createdAt !== 'number') return false;
   if (typeof e.updatedAt !== 'number') return false;
-  
+
   // 可选字段验证
   if (e.aliases !== undefined && !Array.isArray(e.aliases)) return false;
   if (e.categoryTags !== undefined && !Array.isArray(e.categoryTags)) return false;
   if (e.eraRange !== undefined) {
     if (!Array.isArray(e.eraRange) || e.eraRange.length !== 2) return false;
   }
-  
+
   return true;
 }
 
@@ -377,7 +377,7 @@ class DictionaryIndex {
   private exact: Map<string, DictionaryEntry[]> = new Map();
   private pinyin: Map<string, DictionaryEntry[]> = new Map();
   private initials: Map<string, DictionaryEntry[]> = new Map();
-  
+
   /** 添加条目到索引 */
   addEntry(entry: DictionaryEntry): void {
     // 精确匹配索引
@@ -385,21 +385,34 @@ class DictionaryIndex {
     const exactList = this.exact.get(exactKey) || [];
     exactList.push(entry);
     this.exact.set(exactKey, exactList);
-    
-    // TODO: 拼音索引 (需要 pinyin-pro)
-    // TODO: 首字母索引
+
+    // 首字母索引 (适用于中文和英文)
+    const firstChar = entry.original.charAt(0).toLowerCase();
+    if (firstChar) {
+      const initialsList = this.initials.get(firstChar) || [];
+      initialsList.push(entry);
+      this.initials.set(firstChar, initialsList);
+    }
+
+    // 拼音索引 (如果条目包含 pinyin 字段)
+    if ('pinyin' in entry && typeof (entry as any).pinyin === 'string') {
+      const pinyinKey = ((entry as any).pinyin as string).toLowerCase();
+      const pinyinList = this.pinyin.get(pinyinKey) || [];
+      pinyinList.push(entry);
+      this.pinyin.set(pinyinKey, pinyinList);
+    }
   }
-  
+
   /** 精确匹配查找 - O(1) */
   findExact(term: string): DictionaryEntry[] {
     return this.exact.get(term.toLowerCase()) || [];
   }
-  
+
   /** 拼音匹配查找 */
   findByPinyin(pinyin: string): DictionaryEntry[] {
     return this.pinyin.get(pinyin.toLowerCase()) || [];
   }
-  
+
   /** 首字母匹配查找 */
   findByInitials(initials: string): DictionaryEntry[] {
     return this.initials.get(initials.toLowerCase()) || [];
@@ -411,78 +424,117 @@ class DictionaryManager {
   private globalDict: DictionaryIndex = new DictionaryIndex();
   private categoryDicts: Map<BookType, DictionaryIndex> = new Map();
   private bookDicts: Map<string, DictionaryIndex> = new Map();
-  
+
   private env: Env;
   private logger: Logger;
   private loaded = false;
-  
+
+  // Memory management constants
+  private static readonly MAX_GLOBAL_ENTRIES = 5000;     // Limit global dict to 5K entries
+  private static readonly MAX_CATEGORY_ENTRIES = 2000;   // Limit category dict to 2K entries
+  private static readonly MAX_BOOK_ENTRIES = 500;        // Limit book dict to 500 entries
+  private static readonly CHUNK_SIZE = 1000;             // Entries per KV chunk
+
   constructor(env: Env, logger: Logger) {
     this.env = env;
     this.logger = logger;
   }
-  
-  /** 加载词典 */
+
+  /** 加载词典 (with size limits) */
   async load(bookId?: string, bookType?: BookType): Promise<void> {
     if (this.loaded) return;
-    
-    // 加载公共词典
+
+    // 加载公共词典 (limited)
     await this.loadGlobalDict();
-    
+
     // 加载分类词典
     if (bookType) {
       await this.loadCategoryDict(bookType);
     }
-    
+
     // 加载书籍词典
     if (bookId) {
       await this.loadBookDict(bookId);
     }
-    
+
     this.loaded = true;
   }
-  
+
   private async loadGlobalDict(): Promise<void> {
     try {
-      // 使用 KV 存储公共词典
-      const data = await this.env.DECODER_KV.get('decoder:dict:global');
-      if (data) {
-        const entries: DictionaryEntry[] = JSON.parse(data);
-        entries.forEach(e => this.globalDict.addEntry(e));
+      // Load chunked dictionary with size limit
+      let totalLoaded = 0;
+      let chunkIndex = 0;
+
+      // Try to load main dictionary first (for backwards compatibility)
+      const mainData = await this.env.DECODER_KV.get('decoder:dict:global');
+      if (mainData) {
+        const entries: DictionaryEntry[] = JSON.parse(mainData);
+        const toLoad = entries.slice(0, DictionaryManager.MAX_GLOBAL_ENTRIES);
+        toLoad.forEach(e => this.globalDict.addEntry(e));
+        totalLoaded = toLoad.length;
+
+        if (entries.length > DictionaryManager.MAX_GLOBAL_ENTRIES) {
+          this.logger.info(`Global dict truncated: loaded ${totalLoaded}/${entries.length} entries`);
+        }
+        return;
+      }
+
+      // Try chunked loading (decoder:dict:global:chunk:0, :1, etc.)
+      while (totalLoaded < DictionaryManager.MAX_GLOBAL_ENTRIES) {
+        const chunkData = await this.env.DECODER_KV.get(`decoder:dict:global:chunk:${chunkIndex}`);
+        if (!chunkData) break;
+
+        const entries: DictionaryEntry[] = JSON.parse(chunkData);
+        const remaining = DictionaryManager.MAX_GLOBAL_ENTRIES - totalLoaded;
+        const toLoad = entries.slice(0, remaining);
+        toLoad.forEach(e => this.globalDict.addEntry(e));
+        totalLoaded += toLoad.length;
+        chunkIndex++;
+      }
+
+      if (totalLoaded > 0) {
+        this.logger.info(`Global dict loaded: ${totalLoaded} entries from ${chunkIndex} chunks`);
       }
     } catch (e) {
       this.logger.error('Failed to load global dictionary:', e);
     }
   }
-  
+
   private async loadCategoryDict(type: BookType): Promise<void> {
     try {
-      // 使用 KV 存储分类词典
       const data = await this.env.DECODER_KV.get(`decoder:dict:category:${type}`);
       if (data) {
         const index = new DictionaryIndex();
         const entries: DictionaryEntry[] = JSON.parse(data);
-        entries.forEach(e => index.addEntry(e));
+        const toLoad = entries.slice(0, DictionaryManager.MAX_CATEGORY_ENTRIES);
+        toLoad.forEach(e => index.addEntry(e));
         this.categoryDicts.set(type, index);
+
+        if (entries.length > DictionaryManager.MAX_CATEGORY_ENTRIES) {
+          this.logger.info(`Category dict ${type} truncated: loaded ${toLoad.length}/${entries.length}`);
+        }
       }
     } catch (e) {
       this.logger.error(`Failed to load category dictionary ${type}:`, e);
     }
   }
-  
+
   private async loadBookDict(bookId: string): Promise<void> {
     try {
       const data = await this.env.DECODER_KV.get(`decoder:book:${bookId}:dictionary`);
       if (data) {
         const index = new DictionaryIndex();
         const entries: DictionaryEntry[] = JSON.parse(data);
-        entries.forEach(e => index.addEntry(e));
+        const toLoad = entries.slice(0, DictionaryManager.MAX_BOOK_ENTRIES);
+        toLoad.forEach(e => index.addEntry(e));
         this.bookDicts.set(bookId, index);
       }
     } catch (e) {
       this.logger.error(`Failed to load book dictionary ${bookId}:`, e);
     }
   }
-  
+
   /** 查找词条 - 按优先级: book > category > global */
   lookup(term: string, bookId?: string, bookType?: BookType): DictionaryEntry | null {
     // 1. 书籍词典优先
@@ -493,7 +545,7 @@ class DictionaryManager {
         if (results.length > 0) return results[0];
       }
     }
-    
+
     // 2. 分类词典
     if (bookType) {
       const categoryIndex = this.categoryDicts.get(bookType);
@@ -502,11 +554,30 @@ class DictionaryManager {
         if (results.length > 0) return results[0];
       }
     }
-    
+
     // 3. 公共词典
     const globalResults = this.globalDict.findExact(term);
     if (globalResults.length > 0) return globalResults[0];
-    
+
+    return null;
+  }
+
+  /** 按需查找 (for terms not in loaded dict) - async lookup from KV */
+  async lookupAsync(term: string, bookId?: string, bookType?: BookType): Promise<DictionaryEntry | null> {
+    // First try in-memory lookup
+    const cached = this.lookup(term, bookId, bookType);
+    if (cached) return cached;
+
+    // Fall back to direct KV lookup for individual term
+    try {
+      const data = await this.env.DECODER_KV.get(`decoder:term:${term.toLowerCase()}`);
+      if (data) {
+        return JSON.parse(data) as DictionaryEntry;
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to lookup term ${term}:`, e);
+    }
+
     return null;
   }
 }
@@ -519,19 +590,19 @@ class BookStateManager {
   private env: Env;
   private logger: Logger;
   private stateCache: Map<string, BookState> = new Map();
-  
+
   constructor(env: Env, logger: Logger) {
     this.env = env;
     this.logger = logger;
   }
-  
+
   /** 获取书籍状态 */
   async getBookState(bookId: string): Promise<BookState | null> {
     // 先检查缓存
     if (this.stateCache.has(bookId)) {
       return this.stateCache.get(bookId)!;
     }
-    
+
     try {
       const data = await this.env.DECODER_KV.get(`decoder:book:${bookId}:state`);
       if (data) {
@@ -542,14 +613,14 @@ class BookStateManager {
     } catch (e) {
       this.logger.error(`Failed to load book state ${bookId}:`, e);
     }
-    
+
     return null;
   }
-  
+
   /** 创建或更新书籍状态 */
   async saveBookState(state: BookState): Promise<void> {
     state.updatedAt = Date.now();
-    
+
     try {
       await this.env.DECODER_KV.put(
         `decoder:book:${state.bookId}:state`,
@@ -560,7 +631,7 @@ class BookStateManager {
       this.logger.error(`Failed to save book state ${state.bookId}:`, e);
     }
   }
-  
+
   /** 初始化书籍状态 */
   async initBookState(bookId: string, meta: BookMeta): Promise<BookState> {
     const existing = await this.getBookState(bookId);
@@ -570,7 +641,7 @@ class BookStateManager {
       await this.saveBookState(existing);
       return existing;
     }
-    
+
     const now = Date.now();
     const state: BookState = {
       bookId,
@@ -584,11 +655,11 @@ class BookStateManager {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     await this.saveBookState(state);
     return state;
   }
-  
+
   /** 添加别名链 */
   async addAliasChain(
     bookId: string,
@@ -598,7 +669,7 @@ class BookStateManager {
   ): Promise<void> {
     const state = await this.getBookState(bookId);
     if (!state) return;
-    
+
     // 检查是否已存在
     const existing = state.aliasChains.find(a => a.bookAlias === bookAlias);
     if (existing) {
@@ -607,27 +678,27 @@ class BookStateManager {
     } else {
       state.aliasChains.push({ bookAlias, realName, entityId });
     }
-    
+
     await this.saveBookState(state);
   }
-  
+
   /** 更新统计信息 */
   async updateStats(bookId: string, entitiesCount: number): Promise<void> {
     const state = await this.getBookState(bookId);
     if (!state) return;
-    
+
     state.stats.totalDecoded += 1;
     state.stats.totalEntities += entitiesCount;
     state.stats.lastUpdated = Date.now();
-    
+
     await this.saveBookState(state);
   }
-  
+
   /** 通过书中别名查找真实名称 */
   async resolveAlias(bookId: string, alias: string): Promise<string | null> {
     const state = await this.getBookState(bookId);
     if (!state) return null;
-    
+
     const chain = state.aliasChains.find(a => a.bookAlias === alias);
     return chain?.realName || null;
   }
@@ -640,26 +711,26 @@ class BookStateManager {
 class EntryPromotionManager {
   private env: Env;
   private logger: Logger;
-  
+
   constructor(env: Env, logger: Logger) {
     this.env = env;
     this.logger = logger;
   }
-  
+
   /** 记录词条确认 */
   async recordConfirmation(
     entry: DictionaryEntry,
     bookId: string
   ): Promise<EntryConfirmation> {
     const key = `decoder:promotion:${entry.original}`;
-    
+
     let confirmation: EntryConfirmation;
-    
+
     try {
       const existing = await this.env.DECODER_KV.get(key);
       if (existing) {
         confirmation = JSON.parse(existing) as EntryConfirmation;
-        
+
         // 检查是否已在此书中确认过
         if (!confirmation.confirmedInBooks.includes(bookId)) {
           confirmation.confirmedInBooks.push(bookId);
@@ -677,7 +748,7 @@ class EntryPromotionManager {
           lastConfirmedAt: Date.now(),
         };
       }
-      
+
       await this.env.DECODER_KV.put(key, JSON.stringify(confirmation));
     } catch (e) {
       this.logger.error('Failed to record confirmation:', e);
@@ -692,16 +763,16 @@ class EntryPromotionManager {
         lastConfirmedAt: Date.now(),
       };
     }
-    
+
     return confirmation;
   }
-  
+
   /** 检查是否应该自动提升 */
   shouldPromote(confirmation: EntryConfirmation): boolean {
     // 在不同书籍中被确认的次数达到阈值
     return confirmation.confirmedInBooks.length >= CONFIG.AUTO_PROMOTION_THRESHOLD;
   }
-  
+
   /** 提升词条到分类词典 (使用 KV 存储) */
   async promoteToCategory(
     entry: DictionaryEntry,
@@ -711,15 +782,15 @@ class EntryPromotionManager {
       // 读取分类词典 (从 KV)
       const categoryKey = `decoder:dict:category:${categoryType}`;
       const data = await this.env.DECODER_KV.get(categoryKey);
-      
+
       let entries: DictionaryEntry[] = [];
       if (data) {
         entries = JSON.parse(data);
       }
-      
+
       // 检查是否已存在
       const existingIdx = entries.findIndex(e => e.original === entry.original);
-      
+
       const promotedEntry: DictionaryEntry = {
         ...entry,
         id: existingIdx >= 0 ? entries[existingIdx].id : generateId(),
@@ -728,7 +799,7 @@ class EntryPromotionManager {
         source: 'community', // 社区贡献
         updatedAt: Date.now(),
       };
-      
+
       if (existingIdx >= 0) {
         // 更新现有词条，增加确认次数
         entries[existingIdx] = {
@@ -739,10 +810,10 @@ class EntryPromotionManager {
       } else {
         entries.push(promotedEntry);
       }
-      
+
       // 保存回 KV
       await this.env.DECODER_KV.put(categoryKey, JSON.stringify(entries));
-      
+
       this.logger.info(`Promoted entry "${entry.original}" to category ${categoryType}`);
       return true;
     } catch (e) {
@@ -750,7 +821,7 @@ class EntryPromotionManager {
       return false;
     }
   }
-  
+
   /** 处理用户确认并检查是否需要提升 */
   async handleUserConfirmation(
     entry: DictionaryEntry,
@@ -759,13 +830,13 @@ class EntryPromotionManager {
   ): Promise<{ promoted: boolean; confirmation: EntryConfirmation }> {
     // 记录确认
     const confirmation = await this.recordConfirmation(entry, bookId);
-    
+
     // 检查是否需要提升
     if (this.shouldPromote(confirmation) && bookType) {
       const promoted = await this.promoteToCategory(entry, bookType);
       return { promoted, confirmation };
     }
-    
+
     return { promoted: false, confirmation };
   }
 }
@@ -778,83 +849,98 @@ class KnowledgeGraph {
   private persons: Map<string, PersonEntity> = new Map();
   private companies: Map<string, CompanyEntity> = new Map();
   private events: Map<string, EventEntity> = new Map();
-  
+  // Inverted Index for O(1) lookup
+  private aliasIndex: Map<string, PersonEntity | CompanyEntity | EventEntity> = new Map();
+
   private env: Env;
   private logger: Logger;
   private loaded = false;
-  
+
   constructor(env: Env, logger: Logger) {
     this.env = env;
     this.logger = logger;
   }
-  
+
   /** 加载知识图谱 (使用 KV 存储) */
   async load(): Promise<void> {
     if (this.loaded) return;
-    
+
     try {
       // 加载人物
       const personsData = await this.env.DECODER_KV.get('decoder:knowledge:persons');
       if (personsData) {
         const data: PersonEntity[] = JSON.parse(personsData);
-        data.forEach(p => this.persons.set(p.id, p));
+        data.forEach(p => {
+          this.persons.set(p.id, p);
+          // Build index
+          this.aliasIndex.set(p.realName, p);
+          p.aliases.forEach(a => this.aliasIndex.set(a, p));
+        });
       }
-      
+
       // 加载公司
       const companiesData = await this.env.DECODER_KV.get('decoder:knowledge:companies');
       if (companiesData) {
         const data: CompanyEntity[] = JSON.parse(companiesData);
-        data.forEach(c => this.companies.set(c.id, c));
+        data.forEach(c => {
+          this.companies.set(c.id, c);
+          // Build index
+          this.aliasIndex.set(c.realName, c);
+          c.aliases.forEach(a => this.aliasIndex.set(a, c));
+        });
       }
-      
+
       // 加载事件
       const eventsData = await this.env.DECODER_KV.get('decoder:knowledge:events');
       if (eventsData) {
         const data: EventEntity[] = JSON.parse(eventsData);
-        data.forEach(e => this.events.set(e.id, e));
+        data.forEach(e => {
+          this.events.set(e.id, e);
+          // Build index
+          this.aliasIndex.set(e.name, e);
+          e.aliases.forEach(a => this.aliasIndex.set(a, e));
+        });
       }
-      
+
       this.loaded = true;
     } catch (e) {
       this.logger.error('Failed to load knowledge graph:', e);
     }
   }
-  
+
   /** 按时间点查询人物职位 */
   queryPersonPosition(personId: string, date: string): string | null {
     const person = this.persons.get(personId);
     if (!person) return null;
-    
+
     const targetDate = new Date(date);
-    
+
     for (const t of person.timeline) {
       const start = new Date(t.startDate);
       const end = t.endDate ? new Date(t.endDate) : new Date();
-      
+
       if (targetDate >= start && targetDate <= end) {
         return `${t.organization} ${t.position}`;
       }
     }
-    
+
     return null;
   }
-  
-  /** 通过别名查找人物 */
+
+  /** 通过别名查找人物 - O(1) */
   findPersonByAlias(alias: string): PersonEntity | null {
-    for (const person of this.persons.values()) {
-      if (person.realName === alias || person.aliases.includes(alias)) {
-        return person;
-      }
+    const entity = this.aliasIndex.get(alias);
+    if (entity && this.persons.has(entity.id)) {
+      return entity as PersonEntity;
     }
     return null;
   }
-  
-  /** 通过别名查找公司 */
+
+  /** 通过别名查找公司 - O(1) */
   findCompanyByAlias(alias: string): CompanyEntity | null {
-    for (const company of this.companies.values()) {
-      if (company.realName === alias || company.aliases.includes(alias)) {
-        return company;
-      }
+    const entity = this.aliasIndex.get(alias);
+    if (entity && this.companies.has(entity.id)) {
+      return entity as CompanyEntity;
     }
     return null;
   }
@@ -873,11 +959,11 @@ class ContextAnalyzer {
     const eraMatch = content.match(/([\d零一二三四五六七八九]+)年代/);
     // 匹配具体日期
     const dateMatch = content.match(/(\d{4})年(\d{1,2})月/);
-    
+
     let era: string | undefined;
     let specificDate: string | undefined;
     let confidence = 0;
-    
+
     if (dateMatch) {
       specificDate = `${dateMatch[1]}年${dateMatch[2]}月`;
       era = `${Math.floor(parseInt(dateMatch[1]) / 10) * 10}年代`;
@@ -889,10 +975,10 @@ class ContextAnalyzer {
       era = `${eraMatch[1]}年代`;
       confidence = 60;
     }
-    
+
     return { era, specificDate, confidence };
   }
-  
+
   /** 提取地点背景 */
   extractLocationContext(content: string): ChapterContext['locationContext'] {
     // 常见地点关键词
@@ -905,7 +991,7 @@ class ContextAnalyzer {
       '外滩': { city: '上海', place: '外滩' },
       '陆家嘴': { city: '上海', place: '陆家嘴' },
     };
-    
+
     for (const [keyword, location] of Object.entries(placeKeywords)) {
       if (content.includes(keyword)) {
         return {
@@ -915,20 +1001,20 @@ class ContextAnalyzer {
         };
       }
     }
-    
+
     // 匹配城市名
     const cityMatch = content.match(/(北京|上海|广州|深圳|杭州|成都|重庆|武汉|西安|南京)/);
     if (cityMatch) {
       return { city: cityMatch[1], confidence: 60 };
     }
-    
+
     return { confidence: 0 };
   }
-  
+
   /** 提取行业背景 */
   extractIndustryContext(content: string): string[] {
     const industries: string[] = [];
-    
+
     const industryKeywords: Record<string, string[]> = {
       '电影': ['电影', '导演', '演员', '拍摄', '剧本', '票房'],
       '政治': ['领导', '部长', '书记', '政府', '中央', '会议'],
@@ -936,16 +1022,16 @@ class ContextAnalyzer {
       '娱乐': ['明星', '歌手', '综艺', '演唱会', '粉丝'],
       '商业': ['公司', '企业', '投资', '股票', '上市'],
     };
-    
+
     for (const [industry, keywords] of Object.entries(industryKeywords)) {
       if (keywords.some(k => content.includes(k))) {
         industries.push(industry);
       }
     }
-    
+
     return industries;
   }
-  
+
   /** 分析章节上下文 */
   analyze(content: string): ChapterContext {
     return {
@@ -965,26 +1051,26 @@ class AIInferenceEngine {
   private env: Env;
   private logger: Logger;
   private callCount = 0;
-  
+
   constructor(env: Env, logger: Logger) {
     this.env = env;
     this.logger = logger;
   }
-  
+
   /** 重置调用计数 */
   resetCallCount(): void {
     this.callCount = 0;
   }
-  
+
   /** 检查是否可以调用 AI */
   canCall(): boolean {
     return this.callCount < CONFIG.MAX_AI_CALLS_PER_CHAPTER;
   }
-  
+
   /** 构建推理 Prompt */
   private buildPrompt(request: AIInferRequest): string {
     const contextInfo: string[] = [];
-    
+
     if (request.context.timeContext.era) {
       contextInfo.push(`时代背景: ${request.context.timeContext.era}`);
     }
@@ -997,7 +1083,7 @@ class AIInferenceEngine {
     if (request.context.industryContext.length > 0) {
       contextInfo.push(`行业: ${request.context.industryContext.join(', ')}`);
     }
-    
+
     return `你是一个网文解密专家，擅长识别中国网络小说中为规避审核而使用的谐音、代称、暗指等"加密"内容。
 
 背景信息:
@@ -1025,17 +1111,17 @@ ${request.text}
   ]
 }`;
   }
-  
+
   /** 调用 CF Workers AI */
   private async callWorkersAI(prompt: string): Promise<AIInferResponse | null> {
     if (!this.env.AI) return null;
-    
+
     try {
       const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
         prompt,
         max_tokens: 1024,
       });
-      
+
       // 解析响应
       const text = typeof response === 'string' ? response : (response as { response?: string }).response || '';
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1045,14 +1131,14 @@ ${request.text}
     } catch (e) {
       this.logger.error('Workers AI error:', e);
     }
-    
+
     return null;
   }
-  
+
   /** 调用 Groq API */
   private async callGroq(prompt: string): Promise<AIInferResponse | null> {
     if (!this.env.GROQ_API_KEY) return null;
-    
+
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -1066,9 +1152,9 @@ ${request.text}
           max_tokens: 1024,
         }),
       });
-      
+
       if (!response.ok) return null;
-      
+
       const data = await response.json() as { choices?: { message?: { content?: string } }[] };
       const text = data.choices?.[0]?.message?.content || '';
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1078,14 +1164,14 @@ ${request.text}
     } catch (e) {
       this.logger.error('Groq API error:', e);
     }
-    
+
     return null;
   }
 
   /** 调用 HuggingFace Inference API */
   private async callHuggingFace(prompt: string): Promise<AIInferResponse | null> {
     if (!this.env.HF_API_KEY) return null;
-    
+
     try {
       const response = await fetch('https://api-inference.huggingface.co/models/meta-llama/Llama-3.1-8B-Instruct', {
         method: 'POST',
@@ -1098,9 +1184,9 @@ ${request.text}
           parameters: { max_new_tokens: 1024 },
         }),
       });
-      
+
       if (!response.ok) return null;
-      
+
       const data = await response.json() as { generated_text?: string }[];
       const text = data[0]?.generated_text || '';
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1110,32 +1196,32 @@ ${request.text}
     } catch (e) {
       this.logger.error('HuggingFace API error:', e);
     }
-    
+
     return null;
   }
-  
+
   /** 推理 - 按优先级尝试: CF Workers AI → Groq → HF */
   async infer(request: AIInferRequest): Promise<AIInferResponse | null> {
     if (!this.canCall()) {
       this.logger.warn('AI call limit reached');
       return null;
     }
-    
+
     this.callCount++;
     const prompt = this.buildPrompt(request);
-    
+
     // 1. 尝试 CF Workers AI
     let result = await this.callWorkersAI(prompt);
     if (result) return result;
-    
+
     // 2. 尝试 Groq
     result = await this.callGroq(prompt);
     if (result) return result;
-    
+
     // 3. 尝试 HuggingFace
     result = await this.callHuggingFace(prompt);
     if (result) return result;
-    
+
     return null;
   }
 }
@@ -1157,7 +1243,7 @@ class RuleEngine {
     '双木': '林',
     '三水': '淼',
   };
-  
+
   /** 常见模式 */
   private static PATTERNS: { pattern: RegExp; handler: (match: string) => Candidate | null }[] = [
     // "某X" 模式
@@ -1193,7 +1279,7 @@ class RuleEngine {
       },
     },
   ];
-  
+
   /** 应用拆字规则 */
   applySplitCharRule(term: string): Candidate | null {
     const result = RuleEngine.SPLIT_CHAR_MAP[term];
@@ -1207,7 +1293,7 @@ class RuleEngine {
     }
     return null;
   }
-  
+
   /** 应用模式匹配 */
   applyPatterns(term: string): Candidate | null {
     for (const { pattern, handler } of RuleEngine.PATTERNS) {
@@ -1218,17 +1304,17 @@ class RuleEngine {
     }
     return null;
   }
-  
+
   /** 尝试所有规则 */
   tryMatch(term: string): Candidate | null {
     // 1. 拆字规则
     let result = this.applySplitCharRule(term);
     if (result) return result;
-    
+
     // 2. 模式匹配
     result = this.applyPatterns(term);
     if (result) return result;
-    
+
     return null;
   }
 }
@@ -1247,7 +1333,7 @@ class DecoderEngine {
   private promotionManager: EntryPromotionManager;
   private env: Env;
   private logger: Logger;
-  
+
   constructor(env: Env) {
     this.env = env;
     this.logger = createLogger(env);
@@ -1259,34 +1345,34 @@ class DecoderEngine {
     this.bookStateManager = new BookStateManager(env, this.logger);
     this.promotionManager = new EntryPromotionManager(env, this.logger);
   }
-  
+
   /** 初始化 */
   async init(bookId?: string, bookType?: BookType, bookMeta?: BookMeta): Promise<void> {
     await Promise.all([
       this.dictionary.load(bookId, bookType),
       this.knowledgeGraph.load(),
     ]);
-    
+
     // 初始化书籍状态
     if (bookId && bookMeta) {
       await this.bookStateManager.initBookState(bookId, bookMeta);
     }
   }
-  
+
   /** 获取书籍状态管理器 */
   getBookStateManager(): BookStateManager {
     return this.bookStateManager;
   }
-  
+
   /** 获取词条提升管理器 */
   getPromotionManager(): EntryPromotionManager {
     return this.promotionManager;
   }
-  
+
   /** 提取潜在加密词 */
   private extractPotentialTerms(content: string): { term: string; start: number; end: number }[] {
     const terms: { term: string; start: number; end: number }[] = [];
-    
+
     // 常见加密词模式
     const patterns = [
       // 职务暗指: X领导、X公、X哥
@@ -1298,7 +1384,7 @@ class DecoderEngine {
       // 公司代称: X厂、某X
       /[鹅猪狗猫]厂|某[\u4e00-\u9fa5]/g,
     ];
-    
+
     for (const pattern of patterns) {
       let match;
       while ((match = pattern.exec(content)) !== null) {
@@ -1309,7 +1395,7 @@ class DecoderEngine {
         });
       }
     }
-    
+
     // 去重
     const seen = new Set<string>();
     return terms.filter(t => {
@@ -1319,7 +1405,7 @@ class DecoderEngine {
       return true;
     });
   }
-  
+
   /** 解码单个词 */
   private async decodeTerm(
     term: string,
@@ -1336,7 +1422,7 @@ class DecoderEngine {
       bestMatch: null,
       source: 'dictionary',
     };
-    
+
     // 1. 词典匹配
     const dictEntry = this.dictionary.lookup(term, bookId, bookType);
     if (dictEntry) {
@@ -1350,7 +1436,7 @@ class DecoderEngine {
       entity.source = 'dictionary';
       return entity;
     }
-    
+
     // 2. 规则引擎
     const ruleResult = this.ruleEngine.tryMatch(term);
     if (ruleResult) {
@@ -1359,7 +1445,7 @@ class DecoderEngine {
       entity.source = 'rule';
       return entity;
     }
-    
+
     // 3. 知识图谱
     const person = this.knowledgeGraph.findPersonByAlias(term);
     if (person) {
@@ -1373,7 +1459,7 @@ class DecoderEngine {
       entity.source = 'knowledge_graph';
       return entity;
     }
-    
+
     const company = this.knowledgeGraph.findCompanyByAlias(term);
     if (company) {
       entity.candidates.push({
@@ -1386,14 +1472,14 @@ class DecoderEngine {
       entity.source = 'knowledge_graph';
       return entity;
     }
-    
+
     return entity; // 返回未识别的实体，后续可能用 AI 处理
   }
 
   /** 解码章节 */
   async decode(request: DecodeRequest): Promise<DecodeResponse> {
     const { bookId, chapterId, content, bookMeta } = request;
-    
+
     // 检查缓存
     const cacheKey = `decoder:cache:${chapterId}`;
     try {
@@ -1406,21 +1492,21 @@ class DecoderEngine {
     } catch (e) {
       this.logger.error('Cache read error:', e);
     }
-    
+
     // 初始化（包含书籍状态）
     await this.init(bookId, bookMeta?.type, bookMeta);
     this.aiEngine.resetCallCount();
-    
+
     // 分析上下文
     const context = this.contextAnalyzer.analyze(content);
-    
+
     // 提取潜在加密词
     const potentialTerms = this.extractPotentialTerms(content);
-    
+
     // 解码每个词
     const entities: DecodedEntity[] = [];
     const unknownTerms: string[] = [];
-    
+
     for (const { term, start, end } of potentialTerms) {
       const entity = await this.decodeTerm(term, { start, end }, context, bookId, bookMeta?.type);
       if (entity) {
@@ -1437,7 +1523,7 @@ class DecoderEngine {
         }
       }
     }
-    
+
     // AI 推理未识别的词
     if (unknownTerms.length > 0 && this.aiEngine.canCall()) {
       const aiResult = await this.aiEngine.infer({
@@ -1446,7 +1532,7 @@ class DecoderEngine {
         unknownTerms,
         maxCandidates: 3,
       });
-      
+
       if (aiResult?.results) {
         for (const result of aiResult.results) {
           const termInfo = potentialTerms.find(t => t.term === result.original);
@@ -1470,17 +1556,17 @@ class DecoderEngine {
         }
       }
     }
-    
+
     // 按位置排序
     entities.sort((a, b) => a.position.start - b.position.start);
-    
+
     const response: DecodeResponse = {
       chapterId,
       entities,
       context,
       cached: false,
     };
-    
+
     // 缓存结果
     try {
       await this.env.DECODER_KV.put(cacheKey, JSON.stringify(response), {
@@ -1489,7 +1575,7 @@ class DecoderEngine {
     } catch (e) {
       this.logger.error('Cache write error:', e);
     }
-    
+
     // 更新书籍统计信息 (11.1)
     if (bookId && entities.length > 0) {
       try {
@@ -1498,7 +1584,7 @@ class DecoderEngine {
         this.logger.error('Update book stats error:', e);
       }
     }
-    
+
     return response;
   }
 }
@@ -1520,20 +1606,20 @@ function handleOptions(request: Request): Response {
 async function handleDecode(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as DecodeRequest;
-    
+
     if (!body.bookId || !body.chapterId || !body.content) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     const decoder = new DecoderEngine(env);
     const result = await decoder.decode(body);
-    
+
     return new Response(JSON.stringify(result), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -1554,10 +1640,10 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
   const level = url.searchParams.get('level') || 'all';
   const bookId = url.searchParams.get('bookId');
   const category = url.searchParams.get('category') as BookType | null;
-  
+
   try {
     const entries: DictionaryEntry[] = [];
-    
+
     // 公共词典 (从 KV)
     if (level === 'all' || level === 'global') {
       const data = await env.DECODER_KV.get('decoder:dict:global');
@@ -1566,7 +1652,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
         entries.push(...globalEntries);
       }
     }
-    
+
     // 分类词典 (从 KV)
     if ((level === 'all' || level === 'category') && category) {
       const data = await env.DECODER_KV.get(`decoder:dict:category:${category}`);
@@ -1575,7 +1661,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
         entries.push(...categoryEntries);
       }
     }
-    
+
     // 用户词典
     if (level === 'all' || level === 'user') {
       const data = await env.DECODER_KV.get(`decoder:user:${userId}:dictionary`);
@@ -1584,7 +1670,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
         entries.push(...userEntries);
       }
     }
-    
+
     // 书籍词典
     if ((level === 'all' || level === 'book') && bookId) {
       const data = await env.DECODER_KV.get(`decoder:book:${bookId}:dictionary`);
@@ -1593,7 +1679,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
         entries.push(...bookEntries);
       }
     }
-    
+
     return new Response(JSON.stringify({ entries }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -1610,7 +1696,7 @@ async function handleGetDictionary(request: Request, env: Env, userId: string): 
 async function handleUpdateDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as {
       entry: Partial<DictionaryEntry>;
@@ -1618,16 +1704,16 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
       bookId?: string;
       promote?: boolean; // 是否提升到分类词典
     };
-    
+
     const { entry, level, bookId, promote } = body;
-    
+
     if (!entry.original || !entry.real) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // 构建完整词条
     const now = Date.now();
     const fullEntry: DictionaryEntry = {
@@ -1647,13 +1733,13 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
       createdAt: entry.createdAt || now,
       updatedAt: now,
     };
-    
+
     // 根据层级存储
     if (level === 'book' && bookId) {
       const key = `decoder:book:${bookId}:dictionary`;
       const existing = await env.DECODER_KV.get(key);
       const entries: DictionaryEntry[] = existing ? JSON.parse(existing) : [];
-      
+
       // 更新或添加
       const idx = entries.findIndex(e => e.original === fullEntry.original);
       if (idx >= 0) {
@@ -1661,23 +1747,23 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
       } else {
         entries.push(fullEntry);
       }
-      
+
       await env.DECODER_KV.put(key, JSON.stringify(entries));
     } else if (level === 'category' || promote) {
       // 用户确认后提升到分类词典需要管理员权限，这里先存到用户词典
       const key = `decoder:user:${userId}:dictionary`;
       const existing = await env.DECODER_KV.get(key);
       const entries: DictionaryEntry[] = existing ? JSON.parse(existing) : [];
-      
+
       const idx = entries.findIndex(e => e.original === fullEntry.original);
       if (idx >= 0) {
         entries[idx] = fullEntry;
       } else {
         entries.push(fullEntry);
       }
-      
+
       await env.DECODER_KV.put(key, JSON.stringify(entries));
-      
+
       // 检查是否达到自动提升阈值
       if (fullEntry.confirmCount >= CONFIG.AUTO_PROMOTION_THRESHOLD) {
         // Implement auto-promotion logic
@@ -1688,7 +1774,7 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
         }
       }
     }
-    
+
     return new Response(JSON.stringify({ success: true, entry: fullEntry }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -1705,36 +1791,36 @@ async function handleUpdateDictionary(request: Request, env: Env, userId: string
 async function handleImportDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as { entries: DictionaryEntry[] };
-    
+
     if (!Array.isArray(body.entries)) {
       return new Response(JSON.stringify({ error: 'Invalid format' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // 验证并过滤有效词条
     const validEntries = body.entries.filter(validateDictionaryEntry);
-    
+
     // 存储到用户词典
     const key = `decoder:user:${userId}:dictionary`;
     const existing = await env.DECODER_KV.get(key);
     const currentEntries: DictionaryEntry[] = existing ? JSON.parse(existing) : [];
-    
+
     // 合并（新词条覆盖旧词条）
     const merged = new Map<string, DictionaryEntry>();
     currentEntries.forEach(e => merged.set(e.original, e));
     validEntries.forEach(e => merged.set(e.original, e));
-    
+
     await env.DECODER_KV.put(key, JSON.stringify([...merged.values()]));
-    
-    return new Response(JSON.stringify({ 
-      success: true, 
+
+    return new Response(JSON.stringify({
+      success: true,
       imported: validEntries.length,
-      total: merged.size 
+      total: merged.size
     }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -1751,14 +1837,14 @@ async function handleImportDictionary(request: Request, env: Env, userId: string
 async function handleExportDictionary(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const key = `decoder:user:${userId}:dictionary`;
     const data = await env.DECODER_KV.get(key);
     const entries: DictionaryEntry[] = data ? JSON.parse(data) : [];
-    
+
     return new Response(JSON.stringify({ entries }), {
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Content-Disposition': 'attachment; filename="decoder-dictionary.json"',
         ...corsHeaders(origin),
@@ -1786,7 +1872,7 @@ async function handleDeleteDictionary(
   const level = (url.searchParams.get('level') || 'user') as DictionaryLevel;
   const bookId = url.searchParams.get('bookId');
   const category = url.searchParams.get('category') as BookType | null;
-  
+
   // Validate parameters
   if (level === 'book' && !bookId) {
     return new Response(JSON.stringify({
@@ -1797,7 +1883,7 @@ async function handleDeleteDictionary(
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   }
-  
+
   if (level === 'category' && !category) {
     return new Response(JSON.stringify({
       error: 'Missing required parameter',
@@ -1807,7 +1893,7 @@ async function handleDeleteDictionary(
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   }
-  
+
   try {
     // Determine KV key based on level
     let key: string;
@@ -1818,7 +1904,7 @@ async function handleDeleteDictionary(
     } else {
       key = `decoder:dict:category:${category}`;
     }
-    
+
     // Get current dictionary
     const data = await env.DECODER_KV.get(key);
     if (!data) {
@@ -1829,13 +1915,13 @@ async function handleDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     const entries: DictionaryEntry[] = JSON.parse(data);
-    
+
     // Find and remove entry
     const initialLength = entries.length;
     const filtered = entries.filter(e => e.id !== entryId);
-    
+
     if (filtered.length === initialLength) {
       return new Response(JSON.stringify({
         error: 'Entry not found',
@@ -1845,12 +1931,12 @@ async function handleDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // Save updated dictionary
     await env.DECODER_KV.put(key, JSON.stringify(filtered));
-    
+
     logger.info(`Deleted dictionary entry ${entryId} from ${level} dictionary`);
-    
+
     return new Response(JSON.stringify({
       success: true,
       deletedId: entryId,
@@ -1860,7 +1946,7 @@ async function handleDeleteDictionary(
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
-    
+
   } catch (e) {
     logger.error('Delete dictionary error:', e);
     return new Response(JSON.stringify({
@@ -1880,7 +1966,7 @@ async function handleBatchDeleteDictionary(
 ): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as {
       ids: string[];
@@ -1888,7 +1974,7 @@ async function handleBatchDeleteDictionary(
       bookId?: string;
       category?: BookType;
     };
-    
+
     // Validate input
     if (!Array.isArray(body.ids) || body.ids.length === 0) {
       return new Response(JSON.stringify({
@@ -1899,7 +1985,7 @@ async function handleBatchDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     if (body.ids.length > 100) {
       return new Response(JSON.stringify({
         error: 'Invalid request',
@@ -1909,9 +1995,9 @@ async function handleBatchDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     const level = body.level || 'user';
-    
+
     // Validate level-specific parameters
     if (level === 'book' && !body.bookId) {
       return new Response(JSON.stringify({
@@ -1922,7 +2008,7 @@ async function handleBatchDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     if (level === 'category' && !body.category) {
       return new Response(JSON.stringify({
         error: 'Missing required parameter',
@@ -1932,7 +2018,7 @@ async function handleBatchDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // Determine KV key
     let key: string;
     if (level === 'user') {
@@ -1942,7 +2028,7 @@ async function handleBatchDeleteDictionary(
     } else {
       key = `decoder:dict:category:${body.category}`;
     }
-    
+
     // Get current dictionary
     const data = await env.DECODER_KV.get(key);
     if (!data) {
@@ -1959,11 +2045,11 @@ async function handleBatchDeleteDictionary(
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     const entries: DictionaryEntry[] = JSON.parse(data);
     const idsToDelete = new Set(body.ids);
     const deletedIds: string[] = [];
-    
+
     // Filter out entries to delete
     const filtered = entries.filter(e => {
       if (idsToDelete.has(e.id)) {
@@ -1972,15 +2058,15 @@ async function handleBatchDeleteDictionary(
       }
       return true;
     });
-    
+
     // Determine failed IDs
     const failedIds = body.ids.filter(id => !deletedIds.includes(id));
-    
+
     // Save updated dictionary
     await env.DECODER_KV.put(key, JSON.stringify(filtered));
-    
+
     logger.info(`Batch deleted ${deletedIds.length} entries from ${level} dictionary`);
-    
+
     return new Response(JSON.stringify({
       success: true,
       deleted: deletedIds.length,
@@ -1993,7 +2079,7 @@ async function handleBatchDeleteDictionary(
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
-    
+
   } catch (e) {
     logger.error('Batch delete dictionary error:', e);
     return new Response(JSON.stringify({
@@ -2009,18 +2095,18 @@ async function handleBatchDeleteDictionary(
 async function handleGetBookState(request: Request, env: Env, bookId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const decoder = new DecoderEngine(env);
     const state = await decoder.getBookStateManager().getBookState(bookId);
-    
+
     if (!state) {
       return new Response(JSON.stringify({ error: 'Book state not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     return new Response(JSON.stringify(state), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -2037,16 +2123,16 @@ async function handleGetBookState(request: Request, env: Env, bookId: string): P
 async function handleUpdateBookState(request: Request, env: Env, bookId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as {
       meta?: BookMeta;
       aliasChain?: { bookAlias: string; realName?: string; entityId?: string };
     };
-    
+
     const decoder = new DecoderEngine(env);
     const stateManager = decoder.getBookStateManager();
-    
+
     // 初始化或获取现有状态
     let state = await stateManager.getBookState(bookId);
     if (!state && body.meta) {
@@ -2057,13 +2143,13 @@ async function handleUpdateBookState(request: Request, env: Env, bookId: string)
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // 更新 meta
     if (body.meta) {
       state.meta = { ...state.meta, ...body.meta };
       await stateManager.saveBookState(state);
     }
-    
+
     // 添加别名链
     if (body.aliasChain) {
       await stateManager.addAliasChain(
@@ -2074,7 +2160,7 @@ async function handleUpdateBookState(request: Request, env: Env, bookId: string)
       );
       state = await stateManager.getBookState(bookId);
     }
-    
+
     return new Response(JSON.stringify(state), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
@@ -2091,36 +2177,36 @@ async function handleUpdateBookState(request: Request, env: Env, bookId: string)
 async function handleConfirmEntry(request: Request, env: Env, userId: string): Promise<Response> {
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
-  
+
   try {
     const body = await request.json() as {
       entry: DictionaryEntry;
       bookId: string;
       bookType?: BookType;
     };
-    
+
     if (!body.entry || !body.bookId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     const decoder = new DecoderEngine(env);
     const promotionManager = decoder.getPromotionManager();
-    
+
     // 处理用户确认
     const { promoted, confirmation } = await promotionManager.handleUserConfirmation(
       body.entry,
       body.bookId,
       body.bookType
     );
-    
+
     // 同时保存到书籍词典
     const bookDictKey = `decoder:book:${body.bookId}:dictionary`;
     const existing = await env.DECODER_KV.get(bookDictKey);
     const entries: DictionaryEntry[] = existing ? JSON.parse(existing) : [];
-    
+
     const now = Date.now();
     const updatedEntry: DictionaryEntry = {
       ...body.entry,
@@ -2130,16 +2216,16 @@ async function handleConfirmEntry(request: Request, env: Env, userId: string): P
       source: 'user',
       updatedAt: now,
     };
-    
+
     const idx = entries.findIndex(e => e.original === updatedEntry.original);
     if (idx >= 0) {
       entries[idx] = updatedEntry;
     } else {
       entries.push(updatedEntry);
     }
-    
+
     await env.DECODER_KV.put(bookDictKey, JSON.stringify(entries));
-    
+
     return new Response(JSON.stringify({
       success: true,
       entry: updatedEntry,
@@ -2170,18 +2256,18 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     const origin = request.headers.get('Origin') || '';
-    
+
     // 保存 ctx 用于异步操作
     env.ctx = ctx;
-    
+
     // 处理 CORS 预检
     if (request.method === 'OPTIONS') {
       return handleOptions(request);
     }
-    
+
     // 健康检查（不需要认证）
     if (path === '/health') {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         status: 'ok',
         service: 'novel-decoder',
         timestamp: new Date().toISOString(),
@@ -2189,11 +2275,11 @@ export default {
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // ========== 以下端点需要认证 ==========
     const user = await verifyAuth(request, env);
     if (!user) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: 'Unauthorized',
         message: 'Please login first',
       }), {
@@ -2201,44 +2287,44 @@ export default {
         headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
-    
+
     // 从 token payload 中提取 userId
     const userId = user.id;
-    
+
     // 路由
     switch (true) {
       // 解码章节
       case path === '/decode' && request.method === 'POST':
         return handleDecode(request, env);
-      
+
       // 获取词典
       case path === '/dictionary' && request.method === 'GET':
         return handleGetDictionary(request, env, userId);
-      
+
       // 更新词典
       case path === '/dictionary' && request.method === 'PUT':
         return handleUpdateDictionary(request, env, userId);
-      
+
       // 导入词典
       case path === '/dictionary/import' && request.method === 'POST':
         return handleImportDictionary(request, env, userId);
-      
+
       // 导出词典
       case path === '/dictionary/export' && request.method === 'GET':
         return handleExportDictionary(request, env, userId);
-      
+
       // 用户确认词条 (11.4)
       case path === '/dictionary/confirm' && request.method === 'POST':
         return handleConfirmEntry(request, env, userId);
-      
+
       // 批量删除词典条目
       case path === '/dictionary/batch' && request.method === 'DELETE':
         return handleBatchDeleteDictionary(request, env, userId);
-      
+
       default:
         break;
     }
-    
+
     // 删除单个词典条目 (需要动态路由匹配)
     const deleteDictMatch = path.match(/^\/dictionary\/([^/]+)$/);
     if (deleteDictMatch && request.method === 'DELETE') {
@@ -2248,7 +2334,7 @@ export default {
         return handleDeleteDictionary(request, env, userId, entryId);
       }
     }
-    
+
     // 书籍状态路由 (11.1)
     const bookStateMatch = path.match(/^\/book\/([^/]+)\/state$/);
     if (bookStateMatch) {
@@ -2259,7 +2345,7 @@ export default {
         return handleUpdateBookState(request, env, bookId);
       }
     }
-    
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },

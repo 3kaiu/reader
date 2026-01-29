@@ -178,9 +178,9 @@ async function testVoice() {
 
   isTestingVoice.value = true;
   try {
-    // TODO: 实际调用 TTS 生成音频
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    success("测试功能开发中，请稍后");
+    const text = "这是一段测试文本，用于测试音色效果。";
+    await voiceStore.speak(text, selectedVoice.value.id);
+    success("测试音频播放完成");
   } catch (e) {
     handlePromiseError(e, "测试音色失败");
   } finally {

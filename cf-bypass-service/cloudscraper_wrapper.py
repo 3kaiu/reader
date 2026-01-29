@@ -54,18 +54,33 @@ class FetchResult:
 
 # ─────────────────────────────────────────────────────────────
 # Cache Manager - CloudScraper doesn't have caching
+# Uses redis.asyncio for non-blocking async operations
 # ─────────────────────────────────────────────────────────────
 
 class CacheManager:
     def __init__(self, redis_url: str = "redis://localhost:6379"):
+        self.redis_url = redis_url
+        self.redis = None
+        self._initialized = False
+    
+    async def _ensure_connected(self) -> bool:
+        """Lazy async initialization of Redis connection"""
+        if self._initialized:
+            return self.redis is not None
+        
+        self._initialized = True
         try:
-            self.redis = redis.from_url(redis_url, decode_responses=True)
+            # Use redis.asyncio for true async support
+            import redis.asyncio as aioredis
+            self.redis = aioredis.from_url(self.redis_url, decode_responses=True)
             # Test connection
-            self.redis.ping()
-            logger.info("Redis cache connected")
+            await self.redis.ping()
+            logger.info("Redis cache connected (async)")
+            return True
         except Exception as e:
             logger.warning(f"Redis cache unavailable: {e}")
             self.redis = None
+            return False
     
     def generate_key(self, url: str, method: str, kwargs: dict) -> str:
         """Generate unique cache key"""
@@ -79,11 +94,11 @@ class CacheManager:
         return f"cf_bypass:{hashlib.md5(key_str.encode()).hexdigest()}"
     
     async def get(self, key: str) -> Optional[FetchResult]:
-        """Get from cache"""
-        if not self.redis:
+        """Get from cache (async)"""
+        if not await self._ensure_connected():
             return None
         try:
-            data = self.redis.get(key)
+            data = await self.redis.get(key)
             if data:
                 result = FetchResult.from_json(data)
                 result.cached = True
@@ -93,11 +108,11 @@ class CacheManager:
         return None
     
     async def set(self, key: str, result: FetchResult, ttl: int = 300) -> None:
-        """Set cache with TTL"""
-        if not self.redis:
+        """Set cache with TTL (async)"""
+        if not await self._ensure_connected():
             return
         try:
-            self.redis.setex(key, ttl, result.to_json())
+            await self.redis.setex(key, ttl, result.to_json())
         except Exception as e:
             logger.warning(f"Cache set error: {e}")
 

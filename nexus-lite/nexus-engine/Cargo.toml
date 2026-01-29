@@ -44,6 +44,7 @@ parking_lot = "0.12"
 dashmap = "6"
 lru = "0.16"
 futures-util = "0.3.31"
+rand = "0.8"
 
 [features]
 default = []

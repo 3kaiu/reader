@@ -12,7 +12,7 @@ export const useReaderStore = defineStore('reader', () => {
   const contentStore = useReaderContentStore()
   const uiStore = useReaderUIStore()
   const navigationStore = useReaderNavigationStore()
-  
+
   // 创建错误处理器
   const errorHandler = createErrorHandler({ component: 'ReaderStore' })
 
@@ -46,17 +46,17 @@ export const useReaderStore = defineStore('reader', () => {
       uiStore.setLoading(true)
       uiStore.clearErrors()
       contentStore.clearCache()
-      
+
       const success = await navigationStore.openBook(book, refresh)
       if (success) {
         await loadChapter(navigationStore.currentChapterIndex)
       }
     }, { function: 'openBook', bookId: book.id })
-    
+
     if (!result.success) {
       uiStore.setError(result.error.userMessage)
     }
-    
+
     uiStore.setLoading(false)
   }
 
@@ -68,7 +68,7 @@ export const useReaderStore = defineStore('reader', () => {
       // 先设置导航位置
       navigationStore.goToChapter(index)
       uiStore.clearErrors()
-      
+
       // 加载内容
       const chapterContent = await contentStore.loadChapterContent(
         navigationStore.currentBook!,
@@ -76,20 +76,20 @@ export const useReaderStore = defineStore('reader', () => {
         index,
         forceRefresh
       )
-      
+
       if (chapterContent) {
         // 保存进度和更新指标
         await navigationStore.saveProgress()
         uiStore.updateReadingMetrics(chapterContent.length)
-        
+
         // AI索引 (后台任务)
         const runIndexing = async () => {
           try {
             const { useAIService } = await import('./ai')
             const aiStore = useAIService()
             await aiStore.indexChapter(
-              navigationStore.catalog[index].title || '', 
-              chapterContent, 
+              navigationStore.catalog[index].title || '',
+              chapterContent,
               index
             )
           } catch (e) { /* 忽略索引错误 */ }
@@ -104,12 +104,12 @@ export const useReaderStore = defineStore('reader', () => {
           runIndexing()
         }
       }
-    }, { 
-      function: 'loadChapter', 
+    }, {
+      function: 'loadChapter',
       chapterIndex: index,
-      bookId: navigationStore.currentBook?.id 
+      bookId: navigationStore.currentBook?.id
     })
-    
+
     if (!result.success) {
       uiStore.setError(result.error.userMessage)
     }
@@ -138,9 +138,9 @@ export const useReaderStore = defineStore('reader', () => {
   async function appendNextChapter(): Promise<boolean> {
     if (!navigationStore.currentBook || uiStore.isLoadingMore) return false
 
-    // 找到已加载章节中最大的索引
-    const maxLoadedIndex = contentStore.loadedChapters.length > 0
-      ? Math.max(...contentStore.loadedChapters.map(c => c.index))
+    // 找到已加载章节中最大的索引 (O(1) via computed property)
+    const maxLoadedIndex = contentStore.maxLoadedChapterIndex >= 0
+      ? contentStore.maxLoadedChapterIndex
       : navigationStore.currentChapterIndex
 
     const nextIndex = maxLoadedIndex + 1
@@ -175,12 +175,12 @@ export const useReaderStore = defineStore('reader', () => {
       }
 
       // 所有重试都失败了
-      logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, { 
+      logger.error(`加载下一章失败，已重试${maxRetries}次`, lastError as Error, {
         function: 'appendNextChapter',
         nextIndex,
         attempts: maxRetries
       })
-      
+
       // 设置错误状态，供UI显示
       uiStore.setLoadError(lastError?.message || '网络连接异常，请检查网络后重试')
       return false
@@ -202,10 +202,10 @@ export const useReaderStore = defineStore('reader', () => {
   // 跳转到指定章节（无限滚动模式优化版本）
   async function goToChapterInScroll(index: number) {
     if (index < 0 || index >= navigationStore.catalog.length) return
-    
+
     // 检查目标章节是否已经在已加载章节中
     const targetChapter = contentStore.loadedChapters.find(ch => ch.index === index)
-    
+
     if (targetChapter) {
       // 章节已加载，直接更新索引并滚动
       setCurrentChapterIndex(index)
@@ -245,7 +245,7 @@ export const useReaderStore = defineStore('reader', () => {
     if (navigationStore.setCurrentChapterIndex(index)) {
       // 保存进度
       navigationStore.saveProgress()
-      
+
       // 在无限滚动模式下，确保当前章节在已加载章节列表中
       if (contentStore.loadedChapters.length > 0) {
         const hasChapter = contentStore.loadedChapters.some(ch => ch.index === index)
@@ -259,23 +259,23 @@ export const useReaderStore = defineStore('reader', () => {
   // 根据滚动位置更新当前章节索引（用于无限滚动模式）
   function updateChapterIndexByScroll() {
     if (contentStore.loadedChapters.length === 0) return
-    
+
     // 获取当前可见的章节标记
     const chapterMarkers = document.querySelectorAll('.chapter-marker[data-chapter-index]')
     if (chapterMarkers.length === 0) return
-    
+
     const viewportTop = window.scrollY
     const viewportHeight = window.innerHeight
     const viewportCenter = viewportTop + viewportHeight / 2
-    
+
     let currentVisibleIndex = navigationStore.currentChapterIndex
-    
+
     // 找到最接近视口中心的章节
     for (let i = 0; i < chapterMarkers.length; i++) {
       const element = chapterMarkers[i] as HTMLElement
       const rect = element.getBoundingClientRect()
       const elementTop = rect.top + viewportTop
-      
+
       if (elementTop <= viewportCenter) {
         const chapterIndex = parseInt(element.getAttribute('data-chapter-index') || '0')
         currentVisibleIndex = chapterIndex
@@ -283,7 +283,7 @@ export const useReaderStore = defineStore('reader', () => {
         break
       }
     }
-    
+
     // 更新当前章节索引（如果有变化）
     if (currentVisibleIndex !== navigationStore.currentChapterIndex) {
       setCurrentChapterIndex(currentVisibleIndex)

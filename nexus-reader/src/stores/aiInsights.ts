@@ -19,14 +19,26 @@ export const useAIInsightsStore = defineStore('aiInsights', () => {
   async function initDB() {
     if (db) return db
     return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 2) // Bump version to 2
+      const request = indexedDB.open(DB_NAME, 3) // Bump version to 3 for indexes
       request.onupgradeneeded = () => {
         const database = request.result
         if (!database.objectStoreNames.contains(STORE_NAME)) {
-          database.createObjectStore(STORE_NAME, { keyPath: ['bookUrl', 'chapterIndex'] })
+          const store = database.createObjectStore(STORE_NAME, { keyPath: ['bookUrl', 'chapterIndex'] })
+          store.createIndex('bookUrl', 'bookUrl', { unique: false })
+        } else {
+          const store = request.transaction!.objectStore(STORE_NAME)
+          if (!store.indexNames.contains('bookUrl')) {
+            store.createIndex('bookUrl', 'bookUrl', { unique: false })
+          }
         }
         if (!database.objectStoreNames.contains(MANUAL_STORE_NAME)) {
-          database.createObjectStore(MANUAL_STORE_NAME, { keyPath: ['bookUrl', 'name'] })
+          const store = database.createObjectStore(MANUAL_STORE_NAME, { keyPath: ['bookUrl', 'name'] })
+          store.createIndex('bookUrl', 'bookUrl', { unique: false })
+        } else {
+          const store = request.transaction!.objectStore(MANUAL_STORE_NAME)
+          if (!store.indexNames.contains('bookUrl')) {
+            store.createIndex('bookUrl', 'bookUrl', { unique: false })
+          }
         }
       }
       request.onsuccess = () => {
@@ -144,12 +156,16 @@ JSON 结构示例：
     return new Promise((resolve) => {
       const transaction = database.transaction(MANUAL_STORE_NAME, 'readonly')
       const store = transaction.objectStore(MANUAL_STORE_NAME)
-      const request = store.getAll()
+
+      // 使用索引查询特定书籍的人物
+      const index = store.index('bookUrl')
+      const request = index.getAll(IDBKeyRange.only(bookUrl))
+
       request.onsuccess = () => {
         const results = request.result || []
         const map: Record<string, string> = {}
         results.forEach((item: any) => {
-          if (item.bookUrl === bookUrl) map[item.name] = item.role
+          map[item.name] = item.role
         })
         resolve(map)
       }
@@ -168,7 +184,10 @@ JSON 结构示例：
     return new Promise<void>((resolve) => {
       const transaction = database.transaction(STORE_NAME, 'readonly')
       const store = transaction.objectStore(STORE_NAME)
-      const request = store.openCursor()
+
+      // 使用索引查询特定书籍的洞察
+      const index = store.index('bookUrl')
+      const request = index.openCursor(IDBKeyRange.only(bookUrl))
 
       const charactersMap = new Map<string, any>()
       const relationshipSet = new Set<string>()
@@ -177,69 +196,68 @@ JSON 结构示例：
         const cursor = request.result
         if (cursor) {
           const item = cursor.value
-          if (item.bookUrl === bookUrl) {
-            const insight = item.insight as ChapterInsight
-            insight.characters.forEach(char => {
-              if (!charactersMap.has(char.name)) {
-                charactersMap.set(char.name, {
-                  ...char,
-                  appearances: 1,
-                  role: manualRoles[char.name] || 'others',
-                  isManual: !!manualRoles[char.name]
-                })
-              } else {
-                const existing = charactersMap.get(char.name)
-                if (char.description.length > existing.description.length) {
-                  existing.description = char.description
-                }
-                existing.appearances++
-              }
-
-              char.ties.forEach(tie => {
-                const relId = [char.name, tie.to].sort().join('-')
-                if (!relationshipSet.has(relId)) {
-                  relationshipSet.add(relId)
-                  allTies.value.push({ from: char.name, to: tie.to, relation: tie.relation })
-                }
+          const insight = item.insight as ChapterInsight
+          insight.characters.forEach(char => {
+            if (!charactersMap.has(char.name)) {
+              charactersMap.set(char.name, {
+                ...char,
+                appearances: 1,
+                role: manualRoles[char.name] || 'others',
+                isManual: !!manualRoles[char.name]
               })
+            } else {
+              const existing = charactersMap.get(char.name)
+              if (char.description.length > existing.description.length) {
+                existing.description = char.description
+              }
+              existing.appearances++
+            }
+
+            char.ties.forEach(tie => {
+              const relId = [char.name, tie.to].sort().join('-')
+              if (!relationshipSet.has(relId)) {
+                relationshipSet.add(relId)
+                allTies.value.push({ from: char.name, to: tie.to, relation: tie.relation })
+              }
+            })
+          })
+        }
+        cursor.continue()
+      } else {
+        // 加上那些只在手动标注里出现但还没在 AI 洞察里出现的（虽然比较少见）
+        Object.entries(manualRoles).forEach(([name, role]) => {
+          if (!charactersMap.has(name)) {
+            charactersMap.set(name, {
+              name,
+              description: '手动标注人物',
+              ties: [],
+              appearances: 0,
+              role,
+              isManual: true
             })
           }
-          cursor.continue()
-        } else {
-          // 加上那些只在手动标注里出现但还没在 AI 洞察里出现的（虽然比较少见）
-          Object.entries(manualRoles).forEach(([name, role]) => {
-            if (!charactersMap.has(name)) {
-              charactersMap.set(name, {
-                name,
-                description: '手动标注人物',
-                ties: [],
-                appearances: 0,
-                role,
-                isManual: true
-              })
-            }
-          })
+        })
 
-          allCharacters.value = Array.from(charactersMap.values()).sort((a, b) => {
-            // 排序逻辑：主角 > 配角 > 其他 (次数)
-            const roleWeight = { protagonist: 100, supporting: 50, others: 10 }
-            const weightA = (roleWeight[a.role as keyof typeof roleWeight] || 0) + a.appearances
-            const weightB = (roleWeight[b.role as keyof typeof roleWeight] || 0) + b.appearances
-            return weightB - weightA
-          })
-          resolve()
-        }
+        allCharacters.value = Array.from(charactersMap.values()).sort((a, b) => {
+          // 排序逻辑：主角 > 配角 > 其他 (次数)
+          const roleWeight = { protagonist: 100, supporting: 50, others: 10 }
+          const weightA = (roleWeight[a.role as keyof typeof roleWeight] || 0) + a.appearances
+          const weightB = (roleWeight[b.role as keyof typeof roleWeight] || 0) + b.appearances
+          return weightB - weightA
+        })
+        resolve()
       }
+    }
     })
   }
 
-  return {
-    currentInsight,
-    allCharacters,
-    allTies,
-    isAnalyzing,
-    analyzeChapter,
-    loadBookInsights,
-    markAsCharacter
-  }
+return {
+  currentInsight,
+  allCharacters,
+  allTies,
+  isAnalyzing,
+  analyzeChapter,
+  loadBookInsights,
+  markAsCharacter
+}
 })

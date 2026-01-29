@@ -92,6 +92,8 @@ pub struct FetchContext {
     pub source_id: String,
     pub last_response: Option<FetchResponse>,
     pub cookies: HashMap<String, String>,
+    /// Timeout in seconds for this request
+    pub timeout_secs: u64,
 }
 
 impl FetchContext {
@@ -104,7 +106,15 @@ impl FetchContext {
             source_id: source_id.to_string(),
             last_response: None,
             cookies: HashMap::new(),
+            timeout_secs: 30, // Default 30s timeout
         }
+    }
+
+    /// Create a context with custom timeout
+    pub fn with_timeout(url: &str, source_id: &str, timeout_secs: u64) -> Self {
+        let mut ctx = Self::new(url, source_id);
+        ctx.timeout_secs = timeout_secs;
+        ctx
     }
 }
 

@@ -3,7 +3,9 @@
 //! Direct Cloudflare bypass via HTTP REST API (cf-bypass-service)
 
 use async_trait::async_trait;
-use nexus_core::{AntiCrawlStrategy, CloudflareBypassConfig, EngineError, FetchContext, FetchResponse};
+use nexus_core::{
+    AntiCrawlStrategy, CloudflareBypassConfig, EngineError, FetchContext, FetchResponse,
+};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,15 +46,20 @@ pub struct CfBypassStrategy {
 }
 
 impl CfBypassStrategy {
-    pub fn new(config: CloudflareBypassConfig) -> Self {
+    pub fn new(config: CloudflareBypassConfig) -> Result<Self, EngineError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
             .build()
-            .expect("Failed to build HTTP client");
+            .map_err(|e| {
+                EngineError::InvalidConfig(format!("Failed to build HTTP client: {}", e))
+            })?;
 
-        debug!("CfBypassStrategy initialized: service_url={}", config.service_url);
+        debug!(
+            "CfBypassStrategy initialized: service_url={}",
+            config.service_url
+        );
 
-        Self { config, client }
+        Ok(Self { config, client })
     }
 
     fn fetch_url(&self) -> String {
@@ -94,7 +101,7 @@ impl AntiCrawlStrategy for CfBypassStrategy {
                 Some(ctx.headers.clone())
             },
             body: ctx.body.clone(),
-            timeout: 45,
+            timeout: ctx.timeout_secs as u32, // Use context timeout instead of hardcoded value
             proxy: self.config.proxy.clone(),
         };
 
@@ -113,7 +120,10 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             warn!("CF Bypass: Service returned error: {} - {}", status, text);
-            return Err(EngineError::Network(format!("CF bypass service returned {}", status)));
+            return Err(EngineError::Network(format!(
+                "CF bypass service returned {}",
+                status
+            )));
         }
 
         let body: CfFetchResponse = response.json().await.map_err(|e| {
@@ -136,7 +146,11 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         info!(
             "CF Bypass: {} status={}",
-            if body.cf_bypassed { "success" } else { "partial" },
+            if body.cf_bypassed {
+                "success"
+            } else {
+                "partial"
+            },
             status
         );
 

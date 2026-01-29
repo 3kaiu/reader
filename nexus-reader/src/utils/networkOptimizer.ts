@@ -36,6 +36,14 @@ export interface RequestOptimizationConfig {
 // 网络质量等级
 export type NetworkQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'offline'
 
+// CORS 缓存头（静态优化）
+const STATIC_CORS_HEADERS = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+  'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400',
+}
+
 // 默认图片质量配置
 const IMAGE_QUALITY_CONFIGS: Record<NetworkQuality, ImageQualityConfig> = {
   excellent: {
@@ -149,7 +157,7 @@ export class NetworkDetector {
   // 获取网络质量等级
   getNetworkQuality(): NetworkQuality {
     const info = this.getNetworkInfo()
-    
+
     if (!info.isOnline) {
       return 'offline'
     }
@@ -194,21 +202,9 @@ export class NetworkDetector {
     }
   }
 
-  // 开始监控网络变化
+  // 开始监控网络变化 (性能优化：废弃定时轮询，全由系统事件驱动)
   startMonitoring(): void {
-    if (this.updateInterval) return
-
-    if (typeof window !== 'undefined' && window.setInterval) {
-      this.updateInterval = window.setInterval(() => {
-        const newInfo = this.detectNetworkInfo()
-        if (this.hasNetworkChanged(newInfo)) {
-          this.networkInfo = newInfo
-          this.notifyListeners(newInfo)
-        }
-      }, 5000) // 每5秒检查一次
-
-      console.log('🌐 Network monitoring started')
-    }
+    console.log('🌐 Network monitoring started (Event-driven)')
   }
 
   // 停止监控网络变化
@@ -334,7 +330,7 @@ export class AdaptiveImageQuality {
   // 优化图片URL
   optimizeImageUrl(originalUrl: string, options?: Partial<ImageQualityConfig>): string {
     const config = { ...this.getCurrentConfig(), ...options }
-    
+
     // 如果是本地图片或已经优化过的图片，直接返回
     if (originalUrl.startsWith('data:') || originalUrl.includes('quality=')) {
       return originalUrl
@@ -346,7 +342,7 @@ export class AdaptiveImageQuality {
     params.set('w', config.maxWidth.toString())
     params.set('h', config.maxHeight.toString())
     params.set('format', config.format === 'auto' ? 'webp' : config.format)
-    
+
     if (config.progressive) {
       params.set('progressive', 'true')
     }
@@ -359,10 +355,10 @@ export class AdaptiveImageQuality {
   // 预加载图片
   async preloadImage(url: string, options?: Partial<ImageQualityConfig>): Promise<HTMLImageElement> {
     const optimizedUrl = this.optimizeImageUrl(url, options)
-    
+
     return new Promise((resolve, reject) => {
       const img = new Image()
-      
+
       const timeout = setTimeout(() => {
         reject(new Error('Image preload timeout'))
       }, 10000)
@@ -387,10 +383,10 @@ export class AdaptiveImageQuality {
     const batchSize = config.effectiveType === 'slow-2g' || config.effectiveType === '2g' ? 2 : 5
 
     const results: HTMLImageElement[] = []
-    
+
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize)
-      const batchPromises = batch.map(url => 
+      const batchPromises = batch.map(url =>
         this.preloadImage(url, options).catch(error => {
           console.warn('Failed to preload image:', url, error)
           return null
@@ -441,7 +437,7 @@ export class RequestOptimizer {
         })
 
         const result = await Promise.race([requestFn(), timeoutPromise])
-        
+
         // 成功时报告性能指标
         if (window.performanceMonitor) {
           window.performanceMonitor.reportMetric('request_retry_success', attempt, {
@@ -453,7 +449,7 @@ export class RequestOptimizer {
         return result
       } catch (error) {
         lastError = error as Error
-        
+
         // 最后一次尝试失败
         if (attempt === config.maxRetries) {
           if (window.performanceMonitor) {
@@ -506,11 +502,11 @@ export class RequestOptimizer {
     const config = { ...REQUEST_OPTIMIZATION_CONFIGS[networkQuality], ...options }
 
     const results: T[] = []
-    
+
     for (let i = 0; i < requests.length; i += config.batchSize) {
       const batch = requests.slice(i, i + config.batchSize)
-      
-      const batchPromises = batch.map(requestFn => 
+
+      const batchPromises = batch.map(requestFn =>
         this.requestWithRetry(requestFn).catch(error => {
           console.warn('Batch request failed:', error)
           return null
@@ -555,7 +551,7 @@ export class RequestOptimizer {
     while (this.requestQueue.length > 0) {
       const networkQuality = this.networkDetector.getNetworkQuality()
       const config = REQUEST_OPTIMIZATION_CONFIGS[networkQuality]
-      
+
       // 根据网络质量决定并发数
       const concurrency = Math.min(config.batchSize, this.requestQueue.length)
       const batch = this.requestQueue.splice(0, concurrency)
@@ -599,7 +595,7 @@ if (typeof window !== 'undefined') {
   // 监听网络变化并报告
   networkDetector.addNetworkChangeListener((info) => {
     console.log('🌐 Network changed:', info)
-    
+
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('network_change', 1, {
         effectiveType: info.effectiveType,

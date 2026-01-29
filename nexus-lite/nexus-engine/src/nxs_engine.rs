@@ -46,8 +46,7 @@ impl CompiledNxs {
     fn compile(source: &NxsSource) -> Result<Self, EngineError> {
         // Use global selector cache for cross-engine sharing
         let compile = |rule: &str| -> Result<Arc<FallbackSelector>, EngineError> {
-            FallbackSelector::get_or_compile_global(rule)
-                .map_err(EngineError::InvalidSelector)
+            FallbackSelector::get_or_compile_global(rule).map_err(EngineError::InvalidSelector)
         };
 
         let compile_opt = |rule: &Option<String>| -> Result<Arc<FallbackSelector>, EngineError> {
@@ -285,30 +284,33 @@ impl NxsEngine {
     /// Get chapters list
     #[instrument(skip(self), fields(source = %self.source.id))]
     pub async fn chapters(&self, toc_url: &str) -> Result<Vec<Chapter>, EngineError> {
-        let mut url = self.abs_url(toc_url);
-        let mut html = self.fetch(&url, None, None, None).await?;
+        let url = self.abs_url(toc_url);
+        let html = self.fetch(&url, None, None, None).await?;
 
-        // Check if we need to follow a TOC link from the book page
-        // Use a block to ensure `doc` (which is !Send) is dropped before awaiting fetch
-        let redirect_url = {
-            let doc = Html::parse_document(&html);
-            self.compiled
-                .book_toc
-                .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u))
+        // 1. Initial parse to check for redirects
+        let mut doc = Html::parse_document(&html);
+
+        let redirect_url = self
+            .compiled
+            .book_toc
+            .select_and_extract(&doc)
+            .map(|u| self.abs_url(&u));
+
+        // 2. Handle redirect if necessary
+        let final_doc = if let Some(real_toc_url) = redirect_url {
+            if real_toc_url != url && !real_toc_url.contains('#') {
+                // Drop old doc before await to be safe with !Send types
+                drop(doc);
+                let new_html = self.fetch(&real_toc_url, None, None, None).await?;
+                Html::parse_document(&new_html)
+            } else {
+                doc
+            }
+        } else {
+            doc
         };
 
-        if let Some(real_toc_url) = redirect_url {
-            // Only redirect if it's different and not just a hash anchor
-            if real_toc_url != url && !real_toc_url.contains('#') {
-                url = real_toc_url;
-                html = self.fetch(&url, None, None, None).await?;
-            }
-        }
-
-        let doc = Html::parse_document(&html);
-
-        let items = self.compiled.toc_list.select_all(&doc);
+        let items = self.compiled.toc_list.select_all(&final_doc);
 
         let mut chapters: Vec<Chapter> = items
             .iter()
@@ -386,16 +388,17 @@ impl NxsEngine {
                 rule: "content.body".to_string(),
             })?;
 
-        // Combine system rules with source-specific rules
-        let mut all_rules = rules.to_vec();
-        all_rules.extend(self.source.content.replace.clone());
+        // Apply system rules
+        info!("Applying {} system rules to content", rules.len());
+        let content = apply_replace_rules(content, rules, &self.source.id);
 
+        // Apply source-specific rules
         info!(
-            "Applying {} replacement rules to content (length: {})",
-            all_rules.len(),
-            content.len()
+            "Applying {} source rules to content",
+            self.source.content.replace.len()
         );
-        let content = apply_replace_rules(content, &all_rules, &self.source.id);
+        let content = apply_replace_rules(content, &self.source.content.replace, &self.source.id);
+
         info!("Content length after rules: {}", content.len());
 
         Ok(content)

@@ -2,6 +2,10 @@
 //!
 //! Pure Rust embedded key-value store replacing SQLite.
 //! Provides high-concurrency, lock-free reads/writes.
+//!
+//! [Optimization]
+//! All operations are wrapped in `tokio::task::spawn_blocking` to offload
+//! synchronous disk I/O from the async runtime.
 
 use nexus_core::{
     AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, HealthTracker,
@@ -14,6 +18,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 /// sled-based storage for all application data
+#[derive(Clone)]
 pub struct SledStore {
     #[allow(dead_code)]
     db: Db,
@@ -78,10 +83,13 @@ impl SledStore {
         &self.health
     }
 
-    // ========== Generic KV Helpers ==========
+    // ========== Generic KV Helpers (Internal Sync) ==========
 
-    fn get<T: DeserializeOwned>(&self, tree: &Tree, key: &str) -> Result<Option<T>, EngineError> {
-        match tree.get(key).map_err(|e| EngineError::Database(e.to_string()))? {
+    fn get_sync<T: DeserializeOwned>(tree: &Tree, key: &str) -> Result<Option<T>, EngineError> {
+        match tree
+            .get(key)
+            .map_err(|e| EngineError::Database(e.to_string()))?
+        {
             Some(bytes) => {
                 let value: T = serde_json::from_slice(&bytes)?;
                 Ok(Some(value))
@@ -90,20 +98,20 @@ impl SledStore {
         }
     }
 
-    fn put<T: Serialize>(&self, tree: &Tree, key: &str, value: &T) -> Result<(), EngineError> {
+    fn put_sync<T: Serialize>(tree: &Tree, key: &str, value: &T) -> Result<(), EngineError> {
         let bytes = serde_json::to_vec(value)?;
         tree.insert(key, bytes)
             .map_err(|e| EngineError::Database(e.to_string()))?;
         Ok(())
     }
 
-    fn delete(&self, tree: &Tree, key: &str) -> Result<(), EngineError> {
+    fn delete_sync(tree: &Tree, key: &str) -> Result<(), EngineError> {
         tree.remove(key)
             .map_err(|e| EngineError::Database(e.to_string()))?;
         Ok(())
     }
 
-    fn scan_all<T: DeserializeOwned>(&self, tree: &Tree) -> Result<Vec<T>, EngineError> {
+    fn scan_all_sync<T: DeserializeOwned>(tree: &Tree) -> Result<Vec<T>, EngineError> {
         let mut results = Vec::new();
         for entry in tree.iter() {
             let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
@@ -113,106 +121,156 @@ impl SledStore {
         Ok(results)
     }
 
-    // ========== Bookshelf Operations ==========
+    // ========== Bookshelf Operations (Async) ==========
 
     /// Get all bookshelf items (sorted by last_read_time DESC)
-    pub fn get_all(&self) -> Result<Vec<BookshelfItem>, EngineError> {
-        let mut results = Vec::new();
+    pub async fn get_all(&self) -> Result<Vec<BookshelfItem>, EngineError> {
+        let idx_tree = self.bookshelf_idx.clone();
+        let bookshelf_tree = self.bookshelf.clone();
 
-        // Use index for sorted retrieval
-        for entry in self.bookshelf_idx.iter() {
-            let (key, _) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
-            let key_str = String::from_utf8_lossy(&key);
+        tokio::task::spawn_blocking(move || {
+            let mut results = Vec::new();
+            // Use index for sorted retrieval
+            for entry in idx_tree.iter() {
+                let (key, _) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let key_str = String::from_utf8_lossy(&key);
 
-            // Key format: {inverted_timestamp}:{id}
-            if let Some(id) = key_str.split(':').nth(1) {
-                if let Some(item) = self.get::<BookshelfItem>(&self.bookshelf, id)? {
-                    results.push(item);
+                // Key format: {inverted_timestamp}:{id}
+                if let Some(id) = key_str.split(':').nth(1) {
+                    if let Some(item) = Self::get_sync::<BookshelfItem>(&bookshelf_tree, id)? {
+                        results.push(item);
+                    }
                 }
             }
-        }
-
-        Ok(results)
+            Ok(results)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Add item to bookshelf
-    pub fn add(&self, item: &BookshelfItem) -> Result<(), EngineError> {
-        // Remove old index entry if exists
-        self.remove_book_index(&item.id)?;
+    pub async fn add(&self, item: BookshelfItem) -> Result<(), EngineError> {
+        let bookshelf_tree = self.bookshelf.clone();
+        let idx_tree = self.bookshelf_idx.clone();
 
-        // Write main data
-        self.put(&self.bookshelf, &item.id, item)?;
+        tokio::task::spawn_blocking(move || {
+            // Remove old index entry if exists
+            Self::remove_book_index_sync(&idx_tree, &item.id)?;
 
-        // Write time index (inverted for DESC order)
-        let timestamp = item.last_read_time.unwrap_or(item.created_at);
-        let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
-        self.bookshelf_idx
-            .insert(idx_key, &[])
-            .map_err(|e| EngineError::Database(e.to_string()))?;
+            // Write main data
+            Self::put_sync(&bookshelf_tree, &item.id, &item)?;
 
-        debug!("Added book to shelf: {}", item.name);
-        Ok(())
+            // Write time index (inverted for DESC order)
+            let timestamp = item.last_read_time.unwrap_or(item.created_at);
+            let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
+            idx_tree
+                .insert(idx_key, &[])
+                .map_err(|e| EngineError::Database(e.to_string()))?;
+
+            debug!("Added book to shelf: {}", item.name);
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Update reading progress
-    pub fn update_progress(
+    pub async fn update_progress(
         &self,
-        id: &str,
+        id: String,
         chapter_index: u32,
         position: f64,
     ) -> Result<(), EngineError> {
-        if let Some(mut item) = self.get::<BookshelfItem>(&self.bookshelf, id)? {
-            // Remove old index
-            self.remove_book_index(id)?;
+        let bookshelf_tree = self.bookshelf.clone();
+        let idx_tree = self.bookshelf_idx.clone();
+        // We need to clone `self` logic or move clones into the closure.
+        // For complexity, let's duplicate the logic inside the closure.
 
-            // Update fields
-            item.last_chapter_index = chapter_index;
-            item.last_read_position = position;
-            item.last_read_time = Some(chrono::Utc::now().timestamp());
+        tokio::task::spawn_blocking(move || {
+            if let Some(mut item) = Self::get_sync::<BookshelfItem>(&bookshelf_tree, &id)? {
+                // Remove old index
+                Self::remove_book_index_sync(&idx_tree, &id)?;
 
-            // Re-add with new timestamp
-            self.add(&item)?;
-        }
-        Ok(())
+                // Update fields
+                item.last_chapter_index = chapter_index;
+                item.last_read_position = position;
+                item.last_read_time = Some(chrono::Utc::now().timestamp());
+
+                // Re-add with new timestamp
+                // Internal add logic
+                Self::put_sync(&bookshelf_tree, &item.id, &item)?;
+                let timestamp = item.last_read_time.unwrap_or(item.created_at);
+                let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
+                idx_tree
+                    .insert(idx_key, &[])
+                    .map_err(|e| EngineError::Database(e.to_string()))?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Remove from bookshelf
-    pub fn remove(&self, id: &str) -> Result<(), EngineError> {
-        self.remove_book_index(id)?;
-        self.delete(&self.bookshelf, id)?;
-        debug!("Removed book from shelf: {}", id);
-        Ok(())
+    pub async fn remove(&self, id: String) -> Result<(), EngineError> {
+        let bookshelf_tree = self.bookshelf.clone();
+        let idx_tree = self.bookshelf_idx.clone();
+
+        tokio::task::spawn_blocking(move || {
+            Self::remove_book_index_sync(&idx_tree, &id)?;
+            Self::delete_sync(&bookshelf_tree, &id)?;
+            debug!("Removed book from shelf: {}", id);
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Check if book exists
-    pub fn exists(&self, source_id: &str, book_url: &str) -> Result<bool, EngineError> {
-        // Scan all books to check (could optimize with secondary index if needed)
-        for entry in self.bookshelf.iter() {
-            let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
-            let item: BookshelfItem = serde_json::from_slice(&value)?;
-            if item.source_id == source_id && item.book_url == book_url {
-                return Ok(true);
+    pub async fn exists(&self, source_id: String, book_url: String) -> Result<bool, EngineError> {
+        let bookshelf_tree = self.bookshelf.clone();
+
+        tokio::task::spawn_blocking(move || {
+            // Scan all books to check (could optimize with secondary index if needed)
+            for entry in bookshelf_tree.iter() {
+                let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let item: BookshelfItem = serde_json::from_slice(&value)?;
+                if item.source_id == source_id && item.book_url == book_url {
+                    return Ok(true);
+                }
             }
-        }
-        Ok(false)
+            Ok(false)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Move book to group
-    pub fn move_to_group(&self, id: &str, group_id: Option<String>) -> Result<(), EngineError> {
-        if let Some(mut item) = self.get::<BookshelfItem>(&self.bookshelf, id)? {
-            item.group_id = group_id;
-            self.put(&self.bookshelf, id, &item)?;
-        }
-        Ok(())
+    pub async fn move_to_group(
+        &self,
+        id: String,
+        group_id: Option<String>,
+    ) -> Result<(), EngineError> {
+        let bookshelf_tree = self.bookshelf.clone();
+
+        tokio::task::spawn_blocking(move || {
+            if let Some(mut item) = Self::get_sync::<BookshelfItem>(&bookshelf_tree, &id)? {
+                item.group_id = group_id;
+                Self::put_sync(&bookshelf_tree, &id, &item)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    /// Helper: remove book from time index
-    fn remove_book_index(&self, id: &str) -> Result<(), EngineError> {
+    /// Helper: remove book from time index (Sync)
+    fn remove_book_index_sync(idx_tree: &Tree, id: &str) -> Result<(), EngineError> {
         // Find and remove the index entry
         let prefix_to_find = format!(":{}", id);
         let mut to_remove = None;
 
-        for entry in self.bookshelf_idx.iter() {
+        for entry in idx_tree.iter() {
             let (key, _) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
             let key_str = String::from_utf8_lossy(&key);
             if key_str.ends_with(&prefix_to_find) {
@@ -222,7 +280,7 @@ impl SledStore {
         }
 
         if let Some(key) = to_remove {
-            self.bookshelf_idx
+            idx_tree
                 .remove(key)
                 .map_err(|e| EngineError::Database(e.to_string()))?;
         }
@@ -230,149 +288,237 @@ impl SledStore {
         Ok(())
     }
 
-    // ========== Groups ==========
+    // ========== Groups (Async) ==========
 
-    pub fn get_groups(&self) -> Result<Vec<BookGroup>, EngineError> {
-        let mut groups = self.scan_all::<BookGroup>(&self.groups)?;
-        groups.sort_by_key(|g| g.order_index);
-        Ok(groups)
+    pub async fn get_groups(&self) -> Result<Vec<BookGroup>, EngineError> {
+        let groups_tree = self.groups.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut groups = Self::scan_all_sync::<BookGroup>(&groups_tree)?;
+            groups.sort_by_key(|g| g.order_index);
+            Ok(groups)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_group(&self, group: &BookGroup) -> Result<(), EngineError> {
-        self.put(&self.groups, &group.id, group)
+    pub async fn save_group(&self, group: BookGroup) -> Result<(), EngineError> {
+        let groups_tree = self.groups.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&groups_tree, &group.id, &group))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn delete_group(&self, id: &str) -> Result<(), EngineError> {
-        // Clear group_id from all books in this group
-        for entry in self.bookshelf.iter() {
-            let (key, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
-            let mut item: BookshelfItem = serde_json::from_slice(&value)?;
-            if item.group_id.as_deref() == Some(id) {
-                item.group_id = None;
-                let key_str = String::from_utf8_lossy(&key);
-                self.put(&self.bookshelf, &key_str, &item)?;
+    pub async fn delete_group(&self, id: String) -> Result<(), EngineError> {
+        let groups_tree = self.groups.clone();
+        let bookshelf_tree = self.bookshelf.clone();
+
+        tokio::task::spawn_blocking(move || {
+            // Clear group_id from all books in this group
+            for entry in bookshelf_tree.iter() {
+                let (key, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let mut item: BookshelfItem = serde_json::from_slice(&value)?;
+                if item.group_id.as_deref() == Some(&id) {
+                    item.group_id = None;
+                    let key_str = String::from_utf8_lossy(&key);
+                    Self::put_sync(&bookshelf_tree, &key_str, &item)?;
+                }
             }
-        }
-
-        self.delete(&self.groups, id)
+            Self::delete_sync(&groups_tree, &id)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== Replace Rules ==========
+    // ========== Replace Rules (Async) ==========
 
-    pub fn get_replace_rules(&self) -> Result<Vec<ReplaceRule>, EngineError> {
-        self.scan_all(&self.rules)
+    pub async fn get_replace_rules(&self) -> Result<Vec<ReplaceRule>, EngineError> {
+        let rules_tree = self.rules.clone();
+        tokio::task::spawn_blocking(move || Self::scan_all_sync(&rules_tree))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_replace_rule(&self, rule: &ReplaceRule) -> Result<(), EngineError> {
-        self.put(&self.rules, &rule.id, rule)
+    pub async fn save_replace_rule(&self, rule: ReplaceRule) -> Result<(), EngineError> {
+        let rules_tree = self.rules.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&rules_tree, &rule.id, &rule))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn delete_replace_rule(&self, id: &str) -> Result<(), EngineError> {
-        self.delete(&self.rules, id)
+    pub async fn delete_replace_rule(&self, id: String) -> Result<(), EngineError> {
+        let rules_tree = self.rules.clone();
+        tokio::task::spawn_blocking(move || Self::delete_sync(&rules_tree, &id))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== AI Mapping Rules ==========
+    // ========== AI Mapping Rules (Async) ==========
 
-    pub fn get_ai_mapping_rules(&self) -> Result<Vec<AiMappingRule>, EngineError> {
-        let mut rules = self.scan_all::<AiMappingRule>(&self.ai_mappings)?;
-        rules.sort_by(|a, b| b.created_at.cmp(&a.created_at)); // DESC by created_at
-        Ok(rules)
+    pub async fn get_ai_mapping_rules(&self) -> Result<Vec<AiMappingRule>, EngineError> {
+        let mapping_tree = self.ai_mappings.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut rules = Self::scan_all_sync::<AiMappingRule>(&mapping_tree)?;
+            rules.sort_by(|a, b| b.created_at.cmp(&a.created_at)); // DESC by created_at
+            Ok(rules)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_ai_mapping_rule(&self, rule: &AiMappingRule) -> Result<(), EngineError> {
-        self.put(&self.ai_mappings, &rule.id, rule)
+    pub async fn save_ai_mapping_rule(&self, rule: AiMappingRule) -> Result<(), EngineError> {
+        let mapping_tree = self.ai_mappings.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&mapping_tree, &rule.id, &rule))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn delete_ai_mapping_rule(&self, id: &str) -> Result<(), EngineError> {
-        self.delete(&self.ai_mappings, id)
+    pub async fn delete_ai_mapping_rule(&self, id: String) -> Result<(), EngineError> {
+        let mapping_tree = self.ai_mappings.clone();
+        tokio::task::spawn_blocking(move || Self::delete_sync(&mapping_tree, &id))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== AI Analysis History ==========
+    // ========== AI Analysis History (Async) ==========
 
-    pub fn get_ai_analysis_history(&self, limit: u32) -> Result<Vec<AiAnalysisHistory>, EngineError> {
-        let mut history = self.scan_all::<AiAnalysisHistory>(&self.ai_history)?;
-        history.sort_by(|a, b| b.analyzed_at.cmp(&a.analyzed_at)); // DESC
-        history.truncate(limit as usize);
-        Ok(history)
+    pub async fn get_ai_analysis_history(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<AiAnalysisHistory>, EngineError> {
+        let history_tree = self.ai_history.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut history = Self::scan_all_sync::<AiAnalysisHistory>(&history_tree)?;
+            history.sort_by(|a, b| b.analyzed_at.cmp(&a.analyzed_at)); // DESC
+            history.truncate(limit as usize);
+            Ok(history)
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_ai_analysis_history(&self, history: &AiAnalysisHistory) -> Result<(), EngineError> {
-        self.put(&self.ai_history, &history.id, history)
+    pub async fn save_ai_analysis_history(
+        &self,
+        history: AiAnalysisHistory,
+    ) -> Result<(), EngineError> {
+        let history_tree = self.ai_history.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&history_tree, &history.id, &history))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn clear_ai_analysis_history(&self) -> Result<(), EngineError> {
-        self.ai_history
-            .clear()
-            .map_err(|e| EngineError::Database(e.to_string()))?;
-        Ok(())
+    pub async fn clear_ai_analysis_history(&self) -> Result<(), EngineError> {
+        let history_tree = self.ai_history.clone();
+        tokio::task::spawn_blocking(move || {
+            history_tree
+                .clear()
+                .map_err(|e| EngineError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== Voice Metadata ==========
+    // ========== Voice Metadata (Async) ==========
 
-    pub fn get_voice_metadata(&self) -> Result<Vec<VoiceModelMetadata>, EngineError> {
-        self.scan_all(&self.voice_meta)
+    pub async fn get_voice_metadata(&self) -> Result<Vec<VoiceModelMetadata>, EngineError> {
+        let voice_tree = self.voice_meta.clone();
+        tokio::task::spawn_blocking(move || Self::scan_all_sync(&voice_tree))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_voice_metadata(&self, model: &VoiceModelMetadata) -> Result<(), EngineError> {
-        self.put(&self.voice_meta, &model.id, model)
+    pub async fn save_voice_metadata(&self, model: VoiceModelMetadata) -> Result<(), EngineError> {
+        let voice_tree = self.voice_meta.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&voice_tree, &model.id, &model))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn delete_voice_metadata(&self, id: &str) -> Result<(), EngineError> {
-        self.delete(&self.voice_meta, id)
+    pub async fn delete_voice_metadata(&self, id: String) -> Result<(), EngineError> {
+        let voice_tree = self.voice_meta.clone();
+        tokio::task::spawn_blocking(move || Self::delete_sync(&voice_tree, &id))
+            .await
+            .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== Voice Configuration ==========
+    // ========== Voice Configuration (Async) ==========
 
-    pub fn get_voice_config(&self, key: &str) -> Result<Option<String>, EngineError> {
-        match self
-            .voice_config
-            .get(key)
-            .map_err(|e| EngineError::Database(e.to_string()))?
-        {
-            Some(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
-            None => Ok(None),
-        }
+    pub async fn get_voice_config(&self, key: String) -> Result<Option<String>, EngineError> {
+        let config_tree = self.voice_config.clone();
+        tokio::task::spawn_blocking(move || {
+            match config_tree
+                .get(&key)
+                .map_err(|e| EngineError::Database(e.to_string()))?
+            {
+                Some(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+                None => Ok(None),
+            }
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    pub fn save_voice_config(&self, key: &str, value: &str) -> Result<(), EngineError> {
-        self.voice_config
-            .insert(key, value.as_bytes())
-            .map_err(|e| EngineError::Database(e.to_string()))?;
-        Ok(())
+    pub async fn save_voice_config(&self, key: String, value: String) -> Result<(), EngineError> {
+        let config_tree = self.voice_config.clone();
+        tokio::task::spawn_blocking(move || {
+            config_tree
+                .insert(&key, value.as_bytes())
+                .map_err(|e| EngineError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
-    // ========== Source Status ==========
+    // ========== Source Status (Async) ==========
 
     /// Get source enabled status (default: true if not set)
-    pub fn get_source_status(&self, source_id: &str) -> Result<bool, EngineError> {
-        match self
-            .source_status
-            .get(source_id)
-            .map_err(|e| EngineError::Database(e.to_string()))?
-        {
-            Some(bytes) => {
-                // Store as "1" for enabled, "0" for disabled
-                Ok(bytes[0] == b'1')
+    pub async fn get_source_status(&self, source_id: String) -> Result<bool, EngineError> {
+        let status_tree = self.source_status.clone();
+        tokio::task::spawn_blocking(move || {
+            match status_tree
+                .get(&source_id)
+                .map_err(|e| EngineError::Database(e.to_string()))?
+            {
+                Some(bytes) => {
+                    // Store as "1" for enabled, "0" for disabled
+                    Ok(bytes[0] == b'1')
+                }
+                None => Ok(true), // Default to enabled
             }
-            None => Ok(true), // Default to enabled
-        }
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Set source enabled status
-    pub fn set_source_status(&self, source_id: &str, enabled: bool) -> Result<(), EngineError> {
-        let value = if enabled { b"1" } else { b"0" };
-        self.source_status
-            .insert(source_id, value)
-            .map_err(|e| EngineError::Database(e.to_string()))?;
-        Ok(())
+    pub async fn set_source_status(
+        &self,
+        source_id: String,
+        enabled: bool,
+    ) -> Result<(), EngineError> {
+        let status_tree = self.source_status.clone();
+        tokio::task::spawn_blocking(move || {
+            let value = if enabled { b"1" } else { b"0" };
+            status_tree
+                .insert(&source_id, value)
+                .map_err(|e| EngineError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 
     /// Flush all pending writes to disk
-    pub fn flush(&self) -> Result<(), EngineError> {
-        self.db
-            .flush()
-            .map_err(|e| EngineError::Database(e.to_string()))?;
-        Ok(())
+    pub async fn flush(&self) -> Result<(), EngineError> {
+        let db = self.db.clone();
+        tokio::task::spawn_blocking(move || {
+            db.flush()
+                .map_err(|e| EngineError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal(format!("Storage execution failed: {}", e)))?
     }
 }
 
@@ -381,8 +527,8 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_bookshelf_crud() {
+    #[tokio::test]
+    async fn test_bookshelf_crud() {
         let dir = tempdir().unwrap();
         let store = SledStore::new(dir.path()).unwrap();
 
@@ -401,26 +547,29 @@ mod tests {
         };
 
         // Add
-        store.add(&item).unwrap();
+        store.add(item).await.unwrap();
 
         // Get all
-        let books = store.get_all().unwrap();
+        let books = store.get_all().await.unwrap();
         assert_eq!(books.len(), 1);
         assert_eq!(books[0].name, "Test Book");
 
         // Update progress
-        store.update_progress("test-1", 5, 0.5).unwrap();
-        let books = store.get_all().unwrap();
+        store
+            .update_progress("test-1".to_string(), 5, 0.5)
+            .await
+            .unwrap();
+        let books = store.get_all().await.unwrap();
         assert_eq!(books[0].last_chapter_index, 5);
 
         // Remove
-        store.remove("test-1").unwrap();
-        let books = store.get_all().unwrap();
+        store.remove("test-1".to_string()).await.unwrap();
+        let books = store.get_all().await.unwrap();
         assert!(books.is_empty());
     }
 
-    #[test]
-    fn test_sorted_by_read_time() {
+    #[tokio::test]
+    async fn test_sorted_by_read_time() {
         let dir = tempdir().unwrap();
         let store = SledStore::new(dir.path()).unwrap();
 
@@ -439,10 +588,10 @@ mod tests {
                 created_at: i * 1000,
                 group_id: None,
             };
-            store.add(&item).unwrap();
+            store.add(item).await.unwrap();
         }
 
-        let books = store.get_all().unwrap();
+        let books = store.get_all().await.unwrap();
         assert_eq!(books.len(), 3);
         // Should be sorted DESC by last_read_time
         assert_eq!(books[0].name, "Book 3");

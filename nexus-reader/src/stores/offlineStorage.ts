@@ -125,9 +125,37 @@ export const useOfflineStore = defineStore('offline', () => {
     }
 
     /**
+     * 检查存储配额
+     */
+    async function checkQuota(): Promise<{ used: number; quota: number; usagePercent: number; isCritical: boolean }> {
+        if (!navigator.storage || !navigator.storage.estimate) {
+            return { used: 0, quota: 0, usagePercent: 0, isCritical: false }
+        }
+        try {
+            const { usage, quota } = await navigator.storage.estimate()
+            const used = usage || 0
+            const total = quota || 0
+            const usagePercent = total > 0 ? (used / total) * 100 : 0
+            const isCritical = usagePercent > 90 // 超过90%视为严重
+            return { used, quota: total, usagePercent, isCritical }
+        } catch (e) {
+            console.warn('无法获取存储配额', e)
+            return { used: 0, quota: 0, usagePercent: 0, isCritical: false }
+        }
+    }
+
+    /**
      * 缓存单章 (自动压缩)
      */
     async function cacheChapter(chapter: CachedChapter) {
+        // 检查配额
+        const quota = await checkQuota()
+        if (quota.isCritical) {
+            console.warn(`存储空间不足 (${quota.usagePercent.toFixed(1)}%)，跳过缓存: ${chapter.title}`)
+            // 抛出特定错误供上层处理 (如停止批量下载)
+            throw new Error('STORAGE_QUOTA_EXCEEDED')
+        }
+
         const database = await initDB()
 
         // 压缩内容以降低存储占用
@@ -155,109 +183,145 @@ export const useOfflineStore = defineStore('offline', () => {
 
             request.onerror = () => reject(request.error)
         })
-        /**
-         * 清除单章缓存
-         */
     }
 
-    async function clearCachedChapter(bookUrl: string, chapterIndex: number) {
+    /**
+     * 获取缓存的章节内容（自动解压）
+     */
+    async function getCachedChapter(bookUrl: string, chapterIndex: number): Promise<CachedChapter | null> {
         const database = await initDB()
-        return new Promise<void>((resolve, reject) => {
-            const tx = database.transaction(STORE_NAME, 'readwrite')
-            const request = tx.objectStore(STORE_NAME).delete(`${bookUrl}:${chapterIndex}`)
-            request.onsuccess = () => {
-                cachedBooks.value.get(bookUrl)?.delete(chapterIndex)
-                resolve()
+        const id = `${bookUrl}:${chapterIndex}`
+
+        return new Promise((resolve) => {
+            const tx = database.transaction(STORE_NAME, 'readonly')
+            const request = tx.objectStore(STORE_NAME).get(id)
+
+            request.onsuccess = async () => {
+                const data = request.result
+                if (!data) {
+                    resolve(null)
+                    return
+                }
+
+                try {
+                    // 如果内容被压缩，进行解压
+                    if (data.compressed && data.content instanceof Uint8Array) {
+                        data.content = await decompressText(data.content)
+                    }
+                    resolve(data as CachedChapter)
+                } catch (e) {
+                    console.warn('解压章节内容失败', e)
+                    resolve(null)
+                }
             }
-            request.onerror = () => reject(request.error)
+
+            request.onerror = () => resolve(null)
         })
     }
 
     /**
-     * 获取缓存章节 (自动解压)
+     * 清除单个缓存章节
      */
-    async function getCachedChapter(bookUrl: string, chapterIndex: number): Promise<CachedChapter | null> {
+    async function clearCachedChapter(bookUrl: string, chapterIndex: number): Promise<void> {
         const database = await initDB()
+        const id = `${bookUrl}:${chapterIndex}`
 
-        return new Promise((resolve) => {
-            const tx = database.transaction(STORE_NAME, 'readonly')
-            const request = tx.objectStore(STORE_NAME).get(`${bookUrl}:${chapterIndex}`)
+        return new Promise((resolve, reject) => {
+            const tx = database.transaction(STORE_NAME, 'readwrite')
+            const request = tx.objectStore(STORE_NAME).delete(id)
 
-            request.onsuccess = async () => {
-                const result = request.result
-                if (!result) return resolve(null)
-
-                // 检查是否压缩过
-                if (result.compressed && result.content instanceof Uint8Array) {
-                    try {
-                        result.content = await decompressText(result.content)
-                    } catch (e) {
-                        console.error('解压缩章节失败', e)
-                        return resolve(null)
-                    }
+            request.onsuccess = () => {
+                // 更新内存索引
+                cachedBooks.value.get(bookUrl)?.delete(chapterIndex)
+                if (cachedBooks.value.get(bookUrl)?.size === 0) {
+                    cachedBooks.value.delete(bookUrl)
                 }
-                resolve(result)
+                resolve()
             }
-            request.onerror = () => resolve(null)
+
+            request.onerror = () => reject(request.error)
         })
     }
+
+    // 下载取消控制器
+    let downloadAbortController: AbortController | null = null
 
     /**
      * 批量下载书籍章节
      */
     async function downloadBook(
         bookUrl: string,
-        sourceId: string,
         bookName: string,
+        sourceId: string,
         chapters: { index: number; title: string; url: string }[],
-        fetchChapter: (url: string) => Promise<string>,
-        options?: { concurrency?: number; onProgress?: (current: number, total: number) => void }
-    ) {
-        const { concurrency = 3, onProgress } = options || {}
+        fetchContent: (chapterUrl: string) => Promise<string>
+    ): Promise<{ success: number; failed: number }> {
+        if (isDownloading.value) {
+            throw new Error('已有下载任务进行中')
+        }
 
         isDownloading.value = true
+        downloadAbortController = new AbortController()
         downloadProgress.value = { current: 0, total: chapters.length, bookName }
 
-        // 过滤已缓存的章节
-        const uncached = chapters.filter(ch => !isChapterCached(bookUrl, ch.index))
-        downloadProgress.value.total = uncached.length
+        let success = 0
+        let failed = 0
 
-        // 并发下载
-        const queue = [...uncached]
-        const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
-            while (queue.length > 0) {
-                const chapter = queue.shift()
-                if (!chapter) break
-
-                if (!isDownloading.value) break // 支持停止下载
-
-                try {
-                    const content = await fetchChapter(chapter.url)
-                    await cacheChapter({
-                        id: `${bookUrl}:${chapter.index}`,
-                        bookUrl,
-                        sourceId,
-                        chapterIndex: chapter.index,
-                        title: chapter.title,
-                        content,
-                        cachedAt: Date.now(),
-                    })
-                    downloadProgress.value.current++
-                    onProgress?.(downloadProgress.value.current, downloadProgress.value.total)
-                } catch (e) {
-                    console.warn(`下载章节失败: ${chapter.title}`, e)
+        try {
+            for (const chapter of chapters) {
+                // 检查是否被取消
+                if (downloadAbortController.signal.aborted) {
+                    break
                 }
-            }
-        })
 
-        await Promise.all(workers)
-        isDownloading.value = false
+                // 跳过已缓存的章节
+                if (isChapterCached(bookUrl, chapter.index)) {
+                    success++
+                } else {
+                    try {
+                        const content = await fetchContent(chapter.url)
+                        await cacheChapter({
+                            id: `${bookUrl}:${chapter.index}`,
+                            bookUrl,
+                            sourceId,
+                            chapterIndex: chapter.index,
+                            title: chapter.title,
+                            content,
+                            cachedAt: Date.now(),
+                        })
+                        success++
+                    } catch (e) {
+                        if ((e as Error).message === 'STORAGE_QUOTA_EXCEEDED') {
+                            // 存储空间不足，停止下载
+                            console.warn('存储空间不足，停止下载')
+                            break
+                        }
+                        failed++
+                        console.warn(`下载章节失败: ${chapter.title}`, e)
+                    }
+
+                    // 添加小延迟避免请求过快 (仅对网络请求)
+                    await new Promise(r => setTimeout(r, 100))
+                }
+
+                // 统一更新进度
+                downloadProgress.value.current++
+            }
+        } finally {
+            isDownloading.value = false
+            downloadAbortController = null
+        }
+
+        return { success, failed }
     }
 
     /**
      * 停止下载
      */
-    function stopDownload() {
+    function stopDownload(): void {
+        if (downloadAbortController) {
+            downloadAbortController.abort()
+        }
         isDownloading.value = false
     }
 
@@ -271,22 +335,29 @@ export const useOfflineStore = defineStore('offline', () => {
     /**
      * 获取书籍缓存状态
      */
-    function getBookCacheStatus(bookUrl: string, totalChapters: number) {
-        const cached = cachedBooks.value.get(bookUrl)?.size ?? 0
+    function getBookCacheStatus(bookUrl: string): {
+        isCached: boolean;
+        cachedCount: number;
+        cachedChapters: number[]
+    } {
+        const cached = cachedBooks.value.get(bookUrl)
+        if (!cached || cached.size === 0) {
+            return { isCached: false, cachedCount: 0, cachedChapters: [] }
+        }
         return {
-            cached,
-            total: totalChapters,
-            percentage: totalChapters > 0 ? Math.round((cached / totalChapters) * 100) : 0,
+            isCached: true,
+            cachedCount: cached.size,
+            cachedChapters: Array.from(cached).sort((a, b) => a - b)
         }
     }
 
     /**
      * 删除书籍的所有缓存
      */
-    async function deleteBookCache(bookUrl: string) {
+    async function deleteBookCache(bookUrl: string): Promise<void> {
         const database = await initDB()
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const tx = database.transaction(STORE_NAME, 'readwrite')
             const store = tx.objectStore(STORE_NAME)
             const index = store.index('bookUrl')
@@ -298,6 +369,7 @@ export const useOfflineStore = defineStore('offline', () => {
                     cursor.delete()
                     cursor.continue()
                 } else {
+                    // 删除完成，更新内存索引
                     cachedBooks.value.delete(bookUrl)
                     resolve()
                 }
@@ -310,10 +382,10 @@ export const useOfflineStore = defineStore('offline', () => {
     /**
      * 清空所有缓存
      */
-    async function clearAllCache() {
+    async function clearAllCache(): Promise<void> {
         const database = await initDB()
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const tx = database.transaction(STORE_NAME, 'readwrite')
             const request = tx.objectStore(STORE_NAME).clear()
 
@@ -329,8 +401,14 @@ export const useOfflineStore = defineStore('offline', () => {
     /**
      * 获取缓存大小统计
      */
-    async function getCacheStats(): Promise<{ totalBooks: number; totalChapters: number; estimatedSize: string }> {
+    async function getCacheStats(): Promise<{
+        totalBooks: number;
+        totalChapters: number;
+        estimatedSize: string;
+        quota: { used: number; total: number; percent: number };
+    }> {
         const database = await initDB()
+        const quotaInfo = await checkQuota()
 
         return new Promise((resolve) => {
             const tx = database.transaction(STORE_NAME, 'readonly')
@@ -346,10 +424,24 @@ export const useOfflineStore = defineStore('offline', () => {
                     ? `${(estimatedBytes / 1024 / 1024).toFixed(1)} MB`
                     : `${(estimatedBytes / 1024).toFixed(0)} KB`
 
-                resolve({ totalBooks, totalChapters, estimatedSize })
+                resolve({
+                    totalBooks,
+                    totalChapters,
+                    estimatedSize,
+                    quota: {
+                        used: quotaInfo.used,
+                        total: quotaInfo.quota,
+                        percent: quotaInfo.usagePercent
+                    }
+                })
             }
 
-            countRequest.onerror = () => resolve({ totalBooks: 0, totalChapters: 0, estimatedSize: '0 KB' })
+            countRequest.onerror = () => resolve({
+                totalBooks: 0,
+                totalChapters: 0,
+                estimatedSize: '0 KB',
+                quota: { used: 0, total: 0, percent: 0 }
+            })
         })
     }
 

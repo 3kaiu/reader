@@ -109,9 +109,6 @@ export class MemoryManager {
       } catch (error) {
         console.warn('Failed to trigger garbage collection:', error)
       }
-    } else {
-      // 降级策略：创建大量临时对象触发自动GC
-      this.triggerGCFallback()
     }
   }
 
@@ -238,16 +235,6 @@ export class MemoryManager {
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
     return slope
-  }
-
-  private triggerGCFallback(): void {
-    // 创建大量临时对象，希望触发垃圾回收
-    const temp = []
-    for (let i = 0; i < 100000; i++) {
-      temp.push({ data: new Array(100).fill(Math.random()) })
-    }
-    // 立即清空引用
-    temp.length = 0
   }
 
   private isMemoryAPISupported(): boolean {
@@ -406,7 +393,7 @@ if (typeof window !== 'undefined') {
   // 监听内存事件并报告给性能监控系统
   globalMemoryManager.addEventListener((type, usage) => {
     console.log(`🧠 Memory event: ${type}`, usage)
-    
+
     // 报告给性能监控系统
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('memory_event', usage.used, {

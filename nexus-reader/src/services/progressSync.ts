@@ -5,11 +5,13 @@
  */
 
 import { logger } from '../utils/logger'
+import { nexusDB, StoreNames, type ReadingProgress } from '../utils/db'
+import { syncManager } from './syncManager'
 
 // Configuration
 const SYNC_WORKER_URL = import.meta.env.VITE_PROGRESS_SYNC_URL || ''
 const DEBOUNCE_MS = 5000 // 5 seconds debounce for saves
-const LOCAL_KEY_PREFIX = 'nexus_progress:'
+const LOCAL_KEY_PREFIX = 'nexus_progress:' // Keep for migration
 
 interface ReadingProgress {
   bookId: string
@@ -29,49 +31,63 @@ export function isCloudSyncEnabled(): boolean {
 }
 
 /**
- * Save progress locally (always)
+ * Save progress locally (IndexedDB)
  */
-function saveLocal(progress: ReadingProgress): void {
+async function saveLocal(progress: ReadingProgress): Promise<void> {
   try {
-    localStorage.setItem(
-      `${LOCAL_KEY_PREFIX}${progress.bookId}`,
-      JSON.stringify(progress)
-    )
+    await nexusDB.put(StoreNames.PROGRESS, progress)
   } catch (e) {
-    logger.error('Failed to save progress locally', e as Error)
+    logger.error('Failed to save progress to IndexedDB', e as Error)
   }
 }
 
 /**
  * Load progress from local storage
  */
-function loadLocal(bookId: string): ReadingProgress | null {
+async function loadLocal(bookId: string): Promise<ReadingProgress | null> {
   try {
-    const data = localStorage.getItem(`${LOCAL_KEY_PREFIX}${bookId}`)
-    return data ? JSON.parse(data) : null
+    // 1. Try IndexedDB
+    const progress = await nexusDB.get(StoreNames.PROGRESS, bookId)
+    if (progress) return progress
+
+    // 2. Migration: Try legacy localStorage
+    const legacyData = localStorage.getItem(`${LOCAL_KEY_PREFIX}${bookId}`)
+    if (legacyData) {
+      try {
+        const parsed = JSON.parse(legacyData)
+        await saveLocal(parsed) // Migrate to IDB
+        localStorage.removeItem(`${LOCAL_KEY_PREFIX}${bookId}`) // Cleanup
+        return parsed
+      } catch {
+        return null
+      }
+    }
+    return null
   } catch {
     return null
   }
 }
 
 /**
- * Sync progress to cloud (if enabled)
+ * Sync progress to cloud (via SyncManager)
  */
 async function syncToCloud(progress: ReadingProgress): Promise<boolean> {
   if (!isCloudSyncEnabled()) return false
 
   try {
-    const response = await fetch(`${SYNC_WORKER_URL}/progress/${progress.bookId}`, {
+    await syncManager.addTask({
+      type: 'progress-update',
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      url: `${SYNC_WORKER_URL}/progress/${progress.bookId}`,
+      data: {
         chapterIndex: progress.chapterIndex,
         scrollPercent: progress.scrollPercent,
-      }),
+      },
+      priority: 'CRITICAL'
     })
-    return response.ok
+    return true
   } catch (e) {
-    logger.error('Failed to sync progress to cloud', e as Error)
+    logger.error('Failed to queue progress sync', e as Error)
     return false
   }
 }
@@ -97,11 +113,11 @@ async function loadFromCloud(bookId: string): Promise<ReadingProgress | null> {
 /**
  * Save reading progress (debounced, local + cloud)
  */
-export function saveProgress(
+export async function saveProgress(
   bookId: string,
   chapterIndex: number,
   scrollPercent: number
-): void {
+): Promise<void> {
   const progress: ReadingProgress = {
     bookId,
     chapterIndex,
@@ -109,8 +125,8 @@ export function saveProgress(
     updatedAt: Date.now(),
   }
 
-  // Always save locally immediately
-  saveLocal(progress)
+  // Always save locally immediately (now async)
+  await saveLocal(progress)
 
   // Debounce cloud sync
   const existingTimer = saveTimers.get(bookId)
@@ -130,7 +146,7 @@ export function saveProgress(
  * Load reading progress (local-first, cloud fallback with merge)
  */
 export async function loadProgress(bookId: string): Promise<ReadingProgress | null> {
-  const local = loadLocal(bookId)
+  const local = await loadLocal(bookId)
   const cloud = await loadFromCloud(bookId)
 
   // If both exist, use the more recent one
@@ -159,7 +175,8 @@ export async function loadProgress(bookId: string): Promise<ReadingProgress | nu
  */
 export async function deleteProgress(bookId: string): Promise<void> {
   // Remove local
-  localStorage.removeItem(`${LOCAL_KEY_PREFIX}${bookId}`)
+  await nexusDB.delete(StoreNames.PROGRESS, bookId)
+  localStorage.removeItem(`${LOCAL_KEY_PREFIX}${bookId}`) // Cleanup legacy
 
   // Remove from cloud
   if (isCloudSyncEnabled()) {
@@ -174,20 +191,9 @@ export async function deleteProgress(bookId: string): Promise<void> {
 /**
  * Get all local progress (for debugging/display)
  */
-export function getAllLocalProgress(): ReadingProgress[] {
-  const results: ReadingProgress[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key?.startsWith(LOCAL_KEY_PREFIX)) {
-      const data = localStorage.getItem(key)
-      if (data) {
-        try {
-          results.push(JSON.parse(data))
-        } catch {
-          // Ignore invalid data
-        }
-      }
-    }
-  }
+export async function getAllLocalProgress(): Promise<ReadingProgress[]> {
+  const results = await nexusDB.getAll(StoreNames.PROGRESS)
+
+  // Combine with legacy if needed (optional, or just return IDB)
   return results
 }

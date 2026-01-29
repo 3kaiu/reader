@@ -48,7 +48,7 @@ export function useRag() {
   async function search(query: string, limit = 3): Promise<RagDocument[]> {
     if (documents.value.length === 0) return []
 
-    // 1. 生成查詢向量
+    // 1. 生成加密查詢向量
     let queryVector: number[] | null = null
     try {
       queryVector = await embed(query)
@@ -56,22 +56,27 @@ export function useRag() {
       console.warn('[RAG] 查詢向量生成失敗，回退到純文本檢索')
     }
 
-    const tokens = query.toLowerCase().split(/\s+/)
+    // 性能優化：預分詞並過濾無效词
+    const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 0)
+
+    // 性能優化：預編譯聚合正則，避免在循環中重複創建 RegExp 對象
+    const queryRegex = tokens.length > 0
+      ? new RegExp(tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi')
+      : null
 
     const scores = documents.value.map(doc => {
       let bm25Score = 0
       let semanticScore = 0
 
-      // BM25 關鍵字得分
-      const content = doc.content.toLowerCase()
-      tokens.forEach(token => {
-        if (!token) return
-        const regex = new RegExp(token, 'g')
-        const matches = content.match(regex)
+      // BM25 關鍵字得分 (優化版：一次掃描)
+      if (queryRegex) {
+        const content = doc.content
+        const matches = content.match(queryRegex)
         if (matches) {
-          bm25Score += matches.length * (1 + 1 / token.length)
+          // 簡單模擬計分：匹配項總數 * 加權
+          bm25Score = matches.length * 1.5
         }
-      })
+      }
 
       // 語義相似度得分
       if (queryVector && doc.vector) {
@@ -79,7 +84,6 @@ export function useRag() {
       }
 
       // 權重融合 (0.3 BM25 + 0.7 Semantic)
-      // 歸一化 BM25 得分 (假設最大匹配為 10)
       const normalizedBm25 = Math.min(bm25Score / 10, 1)
       const finalScore = (normalizedBm25 * 0.3) + (semanticScore * 0.7)
 

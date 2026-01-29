@@ -5,10 +5,10 @@ use axum::{
     Router,
 };
 use nexus_core::EngineConfig;
-use nexus_core::{EventBus, SystemEvent, SystemControlEvent};
-use nexus_engine::anti_crawl::{FallbackChain, CfBypassStrategy};
+use nexus_core::{EventBus, SystemControlEvent, SystemEvent};
+use nexus_engine::anti_crawl::{CfBypassStrategy, FallbackChain};
 use nexus_engine::fetcher::HttpFetcher;
-use nexus_storage::{SledStore, ChapterCache, SourceStore};
+use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::sync::Arc;
 use tower_governor::{governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor};
 use tower_http::{
@@ -62,7 +62,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let fetcher = Arc::new(HttpFetcher::new(config.limits.http_timeout_seconds)?);
 
     // CF Bypass Strategy (direct Cloudflare bypass via cf-bypass-service)
-    let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone()));
+    let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone())?);
     let anti_crawl = Arc::new(FallbackChain::new(cf_strategy));
 
     // Initialize Engine Registry
@@ -100,7 +100,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/sources", post(routes::source::add_source))
         .route("/api/sources/{id}", get(routes::source::get_source))
         .route("/api/sources/{id}", delete(routes::source::delete_source))
-        .route("/api/sources/{id}/status", put(routes::source::update_source_status))
+        .route(
+            "/api/sources/{id}/status",
+            put(routes::source::update_source_status),
+        )
         .route("/api/sources/health", get(routes::source::source_health))
         // Search
         .route("/api/search", post(routes::search::search))
@@ -110,6 +113,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/book", get(routes::book::book_info))
         .route("/api/chapters", get(routes::book::chapters))
         .route("/api/content", get(routes::book::content))
+        .route("/api/batch/content", post(routes::book::batch_content))
         // Bookshelf
         .route("/api/bookshelf", get(routes::bookshelf::list))
         .route("/api/bookshelf", post(routes::bookshelf::add))

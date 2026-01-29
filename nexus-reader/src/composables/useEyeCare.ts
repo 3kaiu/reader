@@ -48,7 +48,9 @@ export function useEyeCare() {
             // 震动反馈 (如果支持)
             try {
                 navigator.vibrate?.(200)
-            } catch { }
+            } catch {
+                // Intentionally empty: vibration API not available on all devices
+            }
         }
 
         // 屏幕变暖

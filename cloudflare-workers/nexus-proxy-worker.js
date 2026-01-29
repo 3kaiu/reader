@@ -97,25 +97,7 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
   const origin = request.headers.get('Origin') || '';
   const logger = createLogger(env);
   
-  // 修复双重编码问题：如果 url 参数被双重编码，尝试解码一次
-  // 这作为防御性措施，主要修复应该在前端
-  // 双重编码的特征：包含 %2F (/) 或 %3A (:) 等编码字符，而不是正常的 / 或 :
-  if (url.searchParams.has('url')) {
-    const urlParam = url.searchParams.get('url');
-    try {
-      // 如果 URL 参数看起来是双重编码的（包含 %2F 或 %3A 而不是正常的 / 或 :）
-      if (urlParam && (urlParam.includes('%2F') || urlParam.includes('%3A'))) {
-        const decoded = decodeURIComponent(urlParam);
-        // 验证解码后的 URL 是否有效（应该包含 http:// 或 https://）
-        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-          url.searchParams.set('url', decoded);
-        }
-      }
-    } catch (e) {
-      // 解码失败，保持原样
-      logger.warn('Failed to decode URL parameter:', e);
-    }
-  }
+  // 移除手动重编码修复逻辑（统一由前端 Client 治理，保持 Proxy 纯粹性）
   
   // 尝试从缓存获取
   const cacheKey = getCacheKey(path, Object.fromEntries(url.searchParams));
@@ -137,10 +119,14 @@ async function proxyToHF(request, env, targetUrl, path, useCache = false, cacheT
   headers.delete('host');
   
   try {
+    // 性能优化：零拷贝流式转发 (Zero-Copy Streaming)
+    // 直接传递 request.body，避免将整个 body 读入边缘节点内存
     const response = await fetch(url.toString(), {
       method: request.method,
       headers: headers,
-      body: request.method !== 'GET' && request.method !== 'HEAD' ? await request.clone().text() : null,
+      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
+      // 注意：某些运行时可能需要设置 duplex: 'half' 
+      ...(request.method !== 'GET' && request.method !== 'HEAD' ? { duplex: 'half' } : {})
     });
     
     // 添加 CORS 头

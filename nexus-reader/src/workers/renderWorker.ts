@@ -96,27 +96,43 @@ async function renderChapter(options: RenderOptions): Promise<PageData[]> {
 }
 
 /**
- * 简单的文本换行逻辑
+ * 高性能文本换行逻辑 (估算-微调模型)
  */
 function wrapText(ctx: OffscreenCanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = Array.from(text) // 针对中文按字符分割
+  if (!text) return []
+
   const lines: string[] = []
-  let currentLine = ''
+  let start = 0
 
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i]
-    const metrics = ctx.measureText(testLine)
+  // 测量典型字符宽度作为基准 (取一个中文字符)
+  const avgCharWidth = ctx.measureText('中').width || 16
 
-    if (metrics.width > maxWidth && i > 0) {
-      lines.push(currentLine)
-      currentLine = words[i]
-    } else {
-      currentLine = testLine
+  while (start < text.length) {
+    // 1. 估算跳转点: 剩余空间 / 平均字符宽度
+    // 预留 15% 的余量以应对变宽字符
+    let guessCount = Math.floor(maxWidth / avgCharWidth * 0.85)
+    let end = Math.min(start + Math.max(1, guessCount), text.length)
+
+    // 2. 微调: 步进探测直到溢出
+    let currentWidth = ctx.measureText(text.substring(start, end)).width
+
+    while (end < text.length) {
+      const nextChar = text[end]
+      const charWidth = ctx.measureText(nextChar).width
+
+      if (currentWidth + charWidth > maxWidth) {
+        break
+      }
+
+      currentWidth += charWidth
+      end++
     }
-  }
 
-  if (currentLine) {
-    lines.push(currentLine)
+    // 3. 处理极端情况: 如果单字符就溢出，强制截断一个
+    if (end === start) end++
+
+    lines.push(text.substring(start, end))
+    start = end
   }
 
   return lines
