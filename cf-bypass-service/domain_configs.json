@@ -21,23 +21,26 @@
   },
   "hetushu.com": {
     "browser": {
-      "browser": "firefox",
-      "platform": "linux"
+      "browser": "chrome",
+      "platform": "windows",
+      "mobile": false
     },
     "stealth": {
-      "min_delay": 1.5,
-      "max_delay": 4.0,
+      "min_delay": 3.0,
+      "max_delay": 6.0,
       "human_like_delays": true,
       "randomize_headers": true
     },
     "proxy": {
       "proxies": [],
       "rotation_strategy": "random",
-      "ban_time": 300
+      "ban_time": 600
     },
     "interpreter": "nodejs",
-    "timeout": 30,
-    "enabled": true
+    "timeout": 45,
+    "enabled": true,
+    "retry_on_403": true,
+    "max_retries": 3
   },
   "default": {
     "browser": {

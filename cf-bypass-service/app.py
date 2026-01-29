@@ -12,6 +12,7 @@ from pydantic import BaseModel, HttpUrl
 
 # Import new CloudScraper wrapper instead of old curl_cffi engine
 from cloudscraper_wrapper import wrapper as engine
+from enhanced_cf_bypass import get_domain_stats, shutdown_bypass
 from phase2_config import phase2_config
 import os
 
@@ -89,6 +90,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     await engine.shutdown()
+    await shutdown_bypass()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -150,6 +152,12 @@ async def get_tokens(domain: str):
 async def stats():
     """Engine statistics including performance metrics."""
     return engine.get_stats()
+
+
+@app.get("/stats/domains")
+async def domains_stats():
+    """Detailed Cloudflare protection stats for all domains."""
+    return get_domain_stats()
 
 
 @app.post("/fetch/parallel")

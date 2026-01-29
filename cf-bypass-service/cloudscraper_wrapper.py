@@ -518,6 +518,59 @@ class CloudScraperWrapper:
                 ]):
                     cf_bypassed = False
                     logger.warning("CloudScraper may not have fully bypassed challenges for %s", url)
+                    
+                    # Retry with session recreation if first attempt failed
+                    retry_count = getattr(self, '_retry_count', {}).get(url, 0)
+                    if retry_count < 2:
+                        if not hasattr(self, '_retry_count'):
+                            self._retry_count = {}
+                        self._retry_count[url] = retry_count + 1
+                        
+                        logger.info(f"Retrying {url} (attempt {retry_count + 1}/2) with fresh session...")
+                        
+                        # Delete old session to force recreation
+                        if domain in self.scrapers:
+                            del self.scrapers[domain]
+                        
+                        # Add delay before retry (2-4 seconds)
+                        import asyncio
+                        await asyncio.sleep(2 + retry_count)
+                        
+                        # Recursive retry
+                        result = await self.fetch(url, method, headers, body, timeout, proxy)
+                        
+                        # Clear retry count on success or final attempt
+                        if url in self._retry_count:
+                            del self._retry_count[url]
+                        
+                        return result
+                    
+                    # Clear retry count after exhausting retries
+                    if hasattr(self, '_retry_count') and url in self._retry_count:
+                        del self._retry_count[url]
+                    
+                    # Try enhanced multi-layer CF bypass as final fallback
+                    domain_config = config_manager.get_config(domain)
+                    if getattr(domain_config, 'retry_on_403', False):
+                        logger.info(f"Trying enhanced CF bypass for {url}...")
+                        try:
+                            from enhanced_cf_bypass import enhanced_fetch
+                            bypass_result = await enhanced_fetch(url, timeout=timeout or 30)
+                            
+                            if bypass_result.cf_bypassed:
+                                logger.info(f"Enhanced CF bypass succeeded via {bypass_result.method_used} for {url}")
+                                return FetchResult(
+                                    status=bypass_result.status,
+                                    html=bypass_result.html,
+                                    cookies=bypass_result.cookies,
+                                    headers=bypass_result.headers,
+                                    cf_bypassed=True,
+                                    duration=(datetime.now() - start_time).total_seconds()
+                                )
+                            else:
+                                logger.warning(f"Enhanced CF bypass failed for {url}: {bypass_result.error}")
+                        except Exception as bypass_err:
+                            logger.error(f"Enhanced CF bypass error: {bypass_err}")
             
             # Handle encoding (especially for Chinese sites)
             html = response.text
