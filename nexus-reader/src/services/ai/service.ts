@@ -454,18 +454,13 @@ export class AIServiceManager {
       const messages = this.contextManager.buildMessages(prompt)
 
       // 执行推理
-      try {
-        const response = await this.engine.value.chat.completions.create({
-          messages,
-          temperature: params?.temperature || 0.7,
-          max_tokens: params?.max_tokens || 2048,
-          ...params
-        })
-        const content = response.choices?.[0]?.message?.content || ''
-        return content
-      } catch (err) {
-        throw err
-      }
+      const response = await this.engine.value.chat.completions.create({
+        messages,
+        temperature: params?.temperature || 0.7,
+        max_tokens: params?.max_tokens || 2048,
+        ...params
+      })
+      const content = response.choices?.[0]?.message?.content || ''
 
       // Update Context History
       if (content) {

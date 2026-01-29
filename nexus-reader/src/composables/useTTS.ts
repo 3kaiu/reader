@@ -77,7 +77,7 @@ export function useTTS() {
         if (settings.config.ttsEngine === 'piper') {
             const voiceId = settings.config.piperVoice || 'zh_CN-huayan-medium'
             await voiceStore.speak(text, voiceId)
-            
+
             // 监听播放结束
             if (onEnd) {
                 const checkEnd = setInterval(() => {
@@ -111,6 +111,24 @@ export function useTTS() {
         } else {
             window.speechSynthesis.cancel()
             sysSpeaking.value = false
+            sysPaused.value = false
+        }
+    }
+
+    function pause() {
+        if (settings.config.ttsEngine === 'piper') {
+            voiceStore.togglePause()
+        } else {
+            window.speechSynthesis.pause()
+            sysPaused.value = true
+        }
+    }
+
+    function resume() {
+        if (settings.config.ttsEngine === 'piper') {
+            voiceStore.togglePause()
+        } else {
+            window.speechSynthesis.resume()
             sysPaused.value = false
         }
     }
@@ -155,6 +173,8 @@ export function useTTS() {
         selectedVoice: selectedSysVoice,
         speak,
         stop,
+        pause,
+        resume,
         toggle,
         setRate,
         // TTS 服务管理

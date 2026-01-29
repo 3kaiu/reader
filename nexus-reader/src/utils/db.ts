@@ -14,6 +14,7 @@ export enum StoreNames {
   PROGRESS = 'progress',
   OFFLINE_CONTENT = 'offline_content',
   SYNC_QUEUE = 'sync_queue',
+  RULES = 'rules',
 }
 
 export interface ReadingProgress {
@@ -64,7 +65,13 @@ class NexusDatabase {
           queueStore.createIndex('priority', 'priority')
           queueStore.createIndex('timestamp', 'timestamp')
         }
-        // Add future migration logic here (oldVersion < 2, etc.)
+        if (oldVersion < 2) {
+          // Version 2: Add RULES store for RAG
+          if (!db.objectStoreNames.contains(StoreNames.RULES)) {
+            db.createObjectStore(StoreNames.RULES, { keyPath: 'id' })
+          }
+        }
+        // Add future migration logic here (oldVersion < 3, etc.)
       },
       blocked() {
         logger.warn('Database access blocked by older version in another tab.')

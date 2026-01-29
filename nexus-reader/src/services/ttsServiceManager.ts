@@ -28,6 +28,8 @@ export class TTSServiceManager {
   public isSupported = ref(false)
   public isLoading = ref(false)
   public isEngineLoaded = ref(false)
+  public isSpeaking = ref(false)
+  public isPaused = ref(false)
   public loadProgress = ref(0)
   public loadStatus = ref('')
   public error = ref<string | null>(null)
@@ -40,6 +42,7 @@ export class TTSServiceManager {
 
   private engine: TTSEngine | null = null
   private audioContext: AudioContext | null = null
+  private currentSource: AudioBufferSourceNode | null = null
   private isInitialized = false
   private availableVoices: PiperVoice[] = []
 
@@ -336,8 +339,56 @@ export class TTSServiceManager {
     }
   }
 
+  // Stop current speaking
+  stop(): void {
+    if (this.currentSource) {
+      try {
+        this.currentSource.stop()
+        this.currentSource.disconnect()
+      } catch (e) {
+        // Ignore errors if already stopped
+      }
+      this.currentSource = null
+    }
+    this.isSpeaking.value = false
+    this.isPaused.value = false
+  }
+
+  // Toggle pause/resume
+  togglePause(): void {
+    if (!this.audioContext) return
+
+    if (this.isPaused.value) {
+      this.audioContext.resume()
+      this.isPaused.value = false
+    } else {
+      this.audioContext.suspend()
+      this.isPaused.value = true
+    }
+  }
+
+  // Unload engine (alias for cleanup)
+  async unloadEngine(): Promise<void> {
+    await this.cleanup()
+  }
+
+  // Clear TTS cache
+  async clearTTSCache(): Promise<void> {
+    try {
+      const cachedModels = await this.getCachedTTSModels()
+      for (const modelId of cachedModels) {
+        await this.removeCachedTTSModel(modelId)
+      }
+      logger.info('TTS cache cleared')
+    } catch (err) {
+      logger.error('Failed to clear TTS cache:', err)
+    }
+  }
+
   async cleanup(): Promise<void> {
     try {
+      this.stop() // Stop any current playback first
+
       if (this.engine) {
         await this.engine.dispose()
         this.engine = null

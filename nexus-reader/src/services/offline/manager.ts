@@ -74,6 +74,17 @@ export class OfflineManager {
     return this.isOnline
   }
 
+  // 生成唯一操作ID
+  private generateOperationId(): string {
+    return `op_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+  }
+
+  // 清空操作队列
+  clearQueue(): void {
+    this.operationQueue = []
+    this.persistOperationQueue().catch(err => console.error('Failed to persist queue', err))
+  }
+
   // 添加离线操作到队列
   async queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
     const id = this.generateOperationId()

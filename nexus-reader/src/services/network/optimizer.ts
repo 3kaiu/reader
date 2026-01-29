@@ -154,6 +154,11 @@ export class NetworkDetector {
     return this.getFallbackNetworkInfo()
   }
 
+  // 检查是否在线
+  isOnline(): boolean {
+    return this.getNetworkInfo().isOnline
+  }
+
   // 获取网络质量等级
   getNetworkQuality(): NetworkQuality {
     const info = this.getNetworkInfo()

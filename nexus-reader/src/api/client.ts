@@ -5,6 +5,10 @@ import { requestOptimizer, networkDetector } from '@/services/network/optimizer'
 import { perfMonitor } from '@/services/performance/monitor'
 import { offlineManager, offlineContentServer } from '@/services/offline/manager'
 
+// 请求缓存
+const MAX_CACHE_SIZE = 100
+const requestCache = new Map<string, { data: any; timestamp: number }>()
+
 // 错误消息翻译映射（技术性错误 -> 用户友好消息）
 const ERROR_MESSAGE_MAP: Record<string, string> = {
   // 网络错误

@@ -216,7 +216,7 @@ export class OfflineService {
   }
 
   // 从离线缓存获取内容
-  async getOfflineContent<T>(contentId: string, type: OfflineContentType): Promise<T | null> {
+  async getOfflineContentById<T>(contentId: string, type: OfflineContentType): Promise<T | null> {
     try {
       const cacheKey = this.generateCacheKey(contentId, type)
       const cached = offlineManager.getCachedContent(cacheKey)
@@ -571,7 +571,7 @@ export function cacheForOffline(contentId: string, type: OfflineContentType, pri
 }
 
 export function getFromOfflineCache<T>(contentId: string, type: OfflineContentType): Promise<T | null> {
-  return offlineService.getOfflineContent<T>(contentId, type)
+  return offlineService.getOfflineContentById<T>(contentId, type)
 }
 
 export function queueOfflineAction(

@@ -8,6 +8,15 @@ import {
   type PerformanceMetric
 } from '../services/performance/monitor'
 
+// 性能阈值常量
+const PERFORMANCE_THRESHOLDS = {
+  lcp: 2500,        // 最大内容绘制时间 (ms)
+  fid: 100,         // 首次输入延迟 (ms)
+  cls: 0.1,         // 累积布局偏移
+  memory: 0.8,      // 内存使用率
+  apiResponse: 1000 // API响应时间 (ms)
+}
+
 export function usePerformanceMonitor() {
   // 响应式状态
   const isMonitoring = ref(false)
