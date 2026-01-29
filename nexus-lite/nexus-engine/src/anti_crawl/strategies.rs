@@ -144,6 +144,15 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             body.status
         };
 
+        // If we got blocked (403/429) and CF bypass didn't succeed, return error
+        if (status == 403 || status == 429) && !body.cf_bypassed {
+            warn!("CF Bypass: Target blocked with status {}", status);
+            return Err(EngineError::Network(format!(
+                "HTTP {} for {}",
+                status, ctx.url
+            )));
+        }
+
         info!(
             "CF Bypass: {} status={}",
             if body.cf_bypassed {

@@ -17,7 +17,7 @@
   },
   "book": {
     "name": "h1 a",
-    "author": "p:contains('作者')",
+    "author": "div.count a[href*='/zuozhe/']",
     "intro": "div.des",
     "cover": "div.item img@src",
     "toc": "a[href*='#dir']@href"
