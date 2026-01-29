@@ -18,7 +18,7 @@ interface RenderOptions {
 
 export function useRenderWorker() {
   const worker = ref<Worker | null>(null)
-  const renderedPagesMap = ref<Map<number, ImageBitmap[]>>(new Map())
+  const renderedMeshesMap = ref<Map<number, any[]>>(new Map()) // 存储二进制 Mesh 数据
   const isRendering = ref(false)
   const currentChapterIndex = ref(-1)
 
@@ -31,13 +31,12 @@ export function useRenderWorker() {
     worker.value.onmessage = (e) => {
       const { type, page, totalPages, index: reqIndex } = e.data
 
-      if (type === 'render-page') {
+      if (type === 'render-page-mesh') {
         const targetIndex = reqIndex ?? currentChapterIndex.value
-        if (!renderedPagesMap.value.has(targetIndex)) {
-          renderedPagesMap.value.set(targetIndex, [])
+        if (!renderedMeshesMap.value.has(targetIndex)) {
+          renderedMeshesMap.value.set(targetIndex, [])
         }
-        renderedPagesMap.value.get(targetIndex)!.push(page.bitmap)
-      } else if (type === 'render-page-mesh') {
+        renderedMeshesMap.value.get(targetIndex)!.push(page)
         const targetIndex = reqIndex ?? currentChapterIndex.value
         console.log(`💎 Received Binary Mesh for page ${page.index} (Chars: ${page.charCount})`)
         // TODO: Pass buffer to GLRenderer
@@ -50,7 +49,7 @@ export function useRenderWorker() {
 
   onUnmounted(() => {
     worker.value?.terminate()
-    clearAllBitmaps()
+    clearAllCaches()
   })
 
   /**
@@ -73,36 +72,24 @@ export function useRenderWorker() {
   }
 
   /**
-   * 清理非目标章节的位图缓存
+   * 清理非目标章节数据
    */
   function cleanupCache(keepIndex: number) {
-    for (const [index, bitmaps] of renderedPagesMap.value.entries()) {
+    for (const index of renderedMeshesMap.value.keys()) {
       if (index !== keepIndex && index !== keepIndex + 1) {
-        bitmaps.forEach(b => b.close())
-        renderedPagesMap.value.delete(index)
+        renderedMeshesMap.value.delete(index)
       }
     }
   }
 
-  /**
-   * 获取特定章节的位图
-   */
-  function getBitmapsForChapter(index: number): ImageBitmap[] {
-    return renderedPagesMap.value.get(index) || []
-  }
-
-  function clearAllBitmaps() {
-    renderedPagesMap.value.forEach(bitmaps => {
-      bitmaps.forEach(b => b.close())
-    })
-    renderedPagesMap.value.clear()
+  function clearAllCaches() {
+    renderedMeshesMap.value.clear()
   }
 
   return {
-    renderedPagesMap,
+    renderedMeshesMap,
     isRendering,
     requestRender,
-    getBitmapsForChapter,
-    clearAllBitmaps
+    clearAllCaches
   }
 }

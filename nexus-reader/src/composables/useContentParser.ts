@@ -28,7 +28,7 @@ export function useContentParser() {
             perfMonitor.startMark(markKey)
 
             const worker = new Worker(
-                new URL('./contentWorker.ts', import.meta.url),
+                new URL('../utils/contentWorker.ts', import.meta.url),
                 { type: 'module' }
             )
 

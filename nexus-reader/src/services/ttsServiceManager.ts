@@ -4,9 +4,8 @@
  */
 
 import { ref } from 'vue'
-import { cdnResourceLoader } from '@/utils/cdnResourceLoader'
+import { AdaptiveLoader } from '@/utils/adaptiveAssetLoader'
 import { modelCacheManager } from '@/utils/modelCacheManager'
-import { workerBus } from '@/utils/workerBus'
 import { logger } from '@/utils/logger'
 
 export interface TTSPerformance {
@@ -115,13 +114,8 @@ export class TTSServiceManager {
     const startTime = Date.now()
 
     try {
-      // Load engine if not already loaded
       if (!this.engine) {
         await this.loadEngine()
-      }
-
-      if (!this.engine) {
-        throw new Error('TTS engine not available')
       }
 
       // Check if voice model is cached, if not download it
@@ -133,13 +127,8 @@ export class TTSServiceManager {
       }
 
       // Perform speech synthesis
-      workerBus.updateStatus('tts-worker', 'BUSY')
       let audioBuffer: ArrayBuffer
-      try {
-        audioBuffer = await this.engine.speak(text, { voiceId })
-      } finally {
-        workerBus.updateStatus('tts-worker', 'IDLE')
-      }
+      audioBuffer = await this.engine.speak(text, { voiceId })
 
       // Update performance metrics
       const endTime = Date.now()
@@ -285,13 +274,9 @@ export class TTSServiceManager {
 
     try {
       // Load TTS library from CDN
-      const piperTTS = await cdnResourceLoader.loadResource('piper-tts-web', {
-        timeout: 30000,
-        retries: 2,
-        onProgress: (progress: any) => {
-          this.loadProgress.value = Math.round(progress.percentage * 100)
-          this.loadStatus.value = progress.status || 'Loading...'
-        }
+      const piperTTS = await AdaptiveLoader.loadHeavyModule('piper-tts-web', async () => {
+        const module = await import('piper-tts-web')
+        return module
       })
 
       if (!piperTTS || !piperTTS.PiperWebWorkerEngine) {
@@ -303,9 +288,6 @@ export class TTSServiceManager {
       this.isEngineLoaded.value = true
       this.loadProgress.value = 100
       this.loadStatus.value = 'Ready'
-
-      // 注册到 WorkerBus
-      workerBus.register('tts-worker', 'TTS')
 
       logger.info('TTS engine loaded successfully')
     } catch (err) {

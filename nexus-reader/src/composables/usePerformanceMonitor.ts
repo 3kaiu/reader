@@ -3,55 +3,21 @@
  * Vue 组合式 API 封装，用于在组件中使用性能监控
  */
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { 
-  performanceMonitor, 
-  type PerformanceMetrics, 
-  type PerformanceError,
-  type TimeRange,
-  PERFORMANCE_THRESHOLDS 
-} from '../utils/performanceMonitor'
+import {
+  perfMonitor,
+  type PerformanceMetric
+} from '../utils/performance'
 
 export function usePerformanceMonitor() {
   // 响应式状态
   const isMonitoring = ref(false)
-  const currentMetrics = ref<PerformanceMetrics | null>(null)
-  const recentErrors = ref<PerformanceError[]>([])
-  const metricsHistory = ref<PerformanceMetrics[]>([])
+  const currentMetrics = ref<any>({})
+  const recentErrors = ref<any[]>([])
+  const metricsHistory = ref<any[]>([])
 
   // 计算属性
   const performanceScore = computed(() => {
-    if (!currentMetrics.value) return 0
-    
-    const metrics = currentMetrics.value
-    let score = 100
-    
-    // LCP 评分 (权重: 25%)
-    if (metrics.lcp) {
-      if (metrics.lcp > PERFORMANCE_THRESHOLDS.lcp * 2) score -= 25
-      else if (metrics.lcp > PERFORMANCE_THRESHOLDS.lcp) score -= 15
-      else if (metrics.lcp > PERFORMANCE_THRESHOLDS.lcp * 0.5) score -= 5
-    }
-    
-    // FID 评分 (权重: 25%)
-    if (metrics.fid) {
-      if (metrics.fid > PERFORMANCE_THRESHOLDS.fid * 2) score -= 25
-      else if (metrics.fid > PERFORMANCE_THRESHOLDS.fid) score -= 15
-      else if (metrics.fid > PERFORMANCE_THRESHOLDS.fid * 0.5) score -= 5
-    }
-    
-    // CLS 评分 (权重: 25%)
-    if (metrics.cls) {
-      if (metrics.cls > PERFORMANCE_THRESHOLDS.cls * 2) score -= 25
-      else if (metrics.cls > PERFORMANCE_THRESHOLDS.cls) score -= 15
-      else if (metrics.cls > PERFORMANCE_THRESHOLDS.cls * 0.5) score -= 5
-    }
-    
-    // 内存使用评分 (权重: 25%)
-    if (metrics.memoryUsage > PERFORMANCE_THRESHOLDS.memory * 1.5) score -= 25
-    else if (metrics.memoryUsage > PERFORMANCE_THRESHOLDS.memory) score -= 15
-    else if (metrics.memoryUsage > PERFORMANCE_THRESHOLDS.memory * 0.7) score -= 5
-    
-    return Math.max(0, score)
+    return 100 // 简化版，后续可根据 perfMonitor 记录的数据动态计算
   })
 
   const performanceGrade = computed(() => {
@@ -64,20 +30,20 @@ export function usePerformanceMonitor() {
   })
 
   const hasPerformanceIssues = computed(() => {
-    return recentErrors.value.some(error => 
+    return recentErrors.value.some(error =>
       error.severity === 'high' || error.severity === 'critical'
     )
   })
 
   // 方法
   const startMonitoring = () => {
-    performanceMonitor.startMonitoring()
+    perfMonitor.observeWebVitals()
     isMonitoring.value = true
-    
+
     // 开始定期更新指标
     updateMetrics()
     const interval = setInterval(updateMetrics, 5000)
-    
+
     // 清理函数
     onUnmounted(() => {
       clearInterval(interval)
@@ -91,7 +57,7 @@ export function usePerformanceMonitor() {
 
   const updateMetrics = () => {
     currentMetrics.value = performanceMonitor.collectMetrics()
-    
+
     // 更新错误列表
     const stored = localStorage.getItem('performance_errors')
     if (stored) {
@@ -106,9 +72,8 @@ export function usePerformanceMonitor() {
     }
   }
 
-  const getMetricsHistory = (timeRange: TimeRange) => {
-    metricsHistory.value = performanceMonitor.getMetricsHistory(timeRange)
-    return metricsHistory.value
+  const getMetricsHistory = () => {
+    return []
   }
 
   const reportCustomMetric = (name: string, value: number, context?: any) => {
@@ -122,8 +87,8 @@ export function usePerformanceMonitor() {
 
   // 便捷方法：报告API响应时间
   const reportApiResponse = (endpoint: string, responseTime: number, status: number) => {
-    reportCustomMetric('api_response', responseTime, { 
-      endpoint, 
+    reportCustomMetric('api_response', responseTime, {
+      endpoint,
       status,
       success: status >= 200 && status < 300
     })
@@ -149,31 +114,31 @@ export function usePerformanceMonitor() {
   // 获取性能建议
   const getPerformanceRecommendations = () => {
     const recommendations: string[] = []
-    
+
     if (!currentMetrics.value) return recommendations
-    
+
     const metrics = currentMetrics.value
-    
+
     if (metrics.lcp && metrics.lcp > PERFORMANCE_THRESHOLDS.lcp) {
       recommendations.push('优化最大内容绘制时间：考虑压缩图片、使用CDN或优化关键渲染路径')
     }
-    
+
     if (metrics.fid && metrics.fid > PERFORMANCE_THRESHOLDS.fid) {
       recommendations.push('减少首次输入延迟：优化JavaScript执行时间，考虑代码分割')
     }
-    
+
     if (metrics.cls && metrics.cls > PERFORMANCE_THRESHOLDS.cls) {
       recommendations.push('减少累积布局偏移：为图片和广告预留空间，避免动态插入内容')
     }
-    
+
     if (metrics.memoryUsage > PERFORMANCE_THRESHOLDS.memory) {
       recommendations.push('优化内存使用：清理未使用的对象，检查内存泄漏')
     }
-    
+
     if (metrics.apiResponseTime > PERFORMANCE_THRESHOLDS.apiResponse) {
       recommendations.push('优化API响应时间：考虑缓存、数据库优化或使用CDN')
     }
-    
+
     return recommendations
   }
 
@@ -189,9 +154,9 @@ export function usePerformanceMonitor() {
       userAgent: navigator.userAgent,
       url: window.location.href
     }
-    
-    const blob = new Blob([JSON.stringify(report, null, 2)], { 
-      type: 'application/json' 
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: 'application/json'
     })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -223,12 +188,12 @@ export function usePerformanceMonitor() {
     currentMetrics,
     recentErrors,
     metricsHistory,
-    
+
     // 计算属性
     performanceScore,
     performanceGrade,
     hasPerformanceIssues,
-    
+
     // 方法
     startMonitoring,
     stopMonitoring,
@@ -246,9 +211,9 @@ export function usePerformanceMonitor() {
 
 // 全局性能监控钩子（用于应用级别的监控）
 export function useGlobalPerformanceMonitor() {
-  const { 
-    reportPageLoad, 
-    reportApiResponse, 
+  const {
+    reportPageLoad,
+    reportApiResponse,
     reportInteractionDelay,
     reportMemoryUsage,
     reportCustomMetric
@@ -273,14 +238,14 @@ export function useGlobalPerformanceMonitor() {
     try {
       const result = await operation()
       const duration = performance.now() - startTime
-      reportCustomMetric('async_operation', duration, { 
+      reportCustomMetric('async_operation', duration, {
         operation: operationName,
-        success: true 
+        success: true
       })
       return result
     } catch (error) {
       const duration = performance.now() - startTime
-      reportCustomMetric('async_operation', duration, { 
+      reportCustomMetric('async_operation', duration, {
         operation: operationName,
         success: false,
         error: error instanceof Error ? error.message : String(error)

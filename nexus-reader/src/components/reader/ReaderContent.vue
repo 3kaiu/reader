@@ -5,8 +5,6 @@
  */
 import { ref, watch, onMounted } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
-import ChapterSummary from '@/components/book/ChapterSummary.vue'
-import { formatContent } from '@/utils/format'
 import { useRenderWorker } from '@/composables/useRenderWorker'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -72,7 +70,6 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const swipeContentRef = ref<HTMLElement | null>(null)
-const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 // 初始化渲染 Worker
 const { renderedPages, requestRender } = useRenderWorker()
@@ -138,7 +135,7 @@ function getHighlightedContent(content: string | undefined): string {
 watch(() => props.formattedContent, (newContent) => {
   if (props.readingMode === 'swipe' && newContent) {
     requestRender({
-      text: newContent.replace(/<[^>]*>/g, '\n'), // 简单转义用于 Canvas
+      text: newContent.replace(/<[^>]*>/g, '\n'), // 简单转义用于 Mesh 构建
       width: window.innerWidth,
       height: window.innerHeight,
       fontSize: settingsStore.config.fontSize || 18,
@@ -147,24 +144,9 @@ watch(() => props.formattedContent, (newContent) => {
       fontFamily: 'sans-serif',
       color: props.contentStyle.color as string || '#000',
       theme: settingsStore.config.theme
-    })
+    }, props.currentChapterIndex)
   }
 }, { immediate: true })
-
-// 绘制位图到 Canvas
-const drawCurrentPage = () => {
-    if (!canvasRef.value || renderedPages.value.length === 0) return
-    const ctx = canvasRef.value.getContext('2d')
-    if (!ctx) return
-    
-    const bitmap = renderedPages.value[props.swipePage]
-    if (bitmap) {
-        ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-        ctx.drawImage(bitmap, 0, 0)
-    }
-}
-
-watch([() => props.swipePage, renderedPages], drawCurrentPage)
 
 // 暴露给父组件，供 useSwipeMode 使用
 defineExpose({
@@ -278,17 +260,7 @@ defineExpose({
         width: '100vw'
       }"
     >
-      <!-- 高性能 Canvas 渲染层 (硬件加速背景与过渡层) -->
-      <canvas 
-        ref="canvasRef"
-        class="fixed inset-0 pointer-events-none z-10 transition-opacity duration-500 ease-in-out"
-        :width="Math.round(1 * window.innerWidth)"
-        :height="Math.round(1 * window.innerHeight)"
-        :style="{ 
-            opacity: (isParsing || renderedPages.length === 0) ? 1 : 0.05,
-            visibility: renderedPages.length > 0 ? 'visible' : 'hidden'
-        }"
-      />
+      <!-- 高性能 GPU SDF 渲染占位 (通过 SharedArrayBuffer 异步绘制) -->
 
       <div 
         ref="swipeContentRef"

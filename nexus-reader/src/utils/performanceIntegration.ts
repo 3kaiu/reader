@@ -3,7 +3,7 @@
  * 简化版本 - 只使用实际存在的 API
  */
 
-import { performanceMonitor } from './performanceMonitor'
+import { perfMonitor } from './performance'
 
 // 性能系统配置
 export interface PerformanceSystemConfig {
@@ -38,9 +38,9 @@ export class PerformanceSystemManager {
     console.log('🚀 Initializing performance monitoring...')
 
     try {
-      performanceMonitor.startMonitoring()
+      perfMonitor.observeWebVitals()
       this.isInitialized = true
-      console.log('✅ Performance monitoring initialized')
+      console.log('✅ Performance monitoring initialized (WebVitals)')
     } catch (error) {
       console.error('❌ Failed to initialize performance monitoring:', error)
     }
@@ -50,7 +50,7 @@ export class PerformanceSystemManager {
   getSystemStatus(): PerformanceSystemStatus {
     return {
       monitoring: {
-        active: performanceMonitor.isRunning(),
+        active: this.isInitialized,
         metricsCollected: 0,
         lastUpdate: Date.now()
       }
@@ -66,13 +66,9 @@ export class PerformanceSystemManager {
 
   // 生成性能报告
   generatePerformanceReport(): any {
-    const metrics = performanceMonitor.getMetrics()
-    const aiSummary = performanceMonitor.getAIPerformanceSummary()
-    
     return {
       timestamp: new Date().toISOString(),
-      metrics,
-      aiSummary,
+      status: this.isInitialized ? 'active' : 'inactive',
       systemHealth: 1.0
     }
   }
@@ -80,7 +76,6 @@ export class PerformanceSystemManager {
   // 销毁系统
   async destroy(): Promise<void> {
     console.log('🛑 Shutting down performance monitoring...')
-    performanceMonitor.stopMonitoring()
     this.isInitialized = false
     console.log('✅ Performance monitoring stopped')
   }

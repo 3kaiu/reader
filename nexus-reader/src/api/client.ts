@@ -1,8 +1,8 @@
 import { ofetch, type FetchOptions } from 'ofetch'
 import { decode, encode } from '@msgpack/msgpack'
 import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
-import { apiCache, createCacheKey } from '@/utils/cacheManager'
 import { requestOptimizer, networkDetector } from '@/utils/networkOptimizer'
+import { perfMonitor } from '@/utils/performance'
 import { offlineManager, offlineContentServer } from '@/utils/offlineManager'
 
 // 错误消息翻译映射（技术性错误 -> 用户友好消息）
@@ -95,11 +95,12 @@ export interface ApiResponse<T = unknown> {
   errorMsg?: string
 }
 
-// 缓存配置
-const MAX_CACHE_SIZE = 1000
-
 // 请求缓存 Map (LRU实现)
-const requestCache = new Map<string, { data: unknown; timestamp: number }>()
+const apiCacheMap = new Map<string, { data: unknown; timestamp: number }>()
+
+function createCacheKey(prefix: string, url: string, params: string): string {
+  return `${prefix}:${url}:${params}`
+}
 
 // 请求去重 Map
 const pendingRequests = new Map<string, Promise<unknown>>()
@@ -155,10 +156,15 @@ const internalFetch = ofetch.create({
   onResponse({ response, options }) {
     // 监控 API 响应时间
     const startTime = (options as any)._startTime
-    if (startTime && performanceMonitor) {
+    if (startTime) {
       const responseTime = performance.now() - startTime
       const endpoint = new URL(response.url).pathname
-      performanceMonitor.reportApiResponse(endpoint, responseTime, response.status)
+      perfMonitor.record({
+        name: 'api_response',
+        value: Number(responseTime.toFixed(2)),
+        unit: 'ms',
+        tags: { endpoint, status: response.status }
+      })
     }
 
     // 处理二进制消息 (MessagePack)
@@ -268,10 +274,13 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
       })
   }
 
-  // 尝试从新的缓存管理器获取
-  const cached = apiCache.get(cacheKey)
-  if (cached) {
-    return Promise.resolve(cached as ApiResponse<T>)
+  // 尝试从缓存获取
+  const cached = apiCacheMap.get(cacheKey)
+  const now = Date.now()
+  if (cached && now - cached.timestamp < API_CACHE_TTL) {
+    return Promise.resolve(cached.data as ApiResponse<T>)
+  } else if (cached) {
+    apiCacheMap.delete(cacheKey)
   }
 
   // 使用请求优化器进行去重请求
@@ -284,8 +293,14 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
       : { isSuccess: true, data: response }
 
     if (result.isSuccess) {
-      // 使用新的缓存管理器
-      apiCache.set(cacheKey, result, API_CACHE_TTL)
+      // 写入缓存
+      apiCacheMap.set(cacheKey, { data: result, timestamp: Date.now() })
+
+      // 限制缓存大小
+      if (apiCacheMap.size > 1000) {
+        const firstKey = apiCacheMap.keys().next().value
+        if (firstKey) apiCacheMap.delete(firstKey)
+      }
 
       // 缓存到离线管理器（用于离线访问）
       offlineManager.cacheContent({
@@ -317,81 +332,11 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
 
   return requestOptimizer.requestWithRetry(() =>
     api<any>(url, { method: 'POST', body, ...options })
-  ).then(response => {
-    // Clear cache on POST as it typically modifies state
-    apiCache.clear()
+  apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
-  })
-}
-
-export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) => {
-  // 如果离线，将操作加入队列
-  if (!networkDetector.getNetworkInfo().isOnline) {
-    offlineManager.queueOperation({
-      type: 'api-request',
-      method: 'PATCH',
-      url,
-      data: body,
-      maxRetries: 3
-    })
-    return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
-  }
-
-  return requestOptimizer.requestWithRetry(() =>
-    api<any>(url, { method: 'PATCH', body, ...options })
-  ).then(response => {
-    apiCache.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
-  })
-}
-
-export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => {
-  // 如果离线，将操作加入队列
-  if (!networkDetector.getNetworkInfo().isOnline) {
-    offlineManager.queueOperation({
-      type: 'api-request',
-      method: 'PUT',
-      url,
-      data: body,
-      maxRetries: 3
-    })
-    return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
-  }
-
-  return requestOptimizer.requestWithRetry(() =>
-    api<any>(url, { method: 'PUT', body, ...options })
-  ).then(response => {
-    apiCache.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
-  })
-}
-
-export const $delete = <T>(url: string, options?: FetchOptions) => {
-  // 如果离线，将操作加入队列
-  if (!networkDetector.getNetworkInfo().isOnline) {
-    offlineManager.queueOperation({
-      type: 'api-request',
-      method: 'DELETE',
-      url,
-      maxRetries: 3
-    })
-    return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
-  }
-
-  return requestOptimizer.requestWithRetry(() =>
-    api<any>(url, { method: 'DELETE', ...options })
-  ).then(response => {
-    apiCache.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
-  })
+    ? response as ApiResponse<T>
+    : { isSuccess: true, data: response } as ApiResponse<T>
+})
 }
 
 
@@ -409,7 +354,7 @@ export const $delete = <T>(url: string, options?: FetchOptions) => {
 export function clearApiCache() {
   requestCache.clear()
   pendingRequests.clear()
-  apiCache.clear()
+  apiCacheMap.clear()
 }
 
 /**
@@ -439,11 +384,8 @@ export function cleanExpiredCache() {
  */
 export function getApiCacheStats() {
   return {
-    legacy: {
-      size: requestCache.size,
-      pending: pendingRequests.size
-    },
-    modern: apiCache.getStats()
+    size: apiCacheMap.size,
+    pending: pendingRequests.size
   }
 }
 

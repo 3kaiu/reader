@@ -4,12 +4,11 @@
  */
 
 import { ref, shallowRef } from 'vue'
-import { cdnResourceLoader } from '@/utils/cdnResourceLoader'
+import { AdaptiveLoader } from '@/utils/adaptiveAssetLoader'
 import { logger } from '@/utils/logger'
 import { syncChannel } from '@/utils/broadcast'
 import { getDefaultModel, saveLastModel, getAllModels } from '@/stores/ai/models'
 import { modelCacheManager } from '@/utils/modelCacheManager'
-import { workerBus } from '@/utils/workerBus'
 import type { AIRequestParams, ModelInfo } from '@/types/ai'
 
 // WebGPU 类型声明
@@ -200,13 +199,10 @@ export class AIServiceManager {
 
       this.loadStatus.value = '正在加载AI运行时库...'
 
-      // 使用CDN资源加载器加载WebLLM
-      const webllmLib = await cdnResourceLoader.loadResource('@mlc-ai/web-llm', {
-        timeout: 30000,
-        onProgress: (progress) => {
-          this.loadProgress.value = Math.round(progress.percentage * 0.3) // 30%用于库加载
-          this.loadStatus.value = `加载AI库: ${progress.status}`
-        }
+      // 使用 AdaptiveLoader 加载 WebLLM
+      const webllmLib = await AdaptiveLoader.loadHeavyModule('@mlc-ai/web-llm', async () => {
+        const module = await import('@mlc-ai/web-llm')
+        return module
       })
 
       if (!webllmLib || !webllmLib.CreateWebWorkerMLCEngine) {
@@ -422,9 +418,6 @@ export class AIServiceManager {
           modelId: targetModelId
         })
 
-        // 10. 注册到 WorkerBus
-        workerBus.register('ai-worker', 'AI')
-
         logger.info(`[AI Service] Model ${targetModelId} loaded successfully`)
         return true
       })
@@ -460,9 +453,6 @@ export class AIServiceManager {
       // Build messages
       const messages = this.contextManager.buildMessages(prompt)
 
-      // 更新 WorkerBus 状态
-      workerBus.updateStatus('ai-worker', 'BUSY')
-
       // 执行推理
       try {
         const response = await this.engine.value.chat.completions.create({
@@ -472,12 +462,9 @@ export class AIServiceManager {
           ...params
         })
         const content = response.choices?.[0]?.message?.content || ''
-
-        // ... (existing logic) ...
-
         return content
-      } finally {
-        workerBus.updateStatus('ai-worker', 'IDLE')
+      } catch (err) {
+        throw err
       }
 
       // Update Context History

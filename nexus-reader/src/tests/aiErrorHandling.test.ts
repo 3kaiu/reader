@@ -26,13 +26,13 @@ vi.mock('@/services/aiServiceManager', () => ({
   aiServiceManager: mockAiServiceManager
 }))
 
-// Mock CDN资源加载器
-const mockCdnResourceLoader = {
-  loadResource: vi.fn()
+// Mock Adaptive资源加载器
+const mockAdaptiveLoader = {
+  loadHeavyModule: vi.fn()
 }
 
-vi.mock('@/utils/cdnResourceLoader', () => ({
-  cdnResourceLoader: mockCdnResourceLoader
+vi.mock('@/utils/adaptiveAssetLoader', () => ({
+  AdaptiveLoader: mockAdaptiveLoader
 }))
 
 // Mock WebGPU检测
@@ -70,7 +70,7 @@ describe('AI Error Handling - Simplified', () => {
 
   describe('CDN Loading Errors', () => {
     it('should handle CDN timeout errors', async () => {
-      mockCdnResourceLoader.loadResource.mockRejectedValue(new Error('Request timeout'))
+      mockAdaptiveLoader.loadHeavyModule.mockRejectedValue(new Error('Request timeout'))
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = 'AI库加载失败: Request timeout'
 
@@ -80,7 +80,7 @@ describe('AI Error Handling - Simplified', () => {
     })
 
     it('should handle CDN network errors', async () => {
-      mockCdnResourceLoader.loadResource.mockRejectedValue(new Error('Network error'))
+      mockAdaptiveLoader.loadHeavyModule.mockRejectedValue(new Error('Network error'))
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = 'AI库加载失败: Network error'
 
@@ -90,7 +90,7 @@ describe('AI Error Handling - Simplified', () => {
     })
 
     it('should handle malformed CDN responses', async () => {
-      mockCdnResourceLoader.loadResource.mockResolvedValue(null)
+      mockAdaptiveLoader.loadHeavyModule.mockResolvedValue(null)
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = 'AI库加载失败: Invalid response'
 
@@ -100,7 +100,7 @@ describe('AI Error Handling - Simplified', () => {
     })
 
     it('should handle missing WebLLM methods', async () => {
-      mockCdnResourceLoader.loadResource.mockResolvedValue({})
+      mockAdaptiveLoader.loadHeavyModule.mockResolvedValue({})
       mockAiServiceManager.loadModel.mockResolvedValue(false)
       mockAiServiceManager.error.value = 'AI库加载失败: Missing WebLLM methods'
 
