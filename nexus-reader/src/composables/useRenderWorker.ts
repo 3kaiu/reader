@@ -37,7 +37,6 @@ export function useRenderWorker() {
           renderedMeshesMap.value.set(targetIndex, [])
         }
         renderedMeshesMap.value.get(targetIndex)!.push(page)
-        const targetIndex = reqIndex ?? currentChapterIndex.value
         console.log(`💎 Received Binary Mesh for page ${page.index} (Chars: ${page.charCount})`)
         // TODO: Pass buffer to GLRenderer
       } else if (type === 'render-complete') {
