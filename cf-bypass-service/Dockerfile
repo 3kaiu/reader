@@ -33,9 +33,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
-    # Firefox specific dependencies
+    # Chromium/Firefox additional dependencies
+    libnss3 \
+    libnspr4 \
+    libgbm1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
     libdbus-glib-1-2 \
     libxt6 \
+    libxshmfence1 \
+    libglu1-mesa \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster dependency management
@@ -50,8 +58,9 @@ RUN uv pip install --system --no-cache \
     curl_cffi nodriver patchright DrissionPage camoufox[pw] CloudflareBypasser xxhash
 
 # Install browsers
-RUN patchright install chromium
-RUN playwright install firefox
+# Install browsers and their dependencies
+RUN python -m patchright install chromium --with-deps
+RUN python -m playwright install firefox --with-deps
 # Camoufox will fetch its own binary or use playwright's; 
 # optionally pre-fetch if needed, but 'playwright install' usually suffices for deps.
 

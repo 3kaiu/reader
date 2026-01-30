@@ -137,6 +137,7 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
 @app.get("/tokens")
 async def get_tokens(domain: str):
     """Get cached tokens for domain."""
+    engine = engine_factory.get_engine(domain=domain)
     tokens = engine.get_cached_tokens(f"https://{domain}")
     if tokens:
         return {"source": "cache", **tokens}
@@ -146,6 +147,8 @@ async def get_tokens(domain: str):
 @app.get("/stats")
 async def stats():
     """Engine statistics including performance metrics."""
+    # This might need to aggregate stats from multiple engines or return default
+    engine = engine_factory.get_engine()
     return engine.get_stats()
 
 
@@ -177,6 +180,8 @@ async def fetch_parallel(requests: list[FetchRequest], x_api_key: str = Header(N
         for req in requests
     ]
     
+    # Use mesh engine for parallel fetching as it handles it better
+    engine = engine_factory.get_engine("mesh")
     results = await engine.fetch_parallel(request_dicts)
     
     # Convert results to response format
@@ -187,7 +192,7 @@ async def fetch_parallel(requests: list[FetchRequest], x_api_key: str = Header(N
             cookies=result.cookies,
             headers=result.headers,
             cf_bypassed=result.cf_bypassed,
-            error=result.error
+            error=getattr(result, 'error', None)
         )
         for result in results
     ]
@@ -204,6 +209,8 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
     
     # Convert URLs to strings
     urls = [str(url) for url in request.urls]
+    domain = urlparse(urls[0]).netloc if urls else ""
+    engine = engine_factory.get_engine(name=request.engine, domain=domain)
     
     results = await engine.fetch_batch(
         urls,
@@ -221,7 +228,7 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
             cookies=result.cookies,
             headers=result.headers,
             cf_bypassed=result.cf_bypassed,
-            error=result.error
+            error=getattr(result, 'error', None)
         )
         for result in results
     ]
@@ -246,6 +253,7 @@ async def warmup(domain: str, x_api_key: str = Header(None)):
     if config.api_key and x_api_key != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API Key")
     
+    engine = engine_factory.get_engine(domain=domain)
     result = await engine.warmup_domain(domain)
     
     if not result.get("success"):
@@ -264,6 +272,9 @@ async def recover(domain: str, x_api_key: str = Header(None)):
     if config.api_key and x_api_key != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API Key")
     
+    # Get engine
+    engine = engine_factory.get_engine(domain=domain)
+    
     # Check if enhanced health monitoring is enabled
     if not phase2_config.health_monitoring_enabled:
         raise HTTPException(
@@ -271,36 +282,41 @@ async def recover(domain: str, x_api_key: str = Header(None)):
             detail="Health monitoring is not enabled. Cannot perform manual recovery."
         )
     
+    # For OptimizedCFBypass (mesh), health_monitor is hidden in orchestrator or directly available
+    # In enhanced_cf_bypass.py, health stats are managed by orchestrator or health_monitor
+    health_monitor = getattr(engine, 'health_monitor', None)
+    
     # Check if health monitor has the required methods
-    if not hasattr(engine.health_monitor, 'reset_domain_stats'):
+    if not health_monitor or not hasattr(health_monitor, 'reset_domain_stats'):
         raise HTTPException(
             status_code=400,
-            detail="Enhanced health monitor is not available. Cannot perform manual recovery."
+            detail="Enhanced health monitor is not available for this engine. Cannot perform manual recovery."
         )
     
     try:
         # Get health status before recovery
-        health_before = engine.health_monitor.get_health_stats(domain)
+        health_before = health_monitor.get_health_stats(domain)
         
         # Perform recovery actions
         logger.info(f"Manual recovery triggered for domain: {domain}")
         
         # Reset all sessions for the domain
-        if domain in engine.scrapers:
+        if hasattr(engine, 'scrapers') and domain in engine.scrapers:
             del engine.scrapers[domain]
             logger.info(f"Removed session for domain: {domain}")
         
         # Reset session pool for the domain if pool is enabled
-        if engine.session_pool_manager:
-            if domain in engine.session_pool_manager._pools:
-                engine.session_pool_manager._pools[domain].clear()
+        session_pool_manager = getattr(engine, 'session_pool_manager', None)
+        if session_pool_manager:
+            if hasattr(session_pool_manager, '_pools') and domain in session_pool_manager._pools:
+                session_pool_manager._pools[domain].clear()
                 logger.info(f"Cleared session pool for domain: {domain}")
         
         # Reset health stats for the domain
-        engine.health_monitor.reset_domain_stats(domain)
+        health_monitor.reset_domain_stats(domain)
         
         # Get health status after recovery
-        health_after = engine.health_monitor.get_health_stats(domain)
+        health_after = health_monitor.get_health_stats(domain)
         
         return {
             "success": True,
