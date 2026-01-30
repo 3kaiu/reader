@@ -55,7 +55,7 @@ COPY pyproject.toml uv.lock* ./
 # Install Python dependencies with uv
 RUN uv pip install --system --no-cache \
     fastapi uvicorn cloudscraper pydantic cachetools js2py redis psutil \
-    curl_cffi nodriver patchright DrissionPage camoufox[pw] CloudflareBypasser xxhash
+    curl_cffi nodriver patchright DrissionPage camoufox[pw] cloudflare-bypasser xxhash
 
 # Install browsers
 # Install browsers and their dependencies

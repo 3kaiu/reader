@@ -23,7 +23,7 @@ dependencies = [
     "patchright>=1.49.1",
     "DrissionPage>=4.1.0",
     "camoufox[pw]>=0.4.0",
-    "CloudflareBypasser>=0.1.3",
+    "cloudflare-bypasser>=0.1.3",
 ]
 
 [dependency-groups]
