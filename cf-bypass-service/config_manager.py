@@ -42,6 +42,7 @@ class BrowserConfig:
     """Browser configuration for CloudScraper"""
     browser: str = "chrome"
     platform: str = "windows"
+    mobile: bool = False
     
     def validate(self) -> bool:
         """Validate browser configuration"""
@@ -120,6 +121,8 @@ class DomainConfig:
     interpreter: str = "js2py"
     timeout: int = 30
     enabled: bool = True
+    retry_on_403: bool = False
+    max_retries: int = 3
     
     def validate(self) -> bool:
         """Validate complete domain configuration"""
@@ -321,7 +324,9 @@ class ConfigManager:
                         proxy=proxy,
                         interpreter=config_data.get("interpreter", "js2py"),
                         timeout=config_data.get("timeout", 30),
-                        enabled=config_data.get("enabled", True)
+                        enabled=config_data.get("enabled", True),
+                        retry_on_403=config_data.get("retry_on_403", False),
+                        max_retries=config_data.get("max_retries", 3)
                     )
                     
                     config.validate()
@@ -352,7 +357,9 @@ class ConfigManager:
                     "proxy": asdict(config.proxy),
                     "interpreter": config.interpreter,
                     "timeout": config.timeout,
-                    "enabled": config.enabled
+                    "enabled": config.enabled,
+                    "retry_on_403": config.retry_on_403,
+                    "max_retries": config.max_retries
                 }
             
             with open(self.config_file, 'w', encoding='utf-8') as f:

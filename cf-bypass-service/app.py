@@ -5,6 +5,7 @@ Enhanced with CloudScraper v5.0 - maximizing built-in anti-detection features.
 import logging
 from datetime import datetime
 from typing import Optional, Dict
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -109,7 +110,7 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid API Key")
     
     # Get engine from factory
-    domain = str(request.urlparse(str(request.url)).netloc) if hasattr(request.url, 'host') else ""
+    domain = urlparse(str(request.url)).netloc if request.url else ""
     engine = engine_factory.get_engine(name=request.engine, domain=domain)
     
     result = await engine.fetch(
