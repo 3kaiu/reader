@@ -47,5 +47,5 @@ governor = "0.10"
 http = "1"
 
 # Metrics
-metrics = "0.23"
+metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
