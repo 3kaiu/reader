@@ -14,11 +14,10 @@ Cloudflare bypass service using CloudScraper with built-in anti-detection featur
 
 ## Features
 
-- Cloudflare v1/v2/v3 bypass
-- Turnstile challenge support
-- Session caching
-- Redis cache support (optional)
-- Health monitoring
+- Cloudflare v1/v2/v3 & Turnstile bypass
+- **Zero-Config Optimization**: Auto-scales based on hardware
+- **Dual-Layer Cache**: In-memory + Redis fallback
+- **Hybrid Engine**: Dynamic switching between Scraper & Mesh
 
 ## API Endpoints
 
@@ -27,9 +26,9 @@ Cloudflare bypass service using CloudScraper with built-in anti-detection featur
 - `GET /tokens?domain=example.com` - Get cached tokens
 - `GET /stats` - Engine statistics
 
-## Optimization & Performance
+## Self-Optimization
 
-For details on session pooling, connection pooling, and other performance optimizations, see the [Optimization Guide](OPTIMIZATION.md).
+The service is **self-adaptive**. It automatically manages session pools, connection limits, and concurrency based on system resources. No manual tuning is required for optimal performance.
 
 ## Environment Variables
 

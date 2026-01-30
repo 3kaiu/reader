@@ -221,8 +221,10 @@ def _is_valid_domain(domain: str) -> bool:
 class ConfigManager:
     """Manages domain configurations with hot-reload support"""
     
-    def __init__(self, config_file: str = "domain_configs.json"):
+    def __init__(self, config_file: str = "data/domain_configs.json"):
         self.config_file = Path(config_file)
+        # Ensure data directory exists
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.configs: Dict[str, DomainConfig] = {}
         self._load_default_configs()
         
@@ -283,6 +285,47 @@ class ConfigManager:
             proxy=ProxyConfig(),
             interpreter="js2py"
         )
+    
+    def update_from_performance(self, domain: str, success_rate: float, avg_duration: float, top_error: Optional[str] = None) -> bool:
+        """
+        Auto-Evolution: Update domain config based on real-world performance.
+        Allows the system to self-heal and optimize without manual intervention.
+        """
+        config = self.get_config(domain)
+        if domain == "default" or not config.enabled:
+            return False
+            
+        modified = False
+        
+        # Strategy 1: Low success rate on Scraper -> Upgrade to Mesh
+        if config.interpreter == "js2py" and success_rate < 0.6:
+            logger.info(f"Auto-Evolution: Upgrading {domain} to Mesh engine due to low success rate ({success_rate:.1%})")
+            # We model "Mesh" by switching to nodejs or indicating external engine preference
+            # Note: The EngineFactory actually handles the physical switch, but we update the config 
+            # so the preference is remembered.
+            config.interpreter = "nodejs"
+            config.max_retries = 5
+            modified = True
+            
+        # Strategy 2: High latency or frequent 429s -> Increase stealth
+        if (avg_duration > 15.0 or (top_error and "429" in top_error)) and config.stealth.min_delay < 5.0:
+            logger.info(f"Auto-Evolution: Increasing stealth for {domain} due to high latency/429")
+            config.stealth.min_delay += 0.5
+            config.stealth.max_delay += 1.0
+            modified = True
+            
+        # Strategy 3: Stable performance -> Optional optimization (cost/speed)
+        if success_rate > 0.95 and config.stealth.min_delay > 1.0:
+            # Slightly reduce delay if very stable to improve speed
+            config.stealth.min_delay = max(1.0, config.stealth.min_delay - 0.1)
+            modified = True
+
+        if modified:
+            self.add_config(domain, config)
+            self.save_to_file()
+            return True
+            
+        return False
     
     def add_config(self, domain: str, config: DomainConfig) -> bool:
         """Add or update domain configuration"""

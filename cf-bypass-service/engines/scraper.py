@@ -14,15 +14,15 @@ import cloudscraper
 import redis
 
 from core.engine import BaseBypassEngine, BypassResult
-from config_manager import config_manager
+from managers.config_manager import config_manager
 from core.utils import EnhancedLogger
-from performance_optimizer import PerformanceOptimizer
-from session_pool_manager import SessionPoolManager, SessionInfo
-from connection_pool_manager import ConnectionPoolManager
-from adaptive_retry_manager import AdaptiveRetryManager
-from memory_manager import MemoryManager
-from health_monitor import EnhancedHealthMonitor
-from phase2_config import phase2_config
+from managers.performance_optimizer import PerformanceOptimizer
+from managers.session_pool_manager import SessionPoolManager, SessionInfo
+from managers.connection_pool_manager import ConnectionPoolManager
+from managers.adaptive_retry_manager import AdaptiveRetryManager
+from managers.memory_manager import MemoryManager
+from managers.health_monitor import EnhancedHealthMonitor
+from config import config as phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
 enhanced_logger = EnhancedLogger("scraper-engine")
@@ -37,6 +37,9 @@ class CacheManager:
         self.redis_url = redis_url
         self.redis = None
         self._initialized = False
+        # Local memory fallback cache
+        self._local_cache: Dict[str, Tuple[BypassResult, float]] = {}
+        self._max_local_size = 1000
     
     async def _ensure_connected(self) -> bool:
         """Lazy async initialization of Redis connection"""
@@ -56,29 +59,44 @@ class CacheManager:
             return False
     
     async def get(self, key: str) -> Optional[BypassResult]:
-        """Get from cache (async)"""
-        if not await self._ensure_connected():
-            return None
-        try:
-            data = await self.redis.get(key)
-            if data:
-                raw = json.loads(data)
-                result = BypassResult(**raw)
+        """Get from cache (async) with local fallback"""
+        if await self._ensure_connected():
+            try:
+                data = await self.redis.get(key)
+                if data:
+                    raw = json.loads(data)
+                    result = BypassResult(**raw)
+                    result.cached = True
+                    return result
+            except Exception as e:
+                logger.warning(f"Redis get error: {e}")
+        
+        # Local fallback
+        if key in self._local_cache:
+            result, expiry = self._local_cache[key]
+            if time.time() < expiry:
                 result.cached = True
                 return result
-        except Exception as e:
-            logger.warning(f"Cache get error: {e}")
+            else:
+                del self._local_cache[key]
         return None
     
     async def set(self, key: str, result: BypassResult, ttl: int = 300) -> None:
-        """Set cache with TTL (async)"""
-        if not await self._ensure_connected():
-            return
-        try:
-            raw = asdict(result)
-            await self.redis.setex(key, ttl, json.dumps(raw))
-        except Exception as e:
-            logger.warning(f"Cache set error: {e}")
+        """Set cache with TTL (async) with local fallback"""
+        # Save to local cache anyway (L1)
+        if len(self._local_cache) >= self._max_local_size:
+            # Simple eviction: clear 10%
+            to_remove = list(self._local_cache.keys())[:100]
+            for k in to_remove: del self._local_cache[k]
+        self._local_cache[key] = (result, time.time() + ttl)
+
+        # Save to Redis (L2)
+        if await self._ensure_connected():
+            try:
+                raw = asdict(result)
+                await self.redis.setex(key, ttl, json.dumps(raw))
+            except Exception as e:
+                logger.warning(f"Redis set error: {e}")
 
 # ─────────────────────────────────────────────────────────────
 # Scraper Engine

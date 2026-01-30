@@ -4,6 +4,7 @@ Handles configuration loading, validation, and feature flags for Phase 2 optimiz
 """
 import os
 import logging
+import multiprocessing
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 
@@ -19,15 +20,15 @@ class Phase2Config:
     
     # Session Pool Configuration
     session_pool_enabled: bool = True
-    session_pool_size: int = 5
-    session_pool_min_threshold: int = 2
+    session_pool_size: int = max(4, multiprocessing.cpu_count())
+    session_pool_min_threshold: int = max(2, multiprocessing.cpu_count() // 2)
     session_max_age_hours: int = 1
     warmup_domains: List[str] = field(default_factory=list)
     
     # Connection Pool Configuration
     connection_pool_enabled: bool = True
-    pool_connections: int = 20
-    pool_maxsize: int = 50
+    pool_connections: int = max(20, multiprocessing.cpu_count() * 5)
+    pool_maxsize: int = max(50, multiprocessing.cpu_count() * 10)
     pool_max_retries: int = 3
     pool_backoff_factor: float = 0.3
     

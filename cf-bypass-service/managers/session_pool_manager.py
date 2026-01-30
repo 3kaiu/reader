@@ -17,7 +17,7 @@ from typing import Dict, Deque, List, Optional, Any
 from collections import defaultdict, deque
 import cloudscraper
 
-from phase2_config import phase2_config
+from config import config as phase2_config
 
 logger = logging.getLogger(__name__)
 

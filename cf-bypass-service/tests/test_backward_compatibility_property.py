@@ -19,7 +19,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cloudscraper_wrapper import CloudScraperWrapper, FetchResult
-from phase2_config import phase2_config
+from config import config as phase2_config
 import cloudscraper
 
 

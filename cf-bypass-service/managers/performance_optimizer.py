@@ -5,7 +5,9 @@ Implements high-impact optimizations for dramatic performance improvements.
 import asyncio
 import logging
 import subprocess
+import os
 from typing import Dict, List, Optional, Any
+import multiprocessing
 from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -449,9 +451,13 @@ class PerformanceOptimizer:
         self,
         enable_parallel: bool = True,
         enable_batch: bool = True,
-        max_workers: int = 10,
+        max_workers: int = None,
         batch_size: int = 10
     ):
+        cpu_count = multiprocessing.cpu_count()
+        if max_workers is None:
+            max_workers = max(10, cpu_count * 4) # Adaptive scale
+
         self.js_optimizer = JSInterpreterOptimizer()
         self.cache_key_generator = OptimizedCacheKeyGenerator()
         

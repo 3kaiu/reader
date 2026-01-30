@@ -56,7 +56,17 @@ class FetchResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("CF Bypass Service started with Standardized Engines")
+    logger.info("CF Bypass Service started with Standardized & Self-Optimizing Engines")
+    
+    # Auto-warmup on startup
+    if phase2_config.session_pool_enabled and phase2_config.warmup_domains:
+        logger.info(f"Triggering auto-warmup for: {phase2_config.warmup_domains}")
+        for domain in phase2_config.warmup_domains:
+            engine = engine_factory.get_engine(domain=domain)
+            # Run warmup in background to not block startup
+            import asyncio
+            asyncio.create_task(engine.warmup(domain))
+            
     yield
     await engine_factory.shutdown_all()
 

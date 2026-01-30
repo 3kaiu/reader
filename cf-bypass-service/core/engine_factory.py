@@ -4,9 +4,9 @@ Engine Factory - Dynamically selects the best bypass engine
 import logging
 from typing import Dict, Optional
 from core.engine import BaseBypassEngine
-# Import actual engines
-from scraper_engine import ScraperEngine
-from mesh_engine import MeshEngine
+# Import actual engines from new engines/ package
+from engines.scraper import ScraperEngine
+from engines.mesh import MeshEngine
 
 logger = logging.getLogger(__name__)
 

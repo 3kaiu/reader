@@ -9,10 +9,10 @@ Features:
 - Automatic session reset for degraded domains
 - Health status reporting
 """
-import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
+from managers.config_manager import config_manager
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
@@ -227,6 +227,19 @@ class EnhancedHealthMonitor:
         
         # Update status
         stats['status'] = status
+        
+        # Auto-Evolution: Trigger config update if degraded
+        if status in ['degraded', 'critical']:
+            top_error = None
+            if stats['errors']:
+                top_error = max(stats['errors'].items(), key=lambda x: x[1])[0]
+            
+            config_manager.update_from_performance(
+                domain=domain,
+                success_rate=1.0 - error_rate,
+                avg_duration=avg_response_time,
+                top_error=top_error
+            )
         
         total_requests = stats['success_count'] + stats['error_count']
         
