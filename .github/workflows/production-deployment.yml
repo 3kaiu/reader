@@ -42,7 +42,7 @@ jobs:
       cf-bypass: ${{ steps.filter.outputs.cf-bypass }}
       nexus-lite: ${{ steps.filter.outputs.nexus-lite }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -118,10 +118,10 @@ jobs:
     needs: [detect-changes, get-hf-username]
     if: needs.detect-changes.outputs.cf-bypass == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -198,10 +198,10 @@ jobs:
     needs: [detect-changes, get-hf-username]
     if: needs.detect-changes.outputs.nexus-lite == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -302,8 +302,8 @@ jobs:
     needs: [detect-changes, get-subdomain, get-hf-username]
     if: needs.detect-changes.outputs.worker == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -383,13 +383,13 @@ jobs:
     needs: [detect-changes, get-subdomain]
     if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.5"
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.bun/install/cache
