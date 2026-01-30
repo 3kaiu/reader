@@ -34,9 +34,34 @@ export interface ServiceUrls {
   cfBypassUrl: string;
 }
 
+// ============================================
+// 通讯协议 (Bypass Protocol)
+// ============================================
+
+export interface BypassRequest {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  timeout?: number;
+  proxy?: string;
+  engine?: 'scraper' | 'mesh';
+}
+
+export interface BypassResponse {
+  status: number;
+  html: string;
+  cookies: Record<string, string>;
+  headers: Record<string, string>;
+  cf_bypassed: boolean;
+  error?: string;
+  engine_used: string;
+}
+
 export interface WorkerEnv {
   NEXUS_LITE_URL: string;
   CF_BYPASS_URL: string;
+  CF_API_KEY?: string; // 增加 API Key 支持
   AUTH_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
