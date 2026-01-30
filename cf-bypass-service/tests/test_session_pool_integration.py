@@ -62,7 +62,7 @@ class TestSessionPoolIntegration:
             assert stats['misses'] == 0
             
             # Step 2: Get session (simulating fetch)
-            session_info = manager.get_session(domain)
+            session_info = await manager.get_session(domain)
             assert session_info is not None
             assert isinstance(session_info, SessionInfo)
             
@@ -76,13 +76,13 @@ class TestSessionPoolIntegration:
             session_info.record_success()
             
             # Step 4: Return session to pool
-            manager.return_session(domain, session_info)
+            await manager.return_session(domain, session_info)
             
             # Verify session returned
             assert manager.get_pool_size(domain) == pool_size
             
             # Step 5: Get another session (should be pool hit again)
-            session_info2 = manager.get_session(domain)
+            session_info2 = await manager.get_session(domain)
             assert session_info2 is not None
             
             # Verify statistics
@@ -126,7 +126,7 @@ class TestSessionPoolIntegration:
             assert manager.get_pool_size(domain) == 0
             
             # Get session from empty pool (should be miss)
-            session_info = manager.get_session(domain)
+            session_info = await manager.get_session(domain)
             assert session_info is None
             
             # Verify pool miss
@@ -141,7 +141,7 @@ class TestSessionPoolIntegration:
             assert manager.get_pool_size(domain) == pool_size
             
             # Now get session should succeed
-            session_info = manager.get_session(domain)
+            session_info = await manager.get_session(domain)
             assert session_info is not None
             
             # Verify pool hit
@@ -186,7 +186,7 @@ class TestSessionPoolIntegration:
             # Get multiple sessions concurrently
             sessions = []
             for _ in range(concurrent_requests):
-                session_info = manager.get_session(domain)
+                session_info = await manager.get_session(domain)
                 assert session_info is not None
                 sessions.append(session_info)
             
@@ -200,7 +200,7 @@ class TestSessionPoolIntegration:
             # Return all sessions
             for session_info in sessions:
                 session_info.record_success()
-                manager.return_session(domain, session_info)
+                await manager.return_session(domain, session_info)
             
             # Verify pool size restored
             assert manager.get_pool_size(domain) == pool_size
@@ -239,16 +239,15 @@ class TestSessionPoolIntegration:
             await manager.warmup_domain(domain)
             
             # Get session
-            session_info = manager.get_session(domain)
+            session_info = await manager.get_session(domain)
             assert session_info is not None
             
             # Simulate multiple errors (make it error-prone)
             for _ in range(10):
                 session_info.record_error()
             
-            # Try to return error-prone session
             initial_pool_size = manager.get_pool_size(domain)
-            manager.return_session(domain, session_info)
+            await manager.return_session(domain, session_info)
             
             # Session should not be returned (pool size unchanged)
             assert manager.get_pool_size(domain) == initial_pool_size

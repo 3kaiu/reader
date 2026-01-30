@@ -82,17 +82,6 @@ class CacheManager:
             self.redis = None
             return False
     
-    def generate_key(self, url: str, method: str, kwargs: dict) -> str:
-        """Generate unique cache key"""
-        key_data = {
-            'url': url,
-            'method': method,
-            'headers': kwargs.get('headers', {}),
-            'data': kwargs.get('data', '')
-        }
-        key_str = json.dumps(key_data, sort_keys=True)
-        return f"cf_bypass:{hashlib.md5(key_str.encode()).hexdigest()}"
-    
     async def get(self, key: str) -> Optional[FetchResult]:
         """Get from cache (async)"""
         if not await self._ensure_connected():
@@ -117,94 +106,6 @@ class CacheManager:
             logger.warning(f"Cache set error: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# Health Monitor - CloudScraper doesn't have monitoring
-# ─────────────────────────────────────────────────────────────
-
-class HealthMonitor:
-    def __init__(self):
-        self.stats = defaultdict(lambda: {
-            'success_count': 0,
-            'error_count': 0,
-            'total_time': 0.0,
-            'last_success': None,
-            'errors': defaultdict(int)
-        })
-    
-    def record_success(self, domain: str, duration: float) -> None:
-        """Record successful request"""
-        self.stats[domain]['success_count'] += 1
-        self.stats[domain]['total_time'] += duration
-        self.stats[domain]['last_success'] = datetime.now()
-    
-    def record_error(self, domain: str, error: str) -> None:
-        """Record error"""
-        self.stats[domain]['error_count'] += 1
-        self.stats[domain]['errors'][error] += 1
-    
-    def get_stats(self) -> Dict:
-        """Get monitoring statistics"""
-        result = {}
-        for domain, stats in self.stats.items():
-            total = stats['success_count'] + stats['error_count']
-            success_rate = stats['success_count'] / total if total > 0 else 1.0
-            avg_time = stats['total_time'] / stats['success_count'] if stats['success_count'] > 0 else 0.0
-            
-            result[domain] = {
-                'success_rate': success_rate,
-                'avg_response_time': avg_time,
-                'total_requests': total,
-                'last_success': stats['last_success'].isoformat() if stats['last_success'] else None,
-                'top_errors': dict(list(stats['errors'].items())[:5])
-            }
-        return result
-
-# ─────────────────────────────────────────────────────────────
-# Session Manager - CloudScraper doesn't have session health management
-# ─────────────────────────────────────────────────────────────
-
-class SessionManager:
-    def __init__(self):
-        self.session_stats = defaultdict(lambda: {
-            'consecutive_errors': 0,
-            'last_reset': datetime.now(),
-            'total_requests': 0
-        })
-    
-    def record_success(self, domain: str) -> None:
-        """Record success, reset error count"""
-        self.session_stats[domain]['consecutive_errors'] = 0
-        self.session_stats[domain]['total_requests'] += 1
-    
-    def record_error(self, domain: str) -> None:
-        """Record error"""
-        self.session_stats[domain]['consecutive_errors'] += 1
-        self.session_stats[domain]['total_requests'] += 1
-    
-    def should_reset_session(self, domain: str) -> bool:
-        """Check if session should be reset"""
-        stats = self.session_stats[domain]
-        
-        # Reset after 5 consecutive errors
-        if stats['consecutive_errors'] >= 5:
-            logger.info(f"Resetting session for {domain} due to consecutive errors")
-            return True
-            
-        # Reset after 1 hour
-        if (datetime.now() - stats['last_reset']).seconds > 3600:
-            logger.info(f"Resetting session for {domain} due to age")
-            return True
-            
-        return False
-    
-    def mark_reset(self, domain: str) -> None:
-        """Mark session as reset"""
-        self.session_stats[domain]['last_reset'] = datetime.now()
-        self.session_stats[domain]['consecutive_errors'] = 0
-
-# Remove the old hardcoded domain configs since we now use ConfigManager
-# DOMAIN_CONFIGS is now managed by config_manager
-
-# ─────────────────────────────────────────────────────────────
 # CloudScraper Wrapper - Maximizing Built-in Features
 # ─────────────────────────────────────────────────────────────
 
@@ -216,7 +117,7 @@ class CloudScraperWrapper:
         # Only add what CloudScraper doesn't have
         self.cache_manager = CacheManager(redis_url)
         
-        # Use EnhancedHealthMonitor for Phase 2 (if enabled) or basic HealthMonitor
+        # Use EnhancedHealthMonitor for Phase 2 (if enabled) or fallback
         if phase2_config.health_monitoring_enabled:
             self.health_monitor = EnhancedHealthMonitor(
                 degraded_error_rate_threshold=phase2_config.health_degraded_error_rate,
@@ -230,9 +131,8 @@ class CloudScraperWrapper:
                 f"slow_multiplier={phase2_config.health_slow_response_multiplier}x)"
             )
         else:
-            self.health_monitor = HealthMonitor()
-        
-        self.session_manager = SessionManager()
+            self.health_monitor = EnhancedHealthMonitor()
+            logger.info("Basic health monitor initialized (EnhancedHealthMonitor in standard mode)")
         
         # Performance optimizer for Phase 1 optimizations
         self.performance_optimizer = PerformanceOptimizer(
@@ -341,20 +241,12 @@ class CloudScraperWrapper:
                     retry_config = self.adaptive_retry_manager.get_retry_config(domain)
                 
                 self.connection_pool_manager.configure_adapter(scraper, domain, retry_config)
-                logger.debug(f"Applied connection pool optimization to {domain}")
             
-            # Enable compression if memory manager is enabled
-            if self.memory_manager:
-                self.memory_manager.enable_compression(scraper)
-                logger.debug(f"Enabled compression for {domain}")
-            
-            # CloudScraper built-in: Stealth mode configuration
-            # Note: CloudScraper handles stealth automatically, but we can configure delays
-            # Don't request compressed content to avoid decompression issues
+            # Standardized headers for stealth and performance
             scraper.headers.update({
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'identity',
+                'Accept-Encoding': 'gzip, deflate, br', # Explicitly enable compression
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
@@ -378,7 +270,7 @@ class CloudScraperWrapper:
                 # Last resort: basic scraper
                 return cloudscraper.create_scraper()
     
-    def _get_scraper(self, domain: str) -> tuple[cloudscraper.CloudScraper, Optional[SessionInfo]]:
+    async def _get_scraper(self, domain: str) -> tuple[cloudscraper.CloudScraper, Optional[SessionInfo]]:
         """
         Get or create CloudScraper instance
         
@@ -387,18 +279,11 @@ class CloudScraperWrapper:
         """
         # If session pool is enabled, try to get from pool first
         if self.session_pool_manager:
-            session_info = self.session_pool_manager.get_session(domain)
+            session_info = await self.session_pool_manager.get_session(domain)
             if session_info:
-                logger.debug(f"Using pooled session for {domain}")
                 return session_info.session, session_info
         
         # Fallback to traditional session management
-        # Check if session should be reset (CloudScraper doesn't have this)
-        if self.session_manager.should_reset_session(domain):
-            if domain in self.scrapers:
-                del self.scrapers[domain]
-                self.session_manager.mark_reset(domain)
-        
         # Create new scraper if needed
         if domain not in self.scrapers:
             self.scrapers[domain] = self._create_scraper(domain)
@@ -433,7 +318,7 @@ class CloudScraperWrapper:
             return cached_result
         
         # 2. Get CloudScraper instance (with session health management)
-        scraper, session_info = self._get_scraper(domain)
+        scraper, session_info = await self._get_scraper(domain)
         
         # Record session use for memory management
         if self.memory_manager and session_info:
@@ -452,6 +337,9 @@ class CloudScraperWrapper:
                     # Remove from scrapers if it exists
                     for d, s in list(self.scrapers.items()):
                         if hasattr(s, 'session_id') and s.session_id == session_id:
+                            try:
+                                s.close()
+                            except: pass
                             del self.scrapers[d]
                             break
                 
@@ -491,19 +379,7 @@ class CloudScraperWrapper:
             # - Request header consistency
             logger.info("Fetching %s with CloudScraper", url)
             
-            # Track connection pool usage if enabled
-            connection_reused = False
-            if self.connection_pool_manager:
-                # Check if this is likely a connection reuse (heuristic)
-                # In a real implementation, we'd need to hook into urllib3's connection pool
-                # For now, we assume reuse after the first request to a domain
-                connection_reused = domain in self.scrapers or (session_info is not None)
-            
             response = scraper.request(method, url, **kwargs)
-            
-            # Record connection pool usage
-            if self.connection_pool_manager:
-                self.connection_pool_manager.record_connection_use(domain, hit=connection_reused)
             
             # 5. Process response
             duration = (datetime.now() - start_time).total_seconds()
@@ -530,6 +406,9 @@ class CloudScraperWrapper:
                         
                         # Delete old session to force recreation
                         if domain in self.scrapers:
+                            try:
+                                self.scrapers[domain].close()
+                            except: pass
                             del self.scrapers[domain]
                         
                         # Add delay before retry (2-4 seconds)
@@ -605,7 +484,6 @@ class CloudScraperWrapper:
             
             # 7. Record success metrics (CloudScraper doesn't have monitoring)
             self.health_monitor.record_success(domain, duration)
-            self.session_manager.record_success(domain)
             
             # Record successful attempt for adaptive retry
             if self.adaptive_retry_manager:
@@ -614,31 +492,30 @@ class CloudScraperWrapper:
             # Check for degraded domains and trigger auto-recovery (Phase 2)
             if phase2_config.health_monitoring_enabled and phase2_config.health_auto_recovery_enabled:
                 # Define recovery function for degraded domains
-                def recover_domain(degraded_domain: str):
+                async def recover_domain(degraded_domain: str):
                     logger.warning(f"Auto-recovery triggered for degraded domain: {degraded_domain}")
                     # Reset all sessions for the degraded domain
                     if degraded_domain in self.scrapers:
+                        try:
+                            self.scrapers[degraded_domain].close()
+                        except: pass
                         del self.scrapers[degraded_domain]
                         logger.info(f"Removed session for degraded domain: {degraded_domain}")
                     
-                    # Reset session pool for the domain if pool is enabled
                     if self.session_pool_manager:
-                        # Clear pool for this domain
-                        if degraded_domain in self.session_pool_manager._pools:
-                            self.session_pool_manager._pools[degraded_domain].clear()
-                            logger.info(f"Cleared session pool for degraded domain: {degraded_domain}")
+                        await self.session_pool_manager.clear_pool(degraded_domain)
                     
                     # Reset health stats for the domain
                     if hasattr(self.health_monitor, 'reset_domain_stats'):
                         self.health_monitor.reset_domain_stats(degraded_domain)
                 
                 # Trigger recovery if domain is degraded
-                self.health_monitor.trigger_recovery(domain, recover_domain)
+                await self.health_monitor.trigger_recovery(domain, recover_domain)
             
             # Return session to pool if it came from pool
             if session_info:
                 session_info.record_success()
-                self.session_pool_manager.return_session(domain, session_info)
+                await self.session_pool_manager.return_session(domain, session_info)
             
             logger.info(f"CloudScraper fetch completed: {response.status_code} in {duration:.2f}s")
             return result
@@ -652,7 +529,6 @@ class CloudScraperWrapper:
             
             # Record error metrics
             self.health_monitor.record_error(domain, error_msg)
-            self.session_manager.record_error(domain)
             
             # Record failed attempt for adaptive retry
             if self.adaptive_retry_manager:
@@ -669,7 +545,7 @@ class CloudScraperWrapper:
                 session_info.record_error()
                 # Don't return error-prone sessions to pool
                 if not session_info.is_error_prone():
-                    self.session_pool_manager.return_session(domain, session_info)
+                    await self.session_pool_manager.return_session(domain, session_info)
             
             # Return error result
             result = FetchResult(
@@ -838,7 +714,7 @@ class CloudScraperWrapper:
         # Close Redis connection if available
         if self.cache_manager.redis:
             try:
-                self.cache_manager.redis.close()
+                await self.cache_manager.redis.close()
             except Exception:
                 pass  # Ignore errors during shutdown cleanup
         

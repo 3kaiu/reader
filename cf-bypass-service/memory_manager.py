@@ -15,7 +15,6 @@ import gc
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +81,8 @@ class MemoryManager:
         # Session tracking: {session_id: last_used_time}
         self._session_last_used: Dict[str, datetime] = {}
         
-        # LRU cache: OrderedDict for efficient LRU eviction
-        self._lru_cache: OrderedDict = OrderedDict()
-        
         # Statistics
         self._cleanup_count = 0
-        self._eviction_count = 0
         self._last_cleanup = datetime.now()
         
         logger.info(
@@ -178,80 +173,6 @@ class MemoryManager:
         
         return len(idle_sessions)
     
-    def add_to_cache(self, key: str, value: Any) -> None:
-        """
-        Add item to LRU cache with size limit
-        
-        Args:
-            key: Cache key
-            value: Cache value
-        """
-        # Remove if already exists (to update position)
-        if key in self._lru_cache:
-            del self._lru_cache[key]
-        
-        # Add to end (most recently used)
-        self._lru_cache[key] = value
-        
-        # Evict oldest if over limit
-        while len(self._lru_cache) > self.cache_size_limit:
-            # Remove oldest (first item)
-            oldest_key = next(iter(self._lru_cache))
-            del self._lru_cache[oldest_key]
-            self._eviction_count += 1
-            
-            if self._eviction_count % 100 == 0:
-                logger.debug(f"LRU cache evicted {self._eviction_count} entries")
-    
-    def get_from_cache(self, key: str) -> Optional[Any]:
-        """
-        Get item from LRU cache
-        
-        Args:
-            key: Cache key
-        
-        Returns:
-            Cache value or None if not found
-        """
-        if key not in self._lru_cache:
-            return None
-        
-        # Move to end (most recently used)
-        value = self._lru_cache.pop(key)
-        self._lru_cache[key] = value
-        
-        return value
-    
-    def clear_cache(self, percentage: float = 1.0) -> int:
-        """
-        Clear cache entries
-        
-        Args:
-            percentage: Percentage of cache to clear (0.0 to 1.0)
-        
-        Returns:
-            Number of entries cleared
-        """
-        if percentage >= 1.0:
-            count = len(self._lru_cache)
-            self._lru_cache.clear()
-            logger.info(f"Cleared entire cache ({count} entries)")
-            return count
-        
-        # Clear oldest entries
-        entries_to_remove = int(len(self._lru_cache) * percentage)
-        removed = 0
-        
-        for _ in range(entries_to_remove):
-            if not self._lru_cache:
-                break
-            oldest_key = next(iter(self._lru_cache))
-            del self._lru_cache[oldest_key]
-            removed += 1
-        
-        logger.info(f"Cleared {removed} cache entries ({percentage:.0%})")
-        return removed
-    
     def check_memory_pressure(self) -> MemoryStats:
         """
         Check current memory pressure
@@ -328,10 +249,7 @@ class MemoryManager:
         stats['sessions_cleaned'] = self.cleanup_idle_sessions(session_cleanup_func)
         self.idle_session_timeout_hours = old_timeout
         
-        # 2. Evict 50% of cache entries
-        stats['cache_entries_evicted'] = self.clear_cache(percentage=0.5)
-        
-        # 3. Force garbage collection
+        # 2. Force garbage collection
         if force_gc:
             stats['gc_collected'] = gc.collect()
             logger.info(f"Garbage collection freed {stats['gc_collected']} objects")
@@ -339,7 +257,6 @@ class MemoryManager:
         logger.warning(
             f"Aggressive cleanup completed: "
             f"{stats['sessions_cleaned']} sessions, "
-            f"{stats['cache_entries_evicted']} cache entries, "
             f"{stats['gc_collected']} GC objects"
         )
         
@@ -369,12 +286,7 @@ class MemoryManager:
                 'cleanup_count': self._cleanup_count,
                 'last_cleanup': self._last_cleanup.isoformat() if self._last_cleanup else None
             },
-            'cache': {
-                'size': len(self._lru_cache),
-                'limit': self.cache_size_limit,
-                'utilization': len(self._lru_cache) / self.cache_size_limit if self.cache_size_limit > 0 else 0,
-                'eviction_count': self._eviction_count
-            },
+            # Cache logic moved to Redis (CacheManager)
             'configuration': {
                 'streaming_threshold_mb': self.streaming_threshold_mb,
                 'idle_session_timeout_hours': self.idle_session_timeout_hours,
@@ -383,19 +295,3 @@ class MemoryManager:
                 'cleanup_interval_minutes': self.cleanup_interval_minutes
             }
         }
-    
-    def enable_compression(self, session: Any) -> None:
-        """
-        Enable compression in session headers
-        
-        Args:
-            session: Session to configure
-        """
-        try:
-            # Enable gzip, deflate, br (Brotli) compression
-            session.headers.update({
-                'Accept-Encoding': 'gzip, deflate, br'
-            })
-            logger.debug("Enabled compression for session")
-        except Exception as e:
-            logger.error(f"Failed to enable compression: {e}")

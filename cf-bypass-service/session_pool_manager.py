@@ -166,6 +166,7 @@ class SessionPoolManager:
         self._replenishment_task: Optional[asyncio.Task] = None
         self._health_check_task: Optional[asyncio.Task] = None
         self._running = False
+        self._lock = asyncio.Lock()  # Prevent concurrent modifications to pools
         
         logger.info(
             f"SessionPoolManager initialized: pool_size={self.pool_size}, "
@@ -221,12 +222,13 @@ class SessionPoolManager:
         
         # Add successful sessions to pool
         successful = 0
-        for session in sessions:
-            if isinstance(session, SessionInfo):
-                self.pools[domain].append(session)
-                successful += 1
-            else:
-                logger.error(f"Failed to create session for {domain}: {session}")
+        async with self._lock:
+            for session in sessions:
+                if isinstance(session, SessionInfo):
+                    self.pools[domain].append(session)
+                    successful += 1
+                else:
+                    logger.error(f"Failed to create session for {domain}: {session}")
         
         # Update statistics
         duration = (datetime.now() - start_time).total_seconds()
@@ -242,7 +244,7 @@ class SessionPoolManager:
             f"created in {duration:.2f}s"
         )
     
-    def get_session(self, domain: str) -> Optional[SessionInfo]:
+    async def get_session(self, domain: str) -> Optional[SessionInfo]:
         """
         Get a session from the pool (O(1) operation using deque)
         
@@ -252,33 +254,34 @@ class SessionPoolManager:
         Returns:
             SessionInfo if available, None if pool is empty
         """
-        pool = self.pools[domain]
-        stats = self.stats[domain]
-        stats.domain = domain
-        
-        if pool:
-            # Get oldest session (FIFO) - O(1) with deque.popleft()
-            session_info = pool.popleft()
-            stats.hits += 1
-            stats.pool_size = len(pool)
+        async with self._lock:
+            pool = self.pools[domain]
+            stats = self.stats[domain]
+            stats.domain = domain
             
-            logger.debug(f"Pool hit for {domain}: {len(pool)} sessions remaining")
-            
-            # Trigger replenishment if below threshold
-            if len(pool) < self.min_threshold:
+            if pool:
+                # Get oldest session (FIFO) - O(1) with deque.popleft()
+                session_info = pool.popleft()
+                stats.hits += 1
+                stats.pool_size = len(pool)
+                
+                logger.debug(f"Pool hit for {domain}: {len(pool)} sessions remaining")
+                
+                # Trigger replenishment if below threshold
+                if len(pool) < self.min_threshold:
+                    asyncio.create_task(self.replenish_pool(domain))
+                
+                return session_info
+            else:
+                stats.misses += 1
+                logger.debug(f"Pool miss for {domain}: pool is empty")
+                
+                # Trigger replenishment
                 asyncio.create_task(self.replenish_pool(domain))
-            
-            return session_info
-        else:
-            stats.misses += 1
-            logger.debug(f"Pool miss for {domain}: pool is empty")
-            
-            # Trigger replenishment
-            asyncio.create_task(self.replenish_pool(domain))
-            
-            return None
+                
+                return None
     
-    def return_session(self, domain: str, session_info: SessionInfo) -> None:
+    async def return_session(self, domain: str, session_info: SessionInfo) -> None:
         """
         Return a session to the pool
         
@@ -301,13 +304,18 @@ class SessionPoolManager:
             return
         
         # Return to pool if not full
-        pool = self.pools[domain]
-        if len(pool) < self.pool_size:
-            pool.append(session_info)
-            self.stats[domain].pool_size = len(pool)
-            logger.debug(f"Session returned to pool for {domain}: {len(pool)} sessions")
-        else:
-            logger.debug(f"Pool full for {domain}, not returning session")
+        async with self._lock:
+            pool = self.pools[domain]
+            if len(pool) < self.pool_size:
+                pool.append(session_info)
+                self.stats[domain].pool_size = len(pool)
+                logger.debug(f"Session returned to pool for {domain}: {len(pool)} sessions")
+            else:
+                logger.debug(f"Pool full for {domain}, retiring session")
+                try:
+                    session_info.session.close()
+                except:
+                    pass
     
     async def replenish_pool(self, domain: str) -> None:
         """
@@ -331,12 +339,21 @@ class SessionPoolManager:
         
         # Add successful sessions to pool
         added = 0
-        for session in sessions:
-            if isinstance(session, SessionInfo):
-                pool.append(session)
-                added += 1
-            else:
-                logger.error(f"Failed to create session during replenishment: {session}")
+        async with self._lock:
+            for session in sessions:
+                if isinstance(session, SessionInfo):
+                    # Check if pool became full in the meantime
+                    if len(pool) < self.pool_size:
+                        pool.append(session)
+                        added += 1
+                    else:
+                        # retire session if pool is full
+                        try:
+                            session.session.close()
+                        except:
+                            pass
+                else:
+                    logger.error(f"Failed to create session during replenishment: {session}")
         
         # Update statistics
         stats = self.stats[domain]
@@ -395,31 +412,63 @@ class SessionPoolManager:
                 
                 for domain, pool in self.pools.items():
                     # In-place filtering: only rebuild if needed
-                    original_size = len(pool)
-                    
-                    # Filter out stale sessions in-place
-                    healthy_sessions = deque(
-                        s for s in pool
-                        if not s.is_stale(self.max_age_hours, now) and not s.is_error_prone()
-                    )
-                    
-                    removed = original_size - len(healthy_sessions)
-                    
-                    if removed > 0:
-                        # Replace pool with filtered version
-                        self.pools[domain] = healthy_sessions
+                    async with self._lock:
+                        original_size = len(pool)
                         
-                        logger.info(f"Removed {removed} stale sessions from {domain} pool")
-                        self.stats[domain].stale_sessions_removed += removed
-                        self.stats[domain].pool_size = len(healthy_sessions)
+                        # Identify sessions to retire
+                        to_retire = [s for s in pool if s.is_stale(self.max_age_hours, now) or s.is_error_prone()]
                         
-                        # Trigger replenishment
-                        await self.replenish_pool(domain)
+                        if to_retire:
+                            # Filter out stale sessions
+                            healthy_sessions = deque(s for s in pool if s not in to_retire)
+                            self.pools[domain] = healthy_sessions
+                            
+                            removed = original_size - len(healthy_sessions)
+                            logger.info(f"Removed {removed} stale sessions from {domain} pool")
+                            self.stats[domain].stale_sessions_removed += removed
+                            self.stats[domain].pool_size = len(healthy_sessions)
+                            
+                            # Close retired sessions
+                            for s in to_retire:
+                                try:
+                                    s.session.close()
+                                except:
+                                    pass
+                            
+                            # Trigger replenishment
+                            await self.replenish_pool(domain)
                 
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Error in health check loop: {e}")
+    
+    async def clear_pool(self, domain: str) -> int:
+        """
+        Clear all sessions in a domain's pool
+        
+        Returns:
+            Number of sessions removed and closed
+        """
+        async with self._lock:
+            if domain not in self.pools:
+                return 0
+            
+            pool = self.pools[domain]
+            count = len(pool)
+            
+            # Close all sessions in the pool
+            for session_info in pool:
+                try:
+                    session_info.session.close()
+                except:
+                    pass
+            
+            pool.clear()
+            self.stats[domain].pool_size = 0
+            
+            logger.info(f"Cleared session pool for {domain} ({count} sessions closed)")
+            return count
     
     def get_pool_stats(self, domain: Optional[str] = None) -> Dict[str, Any]:
         """

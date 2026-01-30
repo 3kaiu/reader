@@ -27,6 +27,10 @@ Cloudflare bypass service using CloudScraper with built-in anti-detection featur
 - `GET /tokens?domain=example.com` - Get cached tokens
 - `GET /stats` - Engine statistics
 
+## Optimization & Performance
+
+For details on session pooling, connection pooling, and other performance optimizations, see the [Optimization Guide](OPTIMIZATION.md).
+
 ## Environment Variables
 
 - `CF_API_KEY` - API key for authentication (optional)

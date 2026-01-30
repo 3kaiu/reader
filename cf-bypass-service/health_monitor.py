@@ -240,7 +240,7 @@ class EnhancedHealthMonitor:
             last_check=datetime.now()
         )
     
-    def trigger_recovery(self, domain: str, recovery_func: callable) -> bool:
+    async def trigger_recovery(self, domain: str, recovery_func: callable) -> bool:
         """
         Trigger recovery for a degraded domain
         
@@ -262,7 +262,12 @@ class EnhancedHealthMonitor:
         logger.warning(f"Triggering recovery for degraded domain: {domain}")
         
         try:
-            recovery_func(domain)
+            # Check if recovery_func is a coroutine
+            import inspect
+            if inspect.iscoroutinefunction(recovery_func):
+                await recovery_func(domain)
+            else:
+                recovery_func(domain)
             
             stats = self._domain_stats[domain]
             stats['last_recovery'] = datetime.now()

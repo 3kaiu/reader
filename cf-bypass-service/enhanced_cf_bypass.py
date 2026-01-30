@@ -15,7 +15,6 @@ import logging
 import os
 import random
 import time
-import psutil
 from typing import Optional, Dict, List, Tuple, Any, Set
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
@@ -25,7 +24,8 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 # Persistent storage path
-STATS_FILE = Path("/app/data/domain_stats.json") if os.path.exists("/app") else Path("data/domain_stats.json")
+DATA_DIR = Path(os.getenv("CF_DATA_DIR", "/app/data" if os.path.exists("/app") else "data"))
+STATS_FILE = DATA_DIR / "domain_stats.json"
 
 @dataclass
 class CFBypassResult:
@@ -92,7 +92,7 @@ class OptimizedCFBypass:
         self._browser = None
         self._browser_lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(15) 
-        self._warm_contexts: Dict[str, Any] = {} # Persistent contexts per cluster of domains
+        self._warm_contexts: Dict[str, Tuple[Any, float]] = {} # Persistent contexts per cluster of domains: (context, last_used)
 
     async def _ensure_browser(self):
         if self._browser: return
@@ -111,10 +111,25 @@ class OptimizedCFBypass:
         await self._ensure_browser()
         # Group by top-level domain for better trust distribution
         tld = ".".join(domain.split('.')[-2:])
+        
+        # Cleanup old contexts (older than 30 mins)
+        now = time.time()
+        expired = [t for t, (_, last_used) in self._warm_contexts.items() if now - last_used > 1800]
+        for t in expired:
+            try:
+                ctx, _ = self._warm_contexts.pop(t)
+                await ctx.close()
+                logger.debug(f"Closed expired context for {t}")
+            except Exception: pass
+
         if tld not in self._warm_contexts:
             ctx = await self._browser.new_context()
-            self._warm_contexts[tld] = ctx
-        return self._warm_contexts[tld]
+            self._warm_contexts[tld] = (ctx, now)
+        else:
+            ctx, _ = self._warm_contexts[tld]
+            self._warm_contexts[tld] = (ctx, now)
+            
+        return ctx
 
     async def shutdown(self):
         if self._browser:
@@ -239,34 +254,9 @@ class OptimizedCFBypass:
                     return result
 
         # Phase C: Last Resort (Integrated but slower fallback)
-        # In the mesh, we don't 'retrying' with the same tool, we use the Heavy context directly
-        logger.info(f"Mesh: SOLVER failed, trying Heavy Drission state reconstruction for {domain}")
-        result = await self._drission_mesh_fallback(url, timeout + 20)
-        if result and result.cf_bypassed:
-            result.duration = time.time() - start_time
-            return result
-        
+        logger.info(f"Mesh: SOLVER failed for {domain}")
         return CFBypassResult(403, "", {}, {}, False, "mesh_exhausted", time.time() - start_time, "The Mesh could not resolve the challenge")
 
-    async def _drission_mesh_fallback(self, url: str, timeout: int) -> Optional[CFBypassResult]:
-        async with self._drission_lock:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self._drission_sync, url, timeout)
-
-    def _drission_sync(self, url: str, timeout: int) -> Optional[CFBypassResult]:
-        try:
-            from DrissionPage import ChromiumPage, ChromiumOptions
-            options = ChromiumOptions().headless(True).set_argument('--no-sandbox')
-            page = ChromiumPage(options)
-            try:
-                page.get(url)
-                time.sleep(8)
-                if 'just a moment' not in page.html.lower():
-                    cookies = {c.get('name', ''): c.get('value', '') for c in page.cookies()}
-                    return CFBypassResult(200, page.html, cookies, {}, True, "drission_mesh", 0.0)
-                return None
-            finally: page.quit()
-        except Exception: return None
 
 # Global Engine Singleton
 _engine = None

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
+from contextlib import asynccontextmanager
 
 # Import Engine Factory
 from core.engine_factory import factory as engine_factory
@@ -32,6 +33,7 @@ app = FastAPI(
     title="CF Bypass Service",
     version="5.0.0",
     description="Unified CF Bypass Service with Dynamic Engine Selection",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -80,19 +82,20 @@ class FetchResponse(BaseModel):
 # Lifecycle
 # ─────────────────────────────────────────────────────────────
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     logger.info("CF Bypass Service v5.0 started with Dynamic Engine Selection")
-
-
-@app.on_event("shutdown")
-async def shutdown():
+    yield
+    # Shutdown
     await shutdown_bypass()
 
-
-# ─────────────────────────────────────────────────────────────
-# Endpoints
-# ─────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="CF Bypass Service",
+    version="5.0.0",
+    description="Unified CF Bypass Service with Dynamic Engine Selection",
+    lifespan=lifespan
+)
 
 @app.get("/health")
 async def health():
@@ -122,15 +125,13 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
         proxy=request.proxy,
     )
     
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=500, detail=result.error)
-    
     return FetchResponse(
         status=result.status,
         html=result.html,
         cookies=result.cookies,
         headers=result.headers,
         cf_bypassed=result.cf_bypassed,
+        error=getattr(result, 'error', None),
         engine_used=getattr(result, 'method_used', 'unknown')
     )
 
@@ -193,7 +194,8 @@ async def fetch_parallel(requests: list[FetchRequest], x_api_key: str = Header(N
             cookies=result.cookies,
             headers=result.headers,
             cf_bypassed=result.cf_bypassed,
-            error=getattr(result, 'error', None)
+            error=getattr(result, 'error', None),
+            engine_used=getattr(result, 'method_used', 'mesh')
         )
         for result in results
     ]
@@ -229,7 +231,8 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
             cookies=result.cookies,
             headers=result.headers,
             cf_bypassed=result.cf_bypassed,
-            error=getattr(result, 'error', None)
+            error=getattr(result, 'error', None),
+            engine_used=getattr(result, 'method_used', 'unknown')
         )
         for result in results
     ]
@@ -309,9 +312,7 @@ async def recover(domain: str, x_api_key: str = Header(None)):
         # Reset session pool for the domain if pool is enabled
         session_pool_manager = getattr(engine, 'session_pool_manager', None)
         if session_pool_manager:
-            if hasattr(session_pool_manager, '_pools') and domain in session_pool_manager._pools:
-                session_pool_manager._pools[domain].clear()
-                logger.info(f"Cleared session pool for domain: {domain}")
+            await session_pool_manager.clear_pool(domain)
         
         # Reset health stats for the domain
         health_monitor.reset_domain_stats(domain)
@@ -328,7 +329,7 @@ async def recover(domain: str, x_api_key: str = Header(None)):
             "actions_taken": [
                 action for action in [
                     "Reset domain sessions",
-                    "Cleared session pool" if engine.session_pool_manager else None,
+                    "Cleared session pool" if session_pool_manager else None,
                     "Reset health statistics"
                 ] if action is not None
             ]
