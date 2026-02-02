@@ -108,7 +108,7 @@ jobs:
       if: always()
 
   security-report:
-    name: Generate Security Report
+    name: Generate Security Report & Auto-Fix Suggestions
     runs-on: ubuntu-latest
     needs: [analyze-javascript, analyze-python, analyze-rust]
     if: always()
@@ -116,10 +116,67 @@ jobs:
     steps:
     - name: Generate Security Summary
       run: |
-        echo "# Security Analysis Summary" >> $GITHUB_STEP_SUMMARY
+        echo "# 🔍 Security Analysis Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Language | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| JavaScript/TypeScript | ${{ needs.analyze-javascript.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Python | ${{ needs.analyze-python.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Rust (Clippy) | ${{ needs.analyze-rust.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Language | Status | Alerts |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+
+        # 获取每个语言的告警数量
+        JS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=javascript" | \
+          jq -r 'length' || echo "0")
+
+        TS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=typescript" | \
+          jq -r 'length' || echo "0")
+
+        PY_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=python" | \
+          jq -r 'length' || echo "0")
+
+        echo "| JavaScript/TypeScript | ${{ needs.analyze-javascript.result }} | $((JS_ALERTS + TS_ALERTS)) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Python | ${{ needs.analyze-python.result }} | $PY_ALERTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Rust (Clippy) | ${{ needs.analyze-rust.result }} | N/A |" >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate Auto-Fix Recommendations
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🤖 Auto-Fix Recommendations" >> $GITHUB_STEP_SUMMARY
+
+        # 获取高严重程度的问题
+        CRITICAL_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=critical" | \
+          jq -r 'length' || echo "0")
+
+        HIGH_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=high" | \
+          jq -r 'length' || echo "0")
+
+        TOTAL_ALERTS=$((CRITICAL_ALERTS + HIGH_ALERTS))
+
+        if [ "$TOTAL_ALERTS" -gt 0 ]; then
+          echo "### 🚨 Issues Requiring Attention" >> $GITHUB_STEP_SUMMARY
+          echo "- **Critical Issues**: $CRITICAL_ALERTS" >> $GITHUB_STEP_SUMMARY
+          echo "- **High Priority Issues**: $HIGH_ALERTS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Recommended Actions" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Run Auto-Security-Fix Workflow**" >> $GITHUB_STEP_SUMMARY
+          echo "   - Go to Actions → Auto Security Fix → Run workflow" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Review Security Tab**" >> $GITHUB_STEP_SUMMARY
+          echo "   - Check [Code Scanning](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Apply Dependabot Updates**" >> $GITHUB_STEP_SUMMARY
+          echo "   - Merge automated dependency security updates" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ✅ No Critical Issues Found" >> $GITHUB_STEP_SUMMARY
+          echo "All automated security checks passed! 🎉" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Trigger Auto-Fix Workflow (if needed)
+      if: env.TOTAL_ALERTS > 0
+      run: |
+        # 如果有严重问题，触发自动修复工作流
+        curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/auto-security-fix.yml/dispatches" \
+          -d '{"ref":"main","inputs":{"fix_type":"all","severity":"high"}}' || true

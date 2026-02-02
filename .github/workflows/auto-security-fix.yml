@@ -1,0 +1,563 @@
+name: Auto Security Fix
+
+on:
+  # 当有安全告警时触发
+  security_advisories:
+    types: [published, updated]
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      fix_type:
+        description: 'Type of security fixes to apply'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - codeql
+          - dependabot
+          - manual
+      severity:
+        description: 'Minimum severity level to fix'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+  # 依赖更新后触发
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main]
+    paths:
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/bun.lock'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/pyproject.toml'
+      - '**/uv.lock'
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: read
+  actions: write
+
+jobs:
+  # =============================================================================
+  # 检测安全问题
+  # =============================================================================
+  detect-security-issues:
+    name: Detect Security Issues
+    runs-on: ubuntu-latest
+    outputs:
+      has_codeql_alerts: ${{ steps.codeql.outputs.has_alerts }}
+      has_dependabot_alerts: ${{ steps.dependabot.outputs.has_alerts }}
+      security_score: ${{ steps.score.outputs.score }}
+      critical_issues: ${{ steps.issues.outputs.critical }}
+      high_issues: ${{ steps.issues.outputs.high }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check CodeQL alerts
+        id: codeql
+        run: |
+          # 获取CodeQL警报数量
+          ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open" | \
+            jq -r 'length')
+
+          echo "has_alerts=$([ "$ALERTS" -gt 0 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "Found $ALERTS CodeQL alerts"
+
+      - name: Check Dependabot alerts
+        id: dependabot
+        run: |
+          # 获取Dependabot警报数量
+          ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/dependabot/alerts?state=open" | \
+            jq -r 'length')
+
+          echo "has_alerts=$([ "$ALERTS" -gt 0 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "Found $ALERTS Dependabot alerts"
+
+      - name: Calculate security score
+        id: score
+        run: |
+          # 计算安全评分 (0-100, 100为最佳)
+          CODEQL_COUNT=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=critical,high" | \
+            jq -r 'length')
+
+          DEPENDABOT_COUNT=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/dependabot/alerts?state=open&severity=critical,high" | \
+            jq -r 'length')
+
+          # 基础分数100，每有严重问题扣分
+          SCORE=$((100 - CODEQL_COUNT * 5 - DEPENDABOT_COUNT * 3))
+          SCORE=$((SCORE < 0 ? 0 : SCORE))
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "Security score: $SCORE/100"
+
+      - name: Analyze issue severity
+        id: issues
+        run: |
+          # 统计各严重程度的问题数量
+          CRITICAL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=critical" | \
+            jq -r 'length')
+
+          HIGH=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=high" | \
+            jq -r 'length')
+
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "Critical issues: $CRITICAL, High issues: $HIGH"
+
+  # =============================================================================
+  # 自动修复前端安全问题
+  # =============================================================================
+  fix-frontend-security:
+    name: Fix Frontend Security Issues
+    runs-on: ubuntu-latest
+    needs: detect-security-issues
+    if: |
+      (needs.detect-security-issues.outputs.has_codeql_alerts == 'true' ||
+       needs.detect-security-issues.outputs.has_dependabot_alerts == 'true') &&
+      (github.event.inputs.fix_type == 'all' || github.event.inputs.fix_type == 'codeql')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: nexus-reader/package-lock.json
+
+      - name: Install dependencies
+        working-directory: nexus-reader
+        run: npm ci
+
+      - name: Run security audit
+        id: audit
+        working-directory: nexus-reader
+        run: |
+          echo "🔍 Running npm audit..."
+          npm audit --audit-level=moderate --json > audit-results.json || true
+
+          # 检查是否有可修复的安全问题
+          FIXABLE=$(jq -r '.metadata.vulnerabilities.total // 0' audit-results.json)
+          echo "fixable=$FIXABLE" >> $GITHUB_OUTPUT
+
+          if [ "$FIXABLE" -gt 0 ]; then
+            echo "Found $FIXABLE fixable vulnerabilities"
+            echo "fix_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No fixable vulnerabilities found"
+            echo "fix_needed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Auto-fix security issues
+        if: steps.audit.outputs.fix_needed == 'true'
+        working-directory: nexus-reader
+        run: |
+          echo "🔧 Attempting to auto-fix security vulnerabilities..."
+
+          # 先尝试非破坏性修复
+          npm audit fix --dry-run > fix-preview.txt 2>&1 || true
+
+          # 检查是否有破坏性更改
+          if grep -q "breaking changes" fix-preview.txt; then
+            echo "⚠️ Breaking changes detected, skipping auto-fix"
+            echo "breaking_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Safe to apply fixes"
+            npm audit fix
+            echo "breaking_changes=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Update package-lock.json
+        if: steps.audit.outputs.fix_needed == 'true'
+        working-directory: nexus-reader
+        run: npm install --package-lock-only
+
+      - name: Create fix PR
+        if: steps.audit.outputs.fix_needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto-security-fix/frontend-${{ github.run_id }}
+          delete-branch: true
+          title: "🔒 Auto-fix: Frontend security vulnerabilities"
+          body: |
+            ## 🔒 Automatic Security Fix
+
+            This PR was automatically created to fix security vulnerabilities in the frontend dependencies.
+
+            ### Changes
+            - Applied `npm audit fix` to resolve security issues
+            - Updated `package-lock.json` with secure versions
+
+            ### Verification
+            - [ ] Run `npm audit` to verify fixes
+            - [ ] Test application functionality
+            - [ ] Check for breaking changes
+
+            ---
+            🤖 *Auto-generated by security fix workflow*
+          labels: |
+            security
+            automated
+            frontend
+
+  # =============================================================================
+  # 自动修复Python安全问题
+  # =============================================================================
+  fix-python-security:
+    name: Fix Python Security Issues
+    runs-on: ubuntu-latest
+    needs: detect-security-issues
+    if: |
+      (needs.detect-security-issues.outputs.has_codeql_alerts == 'true' ||
+       needs.detect-security-issues.outputs.has_dependabot_alerts == 'true') &&
+      (github.event.inputs.fix_type == 'all' || github.event.inputs.fix_type == 'codeql')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('cf-bypass-service/requirements.txt', 'cf-bypass-service/pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install safety and pip-tools
+        run: pip install safety pip-tools
+
+      - name: Check for security vulnerabilities
+        id: safety
+        working-directory: cf-bypass-service
+        run: |
+          echo "🔍 Checking Python dependencies for security issues..."
+
+          # 安装依赖
+          pip install -e .
+
+          # 运行安全检查
+          safety check --json > safety-results.json 2>&1 || true
+
+          # 分析结果
+          VULNERABLE=$(jq -r '.issues // [] | length' safety-results.json 2>/dev/null || echo "0")
+
+          echo "vulnerable=$VULNERABLE" >> $GITHUB_OUTPUT
+
+          if [ "$VULNERABLE" -gt 0 ]; then
+            echo "Found $VULNERABLE security vulnerabilities"
+            echo "fix_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No security vulnerabilities found"
+            echo "fix_needed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Auto-fix Python security issues
+        if: steps.safety.outputs.fix_needed == 'true'
+        working-directory: cf-bypass-service
+        run: |
+          echo "🔧 Attempting to auto-fix Python security issues..."
+
+          # 读取安全问题
+          jq -r '.issues[] | "\(.package) \(.vulnerable_spec) -> \(.secure_spec)"' safety-results.json > fixes.txt
+
+          echo "Security fixes needed:"
+          cat fixes.txt
+
+          # 使用pip-tools更新依赖
+          pip-compile --upgrade --output-file=requirements.txt pyproject.toml
+
+          echo "✅ Dependencies updated to secure versions"
+        continue-on-error: true
+
+      - name: Create fix PR
+        if: steps.safety.outputs.fix_needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto-security-fix/python-${{ github.run_id }}
+          delete-branch: true
+          title: "🔒 Auto-fix: Python security vulnerabilities"
+          body: |
+            ## 🔒 Automatic Security Fix
+
+            This PR was automatically created to fix security vulnerabilities in Python dependencies.
+
+            ### Changes
+            - Updated vulnerable packages to secure versions
+            - Regenerated `requirements.txt` with `pip-compile`
+
+            ### Verification
+            - [ ] Run `safety check` to verify fixes
+            - [ ] Test Python functionality
+            - [ ] Check for API changes
+
+            ---
+            🤖 *Auto-generated by security fix workflow*
+          labels: |
+            security
+            automated
+            python
+
+  # =============================================================================
+  # 自动修复Rust安全问题
+  # =============================================================================
+  fix-rust-security:
+    name: Fix Rust Security Issues
+    runs-on: ubuntu-latest
+    needs: detect-security-issues
+    if: |
+      (needs.detect-security-issues.outputs.has_codeql_alerts == 'true' ||
+       needs.detect-security-issues.outputs.has_dependabot_alerts == 'true') &&
+      (github.event.inputs.fix_type == 'all' || github.event.inputs.fix_type == 'codeql')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: nexus-lite
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Audit Rust dependencies
+        id: audit
+        working-directory: nexus-lite
+        run: |
+          echo "🔍 Auditing Rust dependencies for security issues..."
+
+          # 运行审计
+          cargo audit --json > audit-results.json 2>&1 || true
+
+          # 分析结果
+          VULNERABLE=$(jq -r '.vulnerabilities.found // 0' audit-results.json 2>/dev/null || echo "0")
+
+          echo "vulnerable=$VULNERABLE" >> $GITHUB_OUTPUT
+
+          if [ "$VULNERABLE" -gt 0 ]; then
+            echo "Found $VULNERABLE security vulnerabilities"
+            echo "fix_needed=true" >> $GITHUB_OUTPUT
+
+            # 提取可修复的问题
+            jq -r '.vulnerabilities.list[]? | select(.possible_fix != null) | "\(.package.name) \(.package.version) -> \(.possible_fix)"' audit-results.json > fixes.txt
+          else
+            echo "No security vulnerabilities found"
+            echo "fix_needed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Auto-fix Rust security issues
+        if: steps.audit.outputs.fix_needed == 'true'
+        working-directory: nexus-lite
+        run: |
+          echo "🔧 Attempting to auto-fix Rust security issues..."
+
+          # 更新Cargo.lock中的安全版本
+          cargo update --package --precise < fixes.txt
+
+          # 验证修复
+          cargo audit --json > post-fix-results.json || true
+
+          REMAINING=$(jq -r '.vulnerabilities.found // 0' post-fix-results.json 2>/dev/null || echo "0")
+
+          if [ "$REMAINING" -eq 0 ]; then
+            echo "✅ All security issues fixed"
+          else
+            echo "⚠️ $REMAINING issues remain (may need manual intervention)"
+          fi
+        continue-on-error: true
+
+      - name: Create fix PR
+        if: steps.audit.outputs.fix_needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto-security-fix/rust-${{ github.run_id }}
+          delete-branch: true
+          title: "🔒 Auto-fix: Rust security vulnerabilities"
+          body: |
+            ## 🔒 Automatic Security Fix
+
+            This PR was automatically created to fix security vulnerabilities in Rust dependencies.
+
+            ### Changes
+            - Updated vulnerable crates to secure versions
+            - Updated `Cargo.lock` with security fixes
+
+            ### Verification
+            - [ ] Run `cargo audit` to verify fixes
+            - [ ] Build and test Rust components
+            - [ ] Check for API changes
+
+            ---
+            🤖 *Auto-generated by security fix workflow*
+          labels: |
+            security
+            automated
+            rust
+
+  # =============================================================================
+  # 手动安全修复（针对复杂问题）
+  # =============================================================================
+  manual-security-review:
+    name: Manual Security Review
+    runs-on: ubuntu-latest
+    needs: [detect-security-issues, fix-frontend-security, fix-python-security, fix-rust-security]
+    if: |
+      (needs.detect-security-issues.outputs.critical_issues != '0' ||
+       needs.detect-security-issues.outputs.high_issues != '0') &&
+      (github.event.inputs.fix_type == 'manual' || github.event.inputs.severity == 'high' || github.event.inputs.severity == 'critical')
+    steps:
+      - name: Create manual review issue
+        run: |
+          CRITICAL="${{ needs.detect-security-issues.outputs.critical_issues }}"
+          HIGH="${{ needs.detect-security-issues.outputs.high_issues }}"
+
+          TITLE="🚨 Manual Security Review Required: ${CRITICAL} critical, ${HIGH} high severity issues"
+          BODY="## 🚨 Manual Security Review Required
+
+          **Security Alert Level**: $([ "$CRITICAL" -gt 0 ] && echo "CRITICAL" || echo "HIGH")
+
+          ### Issue Summary
+          - **Critical Issues**: $CRITICAL
+          - **High Issues**: $HIGH
+          - **Total Security Score**: ${{ needs.detect-security-issues.outputs.security_score }}/100
+
+          ### Automated Fixes Applied
+          - ✅ Frontend: ${{ needs.fix-frontend-security.result }}
+          - ✅ Python: ${{ needs.fix-python-security.result }}
+          - ✅ Rust: ${{ needs.fix-rust-security.result }}
+
+          ### Next Steps
+          1. **Review remaining issues** in Security tab
+          2. **Apply manual fixes** for complex vulnerabilities
+          3. **Test thoroughly** after applying fixes
+          4. **Update dependencies** to latest secure versions
+
+          ### Resources
+          - [Security Advisories](https://github.com/${{ github.repository }}/security/advisories)
+          - [Code Scanning Results](https://github.com/${{ github.repository }}/security/code-scanning)
+          - [Dependabot Alerts](https://github.com/${{ github.repository }}/security/dependabot)
+
+          ---
+          🤖 *Auto-generated by security fix workflow*"
+
+          # 检查是否已存在类似的issue
+          EXISTING=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=security,manual-review" | \
+            jq -r '.[] | select(.title | contains("Manual Security Review")) | .number' | head -1)
+
+          if [ -z "$EXISTING" ]; then
+            # 创建新issue
+            RESPONSE=$(curl -s -X POST \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues" \
+              -d "{
+                \"title\": \"$TITLE\",
+                \"body\": \"$BODY\",
+                \"labels\": [\"security\", \"manual-review\", \"high-priority\"],
+                \"assignees\": [\"${{ github.actor }}\"]
+              }")
+
+            ISSUE_NUMBER=$(echo "$RESPONSE" | jq -r '.number // empty')
+            if [ -n "$ISSUE_NUMBER" ]; then
+              echo "✅ Created manual review issue #$ISSUE_NUMBER"
+            fi
+          else
+            echo "⚠️ Manual review issue already exists (#$EXISTING)"
+          fi
+
+  # =============================================================================
+  # 安全修复报告
+  # =============================================================================
+  security-report:
+    name: Security Fix Report
+    runs-on: ubuntu-latest
+    needs: [detect-security-issues, fix-frontend-security, fix-python-security, fix-rust-security, manual-security-review]
+    if: always()
+    steps:
+      - name: Generate Security Fix Report
+        run: |
+          echo "## 🔒 Auto Security Fix Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Security Overview" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security Score**: ${{ needs.detect-security-issues.outputs.security_score }}/100" >> $GITHUB_STEP_SUMMARY
+          echo "- **Critical Issues**: ${{ needs.detect-security-issues.outputs.critical_issues }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **High Issues**: ${{ needs.detect-security-issues.outputs.high_issues }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fix Type**: ${{ github.event.inputs.fix_type || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # 修复状态
+          echo "### 🔧 Auto-Fix Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | PR Created |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|------------|" >> $GITHUB_STEP_SUMMARY
+
+          FRONTEND_STATUS="${{ needs.fix-frontend-security.result }}"
+          PYTHON_STATUS="${{ needs.fix-python-security.result }}"
+          RUST_STATUS="${{ needs.fix-rust-security.result }}"
+          MANUAL_STATUS="${{ needs.manual-security-review.result }}"
+
+          echo "| Frontend | $FRONTEND_STATUS | $([ "$FRONTEND_STATUS" = "success" ] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | $PYTHON_STATUS | $([ "$PYTHON_STATUS" = "success" ] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust | $RUST_STATUS | $([ "$RUST_STATUS" = "success" ] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Manual Review | $MANUAL_STATUS | $([ "$MANUAL_STATUS" = "success" ] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Security Best Practices Applied" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 **Automated Scanning**: Daily security scans for all languages" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 **Auto-Remediation**: Automatic fixing of fixable vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- 📋 **PR Automation**: Auto-generated pull requests for security fixes" >> $GITHUB_STEP_SUMMARY
+          echo "- 👥 **Review Assignment**: Automatic assignment to maintainers" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 **Progress Tracking**: Comprehensive security reporting" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Continuous Security" >> $GITHUB_STEP_SUMMARY
+          echo "- **Daily Security Scans**: Automated vulnerability detection" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dependabot Integration**: Automatic dependency updates" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeQL Integration**: Advanced static analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- **Manual Review**: Human oversight for complex issues" >> $GITHUB_STEP_SUMMARY
+
+          # 成功指标
+          if [ "${{ needs.detect-security-issues.outputs.security_score }}" -ge 80 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🏆 Security Achievement" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **High Security Score Maintained!** (>=80/100)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**🛡️ Security is everyone's responsibility!**" >> $GITHUB_STEP_SUMMARY

@@ -49,3 +49,94 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  # =============================================================================
+  # Security Updates - Auto-fix enabled
+  # =============================================================================
+
+  # Rust security updates (separate config for faster security fixes)
+  - package-ecosystem: "cargo"
+    directory: "/nexus-lite"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "security(deps)"
+      prefix-development: "security(deps-dev)"
+    reviewers:
+      - "edy"  # Replace with your GitHub username
+    assignees:
+      - "edy"  # Replace with your GitHub username
+    labels:
+      - "security"
+      - "dependencies"
+    groups:
+      rust-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch", "major"]
+
+  # Python security updates
+  - package-ecosystem: "pip"
+    directory: "/cf-bypass-service"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "security(deps)"
+      prefix-development: "security(deps-dev)"
+    reviewers:
+      - "edy"
+    assignees:
+      - "edy"
+    labels:
+      - "security"
+      - "dependencies"
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch", "major"]
+
+  # Frontend security updates
+  - package-ecosystem: "npm"
+    directory: "/nexus-reader"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "security(deps)"
+      prefix-development: "security(deps-dev)"
+    reviewers:
+      - "edy"
+    assignees:
+      - "edy"
+    labels:
+      - "security"
+      - "dependencies"
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch", "major"]
+
+  # Docker security updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "security(docker)"
+    reviewers:
+      - "edy"
+    assignees:
+      - "edy"
+    labels:
+      - "security"
+      - "docker"
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch", "major"]
