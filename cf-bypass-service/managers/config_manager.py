@@ -8,7 +8,7 @@ import json
 import logging
 import re
 import ipaddress
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from urllib.parse import urlparse

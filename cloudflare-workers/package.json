@@ -1,0 +1,27 @@
+{
+  "name": "novel-decoder-optimized",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers Novel Decoder with Auto-Optimization",
+  "main": "novel-decoder-worker-optimized.ts",
+  "scripts": {
+    "init": "./init.sh",
+    "deploy": "./deploy.sh",
+    "status": "./status.sh",
+    "test": "node test-optimization.js",
+    "build": "wrangler deploy --dry-run",
+    "dev": "wrangler dev"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "novel",
+    "decoder",
+    "optimization",
+    "ai"
+  ],
+  "author": "Auto-Optimized",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

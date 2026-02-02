@@ -18,6 +18,7 @@ COPY nexus-core ./nexus-core
 COPY nexus-engine ./nexus-engine
 COPY nexus-storage ./nexus-storage
 COPY nexus-server ./nexus-server
+COPY data ./data
 
 # Build release binary
 RUN cargo build --release --package nexus-server

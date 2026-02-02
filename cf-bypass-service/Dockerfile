@@ -67,7 +67,9 @@ RUN python -m playwright install firefox --with-deps
 # Copy source code
 COPY *.py ./
 COPY core ./core
-COPY domain_configs.json ./
+COPY engines ./engines
+COPY managers ./managers
+COPY data ./data
 
 # Create data directories
 RUN mkdir -p /app/data /tmp/drission_profile /tmp/camoufox_profile

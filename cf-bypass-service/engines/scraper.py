@@ -22,7 +22,7 @@ from managers.connection_pool_manager import ConnectionPoolManager
 from managers.adaptive_retry_manager import AdaptiveRetryManager
 from managers.memory_manager import MemoryManager
 from managers.health_monitor import EnhancedHealthMonitor
-from config import config as phase2_config
+from config import phase2_config
 
 # Use EnhancedLogger for sanitized logging (escapes CRLF)
 enhanced_logger = EnhancedLogger("scraper-engine")

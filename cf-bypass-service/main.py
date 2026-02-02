@@ -14,7 +14,7 @@ from pydantic import BaseModel, HttpUrl
 from contextlib import asynccontextmanager
 
 from core.engine_factory import factory as engine_factory
-from phase2_config import phase2_config
+from config import phase2_config
 
 # Configuration
 class Config:
@@ -25,6 +25,11 @@ class Config:
 config = Config()
 logging.basicConfig(level=config.log_level)
 logger = logging.getLogger("cf-bypass")
+
+# Helper function for API key validation
+def validate_api_key(x_api_key: str = Header(None)):
+    if config.api_key and x_api_key != config.api_key:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
 
 # Models
 class FetchRequest(BaseModel):
@@ -94,8 +99,7 @@ async def health():
 
 @app.post("/fetch", response_model=FetchResponse)
 async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
-    if config.api_key and x_api_key != config.api_key:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    validate_api_key(x_api_key)
     
     url_str = str(request.url)
     domain = urlparse(url_str).netloc
@@ -135,8 +139,7 @@ async def stats(engine_name: Optional[str] = None):
 
 @app.post("/warmup")
 async def warmup(domain: str, engine_name: Optional[str] = None, x_api_key: str = Header(None)):
-    if config.api_key and x_api_key != config.api_key:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    validate_api_key(x_api_key)
     
     engine = engine_factory.get_engine(name=engine_name, domain=domain)
     success = await engine.warmup(domain)
@@ -145,8 +148,7 @@ async def warmup(domain: str, engine_name: Optional[str] = None, x_api_key: str 
 # Simplified Batch Fetch
 @app.post("/fetch/batch", response_model=List[FetchResponse])
 async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None)):
-    if config.api_key and x_api_key != config.api_key:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    validate_api_key(x_api_key)
     
     urls = [str(u) for u in request.urls]
     domain = urlparse(urls[0]).netloc if urls else ""
