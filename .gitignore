@@ -38,6 +38,9 @@ logs/
 cache/
 *.log
 
+# Allow specific data files for nexus-lite
+!nexus-lite/data/qidian/
+
 # Test artifacts
 coverage/
 test-results/
