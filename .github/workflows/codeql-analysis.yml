@@ -2,16 +2,16 @@ name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - '**.js'
-      - '**.ts'
-      - '**.py'
-      - '**.rs'
+      - "**.js"
+      - "**.ts"
+      - "**.py"
+      - "**.rs"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
-    - cron: '0 3 1 * *'  # 每月1号凌晨3点
+    - cron: "0 3 1 * *" # 每月1号凌晨3点
 
 jobs:
   analyze-javascript:
@@ -24,22 +24,22 @@ jobs:
       security-events: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: javascript-typescript
-        queries: security-extended,security-and-quality
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended,security-and-quality
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        category: "/language:javascript-typescript"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"
 
   analyze-python:
     name: Analyze Python
@@ -51,22 +51,22 @@ jobs:
       security-events: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: python
-        queries: security-extended,security-and-quality
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          queries: security-extended,security-and-quality
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        category: "/language:python"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"
 
   analyze-rust:
     name: Analyze Rust (Clippy)
@@ -77,35 +77,35 @@ jobs:
       security-events: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
-    - name: Cache cargo
-      uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: nexus-lite
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: nexus-lite
 
-    - name: Install clippy-sarif and sarif-fmt
-      run: cargo install clippy-sarif sarif-fmt
+      - name: Install clippy-sarif and sarif-fmt
+        run: cargo install clippy-sarif sarif-fmt
 
-    - name: Run Clippy with SARIF output
-      working-directory: ./nexus-lite
-      run: |
-        cargo clippy --all-targets --all-features --message-format=json 2>&1 | \
-          clippy-sarif | tee ../rust-results.sarif | sarif-fmt
-      continue-on-error: true
+      - name: Run Clippy with SARIF output
+        working-directory: ./nexus-lite
+        run: |
+          cargo clippy --all-targets --all-features --message-format=json 2>&1 | \
+            clippy-sarif | tee ../rust-results.sarif | sarif-fmt
+        continue-on-error: true
 
-    - name: Upload Rust analysis results
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: rust-results.sarif
-        category: "/language:rust"
-      if: always()
+      - name: Upload Rust analysis results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: rust-results.sarif
+          category: "/language:rust"
+        if: always()
 
   security-report:
     name: Generate Security Report & Auto-Fix Suggestions
@@ -114,69 +114,69 @@ jobs:
     if: always()
 
     steps:
-    - name: Generate Security Summary
-      run: |
-        echo "# 🔍 Security Analysis Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Language | Status | Alerts |" >> $GITHUB_STEP_SUMMARY
-        echo "|----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-
-        # 获取每个语言的告警数量
-        JS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=javascript" | \
-          jq -r 'length' || echo "0")
-
-        TS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=typescript" | \
-          jq -r 'length' || echo "0")
-
-        PY_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=python" | \
-          jq -r 'length' || echo "0")
-
-        echo "| JavaScript/TypeScript | ${{ needs.analyze-javascript.result }} | $((JS_ALERTS + TS_ALERTS)) |" >> $GITHUB_STEP_SUMMARY
-        echo "| Python | ${{ needs.analyze-python.result }} | $PY_ALERTS |" >> $GITHUB_STEP_SUMMARY
-        echo "| Rust (Clippy) | ${{ needs.analyze-rust.result }} | N/A |" >> $GITHUB_STEP_SUMMARY
-
-    - name: Generate Auto-Fix Recommendations
-      run: |
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## 🤖 Auto-Fix Recommendations" >> $GITHUB_STEP_SUMMARY
-
-        # 获取高严重程度的问题
-        CRITICAL_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=critical" | \
-          jq -r 'length' || echo "0")
-
-        HIGH_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=high" | \
-          jq -r 'length' || echo "0")
-
-        TOTAL_ALERTS=$((CRITICAL_ALERTS + HIGH_ALERTS))
-
-        if [ "$TOTAL_ALERTS" -gt 0 ]; then
-          echo "### 🚨 Issues Requiring Attention" >> $GITHUB_STEP_SUMMARY
-          echo "- **Critical Issues**: $CRITICAL_ALERTS" >> $GITHUB_STEP_SUMMARY
-          echo "- **High Priority Issues**: $HIGH_ALERTS" >> $GITHUB_STEP_SUMMARY
+      - name: Generate Security Summary
+        run: |
+          echo "# 🔍 Security Analysis Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 Recommended Actions" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Run Auto-Security-Fix Workflow**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Go to Actions → Auto Security Fix → Run workflow" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Review Security Tab**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Check [Code Scanning](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY
-          echo "3. **Apply Dependabot Updates**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Merge automated dependency security updates" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "### ✅ No Critical Issues Found" >> $GITHUB_STEP_SUMMARY
-          echo "All automated security checks passed! 🎉" >> $GITHUB_STEP_SUMMARY
-        fi
+          echo "| Language | Status | Alerts |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
 
-    - name: Trigger Auto-Fix Workflow (if needed)
-      if: env.TOTAL_ALERTS > 0
-      run: |
-        # 如果有严重问题，触发自动修复工作流
-        curl -X POST \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/auto-security-fix.yml/dispatches" \
-          -d '{"ref":"main","inputs":{"fix_type":"all","severity":"high"}}' || true
+          # 获取每个语言的告警数量
+          JS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=javascript" | \
+            jq -r 'length' || echo "0")
+
+          TS_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=typescript" | \
+            jq -r 'length' || echo "0")
+
+          PY_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&tool_name=CodeQL&language=python" | \
+            jq -r 'length' || echo "0")
+
+          echo "| JavaScript/TypeScript | ${{ needs.analyze-javascript.result }} | $((JS_ALERTS + TS_ALERTS)) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | ${{ needs.analyze-python.result }} | $PY_ALERTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust (Clippy) | ${{ needs.analyze-rust.result }} | N/A |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate Auto-Fix Recommendations
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🤖 Auto-Fix Recommendations" >> $GITHUB_STEP_SUMMARY
+
+          # 获取高严重程度的问题
+          CRITICAL_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=critical" | \
+            jq -r 'length' || echo "0")
+
+          HIGH_ALERTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/code-scanning/alerts?state=open&severity=high" | \
+            jq -r 'length' || echo "0")
+
+          TOTAL_ALERTS=$((CRITICAL_ALERTS + HIGH_ALERTS))
+
+          if [ "$TOTAL_ALERTS" -gt 0 ]; then
+            echo "### 🚨 Issues Requiring Attention" >> $GITHUB_STEP_SUMMARY
+            echo "- **Critical Issues**: $CRITICAL_ALERTS" >> $GITHUB_STEP_SUMMARY
+            echo "- **High Priority Issues**: $HIGH_ALERTS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 Recommended Actions" >> $GITHUB_STEP_SUMMARY
+            echo "1. **Run Auto-Security-Fix Workflow**" >> $GITHUB_STEP_SUMMARY
+            echo "   - Go to Actions → Auto Security Fix → Run workflow" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Review Security Tab**" >> $GITHUB_STEP_SUMMARY
+            echo "   - Check [Code Scanning](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Apply Dependabot Updates**" >> $GITHUB_STEP_SUMMARY
+            echo "   - Merge automated dependency security updates" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No Critical Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "All automated security checks passed! 🎉" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Trigger Auto-Fix Workflow (if needed)
+        if: env.TOTAL_ALERTS > 0
+        run: |
+          # 如果有严重问题，触发自动修复工作流
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/auto-security-fix.yml/dispatches" \
+            -d '{"ref":"main","inputs":{"fix_type":"all","severity":"high"}}' || true

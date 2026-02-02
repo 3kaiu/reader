@@ -3,14 +3,14 @@ name: Security Health Check
 on:
   # 每天运行一次全面安全检查
   schedule:
-    - cron: '0 6 * * *'  # 每天早上6点
+    - cron: "0 6 * * *" # 每天早上6点
   # 手动触发
   workflow_dispatch:
     inputs:
       check_type:
-        description: 'Type of security checks to run'
+        description: "Type of security checks to run"
         required: false
-        default: 'full'
+        default: "full"
         type: choice
         options:
           - full
@@ -193,7 +193,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Semgrep
         run: pip install semgrep

@@ -64,9 +64,9 @@ updates:
       prefix: "security(deps)"
       prefix-development: "security(deps-dev)"
     reviewers:
-      - "edy"  # Replace with your GitHub username
+      - "edy" # Replace with your GitHub username
     assignees:
-      - "edy"  # Replace with your GitHub username
+      - "edy" # Replace with your GitHub username
     labels:
       - "security"
       - "dependencies"
