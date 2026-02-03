@@ -28,6 +28,8 @@ export class PerformanceMonitor {
   private metrics: PerformanceMetrics[] = [];
   private maxMetrics = 10000; // 最多保留1万条指标
   private aggregationWindow = 60000; // 1分钟聚合窗口
+  private cleanupInterval = 5 * 60 * 1000; // 5分钟清理一次
+  private lastCleanup = Date.now();
   private alertThresholds = {
     errorRate: 0.1, // 10%错误率
     p95Duration: 5000, // 5秒95分位数
@@ -46,20 +48,37 @@ export class PerformanceMonitor {
 
     this.metrics.push(metric);
 
-    // 清理过期指标
-    this.cleanupOldMetrics();
+    // 定期清理过期指标
+    this.cleanupIfNeeded();
 
     // 检查告警阈值
     this.checkAlerts(metric);
   }
 
+  private cleanupIfNeeded(): void {
+    const now = Date.now();
+
+    // 检查是否到了清理时间或数据过多
+    if (now - this.lastCleanup >= this.cleanupInterval || this.metrics.length > this.maxMetrics) {
+      this.cleanupOldMetrics();
+      this.lastCleanup = now;
+    }
+  }
+
   private cleanupOldMetrics(): void {
     const cutoff = Date.now() - this.aggregationWindow * 10; // 保留10分钟的数据
+    const beforeCount = this.metrics.length;
+
     this.metrics = this.metrics.filter(m => m.timestamp > cutoff);
 
     // 如果仍然太多，保留最新的
     if (this.metrics.length > this.maxMetrics) {
       this.metrics = this.metrics.slice(-this.maxMetrics);
+    }
+
+    const cleanedCount = beforeCount - this.metrics.length;
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} old performance metrics`);
     }
   }
 

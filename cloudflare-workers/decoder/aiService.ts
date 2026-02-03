@@ -36,6 +36,7 @@ export class AIService {
   private callCount = 0;
   private static readonly MAX_CALLS_PER_MINUTE = 30;
   private callTimestamps: number[] = [];
+  private maxTimestampsHistory = 100; // 限制时间戳历史长度
 
   // 模型性能统计
   private modelStats = new Map<string, {
@@ -45,6 +46,7 @@ export class AIService {
     avgTokens: number;
     lastUsed: number;
   }>();
+  private maxModelStats = 50; // 限制模型统计数量
 
   constructor(env: WorkerEnv, logger: Logger) {
     this.env = env;
@@ -89,8 +91,14 @@ export class AIService {
 
   private checkRateLimit(): boolean {
     const now = Date.now();
+
     // 清理一分钟前的记录
     this.callTimestamps = this.callTimestamps.filter(ts => now - ts < 60000);
+
+    // 限制时间戳数组大小
+    if (this.callTimestamps.length > this.maxTimestampsHistory) {
+      this.callTimestamps = this.callTimestamps.slice(-this.maxTimestampsHistory);
+    }
 
     if (this.callTimestamps.length >= AIService.MAX_CALLS_PER_MINUTE) {
       return false;
@@ -181,6 +189,40 @@ export class AIService {
     stats.lastUsed = Date.now();
 
     this.modelStats.set(model, stats);
+
+    // 清理过期的模型统计
+    this.cleanupOldModelStats();
+  }
+
+  private cleanupOldModelStats(): void {
+    if (this.modelStats.size <= this.maxModelStats) {
+      return;
+    }
+
+    // 按最后使用时间排序，保留最新的
+    const entries = Array.from(this.modelStats.entries());
+    entries.sort((a, b) => b[1].lastUsed - a[1].lastUsed);
+
+    // 清理最旧的统计
+    const keepCount = Math.floor(this.maxModelStats * 0.8); // 保留80%
+    const newStats = new Map<string, {
+      totalCalls: number;
+      successfulCalls: number;
+      avgResponseTime: number;
+      avgTokens: number;
+      lastUsed: number;
+    }>();
+
+    for (let i = 0; i < Math.min(keepCount, entries.length); i++) {
+      newStats.set(entries[i][0], entries[i][1]);
+    }
+
+    const cleanedCount = this.modelStats.size - newStats.size;
+    this.modelStats = newStats;
+
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} old AI model statistics`);
+    }
   }
 
   private buildOptimizedPrompt(request: AIInferRequest): string {
@@ -340,8 +382,8 @@ ${text.slice(0, 2000)}
       // 过滤和验证实体
       parsed.entities = parsed.entities.filter((entity: any) => {
         return entity.original && entity.real && entity.type &&
-               typeof entity.confidence === 'number' &&
-               entity.confidence >= 0.1; // 最低置信度阈值
+          typeof entity.confidence === 'number' &&
+          entity.confidence >= 0.1; // 最低置信度阈值
       });
 
       return parsed;

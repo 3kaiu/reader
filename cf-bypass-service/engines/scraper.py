@@ -4,6 +4,7 @@ Inherits from BaseBypassEngine for unified interface.
 """
 import json
 import hashlib
+import time
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import datetime
@@ -359,7 +360,8 @@ class ScraperEngine(BaseBypassEngine):
         stats = super().get_stats()
         stats.update({
             "active_sessions": len(self.scrapers),
-            "health": self.health_monitor.get_stats(),
+            # Use enhanced health monitor aggregated stats
+            "health": self.health_monitor.get_health_stats(),
             "performance": self.performance_optimizer.get_comprehensive_stats()
         })
         if self.session_pool_manager:

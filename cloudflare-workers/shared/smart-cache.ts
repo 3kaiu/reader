@@ -19,6 +19,9 @@ export class SmartCache {
   private accessStats = new Map<string, { hits: number; misses: number; lastAccess: number; ttl: number }>();
   private prewarmQueue: string[] = [];
   private isPrewarming = false;
+  private maxStatsSize = 10000; // 最大统计条目数
+  private statsCleanupInterval = 5 * 60 * 1000; // 5分钟清理一次
+  private lastCleanup = Date.now();
 
   constructor(kv: KVNamespace, config: SmartCacheConfig) {
     this.kv = kv;
@@ -27,6 +30,9 @@ export class SmartCache {
 
   async get<T>(key: string): Promise<T | null> {
     const cacheKey = generateCacheKey(key);
+
+    // 检查是否需要清理统计信息
+    this.cleanupStatsIfNeeded();
 
     // 更新访问统计
     const stats = this.accessStats.get(cacheKey) || { hits: 0, misses: 0, lastAccess: 0, ttl: this.config.ttl };
@@ -110,7 +116,7 @@ export class SmartCache {
     try {
       const existing = await getFromCache(this.kv, cacheKey);
       if (existing) return;
-    } catch {}
+    } catch { }
 
     // 这里可以添加预热逻辑，比如预加载热门数据
     // 具体实现取决于数据源
@@ -191,16 +197,60 @@ export const SMART_CACHE_CONFIGS = {
   },
   DICTIONARY_DATA: {
     ttl: 7200, // 2小时
-    maxAge: 604800, // 7天
-    prewarmEnabled: true,
-    hitRateThreshold: 0.8,
-    adaptiveTTL: false
-  },
-  SEARCH_RESULTS: {
-    ttl: 1800, // 30分钟
-    maxAge: 3600, // 1小时
-    prewarmEnabled: false,
-    hitRateThreshold: 0.5,
-    adaptiveTTL: true
-  }
-} as const;
+    /**
+     * 清理过期的统计信息
+     */
+    private cleanupStatsIfNeeded(): void {
+      const now = Date.now();
+
+      // 检查是否到了清理时间
+      if (now - this.lastCleanup < this.statsCleanupInterval) {
+        return;
+      }
+
+      // 如果统计信息过多，进行清理
+      if (this.accessStats.size > this.maxStatsSize) {
+        this.cleanupOldStats();
+      }
+
+      this.lastCleanup = now;
+    }
+
+  /**
+   * 清理最旧的统计信息
+   */
+  private cleanupOldStats(): void {
+      const entries = Array.from(this.accessStats.entries());
+
+      // 按最后访问时间排序
+      entries.sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+
+      // 保留最新的70%，清理最旧的30%
+      const keepCount = Math.floor(entries.length * 0.7);
+      const newStats = new Map<string, { hits: number; misses: number; lastAccess: number; ttl: number }>();
+
+      for (let i = keepCount; i < entries.length; i++) {
+        newStats.set(entries[i][0], entries[i][1]);
+      }
+
+      this.accessStats = newStats;
+      console.log(`Cleaned up ${entries.length - keepCount} old cache stats entries`);
+    }
+  };
+
+  export const SMART_CACHE_CONFIGS = {
+    DECODE_RESULTS: {
+      ttl: 3600, // 1小时
+      maxAge: 604800, // 7天
+      prewarmEnabled: true,
+      hitRateThreshold: 0.8,
+      adaptiveTTL: false
+    },
+    SEARCH_RESULTS: {
+      ttl: 1800, // 30分钟
+      maxAge: 3600, // 1小时
+      prewarmEnabled: false,
+      hitRateThreshold: 0.5,
+      adaptiveTTL: true
+    }
+  } as const;

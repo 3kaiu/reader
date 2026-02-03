@@ -21,15 +21,18 @@ pub struct DomainPooledClient {
     timeout: Duration,
     /// Maximum connections per domain
     max_connections_per_host: usize,
+    /// Maximum idle time for connections
+    pool_idle_timeout: Duration,
 }
 
 impl DomainPooledClient {
-    /// Create a new domain-aware client pool
+    /// Create a new domain-aware client pool with optimized defaults
     pub fn new() -> Self {
         Self {
             pools: DashMap::new(),
             timeout: Duration::from_secs(30),
-            max_connections_per_host: 10,
+            max_connections_per_host: 50, // Increased for better concurrency
+            pool_idle_timeout: Duration::from_secs(30), // Reduced for better resource management
         }
     }
 
@@ -39,6 +42,21 @@ impl DomainPooledClient {
             pools: DashMap::new(),
             timeout,
             max_connections_per_host,
+            pool_idle_timeout: Duration::from_secs(30), // Default idle timeout
+        }
+    }
+
+    /// Create with full configuration
+    pub fn with_full_config(
+        timeout: Duration,
+        max_connections_per_host: usize,
+        pool_idle_timeout: Duration
+    ) -> Self {
+        Self {
+            pools: DashMap::new(),
+            timeout,
+            max_connections_per_host,
+            pool_idle_timeout,
         }
     }
 
@@ -61,14 +79,17 @@ impl DomainPooledClient {
             return Arc::clone(&client);
         }
 
-        // Create new client for this domain
+        // Create new client for this domain with optimized settings
         let client = Arc::new(
             Client::builder()
                 .timeout(self.timeout)
                 .pool_max_idle_per_host(self.max_connections_per_host)
-                .pool_idle_timeout(Duration::from_secs(60))
+                .pool_idle_timeout(self.pool_idle_timeout)
                 .tcp_keepalive(Duration::from_secs(60))
                 .tcp_nodelay(true)
+                .gzip(true)  // Enable compression
+                .deflate(true)
+                .brotli(true)
                 .build()
                 .unwrap_or_default(),
         );

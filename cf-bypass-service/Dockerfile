@@ -44,6 +44,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxt6 \
     libxshmfence1 \
     libglu1-mesa \
+    # Node.js for cloudscraper JS interpreter
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster dependency management

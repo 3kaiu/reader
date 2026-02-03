@@ -107,6 +107,16 @@ export class AIServiceManager {
   private autoUnloadTimer: ReturnType<typeof setTimeout> | null = null
   private readonly AUTO_UNLOAD_TIMEOUT = 5 * 60 * 1000 // 5分钟
 
+  // 并发控制
+  private activeRequests = 0
+  private maxConcurrentRequests = 1 // WebGPU/WebNN通常只支持单推理
+  private requestQueue: Array<{
+    resolve: (value: string) => void
+    reject: (error: any) => void
+    prompt: string
+    params?: Partial<AIRequestParams>
+  }> = []
+
   // 性能监控
   public readonly performance = ref({
     tokensPerSecond: 0,
@@ -436,6 +446,35 @@ export class AIServiceManager {
    * 执行AI推理
    */
   async inference(prompt: string, params?: Partial<AIRequestParams>): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push({ resolve, reject, prompt, params })
+      this.processQueue()
+    })
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.activeRequests >= this.maxConcurrentRequests || this.requestQueue.length === 0) {
+      return
+    }
+
+    const request = this.requestQueue.shift()
+    if (!request) return
+
+    this.activeRequests++
+
+    try {
+      const result = await this.executeInference(request.prompt, request.params)
+      request.resolve(result)
+    } catch (error) {
+      request.reject(error)
+    } finally {
+      this.activeRequests--
+      // 处理队列中的下一个请求
+      setTimeout(() => this.processQueue(), 0)
+    }
+  }
+
+  private async executeInference(prompt: string, params?: Partial<AIRequestParams>): Promise<string> {
     if (!this.isReady()) {
       throw new Error('AI引擎未就绪，请先加载模型')
     }

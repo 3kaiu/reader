@@ -6,6 +6,7 @@ import asyncio
 import logging
 import subprocess
 import os
+import cloudscraper
 from typing import Dict, List, Optional, Any
 import multiprocessing
 from datetime import datetime
@@ -36,40 +37,63 @@ class JSInterpreterOptimizer:
     @classmethod
     def select_best_interpreter(cls, domain: str = None) -> str:
         """
-        Select the best available JS interpreter
+        Select the best available JS interpreter with performance validation
         Priority: nodejs > v8 > js2py
         """
         # Check Node.js (fastest)
         if cls._is_nodejs_available():
-            logger.info(f"Using nodejs interpreter for {domain or 'default'} (10-100x faster)")
-            return 'nodejs'
-        
+            # Validate Node.js actually works for CloudScraper
+            if cls._test_interpreter_performance('nodejs'):
+                logger.info(f"Using nodejs interpreter for {domain or 'default'} (10-100x faster)")
+                return 'nodejs'
+            else:
+                logger.warning("Node.js available but performance test failed, falling back")
+
         # Check V8 (fast)
         if cls._is_v8_available():
-            logger.info(f"Using v8 interpreter for {domain or 'default'} (5-50x faster)")
-            return 'v8'
-        
+            if cls._test_interpreter_performance('v8'):
+                logger.info(f"Using v8 interpreter for {domain or 'default'} (5-50x faster)")
+                return 'v8'
+            else:
+                logger.warning("V8 available but performance test failed, falling back")
+
         # Fallback to js2py (slowest but most compatible)
         logger.warning(f"Using js2py interpreter for {domain or 'default'} (slowest option)")
         return 'js2py'
     
     @classmethod
     def _is_nodejs_available(cls) -> bool:
-        """Check if Node.js is available"""
+        """Check if Node.js is available and can execute JS"""
         if cls._nodejs_available is not None:
             return cls._nodejs_available
-        
+
         try:
+            # Check if node command exists
             result = subprocess.run(
                 ['node', '--version'],
                 capture_output=True,
-                timeout=1,
+                timeout=2,
                 text=True
             )
-            cls._nodejs_available = result.returncode == 0
+            if result.returncode != 0:
+                cls._nodejs_available = False
+                return False
+
+            version = result.stdout.strip()
+            logger.info(f"Node.js detected: {version}")
+
+            # Test if we can actually execute JS with node
+            test_result = subprocess.run(
+                ['node', '-e', 'console.log("test")'],
+                capture_output=True,
+                timeout=2,
+                text=True
+            )
+            cls._nodejs_available = test_result.returncode == 0
             if cls._nodejs_available:
-                version = result.stdout.strip()
-                logger.info(f"Node.js detected: {version}")
+                logger.info("Node.js JS execution test passed")
+            else:
+                logger.warning("Node.js found but JS execution failed")
             return cls._nodejs_available
         except Exception as e:
             logger.debug(f"Node.js not available: {e}")
@@ -78,18 +102,65 @@ class JSInterpreterOptimizer:
     
     @classmethod
     def _is_v8_available(cls) -> bool:
-        """Check if V8 is available"""
+        """Check if V8-based interpreter is available"""
         if cls._v8_available is not None:
             return cls._v8_available
-        
+
+        # PyV8 is deprecated, check for alternative V8-based engines
+        v8_engines = ['PyV8', 'dukpy', 'py_mini_racer']
+
+        for engine in v8_engines:
+            try:
+                __import__(engine)
+                cls._v8_available = True
+                logger.info(f"V8-based engine detected: {engine}")
+                return True
+            except ImportError:
+                continue
+
+        # Check if we have any alternative JS execution capability
         try:
-            import PyV8
-            cls._v8_available = True
-            logger.info("V8 engine detected")
-            return True
+            import execjs
+            runtimes = execjs.get()
+            if runtimes:
+                for runtime in runtimes:
+                    if 'node' in runtime.name.lower() or 'v8' in runtime.name.lower():
+                        cls._v8_available = True
+                        logger.info(f"V8-capable runtime detected: {runtime.name}")
+                        return True
         except ImportError:
-            logger.debug("V8 engine not available")
-            cls._v8_available = False
+            pass
+
+        logger.debug("No V8-based engine available")
+        cls._v8_available = False
+        return False
+
+    @classmethod
+    def _test_interpreter_performance(cls, interpreter: str, timeout: float = 5.0) -> bool:
+        """
+        Test interpreter initialization performance
+        Returns True if interpreter can be initialized without errors
+        """
+        try:
+            import time
+            start_time = time.time()
+
+            # Create a simple scraper with the interpreter to test initialization
+            config = {'interpreter': interpreter}
+            scraper = cloudscraper.create_scraper(**config)
+
+            elapsed = time.time() - start_time
+
+            # Check if scraper was created successfully and initialization was fast enough
+            if scraper and elapsed < timeout:
+                logger.debug(f"{interpreter} initialization test passed: {elapsed:.3f}s")
+                return True
+            else:
+                logger.warning(f"{interpreter} initialization test failed: time={elapsed:.3f}s")
+                return False
+
+        except Exception as e:
+            logger.debug(f"{interpreter} initialization test error: {e}")
             return False
     
     @classmethod
