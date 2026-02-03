@@ -1,293 +1,309 @@
 /**
- * Decoder Store - 网文解密状态管理
- * 管理书籍级解密设置、解码状态、实体选择等
+ * 解码器状态管理
  */
 import { defineStore } from 'pinia'
-import { useStorage } from '@vueuse/core'
-import { ref, computed, shallowRef } from 'vue'
-import type {
-  DecodedEntity,
-  ChapterContext,
-  BookType,
-  BookState,
-} from '@/types/decoder'
+import { ref, computed } from 'vue'
+import { errorHandler, logger } from '@/utils/unified-utils'
 
-/** 书籍解密设置 */
-export interface BookDecoderSettings {
-  /** 是否启用解密 */
+interface DecoderRule {
+  id: string
+  name: string
+  pattern: string
+  replacement: string
   enabled: boolean
-  /** 书籍类型 (用于上下文感知解码) */
-  bookType: BookType | null
-  /** 统计信息 */
-  stats: {
-    decodedChapters: number
-    totalEntities: number
-    lastDecoded: number
-  }
+  priority: number
+  category: string
 }
 
-/** 卡片位置 */
-export interface CardPosition {
-  x: number
-  y: number
+interface DecoderStats {
+  totalRules: number
+  enabledRules: number
+  appliedCount: number
+  lastApplied: number
 }
 
-/** 默认书籍设置 */
-const defaultBookSettings: BookDecoderSettings = {
-  enabled: false,
-  bookType: null,
-  stats: {
-    decodedChapters: 0,
-    totalEntities: 0,
-    lastDecoded: 0,
-  },
+interface DecoderState {
+  rules: DecoderRule[]
+  isProcessing: boolean
+  stats: DecoderStats
+  customDictionaries: string[]
 }
 
 export const useDecoderStore = defineStore('decoder', () => {
-  // ====== 持久化状态 ======
-  // 书籍解密设置 (按 bookUrl 索引)
-  const bookSettings = useStorage<Record<string, BookDecoderSettings>>(
-    'decoder:book-settings',
-    {}
-  )
-
-  // ====== 运行时状态 ======
-  // 当前解码状态
-  const isDecoding = ref(false)
-  const decodeError = ref<string | null>(null)
-
-  // 当前章节解码结果
-  const currentEntities = shallowRef<DecodedEntity[]>([])
-  const currentContext = shallowRef<ChapterContext | null>(null)
-  const currentBookState = shallowRef<BookState | null>(null)
-
-  // 选中的实体 (用于显示卡片)
-  const selectedEntity = ref<DecodedEntity | null>(null)
-  const cardPosition = ref<CardPosition>({ x: 0, y: 0 })
-  const showCard = ref(false)
-
-  // 当前书籍 URL
-  const currentBookUrl = ref<string | null>(null)
-
-  // ====== 计算属性 ======
-  /** 当前书籍的解密设置 */
-  const currentSettings = computed(() => {
-    if (!currentBookUrl.value) return defaultBookSettings
-    return getBookSettings(currentBookUrl.value)
+  const state = ref<DecoderState>({
+    rules: [],
+    isProcessing: false,
+    stats: {
+      totalRules: 0,
+      enabledRules: 0,
+      appliedCount: 0,
+      lastApplied: 0
+    },
+    customDictionaries: []
   })
 
-  /** 当前书籍是否启用解密 */
-  const isEnabled = computed(() => currentSettings.value.enabled)
-
-  /** 有效实体数量 (有 bestMatch 的) */
-  const validEntitiesCount = computed(() =>
-    currentEntities.value.filter((e) => e.bestMatch !== null).length
+  const enabledRules = computed(() =>
+    state.value.rules.filter(rule => rule.enabled)
   )
 
-  /** 已知别名列表 (从 BookState.aliasChains 获取) */
-  const knownAliases = computed(() => {
-    if (!currentBookState.value) return []
-    return currentBookState.value.aliasChains.map((chain) => ({
-      alias: chain.bookAlias,
-      realName: chain.realName,
-      entityId: chain.entityId,
-    }))
+  const rulesByCategory = computed(() => {
+    const categories: Record<string, DecoderRule[]> = {}
+    state.value.rules.forEach(rule => {
+      if (!categories[rule.category]) {
+        categories[rule.category] = []
+      }
+      categories[rule.category].push(rule)
+    })
+    return categories
   })
 
-  // ====== 方法 ======
-  /**
-   * 获取书籍的解密设置
-   */
-  function getBookSettings(bookUrl: string): BookDecoderSettings {
-    return bookSettings.value[bookUrl] || { ...defaultBookSettings }
-  }
+  const isProcessing = computed(() => state.value.isProcessing)
 
-  /**
-   * 更新书籍的解密设置
-   */
-  function updateBookSettings(
-    bookUrl: string,
-    settings: Partial<BookDecoderSettings>
-  ) {
-    const current = getBookSettings(bookUrl)
-    bookSettings.value = {
-      ...bookSettings.value,
-      [bookUrl]: {
-        ...current,
-        ...settings,
-        stats: {
-          ...current.stats,
-          ...(settings.stats || {}),
+  const initializeRules = async () => {
+    try {
+      // 默认解码规则
+      const defaultRules: DecoderRule[] = [
+        {
+          id: 'html_entities',
+          name: 'HTML实体解码',
+          pattern: '&[a-zA-Z0-9#]+;',
+          replacement: '', // 由解码器处理
+          enabled: true,
+          priority: 1,
+          category: 'html'
         },
-      },
+        {
+          id: 'unicode_escape',
+          name: 'Unicode转义解码',
+          pattern: '\\\\u[0-9a-fA-F]{4}',
+          replacement: '',
+          enabled: true,
+          priority: 2,
+          category: 'unicode'
+        },
+        {
+          id: 'line_breaks',
+          name: '换行符标准化',
+          pattern: '\\r\\n|\\r',
+          replacement: '\n',
+          enabled: true,
+          priority: 3,
+          category: 'formatting'
+        },
+        {
+          id: 'extra_spaces',
+          name: '多余空格清理',
+          pattern: ' {2,}',
+          replacement: ' ',
+          enabled: true,
+          priority: 4,
+          category: 'formatting'
+        }
+      ]
+
+      state.value.rules = defaultRules
+      updateStats()
+
+      logger.info('Decoder rules initialized', { ruleCount: defaultRules.length })
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'initializeRules' })
     }
   }
 
-  /**
-   * 切换书籍解密开关
-   */
-  function toggleEnabled(bookUrl: string) {
-    const current = getBookSettings(bookUrl)
-    updateBookSettings(bookUrl, { enabled: !current.enabled })
-  }
+  const addRule = async (rule: Omit<DecoderRule, 'id'>) => {
+    try {
+      const newRule: DecoderRule = {
+        ...rule,
+        id: `rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      }
 
-  /**
-   * 设置当前书籍
-   */
-  function setCurrentBook(bookUrl: string) {
-    currentBookUrl.value = bookUrl
-    // 重置运行时状态
-    currentEntities.value = []
-    currentContext.value = null
-    decodeError.value = null
-    closeCard()
-  }
+      state.value.rules.push(newRule)
+      updateStats()
 
-  /**
-   * 设置解码状态
-   */
-  function setDecoding(loading: boolean) {
-    isDecoding.value = loading
-    if (loading) {
-      decodeError.value = null
+      logger.info('Decoder rule added', { id: newRule.id, name: newRule.name })
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'addRule' })
     }
   }
 
-  /**
-   * 设置解码错误
-   */
-  function setDecodeError(error: string | null) {
-    decodeError.value = error
-    isDecoding.value = false
+  const updateRule = async (id: string, updates: Partial<DecoderRule>) => {
+    try {
+      const index = state.value.rules.findIndex(rule => rule.id === id)
+      if (index >= 0) {
+        state.value.rules[index] = { ...state.value.rules[index], ...updates }
+        updateStats()
+
+        logger.info('Decoder rule updated', { id, updates })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'updateRule' })
+    }
   }
 
-  /**
-   * 设置解码结果
-   */
-  function setDecodeResult(
-    entities: DecodedEntity[],
-    context: ChapterContext | null
-  ) {
-    currentEntities.value = entities
-    currentContext.value = context
-    isDecoding.value = false
-    decodeError.value = null
+  const removeRule = async (id: string) => {
+    try {
+      const index = state.value.rules.findIndex(rule => rule.id === id)
+      if (index >= 0) {
+        const removedRule = state.value.rules.splice(index, 1)[0]
+        updateStats()
 
-    // 更新统计
-    if (currentBookUrl.value) {
-      const current = getBookSettings(currentBookUrl.value)
-      updateBookSettings(currentBookUrl.value, {
-        stats: {
-          decodedChapters: current.stats.decodedChapters + 1,
-          totalEntities: current.stats.totalEntities + entities.filter((e) => e.bestMatch).length,
-          lastDecoded: Date.now(),
-        },
+        logger.info('Decoder rule removed', { id, name: removedRule.name })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'removeRule' })
+    }
+  }
+
+  const toggleRule = async (id: string) => {
+    try {
+      const rule = state.value.rules.find(r => r.id === id)
+      if (rule) {
+        rule.enabled = !rule.enabled
+        updateStats()
+
+        logger.info('Decoder rule toggled', { id, enabled: rule.enabled })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'toggleRule' })
+    }
+  }
+
+  const applyDecoding = async (text: string): Promise<string> => {
+    if (!text) return text
+
+    try {
+      state.value.isProcessing = true
+
+      let decodedText = text
+
+      // 按优先级应用启用的规则
+      const sortedRules = enabledRules.value.sort((a, b) => a.priority - b.priority)
+
+      for (const rule of sortedRules) {
+        try {
+          const regex = new RegExp(rule.pattern, 'g')
+
+          if (rule.id === 'html_entities') {
+            // HTML实体特殊处理
+            decodedText = decodedText.replace(regex, (match) => {
+              const textarea = document.createElement('textarea')
+              textarea.innerHTML = match
+              return textarea.value
+            })
+          } else if (rule.id === 'unicode_escape') {
+            // Unicode转义特殊处理
+            decodedText = decodedText.replace(regex, (match) => {
+              try {
+                return String.fromCharCode(parseInt(match.slice(2), 16))
+              } catch {
+                return match
+              }
+            })
+          } else {
+            // 普通正则替换
+            decodedText = decodedText.replace(regex, rule.replacement)
+          }
+        } catch (error) {
+          logger.warn('Failed to apply decoder rule', { ruleId: rule.id, error })
+        }
+      }
+
+      // 更新统计信息
+      state.value.stats.appliedCount++
+      state.value.stats.lastApplied = Date.now()
+
+      logger.debug('Text decoding applied', {
+        originalLength: text.length,
+        decodedLength: decodedText.length
       })
+
+      return decodedText
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'applyDecoding' })
+      return text
+    } finally {
+      state.value.isProcessing = false
     }
   }
 
-  /**
-   * 设置书籍状态 (从后端获取)
-   */
-  function setBookState(state: BookState | null) {
-    currentBookState.value = state
-  }
+  const importRules = async (rulesData: DecoderRule[]) => {
+    try {
+      // 验证规则格式
+      const validRules = rulesData.filter(rule =>
+        rule.name && rule.pattern && typeof rule.enabled === 'boolean'
+      )
 
-  /**
-   * 选择实体 (显示卡片)
-   */
-  function selectEntity(entity: DecodedEntity, position: CardPosition) {
-    selectedEntity.value = entity
-    cardPosition.value = position
-    showCard.value = true
-  }
+      state.value.rules.push(...validRules)
+      updateStats()
 
-  /**
-   * 关闭卡片
-   */
-  function closeCard() {
-    showCard.value = false
-    selectedEntity.value = null
-  }
+      logger.info('Decoder rules imported', { count: validRules.length })
 
-  /**
-   * 更新实体 (用于确认/纠正后更新本地状态)
-   */
-  function updateEntity(entityId: string, updates: Partial<DecodedEntity>) {
-    const index = currentEntities.value.findIndex((e) => e.id === entityId)
-    if (index !== -1) {
-      const updated = [...currentEntities.value]
-      updated[index] = { ...updated[index], ...updates }
-      currentEntities.value = updated
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'importRules' })
     }
   }
 
-  /**
-   * 添加别名链
-   */
-  function addAliasChain(alias: string, realName?: string, entityId?: string) {
-    if (!currentBookState.value) return
+  const exportRules = (): DecoderRule[] => {
+    return [...state.value.rules]
+  }
 
-    const newChain = { bookAlias: alias, realName, entityId }
-    currentBookState.value = {
-      ...currentBookState.value,
-      aliasChains: [...currentBookState.value.aliasChains, newChain],
+  const addCustomDictionary = async (dictionary: string) => {
+    try {
+      if (!state.value.customDictionaries.includes(dictionary)) {
+        state.value.customDictionaries.push(dictionary)
+        logger.info('Custom dictionary added', { dictionary })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'addCustomDictionary' })
     }
   }
 
-  /**
-   * 重置 store
-   */
-  function reset() {
-    currentBookUrl.value = null
-    currentEntities.value = []
-    currentContext.value = null
-    currentBookState.value = null
-    isDecoding.value = false
-    decodeError.value = null
-    closeCard()
+  const removeCustomDictionary = async (dictionary: string) => {
+    try {
+      const index = state.value.customDictionaries.indexOf(dictionary)
+      if (index >= 0) {
+        state.value.customDictionaries.splice(index, 1)
+        logger.info('Custom dictionary removed', { dictionary })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'decoder-store', operation: 'removeCustomDictionary' })
+    }
   }
 
-  /**
-   * 清除所有书籍设置
-   */
-  function clearAllSettings() {
-    bookSettings.value = {}
+  const updateStats = () => {
+    state.value.stats.totalRules = state.value.rules.length
+    state.value.stats.enabledRules = state.value.rules.filter(r => r.enabled).length
   }
+
+  // 初始化
+  initializeRules()
 
   return {
-    // 状态
-    bookSettings,
-    isDecoding,
-    decodeError,
-    currentEntities,
-    currentContext,
-    currentBookState,
-    selectedEntity,
-    cardPosition,
-    showCard,
-    currentBookUrl,
+    // State
+    state: readonly(state),
 
-    // 计算属性
-    currentSettings,
-    isEnabled,
-    validEntitiesCount,
-    knownAliases,
+    // Getters
+    enabledRules,
+    rulesByCategory,
+    isProcessing,
 
-    // 方法
-    getBookSettings,
-    updateBookSettings,
-    toggleEnabled,
-    setCurrentBook,
-    setDecoding,
-    setDecodeError,
-    setDecodeResult,
-    setBookState,
-    selectEntity,
-    closeCard,
-    updateEntity,
-    addAliasChain,
-    reset,
-    clearAllSettings,
+    // Actions
+    addRule,
+    updateRule,
+    removeRule,
+    toggleRule,
+    applyDecoding,
+    importRules,
+    exportRules,
+    addCustomDictionary,
+    removeCustomDictionary
   }
 })

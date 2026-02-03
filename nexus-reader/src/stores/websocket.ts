@@ -1,406 +1,162 @@
+/**
+ * WebSocket连接状态管理
+ */
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { useToast } from '@/components/ui/toast/use-toast'
-import type { WSMessage, SearchState } from '@/types/websocket'
+import { ref, computed } from 'vue'
+import { errorHandler, logger } from '@/utils/unified-utils'
+
+interface WebSocketState {
+  connected: boolean
+  url: string | null
+  reconnectAttempts: number
+  lastMessage: any
+  messageHistory: any[]
+  connectionQuality: 'good' | 'fair' | 'poor' | 'disconnected'
+}
 
 export const useWebSocketStore = defineStore('websocket', () => {
-  const isConnected = ref(false)
-  const reconnectAttempts = ref(0)
-  const maxReconnectAttempts = 5
-  let socket: WebSocket | null = null
-  let sseAbortController: AbortController | null = null
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
-  let pongTimer: ReturnType<typeof setTimeout> | null = null
-  const HEARTBEAT_INTERVAL = 30000 // 30 seconds
-  const PONG_TIMEOUT = 10000 // 10 seconds to receive pong
-  const { toast } = useToast()
-
-  const stopHeartbeat = () => {
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer)
-      heartbeatTimer = null
-    }
-    if (pongTimer) {
-      clearTimeout(pongTimer)
-      pongTimer = null
-    }
-  }
-
-  const startHeartbeat = () => {
-    stopHeartbeat()
-    heartbeatTimer = setInterval(() => {
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'ping' }))
-        pongTimer = setTimeout(() => {
-          console.warn('WebSocket: pong timeout, reconnecting...')
-          socket?.close()
-        }, PONG_TIMEOUT)
-      }
-    }, HEARTBEAT_INTERVAL)
-  }
-
-  const connect = () => {
-    // 生产环境使用 SSE，不需要 WebSocket 连接
-    if (import.meta.env.PROD) {
-      console.info('Production mode: Using SSE for search instead of WebSocket')
-      isConnected.value = true // 标记为已连接，因为 SSE 是按需连接的
-      return
-    }
-
-    // 开发环境: WebSocket 连接
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-      return
-    }
-
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws/search`
-
-      console.log('Connecting to WebSocket:', wsUrl)
-
-      socket = new WebSocket(wsUrl)
-
-      socket.onopen = () => {
-        console.log('WebSocket connected')
-        isConnected.value = true
-        reconnectAttempts.value = 0
-        if (reconnectTimer) {
-          clearTimeout(reconnectTimer)
-          reconnectTimer = null
-        }
-        startHeartbeat()
-      }
-
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          handleMessage(data)
-        } catch (e) {
-          const safeData = typeof event.data === 'string' ? event.data.replace(/[\r\n]/g, '') : 'non-string data'
-          console.error('Failed to parse WS message:', safeData)
-        }
-      }
-
-      socket.onclose = () => {
-        console.log('WebSocket closed')
-        isConnected.value = false
-        socket = null
-        stopHeartbeat()
-        attemptReconnect()
-      }
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        socket?.close()
-      }
-    } catch (e) {
-      console.error('Failed to create WebSocket:', e)
-    }
-  }
-
-  const attemptReconnect = () => {
-    if (import.meta.env.PROD) return // 生产环境不需要重连
-
-    if (reconnectAttempts.value < maxReconnectAttempts) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 30000)
-      console.log(`Reconnecting in ${delay}ms... (Attempt ${reconnectAttempts.value + 1})`)
-      reconnectTimer = setTimeout(() => {
-        reconnectAttempts.value++
-        connect()
-      }, delay)
-    } else {
-      console.error('Max reconnect attempts reached')
-      toast({
-        title: "连接断开",
-        description: "无法连接到服务器实时推送服务，请刷新页面重试。",
-        variant: "destructive"
-      })
-    }
-  }
-
-  // State for UI to consume
-  const syncLogs = ref<string[]>([])
-  const lastMessage = ref<WSMessage | null>(null)
-
-  // Search State
-  const searchState = ref<SearchState>({
-    isSearching: false,
-    results: [],
-    progress: { current: 0, total: 0 }
+  const state = ref<WebSocketState>({
+    connected: false,
+    url: null,
+    reconnectAttempts: 0,
+    lastMessage: null,
+    messageHistory: [],
+    connectionQuality: 'disconnected'
   })
 
-  const send = (msg: Record<string, unknown>) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(msg))
-    } else {
-      console.warn('Socket not open, cannot send:', msg)
-    }
-  }
+  const ws = ref<WebSocket | null>(null)
+  const reconnectTimer = ref<NodeJS.Timeout | null>(null)
 
-  const cancelSearch = () => {
-    // 取消 SSE 请求
-    if (sseAbortController) {
-      sseAbortController.abort()
-      sseAbortController = null
-    }
-    // 取消 WebSocket 搜索
-    send({ type: 'cancel_search' })
-    searchState.value.isSearching = false
-  }
+  const isConnected = computed(() => state.value.connected)
+  const connectionQuality = computed(() => state.value.connectionQuality)
+  const messageCount = computed(() => state.value.messageHistory.length)
 
-  /**
-   * SSE 流式搜索 (生产环境)
-   */
-  const searchWithSSE = async (keyword: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || ''
-    if (!apiUrl) {
-      toast({
-        title: "配置错误",
-        description: "API URL 未配置",
-        variant: "destructive"
-      })
-      return
-    }
-
-    // 取消之前的搜索
-    if (sseAbortController) {
-      sseAbortController.abort()
-    }
-    sseAbortController = new AbortController()
-
-    searchState.value.isSearching = true
-    searchState.value.results = []
-    searchState.value.progress = { current: 0, total: 0 }
-
+  const connect = async (url: string) => {
     try {
-      // 获取认证 token
-      const token = localStorage.getItem('nexus_auth_token')
-
-      // 使用 fetch + ReadableStream 来处理 SSE (因为 EventSource 不支持 POST 和自定义 headers)
-      const response = await fetch(`${apiUrl}/search/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ keyword }),
-        signal: sseAbortController.signal
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('No response body')
-      }
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-      // Persist event state across buffer boundaries
-      let pendingEvent = ''
-      let pendingData = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-
-        // Process complete lines from buffer
-        let newlineIndex: number
-        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, newlineIndex).trim()
-          buffer = buffer.slice(newlineIndex + 1)
-
-          if (line === '') {
-            // Empty line = event boundary, dispatch if we have data
-            if (pendingData) {
-              try {
-                const parsed = JSON.parse(pendingData)
-                handleSSEEvent(pendingEvent, parsed)
-              } catch (e) {
-                console.error('Failed to parse SSE data:', pendingData)
-              }
-            }
-            // Reset for next event
-            pendingEvent = ''
-            pendingData = ''
-          } else if (line.startsWith('event:')) {
-            pendingEvent = line.slice(6).trim()
-          } else if (line.startsWith('data:')) {
-            // Allow multi-line data by appending
-            const dataValue = line.slice(5).trim()
-            pendingData = pendingData ? pendingData + '\n' + dataValue : dataValue
-          }
-          // Ignore other lines (comments, id:, retry:, etc.)
-        }
-      }
-
-      // Handle any remaining data after stream ends
-      if (pendingData) {
-        try {
-          const parsed = JSON.parse(pendingData)
-          handleSSEEvent(pendingEvent, parsed)
-        } catch (e) {
-          console.error('Failed to parse final SSE data:', pendingData)
-        }
-      }
-    } catch (e) {
-      // 忽略取消错误
-      if (e instanceof Error && e.name === 'AbortError') {
-        console.log('SSE search cancelled')
+      if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+        logger.warn('WebSocket already connected')
         return
       }
-      console.error('SSE search error:', e)
-      toast({
-        title: "搜索失败",
-        description: e instanceof Error ? e.message : '未知错误',
-        variant: "destructive"
-      })
-    } finally {
-      searchState.value.isSearching = false
-      sseAbortController = null
-    }
-  }
 
-  /**
-   * 处理 SSE 事件
-   */
-  const handleSSEEvent = (event: string, data: any) => {
-    switch (event) {
-      case 'result':
-        if (data.data) {
-          searchState.value.results.push(data.data)
-          searchState.value.progress.current = searchState.value.results.length
-        }
-        break
-      case 'error':
-        console.warn('Search source error:', data.source_id, data.error)
-        break
-      case 'done':
-        searchState.value.isSearching = false
-        searchState.value.progress.total = data.total || searchState.value.results.length
-        break
-    }
-  }
+      state.value.url = url
+      state.value.reconnectAttempts = 0
 
-  const search = (keyword: string) => {
-    if (!keyword.trim()) return
+      ws.value = new WebSocket(url)
 
-    // 取消正在进行的搜索
-    if (searchState.value.isSearching) {
-      cancelSearch()
-    }
+      ws.value.onopen = () => {
+        state.value.connected = true
+        state.value.connectionQuality = 'good'
+        state.value.reconnectAttempts = 0
+        logger.info('WebSocket connected', { url })
+      }
 
-    // 生产环境使用 SSE
-    if (import.meta.env.PROD) {
-      searchWithSSE(keyword)
-      return
-    }
-
-    // 开发环境使用 WebSocket
-    searchState.value.isSearching = true
-    searchState.value.results = []
-    searchState.value.progress = { current: 0, total: 0 }
-
-    send({
-      keyword
-    })
-  }
-
-  const handleMessage = (msg: WSMessage) => {
-    const safeMsg = JSON.stringify(msg).replace(/[\r\n]/g, '')
-    console.log('WS Message:', safeMsg)
-    lastMessage.value = msg
-
-    switch (msg.type) {
-      case 'sync_log':
-        if (msg.payload?.message) {
-          syncLogs.value.push(String(msg.payload.message))
-          if (syncLogs.value.length > 50) syncLogs.value.shift()
-        }
-        break
-      case 'sync_complete':
-        toast({
-          title: "同步完成",
-          description: "书源订阅已自动更新完毕",
-        })
-        break
-      case 'sys_notification':
-        toast({
-          title: msg.payload?.title ? String(msg.payload.title) : "系统通知",
-          description: msg.payload?.message ? String(msg.payload.message) : "",
-        })
-        break
-      case 'result':
-        if (msg.data) {
-          searchState.value.results.push(msg.data as any)
-        }
-        break
-      case 'done':
-        searchState.value.isSearching = false
-        break
-      case 'error':
-        if (msg.message) {
-          toast({
-            title: "搜索错误",
-            description: msg.message,
-            variant: "destructive"
+      ws.value.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          state.value.lastMessage = message
+          state.value.messageHistory.push({
+            timestamp: Date.now(),
+            data: message
           })
-        }
-        break
-      case 'pong':
-        if (pongTimer) {
-          clearTimeout(pongTimer)
-          pongTimer = null
-        }
-        break
-    }
-  }
 
-  const clearLogs = () => {
-    syncLogs.value = []
+          // 限制历史记录数量
+          if (state.value.messageHistory.length > 100) {
+            state.value.messageHistory = state.value.messageHistory.slice(-100)
+          }
+
+          logger.debug('WebSocket message received', { message })
+        } catch (error) {
+          logger.error('Failed to parse WebSocket message', { error, data: event.data })
+        }
+      }
+
+      ws.value.onclose = () => {
+        state.value.connected = false
+        state.value.connectionQuality = 'disconnected'
+        logger.info('WebSocket disconnected')
+
+        // 自动重连
+        scheduleReconnect()
+      }
+
+      ws.value.onerror = (error) => {
+        state.value.connectionQuality = 'poor'
+        errorHandler.handle(error, { component: 'websocket-store', operation: 'connection' })
+      }
+
+    } catch (error) {
+      errorHandler.handle(error, { component: 'websocket-store', operation: 'connect' })
+    }
   }
 
   const disconnect = () => {
-    stopHeartbeat()
-    if (socket) {
-      socket.close()
+    if (ws.value) {
+      ws.value.close()
+      ws.value = null
     }
-    if (sseAbortController) {
-      sseAbortController.abort()
+
+    if (reconnectTimer.value) {
+      clearTimeout(reconnectTimer.value)
+      reconnectTimer.value = null
     }
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
+
+    state.value.connected = false
+    state.value.connectionQuality = 'disconnected'
+    logger.info('WebSocket manually disconnected')
+  }
+
+  const sendMessage = (message: any) => {
+    if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+      logger.error('WebSocket not connected, cannot send message')
+      return false
+    }
+
+    try {
+      const data = JSON.stringify(message)
+      ws.value.send(data)
+      logger.debug('WebSocket message sent', { message })
+      return true
+    } catch (error) {
+      errorHandler.handle(error, { component: 'websocket-store', operation: 'sendMessage' })
+      return false
     }
   }
 
-  // 可见性感知
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        if (!import.meta.env.PROD && (!socket || socket.readyState !== WebSocket.OPEN)) {
-          console.log('Page became visible, reconnecting WebSocket...')
-          reconnectAttempts.value = 0
-          connect()
-        }
+  const scheduleReconnect = () => {
+    if (state.value.reconnectAttempts >= 5) {
+      logger.error('Max reconnection attempts reached')
+      return
+    }
+
+    state.value.reconnectAttempts++
+    const delay = Math.min(1000 * Math.pow(2, state.value.reconnectAttempts), 30000)
+
+    reconnectTimer.value = setTimeout(() => {
+      if (state.value.url && !state.value.connected) {
+        logger.info(`Attempting to reconnect (${state.value.reconnectAttempts}/5)`)
+        connect(state.value.url)
       }
-    })
+    }, delay)
+  }
+
+  const clearHistory = () => {
+    state.value.messageHistory = []
+    logger.info('WebSocket message history cleared')
   }
 
   return {
+    // State
+    state: readonly(state),
+
+    // Getters
     isConnected,
-    syncLogs,
-    lastMessage,
-    searchState,
+    connectionQuality,
+    messageCount,
+
+    // Actions
     connect,
     disconnect,
-    clearLogs,
-    search,
-    cancelSearch,
-    send
+    sendMessage,
+    clearHistory
   }
 })

@@ -1,259 +1,107 @@
 /**
- * 🎙️ TTS Reader Composable
- * 从 reader.vue 提取的 TTS 朗读逻辑
+ * TTS阅读器组合函数
  */
-import { ref, watch, type Ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTTS } from './useTTS'
+import { useReaderStore } from '@/stores'
 
-// 依赖接口（避免循环依赖）
-interface ReaderStoreLike {
-    currentChapterIndex: number
-}
+export function useTTSReader() {
+  const { speak, pause, resume, stop, isSpeaking, availableVoices } = useTTS()
+  const readerStore = useReaderStore()
 
-interface SettingsStoreLike {
-    config: {
-        readingMode: 'scroll' | 'swipe'
-    }
-}
+  const currentChapter = computed(() => readerStore.currentChapter)
+  const isReading = ref(false)
+  const currentPosition = ref(0)
+  const readingSpeed = ref(1.0)
 
-interface UseTTSReaderOptions {
-    readerStore: ReaderStoreLike
-    settingsStore: SettingsStoreLike
-    swipeContentRef: Ref<HTMLElement | null>
-    swipePage: Ref<number>
-    swipeTotalPages: Ref<number>
-    showTTSPanel: Ref<boolean>
-    toast: { success: (msg: string) => void; warning: (msg: string) => void }
-}
+  const startReading = () => {
+    if (!currentChapter.value?.content) return
 
-export function useTTSReader(options: UseTTSReaderOptions) {
-    const {
-        readerStore,
-        settingsStore,
-        swipeContentRef,
-        swipePage,
-        swipeTotalPages,
-        showTTSPanel,
-        toast,
-    } = options
+    isReading.value = true
+    currentPosition.value = 0
 
-    const tts = useTTS()
-    const currentParagraphIndex = ref(-1)
+    // 开始阅读当前章节
+    readCurrentPosition()
+  }
 
-    // 获取页面上的所有段落元素
-    function getParagraphs(): HTMLElement[] {
-        return Array.from(
-            document.querySelectorAll('.reader-text .content-paragraph')
-        ) as HTMLElement[]
-    }
+  const stopReading = () => {
+    stop()
+    isReading.value = false
+  }
 
-    // 高亮当前段落并滚动
-    function highlightCurrentParagraph() {
-        const paragraphs = getParagraphs()
-        paragraphs.forEach((p, idx) => {
-            if (idx === currentParagraphIndex.value) {
-                p.classList.add('tts-active')
+  const pauseReading = () => {
+    pause()
+    isReading.value = false
+  }
 
-                if (settingsStore.config.readingMode === 'swipe') {
-                    // Swipe 模式：计算段落所在页并跳转
-                    const container = swipeContentRef.value
-                    if (container) {
-                        const pageWidth = container.clientWidth
-                        const pCenter = p.offsetLeft + p.clientWidth / 2
-                        const targetPage = Math.floor(pCenter / pageWidth)
+  const resumeReading = () => {
+    resume()
+    isReading.value = true
+  }
 
-                        if (
-                            targetPage >= 0 &&
-                            targetPage < swipeTotalPages.value &&
-                            targetPage !== swipePage.value
-                        ) {
-                            swipePage.value = targetPage
-                        }
-                    }
-                } else {
-                    // Scroll 模式：滚动到视图中心
-                    p.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }
-            } else {
-                p.classList.remove('tts-active')
-            }
-        })
+  const readCurrentPosition = () => {
+    if (!currentChapter.value?.content || currentPosition.value >= currentChapter.value.content.length) {
+      stopReading()
+      return
     }
 
-    // 播放下一段
-    function playNextParagraph() {
-        if (!showTTSPanel.value) return
+    // 获取下一段文本（大约200个字符）
+    const text = currentChapter.value.content.substr(currentPosition.value, 200)
+    const nextSpace = text.lastIndexOf(' ')
+    const segment = nextSpace > 0 ? text.substr(0, nextSpace) : text
 
-        const paragraphs = getParagraphs()
-        if (paragraphs.length === 0) return
+    speak(segment, {
+      rate: readingSpeed.value,
+      voice: availableVoices.value.find(v => v.lang.startsWith('zh')) || availableVoices.value[0]
+    })
 
-        if (currentParagraphIndex.value === -1) {
-            if (settingsStore.config.readingMode === 'swipe') {
-                const container = swipeContentRef.value
-                if (container) {
-                    const pageWidth = container.clientWidth
-                    const currentScrollX = swipePage.value * pageWidth
-                    const firstVisibleIndex = paragraphs.findIndex(
-                        (p) => p.offsetLeft + p.clientWidth > currentScrollX
-                    )
-                    currentParagraphIndex.value =
-                        firstVisibleIndex >= 0 ? firstVisibleIndex : 0
-                } else {
-                    currentParagraphIndex.value = 0
-                }
-            } else {
-                const headerHeight = 60
-                const firstVisibleIndex = paragraphs.findIndex((p) => {
-                    const rect = p.getBoundingClientRect()
-                    return rect.top >= headerHeight
-                })
-                currentParagraphIndex.value =
-                    firstVisibleIndex >= 0 ? firstVisibleIndex : 0
-            }
-        } else {
-            currentParagraphIndex.value++
-        }
+    currentPosition.value += segment.length
+  }
 
-        if (currentParagraphIndex.value >= paragraphs.length) {
-            stop()
-            toast.success('本章朗读结束')
-            return
-        }
+  const setReadingSpeed = (speed: number) => {
+    readingSpeed.value = Math.max(0.5, Math.min(2.0, speed))
+  }
 
-        const p = paragraphs[currentParagraphIndex.value]
-        const text = p.textContent || p.innerText
-
-        if (!text.trim()) {
-            playNextParagraph()
-            return
-        }
-
-        highlightCurrentParagraph()
-        tts.speak(text, () => playNextParagraph())
-        showTTSPanel.value = true
-    }
-
-    // 开始朗读
-    function start() {
-        if (!tts.isSupported.value) {
-            toast.warning('您的浏览器不支持语音朗读')
-            return
-        }
-
-        showTTSPanel.value = true
-
-        if (currentParagraphIndex.value === -1) {
-            playNextParagraph()
-        } else {
-            const paragraphs = getParagraphs()
-            if (currentParagraphIndex.value < paragraphs.length) {
-                const p = paragraphs[currentParagraphIndex.value]
-                const text = p.textContent || p.innerText
-                highlightCurrentParagraph()
-                tts.speak(text, () => playNextParagraph())
-            } else {
-                currentParagraphIndex.value = -1
-                playNextParagraph()
-            }
-        }
-    }
-
-    // 切换播放/暂停
-    function toggle() {
-        if (tts.isSpeaking.value) {
-            tts.pause()
-        } else if (tts.isPaused.value) {
-            tts.resume()
-        } else {
-            start()
-        }
-    }
-
-    // 停止朗读
-    function stop() {
-        tts.stop()
-        showTTSPanel.value = false
-        const paragraphs = getParagraphs()
-        paragraphs.forEach((p) => p.classList.remove('tts-active'))
-    }
-
-    // 监听章节切换，重置 TTS
-    watch(
-        () => readerStore.currentChapterIndex,
-        () => {
-            if (showTTSPanel.value) {
-                stop()
-            }
-            currentParagraphIndex.value = -1
-        }
+  const skipForward = (seconds: number = 10) => {
+    // 估算跳过的字符数（基于语速）
+    const charsToSkip = Math.floor(seconds * readingSpeed.value * 20)
+    currentPosition.value = Math.min(
+      currentPosition.value + charsToSkip,
+      currentChapter.value?.content.length || 0
     )
 
-    // ====== 睡眠定时器 ======
-    const sleepTimerMinutes = ref(0) // 0 = 不限时
-    const sleepTimerRemaining = ref(0) // 剩余秒数
-    let sleepTimerInterval: ReturnType<typeof setInterval> | null = null
-
-    // 设置睡眠定时器
-    function setSleepTimer(minutes: number) {
-        cancelSleepTimer()
-
-        if (minutes <= 0) return
-
-        sleepTimerMinutes.value = minutes
-        sleepTimerRemaining.value = minutes * 60
-
-        sleepTimerInterval = setInterval(() => {
-            sleepTimerRemaining.value--
-
-            if (sleepTimerRemaining.value <= 0) {
-                stop()
-                cancelSleepTimer()
-                toast.success('定时结束，已停止朗读')
-            }
-        }, 1000)
+    if (isReading.value) {
+      readCurrentPosition()
     }
+  }
 
-    // 取消睡眠定时器
-    function cancelSleepTimer() {
-        if (sleepTimerInterval) {
-            clearInterval(sleepTimerInterval)
-            sleepTimerInterval = null
-        }
-        sleepTimerMinutes.value = 0
-        sleepTimerRemaining.value = 0
+  const skipBackward = (seconds: number = 10) => {
+    const charsToSkip = Math.floor(seconds * readingSpeed.value * 20)
+    currentPosition.value = Math.max(0, currentPosition.value - charsToSkip)
+
+    if (isReading.value) {
+      readCurrentPosition()
     }
+  }
 
-    // 格式化剩余时间
-    function formatSleepTimerRemaining(): string {
-        const mins = Math.floor(sleepTimerRemaining.value / 60)
-        const secs = sleepTimerRemaining.value % 60
-        return `${mins}:${secs.toString().padStart(2, '0')}`
+  // 监听TTS结束事件，继续阅读下一段
+  watch(isSpeaking, (speaking) => {
+    if (!speaking && isReading.value) {
+      // 短暂延迟后继续阅读
+      setTimeout(readCurrentPosition, 500)
     }
+  })
 
-    return {
-        // 状态
-        currentParagraphIndex,
-        isSpeaking: tts.isSpeaking,
-        isPaused: tts.isPaused,
-        isSupported: tts.isSupported,
-
-        // 睡眠定时器状态
-        sleepTimerMinutes,
-        sleepTimerRemaining,
-
-        // 方法
-        start,
-        stop,
-        toggle,
-        highlightCurrentParagraph,
-
-        // 睡眠定时器方法
-        setSleepTimer,
-        cancelSleepTimer,
-        formatSleepTimerRemaining,
-    }
+  return {
+    isReading: readonly(isReading),
+    currentPosition: readonly(currentPosition),
+    readingSpeed: readonly(readingSpeed),
+    startReading,
+    stopReading,
+    pauseReading,
+    resumeReading,
+    setReadingSpeed,
+    skipForward,
+    skipBackward
+  }
 }
-
-// 类型导出
-export type UseTTSReaderReturn = ReturnType<typeof useTTSReader>
-

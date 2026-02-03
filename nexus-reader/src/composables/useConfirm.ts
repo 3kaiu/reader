@@ -1,73 +1,57 @@
 /**
- * 确认对话框 composable
- * 替代原生的 confirm() 函数
- * 使用全局单例模式，所有组件共享同一个确认对话框状态
+ * 确认对话框组合函数
  */
 import { ref } from 'vue'
 
-export interface ConfirmOptions {
+interface ConfirmOptions {
   title?: string
-  description?: string
+  message: string
   confirmText?: string
   cancelText?: string
-  variant?: 'default' | 'destructive'
+  type?: 'info' | 'warning' | 'danger'
 }
 
-// 全局状态（单例）
-const isOpen = ref(false)
-const options = ref<ConfirmOptions>({})
-let resolveCallback: ((value: boolean) => void) | null = null
-let isResolved = false  // Flag to prevent double resolution
-
 export function useConfirm() {
-  function confirm(opts: ConfirmOptions | string): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (typeof opts === 'string') {
-        options.value = {
-          title: '确认',
-          description: opts,
-          confirmText: '确定',
-          cancelText: '取消',
-        }
-      } else {
-        options.value = {
-          title: '确认',
-          confirmText: '确定',
-          cancelText: '取消',
-          variant: 'default',
-          ...opts,
-        }
-      }
+  const confirmDialog = ref<{
+    visible: boolean
+    options: ConfirmOptions | null
+    resolve: ((value: boolean) => void) | null
+  }>({
+    visible: false,
+    options: null,
+    resolve: null
+  })
 
-      resolveCallback = resolve
-      isResolved = false  // Reset flag
-      isOpen.value = true
+  const showConfirm = (options: ConfirmOptions): Promise<boolean> => {
+    return new Promise((resolve) => {
+      confirmDialog.value = {
+        visible: true,
+        options,
+        resolve
+      }
     })
   }
 
-  function handleConfirm() {
-    if (resolveCallback && !isResolved) {
-      isResolved = true
-      resolveCallback(true)
-      resolveCallback = null
+  const handleConfirm = (confirmed: boolean) => {
+    if (confirmDialog.value.resolve) {
+      confirmDialog.value.resolve(confirmed)
     }
-    isOpen.value = false
+
+    confirmDialog.value = {
+      visible: false,
+      options: null,
+      resolve: null
+    }
   }
 
-  function handleCancel() {
-    if (resolveCallback && !isResolved) {
-      isResolved = true
-      resolveCallback(false)
-      resolveCallback = null
-    }
-    isOpen.value = false
+  const hideConfirm = () => {
+    handleConfirm(false)
   }
 
   return {
-    isOpen,
-    options,
-    confirm,
+    confirmDialog: readonly(confirmDialog),
+    showConfirm,
     handleConfirm,
-    handleCancel,
+    hideConfirm
   }
 }

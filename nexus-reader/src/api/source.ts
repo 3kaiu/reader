@@ -1,12 +1,5 @@
 import { $post, $get, $delete, $put } from './client'
-
-export interface BookSource {
-    id: string
-    name: string
-    author?: string
-    version?: string
-    enabled: boolean
-}
+import type { BookSource } from './unified'
 
 export const sourceApi = {
     // 获取所有书源
@@ -22,7 +15,7 @@ export const sourceApi = {
     deleteBookSource: (id: string) => $delete(`/sources/${id}`),
 
     // 更新书源状态
-    updateSourceStatus: (id: string, enabled: boolean) => 
+    updateSourceStatus: (id: string, enabled: boolean) =>
         $put<BookSource>(`/sources/${id}/status`, { enabled }),
 
     // 搜索书源 (Nexus-lite 搜索书籍时会自动在内部处理多源)
