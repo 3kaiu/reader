@@ -14,7 +14,7 @@ import {
   BookMarked,
   Check,
 } from "lucide-vue-next";
-import { bookApi, type Book } from "@/api";
+import { bookApi, type Book } from "@/api/unified";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,15 +29,17 @@ const { handleApiError, handlePromiseError } = useErrorHandler();
 import { useWebSocketStore } from "@/stores/websocket";
 
 const wsStore = useWebSocketStore();
-console.log('wsStore:', wsStore);
-console.log('wsStore.searchState:', wsStore.searchState);
+console.log("wsStore:", wsStore);
+console.log("wsStore.searchState:", wsStore.searchState);
 
 // ====== 状态 ======
 const searchKeyword = ref("");
 // Use store state
 const searchResult = computed(() => wsStore.searchState?.results || []);
 const loading = computed(() => wsStore.searchState?.isSearching || false);
-const progress = computed(() => wsStore.searchState?.progress || { current: 0, total: 0 });
+const progress = computed(
+  () => wsStore.searchState?.progress || { current: 0, total: 0 }
+);
 
 // 本地状态
 const hasSearched = ref(false);
@@ -98,7 +100,7 @@ async function search(keyword?: string) {
   if (!wsStore.isConnected) {
     warning("正在连接服务器，请稍候...");
     wsStore.connect();
-    
+
     // Watch for connection and auto-retry search
     const unwatch = watch(
       () => wsStore.isConnected,
@@ -124,7 +126,7 @@ function doSearch(query: string) {
   }
 
   hasSearched.value = true;
-  
+
   // 使用 requestAnimationFrame 确保 DOM 更新后再滚动，实现平滑过渡
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -139,29 +141,29 @@ function doSearch(query: string) {
 // 页面挂载时检查是否需要重置搜索状态
 // 使用 sessionStorage 标记，避免路由跳转失败时误清除状态
 onMounted(async () => {
-  const shouldReset = sessionStorage.getItem('search-should-reset');
-  if (shouldReset === 'true') {
+  const shouldReset = sessionStorage.getItem("search-should-reset");
+  if (shouldReset === "true") {
     hasSearched.value = false;
     wsStore.searchState.results = [];
     searchKeyword.value = "";
-    sessionStorage.removeItem('search-should-reset');
+    sessionStorage.removeItem("search-should-reset");
   }
 
   // 加载书架，初始化已添加状态
   try {
     const res = await bookApi.getBookshelf();
     if (res.isSuccess) {
-      res.data.forEach(book => addedBooks.value.add(book.bookUrl));
+      res.data.forEach((book) => addedBooks.value.add(book.bookUrl));
     }
   } catch (e) {
-    console.error('Failed to load bookshelf', e);
+    console.error("Failed to load bookshelf", e);
   }
 });
 
 onUnmounted(() => {
   stopSearch();
   // 标记离开搜索页，下次进入时重置
-  sessionStorage.setItem('search-should-reset', 'true');
+  sessionStorage.setItem("search-should-reset", "true");
 });
 
 declare global {
@@ -189,7 +191,7 @@ async function addToShelf(book: Book) {
     }
   } catch (e: any) {
     // 忽略 409 (已存在) 错误
-    if (e.message?.includes('409') || e.code === 409) {
+    if (e.message?.includes("409") || e.code === 409) {
       addedBooks.value.add(book.bookUrl);
       success(`《${book.name}》已在书架`);
       return;
@@ -216,12 +218,18 @@ async function openBook(book: Book) {
         addedBooks.value.add(book.bookUrl);
       }
     }
-    router.push({ name: "reader", query: { url: book.bookUrl, source: book.sourceId } });
+    router.push({
+      name: "reader",
+      query: { url: book.bookUrl, source: book.sourceId },
+    });
   } catch (e: any) {
     // 忽略 409 (已存在) 错误
-    if (e.message?.includes('409') || e.code === 409) {
+    if (e.message?.includes("409") || e.code === 409) {
       addedBooks.value.add(book.bookUrl);
-      router.push({ name: "reader", query: { url: book.bookUrl, source: book.sourceId } });
+      router.push({
+        name: "reader",
+        query: { url: book.bookUrl, source: book.sourceId },
+      });
       return;
     }
     handlePromiseError(e, "打开书籍失败");
@@ -241,7 +249,7 @@ function goBack() {
 function resetSearch() {
   stopSearch();
   hasSearched.value = false;
-  wsStore.searchState.results = [];  // Clear store state instead of computed property
+  wsStore.searchState.results = []; // Clear store state instead of computed property
   searchKeyword.value = "";
   // 重置后滚动到顶部，准备新的搜索
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -555,7 +563,7 @@ function resetSearch() {
           class="flex h-32 rounded-2xl border border-border/30 bg-card p-0 overflow-hidden"
         >
           <div class="w-24 shrink-0">
-             <Skeleton width="100%" height="100%" />
+            <Skeleton width="100%" height="100%" />
           </div>
           <div class="flex-1 p-3 space-y-3">
             <Skeleton width="80%" height="16px" class-name="rounded" />

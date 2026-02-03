@@ -29,7 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
-import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api";
+import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api/unified";
 import { PageHeader, PageToolbar, EmptyState } from "@/components/common";
 
 const router = useRouter();

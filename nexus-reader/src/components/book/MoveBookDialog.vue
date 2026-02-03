@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FolderHeart, Check } from "lucide-vue-next";
-import type { BookGroup } from "@/api";
+import type { BookGroup } from "@/api/unified";
 
 const props = defineProps<{
   open: boolean;

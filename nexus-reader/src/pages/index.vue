@@ -7,7 +7,10 @@ import { useRouter } from "vue-router";
 import { useDark, useToggle, useStorage } from "@vueuse/core";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import { logger } from "@/utils/logger";
-import { VIRTUAL_SCROLL_THRESHOLD, VIRTUAL_SCROLL_OVERSCAN } from "@/constants/ui";
+import {
+  VIRTUAL_SCROLL_THRESHOLD,
+  VIRTUAL_SCROLL_OVERSCAN,
+} from "@/constants/ui";
 import {
   Search,
   Plus,
@@ -47,15 +50,13 @@ import {
 } from "@/components/ui/sheet";
 import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
 import { Input } from "@/components/ui/input";
-import { bookApi, groupApi, type Book, type BookGroup } from "@/api";
+import { bookApi, groupApi, type Book, type BookGroup } from "@/api/unified";
 import { Button } from "@/components/ui/button";
 import BookCard from "@/components/book/BookCard.vue";
 import { Skeleton } from "@/components/ui";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import MoveBookDialog from "@/components/book/MoveBookDialog.vue";
-import { manageApi } from "@/api/manage";
-import { useOfflineStore } from "@/stores/offlineStorage";
 
 const offlineStore = useOfflineStore();
 
@@ -76,38 +77,78 @@ const menuGroups = [
   {
     title: "发现",
     items: [
-      { label: "探索发现", desc: "发现新书与阅读周报", icon: Compass, path: "/discovery", color: "text-orange-500", bg: "bg-orange-500/10" },
+      {
+        label: "探索发现",
+        desc: "发现新书与阅读周报",
+        icon: Compass,
+        path: "/discovery",
+        color: "text-orange-500",
+        bg: "bg-orange-500/10",
+      },
     ],
   },
   {
     title: "内容管理",
     items: [
-      { label: "书源管理", desc: "管理接入的书源站点", icon: Server, path: "/sources", color: "text-blue-500", bg: "bg-blue-500/10" },
-      { label: "替换规则", desc: "净化与替换文本内容", icon: Wand2, path: "/replace-rule", color: "text-purple-500", bg: "bg-purple-500/10" },
+      {
+        label: "书源管理",
+        desc: "管理接入的书源站点",
+        icon: Server,
+        path: "/sources",
+        color: "text-blue-500",
+        bg: "bg-blue-500/10",
+      },
+      {
+        label: "替换规则",
+        desc: "净化与替换文本内容",
+        icon: Wand2,
+        path: "/replace-rule",
+        color: "text-purple-500",
+        bg: "bg-purple-500/10",
+      },
     ],
   },
   {
     title: "智能助理",
     items: [
-      { label: "AI 模型", desc: "配置 LLM 助手", icon: Brain, path: "/ai-settings", color: "text-green-500", bg: "bg-green-500/10" },
+      {
+        label: "AI 模型",
+        desc: "配置 LLM 助手",
+        icon: Brain,
+        path: "/ai-settings",
+        color: "text-green-500",
+        bg: "bg-green-500/10",
+      },
     ],
   },
   {
     title: "系统",
     items: [
-      { label: "系统设置", desc: "偏好与通用设置", icon: Settings, path: "/settings", color: "text-slate-500", bg: "bg-slate-500/10" },
+      {
+        label: "系统设置",
+        desc: "偏好与通用设置",
+        icon: Settings,
+        path: "/settings",
+        color: "text-slate-500",
+        bg: "bg-slate-500/10",
+      },
     ],
   },
 ];
 
 const booksWithStatus = computed(() => {
   return deduplicatedBooks.value.map(({ book, sourceCount }) => {
-    const cacheStatus = offlineStore.getBookCacheStatus(book.bookUrl, book.totalChapterNum || 0);
+    const cacheStatus = offlineStore.getBookCacheStatus(
+      book.bookUrl,
+      book.totalChapterNum || 0
+    );
     return {
       ...book,
       sourceCount,
       cachePercent: cacheStatus.percentage,
-      isFullyCached: cacheStatus.cached >= (book.totalChapterNum || 0) && (book.totalChapterNum || 0) > 0
+      isFullyCached:
+        cacheStatus.cached >= (book.totalChapterNum || 0) &&
+        (book.totalChapterNum || 0) > 0,
     };
   });
 });
@@ -126,8 +167,10 @@ const groupLoading = ref(false);
 
 // 过滤掉空分组（没有书籍的分组）
 const nonEmptyGroups = computed(() => {
-  const bookGroupIds = new Set(books.value.map(b => b.groupId).filter(Boolean));
-  return groups.value.filter(g => bookGroupIds.has(String(g.groupId)));
+  const bookGroupIds = new Set(
+    books.value.map((b) => b.groupId).filter(Boolean)
+  );
+  return groups.value.filter((g) => bookGroupIds.has(String(g.groupId)));
 });
 
 // 快速创建分组
@@ -160,7 +203,7 @@ const deduplicatedBooks = computed(() => {
 
 const sortedBooks = computed(() => {
   let filtered = booksWithStatus.value; // Use booksWithStatus here
-  
+
   if (currentGroupId.value !== "all") {
     filtered = filtered.filter((book) => book.groupId === currentGroupId.value);
   }
@@ -181,38 +224,42 @@ const otherBooks = computed(() => {
 });
 
 // 虚拟滚动：只在书籍数量超过阈值时启用
-const shouldUseVirtualScroll = computed(() => otherBooks.value.length > VIRTUAL_SCROLL_THRESHOLD);
+const shouldUseVirtualScroll = computed(
+  () => otherBooks.value.length > VIRTUAL_SCROLL_THRESHOLD
+);
 const virtualContainerRef = ref<HTMLElement | null>(null);
 
 // 计算每行显示的列数（响应式）
 const getColumnsPerRow = () => {
-  if (typeof window === 'undefined') return 6
-  const width = window.innerWidth
-  if (width >= 1280) return 6 // xl
-  if (width >= 1024) return 5 // lg
-  if (width >= 768) return 4  // md
-  if (width >= 480) return 3  // sm
-  return 2 // xs
-}
+  if (typeof window === "undefined") return 6;
+  const width = window.innerWidth;
+  if (width >= 1280) return 6; // xl
+  if (width >= 1024) return 5; // lg
+  if (width >= 768) return 4; // md
+  if (width >= 480) return 3; // sm
+  return 2; // xs
+};
 
 // 计算行数（响应式）
 const rows = computed(() => {
-  const cols = getColumnsPerRow()
-  return Math.ceil(otherBooks.value.length / cols)
-})
+  const cols = getColumnsPerRow();
+  return Math.ceil(otherBooks.value.length / cols);
+});
 
 // 窗口宽度响应式（用于监听窗口大小变化，触发虚拟滚动更新）
-const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
+const windowWidth = ref(
+  typeof window !== "undefined" ? window.innerWidth : 1280
+);
 
 // 监听窗口大小变化
 onMounted(() => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const handleResize = () => {
-      windowWidth.value = window.innerWidth
-    }
-    window.addEventListener('resize', handleResize)
+      windowWidth.value = window.innerWidth;
+    };
+    window.addEventListener("resize", handleResize);
   }
-})
+});
 
 // 虚拟滚动器（按行）
 // 注意：@tanstack/vue-virtual 的 count 需要是响应式的，但需要确保在数据变化时更新
@@ -220,29 +267,37 @@ const virtualizer = useVirtualizer({
   count: rows.value,
   getScrollElement: () => virtualContainerRef.value,
   estimateSize: () => {
-    const cols = getColumnsPerRow()
+    const cols = getColumnsPerRow();
     // 估算每行高度：卡片高度 + gap
-    return cols <= 3 ? 280 : cols <= 4 ? 260 : 240
+    return cols <= 3 ? 280 : cols <= 4 ? 260 : 240;
   },
   overscan: VIRTUAL_SCROLL_OVERSCAN, // 预渲染行数
 });
 
 // 监听 rows 和 windowWidth 变化，强制虚拟滚动器重新计算
-watch(rows, (newCount) => {
-  if (virtualizer.value) {
-    virtualizer.value.setOptions({
-      ...virtualizer.value.options,
-      count: newCount,
-    })
-    virtualizer.value.measure()
-  }
-}, { flush: 'post' })
+watch(
+  rows,
+  (newCount) => {
+    if (virtualizer.value) {
+      virtualizer.value.setOptions({
+        ...virtualizer.value.options,
+        count: newCount,
+      });
+      virtualizer.value.measure();
+    }
+  },
+  { flush: "post" }
+);
 
-watch(windowWidth, () => {
-  if (virtualizer.value) {
-    virtualizer.value.measure()
-  }
-}, { flush: 'post' })
+watch(
+  windowWidth,
+  () => {
+    if (virtualizer.value) {
+      virtualizer.value.measure();
+    }
+  },
+  { flush: "post" }
+);
 
 // ====== 方法 ======
 
@@ -280,12 +335,14 @@ async function getGroups() {
   }
 }
 
-
 function openBook(book: Book) {
   if (isManageMode.value) {
     toggleSelection(book);
   } else {
-    router.push({ name: "reader", query: { url: book.bookUrl, source: book.sourceId } });
+    router.push({
+      name: "reader",
+      query: { url: book.bookUrl, source: book.sourceId },
+    });
   }
 }
 
@@ -322,8 +379,8 @@ async function batchDelete() {
   });
   if (!result) return;
 
-  const booksToDelete = books.value.filter((b: Book) =>
-    b.id && selectedBooks.value.has(b.id)
+  const booksToDelete = books.value.filter(
+    (b: Book) => b.id && selectedBooks.value.has(b.id)
   );
   try {
     for (const book of booksToDelete) {
@@ -342,9 +399,11 @@ async function batchDelete() {
 
 async function handleMoveConfirm(groupId: string | null) {
   if (selectedBooks.value.size === 0) return;
-  
-  const booksToMove = books.value.filter(b => b.id && selectedBooks.value.has(b.id));
-  
+
+  const booksToMove = books.value.filter(
+    (b) => b.id && selectedBooks.value.has(b.id)
+  );
+
   try {
     const res = await manageApi.addBookGroupMulti(groupId, booksToMove);
     if (res.isSuccess) {
@@ -403,8 +462,6 @@ async function createGroup() {
   }
 }
 
-
-
 onMounted(() => {
   getBooks();
   getGroups();
@@ -416,21 +473,30 @@ onMounted(() => {
   <div>
     <!-- 精致背景装饰 (Subtle background aura) -->
     <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-      <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
-      <div class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-500/5 rounded-full blur-[100px]" />
+      <div
+        class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]"
+      />
+      <div
+        class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-500/5 rounded-full blur-[100px]"
+      />
     </div>
 
     <!-- 顶部状态栏占位 (iOS style) -->
     <div class="h-safe-top" />
 
     <!-- 浮动导航组件 (Floating Nav Elements - No bar) -->
-    <div class="fixed top-0 left-0 right-0 z-40 pointer-events-none pt-safe-top">
-      <div class="px-4 sm:px-6 h-[60px] flex items-center justify-between max-w-7xl mx-auto">
-        
+    <div
+      class="fixed top-0 left-0 right-0 z-40 pointer-events-none pt-safe-top"
+    >
+      <div
+        class="px-4 sm:px-6 h-[60px] flex items-center justify-between max-w-7xl mx-auto"
+      >
         <!-- 左侧：品牌 -->
         <div class="flex items-center gap-2 shrink-0 pointer-events-auto">
           <Library class="h-5 w-5 text-primary" />
-          <span class="font-bold text-lg text-foreground tracking-tight">阅读</span>
+          <span class="font-bold text-lg text-foreground tracking-tight"
+            >阅读</span
+          >
         </div>
 
         <!-- 右侧：功能区 -->
@@ -465,9 +531,9 @@ onMounted(() => {
             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             @click="toggleManageMode()"
           >
-            {{ isManageMode ? '完成' : '管理' }}
+            {{ isManageMode ? "完成" : "管理" }}
           </button>
-            
+
           <!-- Settings Menu (Responsive) -->
           <component
             :is="isDesktop ? DropdownMenu : Sheet"
@@ -510,14 +576,27 @@ onMounted(() => {
                       class="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 transition-colors"
                       :class="[item.bg, 'group-hover:bg-opacity-80']"
                     >
-                      <component :is="item.icon" class="h-4 w-4" :class="item.color" />
+                      <component
+                        :is="item.icon"
+                        class="h-4 w-4"
+                        :class="item.color"
+                      />
                     </div>
                     <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                      <span class="text-[13px] font-medium text-foreground leading-none">{{ item.label }}</span>
-                      <span class="text-[11px] text-muted-foreground truncate leading-none opacity-80">{{ item.desc }}</span>
+                      <span
+                        class="text-[13px] font-medium text-foreground leading-none"
+                        >{{ item.label }}</span
+                      >
+                      <span
+                        class="text-[11px] text-muted-foreground truncate leading-none opacity-80"
+                        >{{ item.desc }}</span
+                      >
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator v-if="idx < menuGroups.length - 1" class="my-1 opacity-50" />
+                  <DropdownMenuSeparator
+                    v-if="idx < menuGroups.length - 1"
+                    class="my-1 opacity-50"
+                  />
                 </div>
               </div>
             </DropdownMenuContent>
@@ -528,13 +607,19 @@ onMounted(() => {
               side="bottom"
               class="rounded-t-[20px] px-4 pb-8 pt-4 bg-background/95 backdrop-blur-xl border-t-0"
             >
-              <div class="w-10 h-1 rounded-full bg-muted mx-auto mb-6 opacity-50" />
+              <div
+                class="w-10 h-1 rounded-full bg-muted mx-auto mb-6 opacity-50"
+              />
               <SheetHeader class="mb-6 text-left px-2">
                 <SheetTitle class="text-lg font-bold">功能菜单</SheetTitle>
               </SheetHeader>
-              
+
               <div class="grid gap-6">
-                <div v-for="(group, idx) in menuGroups" :key="idx" class="space-y-3">
+                <div
+                  v-for="(group, idx) in menuGroups"
+                  :key="idx"
+                  class="space-y-3"
+                >
                   <div
                     v-if="group.title"
                     class="px-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider"
@@ -545,18 +630,33 @@ onMounted(() => {
                     <button
                       v-for="item in group.items"
                       :key="item.path"
-                      @click="router.push(item.path); menuOpen = false"
+                      @click="
+                        router.push(item.path);
+                        menuOpen = false;
+                      "
                       class="flex items-center gap-4 px-3 py-3 rounded-xl bg-secondary/30 active:scale-[0.98] transition-all border border-transparent active:border-primary/10"
                     >
                       <div
                         class="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
                         :class="item.bg"
                       >
-                        <component :is="item.icon" class="h-5 w-5" :class="item.color" />
+                        <component
+                          :is="item.icon"
+                          class="h-5 w-5"
+                          :class="item.color"
+                        />
                       </div>
-                      <div class="flex flex-col gap-1 items-start flex-1 min-w-0">
-                        <span class="text-[15px] font-semibold text-foreground leading-none">{{ item.label }}</span>
-                        <span class="text-[12px] text-muted-foreground truncate leading-none">{{ item.desc }}</span>
+                      <div
+                        class="flex flex-col gap-1 items-start flex-1 min-w-0"
+                      >
+                        <span
+                          class="text-[15px] font-semibold text-foreground leading-none"
+                          >{{ item.label }}</span
+                        >
+                        <span
+                          class="text-[12px] text-muted-foreground truncate leading-none"
+                          >{{ item.desc }}</span
+                        >
                       </div>
                     </button>
                   </div>
@@ -570,12 +670,17 @@ onMounted(() => {
 
     <main class="px-4 sm:px-6 max-w-7xl mx-auto pt-[62px] pb-12">
       <!-- 分组导航栏 -->
-      <section v-if="nonEmptyGroups.length > 0" class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1">
+      <section
+        v-if="nonEmptyGroups.length > 0"
+        class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1"
+      >
         <button
           class="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-          :class="currentGroupId === 'all' 
-            ? 'bg-primary text-primary-foreground shadow-md' 
-            : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'"
+          :class="
+            currentGroupId === 'all'
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+          "
           @click="currentGroupId = 'all'"
         >
           全部
@@ -584,9 +689,11 @@ onMounted(() => {
           v-for="group in nonEmptyGroups"
           :key="group.groupId"
           class="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-          :class="currentGroupId === group.groupId 
-            ? 'bg-primary text-primary-foreground shadow-md' 
-            : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'"
+          :class="
+            currentGroupId === group.groupId
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+          "
           @click="currentGroupId = group.groupId"
         >
           {{ group.groupName }}
@@ -647,11 +754,7 @@ onMounted(() => {
           <div
             class="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"
           >
-            <div
-              v-for="book in recentBooks"
-              :key="book.id"
-              class="relative"
-            >
+            <div v-for="book in recentBooks" :key="book.id" class="relative">
               <BookCard
                 :book="book"
                 :show-progress="showProgress"
@@ -683,7 +786,9 @@ onMounted(() => {
             class="text-[11px] font-bold text-muted-foreground uppercase tracking-widest"
           >
             全部书籍
-            <span class="text-[10px] font-normal text-muted-foreground/60 normal-case ml-1">
+            <span
+              class="text-[10px] font-normal text-muted-foreground/60 normal-case ml-1"
+            >
               ({{ otherBooks.length }})
             </span>
           </h2>
@@ -712,30 +817,58 @@ onMounted(() => {
                 transform: `translateY(${virtualRow.start}px)`,
               }"
             >
-              <div class="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 px-1">
-                <template
-                  v-for="col in getColumnsPerRow()"
-                  :key="col"
-                >
+              <div
+                class="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 px-1"
+              >
+                <template v-for="col in getColumnsPerRow()" :key="col">
                   <div
-                    v-if="virtualRow.index * getColumnsPerRow() + col - 1 < otherBooks.length"
+                    v-if="
+                      virtualRow.index * getColumnsPerRow() + col - 1 <
+                      otherBooks.length
+                    "
                     class="relative"
                   >
                     <BookCard
-                      :book="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1]"
+                      :book="
+                        otherBooks[
+                          virtualRow.index * getColumnsPerRow() + col - 1
+                        ]
+                      "
                       :show-progress="showProgress"
                       :manage-mode="isManageMode"
-                      :selected="selectedBooks.has(otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].id || '')"
-                      :cache-percent="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].cachePercent"
-                      :is-fully-cached="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].isFullyCached"
+                      :selected="
+                        selectedBooks.has(
+                          otherBooks[
+                            virtualRow.index * getColumnsPerRow() + col - 1
+                          ].id || ''
+                        )
+                      "
+                      :cache-percent="
+                        otherBooks[
+                          virtualRow.index * getColumnsPerRow() + col - 1
+                        ].cachePercent
+                      "
+                      :is-fully-cached="
+                        otherBooks[
+                          virtualRow.index * getColumnsPerRow() + col - 1
+                        ].isFullyCached
+                      "
                       @click="openBook"
                       @delete="handleDelete"
                     />
                     <div
-                      v-if="otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].sourceCount > 1 && !isManageMode"
+                      v-if="
+                        otherBooks[
+                          virtualRow.index * getColumnsPerRow() + col - 1
+                        ].sourceCount > 1 && !isManageMode
+                      "
                       class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-primary/20 backdrop-blur text-primary text-[10px] font-bold flex items-center justify-center ring-2 ring-background z-10 scale-90 sm:scale-100"
                     >
-                      {{ otherBooks[virtualRow.index * getColumnsPerRow() + col - 1].sourceCount }}
+                      {{
+                        otherBooks[
+                          virtualRow.index * getColumnsPerRow() + col - 1
+                        ].sourceCount
+                      }}
                     </div>
                   </div>
                 </template>
@@ -749,11 +882,7 @@ onMounted(() => {
           v-else
           class="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200"
         >
-          <div
-            v-for="book in otherBooks"
-            :key="book.id"
-            class="relative"
-          >
+          <div v-for="book in otherBooks" :key="book.id" class="relative">
             <BookCard
               :book="book"
               :show-progress="showProgress"
@@ -776,12 +905,15 @@ onMounted(() => {
       </template>
     </main>
 
-
     <!-- 批量操作浮层 -->
     <div
       v-if="isManageMode"
       class="fixed left-4 right-4 z-[60] animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-none"
-      :class="isManageMode ? 'bottom-8 lg:bottom-auto lg:top-24 lg:left-1/2 lg:-translate-x-1/2 lg:w-max' : ''"
+      :class="
+        isManageMode
+          ? 'bottom-8 lg:bottom-auto lg:top-24 lg:left-1/2 lg:-translate-x-1/2 lg:w-max'
+          : ''
+      "
     >
       <div
         class="bg-foreground/95 backdrop-blur-2xl text-background px-4 sm:px-6 py-3.5 rounded-2xl sm:rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-between pointer-events-auto border border-white/10 max-w-2xl mx-auto"
@@ -816,7 +948,7 @@ onMounted(() => {
             <Trash2 class="h-4 w-4" />
             <span class="hidden sm:inline">删除</span>
           </button>
-          <button 
+          <button
             class="lg:hidden h-8 px-3 rounded-lg text-[11px] font-bold opacity-60 active:bg-background/10"
             @click="isManageMode = false"
           >
@@ -827,13 +959,13 @@ onMounted(() => {
     </div>
 
     <!-- Modals -->
-    <MoveBookDialog 
+    <MoveBookDialog
       v-model:open="showMoveDialog"
       :groups="groups"
       :selected-count="selectedBooks.size"
       @confirm="handleMoveConfirm"
     />
-    
+
     <!-- 创建分组对话框 -->
     <Dialog v-model:open="showCreateGroupDialog">
       <DialogContent class="sm:max-w-[350px]">
@@ -841,15 +973,19 @@ onMounted(() => {
           <DialogTitle>创建分组</DialogTitle>
         </DialogHeader>
         <div class="py-4">
-          <Input 
-            v-model="newGroupName" 
-            placeholder="输入分组名称" 
+          <Input
+            v-model="newGroupName"
+            placeholder="输入分组名称"
             @keyup.enter="createGroup"
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="showCreateGroupDialog = false">取消</Button>
-          <Button @click="createGroup" :disabled="!newGroupName.trim()">创建</Button>
+          <Button variant="outline" @click="showCreateGroupDialog = false"
+            >取消</Button
+          >
+          <Button @click="createGroup" :disabled="!newGroupName.trim()"
+            >创建</Button
+          >
         </DialogFooter>
       </DialogContent>
     </Dialog>
