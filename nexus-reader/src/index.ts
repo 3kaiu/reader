@@ -8,6 +8,7 @@ import './styles/main.css'
 import { useErrorHandler } from './composables/useErrorHandler'
 import { performanceSystem, initializePerformanceSystem } from './services/performance/integration'
 import { aiServiceManager } from './services/ai/service'
+import { initConfigManager } from './utils/configManager'
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -19,6 +20,9 @@ const app = createApp(App)
 // 注册插件
 app.use(pinia)
 app.use(router)
+
+// 初始化配置管理器
+const configManager = initConfigManager()
 
 // 全局错误处理
 app.config.errorHandler = (err, _instance, info) => {

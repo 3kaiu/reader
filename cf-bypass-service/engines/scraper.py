@@ -17,6 +17,7 @@ import redis
 from core.engine import BaseBypassEngine, BypassResult
 from managers.config_manager import config_manager
 from core.utils import EnhancedLogger
+from core.errors import BypassError, ErrorCode, error_handler
 from managers.performance_optimizer import PerformanceOptimizer
 from managers.session_pool_manager import SessionPoolManager, SessionInfo
 from managers.connection_pool_manager import ConnectionPoolManager
@@ -225,6 +226,7 @@ class ScraperEngine(BaseBypassEngine):
         
         return self.scrapers[domain], None
     
+    @error_handler
     async def fetch(
         self,
         url: str,
@@ -325,24 +327,56 @@ class ScraperEngine(BaseBypassEngine):
             
             return result
             
-        except Exception as e:
+        except cloudscraper.exceptions.CloudflareChallengeError as e:
             duration = (datetime.now() - start_perf).total_seconds()
-            error_msg = str(e)
-            self.health_monitor.record_error(domain, error_msg)
-            
+            bypass_error = BypassError.from_cloudscraper_error(e, url)
+            self.health_monitor.record_error(domain, bypass_error.message)
+
             if self.adaptive_retry_manager:
                 self.adaptive_retry_manager.record_attempt(domain, success=False)
-            
+
             if session_info:
                 session_info.record_error()
                 if not session_info.is_error_prone():
                     await self.session_pool_manager.return_session(domain, session_info)
-            
+
+            return BypassResult(
+                status=403,
+                html="",
+                cf_bypassed=False,
+                error=bypass_error.message,
+                duration=duration,
+                engine=self.name
+            )
+
+        except Exception as e:
+            duration = (datetime.now() - start_perf).total_seconds()
+
+            # Convert to BypassError if not already one
+            if isinstance(e, BypassError):
+                bypass_error = e
+            else:
+                bypass_error = BypassError(
+                    ErrorCode.INTERNAL_ERROR,
+                    f"Request failed: {str(e)}",
+                    context={"url": url, "domain": domain}
+                )
+
+            self.health_monitor.record_error(domain, bypass_error.message)
+
+            if self.adaptive_retry_manager:
+                self.adaptive_retry_manager.record_attempt(domain, success=False)
+
+            if session_info:
+                session_info.record_error()
+                if not session_info.is_error_prone():
+                    await self.session_pool_manager.return_session(domain, session_info)
+
             return BypassResult(
                 status=500,
                 html="",
                 cf_bypassed=False,
-                error=error_msg,
+                error=bypass_error.message,
                 duration=duration,
                 engine=self.name
             )

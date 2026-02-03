@@ -4,6 +4,7 @@ import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER
 import { requestOptimizer, networkDetector } from '@/services/network/optimizer'
 import { perfMonitor } from '@/services/performance/monitor'
 import { offlineManager, offlineContentServer } from '@/services/offline/manager'
+import { NexusError, ErrorCode, reportError } from '@/utils/errors'
 
 // 请求缓存
 const MAX_CACHE_SIZE = 100
@@ -48,6 +49,67 @@ function translateErrorMessage(errorMsg: string): string {
 
   // 如果没有匹配，返回原消息（可能是已经用户友好的消息）
   return errorMsg
+}
+
+// 将网络错误转换为NexusError
+function convertToNexusError(error: any, url: string, method: string): NexusError {
+  // 如果已经是NexusError，直接返回
+  if (error instanceof NexusError) {
+    return error
+  }
+
+  // 根据错误类型转换为相应的ErrorCode
+  if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+    return new NexusError(
+      ErrorCode.TIMEOUT,
+      '请求超时，请稍后重试',
+      error.message,
+      { url, method, originalError: error.toString() }
+    )
+  } else if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+    return new NexusError(
+      ErrorCode.NETWORK_ERROR,
+      '网络连接失败，请检查网络后重试',
+      error.message,
+      { url, method, originalError: error.toString() }
+    )
+  } else if (error.status === 401) {
+    return new NexusError(
+      ErrorCode.UNAUTHORIZED,
+      '登录已过期，请重新登录',
+      undefined,
+      { url, method, status: error.status }
+    )
+  } else if (error.status === 403) {
+    return new NexusError(
+      ErrorCode.FORBIDDEN,
+      '没有权限访问此资源',
+      undefined,
+      { url, method, status: error.status }
+    )
+  } else if (error.status === 429) {
+    return new NexusError(
+      ErrorCode.RATE_LIMITED,
+      '请求过于频繁，请稍后重试',
+      undefined,
+      { url, method, status: error.status, retryAfter: error.response?.headers?.['retry-after'] }
+    )
+  } else if (error.status >= 500) {
+    return new NexusError(
+      ErrorCode.INTERNAL_ERROR,
+      '服务器内部错误，请稍后重试',
+      undefined,
+      { url, method, status: error.status }
+    )
+  } else {
+    // 其他错误
+    return new NexusError(
+      ErrorCode.UNKNOWN_ERROR,
+      translateErrorMessage(error.message || '未知错误'),
+      error.message,
+      { url, method, originalError: error.toString() }
+    )
+  }
 }
 
 // 将 HTTP 状态码转换为用户友好的消息
@@ -131,10 +193,12 @@ const internalFetch = ofetch.create({
   retry: API_MAX_RETRIES,
   retryDelay: API_RETRY_DELAY_MULTIPLIER,
   retryStatusCodes: [408, 500, 502, 503, 504],
-  onRequest({ options }) {
+  onRequest({ options, request }) {
     // 记录请求开始时间
     const startTime = performance.now()
       ; (options as any)._startTime = startTime
+      ; (options as any)._requestUrl = request.toString()
+      ; (options as any)._method = options.method || 'GET'
 
     const token = localStorage.getItem('nexus_auth_token')
     if (token) {
@@ -205,32 +269,57 @@ const internalFetch = ofetch.create({
     }
   },
   onResponseError({ response, error, options }) {
+    const url = (options as any)._requestUrl || response.url
+    const method = (options as any)._method || 'GET'
+
     // 监控错误响应时间
     const startTime = (options as any)._startTime
-    if (startTime && performanceMonitor) {
+    if (startTime) {
       const responseTime = performance.now() - startTime
-      const endpoint = new URL(response.url).pathname
-      performanceMonitor.reportApiResponse(endpoint, responseTime, response.status)
+      perfMonitor.recordMetric('api_error_duration', responseTime, {
+        status: response.status,
+        url,
+        method
+      })
+    }
+
+    // 处理鉴权失效
+    if (response.status === 401) {
+      localStorage.removeItem('nexus_auth_token')
     }
 
     // 系统级别错误拦截 (非 2xx 响应)
     const silent = (options as any).silent === true
 
-    if (response.status === 401) {
-      // 处理鉴权失效
-      localStorage.removeItem('nexus_auth_token')
-    }
-
     if (response.status >= 400 && !silent) {
       try {
+        // 转换为NexusError
+        const nexusError = convertToNexusError({
+          status: response.status,
+          message: error?.message || response.statusText,
+          response
+        }, url, method)
+
+        // 报告错误
+        reportError(nexusError, {
+          status: response.status,
+          url,
+          method,
+          responseData: response._data
+        })
+
+        // 向后兼容：使用全局错误处理器
         const handler = getGlobalErrorHandler()
-        // 将 HTTP 错误转换为用户友好的消息
-        const userFriendlyMessage = translateHttpError(response.status, error)
-        handler.handleError(userFriendlyMessage, `请求失败 (${response.status})`, true)
+        handler.value = {
+          isSuccess: false,
+          errorMsg: nexusError.message,
+          originalError: nexusError.details || nexusError.message,
+          statusCode: response.status,
+          timestamp: nexusError.timestamp
+        }
       } catch (e) {
-        // 使用 logger 而不是 console.error
         if (import.meta.env.DEV) {
-          console.error('[API Interceptor] Global error handler failed', e)
+          console.error('[API Interceptor] Error handling failed', e)
         }
       }
     }
