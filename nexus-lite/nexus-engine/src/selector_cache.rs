@@ -14,7 +14,7 @@ pub struct FallbackSelector {
     /// Original rule string (for debugging)
     pub rule: String,
     /// Compiled selectors to try in order
-    pub selectors: Mutex<Vec<Selector>>,
+    pub selectors: Vec<Selector>,
     /// Attribute to extract (text, href, src, html, etc.)
     pub attr: String,
 }
@@ -27,7 +27,7 @@ impl FallbackSelector {
         if rule.is_empty() {
             return Ok(Self {
                 rule: String::new(),
-                selectors: Mutex::new(vec![]),
+                selectors: vec![],
                 attr: "text".to_string(),
             });
         }
@@ -84,14 +84,14 @@ impl FallbackSelector {
 
         Ok(Self {
             rule: rule.to_string(),
-            selectors: Mutex::new(selectors),
+            selectors,
             attr,
         })
     }
 
     /// Check if the selector is effectively empty
     pub fn is_empty(&self) -> bool {
-        self.selectors.lock().unwrap().is_empty() && self.rule.is_empty()
+        self.selectors.is_empty() && self.rule.is_empty()
     }
 
     /// Get or compile from global cache (thread-safe, cross-engine)
@@ -123,8 +123,7 @@ impl FallbackSelector {
 
     /// Select from a parent element and extract
     pub fn select_from_and_extract(&self, el: &ElementRef) -> Option<String> {
-        let selectors = self.selectors.lock().unwrap();
-        for selector in selectors.iter() {
+        for selector in self.selectors.iter() {
             if let Some(target) = el.select(selector).next() {
                 return extract_attr(target, &self.attr);
             }
@@ -134,8 +133,7 @@ impl FallbackSelector {
 
     /// Extract data using the compiled selectors from the root
     pub fn extract(&self, html: &Html) -> Option<String> {
-        let selectors = self.selectors.lock().unwrap();
-        for selector in selectors.iter() {
+        for selector in self.selectors.iter() {
             if let Some(element) = html.select(selector).next() {
                 return extract_attr(element, &self.attr);
             }
@@ -145,8 +143,7 @@ impl FallbackSelector {
 
     /// Select all matching elements as ElementRefs
     pub fn select_all<'a>(&self, html: &'a Html) -> Vec<ElementRef<'a>> {
-        let selectors = self.selectors.lock().unwrap();
-        for selector in selectors.iter() {
+        for selector in self.selectors.iter() {
             let elements: Vec<_> = html.select(selector).collect();
             if !elements.is_empty() {
                 return elements;
@@ -158,8 +155,7 @@ impl FallbackSelector {
     /// Extract multiple values
     pub fn extract_all(&self, html: &Html) -> Vec<String> {
         let mut results = Vec::new();
-        let selectors = self.selectors.lock().unwrap();
-        for selector in selectors.iter() {
+        for selector in self.selectors.iter() {
             let elements = html.select(selector);
             for element in elements {
                 if let Some(v) = extract_attr(element, &self.attr) {
@@ -180,18 +176,24 @@ impl FallbackSelector {
 pub fn extract_attr(element: ElementRef, attr: &str) -> Option<String> {
     match attr {
         "text" => {
-            let text = element.text().fold(String::new(), |mut acc, part| {
-                if !acc.is_empty() {
-                    acc.push('\n');
+            // Optimized text extraction:
+            // 1. Collect all text nodes
+            // 2. Join with newlines only where necessary
+            // 3. Avoid redundant trimming of short segments
+            let mut result = String::with_capacity(256);
+            for part in element.text() {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() {
+                    if !result.is_empty() {
+                        result.push('\n');
+                    }
+                    result.push_str(trimmed);
                 }
-                acc.push_str(part.trim());
-                acc
-            });
-            let trimmed = text.trim();
-            if trimmed.is_empty() {
+            }
+            if result.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(result)
             }
         }
         "html" => Some(element.html().trim().to_string()),

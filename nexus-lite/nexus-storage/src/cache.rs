@@ -1,23 +1,17 @@
-//! Two-level chapter content cache
-//!
-//! L1: In-memory cache (Moka) - fast, limited size
-//! L2: Disk cache - slower, larger capacity
-//!
-//! Optimized for NAS deployments with configurable memory limits.
-
 use memmap2::Mmap;
 use moka::future::Cache;
 use nexus_core::EngineError;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 
 /// Two-level chapter content cache
 pub struct ChapterCache {
     /// L1: In-memory cache (fast, limited)
-    memory: Cache<String, String>,
+    memory: Cache<String, Arc<str>>,
     /// L2: Disk cache directory
     disk_dir: PathBuf,
     /// Maximum disk cache size in MB
@@ -31,14 +25,7 @@ pub struct ChapterCache {
 
 impl ChapterCache {
     /// Create a new two-level cache
-    ///
-    /// # Arguments
-    /// * `cache_dir` - Directory for disk cache
-    /// * `max_disk_mb` - Maximum disk cache size in MB
-    ///
-    /// Memory cache defaults to 64MB (NAS-friendly)
     pub fn new(cache_dir: &Path, max_disk_mb: usize) -> Self {
-        // Default: 64MB memory cache, 1 hour TTI
         Self::with_memory_limit(cache_dir, 64, max_disk_mb)
     }
 
@@ -46,7 +33,7 @@ impl ChapterCache {
     pub fn with_memory_limit(cache_dir: &Path, max_memory_mb: usize, max_disk_mb: usize) -> Self {
         let memory = Cache::builder()
             .max_capacity((max_memory_mb * 1024 * 1024) as u64)
-            .time_to_idle(Duration::from_secs(3600)) // 1 hour idle timeout
+            .time_to_idle(Duration::from_secs(3600))
             .build();
 
         info!(
@@ -75,7 +62,7 @@ impl ChapterCache {
     }
 
     /// Get cached content (L1 memory -> L2 disk via Mmap)
-    pub async fn get(&self, book_id: &str, chapter_index: usize) -> Option<String> {
+    pub async fn get(&self, book_id: &str, chapter_index: usize) -> Option<Arc<str>> {
         let key = self.cache_key(book_id, chapter_index);
 
         // L1: Try memory first
@@ -89,11 +76,12 @@ impl ChapterCache {
         let path = self.disk_path(&key);
         if path.exists() {
             let path_clone = path.clone();
-            // Using spawn_blocking for Mmap as it's a synchronous OS operation
             let content = tokio::task::spawn_blocking(move || {
                 let file = File::open(&path_clone).ok()?;
                 let mmap = unsafe { Mmap::map(&file).ok()? };
-                String::from_utf8(mmap.to_vec()).ok()
+                // Optimized: from_utf8_lossy on slice, then into Arc<str>
+                let s = String::from_utf8_lossy(&mmap);
+                Some(Arc::from(s.as_ref()))
             })
             .await
             .ok()
@@ -118,15 +106,15 @@ impl ChapterCache {
         &self,
         book_id: &str,
         chapter_index: usize,
-        content: &str,
+        content: Arc<str>,
     ) -> Result<(), EngineError> {
         let key = self.cache_key(book_id, chapter_index);
 
         // L1: Memory
-        self.memory.insert(key.clone(), content.to_string()).await;
+        self.memory.insert(key.clone(), content.clone()).await;
 
         // L2: Disk (async write)
-        self.write_to_disk(&key, content).await?;
+        self.write_to_disk(&key, &content).await?;
 
         debug!("Cached chapter: {}/{}", book_id, chapter_index);
         Ok(())
@@ -134,7 +122,6 @@ impl ChapterCache {
 
     /// Write content to disk
     async fn write_to_disk(&self, key: &str, content: &str) -> Result<(), EngineError> {
-        // Ensure directory exists
         if !self.disk_dir.exists() {
             tokio::fs::create_dir_all(&self.disk_dir)
                 .await
@@ -142,8 +129,6 @@ impl ChapterCache {
         }
 
         let path = self.disk_path(key);
-
-        // Track size change
         let old_size = if path.exists() {
             tokio::fs::metadata(&path)
                 .await
@@ -157,7 +142,6 @@ impl ChapterCache {
             .await
             .map_err(|e| EngineError::FileIo(e.to_string()))?;
 
-        // Update disk size tracking
         let new_size = content.len() as u64;
         self.disk_size
             .fetch_add(new_size.saturating_sub(old_size), Ordering::Relaxed);
@@ -168,26 +152,18 @@ impl ChapterCache {
     /// Check if chapter is cached (any level)
     pub async fn has(&self, book_id: &str, chapter_index: usize) -> bool {
         let key = self.cache_key(book_id, chapter_index);
-
-        // Check L1 first
         if self.memory.contains_key(&key) {
             return true;
         }
-
-        // Check L2
         self.disk_path(&key).exists()
     }
 
     /// Clear cache for a book
     pub async fn clear_book(&self, book_id: &str) -> Result<(), EngineError> {
         let pattern = format!("{}_", book_id);
-
-        // Clear from L1 memory (invalidate matching keys)
-        let _ = self
-            .memory
+        self.memory
             .invalidate_entries_if(move |k, _| k.starts_with(&pattern));
 
-        // Clear from L2 disk
         if let Ok(mut entries) = tokio::fs::read_dir(&self.disk_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -199,16 +175,12 @@ impl ChapterCache {
                 }
             }
         }
-
         Ok(())
     }
 
     /// Clear all cache
     pub async fn clear_all(&self) -> Result<(), EngineError> {
-        // Clear L1
         self.memory.invalidate_all();
-
-        // Clear L2
         if self.disk_dir.exists() {
             tokio::fs::remove_dir_all(&self.disk_dir)
                 .await
@@ -217,11 +189,9 @@ impl ChapterCache {
                 .await
                 .map_err(|e| EngineError::FileIo(e.to_string()))?;
         }
-
         self.disk_size.store(0, Ordering::Relaxed);
         self.hits.store(0, Ordering::Relaxed);
         self.misses.store(0, Ordering::Relaxed);
-
         info!("Cleared all cache");
         Ok(())
     }
@@ -236,7 +206,6 @@ impl ChapterCache {
         let mut entries = Vec::new();
         let mut total_size = 0u64;
 
-        // Scan directory
         let mut dir = tokio::fs::read_dir(&self.disk_dir)
             .await
             .map_err(|e| EngineError::FileIo(e.to_string()))?;
@@ -254,41 +223,27 @@ impl ChapterCache {
             let modified = metadata
                 .modified()
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-
             entries.push((entry.path(), size, modified));
             total_size += size;
         }
 
-        // Update tracked size
         self.disk_size.store(total_size, Ordering::Relaxed);
-
         if total_size <= max_bytes {
             return Ok(());
         }
 
-        debug!(
-            "Disk cache cleanup: {}MB > {}MB limit",
-            total_size / 1024 / 1024,
-            self.max_disk_mb
-        );
-
-        // Sort by modification time (oldest first)
         entries.sort_by_key(|k| k.2);
-
         let mut removed_size = 0u64;
         for (path, size, _) in entries {
             if total_size - removed_size <= max_bytes {
                 break;
             }
-
             if tokio::fs::remove_file(&path).await.is_ok() {
                 removed_size += size;
             }
         }
-
         self.disk_size
             .store(total_size - removed_size, Ordering::Relaxed);
-
         info!(
             "Disk cache cleanup: removed {}MB",
             removed_size / 1024 / 1024
@@ -301,7 +256,6 @@ impl ChapterCache {
         let hits = self.hits.load(Ordering::Relaxed);
         let misses = self.misses.load(Ordering::Relaxed);
         let total = hits + misses;
-
         CacheStats {
             hits,
             misses,

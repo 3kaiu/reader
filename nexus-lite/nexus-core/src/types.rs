@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // ============== Book Data Models ==============
 
@@ -7,50 +8,50 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BookItem {
-    pub name: String,
+    pub name: Arc<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
+    pub author: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cover_url: Option<String>,
-    pub book_url: String,
+    pub cover_url: Option<Arc<str>>,
+    pub book_url: Arc<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub intro: Option<String>,
-    pub source_id: String,
-    pub source_name: String,
+    pub intro: Option<Arc<str>>,
+    pub source_id: Arc<str>,
+    pub source_name: Arc<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub latest_chapter: Option<String>,
+    pub latest_chapter: Option<Arc<str>>,
 }
 
 /// Book detailed information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BookInfo {
-    pub name: String,
-    pub author: String,
+    pub name: Arc<str>,
+    pub author: Arc<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cover_url: Option<String>,
+    pub cover_url: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub intro: Option<String>,
+    pub intro: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub toc_url: Option<String>,
+    pub toc_url: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_chapter: Option<String>,
+    pub last_chapter: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub word_count: Option<String>,
+    pub word_count: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
+    pub category: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
+    pub status: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub update_time: Option<String>,
+    pub update_time: Option<Arc<str>>,
 }
 
 /// Chapter information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Chapter {
-    pub title: String,
-    pub url: String,
+    pub title: Arc<str>,
+    pub url: Arc<str>,
     pub index: usize,
     #[serde(default)]
     pub is_vip: bool,
@@ -123,7 +124,9 @@ impl FetchContext {
 /// Structured chapter content response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChapterContent {
-    pub content: String,
+    pub content: Arc<str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunks: Option<Vec<Arc<str>>>,
 }
 
 /// Bookshelf item

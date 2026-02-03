@@ -191,6 +191,18 @@ impl NxsEngine {
 
         let items = self.compiled.search_list.select_all(&doc);
 
+        // Pre-calculate domain for filtering
+        let source_domain = self
+            .source
+            .url
+            .strip_prefix("https://")
+            .or_else(|| self.source.url.strip_prefix("http://"))
+            .unwrap_or(&self.source.url)
+            .trim_end_matches('/');
+
+        let source_id: Arc<str> = self.source.id.as_str().into();
+        let source_name: Arc<str> = self.source.name.as_str().into();
+
         let results: Vec<BookItem> = items
             .iter()
             .filter_map(|el| {
@@ -199,17 +211,9 @@ impl NxsEngine {
                 let book_url = self.abs_url(&url);
 
                 // 1. Filter by domain if it's an external search
-                let source_domain = self
-                    .source
-                    .url
-                    .replace("https://", "")
-                    .replace("http://", "")
-                    .trim_end_matches('/')
-                    .to_string();
+                let is_external = !url.starts_with('/') && !url.contains(source_domain);
 
-                let is_external = !url.starts_with('/') && !url.contains(&source_domain);
-
-                if is_external && !book_url.contains(&source_domain) {
+                if is_external && !book_url.contains(source_domain) {
                     return None;
                 }
 
@@ -221,17 +225,25 @@ impl NxsEngine {
                 }
 
                 Some(BookItem {
-                    name,
-                    book_url,
-                    author: self.compiled.search_author.select_from_and_extract(el),
+                    name: name.into(),
+                    book_url: book_url.into(),
+                    author: self
+                        .compiled
+                        .search_author
+                        .select_from_and_extract(el)
+                        .map(|s| s.into()),
                     cover_url: self
                         .compiled
                         .search_cover
                         .select_from_and_extract(el)
-                        .map(|u| self.abs_url(&u)),
-                    intro: self.compiled.search_intro.select_from_and_extract(el),
-                    source_id: self.source.id.clone(),
-                    source_name: self.source.name.clone(),
+                        .map(|u| self.abs_url(&u).into()),
+                    intro: self
+                        .compiled
+                        .search_intro
+                        .select_from_and_extract(el)
+                        .map(|s| s.into()),
+                    source_id: source_id.clone(),
+                    source_name: source_name.clone(),
                     latest_chapter: None,
                 })
             })
@@ -256,23 +268,28 @@ impl NxsEngine {
                 })?;
 
         Ok(BookInfo {
-            name,
+            name: name.into(),
             author: self
                 .compiled
                 .book_author
                 .select_and_extract(&doc)
-                .unwrap_or_default(),
-            intro: self.compiled.book_intro.select_and_extract(&doc),
+                .unwrap_or_default()
+                .into(),
+            intro: self
+                .compiled
+                .book_intro
+                .select_and_extract(&doc)
+                .map(|s| s.into()),
             cover_url: self
                 .compiled
                 .book_cover
                 .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u)),
+                .map(|u| self.abs_url(&u).into()),
             toc_url: self
                 .compiled
                 .book_toc
                 .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u)),
+                .map(|u| self.abs_url(&u).into()),
             last_chapter: None,
             word_count: None,
             update_time: None,
@@ -343,8 +360,8 @@ impl NxsEngine {
                 }
 
                 Some(Chapter {
-                    title: name,
-                    url: self.abs_url(&url),
+                    title: name.into(),
+                    url: self.abs_url(&url).into(),
                     index: idx,
                     is_vip: false,
                     word_count: None,
