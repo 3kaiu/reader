@@ -22,7 +22,7 @@ fi
 echo "📦 部署优化版本..."
 
 # 部署到生产环境
-wrangler deploy novel-decoder-worker-optimized.ts --env production
+wrangler deploy unified-worker.ts --env production
 
 echo "✅ 部署完成！"
 
