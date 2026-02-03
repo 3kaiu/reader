@@ -1,0 +1,30 @@
+# CodeQL Configuration File
+# https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning
+
+name: "CodeQL Configuration"
+
+disable-default-queries: false
+
+queries:
+  # Include security queries
+  - uses: security-and-quality
+  - uses: security-experimental
+
+# Paths to exclude from analysis
+paths-ignore:
+  - node_modules
+  - .git
+  - dist
+  - build
+  - target
+  - coverage
+  - test-results
+  - .rsbuild
+  - nexus-lite/target
+  - nexus-reader/node_modules
+  - nexus-reader/dist
+
+# Languages to analyze
+languages:
+  - javascript
+  - typescript

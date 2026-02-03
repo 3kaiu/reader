@@ -36,6 +36,7 @@ permissions:
   pull-requests: write
   discussions: write
   actions: write
+  security-events: write
 
 # 允许并发部署，但取消进行中的部署
 concurrency:
@@ -96,6 +97,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: javascript, typescript
+          config-file: ./codeql-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
