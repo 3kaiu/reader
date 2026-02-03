@@ -35,6 +35,7 @@ permissions:
   issues: write
   pull-requests: write
   discussions: write
+  actions: write
 
 # 允许并发部署，但取消进行中的部署
 concurrency:
@@ -561,27 +562,56 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // 清理旧的artifacts和deployments
-            const artifacts = await github.rest.actions.listArtifactsForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            });
+            try {
+              // 清理旧的artifacts和deployments
+              const artifactsResponse = await github.rest.actions.listArtifactsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
 
-            // 删除7天前的artifacts
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - 7);
+              // 检查响应结构并获取artifacts数组
+              let artifacts = [];
+              if (artifactsResponse.data && Array.isArray(artifactsResponse.data)) {
+                artifacts = artifactsResponse.data;
+              } else if (artifactsResponse.data && artifactsResponse.data.artifacts && Array.isArray(artifactsResponse.data.artifacts)) {
+                artifacts = artifactsResponse.data.artifacts;
+              } else {
+                console.log('Unexpected artifacts response structure:', JSON.stringify(artifactsResponse, null, 2));
+                return;
+              }
 
-            for (const artifact of artifacts.data) {
-              const createdAt = new Date(artifact.created_at);
-              if (createdAt < cutoffDate) {
+              if (artifacts.length === 0) {
+                console.log('No artifacts found to clean up');
+                return;
+              }
+
+              // 删除7天前的artifacts
+              const cutoffDate = new Date();
+              cutoffDate.setDate(cutoffDate.getDate() - 7);
+
+              console.log(`Checking ${artifacts.length} artifacts for cleanup...`);
+
+              let deletedCount = 0;
+              for (const artifact of artifacts) {
                 try {
-                  await github.rest.actions.deleteArtifact({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    artifact_id: artifact.id
-                  });
+                  const createdAt = new Date(artifact.created_at);
+                  if (createdAt < cutoffDate) {
+                    await github.rest.actions.deleteArtifact({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      artifact_id: artifact.id
+                    });
+                    deletedCount++;
+                    console.log(`Deleted artifact: ${artifact.name} (created: ${createdAt.toISOString()})`);
+                  }
                 } catch (e) {
-                  console.log(`Failed to delete artifact ${artifact.id}:`, e.message);
+                  console.log(`Failed to delete artifact ${artifact.id} (${artifact.name}):`, e.message);
                 }
               }
+
+              console.log(`Cleanup completed: ${deletedCount} artifacts deleted`);
+
+            } catch (error) {
+              console.error('Artifact cleanup failed:', error);
+              // 不让清理失败影响整个workflow
             }
