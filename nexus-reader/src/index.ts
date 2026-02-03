@@ -7,6 +7,7 @@ import router from './router'
 import './styles/main.css'
 import { initDomainLayer } from './domain'
 import { initOptimizerManager } from '@/utils/unified-utils'
+import { aiIntelligentOperations } from '@/services/ai/intelligent-operations'
 import { useUserStore, useSettingsStore } from '@/stores/unified'
 
 // 创建 Pinia 实例
@@ -58,6 +59,8 @@ window.addEventListener('unhandledrejection', (event) => {
 // 挂载应用
 app.mount('#root')
 
+// 初始化AI智能化运维系统
+aiIntelligentOperations // 系统已在导入时自动启动
 
 // 监控路由变化性能
 router.beforeEach((to, from, next) => {

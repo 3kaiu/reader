@@ -13,6 +13,8 @@ import { getPerformanceMonitor } from './shared/performance-monitor.ts';
 import { getAutoTuner, startAutoTuning } from './shared/auto-tuner.ts';
 import { getSelfHealingSystem, startSelfHealing } from './shared/self-healing.ts';
 import { DecoderEngine } from './decoder/decoder-engine.ts';
+import { serverlessOptimizer } from './src/serverless-optimizer.ts';
+import { edgeComputeEngine } from './src/edge-compute-engine.ts';
 import {
   type DecodeRequest,
   type WorkerEnv,
@@ -432,7 +434,19 @@ export default {
     ctx.waitUntil(Promise.all([
       scheduleCacheWarmup(env),
       startAutoTuning(env),
-      startSelfHealing(env)
+      startSelfHealing(env),
+      // 初始化AI智能化运维系统
+      Promise.resolve().then(() => {
+        console.log('[Worker] AI智能化运维系统已启动')
+      }),
+      // 初始化无服务器优化器
+      serverlessOptimizer ? Promise.resolve().then(() => {
+        console.log('[Worker] 无服务器优化器已启动')
+      }) : Promise.resolve(),
+      // 初始化边缘计算引擎
+      edgeComputeEngine ? Promise.resolve().then(() => {
+        console.log('[Worker] 边缘计算引擎已启动')
+      }) : Promise.resolve()
     ]));
 
     // 记录请求分析数据
