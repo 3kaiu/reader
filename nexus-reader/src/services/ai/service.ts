@@ -107,7 +107,7 @@ export class AIServiceManager {
   private autoUnloadTimer: ReturnType<typeof setTimeout> | null = null
   private readonly AUTO_UNLOAD_TIMEOUT = 5 * 60 * 1000 // 5分钟
 
-  // 并发控制
+  // 并发控制优化
   private activeRequests = 0
   private maxConcurrentRequests = 1 // WebGPU/WebNN通常只支持单推理
   private requestQueue: Array<{
@@ -115,7 +115,11 @@ export class AIServiceManager {
     reject: (error: any) => void
     prompt: string
     params?: Partial<AIRequestParams>
+    priority: 'high' | 'normal' | 'low'
+    enqueueTime: number
   }> = []
+  private requestTimeout = 30000 // 30秒超时
+  private memoryPressureThreshold = 0.8 // 80%内存使用率阈值
 
   // 性能监控
   public readonly performance = ref({
@@ -446,10 +450,101 @@ export class AIServiceManager {
    * 执行AI推理
    */
   async inference(prompt: string, params?: Partial<AIRequestParams>): Promise<string> {
+    // 检查内存压力
+    await this.checkMemoryPressure()
+
+    // 确定请求优先级
+    const priority = this.determineRequestPriority(prompt, params)
+
     return new Promise((resolve, reject) => {
-      this.requestQueue.push({ resolve, reject, prompt, params })
+      const request = {
+        resolve,
+        reject,
+        prompt,
+        params,
+        priority,
+        enqueueTime: Date.now()
+      }
+
+      // 按优先级插入队列
+      this.insertByPriority(request)
       this.processQueue()
     })
+  }
+
+  /**
+   * 按优先级插入请求队列
+   */
+  private insertByPriority(request: typeof this.requestQueue[0]): void {
+    // 高优先级：用户交互相关、短文本、紧急请求
+    // 正常优先级：一般推理请求
+    // 低优先级：批量处理、预处理请求
+
+    let insertIndex = this.requestQueue.length
+
+    for (let i = 0; i < this.requestQueue.length; i++) {
+      const existing = this.requestQueue[i]
+
+      // 比较优先级
+      if (request.priority === 'high' && existing.priority !== 'high') {
+        insertIndex = i
+        break
+      } else if (request.priority === 'normal' && existing.priority === 'low') {
+        insertIndex = i
+        break
+      }
+      // 同优先级下，FIFO
+    }
+
+    this.requestQueue.splice(insertIndex, 0, request)
+  }
+
+  /**
+   * 确定请求优先级
+   */
+  private determineRequestPriority(prompt: string, params?: Partial<AIRequestParams>): 'high' | 'normal' | 'low' {
+    // 短文本、高优先级参数 = 高优先级
+    if (prompt.length < 100 || params?.priority === 'high') {
+      return 'high'
+    }
+
+    // 包含特定关键词 = 高优先级
+    const urgentKeywords = ['error', 'fail', 'urgent', 'important']
+    if (urgentKeywords.some(keyword => prompt.toLowerCase().includes(keyword))) {
+      return 'high'
+    }
+
+    // 长文本、批量处理 = 低优先级
+    if (prompt.length > 1000 || params?.isBatch) {
+      return 'low'
+    }
+
+    return 'normal'
+  }
+
+  /**
+   * 检查内存压力并采取措施
+   */
+  private async checkMemoryPressure(): Promise<void> {
+    if (!performance.memory) return
+
+    const memoryUsage = performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize
+
+    if (memoryUsage > this.memoryPressureThreshold) {
+      logger.warn(`High memory usage detected: ${(memoryUsage * 100).toFixed(1)}%`)
+
+      // 强制垃圾回收（如果可用）
+      if (window.gc) {
+        window.gc()
+        logger.info('Forced garbage collection due to memory pressure')
+      }
+
+      // 如果内存压力持续高，减少并发数
+      if (memoryUsage > 0.9) {
+        this.maxConcurrentRequests = Math.max(1, this.maxConcurrentRequests - 1)
+        logger.warn(`Reduced concurrent requests to ${this.maxConcurrentRequests} due to memory pressure`)
+      }
+    }
   }
 
   private async processQueue(): Promise<void> {
@@ -459,6 +554,14 @@ export class AIServiceManager {
 
     const request = this.requestQueue.shift()
     if (!request) return
+
+    // 检查请求是否超时
+    const queueTime = Date.now() - request.enqueueTime
+    if (queueTime > this.requestTimeout) {
+      request.reject(new Error('Request timeout in queue'))
+      setTimeout(() => this.processQueue(), 0)
+      return
+    }
 
     this.activeRequests++
 

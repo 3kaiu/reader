@@ -58,6 +58,12 @@ export class ModelCacheManager {
   private readonly MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024 // 2GB
   private readonly MAX_MODEL_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+  // 性能优化
+  private preloadQueue: string[] = []
+  private isPreloading = false
+  private preloadSemaphore = 2 // 最多2个并发预加载
+  private activePreloads = 0
+
   private constructor() { }
 
   static getInstance(): ModelCacheManager {
@@ -296,6 +302,155 @@ export class ModelCacheManager {
     } catch (error) {
       logger.error('[Model Cache] Failed to cleanup expired models:', error as Error)
     }
+  }
+
+  /**
+   * 智能预加载模型
+   * 基于使用频率和网络条件预测需要预加载的模型
+   */
+  async smartPreloadModels(networkCondition?: NetworkCondition): Promise<void> {
+    if (this.isPreloading || !this.db) return
+
+    this.isPreloading = true
+
+    try {
+      // 获取模型使用统计
+      const usageStats = await this.getModelUsageStats()
+      const candidates = this.selectPreloadCandidates(usageStats, networkCondition)
+
+      if (candidates.length === 0) {
+        logger.info('[Model Cache] No models need preloading')
+        return
+      }
+
+      logger.info(`[Model Cache] Starting smart preload for ${candidates.length} models`)
+
+      // 按优先级排序并限制并发
+      candidates.sort((a, b) => b.priority - a.priority)
+
+      for (const candidate of candidates) {
+        if (this.activePreloads >= this.preloadSemaphore) {
+          // 等待一个预加载完成
+          await this.waitForPreloadSlot()
+        }
+
+        this.preloadModel(candidate.modelId).catch(error => {
+          logger.warn(`[Model Cache] Failed to preload ${candidate.modelId}:`, error)
+        })
+      }
+
+      // 等待所有预加载完成
+      while (this.activePreloads > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      logger.info('[Model Cache] Smart preload completed')
+
+    } catch (error) {
+      logger.error('[Model Cache] Smart preload failed:', error as Error)
+    } finally {
+      this.isPreloading = false
+    }
+  }
+
+  /**
+   * 等待预加载槽位
+   */
+  private async waitForPreloadSlot(): Promise<void> {
+    return new Promise((resolve) => {
+      const checkSlot = () => {
+        if (this.activePreloads < this.preloadSemaphore) {
+          resolve()
+        } else {
+          setTimeout(checkSlot, 100)
+        }
+      }
+      checkSlot()
+    })
+  }
+
+  /**
+   * 预加载单个模型
+   */
+  private async preloadModel(modelId: string): Promise<void> {
+    this.activePreloads++
+
+    try {
+      // 检查是否已缓存
+      const existing = await this.getCachedModel(modelId)
+      if (existing) {
+        logger.debug(`[Model Cache] Model ${modelId} already cached`)
+        return
+      }
+
+      // TODO: 实现从CDN或其他源获取模型的逻辑
+      // 这里需要根据实际的模型分发策略实现
+      logger.info(`[Model Cache] Would preload model: ${modelId}`)
+
+      // 标记为预加载状态
+      // await this.markAsPreloaded(modelId)
+
+    } finally {
+      this.activePreloads--
+    }
+  }
+
+  /**
+   * 获取模型使用统计
+   */
+  private async getModelUsageStats(): Promise<ModelUsageStats[]> {
+    const models = await this.db!.getAll(this.STORE_NAME)
+    const now = Date.now()
+
+    return models.map(model => {
+      const accessCount = model.metadata.accessCount || 0
+      const lastAccessed = model.metadata.lastAccessed
+      const daysSinceAccess = (now - lastAccessed) / (24 * 60 * 60 * 1000)
+
+      // 计算使用频率 (最近30天内的访问次数)
+      const frequency = daysSinceAccess <= 30 ? accessCount / Math.max(daysSinceAccess, 1) : 0
+
+      // 计算优先级：频率越高 + 最近访问过 = 优先级越高
+      const recencyBonus = Math.max(0, 30 - daysSinceAccess) / 30 // 30天内递减
+      const priority = frequency * (1 + recencyBonus)
+
+      return {
+        modelId: model.id,
+        accessCount,
+        lastAccessed,
+        frequency,
+        priority
+      }
+    })
+  }
+
+  /**
+   * 选择预加载候选模型
+   */
+  private selectPreloadCandidates(
+    usageStats: ModelUsageStats[],
+    networkCondition?: NetworkCondition
+  ): PreloadCandidate[] {
+    // 按优先级排序
+    const sorted = usageStats.sort((a, b) => b.priority - a.priority)
+
+    // 网络条件调整
+    let maxCandidates = 3 // 默认预加载3个
+
+    if (networkCondition) {
+      if (networkCondition.effectiveType === '4g' || networkCondition.downlink > 5) {
+        maxCandidates = 5 // 好网络多预加载
+      } else if (networkCondition.effectiveType === '3g' || networkCondition.saveData) {
+        maxCandidates = 1 // 差网络少预加载
+      }
+    }
+
+    return sorted.slice(0, maxCandidates).map(stat => ({
+      modelId: stat.modelId,
+      priority: stat.priority,
+      estimatedSize: 100 * 1024 * 1024, // 估算100MB，实际应该从元数据获取
+      networkPriority: networkCondition?.rtt ? Math.max(0, 1000 - networkCondition.rtt) / 1000 : 0.5
+    }))
   }
 
   /**

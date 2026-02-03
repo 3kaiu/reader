@@ -22,6 +22,45 @@ import {
 const OAUTH_STATE_TTL = 600; // 10 分钟
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 天
 
+// 全局缓存预热管理器
+let cacheWarmupScheduled = false;
+
+// ============================================
+// Cache Warmup System
+// ============================================
+
+async function scheduleCacheWarmup(env: WorkerEnv): Promise<void> {
+  if (cacheWarmupScheduled) return;
+  cacheWarmupScheduled = true;
+
+  try {
+    const logger = createLogger(env);
+    logger.info('Scheduling cache warmup...');
+
+    // 延迟5分钟后开始预热，避免影响启动性能
+    setTimeout(async () => {
+      try {
+        const decoder = new DecoderEngine(env);
+        await decoder.init();
+
+        // 智能预热缓存
+        await decoder.smartWarmup(async (key: string) => {
+          // 这里可以添加预测逻辑，返回可能需要的解码数据
+          // 暂时返回null表示不需要额外预热
+          return null;
+        });
+
+        logger.info('Cache warmup completed');
+      } catch (e) {
+        logger.warn('Cache warmup failed:', e);
+      }
+    }, 5 * 60 * 1000); // 5分钟后启动
+
+  } catch (e) {
+    console.warn('Failed to schedule cache warmup:', e);
+  }
+}
+
 // ============================================
 // Auth Handlers (GitHub OAuth)
 // ============================================
@@ -185,6 +224,9 @@ async function handleDecode(request: Request, env: WorkerEnv): Promise<Response>
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
+
+    // 启动缓存预热（异步，不会阻塞请求）
+    scheduleCacheWarmup(env);
 
     const decoder = new DecoderEngine(env);
     const result = await decoder.decode(body);

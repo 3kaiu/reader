@@ -35,7 +35,11 @@ export class DecoderEngine {
     this.dictionary = new DictionaryService(env, this.logger);
     this.kg = new KnowledgeGraphService(env, this.logger);
     this.ai = new AIService(env, this.logger);
-    this.cache = new SmartCache(env.DECODER_KV!, SMART_CACHE_CONFIGS.DECODE_RESULTS);
+    this.cache = new SmartCache(env.DECODER_KV!, {
+      ...SMART_CACHE_CONFIGS.DECODE_RESULTS,
+      prewarmEnabled: true, // 启用智能预热
+      adaptiveTTL: true     // 启用自适应TTL
+    });
   }
 
   @withPerformanceMonitoring('decode_init')

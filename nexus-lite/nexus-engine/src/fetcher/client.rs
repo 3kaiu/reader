@@ -11,36 +11,51 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
 
-/// HTTP fetcher using reqwest
+/// HTTP fetcher using reqwest with optimized async handling
 pub struct HttpFetcher {
     client: Arc<Client>,
     #[allow(dead_code)]
     timeout: Duration,
+    max_concurrent_requests: usize,
+    semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 impl HttpFetcher {
-    /// Create a new HTTP fetcher with optimized connection pool
+    /// Create a new HTTP fetcher with optimized connection pool and concurrency control
     pub fn new(timeout_seconds: u64) -> Result<Self, EngineError> {
+        Self::with_concurrency(timeout_seconds, 10) // Default 10 concurrent requests
+    }
+
+    /// Create with custom concurrency limit
+    pub fn with_concurrency(timeout_seconds: u64, max_concurrent: usize) -> Result<Self, EngineError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
-            // Connection pool optimization
-            .pool_max_idle_per_host(20) // Increased from 5 for high concurrency
-            .pool_idle_timeout(Duration::from_secs(90)) // Keep connections alive longer
-            // TCP optimization
-            .tcp_keepalive(Duration::from_secs(60)) // Prevent connection drops
-            .tcp_nodelay(true) // Reduce latency
-            // Compression
+            .read_timeout(Duration::from_secs(timeout_seconds))
+            .write_timeout(Duration::from_secs(30))
+            // Enhanced connection pool optimization
+            .pool_max_idle_per_host(50) // Further increased for high concurrency
+            .pool_idle_timeout(Duration::from_secs(120)) // Keep connections alive longer
+            .pool_max_idle_per_host(100) // Allow more idle connections
+            // Advanced TCP optimization
+            .tcp_keepalive(Duration::from_secs(60))
+            .tcp_nodelay(true)
+            .tcp_user_timeout(Duration::from_secs(timeout_seconds * 1000))
+            // Enhanced compression
             .gzip(true)
             .brotli(true)
-            // Session
+            .deflate(true)
+            // Session management
             .cookie_store(true)
+            .user_agent("Mozilla/5.0 (compatible; NexusLite/1.0)")
             .build()
             .map_err(|e| EngineError::Network(e.to_string()))?;
 
         Ok(Self {
             client: Arc::new(client),
             timeout: Duration::from_secs(timeout_seconds),
+            max_concurrent_requests: max_concurrent,
+            semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
         })
     }
 
@@ -54,6 +69,8 @@ impl HttpFetcher {
         Self {
             client,
             timeout: Duration::from_secs(timeout_seconds),
+            max_concurrent_requests: 10, // Default concurrency
+            semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
         }
     }
 
@@ -135,7 +152,11 @@ impl Fetcher for HttpFetcher {
         url: &str,
         headers: Option<HashMap<String, String>>,
     ) -> Result<FetchResponse, EngineError> {
-        debug!("GET {}", url);
+        debug!("GET {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
+
+        // Acquire semaphore permit for concurrency control
+        let _permit = self.semaphore.acquire().await
+            .map_err(|e| EngineError::Network(format!("Semaphore acquire failed: {}", e)))?;
 
         let header_map = self.build_headers(headers);
 
@@ -164,7 +185,11 @@ impl Fetcher for HttpFetcher {
         body: &str,
         headers: Option<HashMap<String, String>>,
     ) -> Result<FetchResponse, EngineError> {
-        debug!("POST {}", url);
+        debug!("POST {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
+
+        // Acquire semaphore permit for concurrency control
+        let _permit = self.semaphore.acquire().await
+            .map_err(|e| EngineError::Network(format!("Semaphore acquire failed: {}", e)))?;
 
         let header_map = self.build_headers(headers);
 
@@ -186,6 +211,46 @@ impl Fetcher for HttpFetcher {
             })?;
 
         self.convert_response(resp).await
+    }
+
+    /// Execute request with retry logic
+    pub async fn execute_with_retry<F, Fut>(
+        &self,
+        operation: F,
+        max_retries: usize,
+        base_delay_ms: u64,
+    ) -> Result<FetchResponse, EngineError>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<FetchResponse, EngineError>>,
+    {
+        let mut last_error = None;
+
+        for attempt in 0..=max_retries {
+            match operation().await {
+                Ok(response) => return Ok(response),
+                Err(e) => {
+                    last_error = Some(e.clone());
+
+                    // Don't retry on certain errors
+                    if matches!(e, EngineError::Unauthorized | EngineError::InvalidConfig(_)) {
+                        return Err(e);
+                    }
+
+                    // Don't retry on the last attempt
+                    if attempt == max_retries {
+                        break;
+                    }
+
+                    // Exponential backoff
+                    let delay_ms = base_delay_ms * (2_u64.pow(attempt as u32));
+                    debug!("Request failed (attempt {}), retrying in {}ms: {:?}", attempt + 1, delay_ms, e);
+                    tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| EngineError::Network("Max retries exceeded".to_string())))
     }
 }
 

@@ -54,17 +54,28 @@ export class SmartCache {
     return null;
   }
 
-  async set<T>(key: string, value: T, customTTL?: number): Promise<void> {
+  async set<T>(key: string, value: T, customTTL?: number, compress: boolean = true): Promise<void> {
     const cacheKey = generateCacheKey(key);
-    const ttl = customTTL || this.getAdaptiveTTL(cacheKey);
+    const serializedValue = JSON.stringify(value);
+    const baseTTL = customTTL || CACHE_TTL.DECODE;
+
+    // Calculate adaptive TTL based on access patterns and data size
+    const stats = this.accessStats.get(cacheKey);
+    const adaptiveTTL = calculateAdaptiveTTL(
+      baseTTL,
+      (stats?.hits || 0) + (stats?.misses || 0),
+      stats ? stats.hits / (stats.hits + stats.misses) : 0,
+      serializedValue.length
+    );
 
     try {
-      await saveToCache(this.kv, cacheKey, JSON.stringify(value), 'application/json', ttl);
+      await saveToCache(this.kv, cacheKey, serializedValue, 'application/json', adaptiveTTL, compress);
 
       // 更新统计信息
-      const stats = this.accessStats.get(cacheKey) || { hits: 0, misses: 0, lastAccess: Date.now(), ttl };
-      stats.ttl = ttl;
-      this.accessStats.set(cacheKey, stats);
+      const updatedStats = this.accessStats.get(cacheKey) || { hits: 0, misses: 0, lastAccess: Date.now(), ttl: adaptiveTTL };
+      updatedStats.ttl = adaptiveTTL;
+      updatedStats.lastAccess = Date.now();
+      this.accessStats.set(cacheKey, updatedStats);
 
     } catch (error) {
       console.warn('Cache set error:', error);
@@ -235,6 +246,75 @@ export const SMART_CACHE_CONFIGS = {
 
       this.accessStats = newStats;
       console.log(`Cleaned up ${entries.length - keepCount} old cache stats entries`);
+    }
+
+  /**
+   * 智能缓存预热 - 基于访问模式预测热点数据
+   */
+  async smartWarmup(fetcher: (key: string) => Promise<any>, maxKeys: number = 20): Promise<void> {
+      if (!this.config.prewarmEnabled || this.isPrewarming) return;
+
+      this.isPrewarming = true;
+
+      try {
+        // 分析访问模式，找出热点键
+        const hotKeys = this.analyzeHotKeys(maxKeys);
+
+        if (hotKeys.length === 0) return;
+
+        console.log(`Smart warming cache for ${hotKeys.length} predicted hot keys...`);
+
+        // 批量预热
+        const batchSize = 3;
+        for (let i = 0; i < hotKeys.length; i += batchSize) {
+          const batch = hotKeys.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map(async (key) => {
+              try {
+                const data = await fetcher(key);
+                if (data) {
+                  await this.set(key, data, undefined, true);
+                }
+              } catch (e) {
+                console.warn(`Failed to warm key ${key}:`, e);
+              }
+            })
+          );
+        }
+
+        console.log('Smart cache warmup completed');
+      } finally {
+        this.isPrewarming = false;
+      }
+    }
+
+  /**
+   * 分析热点键 - 基于访问频率和时间模式
+   */
+  private analyzeHotKeys(maxKeys: number): string[] {
+      const now = Date.now();
+      const oneHourAgo = now - 60 * 60 * 1000;
+      const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+      // 计算每个键的热度评分
+      const keyScores: Array<{ key: string; score: number }> = [];
+
+      for (const [key, stats] of this.accessStats.entries()) {
+        if (stats.lastAccess < oneDayAgo) continue; // 跳过一天没访问的
+
+        // 热度评分 = 访问次数 * 时间权重 * 命中率
+        const timeWeight = stats.lastAccess > oneHourAgo ? 2.0 : 1.0;
+        const hitRate = stats.hits / (stats.hits + stats.misses || 1);
+        const score = (stats.hits + stats.misses) * timeWeight * hitRate;
+
+        keyScores.push({ key, score });
+      }
+
+      // 按评分排序，返回前N个
+      return keyScores
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxKeys)
+        .map(item => item.key);
     }
   };
 
