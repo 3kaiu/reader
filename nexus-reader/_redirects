@@ -1,0 +1,10 @@
+# Cloudflare Pages Redirects for SPA
+# 支持Vue Router的history模式
+
+/*    /index.html   200
+
+# API代理到Cloudflare Workers
+/api/*  https://api.nexus-reader.pages.dev/:splat  200
+
+# 健康检查
+/health https://api.nexus-reader.pages.dev/health 200

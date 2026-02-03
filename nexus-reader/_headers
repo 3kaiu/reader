@@ -1,0 +1,48 @@
+# Cloudflare Pages Headers Configuration
+# 优化前端应用的HTTP头，提升性能和安全性
+
+/*
+  # 安全头
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+
+  # 缓存优化
+  Cache-Control: public, max-age=31536000, immutable
+
+# 静态资源缓存优化
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML文件 - 不缓存，总是获取最新版本
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# API路由 - 不缓存
+/api/*
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# 字体文件 - 长期缓存
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: font/woff2
+
+# JavaScript和CSS - 长期缓存
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+# 图片优化
+/*.jpg
+  Cache-Control: public, max-age=86400
+  Format: webp
+
+/*.png
+  Cache-Control: public, max-age=86400
+  Format: webp
+
+/*.svg
+  Cache-Control: public, max-age=86400

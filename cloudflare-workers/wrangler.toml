@@ -1,25 +1,48 @@
-name = "nexus-proxy"
+name = "nexus-reader-edge"
 main = "unified-worker.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ===== 环境变量 =====
 [vars]
 ADMIN_USER_ID = "auto-admin"
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+ENABLE_ANALYTICS = "true"
+ENABLE_CACHE = "true"
 
-[env.production]
-routes = [
-    { pattern = "api.novel-decoder.workers.dev/*", zone_name = "novel-decoder.workers.dev" }
-]
+# ===== D1 Database (免费SQLite) =====
+# 500k reads/month, 50k writes/month, 1GB storage
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "nexus_analytics"
+database_id = "analytics_db_id"
+preview_database_id = "analytics_db_preview_id"
 
+[[d1_databases]]
+binding = "USER_PREFERENCES_DB"
+database_name = "nexus_user_prefs"
+database_id = "user_prefs_db_id"
+preview_database_id = "user_prefs_db_preview_id"
+
+# ===== R2 Storage (免费对象存储) =====
+# 10GB免费存储，100万请求/月
+[[r2_buckets]]
+binding = "USER_CONTENT_R2"
+bucket_name = "nexus-user-content"
+jurisdiction = "default"
+
+[[r2_buckets]]
+binding = "BACKUP_R2"
+bucket_name = "nexus-backup"
+jurisdiction = "default"
+
+# ===== KV 存储 (免费键值存储) =====
+# 1GB存储，用于缓存、会话等
 [[kv_namespaces]]
-binding = "DECODER_KV"
-id = "decoder_kv_id"
-preview_id = "decoder_kv_preview_id"
-
-[[kv_namespaces]]
-binding = "AI_CACHE_KV"
-id = "ai_cache_kv_id"
-preview_id = "ai_cache_kv_preview_id"
+binding = "USER_CACHE_KV"
+id = "user_cache_kv_id"
+preview_id = "user_cache_kv_preview_id"
 
 [[kv_namespaces]]
 binding = "CONTENT_CACHE_KV"
@@ -27,6 +50,113 @@ id = "content_cache_kv_id"
 preview_id = "content_cache_kv_preview_id"
 
 [[kv_namespaces]]
-binding = "PROGRESS_KV"
-id = "progress_kv_id"
-preview_id = "progress_kv_preview_id"
+binding = "RECOMMENDATION_KV"
+id = "recommendation_kv_id"
+preview_id = "recommendation_kv_preview_id"
+
+[[kv_namespaces]]
+binding = "ANALYTICS_KV"
+id = "analytics_kv_id"
+preview_id = "analytics_kv_preview_id"
+
+# ===== Queues (免费消息队列) =====
+# 100万消息/月，异步处理
+[[queues.producers]]
+binding = "ANALYTICS_QUEUE"
+queue = "nexus-analytics-queue"
+
+[[queues.consumers]]
+queue = "nexus-analytics-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# ===== AI模型 (可选增强) =====
+# Workers AI - 免费额度
+[ai]
+binding = "AI"
+
+# ===== 路由配置 =====
+[[routes]]
+pattern = "api.nexus-reader.pages.dev/*"
+zone_name = "nexus-reader.pages.dev"
+
+# ===== Analytics Engine (免费实时分析) =====
+[analytics_engine_datasets]
+binding = "ANALYTICS_ENGINE"
+dataset = "nexus_usage_analytics"
+
+# ===== 速率限制增强 =====
+[[rate_limits]]
+description = "API Rate Limit"
+requests_per_period = 100
+period = 60
+
+[[rate_limits]]
+description = "Analytics Rate Limit"
+requests_per_period = 1000
+period = 60
+
+# ===== 安全增强 =====
+# Zero Trust免费额度
+[[rulesets]]
+description = "Security Rules"
+kind = "http"
+phase = "http_request_firewall_custom"
+rules = [
+    {
+        "description": "Block malicious requests",
+        "expression": "http.request.uri.path contains \"..\" or http.request.uri.path contains \"wp-admin\"",
+        "action": "block"
+    }
+]
+
+# ===== 性能优化 =====
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"
+
+# ===== 环境配置 =====
+[env.production]
+name = "nexus-reader-prod"
+routes = [
+    { pattern = "api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
+]
+
+# D1数据库生产环境
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "nexus_analytics_prod"
+database_id = "analytics_db_prod_id"
+
+[env.staging]
+name = "nexus-reader-staging"
+routes = [
+    { pattern = "staging-api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
+]
+
+# ===== CORS 增强 =====
+[cors]
+origins = ["https://nexus-reader.pages.dev", "http://localhost:3000", "https://*.github.io"]
+methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+headers = ["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"]
+allow_credentials = true
+max_age = 86400
+
+# ===== 缓存优化 =====
+# 智能缓存策略
+[[cache.rules]]
+description = "Cache API responses"
+match = "http.request.uri.path ~ \"^/api/(books|recommendations)\""
+strategy = "cache_everything"
+
+# ===== 自定义响应头 =====
+[[headers]]
+description = "Security Headers"
+for = "*/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "geolocation=(), microphone=(), camera=()"

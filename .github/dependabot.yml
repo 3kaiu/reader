@@ -1,142 +1,129 @@
+# Dependabot Configuration (GitHub免费功能)
+# 自动监控依赖更新，创建PR
+
 version: 2
 updates:
-  # Rust dependencies
-  - package-ecosystem: "cargo"
-    directory: "/nexus-lite"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      rust-minor:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  # Python dependencies (uv/pip)
-  - package-ecosystem: "pip"
-    directory: "/cf-bypass-service"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-
-  # Frontend dependencies (bun/npm)
+  # 前端依赖更新
   - package-ecosystem: "npm"
     directory: "/nexus-reader"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-username"  # 替换为你的GitHub用户名
+    assignees:
+      - "your-username"
     commit-message:
-      prefix: "chore(deps)"
-    groups:
-      npm-minor:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    ignore:
+      # 忽略大版本更新
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  # Cloudflare Workers依赖更新
+  - package-ecosystem: "npm"
+    directory: "/cloudflare-workers"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "ci(deps)"
-    groups:
-      actions:
-        patterns: ["*"]
-
-  # =============================================================================
-  # Security Updates - Auto-fix enabled
-  # =============================================================================
-
-  # Rust security updates (separate config for faster security fixes)
-  - package-ecosystem: "cargo"
-    directory: "/nexus-lite"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "security(deps)"
-      prefix-development: "security(deps-dev)"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
     reviewers:
-      - "edy" # Replace with your GitHub username
+      - "your-username"
     assignees:
-      - "edy" # Replace with your GitHub username
+      - "your-username"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
     labels:
-      - "security"
       - "dependencies"
-    groups:
-      rust-security:
-        applies-to: security-updates
-        patterns: ["*"]
-        update-types: ["minor", "patch", "major"]
+      - "workers"
+      - "cloudflare"
 
-  # Python security updates
+  # Python依赖更新 (CF绕过服务)
   - package-ecosystem: "pip"
     directory: "/cf-bypass-service"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "security(deps)"
-      prefix-development: "security(deps-dev)"
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
     reviewers:
-      - "edy"
+      - "your-username"
     assignees:
-      - "edy"
+      - "your-username"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
     labels:
-      - "security"
       - "dependencies"
-    groups:
-      python-security:
-        applies-to: security-updates
-        patterns: ["*"]
-        update-types: ["minor", "patch", "major"]
+      - "python"
+      - "backend"
 
-  # Frontend security updates
-  - package-ecosystem: "npm"
-    directory: "/nexus-reader"
+  # Rust依赖更新 (如果有Cargo.toml的话)
+  - package-ecosystem: "cargo"
+    directory: "/nexus-lite"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "security(deps)"
-      prefix-development: "security(deps-dev)"
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
     reviewers:
-      - "edy"
+      - "your-username"
     assignees:
-      - "edy"
+      - "your-username"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
     labels:
-      - "security"
       - "dependencies"
-    groups:
-      npm-security:
-        applies-to: security-updates
-        patterns: ["*"]
-        update-types: ["minor", "patch", "major"]
+      - "rust"
+      - "backend"
 
-  # Docker security updates
+  # Docker镜像更新
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "security(docker)"
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 3
     reviewers:
-      - "edy"
+      - "your-username"
     assignees:
-      - "edy"
+      - "your-username"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "infrastructure"
+
+# 安全更新配置
+  - package-ecosystem: "npm"
+    directory: "/nexus-reader"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 20
+    reviewers:
+      - "your-username"
+    assignees:
+      - "your-username"
+    commit-message:
+      prefix: "security"
+      include: "scope"
     labels:
       - "security"
-      - "docker"
-    groups:
-      docker-security:
-        applies-to: security-updates
-        patterns: ["*"]
-        update-types: ["minor", "patch", "major"]
+      - "dependencies"
+      - "frontend"
