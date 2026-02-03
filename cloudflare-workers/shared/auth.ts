@@ -51,14 +51,14 @@ export function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  
+
   // Accumulate XOR results using bitwise OR
   // This ensures constant time regardless of where strings differ
   let result = 0;
   for (let i = 0; i < a.length; i++) {
     result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
-  
+
   // result === 0 only if all characters matched
   return result === 0;
 }
@@ -97,25 +97,25 @@ export async function verifyAuth(
     // Extract token from Authorization header (priority)
     const authHeader = request.headers.get('Authorization') || '';
     let token = authHeader.replace('Bearer ', '');
-    
+
     // Fallback: Extract token from Cookie
     if (!token) {
       const cookie = request.headers.get('Cookie') || '';
       const tokenMatch = cookie.match(/nexus_auth=([^;]+)/);
       token = tokenMatch ? tokenMatch[1] : '';
     }
-    
+
     // No token found
     if (!token) {
       return null;
     }
-    
+
     // Split token into data and signature
     const [data, sig] = token.split('.');
     if (!data || !sig) {
       return null;
     }
-    
+
     // Import HMAC key
     const key = await crypto.subtle.importKey(
       'raw',
@@ -124,7 +124,7 @@ export async function verifyAuth(
       false,
       ['sign', 'verify']
     );
-    
+
     // Compute expected signature
     const expectedSig = await crypto.subtle.sign(
       'HMAC',
@@ -134,24 +134,58 @@ export async function verifyAuth(
     const expectedSigB64 = btoa(
       String.fromCharCode(...new Uint8Array(expectedSig))
     );
-    
+
     // Constant-time signature comparison (prevents timing attacks)
     if (!constantTimeEqual(sig, expectedSigB64)) {
       return null;
     }
-    
+
     // Decode and parse payload
     const payload = JSON.parse(atob(data)) as TokenPayload;
-    
+
     // Check expiration
     if (payload.exp < Date.now()) {
       return null;
     }
-    
+
     return payload;
   } catch (error) {
     // Any error during verification = invalid token
     // Don't throw, just return null
     return null;
   }
+}
+
+/**
+ * Generate a signed authentication token
+ * 
+ * @param payload - Data to include in the token
+ * @param secret - Signing secret
+ * @returns Signed token string (base64_data.base64_signature)
+ */
+export async function generateToken(
+  payload: TokenPayload,
+  secret: string
+): Promise<string> {
+  const data = btoa(JSON.stringify(payload));
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(data)
+  );
+
+  const sigB64 = btoa(
+    String.fromCharCode(...new Uint8Array(sig))
+  );
+
+  return `${data}.${sigB64}`;
 }

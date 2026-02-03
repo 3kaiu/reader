@@ -4,7 +4,7 @@
 # Progress Sync Worker - 阅读进度跨设备同步
 # ============================================
 name = "nexus-progress-sync"
-main = "cloudflare-workers/progress-sync-worker.js"
+main = "cloudflare-workers/unified-worker.ts"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
@@ -23,7 +23,7 @@ ENVIRONMENT = "production"
 # ============================================
 [env.auth]
 name = "nexus-auth"
-main = "cloudflare-workers/github-auth-worker.js"
+main = "cloudflare-workers/unified-worker.ts"
 
 [env.auth.vars]
 # 这些值需要通过 GitHub Secrets 注入
@@ -40,7 +40,7 @@ ENVIRONMENT = "production"
 # ============================================
 [env.proxy]
 name = "nexus-proxy"
-main = "cloudflare-workers/nexus-proxy-worker.js"
+main = "cloudflare-workers/unified-worker.ts"
 
 # 使用 KV 替代 R2 进行缓存（KV 不需要信用卡）
 [[env.proxy.kv_namespaces]]
@@ -63,7 +63,8 @@ crons = ["*/25 * * * *"]
 # ============================================
 [env.decoder]
 name = "nexus-decoder"
-main = "cloudflare-workers/novel-decoder-worker.ts"
+main = "cloudflare-workers/unified-worker.ts"
+compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # KV 存储 - 词典、知识图谱、用户数据和缓存
@@ -103,8 +104,8 @@ ENVIRONMENT = "production"
 # ============================================
 [env.unified]
 name = "nexus-unified"
-main = "cloudflare-workers/unified-worker.js"
-compatibility_date = "2024-01-15"
+main = "cloudflare-workers/unified-worker.ts"
+compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # KV 命名空间 - 内容缓存

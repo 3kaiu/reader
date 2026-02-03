@@ -1,5 +1,5 @@
-name = "novel-decoder-optimized"
-main = "novel-decoder-worker-optimized.ts"
+name = "nexus-unified"
+main = "unified-worker.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -16,17 +16,17 @@ binding = "DECODER_KV"
 id = "decoder_kv_id"
 preview_id = "decoder_kv_preview_id"
 
-[kv_namespaces]
+[[kv_namespaces]]
 binding = "AI_CACHE_KV"
 id = "ai_cache_kv_id"
 preview_id = "ai_cache_kv_preview_id"
 
-[kv_namespaces]
+[[kv_namespaces]]
 binding = "CONTENT_CACHE_KV"
 id = "content_cache_kv_id"
 preview_id = "content_cache_kv_preview_id"
 
-[kv_namespaces]
+[[kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "progress_kv_id"
 preview_id = "progress_kv_preview_id"
