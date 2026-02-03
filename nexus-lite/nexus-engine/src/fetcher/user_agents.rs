@@ -1,6 +1,6 @@
 //! User-Agent pool and rotation logic
 
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 
 /// List of modern User-Agents
 /// Includes Chrome, Firefox, Safari, Edge on Windows, macOS, and Linux
@@ -34,6 +34,6 @@ const USER_AGENTS: &[&str] = &[
 
 /// Get a random User-Agent string
 pub fn get_random_user_agent() -> &'static str {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     USER_AGENTS.choose(&mut rng).unwrap_or(&USER_AGENTS[0])
 }
