@@ -41,8 +41,11 @@ COPY --from=builder /app/target/release/nexus-server /app/nexus-server
 COPY sources ./sources
 COPY nexus-server/config.json ./config.json
 
-# Create data directory
-RUN mkdir -p /app/data /app/cache
+# Copy data directory
+COPY data ./data
+
+# Create cache directory
+RUN mkdir -p /app/cache
 
 # HuggingFace Spaces requires port 7860
 ENV HOST=0.0.0.0
