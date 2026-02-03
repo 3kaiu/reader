@@ -1,33 +1,554 @@
 {
+  "content_type": "new_sign",
+  "provider": "qidian",
   "periods": {
-    "2024-W01": {
-      "_period": "2024-W01",
-      "start_date": "2024-01-01",
-      "end_date": "2024-01-07",
+    "2017-W01": {
+      "period": "2017-W01",
+      "start_date": "2017-01-02",
+      "end_date": "2017-01-08",
+      "fetched_at": "2026-01-02T16:24:07.366058",
+      "source": "wayback",
       "items": [
         {
-          "book_id": "2000001",
-          "name": "历史风云榜新秀",
-          "book_url": "https://www.qidian.com/book/2000001",
-          "cover_url": "https://bookcover.yuewen.com/qdbimg/349573/2000001/150",
-          "section": "new_sign",
+          "book_id": "1004608738",
+          "name": "",
+          "book_url": "",
+          "cover_url": "http://qidian.qpic.cn/qdbimg/349573/1004608738/90",
+          "author": "辰东",
+          "category": "玄幻",
+          "section": "top1",
           "position": 1,
-          "author": "历史学家",
-          "intro": "讲述中国历史上的风云人物",
-          "followers": 45000
+          "rank": "1",
+          "badge": "销量冠军"
         },
         {
-          "book_id": "2000002",
-          "name": "古代权谋录",
-          "book_url": "https://www.qidian.com/book/2000002",
-          "cover_url": "https://bookcover.yuewen.com/qdbimg/349573/2000002/150",
-          "section": "new_sign",
+          "book_id": "3548786",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3548786",
+          "section": "list",
+          "position": 1,
+          "rank": 2
+        },
+        {
+          "book_id": "1003354631",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003354631",
+          "section": "list",
           "position": 2,
-          "author": "权谋大师",
-          "intro": "古代宫廷斗争的经典故事",
-          "followers": 32000
+          "rank": 3
+        },
+        {
+          "book_id": "3347598",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3347598",
+          "section": "list",
+          "position": 3,
+          "rank": 4
+        },
+        {
+          "book_id": "3513193",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3513193",
+          "section": "list",
+          "position": 4,
+          "rank": 5
+        },
+        {
+          "book_id": "1004179514",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004179514",
+          "section": "list",
+          "position": 5,
+          "rank": 6
+        },
+        {
+          "book_id": "1003667321",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003667321",
+          "section": "list",
+          "position": 6,
+          "rank": 7
+        },
+        {
+          "book_id": "3676417",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3676417",
+          "section": "list",
+          "position": 7,
+          "rank": 8
+        },
+        {
+          "book_id": "1003307568",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003307568",
+          "section": "list",
+          "position": 8,
+          "rank": 9
+        },
+        {
+          "book_id": "3681640",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681640",
+          "section": "list",
+          "position": 9,
+          "rank": 10
+        },
+        {
+          "book_id": "1003656831",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003656831",
+          "section": "list",
+          "position": 10,
+          "rank": 11
+        },
+        {
+          "book_id": "2750457",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/2750457",
+          "section": "list",
+          "position": 11,
+          "rank": 12
+        },
+        {
+          "book_id": "2226569",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/2226569",
+          "section": "list",
+          "position": 12,
+          "rank": 13
+        },
+        {
+          "book_id": "1004834723",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004834723",
+          "section": "list",
+          "position": 13,
+          "rank": 14
+        },
+        {
+          "book_id": "1003760475",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003760475",
+          "section": "list",
+          "position": 14,
+          "rank": 15
         }
-      ]
+      ],
+      "metadata": {
+        "wayback_url": "https://web.archive.org/web/20170102033812/http://www.qidian.com:80/",
+        "snapshot_timestamp": "20170102033812"
+      }
+    },
+    "2017-W02": {
+      "period": "2017-W02",
+      "start_date": "2017-01-09",
+      "end_date": "2017-01-15",
+      "fetched_at": "2026-01-02T16:24:24.788047",
+      "source": "wayback",
+      "items": [
+        {
+          "book_id": "1004608738",
+          "name": "",
+          "book_url": "",
+          "cover_url": "http://qidian.qpic.cn/qdbimg/349573/1004608738/90",
+          "author": "辰东",
+          "category": "玄幻",
+          "section": "top1",
+          "position": 1,
+          "rank": "1",
+          "badge": "销量冠军"
+        },
+        {
+          "book_id": "3548786",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3548786",
+          "section": "list",
+          "position": 1,
+          "rank": 2
+        },
+        {
+          "book_id": "3347598",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3347598",
+          "section": "list",
+          "position": 2,
+          "rank": 3
+        },
+        {
+          "book_id": "1003354631",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003354631",
+          "section": "list",
+          "position": 3,
+          "rank": 4
+        },
+        {
+          "book_id": "1003307568",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003307568",
+          "section": "list",
+          "position": 4,
+          "rank": 5
+        },
+        {
+          "book_id": "1209977",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1209977",
+          "section": "list",
+          "position": 5,
+          "rank": 6
+        },
+        {
+          "book_id": "3681640",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681640",
+          "section": "list",
+          "position": 6,
+          "rank": 7
+        },
+        {
+          "book_id": "1003667321",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003667321",
+          "section": "list",
+          "position": 7,
+          "rank": 8
+        },
+        {
+          "book_id": "3681560",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681560",
+          "section": "list",
+          "position": 8,
+          "rank": 9
+        },
+        {
+          "book_id": "1004179514",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004179514",
+          "section": "list",
+          "position": 9,
+          "rank": 10
+        },
+        {
+          "book_id": "3676417",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3676417",
+          "section": "list",
+          "position": 10,
+          "rank": 11
+        },
+        {
+          "book_id": "3513193",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3513193",
+          "section": "list",
+          "position": 11,
+          "rank": 12
+        },
+        {
+          "book_id": "3602691",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3602691",
+          "section": "list",
+          "position": 12,
+          "rank": 13
+        },
+        {
+          "book_id": "1004571179",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004571179",
+          "section": "list",
+          "position": 13,
+          "rank": 14
+        },
+        {
+          "book_id": "1005003057",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1005003057",
+          "section": "list",
+          "position": 14,
+          "rank": 15
+        }
+      ],
+      "metadata": {
+        "wayback_url": "https://web.archive.org/web/20170110034606/http://www.qidian.com/",
+        "snapshot_timestamp": "20170110034606"
+      }
+    },
+    "2017-W03": {
+      "period": "2017-W03",
+      "start_date": "2017-01-16",
+      "end_date": "2017-01-22",
+      "fetched_at": "2026-01-02T16:28:09.992535",
+      "source": "wayback",
+      "items": [
+        {
+          "book_id": "1004608738",
+          "name": "",
+          "book_url": "",
+          "cover_url": "http://qidian.qpic.cn/qdbimg/349573/1004608738/90",
+          "author": "辰东",
+          "category": "玄幻",
+          "section": "top1",
+          "position": 1,
+          "rank": "1",
+          "badge": "销量冠军"
+        },
+        {
+          "book_id": "3347598",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3347598",
+          "section": "list",
+          "position": 1,
+          "rank": 2
+        },
+        {
+          "book_id": "3548786",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3548786",
+          "section": "list",
+          "position": 2,
+          "rank": 3
+        },
+        {
+          "book_id": "1209977",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1209977",
+          "section": "list",
+          "position": 3,
+          "rank": 4
+        },
+        {
+          "book_id": "1003354631",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003354631",
+          "section": "list",
+          "position": 4,
+          "rank": 5
+        },
+        {
+          "book_id": "3681640",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681640",
+          "section": "list",
+          "position": 5,
+          "rank": 6
+        },
+        {
+          "book_id": "3513193",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3513193",
+          "section": "list",
+          "position": 6,
+          "rank": 7
+        },
+        {
+          "book_id": "1003307568",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003307568",
+          "section": "list",
+          "position": 7,
+          "rank": 8
+        },
+        {
+          "book_id": "1003306811",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003306811",
+          "section": "list",
+          "position": 8,
+          "rank": 9
+        },
+        {
+          "book_id": "1003656831",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003656831",
+          "section": "list",
+          "position": 9,
+          "rank": 10
+        },
+        {
+          "book_id": "3676417",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3676417",
+          "section": "list",
+          "position": 10,
+          "rank": 11
+        },
+        {
+          "book_id": "1003667321",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003667321",
+          "section": "list",
+          "position": 11,
+          "rank": 12
+        },
+        {
+          "book_id": "1004179514",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004179514",
+          "section": "list",
+          "position": 12,
+          "rank": 13
+        },
+        {
+          "book_id": "3602691",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3602691",
+          "section": "list",
+          "position": 13,
+          "rank": 14
+        },
+        {
+          "book_id": "3681560",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681560",
+          "section": "list",
+          "position": 14,
+          "rank": 15
+        }
+      ],
+      "metadata": {
+        "wayback_url": "https://web.archive.org/web/20170117042440/http://www.qidian.com/",
+        "snapshot_timestamp": "20170117042440"
+      }
+    },
+    "2017-W04": {
+      "period": "2017-W04",
+      "start_date": "2017-01-23",
+      "end_date": "2017-01-29",
+      "fetched_at": "2026-01-02T16:28:27.716190",
+      "source": "wayback",
+      "items": [
+        {
+          "book_id": "2750457",
+          "name": "",
+          "book_url": "",
+          "cover_url": "http://qidian.qpic.cn/qdbimg/349573/2750457/90",
+          "author": "天蚕土豆",
+          "category": "玄幻",
+          "section": "top1",
+          "position": 1,
+          "rank": "1",
+          "badge": "销量冠军"
+        },
+        {
+          "book_id": "1004608738",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004608738",
+          "section": "list",
+          "position": 1,
+          "rank": 2
+        },
+        {
+          "book_id": "3548786",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3548786",
+          "section": "list",
+          "position": 2,
+          "rank": 3
+        },
+        {
+          "book_id": "3347598",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3347598",
+          "section": "list",
+          "position": 3,
+          "rank": 4
+        },
+        {
+          "book_id": "1003354631",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003354631",
+          "section": "list",
+          "position": 4,
+          "rank": 5
+        },
+        {
+          "book_id": "1209977",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1209977",
+          "section": "list",
+          "position": 5,
+          "rank": 6
+        },
+        {
+          "book_id": "3513193",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3513193",
+          "section": "list",
+          "position": 6,
+          "rank": 7
+        },
+        {
+          "book_id": "1004069988",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004069988",
+          "section": "list",
+          "position": 7,
+          "rank": 8
+        },
+        {
+          "book_id": "1003307568",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003307568",
+          "section": "list",
+          "position": 8,
+          "rank": 9
+        },
+        {
+          "book_id": "3681640",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681640",
+          "section": "list",
+          "position": 9,
+          "rank": 10
+        },
+        {
+          "book_id": "1004073922",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004073922",
+          "section": "list",
+          "position": 10,
+          "rank": 11
+        },
+        {
+          "book_id": "1004179514",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1004179514",
+          "section": "list",
+          "position": 11,
+          "rank": 12
+        },
+        {
+          "book_id": "1003306811",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/1003306811",
+          "section": "list",
+          "position": 12,
+          "rank": 13
+        },
+        {
+          "book_id": "3602691",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3602691",
+          "section": "list",
+          "position": 13,
+          "rank": 14
+        },
+        {
+          "book_id": "3681560",
+          "name": "",
+          "book_url": "http://book.qidian.com/info/3681560",
+          "section": "list",
+          "position": 14,
+          "rank": 15
+        }
+      ],
+      "metadata": {
+        "wayback_url": "https://web.archive.org/web/20170123084025/http://www.qidian.com:80/",
+        "snapshot_timestamp": "20170123084025"
+      }
     }
   }
 }

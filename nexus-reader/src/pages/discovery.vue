@@ -54,7 +54,13 @@ async function loadDiscovery(period?: string) {
 }
 
 function handleBookClick(item: DiscoveryItem) {
-  // 跳转到搜索页并自动开始搜索该书
+  // 优先跳转到官方网址
+  if (item.bookUrl) {
+    window.open(item.bookUrl, '_blank');
+    return;
+  }
+  
+  // 没有 URL 则跳转搜索
   router.push({
     path: '/search',
     query: { q: item.name }
@@ -98,7 +104,7 @@ const formattedDateRange = (start: string, end: string) => {
           <div class="flex flex-col">
             <h1 class="text-lg font-bold tracking-tight">探索发现</h1>
             <p v-if="data" class="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-70">
-              {{ data.period }} · {{ formattedDateRange(data.startDate, data.endDate) }}
+              {{ data.period === 'all' ? '全部历史' : data.period }} · {{ formattedDateRange(data.startDate, data.endDate) }}
             </p>
           </div>
         </div>
@@ -108,7 +114,7 @@ const formattedDateRange = (start: string, end: string) => {
           <DropdownMenuTrigger as-child>
             <Button variant="outline" size="sm" class="rounded-full gap-2 border-primary/20 bg-primary/5 hover:bg-primary/10">
               <Calendar class="h-4 w-4 text-primary" />
-              <span class="text-xs font-semibold">{{ currentPeriod }}</span>
+              <span class="text-xs font-semibold">{{ currentPeriod === 'all' ? '全部' : currentPeriod }}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-48 max-h-[16rem] overflow-y-auto rounded-xl shadow-2xl border-primary/10">
@@ -119,7 +125,7 @@ const formattedDateRange = (start: string, end: string) => {
               class="flex items-center justify-between py-2.5 px-3 cursor-pointer"
               :class="{ 'bg-primary/10 text-primary font-bold': p === currentPeriod }"
             >
-              <span class="text-sm">{{ p }}</span>
+              <span class="text-sm">{{ p === 'all' ? '全部历史' : p }}</span>
               <Sparkles v-if="p === currentPeriod" class="h-3 w-3" />
             </DropdownMenuItem>
           </DropdownMenuContent>

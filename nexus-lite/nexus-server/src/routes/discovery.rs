@@ -81,68 +81,133 @@ pub async fn list_discovery(
     all_periods.sort_by(|a, b| b.cmp(a)); // Newest first
 
     // 4. Select target period
-    let target_period = query
-        .period
-        .unwrap_or_else(|| all_periods.first().cloned().unwrap_or_default());
+    let target_period = query.period.unwrap_or_else(|| "all".to_string());
 
-    if target_period.is_empty() {
+    let periods_to_process = if target_period == "all" {
+        all_periods.clone()
+    } else if all_periods.contains(&target_period) {
+        vec![target_period.clone()]
+    } else {
         return Err((
             StatusCode::NOT_FOUND,
-            "No discovery data available".to_string(),
+            "No discovery data available for this period".to_string(),
         ));
-    }
+    };
 
-    // 5. Gather sections for the period
+    // 5. Gather sections
     let mut sections = Vec::new();
+    let mut section_map: HashMap<String, Vec<DiscoveryItem>> = HashMap::new();
 
-    // From editor_recommend
-    if let Some(p_data) = rec_data.periods.get(&target_period) {
-        let mut section_map: HashMap<String, Vec<DiscoveryItem>> = HashMap::new();
-        for item in &p_data.items {
-            section_map
-                .entry(item.section.clone())
-                .or_default()
-                .push(map_item(item));
+    // Iterate over periods (newest first)
+    for period in &periods_to_process {
+        // From editor_recommend
+        if let Some(p_data) = rec_data.periods.get(period) {
+            for item in &p_data.items {
+                section_map
+                    .entry(item.section.clone())
+                    .or_default()
+                    .push(map_item(item));
+            }
         }
 
-        // Add sections in preferred order
-        for s_type in ["carousel", "image_list", "list"] {
-            if let Some(items) = section_map.get(s_type) {
-                sections.push(DiscoverySection {
-                    section: s_type.to_string(),
-                    items: items.clone(),
-                });
+        // From new_sign
+        if let Some(p_data) = sign_data.periods.get(period) {
+            for item in &p_data.items {
+                section_map
+                    .entry("new_sign".to_string())
+                    .or_default()
+                    .push(map_item(item));
             }
         }
     }
 
-    // From new_sign
-    if let Some(p_data) = sign_data.periods.get(&target_period) {
-        let mut sign_items: Vec<DiscoveryItem> = p_data.items.iter().map(map_item).collect();
-        sign_items.sort_by_key(|i| i.position);
+    // Sort items? Logic to preserve order?
+    // If we process periods in order, the items are appended in period order (Newest First).
+    // Within each period, items are in their original order.
+    // For "new_sign", maybe we want to re-sort by position? But positions are per-period (1, 2, 3...).
+    // If aggregating, we have multiple #1s.
+    // Let's keep them as is.
 
+    // Add sections in preferred order
+    for s_type in ["carousel", "image_list", "list"] {
+        if let Some(items) = section_map.remove(s_type) {
+            sections.push(DiscoverySection {
+                section: s_type.to_string(),
+                items,
+            });
+        }
+    }
+
+    // Add new_sign section
+    if let Some(mut items) = section_map.remove("new_sign") {
+        // If sorting by position across all history is weird, maybe just keep time order.
+        // items.sort_by_key(|i| i.position);
         sections.push(DiscoverySection {
             section: "new_sign".to_string(),
-            items: sign_items,
+            items,
         });
     }
 
-    // Get dates from any available data
-    let (start_date, end_date) = if let Some(p) = rec_data.periods.get(&target_period) {
-        (p.start_date.clone(), p.end_date.clone())
-    } else if let Some(p) = sign_data.periods.get(&target_period) {
-        (p.start_date.clone(), p.end_date.clone())
+    // Add any remaining sections
+    for (s_type, items) in section_map {
+        sections.push(DiscoverySection {
+            section: s_type,
+            items,
+        });
+    }
+
+    // Get dates
+    let (start_date, end_date) = if target_period == "all" {
+        (
+            all_periods
+                .last()
+                .and_then(|p| get_date(p, &rec_data, &sign_data, true))
+                .unwrap_or_default(), // Earliest
+            all_periods
+                .first()
+                .and_then(|p| get_date(p, &rec_data, &sign_data, false))
+                .unwrap_or_default(), // Latest
+        )
     } else {
-        ("".to_string(), "".to_string())
+        if let Some(p) = rec_data.periods.get(&target_period) {
+            (p.start_date.clone(), p.end_date.clone())
+        } else if let Some(p) = sign_data.periods.get(&target_period) {
+            (p.start_date.clone(), p.end_date.clone())
+        } else {
+            ("".to_string(), "".to_string())
+        }
     };
+
+    // Add "all" to available_periods at the start
+    let mut response_periods = vec!["all".to_string()];
+    response_periods.extend(all_periods);
 
     Ok(Json(DiscoveryResponse {
         period: target_period,
         start_date,
         end_date,
         sections,
-        available_periods: all_periods,
+        available_periods: response_periods,
     }))
+}
+
+// Helper to get date safely
+fn get_date(period: &str, rec: &QidianData, sign: &QidianData, is_start: bool) -> Option<String> {
+    if let Some(p) = rec.periods.get(period) {
+        return Some(if is_start {
+            p.start_date.clone()
+        } else {
+            p.end_date.clone()
+        });
+    }
+    if let Some(p) = sign.periods.get(period) {
+        return Some(if is_start {
+            p.start_date.clone()
+        } else {
+            p.end_date.clone()
+        });
+    }
+    None
 }
 
 fn load_json<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, (StatusCode, String)> {
