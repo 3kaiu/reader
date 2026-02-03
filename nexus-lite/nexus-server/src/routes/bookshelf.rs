@@ -8,6 +8,7 @@ use axum::{
 use chrono::Utc;
 use nexus_core::BookshelfItem;
 use serde::Deserialize;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::app::AppState;
@@ -53,15 +54,17 @@ pub async fn add(
     // Try to fetch complete book info from source
     let mut item = BookshelfItem {
         id: Uuid::new_v4().to_string(),
-        source_id: req.source_id.clone(),
-        book_url: req.book_url.clone(),
-        name: req.name.clone(),
-        author: req.author.clone(),
-        cover_url: req.cover_url.clone(),
+        source_id: Arc::from(req.source_id.as_str()),
+        book_url: Arc::from(req.book_url.as_str()),
+        name: Arc::from(req.name.as_str()),
+        author: req.author.map(|s| Arc::from(s.as_str())),
+        cover_url: req.cover_url.map(|s| Arc::from(s.as_str())),
         last_chapter_index: 0,
         last_read_position: 0.0,
         last_read_time: None,
         created_at: Utc::now().timestamp(),
+        total_chapter_num: None,
+        latest_chapter_title: None,
         group_id: req.group_id,
     };
 
@@ -69,11 +72,11 @@ pub async fn add(
         // Log info
         tracing::info!(
             "Fetching book info for: {} (source: {})",
-            req.book_url,
-            req.source_id
+            item.book_url,
+            item.source_id
         );
 
-        match engine.book_info(&req.book_url).await {
+        match engine.book_info(&item.book_url).await {
             Ok(info) => {
                 item.name = info.name;
                 item.author = Some(info.author);

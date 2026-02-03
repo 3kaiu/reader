@@ -235,7 +235,7 @@ impl SledStore {
             for entry in bookshelf_tree.iter() {
                 let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
                 let item: BookshelfItem = serde_json::from_slice(&value)?;
-                if item.source_id == source_id && item.book_url == book_url {
+                if item.source_id.as_ref() == source_id && item.book_url.as_ref() == book_url {
                     return Ok(true);
                 }
             }
@@ -534,15 +534,17 @@ mod tests {
 
         let item = BookshelfItem {
             id: "test-1".to_string(),
-            source_id: "source-1".to_string(),
-            book_url: "https://example.com/book/1".to_string(),
-            name: "Test Book".to_string(),
-            author: Some("Author".to_string()),
+            source_id: Arc::from("source-1"),
+            book_url: Arc::from("https://example.com/book/1"),
+            name: Arc::from("Test Book"),
+            author: Some(Arc::from("Author")),
             cover_url: None,
             last_chapter_index: 0,
             last_read_position: 0.0,
             last_read_time: Some(1000),
             created_at: 1000,
+            total_chapter_num: None,
+            latest_chapter_title: None,
             group_id: None,
         };
 
@@ -552,7 +554,7 @@ mod tests {
         // Get all
         let books = store.get_all().await.unwrap();
         assert_eq!(books.len(), 1);
-        assert_eq!(books[0].name, "Test Book");
+        assert_eq!(books[0].name.as_ref(), "Test Book");
 
         // Update progress
         store
@@ -577,15 +579,17 @@ mod tests {
         for i in 1..=3 {
             let item = BookshelfItem {
                 id: format!("book-{}", i),
-                source_id: "source-1".to_string(),
-                book_url: format!("https://example.com/book/{}", i),
-                name: format!("Book {}", i),
+                source_id: Arc::from("source-1"),
+                book_url: Arc::from(format!("https://example.com/book/{}", i).as_str()),
+                name: Arc::from(format!("Book {}", i).as_str()),
                 author: None,
                 cover_url: None,
                 last_chapter_index: 0,
                 last_read_position: 0.0,
                 last_read_time: Some(i * 1000), // 1000, 2000, 3000
                 created_at: i * 1000,
+                total_chapter_num: None,
+                latest_chapter_title: None,
                 group_id: None,
             };
             store.add(item).await.unwrap();
@@ -594,8 +598,8 @@ mod tests {
         let books = store.get_all().await.unwrap();
         assert_eq!(books.len(), 3);
         // Should be sorted DESC by last_read_time
-        assert_eq!(books[0].name, "Book 3");
-        assert_eq!(books[1].name, "Book 2");
-        assert_eq!(books[2].name, "Book 1");
+        assert_eq!(books[0].name.as_ref(), "Book 3");
+        assert_eq!(books[1].name.as_ref(), "Book 2");
+        assert_eq!(books[2].name.as_ref(), "Book 1");
     }
 }

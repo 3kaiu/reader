@@ -8,28 +8,28 @@ function safeDecodeUrl(url: string): string {
   if (!url || typeof url !== 'string') {
     return url
   }
-  
+
   let decoded = url
   let lastValid = url
   let attempts = 0
   const maxAttempts = 5
-  
+
   // 如果 URL 不包含编码字符，直接返回
   if (!decoded.includes('%')) {
     return decoded
   }
-  
+
   // 尝试解码，直到无法继续解码或达到最大尝试次数
   while (attempts < maxAttempts && decoded.includes('%')) {
     try {
       const previous = decoded
       decoded = decodeURIComponent(decoded)
-      
+
       // 如果解码后和之前一样，说明不是编码的，停止
       if (decoded === previous) {
         break
       }
-      
+
       // 验证解码后的 URL 是否是有效的 HTTP/HTTPS URL
       try {
         const urlObj = new URL(decoded)
@@ -47,14 +47,14 @@ function safeDecodeUrl(url: string): string {
         // URL 解析失败，使用最后一次有效的解码结果
         return lastValid
       }
-      
+
       attempts++
     } catch {
       // 解码失败，返回最后一次有效的解码结果
       return lastValid
     }
   }
-  
+
   // 如果最终解码结果不是有效 URL，返回原始值
   try {
     new URL(decoded)
@@ -81,6 +81,7 @@ export interface Book {
   // 以下为前端兼容旧版可能需要的扩展字段
   durChapterTitle?: string
   latestChapterTitle?: string
+  totalChapterNum?: number
   groupId?: string
 }
 
@@ -151,7 +152,7 @@ export const bookApi = {
     if (!url || typeof url !== 'string' || url.trim().length === 0) {
       throw new Error('URL parameter is required and must be a non-empty string')
     }
-    
+
     // 解码 URL，避免双重编码
     const decodedUrl = safeDecodeUrl(url)
     return $get<Chapter[]>('/chapters', {
@@ -168,7 +169,7 @@ export const bookApi = {
     if (!url || typeof url !== 'string' || url.trim().length === 0) {
       throw new Error('URL parameter is required and must be a non-empty string')
     }
-    
+
     // 解码 URL，避免双重编码
     const decodedUrl = safeDecodeUrl(url)
     return $get<ChapterContent>('/content', { params: { source: source.trim(), url: decodedUrl } })
@@ -207,7 +208,7 @@ export const bookApi = {
     if (!url || typeof url !== 'string' || url.trim().length === 0) {
       throw new Error('URL parameter is required and must be a non-empty string')
     }
-    
+
     // 基本 URL 格式验证
     try {
       const testUrl = safeDecodeUrl(url)
@@ -221,7 +222,7 @@ export const bookApi = {
       }
       throw e
     }
-    
+
     // 解码 URL，避免双重编码（Vue Router hash 模式会自动编码查询参数）
     const decodedUrl = safeDecodeUrl(url)
     return $get<Book>('/book', { params: { source: source.trim(), url: decodedUrl } })

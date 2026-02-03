@@ -76,7 +76,7 @@ impl ChapterCache {
         let path = self.disk_path(&key);
         if path.exists() {
             let path_clone = path.clone();
-            let content = tokio::task::spawn_blocking(move || {
+            let content = tokio::task::spawn_blocking::<_, Option<Arc<str>>>(move || {
                 let file = File::open(&path_clone).ok()?;
                 let mmap = unsafe { Mmap::map(&file).ok()? };
                 // Optimized: from_utf8_lossy on slice, then into Arc<str>
@@ -161,7 +161,8 @@ impl ChapterCache {
     /// Clear cache for a book
     pub async fn clear_book(&self, book_id: &str) -> Result<(), EngineError> {
         let pattern = format!("{}_", book_id);
-        self.memory
+        let _ = self
+            .memory
             .invalidate_entries_if(move |k, _| k.starts_with(&pattern));
 
         if let Ok(mut entries) = tokio::fs::read_dir(&self.disk_dir).await {

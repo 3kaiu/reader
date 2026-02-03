@@ -47,8 +47,23 @@ pub async fn list_discovery(
     // 1. Locate data files
     let base_path = std::env::var("DISCOVERY_DATA_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("./data/qidian"));
-    
+        .unwrap_or_else(|_| {
+            // Try multiple common locations
+            let paths = [
+                "./data/qidian",
+                "./nexus-lite/data/qidian",
+                "../cf-bypass-service/data/qidian",
+                "./cf-bypass-service/data/qidian",
+            ];
+            for p in paths {
+                let path = PathBuf::from(p);
+                if path.exists() {
+                    return path;
+                }
+            }
+            PathBuf::from("./data/qidian")
+        });
+
     let rec_path = base_path.join("editor_recommend.json");
     let sign_path = base_path.join("new_sign.json");
 

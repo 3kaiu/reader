@@ -17,15 +17,12 @@ import {
   BookOpen,
   Library,
   Sparkles,
-  CheckSquare,
   Trash2,
-  X,
   Server,
   Brain,
   Compass,
   Wand2,
   FolderHeart,
-  BarChart3,
 } from "lucide-vue-next";
 import {
   DropdownMenu,
@@ -56,7 +53,6 @@ import BookCard from "@/components/book/BookCard.vue";
 import { Skeleton } from "@/components/ui";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
 import MoveBookDialog from "@/components/book/MoveBookDialog.vue";
 import { manageApi } from "@/api/manage";
 import { useOfflineStore } from "@/stores/offlineStorage";
@@ -66,7 +62,6 @@ const offlineStore = useOfflineStore();
 const router = useRouter();
 const { success } = useMessage();
 const { confirm } = useConfirm();
-const { handleError } = useErrorHandler();
 
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
@@ -78,6 +73,12 @@ const menuOpen = ref(false);
 
 // 菜单配置
 const menuGroups = [
+  {
+    title: "发现",
+    items: [
+      { label: "探索发现", desc: "发现新书与阅读周报", icon: Compass, path: "/discovery", color: "text-orange-500", bg: "bg-orange-500/10" },
+    ],
+  },
   {
     title: "内容管理",
     items: [
@@ -216,7 +217,7 @@ onMounted(() => {
 // 虚拟滚动器（按行）
 // 注意：@tanstack/vue-virtual 的 count 需要是响应式的，但需要确保在数据变化时更新
 const virtualizer = useVirtualizer({
-  count: () => rows.value, // 使用函数形式确保响应式
+  count: rows.value,
   getScrollElement: () => virtualContainerRef.value,
   estimateSize: () => {
     const cols = getColumnsPerRow()
@@ -227,10 +228,19 @@ const virtualizer = useVirtualizer({
 });
 
 // 监听 rows 和 windowWidth 变化，强制虚拟滚动器重新计算
-watch([rows, windowWidth], () => {
-  // 触发虚拟滚动器重新计算
+watch(rows, (newCount) => {
   if (virtualizer.value) {
-    virtualizer.value.measureElement(0)
+    virtualizer.value.setOptions({
+      ...virtualizer.value.options,
+      count: newCount,
+    })
+    virtualizer.value.measure()
+  }
+}, { flush: 'post' })
+
+watch(windowWidth, () => {
+  if (virtualizer.value) {
+    virtualizer.value.measure()
   }
 }, { flush: 'post' })
 
@@ -270,15 +280,6 @@ async function getGroups() {
   }
 }
 
-async function init() {
-  loading.value = true;
-  await Promise.all([getBooks(), getGroups()]);
-}
-
-async function refresh() {
-  refreshing.value = true;
-  await getBooks();
-}
 
 function openBook(book: Book) {
   if (isManageMode.value) {
@@ -402,12 +403,6 @@ async function createGroup() {
   }
 }
 
-function getCoverUrl(url?: string) {
-  if (!url) return "";
-  // Nexus-lite doesn't have a /cover endpoint yet, or it's different.
-  // Assuming frontend handles standard URLs, or proxy handles it.
-  return url;
-}
 
 
 onMounted(() => {
@@ -447,6 +442,14 @@ onMounted(() => {
           >
             <Sun v-if="!isDark" class="h-5 w-5 text-foreground" />
             <Moon v-else class="h-5 w-5 text-foreground" />
+          </button>
+
+          <button
+            class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
+            @click="router.push('/discovery')"
+            aria-label="发现"
+          >
+            <Compass class="h-5 w-5 text-foreground" />
           </button>
 
           <button
@@ -700,7 +703,7 @@ onMounted(() => {
           >
             <div
               v-for="virtualRow in virtualizer.getVirtualItems()"
-              :key="virtualRow.key"
+              :key="`row-${virtualRow.index}`"
               :style="{
                 position: 'absolute',
                 top: 0,

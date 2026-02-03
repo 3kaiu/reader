@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 
 /// Global selector cache - shared across all engine instances
 /// Uses DashMap for lock-free concurrent access
