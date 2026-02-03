@@ -10,7 +10,7 @@ mod routes;
 mod validation;
 mod ws;
 
-use nexus_core::EngineConfig;
+use nexus_core::{EngineConfig, cache, optimizer};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -33,6 +33,31 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize storage
     nexus_storage::init_storage(&config).await?;
+
+    // Initialize unified cache system
+    if let Err(e) = nexus_core::cache::init_cache_manager(nexus_core::cache::CacheConfig {
+        memory_capacity: 64 * 1024 * 1024, // 64MB
+        disk_capacity: 512 * 1024 * 1024,  // 512MB
+        redis_url: None,
+        ttl_default: std::time::Duration::from_secs(3600),
+        enable_compression: true,
+        enable_encryption: false,
+    }).await {
+        tracing::warn!("Failed to initialize cache manager: {}", e);
+    }
+
+    // Initialize unified optimizer system
+    let _ = nexus_core::optimizer::init_optimizer_manager(nexus_core::optimizer::OptimizerConfig {
+        enable_memory_optimization: true,
+        enable_cpu_optimization: true,
+        enable_io_optimization: true,
+        enable_network_optimization: true,
+        enable_cache_optimization: true,
+        enable_algorithm_optimization: true,
+        monitoring_interval_ms: 30000,
+        optimization_interval_ms: 300000,
+        max_concurrent_optimizations: 5,
+    });
 
     // Initialize Prometheus metrics (port 9090)
     if let Err(e) = metrics::init_metrics(9090) {

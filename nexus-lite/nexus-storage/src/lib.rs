@@ -1,17 +1,27 @@
-//! NexusLite Storage Layer
+//! NexusLite Storage Layer - 存储模块
 //!
-//! This crate provides storage implementations:
-//! - sled-based persistent storage for all app data
-//! - Two-level chapter cache (memory + disk)
-//! - JSON-based source configuration store
+//! 提供存储实现：
+//! - 基于sled的持久化存储
+//! - 两级章节缓存（内存+磁盘）
+//! - 基于JSON的源配置存储
 
+// ===== 领域层 (Domain Layer) =====
+// 存储核心业务逻辑
+pub mod domain;
+
+// ===== 基础设施层 (Infrastructure Layer) =====
+// 外部接口实现
 pub mod cache;
 pub mod sled_store;
 pub mod source_store;
 
+// Public exports - 保持向后兼容
 pub use cache::ChapterCache;
 pub use sled_store::SledStore;
 pub use source_store::SourceStore;
+
+// 新架构导出
+pub use domain::*;
 
 use nexus_core::{EngineConfig, EngineError};
 use tracing::info;
@@ -47,4 +57,3 @@ pub async fn init_storage(config: &EngineConfig) -> Result<(), EngineError> {
     info!("Storage initialized. sled path: {:?}", sled_path);
     Ok(())
 }
-

@@ -9,6 +9,8 @@ import { useErrorHandler } from './composables/useErrorHandler'
 import { performanceSystem, initializePerformanceSystem } from './services/performance/integration'
 import { aiServiceManager } from './services/ai/service'
 import { initConfigManager } from './utils/configManager'
+import { initDomainLayer } from './domain'
+import { initOptimizerManager } from './utils/unified-utils'
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -23,6 +25,22 @@ app.use(router)
 
 // 初始化配置管理器
 const configManager = initConfigManager()
+
+// 初始化领域层
+const domainLayer = initDomainLayer()
+
+// 初始化优化器管理器
+initOptimizerManager({
+    enableMemoryOptimization: true,
+    enableCpuOptimization: true,
+    enableIoOptimization: true,
+    enableNetworkOptimization: true,
+    enableCacheOptimization: true,
+    enableAlgorithmOptimization: true,
+    monitoringIntervalMs: 30000,
+    optimizationIntervalMs: 300000,
+    maxConcurrentOptimizations: 3,
+})
 
 // 全局错误处理
 app.config.errorHandler = (err, _instance, info) => {
