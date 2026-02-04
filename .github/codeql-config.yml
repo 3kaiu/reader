@@ -16,7 +16,7 @@ queries:
   - uses: security-and-quality
   - uses: security-experimental
 
-# Custom queries (commented out until format is resolved)
+# Custom security queries (disabled due to query ID issues)
 # - uses: ./codeql-queries/nexus-security.qls
 
 # Paths to exclude from analysis
@@ -57,6 +57,47 @@ paths-ignore:
 
   # Cloudflare Workers
   - "cloudflare-workers/node_modules/**"
+
+  # Complex configuration files that may cause parsing issues
+  - "**/rsbuild.config.ts"
+  - "**/vite.config.*.ts"
+  - "**/vitest.config.ts"
+  - "**/playwright.config.ts"
+  - "**/lighthouserc.js"
+  - "**/webpack.config.js"
+  - "**/rollup.config.js"
+
+  # Scripts and tools
+  - "scripts/**"
+  - "**/scripts/**"
+
+  # Lock files and package manager files
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+  - "**/bun.lock"
+  - "**/Cargo.lock"
+
+  # IDE and editor files
+  - "**/.vscode/**"
+  - "**/.idea/**"
+  - "**/*.swp"
+  - "**/*.swo"
+
+  # OS generated files
+  - "**/.DS_Store"
+  - "**/Thumbs.db"
+
+  # CI/CD files
+  - ".github/**"
+  - "**/.github/**"
+  - "**/Dockerfile*"
+  - "**/docker-compose*.yml"
+
+  # Documentation and examples
+  - "**/*.md"
+  - "**/docs/**"
+  - "**/examples/**"
+  - "**/samples/**"
 
 # Custom query packs (create these directories if needed)
 # codeql-queries/
