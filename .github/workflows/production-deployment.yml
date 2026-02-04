@@ -117,7 +117,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: false
 
       - name: Audit Lighthouse config
         uses: treosh/lighthouse-ci-action@v10
@@ -272,7 +271,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: false
 
       - name: Install Wrangler
         run: npm install -g wrangler
@@ -435,7 +433,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: false
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
