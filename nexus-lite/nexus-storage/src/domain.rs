@@ -275,8 +275,6 @@ pub struct StrategyCondition {
     pub value: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConditionType {
     FileSize,
@@ -546,7 +544,7 @@ impl StorageDomain {
         Ok(DomainResult {
             success: true,
             data: None,
-            events: vec![DomainEvent::Storage(StorageEvent::DataObjectDeleted {
+            events: vec![DomainEvent::Storage(CoreStorageEvent::DataObjectDeleted {
                 object_id: object.id.0,
                 bucket: object.bucket,
                 key: object.key,
@@ -561,7 +559,7 @@ impl StorageDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&bucket).unwrap()),
-            events: vec![DomainEvent::Storage(StorageEvent::BucketCreated {
+            events: vec![DomainEvent::Storage(CoreStorageEvent::BucketCreated {
                 bucket_id: bucket.id.0,
                 name: bucket.name,
             })],
@@ -603,7 +601,7 @@ impl StorageDomain {
         Ok(DomainResult {
             success: true,
             data: None,
-            events: vec![DomainEvent::Storage(StorageEvent::CacheEvicted {
+            events: vec![DomainEvent::Storage(CoreStorageEvent::CacheEvicted {
                 key,
                 reason: "Manual deletion".to_string(),
             })],
@@ -688,7 +686,7 @@ impl StorageDomain {
             Ok(DomainResult {
                 success: true,
                 data: Some(entry.value),
-                events: vec![DomainEvent::Storage(StorageEvent::CacheHit {
+                events: vec![DomainEvent::Storage(CoreStorageEvent::CacheHit {
                     key,
                     access_count: entry.access_count,
                 })],
@@ -698,7 +696,7 @@ impl StorageDomain {
             Ok(DomainResult {
                 success: false,
                 data: None,
-                events: vec![DomainEvent::Storage(StorageEvent::CacheMiss { key })],
+                events: vec![DomainEvent::Storage(CoreStorageEvent::CacheMiss { key })],
                 metadata: HashMap::new(),
             })
         }
