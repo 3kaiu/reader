@@ -1,0 +1,206 @@
+name: 🚀 Deploy to HuggingFace Spaces
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nexus-lite/**'
+      - '.github/workflows/huggingface-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      space_name:
+        description: 'HuggingFace Space name'
+        required: false
+        default: 'nexus-lite'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild even if no changes'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-nexus-lite:
+    name: 🚀 Deploy Nexus-Lite to HF Spaces
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.force_rebuild == true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install huggingface_hub
+
+      - name: Validate HF Token
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "❌ HF_TOKEN secret is not configured"
+            echo "📖 Please add HF_TOKEN to GitHub repository secrets"
+            echo "🔗 Get token from: https://huggingface.co/settings/tokens"
+            exit 1
+          fi
+          echo "✅ HF_TOKEN is configured"
+
+      - name: Deploy to HuggingFace Spaces
+        run: |
+          python << 'EOF'
+          import os
+          import shutil
+          import time
+          from huggingface_hub import HfApi, create_repo, repo_exists
+
+          token = os.environ["HF_TOKEN"]
+          space_name = "${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}"
+
+          print(f"🚀 Deploying Nexus-Lite to HuggingFace Space: {space_name}")
+
+          # 初始化API
+          api = HfApi(token=token)
+
+          # 检查Space是否存在
+          if not repo_exists(space_name, repo_type="space", token=token):
+              print(f"📝 Creating new HuggingFace Space: {space_name}")
+              create_repo(
+                  space_name,
+                  repo_type="space",
+                  space_sdk="docker",
+                  token=token,
+                  private=False
+              )
+              print("⏳ Waiting for space initialization...")
+              time.sleep(10)  # 等待空间初始化
+          else:
+              print(f"✅ Space {space_name} already exists")
+
+          # 准备上传目录
+          source_dir = "nexus-lite"
+          upload_dir = "hf-deploy"
+
+          if os.path.exists(upload_dir):
+              shutil.rmtree(upload_dir)
+
+          print(f"📁 Copying {source_dir} to {upload_dir}")
+          shutil.copytree(source_dir, upload_dir, dirs_exist_ok=True)
+
+          # 确保README.md存在
+          readme_path = os.path.join(upload_dir, "README.md")
+          if not os.path.exists(readme_path):
+              print("📝 Creating README.md for HuggingFace Space")
+              readme_content = """---
+          title: Nexus-Lite
+          emoji: 📖
+          colorFrom: green
+          colorTo: blue
+          sdk: docker
+          app_file: Dockerfile
+          pinned: false
+          ---
+
+          # Nexus-Lite
+
+          A lightweight, plugin-based book source aggregation engine for Chinese web novels.
+
+          ## Features
+
+          - 🚀 High-performance Rust backend
+          - 📚 Multi-source book aggregation
+          - 🔍 Intelligent search
+          - 🌐 RESTful API
+          - 🐳 Docker deployment
+
+          ## API Endpoints
+
+          - `GET /health` - Health check
+          - `GET /sources` - List available sources
+          - `GET /search` - Search books
+          - `GET /book/{id}` - Get book details
+          """
+              with open(readme_path, "w", encoding="utf-8") as f:
+                  f.write(readme_content)
+
+          # 上传到HuggingFace Spaces
+          print("📤 Uploading files to HuggingFace Spaces...")
+          try:
+              api.upload_folder(
+                  folder_path=upload_dir,
+                  repo_id=space_name,
+                  repo_type="space",
+                  commit_message=f"Deploy Nexus-Lite from {os.environ.get('GITHUB_SHA', 'unknown')[:8]}"
+              )
+              print("✅ Successfully uploaded to HuggingFace Spaces")
+          except Exception as e:
+              print(f"❌ Upload failed: {e}")
+              raise
+
+          # 获取用户名用于URL构建
+          try:
+              user_info = api.whoami()
+              username = user_info["name"]
+              space_url = f"https://huggingface.co/spaces/{username}/{space_name}"
+              print(f"🌐 Space URL: {space_url}")
+              print(f"🔍 Check build status: {space_url}/build")
+          except:
+              print("🌐 Space deployed (URL not available)")
+
+          # 清理临时文件
+          shutil.rmtree(upload_dir)
+          print("🧹 Cleaned up temporary files")
+          EOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+      - name: Post-deployment notification
+        if: success()
+        run: |
+          echo "## 🚀 HuggingFace Spaces Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Deployed Services:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Nexus-Lite**: Rust backend API server" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Access URLs:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Space**: https://huggingface.co/spaces/${{ vars.HF_USERNAME || 'your-username' }}/${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://\${SPACE_NAME}.hf.space/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Build Info:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+  # ===== 自动同步设置指南 =====
+  setup-autosync:
+    name: 📋 HuggingFace Auto-Sync Setup Guide
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Auto-Sync Setup Instructions
+        run: |
+          echo "## 🔄 HuggingFace Spaces 自动同步设置指南" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 方法1: 直接连接 GitHub (推荐)" >> $GITHUB_STEP_SUMMARY
+          echo "1. 访问你的 HuggingFace Space: https://huggingface.co/spaces/\${USERNAME}/\${SPACE_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "2. 点击 **Settings** 标签页" >> $GITHUB_STEP_SUMMARY
+          echo "3. 找到 **GitHub** 部分" >> $GITHUB_STEP_SUMMARY
+          echo "4. 连接到此仓库: \`3kaiu/reader\`" >> $GITHUB_STEP_SUMMARY
+          echo "5. 设置分支: \`main\` 和路径: \`nexus-lite/\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 方法2: Webhook 触发" >> $GITHUB_STEP_SUMMARY
+          echo "保持当前 workflow，每次推送 \`nexus-lite/\` 路径时自动部署" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔑 所需 Secrets:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`HF_TOKEN\`: HuggingFace API Token" >> $GITHUB_STEP_SUMMARY
+          echo "- \`HF_USERNAME\`: 你的 HuggingFace 用户名 (可选)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 环境变量 (可选):" >> $GITHUB_STEP_SUMMARY
+          echo "- \`HF_SPACE_NEXUS_LITE\`: 自定义 Space 名称" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**设置完成后，每次推送代码都会自动更新 HuggingFace Space！** 🎉" >> $GITHUB_STEP_SUMMARY

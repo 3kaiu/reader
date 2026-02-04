@@ -394,41 +394,11 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
-      - name: Deploy Nexus-Lite (HuggingFace Spaces)
+      - name: Note about HuggingFace Deployment
         run: |
-          python << 'EOF'
-          import os
-          import shutil
-          from huggingface_hub import HfApi, create_repo, repo_exists
-
-          token = os.environ["HF_TOKEN"]
-          space_name = (os.environ.get("HF_SPACE_NEXUS_LITE") or "nexus-lite").strip() or "nexus-lite"
-
-          if not repo_exists(space_name, repo_type="space", token=token):
-              create_repo(space_name, repo_type="space", space_sdk="docker", token=token)
-
-          shutil.copytree("nexus-lite", "hf-upload-nexus", dirs_exist_ok=True)
-
-          readme = """---
-          title: Nexus-Lite
-          emoji: 📖
-          colorFrom: green
-          colorTo: blue
-          sdk: docker
-          app_file: Dockerfile
-          pinned: false
-          ---"""
-
-          with open("hf-upload-nexus/README.md", "w") as f:
-              f.write(readme)
-
-          api = HfApi(token=token)
-          api.upload_folder("hf-upload-nexus", space_name, repo_type="space")
-          print("✅ Nexus-Lite deployed to HuggingFace Spaces")
-          EOF
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE_NEXUS_LITE: ${{ vars.HF_SPACE_NEXUS_LITE }}
+          echo "ℹ️ Nexus-Lite deployment is handled by the dedicated huggingface-deploy.yml workflow"
+          echo "📋 Check the 'Deploy to HuggingFace Spaces' workflow for deployment status"
+          echo "🔗 View deployment guide in that workflow's summary"
 
   # ===== 部署文档站点 (利用GitHub Pages) =====
   deploy-docs:
