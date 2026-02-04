@@ -43,8 +43,9 @@ pub enum ErrorCode {
     StorageQuotaExceeded = 5004,
 
     // Business Layer (6000-6999)
-    BookNotFound = 6000,
-    ChapterNotFound = 6001,
+    NotFound = 6000,
+    BookNotFound = 6001,
+    ChapterNotFound = 6002,
     EmptyContent = 6002,
     InvalidBookFormat = 6003,
     UnsupportedBookType = 6004,
@@ -188,6 +189,9 @@ pub enum EngineError {
     StorageQuotaExceeded,
 
     // ============== Business Layer ==============
+    #[error("Not found: {resource}")]
+    NotFound { resource: String },
+
     #[error("Book not found")]
     BookNotFound,
 
@@ -288,6 +292,7 @@ impl EngineError {
             Self::StorageQuotaExceeded => ErrorCode::StorageQuotaExceeded,
 
             // Business Layer
+            Self::NotFound { .. } => ErrorCode::NotFound,
             Self::BookNotFound => ErrorCode::BookNotFound,
             Self::ChapterNotFound { .. } => ErrorCode::ChapterNotFound,
             Self::EmptyContent => ErrorCode::EmptyContent,
@@ -405,6 +410,7 @@ impl EngineError {
             Self::FileIo { .. } => "FILE_IO_ERROR",
             Self::CacheMiss { .. } => "CACHE_MISS",
             Self::StorageQuotaExceeded => "STORAGE_QUOTA_EXCEEDED",
+            Self::NotFound { .. } => "NOT_FOUND",
             Self::BookNotFound => "BOOK_NOT_FOUND",
             Self::ChapterNotFound { .. } => "CHAPTER_NOT_FOUND",
             Self::EmptyContent => "EMPTY_CONTENT",

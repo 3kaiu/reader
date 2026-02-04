@@ -87,6 +87,87 @@ pub enum DomainEvent {
     User(UserEvent),
     // 系统领域事件
     System(SystemEvent),
+    // 存储领域事件
+    Storage(StorageEvent),
+    // 引擎领域事件
+    Engine(EngineEvent),
+}
+
+/// 存储领域事件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StorageEvent {
+    DataObjectCreated {
+        object_id: String,
+        bucket: String,
+        key: String,
+        size_bytes: u64,
+    },
+    DataObjectUpdated {
+        object_id: String,
+        bucket: String,
+        key: String,
+        old_size: u64,
+        new_size: u64,
+    },
+    DataObjectDeleted {
+        object_id: String,
+        bucket: String,
+        key: String,
+    },
+    CacheHit {
+        key: String,
+        access_count: u64,
+    },
+    CacheMiss {
+        key: String,
+    },
+    CacheEvicted {
+        key: String,
+        reason: String,
+    },
+    BucketCreated {
+        bucket_id: String,
+        name: String,
+    },
+}
+
+/// 引擎领域事件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EngineEvent {
+    FetchTaskCreated {
+        task_id: String,
+        url: String,
+        priority: String,
+    },
+    FetchTaskStarted {
+        task_id: String,
+        domain: String,
+    },
+    FetchTaskCompleted {
+        task_id: String,
+        success: bool,
+        duration_ms: u64,
+        response_size_bytes: u64,
+    },
+    FetchTaskFailed {
+        task_id: String,
+        error: String,
+        retry_count: u32,
+    },
+    AntiCrawlStrategyApplied {
+        task_id: String,
+        strategy: String,
+        domain: String,
+    },
+    ConnectionPoolExhausted {
+        domain: String,
+        active_connections: u32,
+        max_connections: u32,
+    },
+    ContentParserUpdated {
+        parser_id: String,
+        rule_count: usize,
+    },
 }
 
 /// 领域上下文

@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use nexus_core::EngineError;
+use nexus_core::{EngineError, DomainError};
 use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 
 /// 抓取任务实体 - 聚合根
@@ -962,12 +962,12 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskUrlValidRule {
         "fetch_task_url_valid"
     }
 
-    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), EngineError> {
+    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.url.trim().is_empty() {
-            return Err(EngineError::Validation { message: "Fetch task URL cannot be empty".to_string() });
+            return Err(DomainError::Validation("Fetch task URL cannot be empty".to_string()));
         }
         if !entity.url.starts_with("http://") && !entity.url.starts_with("https://") {
-            return Err(EngineError::Validation { message: "Fetch task URL must start with http:// or https://".to_string() });
+            return Err(DomainError::Validation("Fetch task URL must start with http:// or https://".to_string()));
         }
         Ok(())
     }
@@ -985,9 +985,9 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskTimeoutValidRule {
         "fetch_task_timeout_valid"
     }
 
-    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), EngineError> {
+    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.timeout_ms == 0 || entity.timeout_ms > 300000 { // 5分钟
-            return Err(EngineError::Validation { message: "Timeout must be between 1ms and 5 minutes".to_string() });
+            return Err(DomainError::Validation("Timeout must be between 1ms and 5 minutes".to_string()));
         }
         Ok(())
     }

@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use nexus_core::{EngineError, FetchResponse};
-use nexus_core::interfaces::Fetcher;
+use nexus_core::interfaces::{Fetcher, FetcherStatistics};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,
@@ -19,6 +19,12 @@ pub struct HttpFetcher {
     timeout: Duration,
     max_concurrent_requests: usize,
     semaphore: Arc<tokio::sync::Semaphore>,
+    // Statistics
+    total_requests: std::sync::atomic::AtomicU64,
+    successful_requests: std::sync::atomic::AtomicU64,
+    failed_requests: std::sync::atomic::AtomicU64,
+    total_bytes_downloaded: std::sync::atomic::AtomicU64,
+    response_times: Arc<std::sync::Mutex<Vec<u128>>>,
 }
 
 impl HttpFetcher {
@@ -29,6 +35,8 @@ impl HttpFetcher {
 
     /// Create with custom concurrency limit
     pub fn with_concurrency(timeout_seconds: u64, max_concurrent: usize) -> Result<Self, EngineError> {
+        use std::sync::atomic::AtomicU64;
+
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
@@ -45,18 +53,22 @@ impl HttpFetcher {
             // Enhanced compression
             .gzip(true)
             .brotli(true)
-            .deflate(true)
             // Session management
             .cookie_store(true)
             .user_agent("Mozilla/5.0 (compatible; NexusLite/1.0)")
             .build()
-            .map_err(|e| EngineError::Network { message: e.to_string() })?;
+            .map_err(|e: reqwest::Error| EngineError::Network { message: e.to_string() })?;
 
         Ok(Self {
             client: Arc::new(client),
             timeout: Duration::from_secs(timeout_seconds),
             max_concurrent_requests: max_concurrent,
             semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
+            total_requests: AtomicU64::new(0),
+            successful_requests: AtomicU64::new(0),
+            failed_requests: AtomicU64::new(0),
+            total_bytes_downloaded: AtomicU64::new(0),
+            response_times: Arc::new(std::sync::Mutex::new(Vec::new())),
         })
     }
 
@@ -135,7 +147,7 @@ impl HttpFetcher {
         let body = resp
             .text()
             .await
-            .map_err(|e| EngineError::Network { message: e.to_string() })?;
+            .map_err(|e: reqwest::Error| EngineError::Network { message: e.to_string() })?;
 
         Ok(FetchResponse {
             status,
@@ -153,11 +165,19 @@ impl Fetcher for HttpFetcher {
         url: &str,
         headers: Option<HashMap<String, String>>,
     ) -> Result<FetchResponse, EngineError> {
+        use std::sync::atomic::Ordering;
+
+        let start_time = std::time::Instant::now();
+        self.total_requests.fetch_add(1, Ordering::Relaxed);
+
         debug!("GET {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
 
         // Acquire semaphore permit for concurrency control
         let _permit = self.semaphore.acquire().await
-            .map_err(|e| EngineError::Network { message: format!("Semaphore acquire failed: {}", e) })?;
+            .map_err(|e| {
+                self.failed_requests.fetch_add(1, Ordering::Relaxed);
+                EngineError::Network { message: format!("Semaphore acquire failed: {}", e) }
+            })?;
 
         let header_map = self.build_headers(headers);
 
@@ -168,16 +188,32 @@ impl Fetcher for HttpFetcher {
             .send()
             .await
             .map_err(|e| {
+                self.failed_requests.fetch_add(1, Ordering::Relaxed);
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
                     EngineError::ConnectionRefused { message: e.to_string() }
                 } else {
-                    EngineError::Network(e.to_string())
+                    EngineError::Network { message: e.to_string() }
                 }
             })?;
 
-        self.convert_response(resp).await
+        let response = self.convert_response(resp).await?;
+        self.successful_requests.fetch_add(1, Ordering::Relaxed);
+        self.total_bytes_downloaded.fetch_add(response.body.len() as u64, Ordering::Relaxed);
+
+        // Track response time
+        let elapsed = start_time.elapsed().as_nanos();
+        {
+            let mut times = self.response_times.lock().unwrap();
+            times.push(elapsed);
+            // Keep only last 1000 measurements
+            if times.len() > 1000 {
+                times.remove(0);
+            }
+        }
+
+        Ok(response)
     }
 
     async fn post(
@@ -186,11 +222,19 @@ impl Fetcher for HttpFetcher {
         body: &str,
         headers: Option<HashMap<String, String>>,
     ) -> Result<FetchResponse, EngineError> {
+        use std::sync::atomic::Ordering;
+
+        let start_time = std::time::Instant::now();
+        self.total_requests.fetch_add(1, Ordering::Relaxed);
+
         debug!("POST {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
 
         // Acquire semaphore permit for concurrency control
         let _permit = self.semaphore.acquire().await
-            .map_err(|e| EngineError::Network { message: format!("Semaphore acquire failed: {}", e) })?;
+            .map_err(|e| {
+                self.failed_requests.fetch_add(1, Ordering::Relaxed);
+                EngineError::Network { message: format!("Semaphore acquire failed: {}", e) }
+            })?;
 
         let header_map = self.build_headers(headers);
 
@@ -202,57 +246,54 @@ impl Fetcher for HttpFetcher {
             .send()
             .await
             .map_err(|e| {
+                self.failed_requests.fetch_add(1, Ordering::Relaxed);
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
                     EngineError::ConnectionRefused { message: e.to_string() }
                 } else {
-                    EngineError::Network(e.to_string())
+                    EngineError::Network { message: e.to_string() }
                 }
             })?;
 
-        self.convert_response(resp).await
-    }
+        let response = self.convert_response(resp).await?;
+        self.successful_requests.fetch_add(1, Ordering::Relaxed);
+        self.total_bytes_downloaded.fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
-    /// Execute request with retry logic
-    async fn execute_with_retry<F, Fut>(
-        &self,
-        operation: F,
-        max_retries: usize,
-        base_delay_ms: u64,
-    ) -> Result<FetchResponse, EngineError>
-    where
-        F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<FetchResponse, EngineError>>,
-    {
-        let mut last_error = None;
-
-        for attempt in 0..=max_retries {
-            match operation().await {
-                Ok(response) => return Ok(response),
-                Err(e) => {
-                    last_error = Some(e);
-
-                    // Don't retry on certain errors
-                    if matches!(e, EngineError::Unauthorized | EngineError::InvalidConfig { .. }) {
-                        return Err(e);
-                    }
-
-                    // Don't retry on the last attempt
-                    if attempt == max_retries {
-                        break;
-                    }
-
-                    // Exponential backoff
-                    let delay_ms = base_delay_ms * (2_u64.pow(attempt as u32));
-                    debug!("Request failed (attempt {}), retrying in {}ms: {:?}", attempt + 1, delay_ms, e);
-                    tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
-                }
+        // Track response time
+        let elapsed = start_time.elapsed().as_nanos();
+        {
+            let mut times = self.response_times.lock().unwrap();
+            times.push(elapsed);
+            // Keep only last 1000 measurements
+            if times.len() > 1000 {
+                times.remove(0);
             }
         }
 
-        Err(last_error.unwrap_or_else(|| EngineError::Network { message: "Max retries exceeded".to_string() }))
+        Ok(response)
     }
+
+    fn statistics(&self) -> FetcherStatistics {
+        use std::sync::atomic::Ordering;
+
+        let response_times = self.response_times.lock().unwrap();
+        let average_response_time_ms = if response_times.is_empty() {
+            0.0
+        } else {
+            response_times.iter().sum::<u128>() as f64 / response_times.len() as f64 / 1_000_000.0 // Convert to ms
+        };
+
+        FetcherStatistics {
+            total_requests: self.total_requests.load(Ordering::Relaxed),
+            successful_requests: self.successful_requests.load(Ordering::Relaxed),
+            failed_requests: self.failed_requests.load(Ordering::Relaxed),
+            total_bytes_downloaded: self.total_bytes_downloaded.load(Ordering::Relaxed),
+            average_response_time_ms,
+            active_connections: (self.max_concurrent_requests - self.semaphore.available_permits()) as u32,
+        }
+    }
+
 }
 
 #[cfg(test)]

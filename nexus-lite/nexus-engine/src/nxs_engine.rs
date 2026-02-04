@@ -6,10 +6,7 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
-use nexus_core::reading::{Chapter, ChapterId, BookId};
-use chrono::Utc;
-use std::collections::HashMap;
+use nexus_core::{BookInfo, BookItem, Chapter, EngineError, NxsSource, ReplaceRule};
 use scraper::Html;
 use std::sync::Arc;
 use tracing::{info, instrument};
@@ -363,20 +360,11 @@ impl NxsEngine {
                 }
 
                 Some(Chapter {
-                    id: ChapterId::new(),
-                    book_id: BookId::new(),
-                    number: idx as u32,
                     title: name.into(),
-                    summary: None,
-                    word_count: 0,
-                    publish_date: None,
-                    update_date: None,
+                    url: self.abs_url(&url).into(),
+                    index: idx,
                     is_vip: false,
-                    content_hash: None,
-                    metadata: HashMap::new(),
-                    version: 0,
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
+                    word_count: None,
                 })
             })
             .collect();
@@ -385,7 +373,7 @@ impl NxsEngine {
             chapters.reverse();
             // Re-index after reverse
             for (idx, chapter) in chapters.iter_mut().enumerate() {
-                chapter.number = idx as u32;
+                chapter.index = idx;
             }
         }
 

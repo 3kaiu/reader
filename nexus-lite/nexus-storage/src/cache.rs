@@ -140,7 +140,7 @@ impl ChapterCache {
 
         tokio::fs::write(&path, content)
             .await
-            .map_err(|e| EngineError::FileIo(e.to_string()))?;
+            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
 
         let new_size = content.len() as u64;
         self.disk_size
@@ -209,17 +209,17 @@ impl ChapterCache {
 
         let mut dir = tokio::fs::read_dir(&self.disk_dir)
             .await
-            .map_err(|e| EngineError::FileIo(e.to_string()))?;
+            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
 
         while let Some(entry) = dir
             .next_entry()
             .await
-            .map_err(|e| EngineError::FileIo(e.to_string()))?
+            .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?
         {
             let metadata = entry
                 .metadata()
                 .await
-                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?;
             let size = metadata.len();
             let modified = metadata
                 .modified()

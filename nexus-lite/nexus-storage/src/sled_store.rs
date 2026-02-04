@@ -88,7 +88,7 @@ impl SledStore {
     fn get_sync<T: DeserializeOwned>(tree: &Tree, key: &str) -> Result<Option<T>, EngineError> {
         match tree
             .get(key)
-            .map_err(|e| EngineError::Database(e.to_string()))?
+            .map_err(|e| EngineError::Database { message: e.to_string() })?
         {
             Some(bytes) => {
                 let value: T = serde_json::from_slice(&bytes)?;
@@ -101,20 +101,20 @@ impl SledStore {
     fn put_sync<T: Serialize>(tree: &Tree, key: &str, value: &T) -> Result<(), EngineError> {
         let bytes = serde_json::to_vec(value)?;
         tree.insert(key, bytes)
-            .map_err(|e| EngineError::Database(e.to_string()))?;
+            .map_err(|e| EngineError::Database { message: e.to_string() })?;
         Ok(())
     }
 
     fn delete_sync(tree: &Tree, key: &str) -> Result<(), EngineError> {
         tree.remove(key)
-            .map_err(|e| EngineError::Database(e.to_string()))?;
+            .map_err(|e| EngineError::Database { message: e.to_string() })?;
         Ok(())
     }
 
     fn scan_all_sync<T: DeserializeOwned>(tree: &Tree) -> Result<Vec<T>, EngineError> {
         let mut results = Vec::new();
         for entry in tree.iter() {
-            let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+            let (_, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
             let item: T = serde_json::from_slice(&value)?;
             results.push(item);
         }
@@ -132,7 +132,7 @@ impl SledStore {
             let mut results = Vec::new();
             // Use index for sorted retrieval
             for entry in idx_tree.iter() {
-                let (key, _) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let (key, _) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
                 let key_str = String::from_utf8_lossy(&key);
 
                 // Key format: {inverted_timestamp}:{id}
@@ -165,7 +165,7 @@ impl SledStore {
             let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
             idx_tree
                 .insert(idx_key, &[])
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
 
             debug!("Added book to shelf: {}", item.name);
             Ok(())
@@ -203,7 +203,7 @@ impl SledStore {
                 let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
                 idx_tree
                     .insert(idx_key, &[])
-                    .map_err(|e| EngineError::Database(e.to_string()))?;
+                    .map_err(|e| EngineError::Database { message: e.to_string() })?;
             }
             Ok(())
         })
@@ -233,7 +233,7 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             // Scan all books to check (could optimize with secondary index if needed)
             for entry in bookshelf_tree.iter() {
-                let (_, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let (_, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
                 let item: BookshelfItem = serde_json::from_slice(&value)?;
                 if item.source_id.as_ref() == source_id && item.book_url.as_ref() == book_url {
                     return Ok(true);
@@ -271,7 +271,7 @@ impl SledStore {
         let mut to_remove = None;
 
         for entry in idx_tree.iter() {
-            let (key, _) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+            let (key, _) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
             let key_str = String::from_utf8_lossy(&key);
             if key_str.ends_with(&prefix_to_find) {
                 to_remove = Some(key.to_vec());
@@ -282,7 +282,7 @@ impl SledStore {
         if let Some(key) = to_remove {
             idx_tree
                 .remove(key)
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
         }
 
         Ok(())
@@ -315,7 +315,7 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             // Clear group_id from all books in this group
             for entry in bookshelf_tree.iter() {
-                let (key, value) = entry.map_err(|e| EngineError::Database(e.to_string()))?;
+                let (key, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
                 let mut item: BookshelfItem = serde_json::from_slice(&value)?;
                 if item.group_id.as_deref() == Some(&id) {
                     item.group_id = None;
@@ -411,7 +411,7 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             history_tree
                 .clear()
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
             Ok(())
         })
         .await
@@ -448,9 +448,13 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             match config_tree
                 .get(&key)
-                .map_err(|e| EngineError::Database(e.to_string()))?
+                .map_err(|e| EngineError::Database { message: e.to_string() })?
             {
-                Some(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+                Some(bytes) => {
+                    let bytes_ref: &[u8] = &bytes;
+                    let s = String::from_utf8_lossy(bytes_ref);
+                    Ok(Some(s.into_owned()))
+                },
                 None => Ok(None),
             }
         })
@@ -463,7 +467,7 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             config_tree
                 .insert(&key, value.as_bytes())
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
             Ok(())
         })
         .await
@@ -478,7 +482,7 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             match status_tree
                 .get(&source_id)
-                .map_err(|e| EngineError::Database(e.to_string()))?
+                .map_err(|e| EngineError::Database { message: e.to_string() })?
             {
                 Some(bytes) => {
                     // Store as "1" for enabled, "0" for disabled
@@ -502,7 +506,7 @@ impl SledStore {
             let value = if enabled { b"1" } else { b"0" };
             status_tree
                 .insert(&source_id, value)
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
             Ok(())
         })
         .await
@@ -514,7 +518,7 @@ impl SledStore {
         let db = self.db.clone();
         tokio::task::spawn_blocking(move || {
             db.flush()
-                .map_err(|e| EngineError::Database(e.to_string()))?;
+                .map_err(|e| EngineError::Database { message: e.to_string() })?;
             Ok(())
         })
         .await

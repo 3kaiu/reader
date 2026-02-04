@@ -39,7 +39,7 @@ impl SourceStore {
         while let Some(entry) = entries
             .next_entry()
             .await
-            .map_err(|e| EngineError::FileIo(e.to_string()))?
+            .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?
         {
             let path = entry.path();
             // Only load .nxs files

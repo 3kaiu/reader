@@ -13,10 +13,10 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use nexus_core::{Entity, ValueObject};
+use nexus_core::{ValueObject, DomainError};
 
 use nexus_core::EngineError as StorageError;
-use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
+use nexus_core::{AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 
 /// 数据对象实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,6 +213,7 @@ impl Entity for StorageBucket {
 
 /// 缓存条目值对象
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq)]
 pub struct CacheEntry {
     pub key: String,
     pub value: serde_json::Value,
@@ -245,7 +246,7 @@ impl CacheEntry {
 }
 
 /// 存储策略值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StorageStrategy {
     pub name: String,
     pub strategy_type: StrategyType,
@@ -1044,12 +1045,12 @@ impl BusinessRuleValidator<DataObject> for DataObjectKeyValidRule {
         "data_object_key_valid"
     }
 
-    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), StorageError> {
+    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.key.trim().is_empty() {
-            return Err(StorageError::Validation("Data object key cannot be empty".to_string()));
+            return Err(DomainError::Validation("Data object key cannot be empty".to_string()));
         }
         if entity.key.len() > 1024 {
-            return Err(StorageError::Validation("Data object key is too long (max 1024 characters)".to_string()));
+            return Err(DomainError::Validation("Data object key is too long (max 1024 characters)".to_string()));
         }
         Ok(())
     }
@@ -1067,10 +1068,10 @@ impl BusinessRuleValidator<DataObject> for DataObjectSizeValidRule {
         "data_object_size_valid"
     }
 
-    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), StorageError> {
+    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), DomainError> {
         const MAX_SIZE: u64 = 100 * 1024 * 1024; // 100MB
         if entity.size_bytes > MAX_SIZE {
-            return Err(StorageError::Validation(format!("Data object is too large (max {} bytes)", MAX_SIZE)));
+            return Err(DomainError::Validation(format!("Data object is too large (max {} bytes)", MAX_SIZE)));
         }
         Ok(())
     }
