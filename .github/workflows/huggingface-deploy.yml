@@ -79,8 +79,19 @@ jobs:
               # 尝试获取space信息来检查是否存在
               space_info = api.space_info(space_name, token=token)
               print(f"✅ Space {space_name} already exists")
-              print(f"   Status: {space_info.status}")
-              print(f"   SDK: {space_info.sdk}")
+
+              # 检查 SpaceInfo 对象属性
+              print(f"   Stage: {getattr(space_info, 'stage', 'unknown')}")
+              print(f"   SDK: {getattr(space_info, 'sdk', 'unknown')}")
+              print(f"   Private: {getattr(space_info, 'private', 'unknown')}")
+
+              # 检查是否有运行时信息
+              try:
+                  runtime_info = getattr(space_info, 'runtime', {})
+                  if runtime_info:
+                      print(f"   Runtime: {runtime_info}")
+              except:
+                  pass
               space_exists = True
           except Exception as e:
               if "404" in str(e) or "Not Found" in str(e):

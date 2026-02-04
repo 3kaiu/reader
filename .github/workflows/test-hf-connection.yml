@@ -55,7 +55,9 @@ jobs:
 
               try:
                   space_info = api.space_info(space_name, token=token)
-                  print(f"✅ Space exists - Status: {space_info.status}")
+                  print(f"✅ Space exists")
+                  print(f"   Stage: {getattr(space_info, 'stage', 'unknown')}")
+                  print(f"   SDK: {getattr(space_info, 'sdk', 'unknown')}")
                   print(f"🌐 URL: https://huggingface.co/spaces/{space_name}")
               except Exception as e:
                   if "404" in str(e):
