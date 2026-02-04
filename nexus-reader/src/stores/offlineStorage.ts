@@ -147,10 +147,10 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
   const syncWithServer = async () => {
     if (!state.value.isOnline || !state.value.syncPending) {
-      return
-    }
+                    return
+                }
 
-    try {
+                try {
       logger.info('Starting offline data sync...')
 
       const syncItems = state.value.items.filter(item =>
@@ -221,7 +221,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
   // 自动初始化
   initialize()
 
-  return {
+    return {
     // State
     state: readonly(state),
 

@@ -35,8 +35,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
     try {
       if (ws.value && ws.value.readyState === WebSocket.OPEN) {
         logger.warn('WebSocket already connected')
-        return
-      }
+      return
+    }
 
       state.value.url = url
       state.value.reconnectAttempts = 0

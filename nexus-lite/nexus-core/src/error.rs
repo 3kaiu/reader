@@ -46,7 +46,7 @@ pub enum ErrorCode {
     NotFound = 6000,
     BookNotFound = 6001,
     ChapterNotFound = 6002,
-    EmptyContent = 6002,
+    EmptyContent = 6005,
     InvalidBookFormat = 6003,
     UnsupportedBookType = 6004,
 
