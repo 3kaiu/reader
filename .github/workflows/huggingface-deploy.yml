@@ -74,40 +74,60 @@ jobs:
           print(f"📦 Space: {space_short_name}")
 
           # 检查并创建Space
+          space_exists = False
           try:
               # 尝试获取space信息来检查是否存在
               space_info = api.space_info(space_name, token=token)
               print(f"✅ Space {space_name} already exists")
               print(f"   Status: {space_info.status}")
               print(f"   SDK: {space_info.sdk}")
+              space_exists = True
           except Exception as e:
               if "404" in str(e) or "Not Found" in str(e):
-                  print(f"📝 Creating new HuggingFace Space: {space_name}")
-                  try:
-                      create_repo(
-                          space_name,  # 使用完整的 repo_id 格式
-                          repo_type="space",
-                          space_sdk="docker",
-                          token=token,
-                          private=False
-                      )
-                      print("✅ Space created successfully")
-                      print("⏳ Waiting for space initialization...")
-                      time.sleep(15)  # 等待空间初始化
-                  except Exception as create_error:
-                      if "409" in str(create_error):
-                          print(f"ℹ️ Space {space_name} already exists (created via web interface)")
-                          print("✅ Proceeding with deployment...")
-                      else:
-                          print(f"❌ Failed to create space: {create_error}")
-                          print("💡 Possible causes:")
-                          print("   - Invalid HF_TOKEN")
-                          print("   - Insufficient permissions")
-                          print("   - Rate limiting")
-                          raise create_error
-              else:
-                  print(f"❌ Unexpected error checking space: {e}")
+                  print(f"📝 Space {space_name} does not exist, will create it")
+              elif "403" in str(e) or "Forbidden" in str(e):
+                  print(f"❌ Access denied to space {space_name}")
+                  print("💡 Check if HF_TOKEN has correct permissions")
                   raise e
+              else:
+                  print(f"⚠️ Unexpected error checking space (will try to create): {e}")
+
+          # 如果space不存在，尝试创建
+          if not space_exists:
+              print(f"📝 Creating new HuggingFace Space: {space_name}")
+              try:
+                  create_repo(
+                      space_name,  # 使用完整的 repo_id 格式
+                      repo_type="space",
+                      space_sdk="docker",
+                      token=token,
+                      private=False
+                  )
+                  print("✅ Space created successfully")
+                  print("⏳ Waiting for space initialization...")
+                  time.sleep(20)  # 增加等待时间
+                  space_exists = True
+              except Exception as create_error:
+                  if "409" in str(create_error):
+                      print(f"ℹ️ Space {space_name} already exists (created via web interface or concurrent process)")
+                      print("✅ Proceeding with deployment...")
+                      space_exists = True
+                  elif "403" in str(create_error):
+                      print(f"❌ Permission denied creating space {space_name}")
+                      print("💡 HF_TOKEN needs 'write' permissions for spaces")
+                      raise create_error
+                  else:
+                      print(f"❌ Failed to create space: {create_error}")
+                      print("💡 Possible causes:")
+                      print("   - Invalid HF_TOKEN")
+                      print("   - Username/space name conflict")
+                      print("   - Rate limiting (try again later)")
+                      print("   - Account restrictions")
+                      raise create_error
+
+          # 确保space确实存在后再继续
+          if not space_exists:
+              raise Exception(f"Space {space_name} is not accessible")
 
           # 准备上传目录
           source_dir = "nexus-lite"
