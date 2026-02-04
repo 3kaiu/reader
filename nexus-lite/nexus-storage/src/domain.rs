@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::error::StorageError;
+use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 
 /// 数据对象实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]

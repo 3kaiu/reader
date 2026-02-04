@@ -898,6 +898,9 @@ export function getOptimizerManager(): OptimizerManager | null {
 
 export const cache = UnifiedCache.getInstance()
 export const api = UnifiedApiClient.getInstance()
+
+// Export logger from the separate logger utility
+export { logger } from './logger'
 export const config = UnifiedConfig.getInstance()
 export const errorHandler = UnifiedErrorHandler.getInstance()
 export const performanceMonitor = UnifiedPerformanceMonitor.getInstance()

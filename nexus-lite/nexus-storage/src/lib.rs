@@ -23,6 +23,9 @@ pub use source_store::SourceStore;
 // 新架构导出
 pub use domain::*;
 
+// Error type re-export
+pub use nexus_core::EngineError;
+
 use nexus_core::{EngineConfig, EngineError};
 use tracing::info;
 

@@ -354,6 +354,13 @@ export const systemApi = {
   restart: () => api.post('/system/restart', {}),
 }
 
+// ===== HTTP 辅助函数 =====
+
+import { $get, $post, $put, $delete, $patch } from './client'
+
+// Export HTTP helpers as named exports
+export { $get, $post, $put, $delete, $patch }
+
 // ===== 默认导出 =====
 
 export default {
@@ -364,4 +371,10 @@ export default {
   replace: replaceApi,
   group: groupApi,
   system: systemApi,
+  // HTTP helpers
+  $get,
+  $post,
+  $put,
+  $delete,
+  $patch,
 }
