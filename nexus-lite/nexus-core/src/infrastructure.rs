@@ -9,17 +9,6 @@
 //! - 技术细节隔离：封装具体的技术实现
 //! - 可替换性：不同的基础设施实现可以相互替换
 
-pub mod persistence;
-pub mod external;
-pub mod messaging;
-pub mod monitoring;
-
-// 重新导出主要基础设施类型
-pub use persistence::*;
-pub use external::*;
-pub use messaging::*;
-pub use monitoring::*;
-
 /// 基础设施层通用接口和类型
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -45,13 +34,21 @@ pub struct InfrastructureConfig {
 }
 
 /// 基础设施上下文
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InfrastructureContext {
     pub config: InfrastructureConfig,
     pub connection_pool: Option<Arc<dyn ConnectionPool>>,
     pub cache_client: Option<Arc<dyn CacheClient>>,
     pub message_producer: Option<Arc<dyn MessageProducer>>,
     pub metrics_collector: Option<Arc<dyn MetricsCollector>>,
+}
+
+impl std::fmt::Debug for InfrastructureContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InfrastructureContext")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 /// 连接池接口
@@ -184,6 +181,21 @@ pub enum InfrastructureError {
     ConfigurationError(String),
     Timeout(String),
     SerializationError(String),
+}
+
+impl std::fmt::Display for InfrastructureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ConnectionFailed(s) => write!(f, "Connection failed: {}", s),
+            Self::QueryFailed(s) => write!(f, "Query failed: {}", s),
+            Self::CacheFailed(s) => write!(f, "Cache failed: {}", s),
+            Self::MessageFailed(s) => write!(f, "Message failed: {}", s),
+            Self::ExternalApiFailed(s) => write!(f, "External API failed: {}", s),
+            Self::ConfigurationError(s) => write!(f, "Configuration error: {}", s),
+            Self::Timeout(s) => write!(f, "Timeout: {}", s),
+            Self::SerializationError(s) => write!(f, "Serialization error: {}", s),
+        }
+    }
 }
 
 /// 基础设施适配器工厂

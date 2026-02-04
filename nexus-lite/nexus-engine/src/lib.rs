@@ -20,6 +20,7 @@ pub mod content;
 pub mod domain_pool;
 pub mod fetcher;
 pub mod nxs_engine;
+#[cfg(target_arch = "wasm32")]
 pub mod purifier;
 pub mod selector_cache;
 pub mod uri;

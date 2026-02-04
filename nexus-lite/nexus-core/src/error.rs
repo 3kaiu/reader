@@ -133,8 +133,8 @@ pub enum EngineError {
     #[error("All anti-crawl strategies exhausted")]
     AllStrategiesFailed,
 
-    #[error("Circuit breaker open for source: {source}")]
-    CircuitOpen { source: String },
+    #[error("Circuit breaker open: {message}")]
+    CircuitOpen { message: String },
 
     #[error("Strategy is disabled")]
     StrategyDisabled,
@@ -430,12 +430,12 @@ impl EngineError {
 // Implement From for common error types
 impl From<std::io::Error> for EngineError {
     fn from(err: std::io::Error) -> Self {
-        Self::FileIo(err.to_string())
+        Self::FileIo { message: err.to_string() }
     }
 }
 
 impl From<serde_json::Error> for EngineError {
     fn from(err: serde_json::Error) -> Self {
-        Self::JsonParse(err.to_string())
+        Self::JsonParse { message: err.to_string() }
     }
 }

@@ -9,25 +9,6 @@
 //! - 非侵入性：不影响核心业务逻辑
 //! - 可配置性：支持灵活的配置和扩展
 
-pub mod logging;
-pub mod caching;
-pub mod security;
-pub mod configuration;
-pub mod monitoring;
-pub mod exception_handling;
-pub mod validation;
-pub mod audit;
-
-// 重新导出主要跨切类型
-pub use logging::*;
-pub use caching::*;
-pub use security::*;
-pub use configuration::*;
-pub use monitoring::*;
-pub use exception_handling::*;
-pub use validation::*;
-pub use audit::*;
-
 /// 跨切关注点通用接口和类型
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

@@ -9,15 +9,6 @@
 //! - 关注点分离：分离界面逻辑和业务逻辑
 //! - 用户体验：提供良好的用户交互体验
 
-pub mod api;
-pub mod web;
-pub mod cli;
-
-// 重新导出主要展示层类型
-pub use api::*;
-pub use web::*;
-pub use cli::*;
-
 /// 展示层通用接口和类型
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -219,6 +210,11 @@ impl ApiRouter {
     /// 添加中间件
     pub fn add_middleware(&mut self, middleware: Box<dyn RequestMiddleware>) {
         self.middleware.push(middleware);
+    }
+
+    /// 获取 ServiceBus 引用（用于中间件等）
+    pub fn service_bus(&self) -> std::sync::Arc<ApplicationServiceBus> {
+        self.service_bus.clone()
     }
 
     /// 构建Warp过滤器
@@ -515,7 +511,7 @@ pub async fn init_presentation_layer(service_bus: Arc<ApplicationServiceBus>) ->
 
     // 添加中间件
     router.add_middleware(Box::new(LoggingMiddleware::new()));
-    router.add_middleware(Box::new(AuthenticationMiddleware::new(router.service_bus.clone())));
+    router.add_middleware(Box::new(AuthenticationMiddleware::new(router.service_bus())));
     router.add_middleware(Box::new(RateLimitMiddleware::new(1000))); // 每分钟1000个请求
 
     // 添加路由处理器

@@ -9,7 +9,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque, BTreeMap, BinaryHeap};
 use std::cmp::Reverse;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -121,7 +121,7 @@ pub struct AdaptiveSorter;
 
 impl AdaptiveSorter {
     /// 自适应排序 - 根据数据特征选择最优算法
-    pub fn adaptive_sort<T: Ord + Clone>(data: &mut [T]) {
+    pub fn adaptive_sort<T: Ord + Clone + Hash>(data: &mut [T]) {
         let len = data.len();
 
         if len <= 1 {
@@ -196,7 +196,7 @@ impl AdaptiveSorter {
     }
 
     /// 并行排序
-    pub async fn parallel_sort<T: Ord + Clone + Send + Sync>(data: &mut [T], max_threads: usize) {
+    pub async fn parallel_sort<T: Ord + Clone + Copy + Send + Sync>(data: &mut [T], max_threads: usize) {
         let len = data.len();
         if len <= 1024 {
             // 小数据集使用单线程排序
@@ -228,7 +228,7 @@ impl AdaptiveSorter {
         Self::merge_sorted_chunks(data, sorted_chunks);
     }
 
-    fn merge_sorted_chunks<T: Ord + Clone>(target: &mut [T], chunks: Vec<(usize, Vec<T>)>) {
+    fn merge_sorted_chunks<T: Ord + Clone + Copy>(target: &mut [T], chunks: Vec<(usize, Vec<T>)>) {
         // 简化的归并实现
         let mut all_elements = Vec::new();
         for (_, chunk) in chunks {
@@ -245,7 +245,7 @@ pub struct AdaptiveSearcher;
 
 impl AdaptiveSearcher {
     /// 自适应搜索 - 根据数据特征选择最优算法
-    pub fn adaptive_search<T: Eq>(data: &[T], target: &T) -> Option<usize> {
+    pub fn adaptive_search<T: Eq + Ord + Hash>(data: &[T], target: &T) -> Option<usize> {
         let len = data.len();
 
         if len == 0 {
@@ -614,7 +614,7 @@ impl AlgorithmOptimizer {
     }
 
     /// 优化的搜索算法
-    pub fn optimized_search<T: Eq>(&self, data: &[T], target: &T) -> Option<usize> {
+    pub fn optimized_search<T: Eq + Ord + Hash>(&self, data: &[T], target: &T) -> Option<usize> {
         let start = std::time::Instant::now();
         let result = AdaptiveSearcher::adaptive_search(data, target);
         let duration = start.elapsed().as_nanos();

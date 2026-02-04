@@ -60,24 +60,13 @@ pub use infrastructure::*;
 pub use presentation::*;
 pub use cross_cutting::*;
 
-// ===== 遗留模块导出 (逐步废弃) =====
-pub use auto_tuner::*;
+// ===== 核心导出 =====
 pub use book_engine::*;
 pub use config::*;
-pub use config_manager::*;
-pub use config_optimizer::*;
 pub use error::EngineError;
-pub use error_recovery::*;
 pub use event_bus::{EventBus, SystemEvent, EngineEvent, StorageEvent, SystemControlEvent};
 pub use health_tracker::*;
-pub use intelligent_monitoring::*;
 pub use interfaces::*;
-pub use middleware::*;
-pub use ml_models::*;
 pub use nxs::NxsSource;
-pub use performance_optimizer::*;
-pub use plugin::*;
-pub use predictive_maintenance::*;
-pub use system_integrator::*;
 pub use traits::*;
 pub use types::*;

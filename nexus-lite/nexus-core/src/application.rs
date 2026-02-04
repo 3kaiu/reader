@@ -9,19 +9,6 @@
 //! - 事务管理：管理用例执行的事务边界
 //! - 安全控制：处理应用级别的安全和权限
 
-pub mod services;
-pub mod use_cases;
-pub mod dtos;
-pub mod commands;
-pub mod queries;
-
-// 重新导出主要应用层类型
-pub use services::*;
-pub use use_cases::*;
-pub use dtos::*;
-pub use commands::*;
-pub use queries::*;
-
 /// 应用层通用接口和类型
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

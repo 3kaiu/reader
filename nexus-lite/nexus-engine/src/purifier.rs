@@ -1,3 +1,6 @@
+//! 仅在使用 wasm32 目标时编译（如前端/Worker 内联净化）
+#![cfg(target_arch = "wasm32")]
+
 use aho_corasick::AhoCorasick;
 use wasm_bindgen::prelude::*;
 

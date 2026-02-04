@@ -57,7 +57,7 @@ pub struct OptimizationSuggestion {
 }
 
 /// 优化类别
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OptimizationCategory {
     Memory,
     CPU,
@@ -505,8 +505,8 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         id: format!("{}_memory_gc", self.name),
                         category: OptimizationCategory::Memory,
                         priority: OptimizationPriority::High,
-                        title: "触发垃圾回收",
-                        description: "内存使用过高，建议触发垃圾回收",
+                        title: "触发垃圾回收".to_string(),
+                        description: "内存使用过高，建议触发垃圾回收".to_string(),
                         estimated_improvement_percent: 25.0,
                         implementation_complexity: Complexity::Low,
                         affected_components: vec!["memory_manager".to_string()],
@@ -520,8 +520,8 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         id: format!("{}_cpu_optimization", self.name),
                         category: OptimizationCategory::CPU,
                         priority: OptimizationPriority::High,
-                        title: "优化CPU使用",
-                        description: "CPU使用率过高，建议优化计算密集型任务",
+                        title: "优化CPU使用".to_string(),
+                        description: "CPU使用率过高，建议优化计算密集型任务".to_string(),
                         estimated_improvement_percent: 30.0,
                         implementation_complexity: Complexity::Medium,
                         affected_components: vec!["thread_pool".to_string(), "task_scheduler".to_string()],
@@ -535,8 +535,8 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         id: format!("{}_cache_optimization", self.name),
                         category: OptimizationCategory::Cache,
                         priority: OptimizationPriority::Medium,
-                        title: "优化缓存策略",
-                        description: "缓存命中率偏低，建议调整缓存策略",
+                        title: "优化缓存策略".to_string(),
+                        description: "缓存命中率偏低，建议调整缓存策略".to_string(),
                         estimated_improvement_percent: 20.0,
                         implementation_complexity: Complexity::Low,
                         affected_components: vec!["cache_manager".to_string()],
