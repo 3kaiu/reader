@@ -3,7 +3,7 @@ use axum::{
     Json,
 };
 use futures::future::join_all;
-use nexus_core::{BookInfo, Chapter, ChapterContent};
+use nexus_core::{BookInfo, ChapterContent, types::Chapter};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
