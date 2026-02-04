@@ -1,0 +1,77 @@
+name: 🧪 Test HuggingFace Connection
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_token:
+        description: 'Test HF_TOKEN (leave empty to use secret)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test-connection:
+    name: 🔗 Test HF Connection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install huggingface_hub
+
+      - name: Test HF_TOKEN
+        run: |
+          python3 << 'EOF'
+          import os
+          from huggingface_hub import HfApi
+
+          # 使用输入的 token 或 secret
+          token = "${{ github.event.inputs.test_token || secrets.HF_TOKEN }}"
+          if not token:
+              print("❌ No HF_TOKEN provided")
+              exit(1)
+
+          print(f"🔑 Testing HF_TOKEN (length: {len(token)})")
+
+          try:
+              api = HfApi(token=token)
+              user_info = api.whoami()
+              username = user_info["name"]
+
+              print(f"✅ Connected as: {username}")
+
+              # 测试 Space 访问
+              space_name = f"{username}/nexus-lite"
+              print(f"🔍 Checking space: {space_name}")
+
+              try:
+                  space_info = api.space_info(space_name, token=token)
+                  print(f"✅ Space exists - Status: {space_info.status}")
+                  print(f"🌐 URL: https://huggingface.co/spaces/{space_name}")
+              except Exception as e:
+                  if "404" in str(e):
+                      print(f"❌ Space {space_name} does not exist")
+                      print("💡 Create it at: https://huggingface.co/new-space")
+                  else:
+                      print(f"⚠️ Error checking space: {e}")
+
+          except Exception as e:
+              print(f"❌ HF_TOKEN validation failed: {e}")
+              print("💡 Check your token at: https://huggingface.co/settings/tokens")
+              exit(1)
+          EOF
+
+      - name: Success
+        run: |
+          echo "🎉 HF_TOKEN validation successful!"
+          echo "✅ Connection established"
+          echo "✅ Space access verified"
