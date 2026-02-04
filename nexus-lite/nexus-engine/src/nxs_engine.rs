@@ -7,7 +7,9 @@
 //! - Clean async interface
 
 use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
-use nexus_core::reading::Chapter;
+use nexus_core::reading::{Chapter, ChapterId, BookId};
+use chrono::Utc;
+use std::collections::HashMap;
 use scraper::Html;
 use std::sync::Arc;
 use tracing::{info, instrument};
@@ -47,7 +49,7 @@ impl CompiledNxs {
     fn compile(source: &NxsSource) -> Result<Self, EngineError> {
         // Use global selector cache for cross-engine sharing
         let compile = |rule: &str| -> Result<Arc<FallbackSelector>, EngineError> {
-            FallbackSelector::get_or_compile_global(rule).map_err(EngineError::InvalidSelector)
+            FallbackSelector::get_or_compile_global(rule).map_err(|e| EngineError::InvalidSelector { selector: e.to_string() })
         };
 
         let compile_opt = |rule: &Option<String>| -> Result<Arc<FallbackSelector>, EngineError> {
@@ -145,10 +147,10 @@ impl NxsEngine {
         let response = self.anti_crawl.execute(&mut ctx).await?;
 
         if !response.is_success() {
-            return Err(EngineError::Network(format!(
+            return Err(EngineError::Network { message: format!(
                 "HTTP {} for {}",
                 response.status, url
-            )));
+            ) });
         }
 
         Ok(response.body)
@@ -361,11 +363,20 @@ impl NxsEngine {
                 }
 
                 Some(Chapter {
+                    id: ChapterId::new(),
+                    book_id: BookId::new(),
+                    number: idx as u32,
                     title: name.into(),
-                    url: self.abs_url(&url).into(),
-                    index: idx,
+                    summary: None,
+                    word_count: 0,
+                    publish_date: None,
+                    update_date: None,
                     is_vip: false,
-                    word_count: None,
+                    content_hash: None,
+                    metadata: HashMap::new(),
+                    version: 0,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
                 })
             })
             .collect();
@@ -374,7 +385,7 @@ impl NxsEngine {
             chapters.reverse();
             // Re-index after reverse
             for (idx, chapter) in chapters.iter_mut().enumerate() {
-                chapter.index = idx;
+                chapter.number = idx as u32;
             }
         }
 

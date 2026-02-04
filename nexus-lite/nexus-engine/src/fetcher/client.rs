@@ -33,7 +33,7 @@ impl HttpFetcher {
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
             .read_timeout(Duration::from_secs(timeout_seconds))
-            .write_timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(30))
             // Enhanced connection pool optimization
             .pool_max_idle_per_host(50) // Further increased for high concurrency
             .pool_idle_timeout(Duration::from_secs(120)) // Keep connections alive longer
@@ -50,7 +50,7 @@ impl HttpFetcher {
             .cookie_store(true)
             .user_agent("Mozilla/5.0 (compatible; NexusLite/1.0)")
             .build()
-            .map_err(|e| EngineError::Network(e.to_string()))?;
+            .map_err(|e| EngineError::Network { message: e.to_string() })?;
 
         Ok(Self {
             client: Arc::new(client),
@@ -135,7 +135,7 @@ impl HttpFetcher {
         let body = resp
             .text()
             .await
-            .map_err(|e| EngineError::Network(e.to_string()))?;
+            .map_err(|e| EngineError::Network { message: e.to_string() })?;
 
         Ok(FetchResponse {
             status,
@@ -157,7 +157,7 @@ impl Fetcher for HttpFetcher {
 
         // Acquire semaphore permit for concurrency control
         let _permit = self.semaphore.acquire().await
-            .map_err(|e| EngineError::Network(format!("Semaphore acquire failed: {}", e)))?;
+            .map_err(|e| EngineError::Network { message: format!("Semaphore acquire failed: {}", e) })?;
 
         let header_map = self.build_headers(headers);
 
@@ -171,7 +171,7 @@ impl Fetcher for HttpFetcher {
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
-                    EngineError::ConnectionRefused(e.to_string())
+                    EngineError::ConnectionRefused { message: e.to_string() }
                 } else {
                     EngineError::Network(e.to_string())
                 }
@@ -190,7 +190,7 @@ impl Fetcher for HttpFetcher {
 
         // Acquire semaphore permit for concurrency control
         let _permit = self.semaphore.acquire().await
-            .map_err(|e| EngineError::Network(format!("Semaphore acquire failed: {}", e)))?;
+            .map_err(|e| EngineError::Network { message: format!("Semaphore acquire failed: {}", e) })?;
 
         let header_map = self.build_headers(headers);
 
@@ -205,7 +205,7 @@ impl Fetcher for HttpFetcher {
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
-                    EngineError::ConnectionRefused(e.to_string())
+                    EngineError::ConnectionRefused { message: e.to_string() }
                 } else {
                     EngineError::Network(e.to_string())
                 }
@@ -231,10 +231,10 @@ impl Fetcher for HttpFetcher {
             match operation().await {
                 Ok(response) => return Ok(response),
                 Err(e) => {
-                    last_error = Some(e.clone());
+                    last_error = Some(e);
 
                     // Don't retry on certain errors
-                    if matches!(e, EngineError::Unauthorized | EngineError::InvalidConfig(_)) {
+                    if matches!(e, EngineError::Unauthorized | EngineError::InvalidConfig { .. }) {
                         return Err(e);
                     }
 
@@ -251,7 +251,7 @@ impl Fetcher for HttpFetcher {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| EngineError::Network("Max retries exceeded".to_string())))
+        Err(last_error.unwrap_or_else(|| EngineError::Network { message: "Max retries exceeded".to_string() }))
     }
 }
 

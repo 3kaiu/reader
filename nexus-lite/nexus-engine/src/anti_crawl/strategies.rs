@@ -51,7 +51,7 @@ impl CfBypassStrategy {
             .timeout(Duration::from_secs(config.timeout_seconds))
             .build()
             .map_err(|e| {
-                EngineError::InvalidConfig(format!("Failed to build HTTP client: {}", e))
+                EngineError::InvalidConfig { message: format!("Failed to build HTTP client: {}", e) }
             })?;
 
         debug!(
@@ -113,27 +113,27 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         let response = req.send().await.map_err(|e| {
             warn!("CF Bypass: Request failed: {}", e);
-            EngineError::Network(format!("CF bypass service error: {}", e))
+            EngineError::Network { message: format!("CF bypass service error: {}", e) }
         })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             warn!("CF Bypass: Service returned error: {} - {}", status, text);
-            return Err(EngineError::Network(format!(
+            return Err(EngineError::Network { message: format!(
                 "CF bypass service returned {}",
                 status
-            )));
+            ) });
         }
 
         let body: CfFetchResponse = response.json().await.map_err(|e| {
             warn!("CF Bypass: Failed to parse response: {}", e);
-            EngineError::JsonParse(format!("Invalid response from CF bypass service: {}", e))
+            EngineError::JsonParse { message: format!("Invalid response from CF bypass service: {}", e) }
         })?;
 
         if let Some(error) = body.error {
             warn!("CF Bypass: Service error: {}", error);
-            return Err(EngineError::Network(error));
+            return Err(EngineError::Network { message: error });
         }
 
         // Normalize status 0 to 200 if CF bypass succeeded

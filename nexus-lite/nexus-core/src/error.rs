@@ -439,3 +439,19 @@ impl From<serde_json::Error> for EngineError {
         Self::JsonParse { message: err.to_string() }
     }
 }
+
+impl From<crate::domain::DomainError> for EngineError {
+    fn from(err: crate::domain::DomainError) -> Self {
+        match err {
+            crate::domain::DomainError::ValidationFailed(msg) =>
+                Self::Validation { message: msg },
+            crate::domain::DomainError::NotFound(entity) =>
+                Self::SourceNotFound { id: entity },
+            crate::domain::DomainError::InvalidState(msg) =>
+                Self::Internal { message: msg },
+            crate::domain::DomainError::BusinessRuleViolation(msg) =>
+                Self::Validation { message: msg },
+            _ => Self::Internal { message: format!("Domain error: {:?}", err) }
+        }
+    }
+}

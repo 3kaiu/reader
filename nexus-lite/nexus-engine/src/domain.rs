@@ -58,7 +58,7 @@ pub enum HttpMethod {
     OPTIONS,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TaskStatus {
     Pending,
     Running,
@@ -964,10 +964,10 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskUrlValidRule {
 
     async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), EngineError> {
         if entity.url.trim().is_empty() {
-            return Err(EngineError::Validation("Fetch task URL cannot be empty".to_string()));
+            return Err(EngineError::Validation { message: "Fetch task URL cannot be empty".to_string() });
         }
         if !entity.url.starts_with("http://") && !entity.url.starts_with("https://") {
-            return Err(EngineError::Validation("Fetch task URL must start with http:// or https://".to_string()));
+            return Err(EngineError::Validation { message: "Fetch task URL must start with http:// or https://".to_string() });
         }
         Ok(())
     }
@@ -987,7 +987,7 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskTimeoutValidRule {
 
     async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), EngineError> {
         if entity.timeout_ms == 0 || entity.timeout_ms > 300000 { // 5分钟
-            return Err(EngineError::Validation("Timeout must be between 1ms and 5 minutes".to_string()));
+            return Err(EngineError::Validation { message: "Timeout must be between 1ms and 5 minutes".to_string() });
         }
         Ok(())
     }

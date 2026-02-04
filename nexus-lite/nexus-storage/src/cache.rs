@@ -125,7 +125,7 @@ impl ChapterCache {
         if !self.disk_dir.exists() {
             tokio::fs::create_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
         }
 
         let path = self.disk_path(key);
@@ -185,10 +185,10 @@ impl ChapterCache {
         if self.disk_dir.exists() {
             tokio::fs::remove_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
             tokio::fs::create_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
         }
         self.disk_size.store(0, Ordering::Relaxed);
         self.hits.store(0, Ordering::Relaxed);
@@ -219,7 +219,7 @@ impl ChapterCache {
             let metadata = entry
                 .metadata()
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
             let size = metadata.len();
             let modified = metadata
                 .modified()

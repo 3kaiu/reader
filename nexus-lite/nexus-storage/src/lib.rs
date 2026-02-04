@@ -42,7 +42,7 @@ pub async fn init_storage(config: &EngineConfig) -> Result<(), EngineError> {
         if !dir.exists() {
             tokio::fs::create_dir_all(dir)
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
             info!("Created directory: {:?}", dir);
         }
     }
@@ -53,7 +53,7 @@ pub async fn init_storage(config: &EngineConfig) -> Result<(), EngineError> {
         if !parent.exists() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| EngineError::FileIo(e.to_string()))?;
+                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
         }
     }
 
