@@ -1,0 +1,77 @@
+# CodeQL Configuration for NexusLite Advanced Security
+#
+# Comprehensive security analysis for multi-language project:
+# - JavaScript/TypeScript (frontend)
+# - Rust (backend services)
+# - Python (AI/ML services)
+
+version: 2
+
+# Global settings
+disable-default-queries: false
+
+# Language-specific query configurations
+queries:
+  # JavaScript/TypeScript
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: ./codeql-queries/javascript
+
+  # Rust
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: ./codeql-queries/rust
+
+  # Python
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: ./codeql-queries/python
+
+# Paths to exclude from analysis
+paths-ignore:
+  # Dependencies
+  - node_modules/**
+  - target/**
+
+  # Build outputs
+  - dist/**
+  - build/**
+  - nexus-reader/dist/**
+
+  # Generated code
+  - "**/generated/**"
+  - "**/auto-generated/**"
+
+  # Test files
+  - "**/*.test.js"
+  - "**/*.test.ts"
+  - "**/*.spec.js"
+  - "**/*.spec.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
+
+  # Third-party code
+  - "**/vendor/**"
+  - "**/third-party/**"
+  - "**/external/**"
+
+  # Configuration and docs
+  - "**/*.config.js"
+  - "**/*.config.ts"
+  - "**/*.config.json"
+  - "docs/**"
+  - "README.md"
+  - "CHANGELOG.md"
+
+  # Cloudflare Workers
+  - "cloudflare-workers/node_modules/**"
+
+# Custom query packs (create these directories if needed)
+# codeql-queries/
+#   javascript/
+#   rust/
+#   python/
+
+# Result interpretation
+# severity: warning  # Options: error, warning, note, none
+# threshold: 0       # Minimum number of results to report
