@@ -59,12 +59,19 @@ jobs:
           from huggingface_hub import HfApi, create_repo, repo_exists
 
           token = os.environ["HF_TOKEN"]
-          space_name = "${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}"
+          space_short_name = "${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}"
+
+          # 初始化API并获取用户信息
+          api = HfApi(token=token)
+          user_info = api.whoami()
+          username = user_info["name"]
+
+          # 构建完整的repo ID
+          space_name = f"{username}/{space_short_name}"
 
           print(f"🚀 Deploying Nexus-Lite to HuggingFace Space: {space_name}")
-
-          # 初始化API
-          api = HfApi(token=token)
+          print(f"👤 Username: {username}")
+          print(f"📦 Space: {space_short_name}")
 
           # 检查并创建Space
           try:
@@ -78,7 +85,7 @@ jobs:
                   print(f"📝 Creating new HuggingFace Space: {space_name}")
                   try:
                       create_repo(
-                          space_name,
+                          space_name,  # 使用完整的 repo_id 格式
                           repo_type="space",
                           space_sdk="docker",
                           token=token,
@@ -88,12 +95,16 @@ jobs:
                       print("⏳ Waiting for space initialization...")
                       time.sleep(15)  # 等待空间初始化
                   except Exception as create_error:
-                      print(f"❌ Failed to create space: {create_error}")
-                      print("💡 Possible causes:")
-                      print("   - Invalid HF_TOKEN")
-                      print("   - Username conflict")
-                      print("   - Rate limiting")
-                      raise create_error
+                      if "409" in str(create_error):
+                          print(f"ℹ️ Space {space_name} already exists (created via web interface)")
+                          print("✅ Proceeding with deployment...")
+                      else:
+                          print(f"❌ Failed to create space: {create_error}")
+                          print("💡 Possible causes:")
+                          print("   - Invalid HF_TOKEN")
+                          print("   - Insufficient permissions")
+                          print("   - Rate limiting")
+                          raise create_error
               else:
                   print(f"❌ Unexpected error checking space: {e}")
                   raise e
@@ -170,25 +181,25 @@ jobs:
                       print("   - Token permissions")
                       raise e
 
-          # 获取用户名和构建URL
-          try:
-              user_info = api.whoami()
-              username = user_info["name"]
-              space_url = f"https://huggingface.co/spaces/{username}/{space_name}"
-              api_url = f"https://{username}-{space_name}.hf.space"
+          # 构建访问URL
+          space_url = f"https://huggingface.co/spaces/{space_name}"
+          api_url = f"https://{space_name.replace('/', '-')}.hf.space"
 
-              print(f"🌐 Space URL: {space_url}")
-              print(f"🚀 API URL: {api_url}")
-              print(f"🔍 Build Status: {space_url}/build")
-              print(f"📊 Space Info: {space_url}/info")
+          print(f"🌐 Space URL: {space_url}")
+          print(f"🚀 API URL: {api_url}")
+          print(f"🔍 Build Status: {space_url}/build")
+          print(f"📊 Space Info: {space_url}/info")
 
-              # 设置 GitHub 环境变量供后续步骤使用
-              print(f"::set-output name=space_url::{space_url}")
-              print(f"::set-output name=api_url::{api_url}")
+          # 设置 GitHub 环境变量供后续步骤使用
+          print(f"::set-output name=space_url::{space_url}")
+          print(f"::set-output name=api_url::{api_url}")
+          print(f"::set-output name=username::{username}")
+          print(f"::set-output name=space_name::{space_short_name}")
 
-          except Exception as e:
-              print(f"⚠️ Could not retrieve user info: {e}")
-              print("🌐 Space deployed (check your HuggingFace profile for the URL)")
+          # 设置环境变量供后续 workflow 步骤使用
+          with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+              env_file.write(f"STEP_SUMMARY_SPACE_URL={space_url}\n")
+              env_file.write(f"STEP_SUMMARY_API_URL={api_url}\n")
 
           # 清理临时文件
           shutil.rmtree(upload_dir)
@@ -207,8 +218,8 @@ jobs:
           echo "- **技术栈**: Docker + Rust + Axum + Tokio" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Access URLs:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Space 主页**: https://huggingface.co/spaces/${{ vars.HF_USERNAME || 'your-username' }}/${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **API 端点**: https://${{ vars.HF_USERNAME || 'your-username' }}-${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}.hf.space" >> $GITHUB_STEP_SUMMARY
+          echo "- **Space 主页**: \`$STEP_SUMMARY_SPACE_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **API 端点**: \`$STEP_SUMMARY_API_URL\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🛠️ API Endpoints:" >> $GITHUB_STEP_SUMMARY
           echo "- \`GET /health\` - 服务健康检查" >> $GITHUB_STEP_SUMMARY
