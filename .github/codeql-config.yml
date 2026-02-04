@@ -15,17 +15,17 @@ queries:
   # JavaScript/TypeScript
   - uses: security-and-quality
   - uses: security-experimental
-  - uses: ./codeql-queries/javascript
+  - uses: ./codeql-queries/javascript/nexus-security.ql
 
   # Rust
   - uses: security-and-quality
   - uses: security-experimental
-  - uses: ./codeql-queries/rust
+  - uses: ./codeql-queries/rust/nexus-security.ql
 
   # Python
   - uses: security-and-quality
   - uses: security-experimental
-  - uses: ./codeql-queries/python
+  - uses: ./codeql-queries/python/nexus-security.ql
 
 # Paths to exclude from analysis
 paths-ignore:

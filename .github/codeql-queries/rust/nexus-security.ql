@@ -76,9 +76,14 @@ class PathTraversal extends CallExpr {
   }
 }
 
-from AstNode node
-where node instanceof UnsafeBlock or
-      node instanceof SqlInjection or
-      node instanceof UnhandledResult or
-      node instanceof PathTraversal
-select node, "Potential security issue in Rust code: " + node.toString()
+from UnsafeBlock block
+select block, "Usage of unsafe block in Rust code"
+
+from SqlInjection injection
+select injection, "Potential SQL injection vulnerability"
+
+from UnhandledResult result
+select result, "Unhandled Result type that may cause panics"
+
+from PathTraversal traversal
+select traversal, "Potential path traversal vulnerability"

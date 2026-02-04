@@ -55,8 +55,11 @@ class UnsafeDomManipulation extends MethodCallExpr {
   }
 }
 
-from AstNode node
-where node instanceof ApiKeyExposure or
-      node instanceof HardcodedCredential or
-      node instanceof UnsafeDomManipulation
-select node, "Potential security issue: " + node.toString()
+from ApiKeyExposure exposure
+select exposure, "Potential API key exposure in client-side code"
+
+from HardcodedCredential credential
+select credential, "Potential hardcoded credential detected"
+
+from UnsafeDomManipulation manipulation
+select manipulation, "Unsafe DOM manipulation with innerHTML"
