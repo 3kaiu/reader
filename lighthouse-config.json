@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "numberOfRuns": 3,
-      "startServerCommand": "npm run serve",
+      "startServerCommand": "bun run preview",
       "startServerReadyPattern": "ready",
       "url": [
         "http://localhost:3000",

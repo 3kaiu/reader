@@ -16,11 +16,13 @@
     "clean": "rm -rf dist node_modules/.cache",
     "size-check": "bash analyze-performance.sh build",
     "debug-ai": "bash debug-ai-services.sh",
+    "lint": "echo 'No eslint config; add to enable'",
+    "type-check": "tsc --noEmit",
     "docs:api": "typedoc",
-    "docs:build": "npm run docs:api && npm run docs:generate",
+    "docs:build": "bun run docs:api && bun run docs:generate",
     "docs:generate": "node scripts/generate-docs.js",
     "docs:serve": "cd docs && python -m http.server 8080",
-    "docs:deploy": "npm run docs:build && gh-pages -d docs"
+    "docs:deploy": "bun run docs:build && gh-pages -d docs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

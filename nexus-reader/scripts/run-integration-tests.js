@@ -112,7 +112,7 @@ async function runIntegrationTests() {
     
     // Run integration tests with Vitest
     const testCommand = [
-      'npx vitest run',
+      'bunx vitest run',
       '--config vitest.integration.config.ts',
       '--reporter=verbose',
       '--reporter=json',
@@ -197,7 +197,7 @@ async function runPerformanceBenchmarks() {
   
   try {
     const benchCommand = [
-      'npx vitest bench',
+      'bunx vitest bench',
       '--config vitest.integration.config.ts',
       '--reporter=verbose'
     ].join(' ');

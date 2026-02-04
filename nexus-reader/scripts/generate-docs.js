@@ -233,7 +233,7 @@ async function generateCoverageReport() {
   
   try {
     // Run coverage tests
-    execSync('npm run test:coverage', { 
+    execSync('bun run test:coverage', { 
       cwd: rootDir,
       stdio: 'inherit'
     });
@@ -376,7 +376,7 @@ async function main() {
   
   console.log('\n✨ Documentation generation completed!');
   console.log(`📁 Documentation available in: ${docsDir}`);
-  console.log('🌐 Run "npm run docs:serve" to preview locally');
+  console.log('🌐 Run "bun run docs:serve" to preview locally');
 }
 
 // Run if called directly

@@ -369,11 +369,11 @@ class SmartDeploymentEngine {
       throw new Error(`不支持的Node.js版本: ${nodeVersion}`)
     }
 
-    // 检查npm
+    // 检查 Bun（nexus-reader 使用 Bun 构建）
     try {
-      execSync('npm --version', { stdio: 'ignore' })
+      execSync('bun --version', { stdio: 'ignore' })
     } catch {
-      throw new Error('npm未安装')
+      throw new Error('Bun 未安装，请安装 https://bun.sh')
     }
   }
 
@@ -429,7 +429,7 @@ class SmartDeploymentEngine {
 
   private async executeBuild(): Promise<void> {
     // 执行构建
-    const buildCommand = process.platform === 'win32' ? 'npm.cmd run build' : 'npm run build'
+    const buildCommand = process.platform === 'win32' ? 'bun.cmd run build' : 'bun run build'
 
     await new Promise((resolve, reject) => {
       const child = spawn(buildCommand, [], {

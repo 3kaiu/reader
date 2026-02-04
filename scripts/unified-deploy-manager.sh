@@ -41,8 +41,8 @@ log_error() {
 check_dependencies() {
     local missing_deps=()
 
-    # 检查必需工具
-    local tools=("node" "npm" "git")
+    # 检查必需工具（前端 nexus-reader 使用 Bun）
+    local tools=("bun" "git")
     for tool in "${tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             missing_deps+=("$tool")
@@ -52,17 +52,18 @@ check_dependencies() {
     if [ ${#missing_deps[@]} -ne 0 ]; then
         log_error "缺少必需依赖: ${missing_deps[*]}"
         echo "请安装以下工具:"
-        echo "  - Node.js: https://nodejs.org"
-        echo "  - npm: 通常随Node.js一起安装"
+        echo "  - Bun: https://bun.sh （前端构建）"
         echo "  - git: https://git-scm.com"
         exit 1
     fi
 
-    # 检查版本
-    local node_version
-    node_version=$(node -v | sed 's/v//' | cut -d. -f1)
-    if [ "$node_version" -lt 18 ]; then
-        log_warning "Node.js版本过低 ($node_version)，推荐使用18+"
+    # 检查 Bun 版本（可选提示）
+    if command -v bun &> /dev/null; then
+        local bun_version
+        bun_version=$(bun -v 2>/dev/null | cut -d. -f1 | tr -dc '0-9')
+        if [ -n "$bun_version" ] && [ "$bun_version" -lt 1 ]; then
+            log_warning "Bun 版本过低，推荐使用 1.x"
+        fi
     fi
 }
 
@@ -150,15 +151,15 @@ build_frontend_optimized() {
     # 清理旧构建
     rm -rf dist node_modules/.cache
 
-    # 智能依赖安装
-    if [ ! -d "node_modules" ] || [ -f "package-lock.json" ]; then
-        log_info "安装依赖..."
-        npm ci --prefer-offline --no-audit
+    # 智能依赖安装 (Bun)
+    if [ ! -d "node_modules" ] || [ -f "bun.lock" ]; then
+        log_info "安装依赖 (bun)..."
+        bun install --frozen-lockfile
     fi
 
     # 构建优化
     log_info "执行构建..."
-    NODE_ENV=production npm run build
+    NODE_ENV=production bun run build
 
     # 构建后优化
     if [ -d "dist" ]; then
@@ -187,7 +188,7 @@ build_workers_optimized() {
 
     # 检查Wrangler
     if ! command -v wrangler &> /dev/null; then
-        log_error "未安装Wrangler，请运行: npm install -g wrangler"
+        log_error "未安装Wrangler，请运行: npm install -g wrangler 或 bun install -g wrangler"
         exit 1
     fi
 
@@ -940,10 +941,10 @@ optimize_caching_strategy() {
 scan_security_vulnerabilities() {
     log_info "[AI] 扫描安全漏洞..."
 
-    # 检查依赖漏洞
-    if command -v npm &> /dev/null; then
+    # 检查依赖漏洞（nexus-reader 使用 Bun）
+    if command -v bun &> /dev/null; then
         cd nexus-reader
-        npm audit --audit-level moderate || echo "  ⚠️ 发现安全漏洞"
+        bun audit --audit-level moderate || echo "  ⚠️ 发现安全漏洞"
         cd ..
     fi
 
