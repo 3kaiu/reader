@@ -443,15 +443,18 @@ impl From<serde_json::Error> for EngineError {
 impl From<crate::domain::DomainError> for EngineError {
     fn from(err: crate::domain::DomainError) -> Self {
         match err {
-            crate::domain::DomainError::ValidationFailed(msg) =>
-                Self::Validation { message: msg },
+            crate::domain::DomainError::Validation(msg) =>
+                Self::Validation { field: "unknown".to_string(), message: msg },
+            crate::domain::DomainError::BusinessLogic(msg) =>
+                Self::Internal { message: msg },
             crate::domain::DomainError::NotFound(entity) =>
                 Self::SourceNotFound { id: entity },
-            crate::domain::DomainError::InvalidState(msg) =>
-                Self::Internal { message: msg },
-            crate::domain::DomainError::BusinessRuleViolation(msg) =>
-                Self::Validation { message: msg },
-            _ => Self::Internal { message: format!("Domain error: {:?}", err) }
+            crate::domain::DomainError::Conflict(msg) =>
+                Self::Internal { message: format!("Conflict: {}", msg) },
+            crate::domain::DomainError::Unauthorized(msg) =>
+                Self::Unauthorized,
+            crate::domain::DomainError::ExternalService(msg) =>
+                Self::Network { message: msg },
         }
     }
 }
