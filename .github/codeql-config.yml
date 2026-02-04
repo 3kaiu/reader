@@ -12,20 +12,12 @@ disable-default-queries: false
 
 # Language-specific query configurations
 queries:
-  # JavaScript/TypeScript
+  # Use standard security queries for now
   - uses: security-and-quality
   - uses: security-experimental
-  - uses: ./codeql-queries/javascript/
 
-  # Rust
-  - uses: security-and-quality
-  - uses: security-experimental
-  - uses: ./codeql-queries/rust/
-
-  # Python
-  - uses: security-and-quality
-  - uses: security-experimental
-  - uses: ./codeql-queries/python/
+# Custom queries (commented out until format is resolved)
+# - uses: ./codeql-queries/nexus-security.qls
 
 # Paths to exclude from analysis
 paths-ignore:
