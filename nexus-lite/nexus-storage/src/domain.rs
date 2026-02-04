@@ -277,6 +277,7 @@ pub struct StrategyCondition {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConditionType {
     FileSize,
     FileType,
@@ -524,7 +525,7 @@ impl StorageDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&object).unwrap()),
-            events: vec![DomainEvent::Storage(StorageEvent::DataObjectUpdated {
+            events: vec![DomainEvent::Storage(CoreStorageEvent::DataObjectUpdated {
                 object_id: object.id.0,
                 bucket: object.bucket,
                 key: object.key,

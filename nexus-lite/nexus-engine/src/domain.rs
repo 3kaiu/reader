@@ -571,8 +571,7 @@ impl EngineDomain {
             data: Some(serde_json::to_value(&parser).unwrap()),
             events: vec![DomainEvent::Engine(CoreEngineEvent::ContentParserUpdated {
                 parser_id: parser.id.0,
-                parser_type: format!("{:?}", parser.parser_type),
-                success_rate: parser.success_rate,
+                rule_count: parser.selectors.len() + parser.regex_patterns.len(),
             })],
             metadata: HashMap::new(),
         })
