@@ -66,20 +66,37 @@ jobs:
           # 初始化API
           api = HfApi(token=token)
 
-          # 检查Space是否存在
-          if not repo_exists(space_name, repo_type="space", token=token):
-              print(f"📝 Creating new HuggingFace Space: {space_name}")
-              create_repo(
-                  space_name,
-                  repo_type="space",
-                  space_sdk="docker",
-                  token=token,
-                  private=False
-              )
-              print("⏳ Waiting for space initialization...")
-              time.sleep(10)  # 等待空间初始化
-          else:
+          # 检查并创建Space
+          try:
+              # 尝试获取space信息来检查是否存在
+              space_info = api.space_info(space_name, token=token)
               print(f"✅ Space {space_name} already exists")
+              print(f"   Status: {space_info.status}")
+              print(f"   SDK: {space_info.sdk}")
+          except Exception as e:
+              if "404" in str(e) or "Not Found" in str(e):
+                  print(f"📝 Creating new HuggingFace Space: {space_name}")
+                  try:
+                      create_repo(
+                          space_name,
+                          repo_type="space",
+                          space_sdk="docker",
+                          token=token,
+                          private=False
+                      )
+                      print("✅ Space created successfully")
+                      print("⏳ Waiting for space initialization...")
+                      time.sleep(15)  # 等待空间初始化
+                  except Exception as create_error:
+                      print(f"❌ Failed to create space: {create_error}")
+                      print("💡 Possible causes:")
+                      print("   - Invalid HF_TOKEN")
+                      print("   - Username conflict")
+                      print("   - Rate limiting")
+                      raise create_error
+              else:
+                  print(f"❌ Unexpected error checking space: {e}")
+                  raise e
 
           # 准备上传目录
           source_dir = "nexus-lite"
@@ -129,27 +146,49 @@ jobs:
 
           # 上传到HuggingFace Spaces
           print("📤 Uploading files to HuggingFace Spaces...")
-          try:
-              api.upload_folder(
-                  folder_path=upload_dir,
-                  repo_id=space_name,
-                  repo_type="space",
-                  commit_message=f"Deploy Nexus-Lite from {os.environ.get('GITHUB_SHA', 'unknown')[:8]}"
-              )
-              print("✅ Successfully uploaded to HuggingFace Spaces")
-          except Exception as e:
-              print(f"❌ Upload failed: {e}")
-              raise
+          max_retries = 3
+          for attempt in range(max_retries):
+              try:
+                  api.upload_folder(
+                      folder_path=upload_dir,
+                      repo_id=space_name,
+                      repo_type="space",
+                      commit_message=f"Deploy Nexus-Lite from {os.environ.get('GITHUB_SHA', 'unknown')[:8]}"
+                  )
+                  print("✅ Successfully uploaded to HuggingFace Spaces")
+                  break
+              except Exception as e:
+                  if attempt < max_retries - 1:
+                      print(f"⚠️ Upload attempt {attempt + 1} failed: {e}")
+                      print(f"⏳ Retrying in 10 seconds... ({attempt + 2}/{max_retries})")
+                      time.sleep(10)
+                  else:
+                      print(f"❌ Upload failed after {max_retries} attempts: {e}")
+                      print("💡 Possible causes:")
+                      print("   - Space not fully initialized")
+                      print("   - Network issues")
+                      print("   - Token permissions")
+                      raise e
 
-          # 获取用户名用于URL构建
+          # 获取用户名和构建URL
           try:
               user_info = api.whoami()
               username = user_info["name"]
               space_url = f"https://huggingface.co/spaces/{username}/{space_name}"
+              api_url = f"https://{username}-{space_name}.hf.space"
+
               print(f"🌐 Space URL: {space_url}")
-              print(f"🔍 Check build status: {space_url}/build")
-          except:
-              print("🌐 Space deployed (URL not available)")
+              print(f"🚀 API URL: {api_url}")
+              print(f"🔍 Build Status: {space_url}/build")
+              print(f"📊 Space Info: {space_url}/info")
+
+              # 设置 GitHub 环境变量供后续步骤使用
+              print(f"::set-output name=space_url::{space_url}")
+              print(f"::set-output name=api_url::{api_url}")
+
+          except Exception as e:
+              print(f"⚠️ Could not retrieve user info: {e}")
+              print("🌐 Space deployed (check your HuggingFace profile for the URL)")
 
           # 清理临时文件
           shutil.rmtree(upload_dir)
@@ -164,16 +203,29 @@ jobs:
           echo "## 🚀 HuggingFace Spaces Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Deployed Services:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Nexus-Lite**: Rust backend API server" >> $GITHUB_STEP_SUMMARY
+          echo "- **Nexus-Lite**: 高性能 Rust 后端 API 服务" >> $GITHUB_STEP_SUMMARY
+          echo "- **技术栈**: Docker + Rust + Axum + Tokio" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Access URLs:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Space**: https://huggingface.co/spaces/${{ vars.HF_USERNAME || 'your-username' }}/${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **API**: https://\${SPACE_NAME}.hf.space/" >> $GITHUB_STEP_SUMMARY
+          echo "- **Space 主页**: https://huggingface.co/spaces/${{ vars.HF_USERNAME || 'your-username' }}/${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API 端点**: https://${{ vars.HF_USERNAME || 'your-username' }}-${{ github.event.inputs.space_name || vars.HF_SPACE_NEXUS_LITE || 'nexus-lite' }}.hf.space" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛠️ API Endpoints:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GET /health\` - 服务健康检查" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GET /sources\` - 获取可用书源" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GET /search?q=关键词\` - 搜索书籍" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GET /book/{id}\` - 获取书籍详情" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Build Info:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Time**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **测试 API**: 访问上面的 API 端点验证服务" >> $GITHUB_STEP_SUMMARY
+          echo "2. **查看日志**: 在 Space 页面查看构建和运行日志" >> $GITHUB_STEP_SUMMARY
+          echo "3. **监控状态**: 检查 Space 的运行状态和资源使用" >> $GITHUB_STEP_SUMMARY
 
   # ===== 自动同步设置指南 =====
   setup-autosync:
