@@ -1,0 +1,19 @@
+# Simple test Dockerfile to check compilation
+FROM rust:1.85-slim-bookworm AS builder
+
+WORKDIR /app
+
+# Copy dependency files first
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code
+COPY nexus-core ./nexus-core
+COPY nexus-storage ./nexus-storage
+COPY nexus-engine ./nexus-engine
+COPY nexus-server ./nexus-server
+
+# Try to build - this will fail if there are compilation errors
+RUN cargo check --package nexus-server
+
+# If we get here, compilation succeeded
+RUN echo "Compilation successful"
