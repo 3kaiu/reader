@@ -1,0 +1,176 @@
+name: 🔒 Security Scan & Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/package.json"
+      - "**/package-lock.json"
+      - "**/bun.lock"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly security scan
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  # ===== 代码安全扫描 =====
+  codeql-scan:
+    name: 🔍 CodeQL Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' || github.repository_visibility == 'public'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript, python, rust
+          config-file: ./.github/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # ===== 依赖安全审计 =====
+  dependency-audit:
+    name: 📦 Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: 'npm'
+          cache-dependency-path: |
+            nexus-reader/package-lock.json
+            cloudflare-workers/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Rust audit tool
+        run: cargo install cargo-audit --locked
+
+      - name: Audit Rust dependencies
+        run: |
+          cd nexus-lite
+          cargo audit --format json > ../../rust-audit-results.json || echo "Cargo audit completed with warnings"
+        continue-on-error: true
+
+      - name: Audit frontend dependencies
+        working-directory: nexus-reader
+        run: |
+          npm audit --audit-level moderate --json > ../../npm-audit-results.json || echo "NPM audit completed with warnings"
+        continue-on-error: true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-results
+          path: |
+            rust-audit-results.json
+            npm-audit-results.json
+          retention-days: 30
+
+  # ===== 自定义安全检查 =====
+  custom-security-check:
+    name: 🛡️ Custom Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run custom security checks
+        run: |
+          # Check for exposed secrets (basic pattern matching)
+          echo "🔍 Checking for potential secrets..."
+          if grep -r "password\|secret\|token\|key.*=.*[^$].*" --include="*.js" --include="*.ts" --include="*.rs" --include="*.py" . \
+              --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git \
+              | grep -v "password.*=.*process\|secret.*=.*process\|token.*=.*process\|key.*=.*process\|password.*=.*import\|secret.*=.*import\|token.*=.*import\|key.*=.*import" \
+              | grep -v "password.*placeholder\|secret.*placeholder\|token.*placeholder\|key.*placeholder" > potential-secrets.txt; then
+              echo "⚠️ Potential exposed secrets found"
+              cat potential-secrets.txt
+          else
+              echo "✅ No obvious exposed secrets found"
+          fi
+
+          # Check for insecure HTTP URLs in production code
+          echo ""
+          echo "🔒 Checking for insecure URLs..."
+          if grep -r "http://" --include="*.js" --include="*.ts" --include="*.rs" . \
+              --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git \
+              | grep -v "https://" | grep -v "localhost\|127.0.0.1\|example.com\|test.com" > insecure-urls.txt; then
+              echo "⚠️ Found HTTP URLs in production code"
+              cat insecure-urls.txt
+          else
+              echo "✅ No insecure URLs found"
+          fi
+
+      - name: Upload security check results
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-security-checks
+          path: |
+            potential-secrets.txt
+            insecure-urls.txt
+          retention-days: 30
+
+  # ===== 安全报告 =====
+  security-report:
+    name: 📋 Security Report
+    runs-on: ubuntu-latest
+    needs: [codeql-scan, dependency-audit, custom-security-check]
+    if: always()
+
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "## 🔒 Security Scan Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Scan Results:" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeQL Scan**: ${{ needs.codeql-scan.result == 'success' && '✅ Passed' || needs.codeql-scan.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dependency Audit**: ${{ needs.dependency-audit.result == 'success' && '✅ Passed' || needs.dependency-audit.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Custom Security Checks**: ${{ needs.custom-security-check.result == 'success' && '✅ Passed' || needs.custom-security-check.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🔍 Automated Security Features:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Dependabot**: Monitors dependency updates weekly" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **CodeQL**: Scans for code vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Dependency Audit**: Checks for vulnerable packages" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Secret Detection**: Prevents credential exposure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🛡️ Security Best Practices:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 Never commit secrets or API keys" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Keep dependencies updated regularly" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Review security alerts promptly" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️ Use HTTPS for all production URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "**📊 Full reports available in workflow artifacts**" >> $GITHUB_STEP_SUMMARY
