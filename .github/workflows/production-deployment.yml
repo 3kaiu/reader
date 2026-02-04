@@ -237,6 +237,18 @@ jobs:
           name: frontend-build
           path: frontend-dist
 
+      - name: Validate Cloudflare Secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "❌ CLOUDFLARE_ACCOUNT_ID secret is not set"
+            exit 1
+          fi
+          echo "✅ Cloudflare secrets are configured"
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
@@ -245,6 +257,7 @@ jobs:
           projectName: ${{ env.CF_PAGES_PROJECT }}
           directory: frontend-dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
 
       - name: Update deployment status
         uses: actions/github-script@v7
@@ -262,7 +275,7 @@ jobs:
   deploy-workers:
     runs-on: ubuntu-latest
     needs: [quality-check]
-    if: success() && (contains(github.event.head_commit.modified, 'cloudflare-workers/') || github.event.inputs.environment != '')
+    if: success() && (github.event_name == 'push' || github.event.inputs.environment != '')
 
     steps:
       - uses: actions/checkout@v4
@@ -272,6 +285,18 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Validate Cloudflare Secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "❌ CLOUDFLARE_ACCOUNT_ID secret is not set"
+            exit 1
+          fi
+          echo "✅ Cloudflare secrets are configured"
+
       - name: Install Wrangler
         run: npm install -g wrangler
 
@@ -279,43 +304,28 @@ jobs:
         working-directory: cloudflare-workers
         run: npm ci
 
-      - name: Create D1 Database (if needed)
+      - name: Setup Cloudflare Resources
         working-directory: cloudflare-workers
         run: |
-          # 检查D1数据库是否存在，不存在则创建
-          wrangler d1 list | grep -q "nexus_analytics" || wrangler d1 create nexus_analytics || echo "D1 database may already exist"
+          echo "Setting up Cloudflare resources..."
+          echo "Note: D1 databases, R2 buckets, and KV namespaces should be created manually in Cloudflare Dashboard"
+          echo "This ensures proper configuration and avoids deployment failures"
 
-      - name: Initialize D1 Database
-        working-directory: cloudflare-workers
-        run: |
-          # 执行数据库初始化脚本
-          if [ -f "init-db.sql" ]; then
-            wrangler d1 execute nexus_analytics --file=init-db.sql
-          fi
-
-      - name: Create R2 Buckets (if needed)
-        working-directory: cloudflare-workers
-        run: |
-          # 创建R2存储桶（免费10GB）
-          wrangler r2 bucket create nexus-user-content || echo "R2 bucket may already exist"
-          wrangler r2 bucket create nexus-backup || echo "R2 bucket may already exist"
-
-      - name: Create Queues (if needed)
-        working-directory: cloudflare-workers
-        run: |
-          # 创建消息队列（免费100万消息/月）
-          # 注意：Queues需要手动在Cloudflare控制台创建，这里只是检查
-          echo "Queues need to be created manually in Cloudflare Dashboard"
+          # Check if wrangler is authenticated
+          wrangler whoami || echo "Wrangler authentication may need setup"
 
       - name: Deploy Workers
         working-directory: cloudflare-workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # 设置环境变量
-          export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
-          export CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-          # 部署Workers
-          wrangler deploy --env ${{ github.event.inputs.environment || 'production' }}
+          # 部署Workers (自动检测环境)
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            wrangler deploy --env staging
+          else
+            wrangler deploy
+          fi
 
       - name: Run Workers E2E Tests
         working-directory: cloudflare-workers
