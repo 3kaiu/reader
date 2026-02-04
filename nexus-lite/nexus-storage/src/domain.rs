@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use nexus_core::{ValueObject, DomainError};
+use nexus_core::{ValueObject, DomainError, Entity};
 
 use nexus_core::EngineError as StorageError;
 use nexus_core::{AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};

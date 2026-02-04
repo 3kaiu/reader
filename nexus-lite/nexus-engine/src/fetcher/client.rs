@@ -79,11 +79,18 @@ impl HttpFetcher {
 
     /// Create with custom client
     pub fn with_client(client: Arc<Client>, timeout_seconds: u64) -> Self {
+        use std::sync::atomic::AtomicU64;
+
         Self {
             client,
             timeout: Duration::from_secs(timeout_seconds),
             max_concurrent_requests: 10, // Default concurrency
             semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
+            total_requests: AtomicU64::new(0),
+            successful_requests: AtomicU64::new(0),
+            failed_requests: AtomicU64::new(0),
+            total_bytes_downloaded: AtomicU64::new(0),
+            response_times: Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
 

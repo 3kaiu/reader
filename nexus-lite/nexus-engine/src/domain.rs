@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use nexus_core::{EngineError, DomainError};
 use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
+use nexus_core::domain::EngineEvent as CoreEngineEvent;
 
 /// 抓取任务实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -498,7 +499,7 @@ impl EngineDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&task).unwrap()),
-            events: vec![DomainEvent::Engine(EngineEvent::FetchTaskCreated {
+            events: vec![DomainEvent::Engine(CoreEngineEvent::FetchTaskCreated {
                 task_id: task.id.0.clone(),
                 url: task.url.clone(),
                 priority: format!("{:?}", task.priority),
@@ -510,7 +511,7 @@ impl EngineDomain {
     async fn execute_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
         let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Task {} not found", task_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
 
         task.start();
         self.task_repository.save(&task).await?;
@@ -529,7 +530,7 @@ impl EngineDomain {
     async fn cancel_fetch_task(&self, task_id: String, reason: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
         let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Task {} not found", task_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
 
         task.status = TaskStatus::Cancelled;
         task.completed_at = Some(Utc::now());
@@ -546,7 +547,7 @@ impl EngineDomain {
     async fn retry_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
         let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Task {} not found", task_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
 
         if task.can_retry() {
             task.increment_retry();
@@ -650,7 +651,7 @@ impl EngineDomain {
     async fn get_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
         let task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Task {} not found", task_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
 
         Ok(DomainResult {
             success: true,
