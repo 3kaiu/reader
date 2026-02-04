@@ -1,7 +1,8 @@
 //! HTTP client implementation
 
 use async_trait::async_trait;
-use nexus_core::{EngineError, FetchResponse, Fetcher};
+use nexus_core::{EngineError, FetchResponse};
+use nexus_core::interfaces::Fetcher;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,
@@ -214,7 +215,7 @@ impl Fetcher for HttpFetcher {
     }
 
     /// Execute request with retry logic
-    pub async fn execute_with_retry<F, Fut>(
+    async fn execute_with_retry<F, Fut>(
         &self,
         operation: F,
         max_retries: usize,

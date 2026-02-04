@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::error::EngineError;
+use nexus_core::EngineError;
 use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 
 /// 抓取任务实体 - 聚合根
@@ -41,6 +41,12 @@ pub struct FetchTask {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FetchTaskId(pub String);
+
+impl std::fmt::Display for FetchTaskId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HttpMethod {
@@ -215,6 +221,12 @@ pub struct ContentParser {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentParserId(pub String);
+
+impl std::fmt::Display for ContentParserId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParserType {

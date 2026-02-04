@@ -13,7 +13,9 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::error::StorageError;
+use nexus_core::{Entity, ValueObject};
+
+use nexus_core::EngineError as StorageError;
 use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 
 /// 数据对象实体 - 聚合根
@@ -36,6 +38,12 @@ pub struct DataObject {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DataObjectId(pub String);
+
+impl std::fmt::Display for DataObjectId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageClass {
@@ -149,6 +157,12 @@ pub struct StorageBucket {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StorageBucketId(pub String);
+
+impl std::fmt::Display for StorageBucketId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LifecycleRule {

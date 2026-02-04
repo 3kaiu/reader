@@ -26,7 +26,7 @@ pub use domain::*;
 // Error type re-export
 pub use nexus_core::EngineError;
 
-use nexus_core::{EngineConfig, EngineError};
+use nexus_core::EngineConfig;
 use tracing::info;
 
 /// Initialize storage directories

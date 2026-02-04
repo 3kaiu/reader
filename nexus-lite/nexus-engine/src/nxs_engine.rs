@@ -6,7 +6,8 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::{BookInfo, BookItem, Chapter, EngineError, NxsSource, ReplaceRule};
+use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
+use nexus_core::reading::Chapter;
 use scraper::Html;
 use std::sync::Arc;
 use tracing::{info, instrument};
