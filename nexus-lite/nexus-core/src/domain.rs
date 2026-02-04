@@ -99,6 +99,18 @@ pub struct DomainContext {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
+impl Default for DomainContext {
+    fn default() -> Self {
+        Self {
+            user_id: None,
+            session_id: None,
+            correlation_id: uuid::Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
+            metadata: HashMap::new(),
+        }
+    }
+}
+
 /// 领域结果
 #[derive(Debug, Clone)]
 pub struct DomainResult {
@@ -117,6 +129,19 @@ pub enum DomainError {
     Conflict(String),
     Unauthorized(String),
     ExternalService(String),
+}
+
+impl std::fmt::Display for DomainError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Validation(s) => write!(f, "Validation: {}", s),
+            Self::BusinessLogic(s) => write!(f, "BusinessLogic: {}", s),
+            Self::NotFound(s) => write!(f, "NotFound: {}", s),
+            Self::Conflict(s) => write!(f, "Conflict: {}", s),
+            Self::Unauthorized(s) => write!(f, "Unauthorized: {}", s),
+            Self::ExternalService(s) => write!(f, "ExternalService: {}", s),
+        }
+    }
 }
 
 /// 业务规则验证器
@@ -267,7 +292,7 @@ pub enum DomainCommand {
 #[derive(Debug, Clone)]
 pub enum DomainQuery {
     Reading(reading::ReadingQuery),
-    Search(search::SearchQuery),
+    Search(search::SearchDomainQuery),
     User(user::UserQuery),
     System(system::SystemQuery),
 }

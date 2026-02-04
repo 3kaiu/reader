@@ -126,6 +126,8 @@ impl SystemConfig {
         description: String,
     ) -> Self {
         let now = Utc::now();
+        let config_id = id.0.clone();
+        let config_key_ev = config_key.clone();
         Self {
             id,
             config_key,
@@ -142,8 +144,8 @@ impl SystemConfig {
             updated_at: now,
             last_modified_by: None,
             uncommitted_events: vec![DomainEvent::System(SystemEvent::SystemConfigCreated {
-                config_id: id.0.clone(),
-                config_key: config_key.clone(),
+                config_id,
+                config_key: config_key_ev,
             })],
         }
     }
@@ -251,6 +253,12 @@ pub struct SystemMetric {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SystemMetricId(pub String);
 
+impl std::fmt::Display for SystemMetricId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MetricType {
     Counter,
@@ -304,6 +312,12 @@ pub struct SystemAlert {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SystemAlertId(pub String);
+
+impl std::fmt::Display for SystemAlertId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertType {

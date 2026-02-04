@@ -167,7 +167,7 @@ impl Interceptor for PerformanceMonitoringInterceptor {
         self.metrics_collector.record_histogram(
             "method_execution_time",
             result.execution_time_ms as f64,
-            labels,
+            labels.clone(),
         ).await.map_err(|e| InterceptorError::Custom(e.to_string()))?;
 
         // 记录调用计数
@@ -191,7 +191,7 @@ impl Interceptor for PerformanceMonitoringInterceptor {
         self.metrics_collector.increment_counter(
             "method_errors_total",
             1,
-            labels,
+            labels.clone(),
         ).await.map_err(|e| InterceptorError::Custom(e.to_string()))?;
 
         Ok(())
@@ -299,24 +299,24 @@ impl LoggingInterceptor {
 #[async_trait]
 impl Interceptor for LoggingInterceptor {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError> {
-        tracing::event!(
-            self.log_level,
-            target = &context.target_type,
-            method = &context.method_name,
-            parameters = ?context.parameters,
-            "Method execution started"
-        );
+        match self.log_level {
+            Level::TRACE => tracing::trace!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+            Level::DEBUG => tracing::debug!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+            Level::INFO => tracing::info!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+            Level::WARN => tracing::warn!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+            Level::ERROR => tracing::error!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+        }
         Ok(())
     }
 
     async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError> {
-        tracing::event!(
-            self.log_level,
-            target = &context.target_type,
-            method = &context.method_name,
-            execution_time_ms = result.execution_time_ms,
-            "Method execution completed"
-        );
+        match self.log_level {
+            Level::TRACE => tracing::trace!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+            Level::DEBUG => tracing::debug!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+            Level::INFO => tracing::info!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+            Level::WARN => tracing::warn!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+            Level::ERROR => tracing::error!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+        }
         Ok(())
     }
 

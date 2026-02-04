@@ -17,7 +17,7 @@ use crate::domain::*;
 use crate::error::EngineError;
 
 /// 搜索查询值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchQuery {
     pub keywords: Vec<String>,
     pub filters: SearchFilters,
@@ -31,7 +31,7 @@ pub struct SearchQuery {
 impl ValueObject for SearchQuery {}
 
 /// 搜索过滤条件值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchFilters {
     pub author: Option<String>,
     pub genre: Option<String>,
@@ -48,7 +48,7 @@ pub struct SearchFilters {
 impl ValueObject for SearchFilters {}
 
 /// 搜索排序方式
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SearchSort {
     Relevance,
     Popularity,
@@ -75,7 +75,7 @@ pub struct SearchResult {
 pub struct SearchResultId(pub String);
 
 /// 搜索结果项值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchResultItem {
     pub book_id: String,
     pub title: String,
@@ -112,6 +112,12 @@ pub struct SearchHistory {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SearchHistoryId(pub String);
+
+impl std::fmt::Display for SearchHistoryId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[async_trait]
 impl Entity for SearchHistory {
@@ -153,7 +159,13 @@ pub struct RecommendationEngine {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RecommendationEngineId(pub String);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl std::fmt::Display for RecommendationEngineId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecommendationAlgorithm {
     CollaborativeFiltering,
     ContentBased,
@@ -194,7 +206,7 @@ impl Entity for RecommendationEngine {
 }
 
 /// 推荐项目值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecommendationItem {
     pub book_id: String,
     pub score: f32,
@@ -206,7 +218,7 @@ pub struct RecommendationItem {
 
 impl ValueObject for RecommendationItem {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecommendationReason {
     SimilarUsers,
     SimilarBooks,
@@ -270,9 +282,9 @@ pub enum SearchCommand {
     },
 }
 
-/// 搜索领域查询
-#[derive(Debug, Clone)]
-pub enum SearchQuery {
+/// 搜索领域查询（CQRS 查询枚举）
+#[derive(Debug, Clone, PartialEq)]
+pub enum SearchDomainQuery {
     SearchBooks {
         query: SearchQuery,
     },
@@ -357,21 +369,21 @@ impl SearchDomain {
         }
     }
 
-    pub async fn handle_query(&self, query: SearchQuery) -> Result<DomainResult, DomainError> {
+    pub async fn handle_query(&self, query: SearchDomainQuery) -> Result<DomainResult, DomainError> {
         match query {
-            SearchQuery::SearchBooks { query } => {
+            SearchDomainQuery::SearchBooks { query } => {
                 self.search_books(query).await
             }
-            SearchQuery::GetSearchHistory { user_id, limit } => {
+            SearchDomainQuery::GetSearchHistory { user_id, limit } => {
                 self.get_search_history(user_id, limit).await
             }
-            SearchQuery::GetRecommendations { user_id, algorithm, limit } => {
+            SearchDomainQuery::GetRecommendations { user_id, algorithm, limit } => {
                 self.get_recommendations(user_id, algorithm, limit).await
             }
-            SearchQuery::GetSearchAnalytics { user_id, time_range } => {
+            SearchDomainQuery::GetSearchAnalytics { user_id, time_range } => {
                 self.get_search_analytics(user_id, time_range).await
             }
-            SearchQuery::GetPopularSearches { limit } => {
+            SearchDomainQuery::GetPopularSearches { limit } => {
                 self.get_popular_searches(limit).await
             }
         }

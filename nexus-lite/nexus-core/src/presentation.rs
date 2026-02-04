@@ -13,6 +13,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use warp::Filter;
 use chrono::{DateTime, Utc};
 
@@ -227,7 +228,7 @@ impl ApiRouter {
             .and(warp::query::<HashMap<String, String>>())
             .and(warp::header::headers_cloned())
             .and(warp::body::json().or(warp::any().map(|| None)).unify())
-            .and_then(move |path: warp::path::Full, method: http::Method, query: HashMap<String, String>, headers: http::HeaderMap, body: Option<serde_json::Value>| {
+            .and_then(move |path, method: warp::http::Method, query: HashMap<String, String>, headers: warp::http::HeaderMap, body: Option<serde_json::Value>| {
                 let service_bus = service_bus.clone();
 
                 async move {

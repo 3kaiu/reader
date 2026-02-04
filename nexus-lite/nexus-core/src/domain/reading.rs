@@ -52,7 +52,7 @@ impl fmt::Display for BookId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BookStatus {
     Ongoing,
     Completed,
@@ -111,6 +111,9 @@ impl Book {
         source_engine: String,
     ) -> Self {
         let now = Utc::now();
+        let book_id = id.0.clone();
+        let title_ev = title.clone();
+        let author_ev = author.clone();
         Self {
             id,
             title,
@@ -132,9 +135,9 @@ impl Book {
             created_at: now,
             updated_at: now,
             uncommitted_events: vec![DomainEvent::Reading(ReadingEvent::BookCreated {
-                book_id: id.0.clone(),
-                title: title.clone(),
-                author: author.clone(),
+                book_id,
+                title: title_ev,
+                author: author_ev,
             })],
         }
     }
@@ -209,7 +212,7 @@ impl Entity for Chapter {
 }
 
 /// 阅读进度值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReadingProgress {
     pub user_id: String,
     pub book_id: BookId,
@@ -227,7 +230,7 @@ pub struct ReadingProgress {
 impl ValueObject for ReadingProgress {}
 
 /// 书签值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bookmark {
     pub id: String,
     pub position: u32,
@@ -256,6 +259,12 @@ pub struct ReadingSession {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReadingSessionId(pub String);
+
+impl std::fmt::Display for ReadingSessionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {

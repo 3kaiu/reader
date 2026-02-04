@@ -34,6 +34,7 @@ pub mod nxs;          // NXS格式处理
 pub mod config;       // 配置处理
 pub mod error;        // 错误定义
 pub mod event_bus;    // 事件总线
+pub mod health_tracker;
 pub mod interfaces;   // 接口定义
 pub mod traits;       // 特质定义
 pub mod types;        // 类型定义

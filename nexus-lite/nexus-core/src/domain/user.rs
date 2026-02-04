@@ -46,7 +46,7 @@ impl fmt::Display for UserId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UserStatus {
     Active,
     Inactive,
@@ -54,7 +54,7 @@ pub enum UserStatus {
     Deleted,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UserRole {
     Reader,
     PremiumReader,
@@ -107,6 +107,9 @@ impl User {
     /// 创建新用户
     pub fn new(id: UserId, username: String, email: String) -> Self {
         let now = Utc::now();
+        let user_id = id.0.clone();
+        let username_ev = username.clone();
+        let email_ev = email.clone();
         Self {
             id,
             username,
@@ -123,9 +126,9 @@ impl User {
             updated_at: now,
             last_login_at: None,
             uncommitted_events: vec![DomainEvent::User(UserEvent::UserCreated {
-                user_id: id.0.clone(),
-                username: username.clone(),
-                email: email.clone(),
+                user_id,
+                username: username_ev,
+                email: email_ev,
             })],
         }
     }
@@ -206,7 +209,7 @@ impl User {
 }
 
 /// 用户偏好值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserPreferences {
     pub theme: Theme,
     pub language: String,
@@ -233,14 +236,14 @@ impl Default for UserPreferences {
 
 impl ValueObject for UserPreferences {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Theme {
     Light,
     Dark,
     Auto,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReadingSettings {
     pub font_size: u32,
     pub font_family: String,
@@ -265,7 +268,7 @@ impl Default for ReadingSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotificationSettings {
     pub email_notifications: bool,
     pub push_notifications: bool,
@@ -286,7 +289,7 @@ impl Default for NotificationSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrivacySettings {
     pub profile_visibility: Visibility,
     pub reading_history_visibility: Visibility,
@@ -305,7 +308,7 @@ impl Default for PrivacySettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Visibility {
     Public,
     Friends,
@@ -313,7 +316,7 @@ pub enum Visibility {
 }
 
 /// 用户资料值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserProfile {
     pub bio: Option<String>,
     pub location: Option<String>,
@@ -346,7 +349,7 @@ impl Default for UserProfile {
 
 impl ValueObject for UserProfile {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Gender {
     Male,
     Female,
@@ -354,7 +357,7 @@ pub enum Gender {
     PreferNotToSay,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReadingGoal {
     pub books_per_year: u32,
     pub pages_per_day: u32,
@@ -363,7 +366,7 @@ pub struct ReadingGoal {
 }
 
 /// 安全信息值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecurityInfo {
     pub password_hash: String,
     pub password_updated_at: DateTime<Utc>,
@@ -392,7 +395,7 @@ impl Default for SecurityInfo {
 
 impl ValueObject for SecurityInfo {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecurityQuestion {
     pub question: String,
     pub answer_hash: String,
@@ -427,6 +430,12 @@ pub struct UserSession {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UserSessionId(pub String);
+
+impl std::fmt::Display for UserSessionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[async_trait]
 impl Entity for UserSession {
@@ -813,16 +822,17 @@ impl UserDomain {
         user.record_login();
         self.user_repository.save(&user).await?;
 
+        let uid = user_id.0.clone();
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&session).unwrap()),
             events: vec![
                 DomainEvent::User(UserEvent::UserSessionCreated {
                     session_id: session_id.0,
-                    user_id: user_id.0,
+                    user_id: uid.clone(),
                 }),
                 DomainEvent::User(UserEvent::UserLoggedIn {
-                    user_id: user_id.0,
+                    user_id: uid,
                 }),
             ],
             metadata: HashMap::new(),

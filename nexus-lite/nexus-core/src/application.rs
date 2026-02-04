@@ -73,7 +73,7 @@ pub enum ApplicationQuery {
     // 阅读相关查询
     Reading(ReadingQuery),
     // 搜索相关查询
-    Search(SearchQuery),
+    Search(SearchDomainQuery),
     // 用户相关查询
     User(UserQuery),
     // 系统相关查询
@@ -81,7 +81,7 @@ pub enum ApplicationQuery {
 }
 
 /// 应用结果
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplicationResult {
     pub success: bool,
     pub data: Option<serde_json::Value>,

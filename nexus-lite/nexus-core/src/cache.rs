@@ -155,8 +155,8 @@ impl MultiLevelCache {
 #[async_trait]
 impl<K, V> Cache<K, V> for MultiLevelCache
 where
-    K: Clone + Send + Sync + std::hash::Hash + Eq + std::fmt::Display,
-    V: Clone + Send + Sync + serde::Serialize + for<'de> serde::Deserialize<'de>,
+    K: Clone + Send + Sync + std::hash::Hash + Eq + std::fmt::Display + 'static,
+    V: Clone + Send + Sync + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
 {
     async fn get(&self, key: &K) -> Result<Option<V>, CacheError> {
         // 首先尝试内存缓存
@@ -166,26 +166,28 @@ where
 
         // 然后尝试Redis缓存
         if let Some(redis) = &self.redis_cache {
-            if let Some(value) = redis.get(key).await? {
+            if let Some(value) = redis.get::<V>(key).await? {
                 // 写回到内存缓存
                 let options = PutOptions {
                     ttl: Some(self.config.ttl_default),
                     ..Default::default()
                 };
-                let _ = self.memory_cache.write().await.put(key.clone(), value.clone(), options).await;
+                let mut guard = self.memory_cache.write().await;
+                guard.put(key.clone(), value.clone(), options).await?;
                 return Ok(Some(value));
             }
         }
 
         // 最后尝试磁盘缓存
         if let Some(disk) = &self.disk_cache {
-            if let Some(value) = disk.read().await.get(key).await? {
+            if let Some(value) = disk.read().await.get::<V>(key).await? {
                 // 写回到内存缓存
                 let options = PutOptions {
                     ttl: Some(self.config.ttl_default),
                     ..Default::default()
                 };
-                let _ = self.memory_cache.write().await.put(key.clone(), value.clone(), options).await;
+                let mut guard = self.memory_cache.write().await;
+                guard.put(key.clone(), value.clone(), options).await?;
                 return Ok(Some(value));
             }
         }
@@ -549,12 +551,14 @@ impl CacheManager {
 
     /// 获取缓存统计信息
     pub async fn stats(&self) -> Result<CacheStats, CacheError> {
-        self.cache.read().await.stats().await
+        let guard = self.cache.read().await;
+        <MultiLevelCache as Cache<String, serde_json::Value>>::stats(&*guard).await
     }
 
     /// 健康检查
     pub async fn health_check(&self) -> Result<(), CacheError> {
-        self.cache.read().await.health_check().await
+        let guard = self.cache.read().await;
+        <MultiLevelCache as Cache<String, serde_json::Value>>::health_check(&*guard).await
     }
 }
 

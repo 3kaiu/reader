@@ -8,7 +8,7 @@
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -367,6 +367,7 @@ impl WorkflowOptimizer {
 
     async fn start_workflow_execution(&self, mut workflow: Workflow) -> Result<(), WorkflowError> {
         let workflow_id = workflow.id.clone();
+        let workflow_id_key = workflow_id.clone();
         let config = self.config.clone();
         let executor = Arc::new(DefaultWorkflowExecutor::new());
 
@@ -395,7 +396,7 @@ impl WorkflowOptimizer {
 
         {
             let mut active = self.active_workflows.write().await;
-            active.insert(workflow_id, handle);
+            active.insert(workflow_id_key, handle);
         }
 
         {
@@ -439,7 +440,8 @@ impl WorkflowOptimizer {
             }
 
             // 检查依赖是否满足
-            if !self.are_dependencies_satisfied(step, &context.step_results) {
+            let deps_satisfied = step.dependencies.iter().all(|dep| context.step_results.contains_key(dep));
+            if !deps_satisfied {
                 continue; // 跳过此步骤，稍后重试
             }
 
