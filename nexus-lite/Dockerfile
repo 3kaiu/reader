@@ -1,6 +1,6 @@
 # Nexus-Lite Dockerfile for HuggingFace Spaces
-# Using official Rust image for build
-# Cache bust: 20260113-v2
+# Build context: nexus-lite directory (used when GH Actions uploads this folder to HF)
+# Cache bust: 20260203
 
 FROM rust:1.85-slim-bookworm AS builder
 
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace files
+# Copy workspace files (context = nexus-lite/)
 COPY Cargo.toml Cargo.lock ./
 COPY nexus-core ./nexus-core
 COPY nexus-engine ./nexus-engine
@@ -40,8 +40,6 @@ COPY --from=builder /app/target/release/nexus-server /app/nexus-server
 # Copy source files and config
 COPY sources ./sources
 COPY nexus-server/config.json ./config.json
-
-# Copy data directory
 COPY data ./data
 
 # Create cache directory
