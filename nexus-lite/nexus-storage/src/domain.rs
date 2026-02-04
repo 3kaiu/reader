@@ -17,6 +17,7 @@ use nexus_core::{ValueObject, DomainError, Entity};
 
 use nexus_core::EngineError as StorageError;
 use nexus_core::{AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
+use nexus_core::domain::StorageEvent as CoreStorageEvent;
 
 /// 数据对象实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -258,7 +259,7 @@ pub struct StorageStrategy {
 
 impl ValueObject for StorageStrategy {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StrategyType {
     Replication,
     Compression,
@@ -267,7 +268,7 @@ pub enum StrategyType {
     Tiering,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrategyCondition {
     pub condition_type: ConditionType,
     pub operator: ConditionOperator,
@@ -275,6 +276,7 @@ pub struct StrategyCondition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConditionType {
     FileSize,
     FileType,
@@ -283,7 +285,7 @@ pub enum ConditionType {
     StorageClass,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConditionOperator {
     Equals,
     NotEquals,
@@ -500,7 +502,7 @@ impl StorageDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&object).unwrap()),
-            events: vec![DomainEvent::Storage(StorageEvent::DataObjectCreated {
+            events: vec![DomainEvent::Storage(CoreStorageEvent::DataObjectCreated {
                 object_id: object.id.0.clone(),
                 bucket: object.bucket.clone(),
                 key: object.key.clone(),
@@ -513,7 +515,7 @@ impl StorageDomain {
     async fn update_data_object(&self, object_id: String, data: Vec<u8>) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
         let mut object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound(format!("Object {} not found", object_id.0)))?;
+            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
 
         let old_size = object.size_bytes;
         object.update_data(data);
@@ -536,7 +538,7 @@ impl StorageDomain {
     async fn delete_data_object(&self, object_id: String) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
         let object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound(format!("Object {} not found", object_id.0)))?;
+            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
 
         self.object_repository.delete(&object_id).await?;
 
@@ -569,7 +571,7 @@ impl StorageDomain {
     async fn update_bucket_lifecycle(&self, bucket_id: String, rules: Vec<LifecycleRule>) -> Result<DomainResult, StorageError> {
         let bucket_id = StorageBucketId(bucket_id);
         let mut bucket = self.bucket_repository.find_by_id(&bucket_id).await?
-            .ok_or_else(|| StorageError::NotFound(format!("Bucket {} not found", bucket_id.0)))?;
+            .ok_or_else(|| StorageError::NotFound { resource: format!("Bucket {}", bucket_id.0) })?;
 
         bucket.lifecycle_rules = rules;
         bucket.updated_at = Utc::now();
@@ -633,7 +635,7 @@ impl StorageDomain {
     async fn get_data_object(&self, object_id: String) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
         let object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound(format!("Object {} not found", object_id.0)))?;
+            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
 
         Ok(DomainResult {
             success: true,
@@ -657,7 +659,7 @@ impl StorageDomain {
     async fn get_storage_bucket(&self, bucket_id: String) -> Result<DomainResult, StorageError> {
         let bucket_id = StorageBucketId(bucket_id);
         let bucket = self.bucket_repository.find_by_id(&bucket_id).await?
-            .ok_or_else(|| StorageError::NotFound(format!("Bucket {} not found", bucket_id.0)))?;
+            .ok_or_else(|| StorageError::NotFound { resource: format!("Bucket {}", bucket_id.0) })?;
 
         Ok(DomainResult {
             success: true,

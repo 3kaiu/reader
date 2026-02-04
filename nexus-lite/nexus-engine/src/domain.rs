@@ -519,7 +519,7 @@ impl EngineDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&task).unwrap()),
-            events: vec![DomainEvent::Engine(EngineEvent::FetchTaskStarted {
+            events: vec![DomainEvent::Engine(CoreEngineEvent::FetchTaskStarted {
                 task_id: task.id.0,
                 domain: task.domain,
             })],
@@ -569,7 +569,7 @@ impl EngineDomain {
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(&parser).unwrap()),
-            events: vec![DomainEvent::Engine(EngineEvent::ContentParserUpdated {
+            events: vec![DomainEvent::Engine(CoreEngineEvent::ContentParserUpdated {
                 parser_id: parser.id.0,
                 parser_type: format!("{:?}", parser.parser_type),
                 success_rate: parser.success_rate,
@@ -586,7 +586,7 @@ impl EngineDomain {
     ) -> Result<DomainResult, EngineError> {
         let parser_id = ContentParserId(parser_id);
         let mut parser = self.parser_repository.find_by_id(&parser_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Parser {} not found", parser_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Parser {}", parser_id.0) })?;
 
         parser.selectors.extend(selectors);
         parser.regex_patterns.extend(regex_patterns);
@@ -633,7 +633,7 @@ impl EngineDomain {
     async fn health_check_connection_pool(&self, domain: String) -> Result<DomainResult, EngineError> {
         let pool_id = ConnectionPoolId(format!("pool_{}", domain));
         let mut pool = self.pool_repository.find_by_id(&pool_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Pool for domain {} not found", domain)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Pool for domain {}", domain) })?;
 
         pool.last_health_check = Utc::now();
         // 简化的健康检查逻辑
@@ -680,7 +680,7 @@ impl EngineDomain {
     async fn get_content_parser(&self, parser_id: String) -> Result<DomainResult, EngineError> {
         let parser_id = ContentParserId(parser_id);
         let parser = self.parser_repository.find_by_id(&parser_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Parser {} not found", parser_id.0)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Parser {}", parser_id.0) })?;
 
         Ok(DomainResult {
             success: true,
@@ -704,7 +704,7 @@ impl EngineDomain {
     async fn get_connection_pool(&self, domain: String) -> Result<DomainResult, EngineError> {
         let pool_id = ConnectionPoolId(format!("pool_{}", domain));
         let pool = self.pool_repository.find_by_id(&pool_id).await?
-            .ok_or_else(|| EngineError::NotFound(format!("Pool for domain {} not found", domain)))?;
+            .ok_or_else(|| EngineError::NotFound { resource: format!("Pool for domain {}", domain) })?;
 
         Ok(DomainResult {
             success: true,
