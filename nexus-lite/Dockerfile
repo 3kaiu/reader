@@ -39,7 +39,7 @@ RUN cargo check --package nexus-server
 RUN cargo build --release --package nexus-server
 
 # Debug: Check if binary was created
-RUN ls -la target/release/nexus-server && file target/release/nexus-server
+RUN ls -la target/release/nexus-server
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /app/target/release/nexus-server /app/nexus-server
 
 # Debug: Verify binary was copied and is executable
-RUN ls -la /app/nexus-server && file /app/nexus-server
+RUN ls -la /app/nexus-server
 
 # Copy source files and config
 COPY sources ./sources
