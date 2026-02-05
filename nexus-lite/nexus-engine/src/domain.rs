@@ -527,7 +527,7 @@ impl EngineDomain {
         })
     }
 
-    async fn cancel_fetch_task(&self, task_id: String, reason: String) -> Result<DomainResult, EngineError> {
+    async fn cancel_fetch_task(&self, task_id: String, _reason: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
         let mut task = self.task_repository.find_by_id(&task_id).await?
             .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
@@ -810,7 +810,7 @@ impl FetchTaskRepository for InMemoryFetchTaskRepository {
     async fn find_by_criteria(&self, status: Option<TaskStatus>, domain: Option<String>, limit: u32) -> Result<Vec<FetchTask>, EngineError> {
         let tasks = self.tasks.read().unwrap();
         let filtered: Vec<FetchTask> = tasks.values()
-            .filter(|t| status.as_ref().map_or(true, |s| matches!(&t.status, s)))
+            .filter(|t| status.as_ref().map_or(true, |_s| matches!(&t.status, _s)))
             .filter(|t| domain.as_ref().map_or(true, |d| &t.domain == d))
             .take(limit as usize)
             .cloned()
@@ -903,9 +903,9 @@ impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
 
     async fn find_by_status(&self, status: Option<PoolStatus>) -> Result<Vec<ConnectionPool>, EngineError> {
         let pools = self.pools.read().unwrap();
-        let filtered: Vec<ConnectionPool> = if let Some(status) = status {
+        let filtered: Vec<ConnectionPool> = if let Some(_status) = status {
             pools.values()
-                .filter(|p| matches!(&p.status, status))
+                .filter(|p| matches!(&p.status, _status))
                 .cloned()
                 .collect()
         } else {

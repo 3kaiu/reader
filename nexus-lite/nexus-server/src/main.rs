@@ -10,7 +10,7 @@ mod routes;
 mod validation;
 mod ws;
 
-use nexus_core::{EngineConfig, cache, optimizer};
+use nexus_core::EngineConfig;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

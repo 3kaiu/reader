@@ -139,7 +139,7 @@ pub async fn list_discovery(
     }
 
     // Add new_sign section
-    if let Some(mut items) = section_map.remove("new_sign") {
+    if let Some(items) = section_map.remove("new_sign") {
         // If sorting by position across all history is weird, maybe just keep time order.
         // items.sort_by_key(|i| i.position);
         sections.push(DiscoverySection {
