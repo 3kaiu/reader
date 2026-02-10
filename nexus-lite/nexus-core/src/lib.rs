@@ -1,3 +1,11 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(ambiguous_glob_reexports)]
+#![allow(static_mut_refs)]
+#![allow(unused_must_use)]
+
 // ===== 领域层 (Domain Layer) =====
 // 按照DDD原则组织的业务领域
 pub mod domain;

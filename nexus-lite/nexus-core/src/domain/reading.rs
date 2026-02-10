@@ -15,7 +15,6 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
-use crate::error::EngineError;
 
 /// 书籍实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -405,6 +404,7 @@ pub enum ReadingQuery {
 /// 阅读领域 - 聚合所有阅读相关业务逻辑
 pub struct ReadingDomain {
     book_repository: Box<dyn BookRepository>,
+    #[allow(dead_code)]
     chapter_repository: Box<dyn ChapterRepository>,
     reading_progress_repository: Box<dyn ReadingProgressRepository>,
     reading_session_repository: Box<dyn ReadingSessionRepository>,

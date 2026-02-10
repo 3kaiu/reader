@@ -49,7 +49,6 @@ impl HttpFetcher {
             // Advanced TCP optimization
             .tcp_keepalive(Duration::from_secs(60))
             .tcp_nodelay(true)
-            .tcp_user_timeout(Duration::from_secs(timeout_seconds * 1000))
             // Enhanced compression
             .gzip(true)
             .brotli(true)

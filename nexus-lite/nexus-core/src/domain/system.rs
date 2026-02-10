@@ -14,7 +14,6 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
-use crate::error::EngineError;
 
 /// 系统配置实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]

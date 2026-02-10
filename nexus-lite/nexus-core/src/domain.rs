@@ -26,7 +26,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use chrono::{DateTime, Utc};
-use crate::error::EngineError;
 
 /// 领域实体基特质
 #[async_trait]

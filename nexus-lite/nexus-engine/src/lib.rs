@@ -8,6 +8,10 @@
 //! - 熔断器可靠性保证
 //! - 域名感知连接池
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
 // ===== 领域层 (Domain Layer) =====
 // 引擎核心业务逻辑
 pub mod domain;

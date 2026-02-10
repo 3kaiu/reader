@@ -17,7 +17,6 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use tracing::{Level, Span};
 
-use crate::error::EngineError;
 
 /// 拦截器接口 - 用于AOP风格的横切处理
 #[async_trait]

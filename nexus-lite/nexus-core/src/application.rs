@@ -18,7 +18,6 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
-use crate::error::EngineError;
 
 /// 应用服务特质
 #[async_trait]
@@ -480,7 +479,7 @@ pub async fn init_application_layer(domain_layer: Arc<DomainLayer>) -> Result<Ap
     let event_publisher = Arc::new(DefaultEventPublisher::new());
     let security_service = Arc::new(DefaultSecurityService::new());
 
-    let mut service_bus = ApplicationServiceBus::new(
+    let service_bus = ApplicationServiceBus::new(
         domain_layer,
         transaction_manager,
         cache_manager,

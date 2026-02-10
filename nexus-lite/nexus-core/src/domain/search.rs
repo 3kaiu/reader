@@ -14,7 +14,6 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
-use crate::error::EngineError;
 
 /// 搜索查询值对象
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

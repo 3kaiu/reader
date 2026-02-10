@@ -852,9 +852,9 @@ impl ContentParserRepository for InMemoryContentParserRepository {
 
     async fn find_by_type(&self, parser_type: Option<ParserType>) -> Result<Vec<ContentParser>, EngineError> {
         let parsers = self.parsers.read().unwrap();
-        let filtered: Vec<ContentParser> = if let Some(pt) = parser_type {
+        let filtered: Vec<ContentParser> = if let Some(_pt) = parser_type {
             parsers.values()
-                .filter(|p| matches!(&p.parser_type, pt))
+                .filter(|p| matches!(&p.parser_type, _pt))
                 .cloned()
                 .collect()
         } else {
