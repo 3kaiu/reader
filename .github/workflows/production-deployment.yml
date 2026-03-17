@@ -56,7 +56,7 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -90,7 +90,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -111,15 +111,15 @@ jobs:
     if: success() && github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Audit Lighthouse config
-        uses: treosh/lighthouse-ci-action@v10
+        uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: './lighthouse-config.json'
           uploadArtifacts: true
@@ -133,7 +133,7 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -162,7 +162,7 @@ jobs:
 
       - name: Create vulnerability issue
         if: steps.audit.outputs.vulnerabilities > 0
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.create({
@@ -180,7 +180,7 @@ jobs:
     if: success()
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -205,7 +205,7 @@ jobs:
           cp _headers dist/_headers 2>/dev/null || echo "No _headers file found"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-build
           path: nexus-reader/dist/
@@ -218,7 +218,7 @@ jobs:
           echo "Publish skipped (using Bun; add bun publish if needed)"
 
       - name: Upload source maps
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-maps
           path: nexus-reader/dist/**/*.map
@@ -232,7 +232,7 @@ jobs:
 
     steps:
       - name: Download frontend build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-build
           path: frontend-dist
@@ -260,7 +260,7 @@ jobs:
         continue-on-error: false
 
       - name: Update deployment status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.repos.createDeploymentStatus({
@@ -278,10 +278,10 @@ jobs:
     if: success() && (github.event_name == 'push' || github.event.inputs.environment != '')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -345,10 +345,10 @@ jobs:
     if: success()
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -407,15 +407,15 @@ jobs:
     if: success() && contains(github.event.head_commit.modified, 'docs/')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Build docs (if using Docusaurus, etc.)
         run: |
@@ -427,7 +427,7 @@ jobs:
           cp README.md docs-build/index.md 2>/dev/null || echo "No docs to deploy"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: './docs-build'
 
@@ -555,7 +555,7 @@ jobs:
 
     steps:
       - name: Update project status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // 更新项目状态
@@ -577,7 +577,7 @@ jobs:
 
     steps:
       - name: Clean up old artifacts
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             try {
