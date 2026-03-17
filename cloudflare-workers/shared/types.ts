@@ -62,6 +62,19 @@ export interface WorkerEnv {
   NEXUS_LITE_URL: string;
   CF_BYPASS_URL: string;
   CF_API_KEY?: string; // 增加 API Key 支持
+  ENVIRONMENT?: 'development' | 'staging' | 'production' | string;
+  LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error' | string;
+  ENABLE_ANALYTICS?: string;
+  ENABLE_CACHE?: string;
+
+  // Core storage bindings (required in production)
+  ANALYTICS_DB: D1Database;
+  USER_PREFERENCES_DB: D1Database;
+  USER_CONTENT_R2: R2Bucket;
+  BACKUP_R2: R2Bucket;
+  ANALYTICS_QUEUE: Queue;
+  ANALYTICS_ENGINE: AnalyticsEngineDataset;
+
   AUTH_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
@@ -71,5 +84,8 @@ export interface WorkerEnv {
   PROGRESS_KV?: any;
   CONTENT_CACHE_KV?: any;
   DECODER_KV?: any;
+  AI_CACHE_KV?: any;
+  GROQ_API_KEY?: string;
+  HF_API_KEY?: string;
   ctx?: any;
 }

@@ -466,6 +466,22 @@ export class RequestOptimizer {
           break
         }
 
+        // If server tells us when to retry, respect it (bounded by maxDelay).
+        // Support both Fetch API Headers and plain-object headers.
+        const retryAfterHeader =
+          (error as any)?.response?.headers?.get?.('retry-after') ??
+          (error as any)?.response?.headers?.get?.('Retry-After') ??
+          (error as any)?.response?.headers?.['retry-after'] ??
+          (error as any)?.response?.headers?.['Retry-After']
+
+        const retryAfterSeconds = retryAfterHeader ? Number.parseInt(String(retryAfterHeader), 10) : NaN
+        if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+          const delay = Math.min(retryAfterSeconds * 1000, config.maxDelay)
+          console.log(`🔄 Server asked retry-after=${retryAfterSeconds}s, retrying in ${delay}ms...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          continue
+        }
+
         // 计算延迟时间（指数退避 + 抖动）
         const baseDelay = Math.min(config.baseDelay * Math.pow(2, attempt), config.maxDelay)
         const jitter = baseDelay * config.jitterFactor * Math.random()

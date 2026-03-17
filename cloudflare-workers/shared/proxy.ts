@@ -11,6 +11,29 @@ export interface ProxyOptions {
   cacheTTL?: number;
   kv?: KVNamespace;
   ctx?: ExecutionContext;
+  analytics?: any; // AnalyticsEngineDataset (optional)
+}
+
+function recordCacheMetric(
+  analytics: any | undefined,
+  ctx: ExecutionContext | undefined,
+  data: { layer: 'proxy'; result: 'hit' | 'miss' | 'set'; latencyMs?: number }
+) {
+  if (!analytics) return;
+  const write = async () => {
+    try {
+      // blobs: layer, result ; doubles: latencyMs?, count
+      analytics.writeDataPoint({
+        blobs: [data.layer, data.result],
+        doubles: [data.latencyMs ?? 0, 1.0],
+        indexes: ['cache_metrics'],
+      });
+    } catch {
+      // ignore metrics failures
+    }
+  };
+  if (ctx) ctx.waitUntil(write());
+  else void write();
 }
 
 export async function proxyRequest(
@@ -41,8 +64,10 @@ export async function proxyRequest(
   // Try cache for GET requests
   const cacheKey = generateCacheKey(path, Object.fromEntries(url.searchParams));
   if (useCache && request.method === 'GET' && kv) {
+    const t0 = Date.now();
     const cached = await getFromCache(kv, cacheKey);
     if (cached) {
+      recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'hit', latencyMs: Date.now() - t0 });
       return new Response(cached.body, {
         headers: {
           'Content-Type': cached.contentType,
@@ -51,6 +76,7 @@ export async function proxyRequest(
         },
       });
     }
+    recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'miss', latencyMs: Date.now() - t0 });
   }
   
   // Forward request
@@ -86,6 +112,7 @@ export async function proxyRequest(
     if (useCache && response.ok && request.method === 'GET' && kv && ctx) {
       const body = await response.text();
       ctx.waitUntil(saveToCache(kv, cacheKey, body, contentType || 'application/json', cacheTTL));
+      recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'set' });
       
       return new Response(body, {
         status: response.status,
@@ -113,4 +140,23 @@ export async function proxyRequest(
       },
     });
   }
+}
+
+/**
+ * Backward-compatible overload used by `unified-worker.ts`:
+ * proxyRequest(request, env)
+ */
+export async function proxyRequestWithEnv(request: Request, env: any, ctx?: ExecutionContext): Promise<Response> {
+  const url = new URL(request.url);
+  const targetUrl = env.NEXUS_LITE_URL || env.nexusLiteUrl || '';
+  const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true';
+  const kv = env.CONTENT_CACHE_KV;
+
+  return proxyRequest(request, targetUrl, url.pathname + url.search, {
+    useCache,
+    cacheTTL: 300,
+    kv,
+    ctx,
+    analytics: env.ANALYTICS_ENGINE,
+  });
 }

@@ -9,7 +9,8 @@
     "status": "./status.sh",
     "test": "node test-optimization.js",
     "build": "wrangler deploy --dry-run",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "contracts:validate": "node ../scripts/validate-contracts.mjs"
   },
   "keywords": [
     "cloudflare",

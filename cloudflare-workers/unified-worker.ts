@@ -8,7 +8,7 @@
 import { verifyAuth, generateToken, type TokenPayload } from './shared/auth.ts';
 import { createLogger } from './shared/logger.ts';
 import { getCorsHeaders, handleCorsPreflightRequest } from './shared/cors.ts';
-import { proxyRequest } from './shared/proxy.ts';
+import { proxyRequestWithEnv } from './shared/proxy.ts';
 import { getPerformanceMonitor } from './shared/performance-monitor.ts';
 import { getAutoTuner, startAutoTuning } from './shared/auto-tuner.ts';
 import { getSelfHealingSystem, startSelfHealing } from './shared/self-healing.ts';
@@ -61,23 +61,30 @@ class AnalyticsSystem {
     this.logger = createLogger(env);
   }
 
-  // 记录用户行为到D1数据库
-  async recordUserAction(userId: string, action: string, data: any): Promise<void> {
+  // 记录用户行为到D1数据库（schema: user_events）
+  async recordUserAction(userId: string, eventType: string, properties: any): Promise<void> {
     try {
+      const timestamp = new Date().toISOString();
+      const props = properties || {};
       await this.env.ANALYTICS_DB.prepare(`
-        INSERT INTO user_actions (user_id, action, data, timestamp, ip_address)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO user_events (user_id, event_type, category, target_id, target_type, properties, timestamp, ip_address, user_agent, url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         userId,
-        action,
-        JSON.stringify(data),
-        new Date().toISOString(),
-        data.ip || 'unknown'
+        eventType,
+        props.category || null,
+        props.targetId || props.bookId || null,
+        props.targetType || (props.bookId ? 'book' : null),
+        JSON.stringify(props),
+        timestamp,
+        props.ip || 'unknown',
+        props.userAgent || null,
+        props.url || null
       ).run();
 
       // 发送到Analytics Engine进行实时分析
       await this.env.ANALYTICS_ENGINE.writeDataPoint({
-        blobs: [userId, action],
+        blobs: [userId, eventType],
         doubles: [1.0], // 计数
         indexes: ['user_actions']
       });
@@ -92,10 +99,10 @@ class AnalyticsSystem {
     try {
       const result = await this.env.ANALYTICS_DB.prepare(`
         SELECT
-          COUNT(*) as total_actions,
+          COUNT(*) as total_events,
           COUNT(DISTINCT DATE(timestamp)) as active_days,
           MAX(timestamp) as last_activity
-        FROM user_actions
+        FROM user_events
         WHERE user_id = ? AND timestamp > datetime('now', '-30 days')
       `).bind(userId).first();
 
@@ -124,11 +131,11 @@ class AnalyticsSystem {
     try {
       const result = await this.env.ANALYTICS_DB.prepare(`
         SELECT
-          JSON_EXTRACT(data, '$.bookId') as book_id,
+          JSON_EXTRACT(properties, '$.bookId') as book_id,
           COUNT(*) as views
-        FROM user_actions
-        WHERE action = 'view_book' AND timestamp > datetime('now', '-7 days')
-        GROUP BY JSON_EXTRACT(data, '$.bookId')
+        FROM user_events
+        WHERE event_type = 'view_book' AND timestamp > datetime('now', '-7 days')
+        GROUP BY JSON_EXTRACT(properties, '$.bookId')
         ORDER BY views DESC
         LIMIT ?
       `).bind(limit).all();
@@ -138,6 +145,15 @@ class AnalyticsSystem {
       this.logger.error('Failed to get popular content:', error);
       return [];
     }
+  }
+}
+
+function requireBinding(env: EnhancedWorkerEnv, key: keyof EnhancedWorkerEnv, opts?: { requiredInProd?: boolean }) {
+  const requiredInProd = opts?.requiredInProd ?? true;
+  const isProd = env.ENVIRONMENT === 'production';
+  const ok = Boolean((env as any)[key]);
+  if (!ok && (!isProd || requiredInProd)) {
+    throw new Error(`Missing required binding/env: ${String(key)}`);
   }
 }
 
@@ -424,6 +440,24 @@ export default {
     const url = new URL(request.url);
     const logger = createLogger(env);
 
+    // Fail fast for critical bindings (avoid silent degradation in prod)
+    try {
+      requireBinding(env, 'AUTH_SECRET');
+      requireBinding(env, 'ANALYTICS_ENGINE');
+      requireBinding(env, 'ANALYTICS_DB');
+      requireBinding(env, 'USER_PREFERENCES_DB');
+      requireBinding(env, 'USER_CONTENT_R2');
+      requireBinding(env, 'BACKUP_R2');
+      // PROGRESS_KV is required for OAuth state + progress sync; allow dev without it.
+      requireBinding(env, 'PROGRESS_KV', { requiredInProd: true });
+    } catch (e: any) {
+      logger.error('Worker env validation failed:', e?.message || e);
+      return new Response(JSON.stringify({ error: 'Misconfigured worker', message: e?.message || String(e) }), {
+        status: 500,
+        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+      });
+    }
+
     // 初始化增强系统
     const analytics = new AnalyticsSystem(env);
     const userPrefs = new UserPreferencesSystem(env);
@@ -485,6 +519,9 @@ export default {
         case '/api/analytics/popular-content':
           return await handlePopularContent(request, env, analytics);
 
+        case '/api/analytics/client-routing':
+          return await handleClientRoutingAnalytics(request, env);
+
         case '/api/preferences':
           return await handleUserPreferences(request, env, userPrefs);
 
@@ -494,10 +531,13 @@ export default {
         case '/api/backup':
           return await handleUserBackup(request, env, contentManager, queueProcessor);
 
+        case '/api/metrics/client':
+          return await handleClientMetrics(request, env);
+
         // ===== 代理路由 =====
         default:
           if (url.pathname.startsWith('/api/')) {
-            return await proxyRequest(request, env);
+            return await proxyRequestWithEnv(request, env, ctx);
           }
 
           // 解码路由
@@ -507,7 +547,7 @@ export default {
 
           // 进度同步路由
           if (url.pathname.startsWith('/progress/')) {
-            return await handleProgressSync(request, env);
+            return await handleProgressSync(request, env, url);
           }
 
           // 未找到路由
@@ -588,15 +628,15 @@ async function handleHealthCheck(request: Request, env: EnhancedWorkerEnv, analy
 
 async function handleUserStats(request: Request, env: EnhancedWorkerEnv, analytics: AnalyticsSystem): Promise<Response> {
   // 验证认证
-  const authResult = await verifyAuth(request, env);
-  if (!authResult.valid) {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: getCorsHeaders()
     });
   }
 
-  const userId = authResult.payload.id;
+  const userId = payload.id;
   const stats = await analytics.getUserStats(userId);
 
   return new Response(JSON.stringify(stats), {
@@ -619,16 +659,116 @@ async function handlePopularContent(request: Request, env: EnhancedWorkerEnv, an
   });
 }
 
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))));
+  return sorted[idx];
+}
+
+async function handleClientRoutingAnalytics(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: getCorsHeaders() });
+  }
+
+  // Count distribution by route (from api_route metrics).
+  let routeCounts: Record<string, number> = {};
+  try {
+    const countsRes: any = await env.ANALYTICS_ENGINE.query(`
+      SELECT
+        blob3 as route,
+        sum(double2) as cnt
+      FROM analytics_metrics
+      WHERE index1 = 'client_metrics'
+        AND blob2 = 'api_route'
+        AND timestamp > now() - interval '24 hours'
+      GROUP BY blob3
+    `);
+    const rows = (countsRes?.results || countsRes?.result || countsRes) as any[];
+    if (Array.isArray(rows)) {
+      for (const r of rows) {
+        const k = String(r.route ?? 'unknown');
+        const v = Number(r.cnt ?? 0);
+        routeCounts[k] = (routeCounts[k] || 0) + v;
+      }
+    }
+  } catch {
+    routeCounts = {};
+  }
+
+  // Latency percentiles by route (sampled values from api_response_ms).
+  const routeLatencies: Record<string, number[]> = {};
+  const sampleLimit = 5000;
+  try {
+    const latRes: any = await env.ANALYTICS_ENGINE.query(`
+      SELECT
+        blob3 as route,
+        double1 as ms
+      FROM analytics_metrics
+      WHERE index1 = 'client_metrics'
+        AND blob2 = 'api_response_ms'
+        AND timestamp > now() - interval '24 hours'
+      LIMIT ${sampleLimit}
+    `);
+    const rows = (latRes?.results || latRes?.result || latRes) as any[];
+    if (Array.isArray(rows)) {
+      for (const r of rows) {
+        const route = String(r.route ?? 'unknown');
+        const ms = Number(r.ms ?? 0);
+        if (!Number.isFinite(ms) || ms < 0) continue;
+        (routeLatencies[route] ||= []).push(ms);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const latencySummary: Record<string, { samples: number; p50: number; p95: number; avg: number }> = {};
+  for (const [route, arr] of Object.entries(routeLatencies)) {
+    arr.sort((a, b) => a - b);
+    const sum = arr.reduce((acc, v) => acc + v, 0);
+    latencySummary[route] = {
+      samples: arr.length,
+      p50: Number(percentile(arr, 0.5).toFixed(2)),
+      p95: Number(percentile(arr, 0.95).toFixed(2)),
+      avg: arr.length ? Number((sum / arr.length).toFixed(2)) : 0,
+    };
+  }
+
+  const total = Object.values(routeCounts).reduce((a, b) => a + b, 0) || 0;
+  const share: Record<string, number> = {};
+  for (const [route, cnt] of Object.entries(routeCounts)) {
+    share[route] = total ? Number(((cnt / total) * 100).toFixed(2)) : 0;
+  }
+
+  return new Response(JSON.stringify({
+    window: '24h',
+    routeCounts,
+    routeSharePct: share,
+    latencySummary,
+    note: `Latency percentiles are computed from up to ${sampleLimit} sampled points.`,
+  }), {
+    headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+  });
+}
+
 async function handleUserPreferences(request: Request, env: EnhancedWorkerEnv, userPrefs: UserPreferencesSystem): Promise<Response> {
-  const authResult = await verifyAuth(request, env);
-  if (!authResult.valid) {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: getCorsHeaders()
     });
   }
 
-  const userId = authResult.payload.id;
+  const userId = payload.id;
 
   if (request.method === 'GET') {
     const preferences = await userPrefs.getPreferences(userId);
@@ -653,8 +793,8 @@ async function handleUserPreferences(request: Request, env: EnhancedWorkerEnv, u
 }
 
 async function handleContentUpload(request: Request, env: EnhancedWorkerEnv, contentManager: ContentManagementSystem): Promise<Response> {
-  const authResult = await verifyAuth(request, env);
-  if (!authResult.valid) {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: getCorsHeaders()
@@ -671,7 +811,7 @@ async function handleContentUpload(request: Request, env: EnhancedWorkerEnv, con
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const userId = authResult.payload.id;
+    const userId = payload.id;
 
     if (!file) {
       return new Response(JSON.stringify({ error: 'No file provided' }), {
@@ -700,15 +840,15 @@ async function handleContentUpload(request: Request, env: EnhancedWorkerEnv, con
 }
 
 async function handleUserBackup(request: Request, env: EnhancedWorkerEnv, contentManager: ContentManagementSystem, queueProcessor: QueueProcessor): Promise<Response> {
-  const authResult = await verifyAuth(request, env);
-  if (!authResult.valid) {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: getCorsHeaders()
     });
   }
 
-  const userId = authResult.payload.id;
+  const userId = payload.id;
 
   // 发送备份请求到队列
   await queueProcessor.queueAnalyticsEvent('backup_request', {
@@ -728,6 +868,65 @@ async function handleUserBackup(request: Request, env: EnhancedWorkerEnv, conten
   });
 }
 
+type ClientMetric = {
+  name: string;
+  value: number;
+  unit?: string;
+  tags?: Record<string, string | number>;
+  timestamp?: number;
+};
+
+async function handleClientMetrics(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: getCorsHeaders() });
+  }
+
+  // Auth is optional; if present associate with userId.
+  const payload = await verifyAuth(request, env);
+  const userId = payload?.id || 'anonymous';
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Bad Request', message: 'Invalid JSON' }), {
+      status: 400,
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
+  }
+
+  const metrics: ClientMetric[] = Array.isArray(body?.metrics) ? body.metrics : [];
+  if (metrics.length === 0) {
+    return new Response(JSON.stringify({ success: true, ingested: 0 }), {
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Ingest a bounded number per request to protect AE quota.
+  const bounded = metrics.slice(0, 200);
+  for (const m of bounded) {
+    try {
+      const route = String(m?.tags?.route ?? 'unknown');
+      const metricName = String(m?.name ?? 'unknown');
+      const endpoint = String(m?.tags?.endpoint ?? m?.tags?.url ?? 'unknown');
+      const method = String(m?.tags?.method ?? 'unknown');
+      const value = Number(m?.value ?? 0);
+
+      await env.ANALYTICS_ENGINE.writeDataPoint({
+        blobs: [userId, metricName, route, method, endpoint],
+        doubles: [value, 1.0],
+        indexes: ['client_metrics'],
+      });
+    } catch {
+      // ignore bad datapoints
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, ingested: bounded.length }), {
+    headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+  });
+}
+
 // ===== 原有功能保持不变 =====
 async function handleGitHubLogin(env: EnhancedWorkerEnv): Promise<Response> {
   const state = crypto.randomUUID();
@@ -738,7 +937,7 @@ async function handleGitHubLogin(env: EnhancedWorkerEnv): Promise<Response> {
   }
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: `${env.WORKER_URL}/callback/github`,
+    redirect_uri: `${env.WORKER_URL}/auth/github/callback`,
     scope: 'read:user',
     state,
   });
@@ -813,11 +1012,11 @@ async function handleGitHubCallback(request: Request, env: EnhancedWorkerEnv): P
 }
 
 async function handleAuthVerify(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
-  const authResult = await verifyAuth(request, env);
+  const payload = await verifyAuth(request, env);
 
   return new Response(JSON.stringify({
-    valid: authResult.valid,
-    user: authResult.valid ? authResult.payload : null
+    valid: Boolean(payload),
+    user: payload || null
   }), {
     headers: {
       ...getCorsHeaders(),
@@ -827,6 +1026,17 @@ async function handleAuthVerify(request: Request, env: EnhancedWorkerEnv): Promi
 }
 
 async function handleDecodeRequest(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  // Ensure cache bindings exist; otherwise DecoderEngine will throw due to non-null assertions.
+  if (!env.DECODER_KV || !env.AI_CACHE_KV) {
+    return new Response(JSON.stringify({
+      error: 'Decode temporarily unavailable',
+      message: 'Missing DECODER_KV/AI_CACHE_KV bindings'
+    }), {
+      status: 503,
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json', 'Retry-After': '60' }
+    });
+  }
+
   const decoder = new DecoderEngine(env);
   await decoder.init();
 
@@ -841,27 +1051,63 @@ async function handleDecodeRequest(request: Request, env: EnhancedWorkerEnv): Pr
   });
 }
 
-async function handleProgressSync(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
-  const authResult = await verifyAuth(request, env);
-  if (!authResult.valid) {
+async function handleProgressSync(request: Request, env: EnhancedWorkerEnv, url: URL): Promise<Response> {
+  const payload = await verifyAuth(request, env);
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: getCorsHeaders()
     });
   }
 
-  const progress: Progress = await request.json();
-  const userId = authResult.payload.id;
-
-  if (env.PROGRESS_KV) {
-    await env.PROGRESS_KV.put(
-      `progress:${userId}:${progress.bookId}`,
-      JSON.stringify(progress),
-      { expirationTtl: 30 * 24 * 60 * 60 } // 30天
-    );
+  const userId = payload.id;
+  const parts = url.pathname.split('/').filter(Boolean); // ["progress", ":bookId"]
+  const bookId = parts[1];
+  if (!bookId) {
+    return new Response(JSON.stringify({ error: 'Bad Request', message: 'Missing bookId' }), {
+      status: 400,
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
   }
 
+  const key = `progress:${userId}:${bookId}`;
+
+  if (request.method === 'GET') {
+    const value = await env.PROGRESS_KV.get(key);
+    if (!value) {
+      return new Response(JSON.stringify({ error: 'Not Found' }), {
+        status: 404,
+        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(value, {
+      status: 200,
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (request.method === 'DELETE') {
+    await env.PROGRESS_KV.delete(key);
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (request.method !== 'PUT' && request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: getCorsHeaders() });
+  }
+
+  const body = await request.json() as Partial<Progress>;
+  const progress: Progress = {
+    bookId,
+    chapterIndex: Number(body.chapterIndex ?? 0),
+    scrollPercent: Number(body.scrollPercent ?? 0),
+    updatedAt: Date.now(),
+  };
+
+  await env.PROGRESS_KV.put(key, JSON.stringify(progress), { expirationTtl: 30 * 24 * 60 * 60 });
+
   return new Response(JSON.stringify({ success: true }), {
-    headers: getCorsHeaders()
+    headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
   });
 }

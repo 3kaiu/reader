@@ -4,22 +4,9 @@
  */
 
 import { networkDetector } from '../network/optimizer'
-import { secureRandomString } from '../../utils/secureRandom'
-import { nexusDB, StoreNames, type OfflineContent, type SyncTask } from '../../utils/db'
+import { nexusDB, StoreNames, type SyncTask } from '../../utils/db'
 import { syncManager } from '../syncManager'
 import { logger } from '../../utils/logger'
-
-// 离线操作接口
-export interface OfflineOperation {
-  id: string
-  type: 'api-request' | 'user-action' | 'sync-data'
-  method: string
-  url: string
-  data?: any
-  timestamp: number
-  retryCount: number
-  maxRetries: number
-}
 
 // 离线状态接口
 export interface OfflineStatus {
@@ -47,10 +34,10 @@ export interface CachedContent {
 export class OfflineManager {
   private isOnline = true
   private lastOnlineTime = Date.now()
-  private operationQueue: OfflineOperation[] = []
+  // Use SyncManager's persisted queue as the single source of truth.
+  private operationQueue: SyncTask[] = []
   private cachedContent = new Map<string, CachedContent>()
   private listeners: Array<(status: OfflineStatus) => void> = []
-  private syncInterval: number | null = null
 
   constructor() {
     this.initOfflineDetection()
@@ -74,40 +61,33 @@ export class OfflineManager {
     return this.isOnline
   }
 
-  // 生成唯一操作ID
-  private generateOperationId(): string {
-    return `op_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-  }
-
   // 清空操作队列
   clearQueue(): void {
     this.operationQueue = []
-    this.persistOperationQueue().catch(err => console.error('Failed to persist queue', err))
+    nexusDB.clear(StoreNames.SYNC_QUEUE).catch(err => console.error('Failed to clear sync queue', err))
+    this.notifyListeners()
   }
 
   // 添加离线操作到队列
-  async queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
-    const id = this.generateOperationId()
-    const queuedOperation: OfflineOperation = {
-      ...operation,
-      id,
-      timestamp: Date.now(),
-      retryCount: 0
-    }
-
-    this.operationQueue.push(queuedOperation)
-    await this.persistOperationQueue()
-
-    // 同时添加到全局 SyncManager
+  async queueOperation(operation: {
+    type: 'api-request' | 'user-action' | 'sync-data'
+    method: string
+    url: string
+    data?: any
+  }): Promise<void> {
+    // Add to global SyncManager (persisted in IndexedDB `syncQueue`)
     await syncManager.addTask({
       type: operation.type,
       method: operation.method,
       url: operation.url,
       data: operation.data,
-      priority: 'NORMAL' // 默认普通优先级
+      priority: 'NORMAL'
     })
 
-    console.log('📱 Operation queued for offline sync:', queuedOperation.type)
+    // Refresh local snapshot for UI/status
+    this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
+
+    console.log('📱 Operation queued for offline sync:', operation.type)
     this.notifyListeners()
   }
 
@@ -199,7 +179,7 @@ export class OfflineManager {
   }
 
   // 启动自动同步 (由 SyncManager 接管，此处保留空实现或代理)
-  startAutoSync(interval = 30000): void {
+  startAutoSync(_interval = 30000): void {
     logger.info('🔄 Auto sync is now handled by SyncManager')
   }
 
@@ -251,7 +231,7 @@ export class OfflineManager {
 
   // 导出离线数据
   exportOfflineData(): {
-    operations: OfflineOperation[]
+    operations: SyncTask[]
     content: CachedContent[]
     status: OfflineStatus
   } {
@@ -264,12 +244,18 @@ export class OfflineManager {
 
   // 导入离线数据
   importOfflineData(data: {
-    operations?: OfflineOperation[]
+    operations?: SyncTask[]
     content?: CachedContent[]
   }): void {
     if (data.operations) {
       this.operationQueue = data.operations
-      this.persistOperationQueue()
+      nexusDB.clear(StoreNames.SYNC_QUEUE)
+        .then(async () => {
+          for (const task of data.operations!) {
+            await nexusDB.put(StoreNames.SYNC_QUEUE, task)
+          }
+        })
+        .catch(err => console.error('Failed to import sync queue', err))
     }
 
     if (data.content) {
@@ -312,25 +298,7 @@ export class OfflineManager {
     this.isOnline = networkDetector.getNetworkInfo().isOnline
   }
 
-  private async executeOperation(operation: OfflineOperation): Promise<any> {
-    // 这里应该根据操作类型执行相应的请求
-    // 示例实现
-    const response = await fetch(operation.url, {
-      method: operation.method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: operation.data ? JSON.stringify(operation.data) : undefined
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    return response.json()
-  }
-
-  private async fetchContentForCaching(id: string): Promise<any> {
+  private async fetchContentForCaching(_id: string): Promise<any> {
     // 这里应该实现实际的内容获取逻辑
     // 这里应该实现实际的内容获取逻辑
     // 示例：从API缓存或通用缓存中获取
@@ -368,44 +336,13 @@ export class OfflineManager {
     return maxAges[type] || 24 * 60 * 60 * 1000
   }
 
-  private async persistOperationQueue(): Promise<void> {
-    try {
-      // For simplicity, we can store the whole queue as one entry or map them.
-      // StoreNames.SYNC_QUEUE is designed for individual tasks.
-      // Let's clear and re-add or just use a single key for the whole queue to minimize complexity for now.
-      // To strictly follow the "Unified DB" schema, we should map them.
-
-      const db = await nexusDB.getDB()
-      const tx = db.transaction(StoreNames.SYNC_QUEUE, 'readwrite')
-      const store = tx.objectStore(StoreNames.SYNC_QUEUE)
-
-      await store.clear()
-      for (const op of this.operationQueue) {
-        await store.put({
-          ...op,
-          // Map internal types to DB types if necessary
-        })
-      }
-      await tx.done
-    } catch (error) {
-      console.error('Failed to persist operation queue:', error)
-    }
-  }
-
   private async persistCachedContent(): Promise<void> {
     try {
-      const db = await nexusDB.getDB()
-      const tx = db.transaction(StoreNames.OFFLINE_CONTENT, 'readwrite')
-      const store = tx.objectStore(StoreNames.OFFLINE_CONTENT)
-
-      // Since map can be large, we only put what's new or just clear and put all
-      // For a 100MB target, we should avoid clearing all every time.
-      // In this refactor, we'll just put all for now as the in-memory cache is the source of truth.
-      await store.clear()
+      // In this refactor we keep in-memory as source-of-truth; persist snapshot.
+      await nexusDB.clear(StoreNames.OFFLINE_CONTENT)
       for (const item of this.cachedContent.values()) {
-        await store.put(item)
+        await nexusDB.put(StoreNames.OFFLINE_CONTENT, item)
       }
-      await tx.done
     } catch (error) {
       console.error('Failed to persist cached content:', error)
     }
@@ -414,17 +351,25 @@ export class OfflineManager {
   private async loadPersistedData(): Promise<void> {
     try {
       // 1. Load from IndexedDB
-      const dbTasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
-      this.operationQueue = dbTasks as any
+      this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
 
-      const dbContent = await nexusDB.getAll(StoreNames.OFFLINE_CONTENT)
-      this.cachedContent = new Map(dbContent.map(c => [c.id, c]))
+      const dbContent = await nexusDB.getAll<CachedContent>(StoreNames.OFFLINE_CONTENT)
+      this.cachedContent = new Map<string, CachedContent>(dbContent.map(c => [c.id, c]))
 
       // 2. Legacy Migration
       const legacyOps = localStorage.getItem('offline_operations')
       if (legacyOps) {
-        const parsed = JSON.parse(legacyOps)
+        const parsed = JSON.parse(legacyOps) as SyncTask[]
         this.operationQueue.push(...parsed)
+        // Best-effort import into syncQueue for compatibility.
+        try {
+          await nexusDB.clear(StoreNames.SYNC_QUEUE)
+          for (const task of this.operationQueue) {
+            await nexusDB.put(StoreNames.SYNC_QUEUE, task)
+          }
+        } catch (e) {
+          console.error('Failed to migrate legacy offline_operations', e)
+        }
         localStorage.removeItem('offline_operations')
       }
 

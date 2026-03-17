@@ -82,8 +82,8 @@ export class P2PService {
       const items = payload.data
       for (const item of items) {
         // 简单的 LWW 策略
-        const existing: any = await nexusDB.get(StoreNames.PROGRESS, item.id)
-        if (!existing || item.timestamp > existing.timestamp) {
+        const existing: any = await nexusDB.get(StoreNames.PROGRESS, item.bookId)
+        if (!existing || item.updatedAt > existing.updatedAt) {
           await nexusDB.put(StoreNames.PROGRESS, item)
         }
       }

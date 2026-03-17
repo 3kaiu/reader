@@ -18,6 +18,9 @@ async-trait.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 
+# Metrics (exported by nexus-server Prometheus exporter)
+metrics = "0.24"
+
 # sled - Pure Rust Embedded KV
 sled = "0.34"
 

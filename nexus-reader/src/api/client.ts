@@ -194,11 +194,65 @@ const internalFetch = ofetch.create({
   retryDelay: API_RETRY_DELAY_MULTIPLIER,
   retryStatusCodes: [408, 500, 502, 503, 504],
   onRequest({ options, request }) {
+    const edgeBaseUrl = import.meta.env.VITE_API_URL || '/api'
+    const directBaseUrl = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
+    const directApiKey = import.meta.env.VITE_NEXUS_LITE_API_KEY || ''
+
+    const requestUrl = request.toString()
+    const isAbsolute = /^https?:\/\//i.test(requestUrl)
+    const pathname = !isAbsolute ? requestUrl.split('?')[0] : ''
+
+    // If caller forces edge (direct-connect fallback), skip direct selection.
+    if ((options as any).forceEdge === true) {
+      ;(options as any).baseURL = edgeBaseUrl
+      ;(options as any)._usedDirect = false
+    } else {
+    // Only direct-connect a safe allowlist of nexus-lite endpoints.
+    const directAllowlistPrefixes = [
+      '/api/search',
+      '/api/book',
+      '/api/chapters',
+      '/api/content',
+      '/api/batch/content',
+      '/api/sources',
+      '/api/bookshelf',
+      '/api/groups',
+      '/api/replace_rules',
+      '/api/discovery',
+      '/api/ai/',
+      '/api/voice/',
+      '/ws/',
+    ]
+    const shouldUseDirect =
+      Boolean(directBaseUrl) &&
+      !isAbsolute &&
+      directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+
+    // Worker-only endpoints must always go through edge.
+    const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
+    const isWorkerOnly = !isAbsolute && workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
+
+    if (shouldUseDirect && !isWorkerOnly) {
+      ;(options as any).baseURL = directBaseUrl
+      ;(options as any)._usedDirect = true
+      if (directApiKey) {
+        options.headers = {
+          ...options.headers,
+          'X-API-Key': directApiKey
+        }
+      }
+    } else {
+      ;(options as any).baseURL = edgeBaseUrl
+      ;(options as any)._usedDirect = false
+    }
+    }
+
     // 记录请求开始时间
     const startTime = performance.now()
       ; (options as any)._startTime = startTime
       ; (options as any)._requestUrl = request.toString()
       ; (options as any)._method = options.method || 'GET'
+      ; (options as any)._directFallbackTried = (options as any)._directFallbackTried === true
 
     const token = localStorage.getItem('nexus_auth_token')
     if (token) {
@@ -231,7 +285,13 @@ const internalFetch = ofetch.create({
         name: 'api_response',
         value: Number(responseTime.toFixed(2)),
         unit: 'ms',
-        tags: { endpoint, status: response.status }
+        tags: {
+          endpoint,
+          status: response.status,
+          route: (options as any)._usedDirect
+            ? ((options as any)._directFallbackTried ? 'direct_fallback' : 'direct')
+            : 'edge'
+        }
       })
     }
 
@@ -276,10 +336,18 @@ const internalFetch = ofetch.create({
     const startTime = (options as any)._startTime
     if (startTime) {
       const responseTime = performance.now() - startTime
-      perfMonitor.recordMetric('api_error_duration', responseTime, {
-        status: response.status,
-        url,
-        method
+      perfMonitor.record({
+        name: 'api_error_duration',
+        value: Number(responseTime.toFixed(2)),
+        unit: 'ms',
+        tags: {
+          status: response.status,
+          url,
+          method,
+          route: (options as any)._usedDirect
+            ? ((options as any)._directFallbackTried ? 'direct_fallback' : 'direct')
+            : 'edge'
+        }
       })
     }
 
@@ -325,6 +393,63 @@ const internalFetch = ofetch.create({
     }
   },
 })
+
+function isLikelyNetworkOrCorsError(err: any): boolean {
+  const msg = String(err?.message || err || '')
+  return (
+    err?.name === 'AbortError' ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    (msg.toLowerCase().includes('fetch') && msg.toLowerCase().includes('failed'))
+  )
+}
+
+async function requestWithDirectFallback<T>(url: string, options: FetchOptions = {}): Promise<T> {
+  try {
+    return await internalFetch<T>(url, options)
+  } catch (e) {
+    const directBaseUrl = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
+    const usedDirect = (options as any)._usedDirect === true
+    const alreadyTriedFallback = (options as any)._directFallbackTried === true
+    if (!directBaseUrl || !usedDirect || alreadyTriedFallback || !isLikelyNetworkOrCorsError(e)) {
+      throw e
+    }
+    return await internalFetch<T>(url, {
+      ...options,
+      forceEdge: true,
+      _directFallbackTried: true,
+    } as any)
+  }
+}
+
+// Export a helper for non-ofetch call sites (e.g. SSE) to pick the right base URL.
+export function getApiBaseUrlForPath(path: string): string {
+  const edgeBaseUrl = import.meta.env.VITE_API_URL || '/api'
+  const directBaseUrl = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
+  if (!directBaseUrl) return edgeBaseUrl
+
+  const pathname = path.split('?')[0]
+  const directAllowlistPrefixes = [
+    '/api/search',
+    '/api/book',
+    '/api/chapters',
+    '/api/content',
+    '/api/batch/content',
+    '/api/sources',
+    '/api/bookshelf',
+    '/api/groups',
+    '/api/replace_rules',
+    '/api/discovery',
+    '/api/ai/',
+    '/api/voice/',
+  ]
+  const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
+  const isWorkerOnly = workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
+  if (isWorkerOnly) return edgeBaseUrl
+
+  const shouldUseDirect = directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+  return shouldUseDirect ? directBaseUrl : edgeBaseUrl
+}
 
 // 对外暴露的基础实例
 export const api = internalFetch
@@ -378,7 +503,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
 
   // 使用请求优化器进行去重请求
   return requestOptimizer.deduplicateRequest(cacheKey, async () => {
-    const response = await internalFetch<any>(url, { ...options, method })
+    const response = await requestWithDirectFallback<any>(url, { ...options, method } as any)
 
     // 适配 Nexus-lite: 如果已经是包装后的格式则直接返回，否则手动包装
     const result: ApiResponse<T> = (response && typeof response === 'object' && 'isSuccess' in response)
@@ -424,7 +549,7 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
   }
 
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await api<any>(url, { method: 'POST', body, ...options })
+    const response = await requestWithDirectFallback<any>(url, { method: 'POST', body, ...options } as any)
     apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>
@@ -434,7 +559,7 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
 
 export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await api<any>(url, { method: 'PUT', body, ...options })
+    const response = await requestWithDirectFallback<any>(url, { method: 'PUT', body, ...options } as any)
     apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>
@@ -444,7 +569,7 @@ export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => 
 
 export const $delete = <T>(url: string, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await api<any>(url, { ...options, method: 'DELETE' })
+    const response = await requestWithDirectFallback<any>(url, { ...options, method: 'DELETE' } as any)
     apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>
@@ -454,7 +579,7 @@ export const $delete = <T>(url: string, options?: FetchOptions) => {
 
 export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await api<any>(url, { method: 'PATCH', body, ...options })
+    const response = await requestWithDirectFallback<any>(url, { method: 'PATCH', body, ...options } as any)
     apiCacheMap.clear()
     return (response && typeof response === 'object' && 'isSuccess' in response)
       ? response as ApiResponse<T>

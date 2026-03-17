@@ -1,12 +1,16 @@
 use memmap2::Mmap;
 use moka::future::Cache;
 use nexus_core::EngineError;
+use metrics::{counter, histogram};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
+
+const METRIC_CHAPTER_CACHE_REQUESTS: &str = "nexus_chapter_cache_requests_total";
+const METRIC_CHAPTER_CACHE_GET_DURATION: &str = "nexus_chapter_cache_get_duration_seconds";
 
 /// Two-level chapter content cache
 pub struct ChapterCache {
@@ -64,10 +68,13 @@ impl ChapterCache {
     /// Get cached content (L1 memory -> L2 disk via Mmap)
     pub async fn get(&self, book_id: &str, chapter_index: usize) -> Option<Arc<str>> {
         let key = self.cache_key(book_id, chapter_index);
+        let start = std::time::Instant::now();
 
         // L1: Try memory first
         if let Some(content) = self.memory.get(&key).await {
             self.hits.fetch_add(1, Ordering::Relaxed);
+            counter!(METRIC_CHAPTER_CACHE_REQUESTS, "result" => "hit".to_string(), "level" => "l1".to_string()).increment(1);
+            histogram!(METRIC_CHAPTER_CACHE_GET_DURATION, "result" => "hit".to_string(), "level" => "l1".to_string()).record(start.elapsed().as_secs_f64());
             debug!("Cache HIT (L1 memory): {}", key);
             return Some(content);
         }
@@ -91,12 +98,16 @@ impl ChapterCache {
                 // Promote to L1 memory
                 self.memory.insert(key.clone(), content.clone()).await;
                 self.hits.fetch_add(1, Ordering::Relaxed);
+                counter!(METRIC_CHAPTER_CACHE_REQUESTS, "result" => "hit".to_string(), "level" => "l2".to_string()).increment(1);
+                histogram!(METRIC_CHAPTER_CACHE_GET_DURATION, "result" => "hit".to_string(), "level" => "l2".to_string()).record(start.elapsed().as_secs_f64());
                 debug!("Cache HIT (L2 disk/mmap, promoted to L1): {}", key);
                 return Some(content);
             }
         }
 
         self.misses.fetch_add(1, Ordering::Relaxed);
+        counter!(METRIC_CHAPTER_CACHE_REQUESTS, "result" => "miss".to_string(), "level" => "none".to_string()).increment(1);
+        histogram!(METRIC_CHAPTER_CACHE_GET_DURATION, "result" => "miss".to_string(), "level" => "none".to_string()).record(start.elapsed().as_secs_f64());
         debug!("Cache MISS: {}", key);
         None
     }

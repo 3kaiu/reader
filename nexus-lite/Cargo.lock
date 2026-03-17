@@ -1954,6 +1954,7 @@ dependencies = [
  "chrono",
  "md5",
  "memmap2",
+ "metrics",
  "moka",
  "nexus-core",
  "notify",

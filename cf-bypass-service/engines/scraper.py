@@ -42,6 +42,13 @@ class CacheManager:
         # Local memory fallback cache
         self._local_cache: Dict[str, Tuple[BypassResult, float]] = {}
         self._max_local_size = 1000
+        # Lightweight cache metrics
+        self._metrics: Dict[str, float] = defaultdict(float)
+        # keys:
+        # - redis_hit / redis_miss / redis_err
+        # - local_hit / local_miss
+        # - get_latency_ms_sum / get_latency_count
+        # - set_redis_ok / set_redis_err / set_local_ok
     
     async def _ensure_connected(self) -> bool:
         """Lazy async initialization of Redis connection"""
@@ -62,6 +69,7 @@ class CacheManager:
     
     async def get(self, key: str) -> Optional[BypassResult]:
         """Get from cache (async) with local fallback"""
+        t0 = time.time()
         if await self._ensure_connected():
             try:
                 data = await self.redis.get(key)
@@ -69,18 +77,29 @@ class CacheManager:
                     raw = json.loads(data)
                     result = BypassResult(**raw)
                     result.cached = True
+                    self._metrics["redis_hit"] += 1
+                    self._metrics["get_latency_ms_sum"] += (time.time() - t0) * 1000
+                    self._metrics["get_latency_count"] += 1
                     return result
+                self._metrics["redis_miss"] += 1
             except Exception as e:
                 logger.warning(f"Redis get error: {e}")
+                self._metrics["redis_err"] += 1
         
         # Local fallback
         if key in self._local_cache:
             result, expiry = self._local_cache[key]
             if time.time() < expiry:
                 result.cached = True
+                self._metrics["local_hit"] += 1
+                self._metrics["get_latency_ms_sum"] += (time.time() - t0) * 1000
+                self._metrics["get_latency_count"] += 1
                 return result
             else:
                 del self._local_cache[key]
+        self._metrics["local_miss"] += 1
+        self._metrics["get_latency_ms_sum"] += (time.time() - t0) * 1000
+        self._metrics["get_latency_count"] += 1
         return None
     
     async def set(self, key: str, result: BypassResult, ttl: int = 300) -> None:
@@ -91,14 +110,34 @@ class CacheManager:
             to_remove = list(self._local_cache.keys())[:100]
             for k in to_remove: del self._local_cache[k]
         self._local_cache[key] = (result, time.time() + ttl)
+        self._metrics["set_local_ok"] += 1
 
         # Save to Redis (L2)
         if await self._ensure_connected():
             try:
                 raw = asdict(result)
                 await self.redis.setex(key, ttl, json.dumps(raw))
+                self._metrics["set_redis_ok"] += 1
             except Exception as e:
                 logger.warning(f"Redis set error: {e}")
+                self._metrics["set_redis_err"] += 1
+
+    def get_stats(self) -> Dict[str, Any]:
+        get_count = self._metrics.get("get_latency_count", 0) or 0
+        avg_get_latency_ms = (self._metrics.get("get_latency_ms_sum", 0) / get_count) if get_count else 0
+
+        hits = self._metrics.get("redis_hit", 0) + self._metrics.get("local_hit", 0)
+        misses = self._metrics.get("redis_miss", 0) + self._metrics.get("local_miss", 0)
+        total = hits + misses
+
+        return {
+            "redis_available": self.redis is not None,
+            "local_entries": len(self._local_cache),
+            "local_max_entries": self._max_local_size,
+            "hit_rate": (hits / total) if total else 0,
+            "avg_get_latency_ms": avg_get_latency_ms,
+            "counters": dict(self._metrics),
+        }
 
 # ─────────────────────────────────────────────────────────────
 # Scraper Engine
@@ -396,7 +435,8 @@ class ScraperEngine(BaseBypassEngine):
             "active_sessions": len(self.scrapers),
             # Use enhanced health monitor aggregated stats
             "health": self.health_monitor.get_health_stats(),
-            "performance": self.performance_optimizer.get_comprehensive_stats()
+            "performance": self.performance_optimizer.get_comprehensive_stats(),
+            "cache": self.cache_manager.get_stats(),
         })
         if self.session_pool_manager:
             stats["session_pool"] = self.session_pool_manager.get_pool_stats()

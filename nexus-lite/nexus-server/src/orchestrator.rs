@@ -86,14 +86,19 @@ impl SearchOrchestrator {
                     let start = Instant::now();
                     let source_id = engine.id().to_string();
 
-                    // 45s timeout per source
-                    match tokio::time::timeout(
-                        Duration::from_secs(45),
-                        engine.search(&keyword_clone),
-                    )
-                    .await
-                    {
-                        Ok(Ok(items)) => {
+                    // 45s timeout per source + one controlled retry for retryable errors/timeouts
+                    let mut attempt: u8 = 0;
+                    let max_attempts: u8 = 2;
+                    loop {
+                        attempt += 1;
+                        let result = tokio::time::timeout(
+                            Duration::from_secs(45),
+                            engine.search(&keyword_clone),
+                        )
+                        .await;
+
+                        match result {
+                            Ok(Ok(items)) => {
                             let latency = start.elapsed();
                             health_clone.record_success(&source_id, latency);
                             debug!(
@@ -107,28 +112,59 @@ impl SearchOrchestrator {
                                     break;
                                 }
                             }
+                            break;
                         }
-                        Ok(Err(e)) => {
-                            health_clone.record_failure(&source_id);
-                            warn!("Source {} error: {}", source_id, e);
-                            let _ = tx_clone
-                                .send(SearchResult::Error {
-                                    source_id,
-                                    error: e.to_string(),
-                                })
-                                .await;
+                            Ok(Err(e)) => {
+                                let can_retry = e.is_retryable() && attempt < max_attempts;
+                                if can_retry {
+                                    let delay = e.retry_delay().unwrap_or(1);
+                                    warn!(
+                                        "Source {} retryable error (attempt {}/{}): {} (sleep {}s)",
+                                        source_id, attempt, max_attempts, e, delay
+                                    );
+                                    tokio::time::sleep(Duration::from_secs(delay)).await;
+                                    continue;
+                                }
+
+                                health_clone.record_failure(&source_id);
+                                warn!(
+                                    "Source {} error (attempt {}/{}): {}",
+                                    source_id, attempt, max_attempts, e
+                                );
+                                let _ = tx_clone
+                                    .send(SearchResult::Error {
+                                        source_id,
+                                        error: e.to_string(),
+                                    })
+                                    .await;
+                                break;
+                            }
+                            Err(_) => {
+                                let can_retry = attempt < max_attempts;
+                                if can_retry {
+                                    warn!(
+                                        "Source {} timeout (attempt {}/{}), retrying after 1s",
+                                        source_id, attempt, max_attempts
+                                    );
+                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                    continue;
+                                }
+
+                                health_clone.record_failure(&source_id);
+                                warn!(
+                                    "Source {} timeout (attempt {}/{}), giving up",
+                                    source_id, attempt, max_attempts
+                                );
+                                let _ = tx_clone
+                                    .send(SearchResult::Error {
+                                        source_id,
+                                        error: "Timeout".to_string(),
+                                    })
+                                    .await;
+                                break;
+                            }
                         }
-                        Err(_) => {
-                            health_clone.record_failure(&source_id);
-                            warn!("Source {} timeout", source_id);
-                            let _ = tx_clone
-                                .send(SearchResult::Error {
-                                    source_id,
-                                    error: "Timeout".to_string(),
-                                })
-                                .await;
-                        }
-                    }
+                    } // retry loop
                 }
             }));
 

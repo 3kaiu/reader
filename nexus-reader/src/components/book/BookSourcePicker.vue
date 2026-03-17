@@ -8,6 +8,7 @@ import {
   SheetContent,
 } from '@/components/ui/sheet'
 import { sourceApi, type BookSource } from '@/api/source'
+import { getApiBaseUrlForPath } from '@/api/client'
 import { useReaderStore } from '@/stores/reader'
 import { LazyImage, Skeleton } from '@/components/ui'
 
@@ -96,12 +97,12 @@ function startSearchSSE() {
   loadingMore.value = true
   
   // 构建 SSE URL
-  const baseUrl = import.meta.env.VITE_API_URL || '/reader3'
   const ssePath = sourceApi.getSearchBookSourceSSEUrl({
     url: currentBook.value.bookUrl,
     concurrentCount: 20 // 默认并发数
   })
   
+  const baseUrl = getApiBaseUrlForPath(ssePath)
   const fullUrl = `${baseUrl}${ssePath}`
 
   searchEventSource.value = new EventSource(fullUrl, { withCredentials: true })
@@ -196,7 +197,7 @@ function formatTime(ms?: number) {
       <div class="px-5 pb-4">
         <div class="flex items-start gap-4">
           <!-- 封面缩略图 -->
-          <div class="w-12 h-16 rounded-lg bg-muted flex-shrink-0 overflow-hidden shadow-sm">
+          <div class="w-12 h-16 rounded-lg bg-muted shrink-0 overflow-hidden shadow-sm">
             <LazyImage 
               v-if="currentBook?.coverUrl" 
               :src="`/reader3/cover?path=${encodeURIComponent(currentBook.coverUrl)}`"

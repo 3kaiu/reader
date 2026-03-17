@@ -12,6 +12,8 @@
  * - 事件管理
  */
 
+import { queueClientMetric } from '@/services/performance/client-reporter'
+
 // ===== 缓存管理 =====
 
 export class UnifiedCache {
@@ -103,6 +105,9 @@ interface CacheEntry {
 export class UnifiedApiClient {
   private static instance: UnifiedApiClient
   private baseURL: string
+  private edgeBaseURL: string
+  private directBaseURL: string
+  private directApiKey: string
   private cache = UnifiedCache.getInstance()
   private retryConfig = {
     maxRetries: 3,
@@ -111,7 +116,10 @@ export class UnifiedApiClient {
   }
 
   private constructor() {
-    this.baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+    this.edgeBaseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+    this.directBaseURL = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
+    this.directApiKey = import.meta.env.VITE_NEXUS_LITE_API_KEY || ''
+    this.baseURL = this.edgeBaseURL
   }
 
   static getInstance(): UnifiedApiClient {
@@ -143,7 +151,8 @@ export class UnifiedApiClient {
     data?: any,
     config: ApiConfig = {}
   ): Promise<ApiResponse<T>> {
-    const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`
+    const baseURL = endpoint.startsWith('http') ? '' : this.pickBaseUrlForPath(endpoint)
+    const url = endpoint.startsWith('http') ? endpoint : `${baseURL}${endpoint}`
     const cacheKey = config.cache?.key || `${method}:${url}:${JSON.stringify(data)}`
 
     // 检查缓存
@@ -156,13 +165,23 @@ export class UnifiedApiClient {
 
     const startTime = Date.now()
     let lastError: Error | null = null
+    const usedDirect = !endpoint.startsWith('http') && baseURL === this.directBaseURL && Boolean(this.directBaseURL)
+    let directFallbackTried = false
 
     for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
       try {
-        const response = await fetch(url, {
+        const route = usedDirect
+          ? (directFallbackTried ? 'direct_fallback' : 'direct')
+          : 'edge'
+        const response = await fetch(
+          (!endpoint.startsWith('http') && directFallbackTried)
+            ? `${this.edgeBaseURL}${endpoint}`
+            : url,
+          {
           method,
           headers: {
             'Content-Type': 'application/json',
+            ...(this.shouldAttachApiKey(endpoint) ? { 'X-API-Key': this.directApiKey } : {}),
             ...config.headers,
           },
           body: data ? JSON.stringify(data) : undefined,
@@ -183,6 +202,9 @@ export class UnifiedApiClient {
           requestId: crypto.randomUUID(),
         }
 
+        performanceMonitor.recordMetric('api_route', 1, { route, method })
+        performanceMonitor.recordMetric('api_response_ms', result.responseTime, { route, method })
+
         // 缓存GET请求
         if (method === 'GET' && config.cache !== false) {
           this.cache.set(cacheKey, result, config.cache?.ttl)
@@ -192,17 +214,67 @@ export class UnifiedApiClient {
       } catch (error) {
         lastError = error as Error
 
+        // One-shot fallback: if direct-connect likely failed due to network/CORS, try edge once.
+        if (usedDirect && !directFallbackTried) {
+          const msg = String((error as any)?.message || error || '')
+          const isNetworkOrCors =
+            (error as any)?.name === 'AbortError' ||
+            msg.includes('Failed to fetch') ||
+            msg.includes('NetworkError') ||
+            (msg.toLowerCase().includes('fetch') && msg.toLowerCase().includes('failed'))
+          if (isNetworkOrCors) {
+            directFallbackTried = true
+            performanceMonitor.recordMetric('api_direct_fallback', 1, { method })
+            continue
+          }
+        }
+
         if (attempt < this.retryConfig.maxRetries) {
-          const delay = Math.min(
-            this.retryConfig.baseDelay * Math.pow(2, attempt),
-            this.retryConfig.maxDelay
-          )
+          const retryAfter = (error as any)?.response?.headers?.get?.('retry-after')
+          const retryAfterSeconds = retryAfter ? Number.parseInt(String(retryAfter), 10) : NaN
+          const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? Math.min(retryAfterSeconds * 1000, this.retryConfig.maxDelay)
+            : Math.min(
+              this.retryConfig.baseDelay * Math.pow(2, attempt),
+              this.retryConfig.maxDelay
+            )
           await new Promise(resolve => setTimeout(resolve, delay))
         }
       }
     }
 
     throw lastError || new Error('Request failed after all retries')
+  }
+
+  private pickBaseUrlForPath(path: string): string {
+    if (!this.directBaseURL) return this.edgeBaseURL
+
+    const pathname = path.split('?')[0]
+    const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
+    if (workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))) return this.edgeBaseURL
+
+    const directAllowlistPrefixes = [
+      '/api/search',
+      '/api/book',
+      '/api/chapters',
+      '/api/content',
+      '/api/batch/content',
+      '/api/sources',
+      '/api/bookshelf',
+      '/api/groups',
+      '/api/replace_rules',
+      '/api/discovery',
+      '/api/ai/',
+      '/api/voice/',
+    ]
+    const shouldUseDirect = directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+    return shouldUseDirect ? this.directBaseURL : this.edgeBaseURL
+  }
+
+  private shouldAttachApiKey(path: string): boolean {
+    if (!this.directBaseURL || !this.directApiKey) return false
+    const base = this.pickBaseUrlForPath(path)
+    return base === this.directBaseURL
   }
 }
 
@@ -418,7 +490,7 @@ export class UnifiedPerformanceMonitor {
     return UnifiedPerformanceMonitor.instance
   }
 
-  recordMetric(name: string, value: number, tags: Record<string, string> = {}): void {
+  recordMetric(name: string, value: number, tags: Record<string, string | number> = {}): void {
     const metric: PerformanceMetric = {
       id: crypto.randomUUID(),
       name,
@@ -428,6 +500,14 @@ export class UnifiedPerformanceMonitor {
     }
 
     this.metrics.push(metric)
+
+    // Best-effort: send a subset of metrics to Worker in batches.
+    try {
+      // Default unit for unified metrics is ms.
+      queueClientMetric({ name, value, unit: 'ms', tags, timestamp: metric.timestamp })
+    } catch {
+      // ignore
+    }
 
     // 限制指标数量
     if (this.metrics.length > 1000) {

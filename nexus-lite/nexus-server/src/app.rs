@@ -11,6 +11,7 @@ use nexus_engine::fetcher::HttpFetcher;
 use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::sync::Arc;
 use tower_governor::{governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor};
+use tower_governor::GovernorLayer;
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -197,12 +198,14 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let app = app.layer(TraceLayer::new_for_http());
 
     // Rate limiting
-    let _governor_conf = GovernorConfigBuilder::default()
+    let governor_conf = GovernorConfigBuilder::default()
         .per_second(20)
         .burst_size(50)
         .key_extractor(PeerIpKeyExtractor)
         .finish()
         .unwrap();
+
+    let app = app.layer(GovernorLayer::new(governor_conf));
 
     // Configure CORS based on config
     let app = if config.server.enable_cors {

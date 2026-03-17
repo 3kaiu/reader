@@ -75,6 +75,9 @@ jobs:
         working-directory: nexus-reader
         run: bun run type-check || echo "Type checking completed with warnings"
 
+      - name: Validate contracts (bindings/schema)
+        run: node scripts/validate-contracts.mjs
+
       - name: Run tests
         working-directory: nexus-reader
         run: |

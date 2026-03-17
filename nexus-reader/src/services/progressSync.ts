@@ -13,13 +13,6 @@ const SYNC_WORKER_URL = import.meta.env.VITE_PROGRESS_SYNC_URL || ''
 const DEBOUNCE_MS = 5000 // 5 seconds debounce for saves
 const LOCAL_KEY_PREFIX = 'nexus_progress:' // Keep for migration
 
-interface ReadingProgress {
-  bookId: string
-  chapterIndex: number
-  scrollPercent: number
-  updatedAt: number
-}
-
 // Debounce timers
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
 

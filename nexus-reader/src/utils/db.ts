@@ -7,6 +7,38 @@
 
 import { logger } from './logger'
 
+// ========= Domain types stored in IndexedDB =========
+
+export interface ReadingProgress {
+  bookId: string
+  chapterIndex: number
+  scrollPercent: number
+  updatedAt: number
+}
+
+export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
+
+export interface SyncTask {
+  id: string
+  type: string
+  method: string
+  url: string
+  data?: unknown
+  priority: SyncPriority
+  timestamp: number
+  retryCount: number
+}
+
+export interface OfflineContent {
+  id: string
+  type: 'chapter' | 'book' | 'image' | 'api-response'
+  url: string
+  data: unknown
+  timestamp: number
+  size: number
+  priority: number
+}
+
 export interface StoreConfig {
   name: string
   keyPath: string
@@ -27,11 +59,12 @@ export class NexusDB {
   private db: IDBDatabase | null = null
   private dbName: string
   private version: number
+  private ready: Promise<void>
 
   constructor(config: DBConfig) {
     this.dbName = config.name
     this.version = config.version
-    this.init(config)
+    this.ready = this.init(config)
   }
 
   private async init(config: DBConfig): Promise<void> {
@@ -73,8 +106,19 @@ export class NexusDB {
     })
   }
 
+  private async ensureReady(): Promise<void> {
+    if (this.db) return
+    await this.ready
+    if (!this.db) throw new Error(`Database not initialized: ${this.dbName}@v${this.version}`)
+  }
+
+  async getDB(): Promise<IDBDatabase> {
+    await this.ensureReady()
+    return this.db!
+  }
+
   async put<T>(storeName: string, data: T): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite')
@@ -87,7 +131,7 @@ export class NexusDB {
   }
 
   async get<T>(storeName: string, key: IDBValidKey): Promise<T | null> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readonly')
@@ -100,7 +144,7 @@ export class NexusDB {
   }
 
   async getAll<T>(storeName: string): Promise<T[]> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readonly')
@@ -113,7 +157,7 @@ export class NexusDB {
   }
 
   async delete(storeName: string, key: IDBValidKey): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite')
@@ -126,7 +170,7 @@ export class NexusDB {
   }
 
   async clear(storeName: string): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite')
@@ -143,7 +187,7 @@ export class NexusDB {
     indexName?: string,
     range?: IDBKeyRange
   ): Promise<T[]> {
-    if (!this.db) throw new Error('Database not initialized')
+    await this.ensureReady()
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readonly')
@@ -166,11 +210,17 @@ export class NexusDB {
 
 // Store names enum for type safety
 export enum StoreNames {
+  // Reading & sync
+  PROGRESS = 'progress',
+  SYNC_QUEUE = 'syncQueue',
+
+  // Offline cache
+  OFFLINE_CONTENT = 'offlineContent',
+
   BOOKS = 'books',
   CHAPTERS = 'chapters',
   SETTINGS = 'settings',
   CACHE = 'cache',
-  OFFLINE_DATA = 'offlineData'
 }
 
 // Create singleton instance
@@ -180,8 +230,29 @@ export function getNexusDB(): NexusDB {
   if (!nexusDBInstance) {
     const config: DBConfig = {
       name: 'nexus-reader',
-      version: 1,
+      version: 2,
       stores: [
+        {
+          name: StoreNames.PROGRESS,
+          keyPath: 'bookId',
+          indexes: [{ name: 'updatedAt', keyPath: 'updatedAt' }]
+        },
+        {
+          name: StoreNames.SYNC_QUEUE,
+          keyPath: 'id',
+          indexes: [
+            { name: 'priority', keyPath: 'priority' },
+            { name: 'timestamp', keyPath: 'timestamp' }
+          ]
+        },
+        {
+          name: StoreNames.OFFLINE_CONTENT,
+          keyPath: 'id',
+          indexes: [
+            { name: 'type', keyPath: 'type' },
+            { name: 'priority', keyPath: 'priority' }
+          ]
+        },
         {
           name: StoreNames.BOOKS,
           keyPath: 'id',
@@ -211,14 +282,6 @@ export function getNexusDB(): NexusDB {
             { name: 'type', keyPath: 'type' }
           ]
         },
-        {
-          name: StoreNames.OFFLINE_DATA,
-          keyPath: 'id',
-          indexes: [
-            { name: 'type', keyPath: 'type' },
-            { name: 'priority', keyPath: 'priority' }
-          ]
-        }
       ]
     }
 

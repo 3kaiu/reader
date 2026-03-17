@@ -63,11 +63,27 @@ export class DecoderEngine {
 
     // 检查缓存
     const cacheKey = `decode:${bookId}:${chapterId}:${this.hashContent(content)}`;
+    const analytics = (this.env as any).ANALYTICS_ENGINE;
+    const cacheT0 = Date.now();
     const cached = await this.cache.get<DecodeResponse>(cacheKey);
     if (cached) {
       monitor.record('decode_cache_hit', 0, true);
+      try {
+        analytics?.writeDataPoint({
+          blobs: ['decoder', 'hit'],
+          doubles: [Date.now() - cacheT0, 1.0],
+          indexes: ['cache_metrics'],
+        });
+      } catch { }
       return cached;
     }
+    try {
+      analytics?.writeDataPoint({
+        blobs: ['decoder', 'miss'],
+        doubles: [Date.now() - cacheT0, 1.0],
+        indexes: ['cache_metrics'],
+      });
+    } catch { }
 
     await this.init(bookId, bookMeta?.type);
 
@@ -128,6 +144,13 @@ export class DecoderEngine {
     this.cache.set(cacheKey, result).catch(err =>
       this.logger.warn('Failed to cache decode result:', err)
     );
+    try {
+      analytics?.writeDataPoint({
+        blobs: ['decoder', 'set'],
+        doubles: [0, 1.0],
+        indexes: ['cache_metrics'],
+      });
+    } catch { }
 
     monitor.record('decode_total', Date.now() - startTime, true, {
       finalEntitiesCount: entities.length,

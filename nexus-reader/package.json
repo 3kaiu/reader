@@ -18,6 +18,7 @@
     "debug-ai": "bash debug-ai-services.sh",
     "lint": "echo 'No eslint config; add to enable'",
     "type-check": "tsc --noEmit",
+    "contracts:validate": "node ../scripts/validate-contracts.mjs",
     "docs:api": "typedoc",
     "docs:build": "bun run docs:api && bun run docs:generate",
     "docs:generate": "node scripts/generate-docs.js",

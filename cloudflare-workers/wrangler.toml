@@ -59,6 +59,21 @@ binding = "ANALYTICS_KV"
 id = "analytics_kv_id"
 preview_id = "analytics_kv_preview_id"
 
+[[kv_namespaces]]
+binding = "PROGRESS_KV"
+id = "progress_kv_id"
+preview_id = "progress_kv_preview_id"
+
+[[kv_namespaces]]
+binding = "DECODER_KV"
+id = "decoder_kv_id"
+preview_id = "decoder_kv_preview_id"
+
+[[kv_namespaces]]
+binding = "AI_CACHE_KV"
+id = "ai_cache_kv_id"
+preview_id = "ai_cache_kv_preview_id"
+
 # ===== Queues (免费消息队列) =====
 # 100万消息/月，异步处理
 [[queues.producers]]

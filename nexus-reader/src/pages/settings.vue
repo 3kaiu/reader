@@ -17,6 +17,7 @@ import { useErrorHandler } from "@/composables/useErrorHandler";
 import { groupApi } from "@/api/group";
 import { replaceApi } from "@/api/replace";
 import { sourceApi } from "@/api/source";
+import { $get } from "@/api/client";
 import { PageHeader } from "@/components/common";
 
 const router = useRouter();
@@ -25,6 +26,17 @@ const { confirm } = useConfirm();
 const { handlePromiseError } = useErrorHandler();
 
 const storageUsage = ref<{ used: number; quota: number } | null>(null);
+
+type ClientRoutingAnalytics = {
+  window: string;
+  routeCounts: Record<string, number>;
+  routeSharePct: Record<string, number>;
+  latencySummary: Record<string, { samples: number; p50: number; p95: number; avg: number }>;
+  note?: string;
+};
+
+const clientRouting = ref<ClientRoutingAnalytics | null>(null);
+const clientRoutingLoading = ref(false);
 
 // Data Management
 async function handleExportData() {
@@ -95,7 +107,36 @@ onMounted(async () => {
       quota: estimate.quota || 0,
     };
   }
+
+  // Load client routing analytics (best-effort)
+  void refreshClientRouting();
 });
+
+async function refreshClientRouting() {
+  clientRoutingLoading.value = true;
+  try {
+    const res = await $get<ClientRoutingAnalytics>("/analytics/client-routing", { silent: true });
+    if (res.isSuccess) {
+      clientRouting.value = res.data;
+    } else {
+      clientRouting.value = null;
+    }
+  } catch (e) {
+    clientRouting.value = null;
+  } finally {
+    clientRoutingLoading.value = false;
+  }
+}
+
+function formatPct(v?: number) {
+  if (v == null || Number.isNaN(v)) return "0%";
+  return `${v.toFixed(2)}%`;
+}
+
+function formatMs(v?: number) {
+  if (v == null || Number.isNaN(v)) return "-";
+  return `${v.toFixed(0)}ms`;
+}
 </script>
 
 <template>
@@ -289,6 +330,74 @@ onMounted(async () => {
         </div>
       </section>
 
+      <!-- 直连效果（可观测） -->
+      <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-250">
+        <div class="flex items-center gap-2 mb-4 px-1">
+          <Info class="w-4 h-4 text-primary" />
+          <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+            网络路径 / 直连效果
+          </h2>
+          <span v-if="clientRouting?.window" class="text-xs text-muted-foreground/70 ml-auto">
+            窗口：{{ clientRouting.window }}
+          </span>
+        </div>
+
+        <div class="rounded-2xl border border-border/50 bg-card overflow-hidden">
+          <div class="p-5 flex items-start justify-between gap-3">
+            <div class="space-y-1">
+              <p class="text-sm font-medium">路由占比</p>
+              <p class="text-xs text-muted-foreground">
+                direct / edge / direct_fallback
+              </p>
+            </div>
+            <button
+              class="h-8 px-3 text-xs rounded-full border bg-background hover:bg-muted transition-colors"
+              :disabled="clientRoutingLoading"
+              @click="refreshClientRouting"
+            >
+              {{ clientRoutingLoading ? "刷新中..." : "刷新" }}
+            </button>
+          </div>
+
+          <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p class="text-xs text-muted-foreground mb-1">direct</p>
+              <p class="text-lg font-semibold">
+                {{ formatPct(clientRouting?.routeSharePct?.direct) }}
+              </p>
+              <p class="text-xs text-muted-foreground mt-2">
+                p50 {{ formatMs(clientRouting?.latencySummary?.direct?.p50) }} ·
+                p95 {{ formatMs(clientRouting?.latencySummary?.direct?.p95) }}
+              </p>
+            </div>
+            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p class="text-xs text-muted-foreground mb-1">edge</p>
+              <p class="text-lg font-semibold">
+                {{ formatPct(clientRouting?.routeSharePct?.edge) }}
+              </p>
+              <p class="text-xs text-muted-foreground mt-2">
+                p50 {{ formatMs(clientRouting?.latencySummary?.edge?.p50) }} ·
+                p95 {{ formatMs(clientRouting?.latencySummary?.edge?.p95) }}
+              </p>
+            </div>
+            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p class="text-xs text-muted-foreground mb-1">direct_fallback</p>
+              <p class="text-lg font-semibold">
+                {{ formatPct(clientRouting?.routeSharePct?.direct_fallback) }}
+              </p>
+              <p class="text-xs text-muted-foreground mt-2">
+                p50 {{ formatMs(clientRouting?.latencySummary?.direct_fallback?.p50) }} ·
+                p95 {{ formatMs(clientRouting?.latencySummary?.direct_fallback?.p95) }}
+              </p>
+            </div>
+          </div>
+
+          <div v-if="clientRouting?.note" class="px-5 pb-5 text-xs text-muted-foreground/70">
+            {{ clientRouting.note }}
+          </div>
+        </div>
+      </section>
+
       <!-- 关于 -->
       <section
         class="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300"
@@ -310,7 +419,7 @@ onMounted(async () => {
                 class="absolute inset-0 bg-primary/20 blur-2xl rounded-full"
               />
               <div
-                class="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center border border-primary/20 shadow-lg"
+                class="relative w-20 h-20 rounded-3xl bg-linear-to-br from-primary/10 to-primary/5 flex items-center justify-center border border-primary/20 shadow-lg"
               >
                 <Settings class="h-10 w-10 text-primary" />
               </div>

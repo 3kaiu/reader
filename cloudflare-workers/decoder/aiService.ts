@@ -62,15 +62,38 @@ export class AIService {
     }
 
     const cacheKey = this.generateCacheKey(request);
+    const analytics = (this.env as any).ANALYTICS_ENGINE;
+    const cacheT0 = Date.now();
     const cached = await this.cache.get<AIResponse>(cacheKey);
     if (cached) {
       this.logger.info('AI cache hit for request');
+      try {
+        analytics?.writeDataPoint({
+          blobs: ['ai', 'hit'],
+          doubles: [Date.now() - cacheT0, 1.0],
+          indexes: ['cache_metrics'],
+        });
+      } catch { }
       return cached;
     }
+    try {
+      analytics?.writeDataPoint({
+        blobs: ['ai', 'miss'],
+        doubles: [Date.now() - cacheT0, 1.0],
+        indexes: ['cache_metrics'],
+      });
+    } catch { }
 
     const result = await this.callAIWithFallback(request);
     if (result) {
       await this.cache.set(cacheKey, result);
+      try {
+        analytics?.writeDataPoint({
+          blobs: ['ai', 'set'],
+          doubles: [0, 1.0],
+          indexes: ['cache_metrics'],
+        });
+      } catch { }
       this.updateModelStats(result.modelUsed, result.processingTime, result.tokensUsed, true);
     }
 

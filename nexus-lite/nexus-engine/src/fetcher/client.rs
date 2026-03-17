@@ -41,11 +41,9 @@ impl HttpFetcher {
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
             .read_timeout(Duration::from_secs(timeout_seconds))
-            .timeout(Duration::from_secs(30))
             // Enhanced connection pool optimization
-            .pool_max_idle_per_host(50) // Further increased for high concurrency
-            .pool_idle_timeout(Duration::from_secs(120)) // Keep connections alive longer
             .pool_max_idle_per_host(100) // Allow more idle connections
+            .pool_idle_timeout(Duration::from_secs(120)) // Keep connections alive longer
             // Advanced TCP optimization
             .tcp_keepalive(Duration::from_secs(60))
             .tcp_nodelay(true)

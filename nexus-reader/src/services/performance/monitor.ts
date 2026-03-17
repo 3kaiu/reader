@@ -3,6 +3,7 @@
  * 用于追踪关键业务指标：内容解析耗时、首屏渲染、网络延迟等
  */
 import { logger } from '../../utils/logger'
+import { queueClientMetric } from './client-reporter'
 
 export interface PerformanceMetric {
     name: string
@@ -70,6 +71,13 @@ class PerformanceMonitor {
             unit: metric.unit,
             ...metric.tags
         })
+
+        // Best-effort: buffer a subset of metrics and flush periodically to Worker.
+        try {
+            queueClientMetric(metric)
+        } catch {
+            // ignore reporter failures
+        }
 
         // 3. 可选：上报到分析平台 (Google Analytics / Custom Endpoint)
         // if (!import.meta.env.DEV) {
