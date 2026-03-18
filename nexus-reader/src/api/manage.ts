@@ -1,7 +1,7 @@
 /**
  * 管理相关 API
  */
-import { $post } from './client'
+import { bookApi } from './book'
 import type { ApiResponse } from './client'
 import type { Book } from './book'
 
@@ -9,9 +9,12 @@ export const manageApi = {
   /**
    * 批量移动书籍到分组
    */
-  addBookGroupMulti: (groupId: string | null, books: Book[]) =>
-    $post<void>('/bookshelf/batch-move', {
-      groupId,
-      bookIds: books.map(b => b.id).filter(Boolean)
-    }) as Promise<ApiResponse<void>>,
+  addBookGroupMulti: async (groupId: string | null, books: Book[]) => {
+    const targets = books.filter((book): book is Book & { id: string } => Boolean(book.id))
+    await Promise.all(targets.map(book => bookApi.moveToGroup(book.id, groupId)))
+    return {
+      isSuccess: true,
+      data: undefined,
+    } as ApiResponse<void>
+  },
 }

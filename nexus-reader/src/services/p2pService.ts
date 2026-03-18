@@ -4,7 +4,7 @@
  */
 import { logger } from '../utils/logger'
 import { nexusDB, StoreNames } from '../utils/db'
-import { decode, encode } from '@msgpack/msgpack'
+import { decode, encode } from '@/utils/msgpack'
 
 export class P2PService {
   private peerConnection: RTCPeerConnection | null = null
@@ -69,7 +69,7 @@ export class P2PService {
       data: progress
     })
 
-    this.dataChannel.send(payload)
+    this.dataChannel.send(new Uint8Array(payload).buffer)
   }
 
   /**
@@ -102,7 +102,7 @@ export class P2PService {
       data: [item]
     })
 
-    this.dataChannel.send(payload)
+    this.dataChannel.send(new Uint8Array(payload).buffer)
   }
 }
 

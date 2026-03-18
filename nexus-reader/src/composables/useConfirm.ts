@@ -6,9 +6,11 @@ import { ref, readonly } from 'vue'
 interface ConfirmOptions {
   title?: string
   message: string
+  description?: string
   confirmText?: string
   cancelText?: string
   type?: 'info' | 'warning' | 'danger'
+  variant?: 'default' | 'destructive'
 }
 
 export function useConfirm() {
@@ -50,6 +52,14 @@ export function useConfirm() {
 
   return {
     confirmDialog: readonly(confirmDialog),
+    confirm: (options: ConfirmOptions) =>
+      showConfirm({
+        ...options,
+        message: options.message || options.description || '',
+        type:
+          options.type ||
+          (options.variant === 'destructive' ? 'danger' : 'info'),
+      }),
     showConfirm,
     handleConfirm,
     hideConfirm,

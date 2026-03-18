@@ -288,7 +288,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
   return {
     // State
-    state: (readonly as any)(state),
+    state: readonly(state),
 
     // Getters
     enabledRules,

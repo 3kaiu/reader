@@ -2,12 +2,12 @@
 /**
  * 搜索页面 - 上一版搜索组件在内容区，顶部保留搜索按钮
  */
-import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
+import { ref, computed, onUnmounted, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStorage } from '@vueuse/core'
-import { Search, ArrowLeft, X, Loader2, BookMarked, Check } from 'lucide-vue-next'
-import type { Book } from '@/api/unified'
-import { bookshelfJourneyService } from '@/services/journey'
+import { Search, X, Loader2, BookMarked, Check } from 'lucide-vue-next'
+import type { SearchResult } from '@/api/book'
+import { bookshelfJourneyService, searchJourneyService } from '@/services/journey'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -16,19 +16,14 @@ import { useMessage } from '@/composables/useMessage'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const router = useRouter()
-const { success, error, warning } = useMessage()
+const { success, warning } = useMessage()
 const { handleApiError, handlePromiseError } = useErrorHandler()
-
-import { useWebSocketStore } from '@/stores/websocket'
-
-const wsStore = useWebSocketStore()
 
 // ====== 状态 ======
 const searchKeyword = ref('')
-// Use store state
-const searchResult = computed(() => wsStore.searchState?.results || [])
-const loading = computed(() => wsStore.searchState?.isSearching || false)
-const progress = computed(() => wsStore.searchState?.progress || { current: 0, total: 0 })
+const searchResult = ref<SearchResult[]>([])
+const loading = ref(false)
+const searchRequestId = ref(0)
 
 // 本地状态
 const hasSearched = ref(false)
@@ -44,7 +39,7 @@ const resultCount = computed(() => searchResult.value.length)
 const selectedSources = ref<Set<string>>(new Set())
 const availableSources = computed(() => {
   const sources = new Set<string>()
-  searchResult.value.forEach((book: Book) => {
+  searchResult.value.forEach((book: SearchResult) => {
     if (book.sourceName) sources.add(book.sourceName)
   })
   return Array.from(sources).sort()
@@ -52,7 +47,7 @@ const availableSources = computed(() => {
 
 const filteredResults = computed(() => {
   if (selectedSources.value.size === 0) return searchResult.value
-  return searchResult.value.filter((book: Book) => selectedSources.value.has(book.sourceName || ''))
+  return searchResult.value.filter((book: SearchResult) => selectedSources.value.has(book.sourceName || ''))
 })
 
 function toggleSource(source: string) {
@@ -72,8 +67,8 @@ function clearSourceFilter() {
 // ====== 方法 ======
 
 function stopSearch() {
-  // Send cancel command to backend to stop the search
-  wsStore.cancelSearch()
+  searchRequestId.value += 1
+  loading.value = false
 }
 
 async function search(keyword?: string) {
@@ -82,31 +77,14 @@ async function search(keyword?: string) {
     warning('请输入搜索关键词')
     return
   }
-
-  // Ensure WS connected
-  if (!wsStore.isConnected) {
-    warning('正在连接服务器，请稍候...')
-    wsStore.connect()
-
-    // Watch for connection and auto-retry search
-    const unwatch = watch(
-      () => wsStore.isConnected,
-      connected => {
-        if (connected) {
-          unwatch()
-          // Retry search after connected
-          doSearch(query)
-        }
-      }
-    )
-    return
-  }
-
-  doSearch(query)
+  await doSearch(query)
 }
 
-function doSearch(query: string) {
+async function doSearch(query: string) {
+  const requestId = searchRequestId.value + 1
+  searchRequestId.value = requestId
   searchKeyword.value = query
+  loading.value = true
 
   if (!searchHistory.value.includes(query)) {
     searchHistory.value = [query, ...searchHistory.value.slice(0, 9)]
@@ -121,8 +99,29 @@ function doSearch(query: string) {
     })
   })
 
-  // Call WS Search
-  wsStore.search(query)
+  try {
+    const res = await searchJourneyService.searchBooks(query)
+    if (requestId !== searchRequestId.value) {
+      return
+    }
+
+    if (res.isSuccess) {
+      searchResult.value = res.data?.results || []
+      return
+    }
+
+    searchResult.value = []
+    handleApiError(res, '搜索失败')
+  } catch (e) {
+    if (requestId === searchRequestId.value) {
+      searchResult.value = []
+      handlePromiseError(e, '搜索失败')
+    }
+  } finally {
+    if (requestId === searchRequestId.value) {
+      loading.value = false
+    }
+  }
 }
 
 // 页面挂载时检查是否需要重置搜索状态
@@ -131,7 +130,7 @@ onMounted(async () => {
   const shouldReset = sessionStorage.getItem('search-should-reset')
   if (shouldReset === 'true') {
     hasSearched.value = false
-    wsStore.searchState.results = []
+    searchResult.value = []
     searchKeyword.value = ''
     sessionStorage.removeItem('search-should-reset')
   }
@@ -159,7 +158,7 @@ declare global {
   }
 }
 
-async function addToShelf(book: Book) {
+async function addToShelf(book: SearchResult) {
   if (addedBooks.value.has(book.bookUrl)) return
 
   try {
@@ -187,7 +186,7 @@ async function addToShelf(book: Book) {
   }
 }
 
-async function openBook(book: Book) {
+async function openBook(book: SearchResult) {
   if (openingBook.value === book.bookUrl) return
   openingBook.value = book.bookUrl
 
@@ -236,7 +235,7 @@ function goBack() {
 function resetSearch() {
   stopSearch()
   hasSearched.value = false
-  wsStore.searchState.results = [] // Clear store state instead of computed property
+  searchResult.value = []
   searchKeyword.value = ''
   // 重置后滚动到顶部，准备新的搜索
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -286,15 +285,7 @@ function resetSearch() {
             </button>
           </div>
           <!-- 搜索按钮 -->
-          <Button
-            variant="outline"
-            size="sm"
-            @click="
-              searchKeyword = '测试'
-              search('测试')
-            "
-            class="rounded-full shrink-0 min-w-[80px]"
-          >
+          <Button variant="outline" size="sm" @click="search()" class="rounded-full shrink-0 min-w-[80px]">
             搜索
           </Button>
           <!-- 停止按钮 - 加载时显示 -->

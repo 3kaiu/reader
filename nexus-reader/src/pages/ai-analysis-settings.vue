@@ -29,7 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
-import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api/unified";
+import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api/ai";
 import { PageHeader, PageToolbar, EmptyState } from "@/components/common";
 
 const router = useRouter();
@@ -216,8 +216,8 @@ async function saveMapping() {
     type: (newRule.value.type as string) || "person",
     confidence: newRule.value.confidence ?? 0.8,
     enabled: newRule.value.enabled ?? true,
-    created_at: editingRule.value?.createdAt || Date.now(),
-    usage_count: editingRule.value?.usageCount || 0,
+    createdAt: editingRule.value?.createdAt || Date.now(),
+    usageCount: editingRule.value?.usageCount || 0,
   };
 
   try {

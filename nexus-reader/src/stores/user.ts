@@ -13,8 +13,35 @@ import type { User, UserPreferences, LoginCredentials } from './types'
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   const preferences = ref<UserPreferences | null>(null)
+  const showLoginModal = ref(false)
   const isAuthenticated = computed(() => !!user.value)
   const isLoading = ref(false)
+
+  const setToken = (token: string) => {
+    localStorage.setItem('nexus_auth_token', token)
+  }
+
+  const setUserInfo = (info: Partial<User>) => {
+    const previous = user.value
+    user.value = {
+      id: previous?.id || info.id || crypto.randomUUID(),
+      username: info.username || previous?.username || '',
+      email: info.email || previous?.email || '',
+      displayName: info.displayName ?? previous?.displayName,
+      avatar: info.avatar ?? previous?.avatar,
+      role: info.role || previous?.role || 'reader',
+      createdAt: previous?.createdAt || info.createdAt || new Date(),
+      lastLoginAt: info.lastLoginAt ?? previous?.lastLoginAt,
+    }
+  }
+
+  const openLoginModal = () => {
+    showLoginModal.value = true
+  }
+
+  const closeLoginModal = () => {
+    showLoginModal.value = false
+  }
 
   const login = async (credentials: LoginCredentials) => {
     isLoading.value = true
@@ -77,8 +104,13 @@ export const useUserStore = defineStore('user', () => {
   return {
     user,
     preferences,
+    showLoginModal,
     isAuthenticated,
     isLoading,
+    setToken,
+    setUserInfo,
+    openLoginModal,
+    closeLoginModal,
     login,
     logout,
     updatePreferences,

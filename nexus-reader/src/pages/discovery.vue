@@ -19,7 +19,7 @@ import {
   bookApi,
   type DiscoveryResponse,
   type DiscoveryItem,
-} from "@/api/unified";
+} from "@/api/book";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton, LazyImage } from "@/components/ui";

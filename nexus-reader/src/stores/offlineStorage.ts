@@ -224,7 +224,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
   return {
     // State
-    state: (readonly as any)(state),
+    state: readonly(state),
 
     // Getters
     isOnline,

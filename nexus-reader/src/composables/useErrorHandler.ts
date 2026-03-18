@@ -41,9 +41,22 @@ export function useErrorHandler() {
     errors.value = []
   }
 
+  const handleApiError = (response: { errorMsg?: string }, fallbackMessage?: string) => {
+    const message = response.errorMsg || fallbackMessage || '请求失败'
+    return handleError(new Error(message), { source: 'api-response', response })
+  }
+
+  const handlePromiseError = (error: unknown, fallbackMessage?: string) => {
+    const wrappedError =
+      error instanceof Error ? error : new Error(fallbackMessage || String(error))
+    return handleError(wrappedError, { source: 'promise', fallbackMessage })
+  }
+
   return {
     errors: readonly(errors),
     handleError,
+    handleApiError,
+    handlePromiseError,
     clearError,
     clearAllErrors
   }

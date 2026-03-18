@@ -10,25 +10,12 @@ import {
   Trash2,
   Upload,
   Download,
-  Plus,
   Globe2,
   Edit2,
-  FolderX,
   X,
 } from "lucide-vue-next";
-import { $get, $post, sourceApi } from "@/api/unified";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { sourceApi } from "@/api/source";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
@@ -40,16 +27,14 @@ import {
   EmptyState,
   LoadingGrid,
 } from "@/components/common";
-import { CheckSquare } from "lucide-vue-next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Circle, CheckCircle2 } from "lucide-vue-next";
-import SubscriptionManager from '@/components/source/SubscriptionManager.vue'
 
 
 const router = useRouter();
 const { success, error, warning } = useMessage();
 const { confirm } = useConfirm();
-const { handleApiError, handlePromiseError } = useErrorHandler();
+const { handlePromiseError } = useErrorHandler();
 
 // ====== 类型定义 ======
 interface BookSource {
@@ -57,7 +42,8 @@ interface BookSource {
   name: string;
   url: string;
   version?: number;
-  enabled?: boolean; // 前端状态
+  enabled: boolean;
+  bookSourceGroup?: string;
   _ping?: number;
   _bgTest?: boolean;
 }
@@ -72,15 +58,13 @@ const showEdit = ref(false);
 const currentEditSource = ref<BookSource | null>(null);
 const selectedIds = shallowRef<Set<string>>(new Set());
 const isManageMode = ref(false);
-const showGroupInput = ref(false);
-const newGroupName = ref("");
 const activeTab = ref("local");
 
 // ====== 计算属性 ======
 // 分组统计
 const groups = computed(() => {
   const groupMap: Record<string, number> = { 全部: sources.value.length };
-  sources.value.forEach((s) => {
+  sources.value.forEach(() => {
     const g = "全部"; // Nexus-lite 暂无分组字段，统一归类
     groupMap[g] = (groupMap[g] || 0) + 1;
   });
@@ -132,7 +116,7 @@ async function loadSources() {
     if (res.isSuccess) {
       sources.value = (res.data || []).map((s: any) => ({
         ...s,
-        enabled: true
+        enabled: s.enabled !== false
       }));
     }
   } catch (e) {
@@ -166,7 +150,7 @@ async function deleteSource(source: BookSource) {
   });
   if (!result) return;
   try {
-    const _res = await sourceApi.deleteBookSource(source.id);
+    await sourceApi.deleteBookSource(source.id);
     // res.status 204 or manually handle
     sources.value = sources.value.filter((s: BookSource) => s.id !== source.id);
     selectedIds.value.delete(source.id);
@@ -248,81 +232,9 @@ function toggleManageMode() {
 
 // function getPingColor removed
 
-// 获取所有已用分组名（排除全部和未分组）
-const existingGroups = computed(() => {
-  return groups.value
-    .filter(([name]: [string, number]) => name !== "全部" && name !== "未分组")
-    .map(([name]: [string, number]) => name);
-});
-
-// 批量修改选中书源的分组
-async function batchSetGroup(groupName: string) {
-  if (selectedIds.value.size === 0) {
-    error("请先选择书源");
-    return;
-  }
-
-  const toUpdate = sources.value.filter((s: BookSource) => selectedIds.value.has(s.id));
-
-  // 修改分组
-  toUpdate.forEach((s: BookSource) => {
-    s.bookSourceGroup = groupName === "" ? undefined : groupName;
-  });
-
-  try {
-    await $post("/saveBookSources", toUpdate);
-    success(`已将 ${toUpdate.length} 个书源移至「${groupName || "未分组"}」`);
-    selectedIds.value = new Set();
-    isManageMode.value = false;
-    showGroupInput.value = false;
-    newGroupName.value = "";
-  } catch (e) {
-    handlePromiseError(e, "修改分组失败");
-  }
-}
-
-// 设置新分组
-function confirmNewGroup() {
-  if (!newGroupName.value.trim()) {
-    error("请输入分组名称");
-    return;
-  }
-  batchSetGroup(newGroupName.value.trim());
-}
-
 // 删除分组内所有书源
 async function deleteGroupSources(groupName: string) {
-  const toDelete = sources.value.filter((s: BookSource) => {
-    if (groupName === "未分组") {
-      return !s.bookSourceGroup?.trim();
-    }
-    return s.bookSourceGroup?.trim() === groupName;
-  });
-
-  if (toDelete.length === 0) {
-    error("该分组没有书源");
-    return;
-  }
-
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定删除「${groupName}」分组内的 ${toDelete.length} 个书源吗？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  try {
-    await $post("/deleteBookSources", toDelete);
-    sources.value = sources.value.filter(
-      (s: BookSource) => !toDelete.some((d: BookSource) => d.url === s.url)
-    );
-    success(`已删除 ${toDelete.length} 个书源`);
-    if (activeGroup.value === groupName) {
-      activeGroup.value = "全部";
-    }
-  } catch (e) {
-    handlePromiseError(e, "删除失败");
-  }
+  warning(`当前版本暂不支持删除整组书源（分组：${groupName}）`);
 }
 
 onMounted(() => loadSources());

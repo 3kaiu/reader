@@ -1,5 +1,5 @@
 import { ofetch, type FetchOptions } from 'ofetch'
-import { decode, encode } from '@msgpack/msgpack'
+import { decode, encode } from '@/utils/msgpack'
 import {
   API_CACHE_TTL,
   API_TIMEOUT,

@@ -79,6 +79,11 @@ export interface Book {
   lastReadTime?: number
   createdAt?: number
   // 以下为前端兼容旧版可能需要的扩展字段
+  sourceName?: string
+  origin?: string
+  originName?: string
+  type?: string
+  durChapterIndex?: number
   durChapterTitle?: string
   latestChapterTitle?: string
   totalChapterNum?: number
@@ -105,6 +110,7 @@ export interface SearchResult {
   sourceId: string
   sourceName: string
   latestChapter?: string
+  latestChapterTitle?: string
 }
 
 export interface SearchResponse {

@@ -1,5 +1,27 @@
 import { $post, $get, $delete, $put } from './client'
-import type { BookSource } from './unified'
+
+export interface BookSource {
+    id: string
+    name: string
+    url?: string
+    enabled: boolean
+    version?: number | string
+    origin?: string
+    originName?: string
+    bookUrl?: string
+    coverUrl?: string
+    latestChapterTitle?: string
+    time?: number
+    type?: string
+    bookSourceGroup?: string
+}
+
+export interface BookSourceSubscription {
+    url: string
+    autoUpdate: boolean
+    interval?: number
+    lastSyncAt?: number
+}
 
 export const sourceApi = {
     // 获取所有书源
@@ -17,10 +39,4 @@ export const sourceApi = {
     // 更新书源状态
     updateSourceStatus: (id: string, enabled: boolean) =>
         $put<BookSource>(`/sources/${id}/status`, { enabled }),
-
-    // 搜索书源 (Nexus-lite 搜索书籍时会自动在内部处理多源)
-    // 如果有特定的源搜索需求，可以保留占位或根据需求添加
-
-    // 调试书源 (Nexus-lite 待实现)
-    testBookSource: (id: string) => $post(`/sources/${id}/test`, {}),
 }

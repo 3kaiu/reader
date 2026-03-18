@@ -31,12 +31,17 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const connectionQuality = computed(() => state.value.connectionQuality)
   const messageCount = computed(() => state.value.messageHistory.length)
 
-  const connect = async (url: string) => {
+  const connect = async (url?: string) => {
     try {
       if (ws.value && ws.value.readyState === WebSocket.OPEN) {
         logger.warn('WebSocket already connected')
-      return
-    }
+        return
+      }
+
+      if (!url) {
+        logger.warn('WebSocket URL is not configured, skip connection')
+        return
+      }
 
       state.value.url = url
       state.value.reconnectAttempts = 0
@@ -146,7 +151,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   return {
     // State
-    state: (readonly as any)(state),
+    state: readonly(state),
 
     // Getters
     isConnected,

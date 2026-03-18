@@ -1,30 +1,12 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/toast'
 
-import { onMounted, onUnmounted } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
 import { useUserStore } from '@/stores/user'
-import { useWebSocketStore } from '@/stores/websocket'
 import { AuthGuard } from '@/components/auth'
 import LoginModal from '@/components/LoginModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
-const settingsStore = useSettingsStore()
 const userStore = useUserStore()
-const wsStore = useWebSocketStore()
-
-onMounted(() => {
-  // WebSocket 连接是可选的，失败不应阻塞应用
-  try {
-    wsStore.connect()
-  } catch (e) {
-    console.warn('WebSocket connection failed, app will continue without real-time features:', e)
-  }
-})
-
-onUnmounted(() => {
-  wsStore.disconnect()
-})
 </script>
 
 <template>
