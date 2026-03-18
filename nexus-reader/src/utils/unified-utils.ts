@@ -13,6 +13,7 @@
  */
 
 import { queueClientMetric } from '@/services/performance/client-reporter'
+import { resolveRoutePolicy } from '@/services/journey/route-policy'
 
 // ===== 缓存管理 =====
 
@@ -271,27 +272,8 @@ export class UnifiedApiClient {
 
   private pickBaseUrlForPath(path: string): string {
     if (!this.directBaseURL) return this.edgeBaseURL
-
-    const pathname = path.split('?')[0]
-    const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
-    if (workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))) return this.edgeBaseURL
-
-    const directAllowlistPrefixes = [
-      '/api/search',
-      '/api/book',
-      '/api/chapters',
-      '/api/content',
-      '/api/batch/content',
-      '/api/sources',
-      '/api/bookshelf',
-      '/api/groups',
-      '/api/replace_rules',
-      '/api/discovery',
-      '/api/ai/',
-      '/api/voice/',
-    ]
-    const shouldUseDirect = directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
-    return shouldUseDirect ? this.directBaseURL : this.edgeBaseURL
+    // Keep route selection aligned with journey-based policy used by api/client.ts.
+    return resolveRoutePolicy(path).supportsDirect ? this.directBaseURL : this.edgeBaseURL
   }
 
   private shouldAttachApiKey(path: string): boolean {

@@ -84,6 +84,10 @@ export interface WorkerEnv {
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error' | string;
   ENABLE_ANALYTICS?: string;
   ENABLE_CACHE?: string;
+  ENABLE_EDGE_EXPERIMENTAL?: string;
+  EDGE_EXPERIMENTAL_ROUTES?: string;
+  EDGE_EXPERIMENTAL_EXCLUDE_ROUTES?: string;
+  EDGE_EXPERIMENTAL_ROLLOUT?: string;
 
   // Storage bindings (matched with wrangler.toml)
   ANALYTICS_DB: any | D1DatabaseFallback;

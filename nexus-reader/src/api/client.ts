@@ -9,6 +9,7 @@ import {
 import { requestOptimizer, networkDetector } from '@/services/network/optimizer'
 import { perfMonitor } from '@/services/performance/monitor'
 import { offlineManager, offlineContentServer } from '@/services/offline/manager'
+import { resolveRoutePolicy } from '@/services/journey/route-policy'
 import { NexusError, ErrorCode, reportError } from '@/utils/errors'
 
 // 请求缓存
@@ -162,45 +163,20 @@ const internalFetch = ofetch.create({
 
     const requestUrl = request.toString()
     const isAbsolute = /^https?:\/\//i.test(requestUrl)
-    const pathname = !isAbsolute ? requestUrl.split('?')[0] : ''
+    // Route policy is organized by user journey (search/reading/bookshelf/sync).
+    const routePolicy = !isAbsolute
+      ? resolveRoutePolicy(requestUrl)
+      : { supportsDirect: false, edgeOnly: false, journey: 'system', normalizedPath: requestUrl }
 
     // If caller forces edge (direct-connect fallback), skip direct selection.
     if ((options as any).forceEdge === true) {
       ;(options as any).baseURL = edgeBaseUrl
       ;(options as any)._usedDirect = false
     } else {
-      // Only direct-connect a safe allowlist of nexus-lite endpoints.
-      const directAllowlistPrefixes = [
-        '/api/search',
-        '/api/book',
-        '/api/chapters',
-        '/api/content',
-        '/api/batch/content',
-        '/api/sources',
-        '/api/bookshelf',
-        '/api/groups',
-        '/api/replace_rules',
-        '/api/discovery',
-        '/api/ai/',
-        '/api/voice/',
-        '/ws/',
-      ]
       const shouldUseDirect =
-        Boolean(directBaseUrl) &&
-        !isAbsolute &&
-        directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+        Boolean(directBaseUrl) && !isAbsolute && routePolicy.supportsDirect && !routePolicy.edgeOnly
 
-      // Worker-only endpoints must always go through edge.
-      const workerOnlyPrefixes = [
-        '/api/analytics',
-        '/api/preferences',
-        '/api/content/upload',
-        '/api/backup',
-      ]
-      const isWorkerOnly =
-        !isAbsolute && workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
-
-      if (shouldUseDirect && !isWorkerOnly) {
+      if (shouldUseDirect) {
         ;(options as any).baseURL = directBaseUrl
         ;(options as any)._usedDirect = true
         if (directApiKey) {
@@ -444,34 +420,7 @@ export function getApiBaseUrlForPath(path: string): string {
   const directBaseUrl = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
   if (!directBaseUrl) return edgeBaseUrl
 
-  const pathname = path.split('?')[0]
-  const directAllowlistPrefixes = [
-    '/api/search',
-    '/api/book',
-    '/api/chapters',
-    '/api/content',
-    '/api/batch/content',
-    '/api/sources',
-    '/api/bookshelf',
-    '/api/groups',
-    '/api/replace_rules',
-    '/api/discovery',
-    '/api/ai/',
-    '/api/voice/',
-  ]
-  const workerOnlyPrefixes = [
-    '/api/analytics',
-    '/api/preferences',
-    '/api/content/upload',
-    '/api/backup',
-  ]
-  const isWorkerOnly = workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
-  if (isWorkerOnly) return edgeBaseUrl
-
-  const shouldUseDirect = directAllowlistPrefixes.some(
-    p => pathname === p || pathname.startsWith(p)
-  )
-  return shouldUseDirect ? directBaseUrl : edgeBaseUrl
+  return resolveRoutePolicy(path).supportsDirect ? directBaseUrl : edgeBaseUrl
 }
 
 // 对外暴露的基础实例

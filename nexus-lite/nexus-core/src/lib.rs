@@ -18,8 +18,12 @@
 #![allow(static_mut_refs)]
 #![allow(unused_must_use)]
 
-// ===== 领域层 (Domain Layer) =====
-// 按照DDD原则组织的业务领域
+// ===== 业务主线模块 (Lean Business Modules) =====
+// 新业务优先使用这 4 个模块，避免继续扩张平台化抽象。
+pub mod business_modules;
+
+// ===== 兼容层：DDD 与平台化模块 =====
+// 这些模块保留用于兼容现有调用，不再作为新增功能默认入口。
 pub mod domain;
 
 // ===== 应用层 (Application Layer) =====
@@ -75,6 +79,7 @@ pub mod types;        // 类型定义
 // - config_optimizer → optimizer.rs
 
 // ===== 新架构导出 =====
+pub use business_modules::*;
 pub use domain::*;
 pub use application::*;
 pub use infrastructure::*;

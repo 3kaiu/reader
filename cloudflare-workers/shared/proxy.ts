@@ -143,7 +143,9 @@ export async function proxyRequest(
 }
 
 /**
- * Backward-compatible overload used by `unified-worker.ts`:
+ * Backward-compatible overload used by worker entrypoints:
+ * - `entry.ts` (current)
+ * - `unified-worker.ts` (compat shim)
  * proxyRequest(request, env)
  */
 export async function proxyRequestWithEnv(request: Request, env: any, ctx?: ExecutionContext): Promise<Response> {

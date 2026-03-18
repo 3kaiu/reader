@@ -50,7 +50,9 @@ import {
 } from "@/components/ui/sheet";
 import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
 import { Input } from "@/components/ui/input";
-import { bookApi, groupApi, type Book, type BookGroup } from "@/api/unified";
+import type { Book } from "@/api/book";
+import type { BookGroup } from "@/api/group";
+import { bookshelfJourneyService } from "@/services/journey";
 import { Button } from "@/components/ui/button";
 import BookCard from "@/components/book/BookCard.vue";
 import { Skeleton } from "@/components/ui";
@@ -303,7 +305,7 @@ watch(
 
 async function getBooks() {
   try {
-    const res = await bookApi.getBookshelf();
+    const res = await bookshelfJourneyService.listBooks();
     if (res.isSuccess && Array.isArray(res.data)) {
       books.value = res.data;
     } else {
@@ -321,7 +323,7 @@ async function getBooks() {
 async function getGroups() {
   groupLoading.value = true;
   try {
-    const res = await groupApi.getBookGroups();
+    const res = await bookshelfJourneyService.listGroups();
     if (res.isSuccess && Array.isArray(res.data)) {
       groups.value = res.data;
     } else {
@@ -384,7 +386,7 @@ async function batchDelete() {
   );
   try {
     for (const book of booksToDelete) {
-      if (book.id) await bookApi.deleteBook(book.id);
+      if (book.id) await bookshelfJourneyService.deleteBook(book.id);
     }
     books.value = books.value.filter(
       (b: Book) => !b.id || !selectedBooks.value.has(b.id)
@@ -405,7 +407,7 @@ async function handleMoveConfirm(groupId: string | null) {
   );
 
   try {
-    const res = await manageApi.addBookGroupMulti(groupId, booksToMove);
+    const res = await bookshelfJourneyService.moveBooksToGroup(groupId, booksToMove);
     if (res.isSuccess) {
       success("移动成功");
       await getBooks();
@@ -427,7 +429,7 @@ async function handleDelete(book: Book) {
 
   try {
     if (book.id) {
-      const res = await bookApi.deleteBook(book.id);
+      const res = await bookshelfJourneyService.deleteBook(book.id);
       if (res.isSuccess) {
         success("删除成功");
         books.value = books.value.filter((b: Book) => b.id !== book.id);
@@ -446,7 +448,7 @@ function goSearch() {
 async function createGroup() {
   if (!newGroupName.value.trim()) return;
   try {
-    const res = await groupApi.saveBookGroup({
+    const res = await bookshelfJourneyService.saveGroup({
       groupName: newGroupName.value.trim(),
       order: groups.value.length,
       show: true,

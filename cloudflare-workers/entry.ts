@@ -6,37 +6,24 @@
  * - wire dependencies
  * - dispatch routes
  *
+ * See `MODULE_BOUNDARIES.md` for dependency and ownership rules.
+ *
  * Implementations live in `cloudflare-workers/worker/*`.
  */
 
 import { handleCorsPreflightRequest, getCorsHeaders } from './shared/cors.ts'
-import { proxyRequestWithEnv } from './shared/proxy.ts'
 import { createLogger } from './shared/logger.ts'
+import { dispatchWithOptionalEdgeOptimization } from './src/entry-adapter.ts'
 
 import type { EnhancedWorkerEnv } from './worker/types.ts'
 import { requireBinding } from './worker/env.ts'
 import { jsonError } from './worker/http.ts'
-import { AnalyticsSystem, UserPreferencesSystem, ContentManagementSystem, QueueProcessor } from './worker/systems.ts'
-import {
-  handleHealthCheck,
-  handleUserStats,
-  handlePopularContent,
-  handleClientRoutingAnalytics,
-  handleUserPreferences,
-  handleContentUpload,
-  handleUserBackup,
-  handleClientMetrics,
-  handleGitHubLogin,
-  handleGitHubCallback,
-  handleAuthVerify,
-  handleDecodeRequest,
-  handleProgressSync,
-} from './worker/routes.ts'
+import { QueueProcessor } from './worker/systems.ts'
+import { dispatchEdgeGatewayRoute } from './worker/edge-gateway.ts'
+import { createUserServiceContainer, dispatchUserServiceRoute } from './worker/user-services.ts'
 
 export default {
   async fetch(request: Request, env: EnhancedWorkerEnv, ctx: any): Promise<Response> {
-    const url = new URL(request.url)
-    const origin = request.headers.get('Origin') || ''
     const logger = createLogger(env)
 
     try {
@@ -52,46 +39,29 @@ export default {
       return jsonError(request, 'MISCONFIGURED', 'Misconfigured worker', 500, e?.message || String(e))
     }
 
-    const analytics = new AnalyticsSystem(env)
-    const userPrefs = new UserPreferencesSystem(env)
-    const contentManager = new ContentManagementSystem(env)
-    const queueProcessor = new QueueProcessor(env)
+    const userServices = createUserServiceContainer(env)
 
     if (request.method === 'OPTIONS') return handleCorsPreflightRequest(request)
 
-    try {
-      switch (url.pathname) {
-        case '/auth/github':
-          return await handleGitHubLogin(request, env)
-        case '/auth/github/callback':
-          return await handleGitHubCallback(request, env)
-        case '/auth/verify':
-          return await handleAuthVerify(request, env)
+    const dispatchStable = async (incomingRequest: Request): Promise<Response> => {
+      const origin = incomingRequest.headers.get('Origin') || ''
 
-        case '/api/health':
-          return await handleHealthCheck(request, env, analytics)
-        case '/api/analytics/user-stats':
-          return await handleUserStats(request, env, analytics)
-        case '/api/analytics/popular-content':
-          return await handlePopularContent(request, env, analytics)
-        case '/api/analytics/client-routing':
-          return await handleClientRoutingAnalytics(request, env)
-        case '/api/preferences':
-          return await handleUserPreferences(request, env, userPrefs)
-        case '/api/content/upload':
-          return await handleContentUpload(request, env, contentManager)
-        case '/api/backup':
-          return await handleUserBackup(request, env, contentManager, queueProcessor)
-        case '/api/metrics/client':
-          return await handleClientMetrics(request, env)
-
-        default: {
-          if (url.pathname.startsWith('/api/')) return await proxyRequestWithEnv(request, env as any, ctx)
-          if (url.pathname.startsWith('/decode/')) return await handleDecodeRequest(request, env)
-          if (url.pathname.startsWith('/progress/')) return await handleProgressSync(request, env, url)
-          return new Response('Not Found', { status: 404, headers: getCorsHeaders(origin) })
-        }
+      const gatewayResponse = await dispatchEdgeGatewayRoute(incomingRequest, env, ctx)
+      if (gatewayResponse) {
+        return gatewayResponse
       }
+
+      const userServiceResponse = await dispatchUserServiceRoute(incomingRequest, env, userServices)
+      if (userServiceResponse) {
+        return userServiceResponse
+      }
+
+      return new Response('Not Found', { status: 404, headers: getCorsHeaders(origin) })
+    }
+
+    try {
+      // Experimental optimizer is opt-in and always falls back to stable dispatch.
+      return await dispatchWithOptionalEdgeOptimization(request, env, dispatchStable, logger)
     } catch (err: any) {
       logger.error('Request processing error:', err)
       return jsonError(
@@ -111,4 +81,3 @@ export default {
     }
   }
 }
-

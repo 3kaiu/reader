@@ -5,9 +5,9 @@
 import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStorage } from '@vueuse/core'
-import { logger } from '@/utils/logger'
 import { Search, ArrowLeft, X, Loader2, BookMarked, Check } from 'lucide-vue-next'
-import { bookApi, type Book } from '@/api/unified'
+import type { Book } from '@/api/unified'
+import { bookshelfJourneyService } from '@/services/journey'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -138,7 +138,7 @@ onMounted(async () => {
 
   // 加载书架，初始化已添加状态
   try {
-    const res = await bookApi.getBookshelf()
+    const res = await bookshelfJourneyService.listBooks()
     if (res.isSuccess) {
       res.data.forEach(book => addedBooks.value.add(book.bookUrl))
     }
@@ -163,7 +163,7 @@ async function addToShelf(book: Book) {
   if (addedBooks.value.has(book.bookUrl)) return
 
   try {
-    const res = await bookApi.saveBook({
+    const res = await bookshelfJourneyService.saveBook({
       sourceId: book.sourceId,
       bookUrl: book.bookUrl,
       name: book.name,
@@ -193,7 +193,7 @@ async function openBook(book: Book) {
 
   try {
     if (!addedBooks.value.has(book.bookUrl)) {
-      const res = await bookApi.saveBook({
+      const res = await bookshelfJourneyService.saveBook({
         sourceId: book.sourceId,
         bookUrl: book.bookUrl,
         name: book.name,

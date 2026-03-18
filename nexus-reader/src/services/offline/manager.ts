@@ -290,14 +290,9 @@ export class OfflineManager {
   }
 
   private async fetchContentForCaching(_id: string): Promise<any> {
-    // 这里应该实现实际的内容获取逻辑
-    // 这里应该实现实际的内容获取逻辑
+    // 预缓存逻辑暂时由调用方兜底，这里先保持 no-op。
     // 示例：从API缓存或通用缓存中获取
     // [Refactor] apiCache removed
-
-    // 如果缓存中没有，可能需要从服务器获取
-    // 这里返回null表示无法获取
-    return null
 
     // 如果缓存中没有，可能需要从服务器获取
     // 这里返回null表示无法获取
@@ -445,6 +440,7 @@ export class OfflineContentServer {
   }
 
   private generateCacheKey(url: string): string {
+    if (url.startsWith('api:')) return url
     // 简化URL作为缓存键
     return url.replace(/[^a-zA-Z0-9]/g, '_')
   }

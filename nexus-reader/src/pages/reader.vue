@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/toast/use-toast";
 import { X, Loader2, Sparkles } from "lucide-vue-next";
 import { useReaderStore } from "@/stores/reader";
 import { useSettingsStore } from "@/stores/settings";
-import { bookApi } from "@/api/unified";
+import { readingJourneyService } from "@/services/journey";
 import {
   useFullscreen,
   useThrottleFn,
@@ -429,7 +429,7 @@ async function initReader() {
   decoderStore.setCurrentBook(bookUrl as string);
 
   try {
-    const res = await bookApi.getBookInfo(
+    const res = await readingJourneyService.getBookInfo(
       sourceId as string,
       bookUrl as string
     );
@@ -451,7 +451,7 @@ async function initReader() {
         for (const idx of prevIndices) {
           if (idx < 0) continue;
           const chapter = readerStore.catalog[idx];
-          const contentRes = await bookApi.getBookContent(
+          const contentRes = await readingJourneyService.getContent(
             sourceId as string,
             chapter.url
           );

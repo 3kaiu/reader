@@ -1,8 +1,8 @@
 """
-Engine Factory - Dynamically selects the best bypass engine
+Engine Factory - keep engine selection minimal and explicit.
 """
 import logging
-from typing import Dict, Optional
+from typing import Dict
 from core.engine import BaseBypassEngine
 # Import actual engines from new engines/ package
 from engines.scraper import ScraperEngine
@@ -17,25 +17,17 @@ class EngineFactory:
 
     def get_engine(self, name: str = None, domain: str = None) -> BaseBypassEngine:
         """
-        Get or create an engine by name or domain preference.
+        Get or create an engine.
+
+        `domain` is currently accepted for compatibility but not used for strategy
+        selection, to keep this service focused on HTML fetching only.
         """
-        engine_name = name or self._determine_engine_for_domain(domain)
+        engine_name = name or self._default_engine_name
         
         if engine_name not in self._engines:
             self._engines[engine_name] = self._create_engine(engine_name)
         
         return self._engines[engine_name]
-
-    def _determine_engine_for_domain(self, domain: str) -> str:
-        if not domain:
-            return self._default_engine_name
-            
-        # Example: high-security domains use the mesh
-        high_sec_domains = ["example.com", "protected-site.net"]
-        if any(d in domain for d in high_sec_domains):
-            return "mesh"
-            
-        return self._default_engine_name
 
     def _create_engine(self, name: str) -> BaseBypassEngine:
         if name == "scraper" or name == "cloudscraper":
@@ -53,6 +45,9 @@ class EngineFactory:
             logger.info(f"Shutting down engine: {name}")
             await engine.shutdown()
         self._engines.clear()
+
+    def get_active_stats(self) -> Dict[str, dict]:
+        return {name: engine.get_stats() for name, engine in self._engines.items()}
 
 # Global factory instance
 factory = EngineFactory()

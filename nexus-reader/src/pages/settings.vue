@@ -14,14 +14,11 @@ import {
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
-import { groupApi } from "@/api/group";
-import { replaceApi } from "@/api/replace";
-import { sourceApi } from "@/api/source";
-import { $get } from "@/api/client";
+import { bookshelfJourneyService, searchJourneyService, syncJourneyService } from "@/services/journey";
 import { PageHeader } from "@/components/common";
 
 const router = useRouter();
-const { success, error } = useMessage();
+const { success } = useMessage();
 const { confirm } = useConfirm();
 const { handlePromiseError } = useErrorHandler();
 
@@ -42,9 +39,9 @@ const clientRoutingLoading = ref(false);
 async function handleExportData() {
   try {
     const [groups, replaces, sources] = await Promise.all([
-      groupApi.getBookGroups(),
-      replaceApi.getReplaceRules(),
-      sourceApi.getBookSources(),
+      bookshelfJourneyService.listGroups(),
+      bookshelfJourneyService.listReplaceRules(),
+      searchJourneyService.getSources(),
     ]);
 
     const data = {
@@ -115,7 +112,7 @@ onMounted(async () => {
 async function refreshClientRouting() {
   clientRoutingLoading.value = true;
   try {
-    const res = await $get<ClientRoutingAnalytics>("/analytics/client-routing", { silent: true });
+    const res = await syncJourneyService.getClientRoutingAnalytics<ClientRoutingAnalytics>();
     if (res.isSuccess) {
       clientRouting.value = res.data;
     } else {

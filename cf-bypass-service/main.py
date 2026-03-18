@@ -1,6 +1,6 @@
 """
 CF Bypass Service - FastAPI Application
-Standardized with unified Bypass Engines (Scraper & Mesh).
+Focused infrastructure service for fetching target HTML via bypass engines.
 """
 import logging
 import os
@@ -16,11 +16,17 @@ from contextlib import asynccontextmanager
 from core.engine_factory import factory as engine_factory
 from config import phase2_config
 
+def is_true_flag(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 # Configuration
 class Config:
     def __init__(self):
         self.api_key = os.getenv("CF_API_KEY", "")
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
+        self.admin_endpoints_enabled = is_true_flag(os.getenv("ENABLE_ADMIN_ENDPOINTS", "false"))
 
 config = Config()
 logging.basicConfig(level=config.log_level)
@@ -61,7 +67,7 @@ class FetchResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("CF Bypass Service started with Standardized & Self-Optimizing Engines")
+    logger.info("CF Bypass Service started")
     
     # Auto-warmup on startup
     if phase2_config.session_pool_enabled and phase2_config.warmup_domains:
@@ -78,7 +84,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CF Bypass Service",
     version="6.0.0",
-    description="Unified CF Bypass Service with Standardized Engine Architecture",
+    description="Minimal infrastructure service that returns fetched HTML payloads.",
     lifespan=lifespan
 )
 
@@ -126,16 +132,16 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     )
 
 @app.get("/stats")
-async def stats(engine_name: Optional[str] = None):
+async def stats(engine_name: Optional[str] = None, x_api_key: str = Header(None)):
     """Aggregate or specific engine statistics."""
+    if not config.admin_endpoints_enabled:
+        raise HTTPException(status_code=404, detail="Not Found")
+    validate_api_key(x_api_key)
+
     if engine_name:
         return engine_factory.get_engine(name=engine_name).get_stats()
     
-    # Return summary of all active engines
-    all_stats = {}
-    for name, engine in engine_factory._engines.items():
-        all_stats[name] = engine.get_stats()
-    return all_stats
+    return engine_factory.get_active_stats()
 
 @app.post("/warmup")
 async def warmup(domain: str, engine_name: Optional[str] = None, x_api_key: str = Header(None)):
@@ -172,8 +178,13 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
 
 # Basic Config Endpoint
 @app.get("/config")
-async def get_config():
+async def get_config(x_api_key: str = Header(None)):
+    if not config.admin_endpoints_enabled:
+        raise HTTPException(status_code=404, detail="Not Found")
+    validate_api_key(x_api_key)
+
     return {
         "phase2": phase2_config.to_dict(),
-        "version": "6.0.0"
+        "version": "6.0.0",
+        "admin_endpoints_enabled": config.admin_endpoints_enabled,
     }
