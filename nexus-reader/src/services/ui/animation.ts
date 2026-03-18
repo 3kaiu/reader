@@ -174,7 +174,7 @@ export class AnimationManager {
 
         this.animations.set(id, instance)
 
-      } catch (error) {
+      } catch (error: any) {
         reject(error)
       }
     })
@@ -363,7 +363,7 @@ export class AnimationManager {
             duration: config.duration,
             fill: 'forwards'
           }, keyframes)
-        } catch (error) {
+        } catch (error: any) {
           // 动画可能被取消，忽略错误
         }
       }
@@ -394,7 +394,7 @@ export class AnimationManager {
             duration: config.duration,
             fill: 'forwards'
           }, keyframes)
-        } catch (error) {
+        } catch (error: any) {
           // 动画可能被取消，忽略错误
         }
       }

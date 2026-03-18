@@ -143,29 +143,8 @@ const userState = reactive({
   session: null as UserSession | null,
   isAuthenticated: false,
   isLoading: false,
-  loginAttempts: 0
+  loginAttempts: 0,
 })
 
 // Export reactive state
 export { userState }
-
-// Export types
-export type {
-  User,
-  UserStatus,
-  UserRole,
-  UserPreferences,
-  ReadingSettings,
-  NotificationSettings,
-  PrivacySettings,
-  UserProfile,
-  SocialLinks,
-  ReadingStats,
-  Achievement,
-  SecurityInfo,
-  SecurityQuestion,
-  UserSession,
-  DeviceInfo,
-  LoginCredentials,
-  RegistrationData
-}

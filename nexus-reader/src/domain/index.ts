@@ -147,7 +147,7 @@ export class DomainStateManager {
       subscribers.forEach(callback => {
         try {
           callback(state);
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Domain state subscriber error:`, error);
         }
       });

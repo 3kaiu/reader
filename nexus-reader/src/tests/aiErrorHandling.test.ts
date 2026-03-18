@@ -13,13 +13,13 @@ const mockAiServiceManager = {
   loadModel: vi.fn(),
   unloadModel: vi.fn(),
   clearError: vi.fn(),
-  isSupported: { value: false },
-  isLoading: { value: false },
-  isModelLoaded: { value: false },
-  loadProgress: { value: 0 },
-  loadStatus: { value: '' },
-  error: { value: null },
-  currentModel: { value: null }
+  isSupported: { value: false } as any,
+  isLoading: { value: false } as any,
+  isModelLoaded: { value: false } as any,
+  loadProgress: { value: 0 } as any,
+  loadStatus: { value: '' } as any,
+  error: { value: null } as any,
+  currentModel: { value: null } as any
 }
 
 vi.mock('@/services/aiServiceManager', () => ({
@@ -57,7 +57,7 @@ vi.mock('@/utils/broadcast', () => ({
 
 describe('AI Error Handling - Simplified', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    (vi as any).clearAllMocks()
     // 重置AI服务状态
     mockAiServiceManager.isModelLoaded.value = false
     mockAiServiceManager.isLoading.value = false
@@ -65,7 +65,7 @@ describe('AI Error Handling - Simplified', () => {
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    (vi as any).restoreAllMocks()
   })
 
   describe('CDN Loading Errors', () => {
@@ -197,7 +197,7 @@ describe('AI Error Handling - Simplified', () => {
 
       try {
         await mockAiServiceManager.unloadModel()
-      } catch (error) {
+      } catch (error: any) {
         expect(error.message).toBe('Unload failed')
       }
     })
@@ -289,16 +289,16 @@ describe('AI Error Handling - Simplified', () => {
 
   describe('Graceful Degradation', () => {
     it('should provide helpful error messages for offline scenarios', async () => {
-      mockAiServiceManager.error.value = '当前离线状态，AI功能暂时不可用。请连接网络后重试。'
+      (mockAiServiceManager.error as any).value = '当前离线状态，AI功能暂时不可用。请连接网络后重试。'
 
       expect(mockAiServiceManager.error.value).toContain('离线状态')
       expect(mockAiServiceManager.error.value).toContain('连接网络')
     })
 
     it('should maintain consistent state during offline errors', async () => {
-      mockAiServiceManager.isLoading.value = false
-      mockAiServiceManager.isModelLoaded.value = false
-      mockAiServiceManager.error.value = '离线错误'
+      ((mockAiServiceManager as any).isLoading).value = false;
+      ((mockAiServiceManager as any).isModelLoaded).value = false;
+      ((mockAiServiceManager as any).error).value = '离线错误';
 
       expect(mockAiServiceManager.isLoading.value).toBe(false)
       expect(mockAiServiceManager.isModelLoaded.value).toBe(false)

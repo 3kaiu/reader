@@ -37,7 +37,7 @@ export class TTSServiceManager {
     totalCharacters: 0,
     generationTime: 0,
     charactersPerSecond: 0,
-    lastUpdated: 0
+    lastUpdated: 0,
   })
 
   private engine: TTSEngine | null = null
@@ -95,7 +95,7 @@ export class TTSServiceManager {
       this.error.value = err instanceof Error ? err.message : 'Initialization failed'
       this.isSupported.value = false
       this.isInitialized = true // Mark as initialized even if failed
-      logger.error('TTS initialization failed:', err)
+      logger.error('TTS initialization failed:', err as any)
       // Don't throw error, just mark as unsupported
     }
   }
@@ -126,7 +126,7 @@ export class TTSServiceManager {
 
       // Perform speech synthesis
       let audioBuffer: ArrayBuffer
-      audioBuffer = await this.engine.speak(text, { voiceId })
+      audioBuffer = await (this.engine as any).speak(text, { voiceId })
 
       // Update performance metrics
       const endTime = Date.now()
@@ -135,7 +135,7 @@ export class TTSServiceManager {
         totalCharacters: text.length,
         generationTime,
         charactersPerSecond: text.length / (generationTime / 1000),
-        lastUpdated: endTime
+        lastUpdated: endTime,
       }
 
       // Play the audio
@@ -144,7 +144,7 @@ export class TTSServiceManager {
       return audioBuffer
     } catch (err) {
       this.error.value = err instanceof Error ? err.message : 'Speech synthesis failed'
-      logger.error('TTS speak failed:', err)
+      logger.error('TTS speak failed:', err as any)
       throw err
     }
   }
@@ -172,14 +172,14 @@ export class TTSServiceManager {
       source.buffer = audioBuffer
       source.connect(this.audioContext!.destination)
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         source.onended = () => {
           resolve()
         }
         source.start(0)
       })
     } catch (err) {
-      logger.error('Audio playback failed:', err)
+      logger.error('Audio playback failed:', err as any)
       throw new Error('Failed to play audio')
     }
   }
@@ -202,9 +202,6 @@ export class TTSServiceManager {
       for (const [key, data] of Object.entries(list) as [string, any][]) {
         if (!key.includes('zh') && !key.includes('en')) continue // 简化：只保留中英文
 
-        // 检查是否已下载（在 modelCache 中的 tts-{key}）
-        const isDesc = data.files && Object.keys(data.files).length > 0
-
         voices.push({
           key,
           name: key.split('-').pop() || key,
@@ -212,14 +209,14 @@ export class TTSServiceManager {
           quality: data.quality || 'medium',
           numSpeakers: data.num_speakers || 1,
           files: data.files || {},
-          isDownloaded: cachedModelIds.includes(key)
+          isDownloaded: cachedModelIds.includes(key),
         })
       }
 
       this.availableVoices = voices
       return voices
     } catch (err) {
-      logger.error('Failed to get available voices:', err)
+      logger.error('Failed to get available voices:', err as any)
       return []
     }
   }
@@ -228,7 +225,7 @@ export class TTSServiceManager {
     try {
       return await modelCacheManager.isModelCached(`tts-${voiceId}`)
     } catch (err) {
-      logger.error('Failed to check TTS model cache:', err)
+      logger.error('Failed to check TTS model cache:', err as any)
       return false
     }
   }
@@ -256,15 +253,14 @@ export class TTSServiceManager {
       // Cache the model
       await modelCacheManager.cacheModel(modelId, modelData, {
         version: '1.0.0',
-        type: 'tts-model',
         voiceId,
         size: modelData.byteLength,
-        timestamp: Date.now()
-      })
+        timestamp: Date.now(),
+      } as any)
 
       logger.info(`TTS model ${voiceId} preloaded and cached`)
     } catch (err) {
-      logger.error(`Failed to preload TTS model ${voiceId}:`, err)
+      logger.error(`Failed to preload TTS model ${voiceId}:`, err as any)
       throw err
     }
   }
@@ -272,11 +268,9 @@ export class TTSServiceManager {
   async getCachedTTSModels(): Promise<string[]> {
     try {
       const cachedModelIds = await modelCacheManager.getCachedModelIds()
-      return cachedModelIds
-        .filter(id => id.startsWith('tts-'))
-        .map(id => id.replace('tts-', ''))
+      return cachedModelIds.filter(id => id.startsWith('tts-')).map(id => id.replace('tts-', ''))
     } catch (err) {
-      logger.error('Failed to get cached TTS models:', err)
+      logger.error('Failed to get cached TTS models:', err as any)
       return []
     }
   }
@@ -287,7 +281,7 @@ export class TTSServiceManager {
       await modelCacheManager.removeCachedModel(modelId)
       logger.info(`TTS model ${voiceId} removed from cache`)
     } catch (err) {
-      logger.error(`Failed to remove TTS model ${voiceId}:`, err)
+      logger.error(`Failed to remove TTS model ${voiceId}:`, err as any)
       throw err
     }
   }
@@ -329,7 +323,7 @@ export class TTSServiceManager {
       this.error.value = `本地 TTS 库加载失败: ${errorMessage}。将使用浏览器内置语音合成。`
       this.isEngineLoaded.value = false
       this.loadStatus.value = '加载失败，使用浏览器内置 TTS'
-      logger.error('TTS engine loading failed:', err)
+      logger.error('TTS engine loading failed:', err as any)
 
       // 降级策略：不抛出错误，允许使用浏览器内置 TTS
       // 标记为不支持本地 TTS，但可以使用浏览器 TTS
@@ -381,7 +375,7 @@ export class TTSServiceManager {
       }
       logger.info('TTS cache cleared')
     } catch (err) {
-      logger.error('Failed to clear TTS cache:', err)
+      logger.error('Failed to clear TTS cache:', err as any)
     }
   }
 
@@ -406,7 +400,7 @@ export class TTSServiceManager {
 
       logger.info('TTS service cleaned up')
     } catch (err) {
-      logger.error('TTS cleanup failed:', err)
+      logger.error('TTS cleanup failed:', err as any)
     }
   }
 }

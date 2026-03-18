@@ -1,3 +1,15 @@
+// ===== Compiler Warning Suppression =====
+// Note: Some warnings are suppressed for intentional reasons:
+// - dead_code: Public API items not yet used by other crates
+// - unused_variables: Variables reserved for future use
+// - unused_imports: Imports for public API exports
+// - unused_mut: Mutable variables for future features
+// - ambiguous_glob_reexports: Intentional re-exports for convenience
+// - static_mut_refs: Static mutable refs for singleton patterns (with proper synchronization)
+// - unused_must_use: Result values intentionally ignored in certain contexts
+
+// Temporarily suppress warnings during development
+// TODO: Gradually remove these as the library stabilizes
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]

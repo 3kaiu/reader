@@ -1,7 +1,7 @@
 /**
  * 文本转语音组合函数
  */
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import { useVoiceStore } from '@/stores'
 
 export function useTTS() {
@@ -23,12 +23,15 @@ export function useTTS() {
     speechSynthesis.onvoiceschanged = updateVoices
   }
 
-  const speak = (text: string, options: {
-    voice?: SpeechSynthesisVoice
-    rate?: number
-    pitch?: number
-    volume?: number
-  } = {}) => {
+  const speak = (
+    text: string,
+    options: {
+      voice?: SpeechSynthesisVoice
+      rate?: number
+      pitch?: number
+      volume?: number
+    } = {}
+  ) => {
     if (!isSupported.value || !text.trim()) return
 
     // 停止当前播放
@@ -50,7 +53,7 @@ export function useTTS() {
       voiceStore.stop()
     }
 
-    utterance.onerror = (error) => {
+    utterance.onerror = error => {
       console.error('TTS error:', error)
       voiceStore.stop()
     }
@@ -80,8 +83,8 @@ export function useTTS() {
   }
 
   const getVoiceByLanguage = (language: string): SpeechSynthesisVoice | undefined => {
-    return availableVoices.value.find(voice =>
-      voice.lang.startsWith(language) || voice.lang.includes(language)
+    return availableVoices.value.find(
+      voice => voice.lang.startsWith(language) || voice.lang.includes(language)
     )
   }
 
@@ -96,6 +99,6 @@ export function useTTS() {
     pause,
     resume,
     stop,
-    getVoiceByLanguage
+    getVoiceByLanguage,
   }
 }

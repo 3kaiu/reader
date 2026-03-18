@@ -1,7 +1,7 @@
 /**
  * 确认对话框组合函数
  */
-import { ref } from 'vue'
+import { ref, readonly } from 'vue'
 
 interface ConfirmOptions {
   title?: string
@@ -19,15 +19,15 @@ export function useConfirm() {
   }>({
     visible: false,
     options: null,
-    resolve: null
+    resolve: null,
   })
 
   const showConfirm = (options: ConfirmOptions): Promise<boolean> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       confirmDialog.value = {
         visible: true,
         options,
-        resolve
+        resolve,
       }
     })
   }
@@ -40,7 +40,7 @@ export function useConfirm() {
     confirmDialog.value = {
       visible: false,
       options: null,
-      resolve: null
+      resolve: null,
     }
   }
 
@@ -52,6 +52,6 @@ export function useConfirm() {
     confirmDialog: readonly(confirmDialog),
     showConfirm,
     handleConfirm,
-    hideConfirm
+    hideConfirm,
   }
 }

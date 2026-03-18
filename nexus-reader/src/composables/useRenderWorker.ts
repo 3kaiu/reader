@@ -5,7 +5,7 @@
  * like text rendering, image processing, and content parsing.
  */
 
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, readonly } from 'vue'
 import { logger } from '@/utils/logger'
 
 export interface RenderTask {
@@ -69,7 +69,7 @@ export function useRenderWorker() {
               data: result,
               duration: performance.now()
             });
-          } catch (error) {
+          } catch (error: any) {
             self.postMessage({
               taskId,
               success: false,
@@ -115,7 +115,7 @@ export function useRenderWorker() {
       const blob = new Blob([workerCode], { type: 'application/javascript' })
       worker.value = new Worker(URL.createObjectURL(blob))
 
-      worker.value.onmessage = (e) => {
+      worker.value.onmessage = e => {
         const result: RenderResult = e.data
         results.value.set(result.taskId, result)
 
@@ -125,17 +125,17 @@ export function useRenderWorker() {
         logger.debug('Render task completed', {
           taskId: result.taskId,
           success: result.success,
-          duration: result.duration
+          duration: result.duration,
         })
       }
 
-      worker.value.onerror = (error) => {
+      worker.value.onerror = error => {
         logger.error('Render worker error', { error })
       }
 
       isReady.value = true
       logger.info('Render worker initialized')
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to initialize render worker', { error })
     }
   }
@@ -153,7 +153,7 @@ export function useRenderWorker() {
     worker.value.postMessage(task)
 
     // Wait for result (simplified - in real implementation you'd use promises)
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
       const checkResult = () => {
         const result = results.value.get(task.id)
         if (result) {
@@ -219,9 +219,6 @@ export function useRenderWorker() {
     cleanup,
 
     // Re-init if needed
-    initWorker
+    initWorker,
   }
 }
-
-// Export types
-export type { RenderTask, RenderResult }

@@ -1,7 +1,7 @@
 /**
  * 用户参与度跟踪组合函数
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, readonly } from 'vue'
 import { useStatisticsStore } from '@/stores'
 
 export function useEngagementTracker() {
@@ -35,7 +35,7 @@ export function useEngagementTracker() {
       sessionId: sessionId.value,
       userAgent: navigator.userAgent,
       referrer: document.referrer,
-      url: window.location.href
+      url: window.location.href,
     })
   }
 
@@ -60,7 +60,7 @@ export function useEngagementTracker() {
         duration: sessionDuration,
         pageViews: pageViews.value,
         interactions: interactions.value,
-        readingTime: readingTime.value
+        readingTime: readingTime.value,
       })
     }
   }
@@ -74,7 +74,7 @@ export function useEngagementTracker() {
       if (timeSinceLastActivity > 5 * 60 * 1000) {
         trackEvent('user_idle', {
           idleTime: timeSinceLastActivity,
-          sessionId: sessionId.value
+          sessionId: sessionId.value,
         })
       }
     }, 60000) // 每分钟检查一次
@@ -90,11 +90,11 @@ export function useEngagementTracker() {
       if (document.hidden) {
         trackEvent('page_hidden', {
           sessionId: sessionId.value,
-          timeSpent: Date.now() - (sessionStartTime.value || Date.now())
+          timeSpent: Date.now() - (sessionStartTime.value || Date.now()),
         })
       } else {
         trackEvent('page_visible', {
-          sessionId: sessionId.value
+          sessionId: sessionId.value,
         })
       }
     }
@@ -117,7 +117,7 @@ export function useEngagementTracker() {
         sessionId: sessionId.value,
         eventType: event.type,
         element: (event.target as HTMLElement)?.tagName?.toLowerCase(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     }
 
@@ -134,14 +134,13 @@ export function useEngagementTracker() {
   }
 
   const trackReadingActivity = () => {
-    let readingStartTime = Date.now()
-
     readingTimer = setInterval(() => {
       // 检查用户是否在阅读（基于滚动或键盘活动）
       const now = Date.now()
       const timeSinceActivity = now - lastActivityTime.value
 
-      if (timeSinceActivity < 30000) { // 30秒内有活动
+      if (timeSinceActivity < 30000) {
+        // 30秒内有活动
         readingTime.value += 10000 // 10秒阅读时间
       }
     }, 10000) // 每10秒更新
@@ -154,20 +153,19 @@ export function useEngagementTracker() {
         ...data,
         timestamp: Date.now(),
         userId: 'anonymous', // 可以从store获取
-        sessionId: sessionId.value
-      }
+        sessionId: sessionId.value,
+      },
     }
 
     // 发送到统计系统
-    statisticsStore.recordEvent(event)
+    statisticsStore.recordFeatureUsage(event.eventName)
 
     // 可以发送到外部分析服务
     // sendToAnalytics(event)
   }
 
   const getEngagementMetrics = () => {
-    const sessionDuration = sessionStartTime.value ?
-      Date.now() - sessionStartTime.value : 0
+    const sessionDuration = sessionStartTime.value ? Date.now() - sessionStartTime.value : 0
 
     return {
       sessionId: sessionId.value,
@@ -176,7 +174,7 @@ export function useEngagementTracker() {
       interactions: interactions.value,
       readingTime: readingTime.value,
       engagementRate: interactions.value / Math.max(sessionDuration / 1000, 1),
-      averageSessionTime: sessionDuration / pageViews.value
+      averageSessionTime: sessionDuration / pageViews.value,
     }
   }
 
@@ -196,6 +194,6 @@ export function useEngagementTracker() {
     interactions: readonly(interactions),
     readingTime: readonly(readingTime),
     trackEvent,
-    getEngagementMetrics
+    getEngagementMetrics,
   }
 }

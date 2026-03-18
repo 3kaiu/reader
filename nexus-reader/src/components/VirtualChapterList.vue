@@ -226,7 +226,7 @@ const handleDownload = async (chapter: Chapter) => {
     chapter.isDownloading = false
     
     emit('download', chapter)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Chapter download failed:', error)
     chapter.isDownloading = false
   }
@@ -237,7 +237,7 @@ const handleRemoveCache = async (chapter: Chapter) => {
     // 这里应该调用实际的缓存移除API
     chapter.isCached = false
     emit('removeCache', chapter)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Remove cache failed:', error)
   }
 }
@@ -327,7 +327,7 @@ const batchDownload = async () => {
     
     emit('batchDownload', chaptersToDownload)
     clearSelection()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Batch download failed:', error)
   }
 }
@@ -370,7 +370,7 @@ const preloadNearbyChapters = async (range: { start: number; end: number }) => {
   if (chaptersToPreload.length > 0) {
     try {
       await offlineService.batchCacheContent(chaptersToPreload)
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Preload failed:', error)
     }
   }

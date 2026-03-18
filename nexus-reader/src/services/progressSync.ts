@@ -41,7 +41,7 @@ async function loadLocal(bookId: string): Promise<ReadingProgress | null> {
   try {
     // 1. Try IndexedDB
     const progress = await nexusDB.get(StoreNames.PROGRESS, bookId)
-    if (progress) return progress
+    if (progress) return progress as any
 
     // 2. Migration: Try legacy localStorage
     const legacyData = localStorage.getItem(`${LOCAL_KEY_PREFIX}${bookId}`)
@@ -207,5 +207,5 @@ export async function getAllLocalProgress(): Promise<ReadingProgress[]> {
   const results = await nexusDB.getAll(StoreNames.PROGRESS)
 
   // Combine with legacy if needed (optional, or just return IDB)
-  return results
+  return results as any
 }

@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const mockAdaptiveLoader = {
-  loadHeavyModule: vi.fn().mockImplementation(async (_name, loader) => {
+  loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => {
     return {
       PiperWebWorkerEngine: class {
         speak = vi.fn().mockResolvedValue(new ArrayBuffer(1024))
@@ -63,7 +63,6 @@ global.fetch = vi.fn()
 
 describe('TTS Model Cache Properties', () => {
   // Create a fresh instance for each test to avoid singleton issues
-  let ttsService: any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -109,12 +108,10 @@ describe('TTS Model Cache Properties', () => {
       ; (global.window as any).removeEventListener = vi.fn()
 
     // Create a fresh TTS service instance for each test
-    ttsService = null
   })
 
   afterEach(() => {
     vi.clearAllMocks()
-    ttsService = null
   })
 
   // Helper function to create a fresh TTS service instance

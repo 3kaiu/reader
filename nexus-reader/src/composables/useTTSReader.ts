@@ -1,7 +1,7 @@
 /**
  * TTS阅读器组合函数
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, readonly } from 'vue'
 import { useTTS } from './useTTS'
 import { useReaderStore } from '@/stores'
 
@@ -40,7 +40,10 @@ export function useTTSReader() {
   }
 
   const readCurrentPosition = () => {
-    if (!currentChapter.value?.content || currentPosition.value >= currentChapter.value.content.length) {
+    if (
+      !currentChapter.value?.content ||
+      currentPosition.value >= currentChapter.value.content.length
+    ) {
       stopReading()
       return
     }
@@ -52,7 +55,7 @@ export function useTTSReader() {
 
     speak(segment, {
       rate: readingSpeed.value,
-      voice: availableVoices.value.find(v => v.lang.startsWith('zh')) || availableVoices.value[0]
+      voice: availableVoices.value.find(v => v.lang.startsWith('zh')) || availableVoices.value[0],
     })
 
     currentPosition.value += segment.length
@@ -65,10 +68,8 @@ export function useTTSReader() {
   const skipForward = (seconds: number = 10) => {
     // 估算跳过的字符数（基于语速）
     const charsToSkip = Math.floor(seconds * readingSpeed.value * 20)
-    currentPosition.value = Math.min(
-      currentPosition.value + charsToSkip,
-      currentChapter.value?.content.length || 0
-    )
+    const contentLength = currentChapter.value?.content?.length ?? 0
+    currentPosition.value = Math.min(currentPosition.value + charsToSkip, contentLength)
 
     if (isReading.value) {
       readCurrentPosition()
@@ -85,7 +86,7 @@ export function useTTSReader() {
   }
 
   // 监听TTS结束事件，继续阅读下一段
-  watch(isSpeaking, (speaking) => {
+  watch(isSpeaking, speaking => {
     if (!speaking && isReading.value) {
       // 短暂延迟后继续阅读
       setTimeout(readCurrentPosition, 500)
@@ -102,6 +103,6 @@ export function useTTSReader() {
     resumeReading,
     setReadingSpeed,
     skipForward,
-    skipBackward
+    skipBackward,
   }
 }

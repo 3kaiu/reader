@@ -52,7 +52,7 @@ export class OfflineManager {
       lastOnlineTime: this.lastOnlineTime,
       offlineDuration: this.isOnline ? 0 : Date.now() - this.lastOnlineTime,
       queuedOperations: this.operationQueue.length,
-      cachedContent: this.cachedContent.size
+      cachedContent: this.cachedContent.size,
     }
   }
 
@@ -64,7 +64,9 @@ export class OfflineManager {
   // 清空操作队列
   clearQueue(): void {
     this.operationQueue = []
-    nexusDB.clear(StoreNames.SYNC_QUEUE).catch(err => console.error('Failed to clear sync queue', err))
+    nexusDB
+      .clear(StoreNames.SYNC_QUEUE)
+      .catch(err => console.error('Failed to clear sync queue', err))
     this.notifyListeners()
   }
 
@@ -81,13 +83,12 @@ export class OfflineManager {
       method: operation.method,
       url: operation.url,
       data: operation.data,
-      priority: 'NORMAL'
+      priority: 'NORMAL',
     })
 
     // Refresh local snapshot for UI/status
     this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
 
-    console.log('📱 Operation queued for offline sync:', operation.type)
     this.notifyListeners()
   }
 
@@ -95,13 +96,12 @@ export class OfflineManager {
   cacheContent(content: Omit<CachedContent, 'timestamp'>): void {
     const cachedItem: CachedContent = {
       ...content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
 
     this.cachedContent.set(content.id, cachedItem)
     this.persistCachedContent()
 
-    console.log('💾 Content cached for offline access:', content.type, content.id)
     this.notifyListeners()
   }
 
@@ -121,10 +121,11 @@ export class OfflineManager {
 
     if (query) {
       const lowerQuery = query.toLowerCase()
-      filtered = filtered.filter(item =>
-        item.id.toLowerCase().includes(lowerQuery) ||
-        item.url.toLowerCase().includes(lowerQuery) ||
-        (typeof item.data === 'string' && item.data.toLowerCase().includes(lowerQuery))
+      filtered = filtered.filter(
+        item =>
+          item.id.toLowerCase().includes(lowerQuery) ||
+          item.url.toLowerCase().includes(lowerQuery) ||
+          (typeof item.data === 'string' && item.data.toLowerCase().includes(lowerQuery))
       )
     }
 
@@ -154,7 +155,6 @@ export class OfflineManager {
 
     if (expiredIds.length > 0) {
       this.persistCachedContent()
-      console.log(`🧹 Cleaned up ${expiredIds.length} expired cached items`)
       this.notifyListeners()
     }
   }
@@ -200,11 +200,9 @@ export class OfflineManager {
   // 预缓存重要内容
   async precacheImportantContent(contentIds: string[]): Promise<void> {
     if (!this.isOnline) {
-      console.warn('Cannot precache content while offline')
+      logger.warn('Cannot precache content while offline')
       return
     }
-
-    console.log(`📦 Precaching ${contentIds.length} important items...`)
 
     for (const id of contentIds) {
       try {
@@ -218,15 +216,13 @@ export class OfflineManager {
             url: content.url,
             data: content.data,
             size: this.calculateContentSize(content.data),
-            priority: 10 // 高优先级
+            priority: 10, // 高优先级
           })
         }
-      } catch (error) {
-        console.error('Failed to precache content:', id, error)
+      } catch (error: unknown) {
+        logger.error('Failed to precache content:', { id, error })
       }
     }
-
-    console.log('✅ Precaching completed')
   }
 
   // 导出离线数据
@@ -238,24 +234,22 @@ export class OfflineManager {
     return {
       operations: [...this.operationQueue],
       content: Array.from(this.cachedContent.values()),
-      status: this.getOfflineStatus()
+      status: this.getOfflineStatus(),
     }
   }
 
   // 导入离线数据
-  importOfflineData(data: {
-    operations?: SyncTask[]
-    content?: CachedContent[]
-  }): void {
+  importOfflineData(data: { operations?: SyncTask[]; content?: CachedContent[] }): void {
     if (data.operations) {
       this.operationQueue = data.operations
-      nexusDB.clear(StoreNames.SYNC_QUEUE)
+      nexusDB
+        .clear(StoreNames.SYNC_QUEUE)
         .then(async () => {
           for (const task of data.operations!) {
             await nexusDB.put(StoreNames.SYNC_QUEUE, task)
           }
         })
-        .catch(err => console.error('Failed to import sync queue', err))
+        .catch(err => logger.error('Failed to import sync queue', { error: err }))
     }
 
     if (data.content) {
@@ -267,27 +261,24 @@ export class OfflineManager {
     }
 
     this.notifyListeners()
-    console.log('📥 Offline data imported successfully')
   }
 
   private initOfflineDetection(): void {
     // 监听网络状态变化
-    networkDetector.addNetworkChangeListener((info) => {
+    networkDetector.addNetworkChangeListener(info => {
       const wasOnline = this.isOnline
       this.isOnline = info.isOnline
 
       if (wasOnline && !this.isOnline) {
         // 刚刚离线
-        console.log('📱 Gone offline')
         this.lastOnlineTime = Date.now()
       } else if (!wasOnline && this.isOnline) {
         // 刚刚上线
-        console.log('🌐 Back online')
         this.lastOnlineTime = Date.now()
 
         // 自动同步队列中的操作
         setTimeout(() => {
-          this.syncQueuedOperations().catch(console.error)
+          this.syncQueuedOperations().catch(logger.error)
         }, 1000)
       }
 
@@ -328,10 +319,10 @@ export class OfflineManager {
 
   private getMaxAgeForContentType(type: string): number {
     const maxAges: Record<string, number> = {
-      'chapter': 7 * 24 * 60 * 60 * 1000,      // 7天
-      'book': 30 * 24 * 60 * 60 * 1000,        // 30天
-      'image': 14 * 24 * 60 * 60 * 1000,       // 14天
-      'api-response': 24 * 60 * 60 * 1000       // 1天
+      chapter: 7 * 24 * 60 * 60 * 1000, // 7天
+      book: 30 * 24 * 60 * 60 * 1000, // 30天
+      image: 14 * 24 * 60 * 60 * 1000, // 14天
+      'api-response': 24 * 60 * 60 * 1000, // 1天
     }
     return maxAges[type] || 24 * 60 * 60 * 1000
   }
@@ -343,7 +334,7 @@ export class OfflineManager {
       for (const item of this.cachedContent.values()) {
         await nexusDB.put(StoreNames.OFFLINE_CONTENT, item)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to persist cached content:', error)
     }
   }
@@ -384,8 +375,10 @@ export class OfflineManager {
         localStorage.removeItem('offline_content')
       }
 
-      console.log(`📱 Loaded offline data: ${this.operationQueue.length} operations, ${this.cachedContent.size} cached items`)
-    } catch (error) {
+      console.log(
+        `📱 Loaded offline data: ${this.operationQueue.length} operations, ${this.cachedContent.size} cached items`
+      )
+    } catch (error: any) {
       console.error('Failed to load persisted offline data:', error)
     }
   }
@@ -395,8 +388,8 @@ export class OfflineManager {
     this.listeners.forEach(listener => {
       try {
         listener(status)
-      } catch (error) {
-        console.error('Offline status listener error:', error)
+      } catch (error: unknown) {
+        logger.error('Offline status listener error:', { error })
       }
     })
   }
@@ -420,7 +413,7 @@ export class OfflineContentServer {
     // 首先尝试从离线管理器获取
     const cached = this.offlineManager.getCachedContent(cacheKey)
     if (cached) {
-      console.log('📱 Serving from offline cache:', url)
+      logger.debug('Serving from offline cache:', { url })
       return cached.data
     }
 
@@ -431,9 +424,7 @@ export class OfflineContentServer {
   isContentAvailableOffline(url: string): boolean {
     const cacheKey = this.generateCacheKey(url)
 
-    return (
-      this.offlineManager.getCachedContent(cacheKey) !== null
-    )
+    return this.offlineManager.getCachedContent(cacheKey) !== null
   }
 
   // 获取离线可用的内容列表
@@ -449,7 +440,7 @@ export class OfflineContentServer {
       url: content.url,
       type: content.type,
       size: content.size,
-      timestamp: content.timestamp
+      timestamp: content.timestamp,
     }))
   }
 
@@ -469,9 +460,12 @@ if (typeof window !== 'undefined') {
   offlineManager.startAutoSync()
 
   // 定期清理过期内容
-  setInterval(() => {
-    offlineManager.cleanupExpiredContent()
-  }, 60 * 60 * 1000) // 每小时清理一次
+  setInterval(
+    () => {
+      offlineManager.cleanupExpiredContent()
+    },
+    60 * 60 * 1000
+  ) // 每小时清理一次
 
   // 页面卸载时停止自动同步
   window.addEventListener('beforeunload', () => {
@@ -479,14 +473,14 @@ if (typeof window !== 'undefined') {
   })
 
   // 监听离线状态变化
-  offlineManager.addStatusListener((status) => {
+  offlineManager.addStatusListener(status => {
     console.log('📱 Offline status changed:', status)
 
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('offline_status', status.isOnline ? 1 : 0, {
         queuedOperations: status.queuedOperations,
         cachedContent: status.cachedContent,
-        offlineDuration: status.offlineDuration
+        offlineDuration: status.offlineDuration,
       })
     }
   })
@@ -522,6 +516,6 @@ export function getOfflineCapabilities(): {
     canCache: 'localStorage' in window,
     canQueue: 'localStorage' in window,
     canSync: 'fetch' in window,
-    storageAvailable: 'localStorage' in window && 'sessionStorage' in window
+    storageAvailable: 'localStorage' in window && 'sessionStorage' in window,
   }
 }

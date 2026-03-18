@@ -12,7 +12,7 @@ interface ServiceLifetime {
 
 interface ServiceDescriptor<T = any> {
   token: string | symbol
-  implementation: new (...args: any[]) => T | (() => T)
+  implementation: new (...args: any[]) => T | (() => T) | any
   lifetime: keyof ServiceLifetime
   dependencies?: (string | symbol)[]
   factory?: () => T
@@ -59,13 +59,13 @@ export class DependencyInjectionContainer {
       token,
       implementation,
       lifetime,
-      dependencies
+      dependencies,
     })
 
     logger.debug('Service registered', {
       token: token.toString(),
       lifetime,
-      dependencies: dependencies.map(d => d.toString())
+      dependencies: dependencies.map(d => d.toString()),
     })
   }
 
@@ -79,9 +79,9 @@ export class DependencyInjectionContainer {
   ): void {
     this.services.set(token, {
       token,
-      implementation: factory,
+      implementation: factory as any,
       lifetime,
-      factory
+      factory,
     })
 
     logger.debug('Factory registered', { token: token.toString(), lifetime })
@@ -93,14 +93,14 @@ export class DependencyInjectionContainer {
   registerInstance<T>(token: string | symbol, instance: T): void {
     const descriptor: ServiceDescriptor<T> = {
       token,
-      implementation: () => instance,
-      lifetime: 'singleton'
+      implementation: (() => instance) as any,
+      lifetime: 'singleton',
     }
 
     this.instances.set(token, {
       instance,
       descriptor,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     })
 
     logger.debug('Instance registered', { token: token.toString() })
@@ -145,15 +145,15 @@ export class DependencyInjectionContainer {
           instance = new (descriptor.implementation as new (...args: any[]) => T)(...dependencies)
         } else {
           // 工厂函数
-          instance = (descriptor.implementation as () => T)()
+          instance = (descriptor.implementation as unknown as () => T)()
         }
       } else {
         throw new Error(`Invalid implementation for service: ${token.toString()}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to create service instance', {
         token: token.toString(),
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       })
       throw error
     }
@@ -163,7 +163,7 @@ export class DependencyInjectionContainer {
       instance,
       descriptor,
       createdAt: Date.now(),
-      scopeId
+      scopeId,
     }
 
     switch (descriptor.lifetime) {
@@ -187,7 +187,7 @@ export class DependencyInjectionContainer {
     logger.debug('Service resolved', {
       token: token.toString(),
       lifetime: descriptor.lifetime,
-      scopeId
+      scopeId,
     })
 
     return instance
@@ -221,16 +221,18 @@ export class DependencyInjectionContainer {
       // 调用可销毁实例的清理方法
       for (const [token, serviceInstance] of scopedInstances) {
         try {
-          if (typeof serviceInstance.instance === 'object' &&
+          if (
+            typeof serviceInstance.instance === 'object' &&
             serviceInstance.instance !== null &&
-            'dispose' in serviceInstance.instance) {
-            (serviceInstance.instance as any).dispose()
+            'dispose' in serviceInstance.instance
+          ) {
+            ;(serviceInstance.instance as any).dispose()
           }
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('Failed to dispose scoped service', {
             token: token.toString(),
             scopeId,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           })
         }
       }
@@ -263,7 +265,7 @@ export class DependencyInjectionContainer {
     for (const [token, descriptor] of this.services) {
       services.push({
         token,
-        lifetime: descriptor.lifetime
+        lifetime: descriptor.lifetime,
       })
     }
 
@@ -288,7 +290,7 @@ export class DependencyInjectionContainer {
       registeredServices: this.services.size,
       singletonInstances: this.instances.size,
       activeScopes: this.scopes.size,
-      scopedInstances
+      scopedInstances,
     }
   }
 
@@ -314,15 +316,17 @@ export class DependencyInjectionContainer {
     // 清理单例实例
     for (const [token, serviceInstance] of this.instances) {
       try {
-        if (typeof serviceInstance.instance === 'object' &&
+        if (
+          typeof serviceInstance.instance === 'object' &&
           serviceInstance.instance !== null &&
-          'dispose' in serviceInstance.instance) {
-          (serviceInstance.instance as any).dispose()
+          'dispose' in serviceInstance.instance
+        ) {
+          ;(serviceInstance.instance as any).dispose()
         }
-      } catch (error) {
+      } catch (error: any) {
         logger.warn('Failed to dispose service', {
           token: token.toString(),
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         })
       }
     }
@@ -341,7 +345,7 @@ export function Injectable(token?: string | symbol) {
     const container = DependencyInjectionContainer.getInstance()
 
     // 自动分析构造函数依赖
-    const paramTypes = Reflect.getMetadata('design:paramtypes', constructor) || []
+    const paramTypes = (Reflect as any).getMetadata?.('design:paramtypes', constructor) || []
     const dependencies = paramTypes.map((paramType: any) => paramType.name)
 
     container.register(serviceToken, constructor, 'singleton', dependencies)
@@ -354,15 +358,15 @@ export function Inject(token: string | symbol) {
 
     if (parameterIndex !== undefined) {
       // 构造函数参数注入
-      const existingDeps = Reflect.getMetadata('design:paramtypes', target) || []
+      const existingDeps = (Reflect as any).getMetadata('design:paramtypes', target) || []
       existingDeps[parameterIndex] = token
-      Reflect.defineMetadata('design:paramtypes', existingDeps, target)
+      ;(Reflect as any).defineMetadata('design:paramtypes', existingDeps, target)
     } else {
       // 属性注入
       Object.defineProperty(target, propertyKey, {
         get: () => container.resolve(token),
         enumerable: true,
-        configurable: true
+        configurable: true,
       })
     }
   }

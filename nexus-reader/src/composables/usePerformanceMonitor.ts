@@ -5,7 +5,7 @@
  * for the Nexus Reader application.
  */
 
-import { ref, reactive, readonly } from 'vue'
+import { reactive, readonly } from 'vue'
 
 export interface PerformanceMetric {
   name: string
@@ -30,7 +30,7 @@ class PerformanceMonitor {
     this.config = {
       enabled: true,
       sampleRate: 0.1, // 10% sampling
-      maxMetrics: 1000
+      maxMetrics: 1000,
     }
   }
 
@@ -47,7 +47,7 @@ class PerformanceMonitor {
 
     const fullMetric: PerformanceMetric = {
       ...metric,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
 
     this.metrics.push(fullMetric)
@@ -81,7 +81,7 @@ class PerformanceMonitor {
       avg: values.reduce((a, b) => a + b, 0) / values.length,
       min: Math.min(...values),
       max: Math.max(...values),
-      latest: values[values.length - 1]
+      latest: values[values.length - 1],
     }
   }
 
@@ -100,7 +100,7 @@ export function usePerformanceMonitor() {
   const state = reactive({
     isEnabled: true,
     metricsCount: 0,
-    lastMetric: null as PerformanceMetric | null
+    lastMetric: null as PerformanceMetric | null,
   })
 
   const record = (metric: Omit<PerformanceMetric, 'timestamp'>) => {
@@ -118,9 +118,6 @@ export function usePerformanceMonitor() {
     getStats,
     clear: () => performanceMonitor.clear(),
     getMetrics: (name?: string) => performanceMonitor.getMetrics(name),
-    state: readonly(state)
+    state: readonly(state),
   }
 }
-
-// Export types
-export type { PerformanceMetric, PerformanceConfig }

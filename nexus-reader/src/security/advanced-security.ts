@@ -2,7 +2,7 @@
  * 高级安全加固系统
  * 提供全方位、多层次的安全防护
  */
-import { errorHandler, logger } from '@/utils/unified-utils'
+import { errorHandler as _errorHandler, logger } from '@/utils/unified-utils'
 
 interface SecurityEvent {
   id: string
@@ -229,7 +229,7 @@ export class AdvancedSecuritySystem {
               await rule.action({ request, context, ...threatCheck.data })
               this.activeDefenses.add(`${policy.id}:${rule.id}`)
             }
-          } catch (error) {
+          } catch (error: any) {
             logger.error('Security rule execution failed', {
               policy: policy.id,
               rule: rule.id,
@@ -247,7 +247,7 @@ export class AdvancedSecuritySystem {
 
       return { allowed: true }
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Request processing failed', { error })
       return { allowed: false, response: this.createErrorResponse() }
     }
@@ -318,7 +318,7 @@ export class AdvancedSecuritySystem {
   /**
    * 检查速率限制
    */
-  private isRateLimitExceeded(context: any): boolean {
+  private isRateLimitExceeded(_context: any): boolean {
     // 这里实现速率限制逻辑
     // 检查请求频率、并发连接等
     return false
@@ -327,7 +327,7 @@ export class AdvancedSecuritySystem {
   /**
    * 检测流量异常
    */
-  private detectTrafficAnomaly(context: any): boolean {
+  private detectTrafficAnomaly(_context: any): boolean {
     // 这里实现流量异常检测逻辑
     // 基于历史数据和机器学习算法
     return false
@@ -352,7 +352,7 @@ export class AdvancedSecuritySystem {
   /**
    * 检测暴力破解
    */
-  private detectBruteForce(context: any): boolean {
+  private detectBruteForce(_context: any): boolean {
     // 检查登录失败频率
     // 这里应该有状态跟踪逻辑
     return false
@@ -361,7 +361,7 @@ export class AdvancedSecuritySystem {
   /**
    * 检查可疑登录
    */
-  private isSuspiciousLogin(context: any): boolean {
+  private isSuspiciousLogin(_context: any): boolean {
     // 检查登录环境异常
     // 如非常用设备、地理位置异常等
     return false
@@ -428,7 +428,7 @@ export class AdvancedSecuritySystem {
   /**
    * 检查内容安全
    */
-  private async checkContentSecurity(request: Request): Promise<{ safe: boolean; violations?: string[] }> {
+  private async checkContentSecurity(_request: Request): Promise<{ safe: boolean; violations?: string[] }> {
     // 检查请求内容的安全性
     return { safe: true }
   }
@@ -446,7 +446,7 @@ export class AdvancedSecuritySystem {
   /**
    * 分析请求模式
    */
-  private analyzeRequestPattern(request: Request): { suspicious: boolean; patterns: string[] } {
+  private analyzeRequestPattern(_request: Request): { suspicious: boolean; patterns: string[] } {
     // 分析请求模式以检测异常行为
     return { suspicious: false, patterns: [] }
   }
@@ -535,13 +535,13 @@ export class AdvancedSecuritySystem {
   /**
    * 更新威胁情报
    */
-  private async updateThreatIntelligence(): void {
+  private async updateThreatIntelligence(): Promise<void> {
     try {
       // 从威胁情报源获取最新数据
       // 这里可以调用外部API或数据库
 
       logger.info('Threat intelligence updated')
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to update threat intelligence', { error })
     }
   }

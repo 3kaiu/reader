@@ -2,7 +2,7 @@
  * WebSocket连接状态管理
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import { errorHandler, logger } from '@/utils/unified-utils'
 
 interface WebSocketState {
@@ -65,7 +65,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
           }
 
           logger.debug('WebSocket message received', { message })
-        } catch (error) {
+        } catch (error: any) {
           logger.error('Failed to parse WebSocket message', { error, data: event.data })
         }
       }
@@ -81,10 +81,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
       ws.value.onerror = (error) => {
         state.value.connectionQuality = 'poor'
-        errorHandler.handle(error, { component: 'websocket-store', operation: 'connection' })
+        errorHandler.handle(error as any, { component: 'websocket-store', operation: 'connection' })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'websocket-store', operation: 'connect' })
     }
   }
@@ -116,7 +116,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
       ws.value.send(data)
       logger.debug('WebSocket message sent', { message })
       return true
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'websocket-store', operation: 'sendMessage' })
       return false
     }
@@ -146,7 +146,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   return {
     // State
-    state: readonly(state),
+    state: (readonly as any)(state),
 
     // Getters
     isConnected,

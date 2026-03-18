@@ -71,7 +71,7 @@ async function handleLogin() {
     } else {
       message.error(res.errorMsg || '登录失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     message.error('登录请求失败')
   } finally {
     loading.value = false
@@ -104,7 +104,7 @@ async function handleRegister() {
     } else {
       message.error(res.errorMsg || '注册失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     message.error('注册请求失败')
   } finally {
     loading.value = false

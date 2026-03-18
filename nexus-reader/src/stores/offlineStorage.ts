@@ -2,7 +2,7 @@
  * 离线存储状态管理
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import { errorHandler, logger, storage } from '@/utils/unified-utils'
 
 interface OfflineItem {
@@ -79,7 +79,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
       logger.info('Item stored offline', { id: item.id, type: item.type, size: fullItem.size })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'storeItem' })
     }
   }
@@ -95,11 +95,11 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
       // 从本地存储中查找
       const storedItem = await storage.get(`offline_${id}`)
       if (storedItem) {
-        return storedItem
+        return storedItem as any
       }
 
       return null
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'getItem' })
       return null
     }
@@ -119,9 +119,9 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
       }
 
       // 检查是否还有待同步项目
-      state.value.syncPending = state.value.items.some(item => item.type !== 'cache')
+      state.value.syncPending = state.value.items.some(item => (item as any).type !== 'cache')
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'removeItem' })
     }
   }
@@ -140,17 +140,17 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
       logger.info('All offline items cleared')
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'clearAll' })
     }
   }
 
   const syncWithServer = async () => {
     if (!state.value.isOnline || !state.value.syncPending) {
-                    return
-                }
+        return
+    }
 
-                try {
+    try {
       logger.info('Starting offline data sync...')
 
       const syncItems = state.value.items.filter(item =>
@@ -173,7 +173,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
       logger.info('Offline data sync completed', { itemsCount: syncItems.length })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'syncWithServer' })
     }
   }
@@ -197,23 +197,24 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
         try {
           const item = await storage.get(key)
           if (item) {
-            state.value.items.push(item)
-            state.value.totalSize += item.size
+            const storedItem = item as any
+            state.value.items.push(storedItem)
+            state.value.totalSize += storedItem.size || 0
           }
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('Failed to restore offline item', { key, error })
         }
       }
 
       // 检查是否有待同步项目
-      state.value.syncPending = state.value.items.some(item => item.type !== 'cache')
+      state.value.syncPending = state.value.items.some(item => (item as any).type !== 'cache')
 
       logger.info('Offline storage initialized', {
         itemsCount: state.value.items.length,
         totalSize: state.value.totalSize
       })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'offline-store', operation: 'initialize' })
     }
   }
@@ -221,9 +222,9 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
   // 自动初始化
   initialize()
 
-    return {
+  return {
     // State
-    state: readonly(state),
+    state: (readonly as any)(state),
 
     // Getters
     isOnline,

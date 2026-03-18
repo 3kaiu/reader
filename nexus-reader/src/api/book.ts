@@ -1,4 +1,4 @@
-import { api } from '@/utils/unified-utils'
+import { $get, $post, $put, $delete, $patch } from './client'
 
 // 安全解码 URL，避免双重编码
 // Vue Router hash 模式会自动编码查询参数，但 ofetch 的 params 也会编码
@@ -141,7 +141,7 @@ export interface DiscoveryResponse {
 export const bookApi = {
   // 获取书架
   getBookshelf: () =>
-    api.get<Book[]>('/bookshelf'),
+    $get<Book[]>('/bookshelf'),
 
   // 获取章节列表
   getChapterList: (source: string, url: string) => {
@@ -155,7 +155,7 @@ export const bookApi = {
 
     // 解码 URL，避免双重编码
     const decodedUrl = safeDecodeUrl(url)
-    return api.get<Chapter[]>('/chapters', {
+    return $get<Chapter[]>('/chapters', {
       params: { source: source.trim(), url: decodedUrl },
     })
   },
@@ -172,11 +172,11 @@ export const bookApi = {
 
     // 解码 URL，避免双重编码
     const decodedUrl = safeDecodeUrl(url)
-    return api.get<ChapterContent>('/content', { params: { source: source.trim(), url: decodedUrl } })
+    return $get<ChapterContent>('/content', { params: { source: source.trim(), url: decodedUrl } })
   },
 
   // 搜索书籍 (Nexus-lite 使用 POST /search)
-  search: (keyword: string) => api.post<SearchResponse>('/search', { keyword }),
+  search: (keyword: string) => $post<SearchResponse>('/search', { keyword }),
 
   // 保存书籍到书架
   saveBook: (book: {
@@ -187,7 +187,7 @@ export const bookApi = {
     coverUrl?: string
     intro?: string
   }) =>
-    api.post<Book>('/bookshelf', {
+    $post<Book>('/bookshelf', {
       source_id: book.sourceId,
       book_url: book.bookUrl,
       name: book.name,
@@ -197,7 +197,7 @@ export const bookApi = {
     }),
 
   // 从书架删除书籍 (使用 ID)
-  deleteBook: (id: string) => api.delete(`/bookshelf/${id}`),
+  deleteBook: (id: string) => $delete(`/bookshelf/${id}`),
 
   // 获取书籍详细信息
   getBookInfo: (source: string, url: string) => {
@@ -225,18 +225,18 @@ export const bookApi = {
 
     // 解码 URL，避免双重编码（Vue Router hash 模式会自动编码查询参数）
     const decodedUrl = safeDecodeUrl(url)
-    return api.get<Book>('/book', { params: { source: source.trim(), url: decodedUrl } })
+    return $get<Book>('/book', { params: { source: source.trim(), url: decodedUrl } })
   },
 
   // 保存阅读进度
   saveBookProgress: (id: string, chapterIndex: number, position: number) =>
-    api.patch(`/bookshelf/${id}`, { chapter_index: chapterIndex, position }),
+    $patch(`/bookshelf/${id}`, { chapter_index: chapterIndex, position }),
 
   // 移动书籍到分组
   moveToGroup: (id: string, groupId: string | null) =>
-    api.put(`/bookshelf/${id}`, { group_id: groupId }),
+    $put(`/bookshelf/${id}`, { group_id: groupId }),
 
   // 获取发现页数据
   getDiscovery: (period?: string) =>
-    api.get<DiscoveryResponse>('/discovery', { params: { period } }),
+    $get<DiscoveryResponse>('/discovery', { params: { period } }),
 }

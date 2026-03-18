@@ -103,7 +103,7 @@ export class IntegrationTestEnvironment {
       this.isSetup = true;
       console.log('✅ Integration test environment ready');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to setup integration test environment:', error);
       await this.teardown();
       throw error;
@@ -253,7 +253,7 @@ export class IntegrationTestEnvironment {
     const mockFetch = vi.fn();
 
     // Setup fetch responses for different endpoints
-    mockFetch.mockImplementation((url: string, options?: any) => {
+    mockFetch.mockImplementation((url: string, _options?: any) => {
       const urlStr = url.toString();
 
       // Analytics endpoint
@@ -298,7 +298,8 @@ export class IntegrationTestEnvironment {
 
     // Cleanup function to restore original fetch
     this.cleanup.push(async () => {
-      global.fetch = originalFetch;
+      // @ts-ignore
+  globalThis.__originalConsole = originalConsole;
     });
 
     console.log('✅ Network mocks setup complete');
@@ -470,7 +471,7 @@ export class IntegrationTestEnvironment {
           results.failedRequests++;
         }
         
-      } catch (error) {
+      } catch (error: any) {
         results.totalRequests++;
         results.failedRequests++;
         results.responseTimes.push(Date.now() - requestStart);
@@ -507,7 +508,7 @@ export class IntegrationTestEnvironment {
     if (thresholds.maxResponseTime) {
       const avgTimes = stats.averageResponseTimes || {};
       Object.entries(avgTimes).forEach(([endpoint, avgTime]) => {
-        if (avgTime > thresholds.maxResponseTime!) {
+        if ((avgTime as number) > thresholds.maxResponseTime!) {
           violations.push(`${endpoint} average response time ${avgTime}ms exceeds ${thresholds.maxResponseTime}ms`);
         }
       });
@@ -517,7 +518,7 @@ export class IntegrationTestEnvironment {
     if (thresholds.maxMemoryUsage) {
       const memUsage = stats.memoryUsage || {};
       Object.entries(memUsage).forEach(([component, usage]) => {
-        if (usage > thresholds.maxMemoryUsage!) {
+        if ((usage as number) > thresholds.maxMemoryUsage!) {
           violations.push(`${component} memory usage ${usage} bytes exceeds ${thresholds.maxMemoryUsage} bytes`);
         }
       });
@@ -544,7 +545,7 @@ export class IntegrationTestEnvironment {
     for (const cleanupFn of this.cleanup) {
       try {
         await cleanupFn();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Cleanup error:', error);
       }
     }
@@ -587,6 +588,11 @@ export async function setupIntegrationTests(config?: Partial<IntegrationTestConf
 export async function teardownIntegrationTests(): Promise<void> {
   if (globalTestEnv) {
     await globalTestEnv.teardown();
-    globalTestEnv = null;
+    // @ts-ignore
+  if (globalThis.__originalConsole) {
+    // @ts-ignore
+    Object.assign(console, globalThis.__originalConsole);
+  }
+  globalTestEnv = null;
   }
 }

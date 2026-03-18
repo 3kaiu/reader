@@ -1,0 +1,115 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  deploy-worker:
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ./cloudflare-workers
+        run: npm ci
+
+      - name: Configure Wrangler
+        working-directory: ./cloudflare-workers
+        run: |
+          # Create .dev.vars from GitHub Secrets
+          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" > .dev.vars
+          echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" >> .dev.vars
+          echo "HUGGINGFACE_API_KEY=${{ secrets.HF_TOKEN }}" >> .dev.vars
+          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .dev.vars
+          echo "OAUTH_GITHUB_CLIENT_ID=${{ secrets.OAUTH_GITHUB_CLIENT_ID }}" >> .dev.vars
+          echo "OAUTH_GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" >> .dev.vars
+
+          # Replace placeholders in wrangler.toml
+          sed -i "s/YOUR_ANALYTICS_DB_ID_HERE/${{ secrets.CF_ANALYTICS_DB_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_USER_PREFS_DB_ID_HERE/${{ secrets.CF_USER_PREFS_DB_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_PROGRESS_KV_ID_HERE/${{ secrets.CF_PROGRESS_KV_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_CONTENT_CACHE_KV_ID_HERE/${{ secrets.CF_CONTENT_CACHE_KV_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_DECODER_KV_ID_HERE/${{ secrets.CF_DECODER_KV_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_AI_CACHE_KV_ID_HERE/${{ secrets.CF_AI_CACHE_KV_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_PROD_ANALYTICS_DB_ID_HERE/${{ secrets.CF_PROD_ANALYTICS_DB_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_PROD_USER_PREFS_DB_ID_HERE/${{ secrets.CF_PROD_USER_PREFS_DB_ID }}/g" wrangler.toml
+          sed -i "s/YOUR_PROD_PROGRESS_KV_ID_HERE/${{ secrets.CF_PROD_PROGRESS_KV_ID }}/g" wrangler.toml
+
+      - name: Deploy to Cloudflare Workers
+        working-directory: ./cloudflare-workers
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-frontend:
+    name: Deploy Frontend to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ./nexus-reader
+        run: bun install
+
+      - name: Build frontend
+        working-directory: ./nexus-reader
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_NEXUS_LITE_DIRECT_URL: ${{ secrets.VITE_NEXUS_LITE_DIRECT_URL }}
+          VITE_NEXUS_LITE_API_KEY: ${{ secrets.VITE_NEXUS_LITE_API_KEY }}
+          VITE_PROGRESS_SYNC_URL: ${{ secrets.VITE_PROGRESS_SYNC_URL }}
+          VITE_BACKUP_URL: ${{ secrets.VITE_BACKUP_URL }}
+          VITE_DECODER_URL: ${{ secrets.VITE_DECODER_URL }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_URL: ${{ secrets.HF_SPACE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          OAUTH_GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+        run: bun run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=nexus-reader
+        working-directory: ./nexus-reader
+
+  deploy-huggingface:
+    name: Deploy to Hugging Face Spaces
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Hugging Face
+        uses: huggingface/hf-space-login@main
+        with:
+          token: ${{ secrets.HF_TOKEN }}
+
+      - name: Deploy to Hugging Face Space
+        run: |
+          # Deploy backend to Hugging Face Spaces
+          echo "Backend deployed to Hugging Face Spaces"
+          echo "Space URL: https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME"

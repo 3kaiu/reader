@@ -2,7 +2,7 @@
  * 解码器状态管理
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import { errorHandler, logger } from '@/utils/unified-utils'
 
 interface DecoderRule {
@@ -106,7 +106,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
       logger.info('Decoder rules initialized', { ruleCount: defaultRules.length })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'initializeRules' })
     }
   }
@@ -123,7 +123,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
       logger.info('Decoder rule added', { id: newRule.id, name: newRule.name })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'addRule' })
     }
   }
@@ -138,7 +138,7 @@ export const useDecoderStore = defineStore('decoder', () => {
         logger.info('Decoder rule updated', { id, updates })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'updateRule' })
     }
   }
@@ -153,7 +153,7 @@ export const useDecoderStore = defineStore('decoder', () => {
         logger.info('Decoder rule removed', { id, name: removedRule.name })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'removeRule' })
     }
   }
@@ -168,7 +168,7 @@ export const useDecoderStore = defineStore('decoder', () => {
         logger.info('Decoder rule toggled', { id, enabled: rule.enabled })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'toggleRule' })
     }
   }
@@ -208,7 +208,7 @@ export const useDecoderStore = defineStore('decoder', () => {
             // 普通正则替换
             decodedText = decodedText.replace(regex, rule.replacement)
           }
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('Failed to apply decoder rule', { ruleId: rule.id, error })
         }
       }
@@ -224,7 +224,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
       return decodedText
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'applyDecoding' })
       return text
     } finally {
@@ -244,7 +244,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
       logger.info('Decoder rules imported', { count: validRules.length })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'importRules' })
     }
   }
@@ -260,7 +260,7 @@ export const useDecoderStore = defineStore('decoder', () => {
         logger.info('Custom dictionary added', { dictionary })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'addCustomDictionary' })
     }
   }
@@ -273,7 +273,7 @@ export const useDecoderStore = defineStore('decoder', () => {
         logger.info('Custom dictionary removed', { dictionary })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'decoder-store', operation: 'removeCustomDictionary' })
     }
   }
@@ -288,7 +288,7 @@ export const useDecoderStore = defineStore('decoder', () => {
 
   return {
     // State
-    state: readonly(state),
+    state: (readonly as any)(state),
 
     // Getters
     enabledRules,

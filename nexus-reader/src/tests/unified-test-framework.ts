@@ -57,7 +57,7 @@ export class MockFactory {
     // 自动设置默认行为
     Object.keys(methods).forEach(method => {
       if (typeof methods[method] === 'function') {
-        mock[method] = vi.fn().mockResolvedValue(methods[method]())
+        (mock as any)[method] = vi.fn().mockResolvedValue(methods[method]())
       }
     })
 
@@ -133,7 +133,7 @@ export class PropertyTestFramework {
                   [methodName]: () => ({ success: true, data: input }),
                 })
 
-                const result = await mockApi[methodName](input, params)
+                const result = await (mockApi as any)[methodName](input, params)
                 return result.success === true
               }
             )
@@ -152,9 +152,9 @@ export class PropertyTestFramework {
                 })
 
                 try {
-                  await mockApi[methodName](input)
+                  await (mockApi as any)[methodName](input)
                   return false // 应该抛出错误
-                } catch (error) {
+                } catch (error: any) {
                   return error instanceof NexusError
                 }
               }
@@ -198,14 +198,14 @@ export class PropertyTestFramework {
         })
 
         // 模拟LRU行为测试
-        await cache.put('key1', 'value1')
-        await cache.put('key2', 'value2')
-        await cache.put('key3', 'value3')
+        await (cache as any).put('key1', 'value1')
+        await (cache as any).put('key2', 'value2')
+        await (cache as any).put('key3', 'value3')
 
-        await cache.get('key1') // 访问key1，使其变为最近使用
+        await (cache as any).get('key1') // 访问key1，使其变为最近使用
 
         // key2应该被驱逐（如果缓存容量为2）
-        const result = await cache.get('key2')
+        const result = await (cache as any).get('key2')
         expect(result.found).toBe(false)
       })
 
@@ -217,12 +217,12 @@ export class PropertyTestFramework {
 
         // 并发访问测试
         const promises = Array.from({ length: 10 }, (_, i) =>
-          cache.get(`key${i}`)
+          (cache as any).get(`key${i}`)
         )
 
         const results = await Promise.all(promises)
         expect(results).toHaveLength(10)
-        results.forEach(result => {
+        results.forEach((result: any) => {
           expect(result.found).toBe(true)
         })
       })
@@ -298,7 +298,6 @@ export class PerformanceTestFramework {
     const {
       iterations = 100,
       warmupIterations = 10,
-      timeout = TEST_CONFIG.TIMEOUT,
     } = options
 
     describe(`${operationName} - Performance Benchmark`, () => {
@@ -312,7 +311,7 @@ export class PerformanceTestFramework {
 
         // 执行基准测试
         const startTime = performance.now()
-        const startMemory = performance.memory?.usedJSHeapSize || 0
+        const startMemory = (performance as any).memory?.usedJSHeapSize || 0
 
         const results = []
         for (let i = 0; i < iterations; i++) {
@@ -323,7 +322,7 @@ export class PerformanceTestFramework {
         }
 
         const endTime = performance.now()
-        const endMemory = performance.memory?.usedJSHeapSize || 0
+        const endMemory = (performance as any).memory?.usedJSHeapSize || 0
 
         metrics = {
           totalTime: endTime - startTime,
@@ -382,7 +381,7 @@ export class PerformanceTestFramework {
                 success: true,
                 responseTime: Date.now() - userStart,
               }
-            } catch (error) {
+            } catch (error: any) {
               return {
                 userId: i,
                 success: false,
@@ -488,13 +487,7 @@ export function resetAllMocks() {
 }
 
 export function createTestData<T>(generator: fc.Arbitrary<T>, count = 10): T[] {
-  const results: T[] = []
-  for (let i = 0; i < count; i++) {
-    // 这里需要一个同步的生成方式
-    // 实际使用时应该使用fc.sample
-    results.push(generator.generate(new fc.Random(fc.hash('seed' + i))).value)
-  }
-  return results
+  return fc.sample(generator, count)
 }
 
 // ===== 测试生命周期 =====

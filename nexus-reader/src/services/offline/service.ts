@@ -5,7 +5,7 @@
 
 import { offlineManager, offlineContentServer, type OfflineStatus } from './manager'
 import { networkDetector } from '../network/optimizer'
-import { $get, type ApiResponse } from '../../api/client'
+import { $get } from '../../api/client'
 import { logger } from '../../utils/logger'
 
 // 离线服务配置
@@ -110,7 +110,7 @@ export class OfflineService {
       this.isInitialized = true
       logger.info('Offline service initialized successfully')
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to initialize offline service:', error as Error)
       throw error
     }
@@ -162,6 +162,7 @@ export class OfflineService {
           type: type as any,
           url,
           data: response.data,
+          // const isDesc = data.files && Object.keys(data.files).length > 0
           size: JSON.stringify(response.data).length * 2,
           priority
         })
@@ -171,7 +172,7 @@ export class OfflineService {
         throw new Error(`Failed to fetch content: ${response.errorMsg}`)
       }
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`Failed to cache content ${type}/${contentId}:`, error as Error)
       throw error
     }
@@ -197,7 +198,7 @@ export class OfflineService {
         try {
           await this.cacheContentForOffline(item.contentId, item.type, item.priority)
           success++
-        } catch (error) {
+        } catch (error: any) {
           logger.warn(`Failed to cache ${item.type}/${item.contentId}:`, error)
           failed++
         }
@@ -228,7 +229,7 @@ export class OfflineService {
 
       return null
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`Failed to get offline content ${type}/${contentId}:`, error as Error)
       return null
     }
@@ -250,7 +251,7 @@ export class OfflineService {
       url,
       data,
       maxRetries: isUrgent ? 5 : 3
-    })
+    } as any)
 
     logger.debug(`Queued offline operation: ${type} - ${description}`)
   }
@@ -293,7 +294,7 @@ export class OfflineService {
       logger.info(`Full sync completed in ${duration.toFixed(0)}ms`)
       return result
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Full sync failed:', error as Error)
       return {
         success: false,
@@ -353,7 +354,7 @@ export class OfflineService {
 
       logger.info('Offline data cleared successfully')
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to clear offline data:', error as Error)
       throw error
     }
@@ -397,7 +398,7 @@ export class OfflineService {
 
       logger.debug('Initial sync completed')
 
-    } catch (error) {
+    } catch (error: any) {
       logger.warn('Initial sync failed:', error)
     }
   }
@@ -416,7 +417,7 @@ export class OfflineService {
 
       logger.debug('Essential content preloaded')
 
-    } catch (error) {
+    } catch (error: any) {
       logger.warn('Failed to preload essential content:', error)
     }
   }
@@ -426,11 +427,11 @@ export class OfflineService {
     const offlineContent = this.getOfflineContent()
 
     for (const item of offlineContent) {
-      if (item.isEssential) {
+      if ((item as any).isEssential) {
         try {
-          await this.cacheContentForOffline(item.id, item.type, item.priority)
-        } catch (error) {
-          logger.warn(`Failed to update cached content ${item.type}/${item.id}:`, error)
+          await this.cacheContentForOffline((item as any).id, (item as any).type, (item as any).priority)
+        } catch (error: any) {
+          logger.warn(`Failed to update cached content ${(item as any).type}/${(item as any).id}:`, error)
         }
       }
     }
@@ -467,7 +468,7 @@ export class OfflineService {
     this.listeners.forEach(listener => {
       try {
         listener(status)
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Offline status listener error:', error as Error)
       }
     })
@@ -504,7 +505,7 @@ export class OfflineService {
       'reading-progress': `阅读进度 ${contentId}`,
       'user-settings': `用户设置 ${contentId}`
     }
-    return titleMap[type] || `内容 ${contentId}`
+    return (titleMap as any)[type] || `内容 ${contentId}`
   }
 
   private getContentPriority(type: string): number {
@@ -515,7 +516,7 @@ export class OfflineService {
       'chapter': 7,
       'book': 6
     }
-    return priorityMap[type] || 5
+    return (priorityMap as any)[type] || 5
   }
 
   private getOperationEndpoint(type: OfflineOperationType, data: any): { method: string; url: string } {

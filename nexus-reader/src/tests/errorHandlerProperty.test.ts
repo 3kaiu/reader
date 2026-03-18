@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as fc from 'fast-check'
-import { processError, withRetry, type ErrorInfo, type ErrorContext } from '../utils/errorHandler'
+import { processError, withRetry } from '../utils/errors'
 import { logger } from '../utils/logger'
 
 // Mock logger to avoid console output during tests
@@ -155,7 +155,7 @@ describe('Error Handler Property Tests', () => {
 
             try {
               await withRetry(operation, { maxAttempts, delay, backoff: 'linear' })
-            } catch (error) {
+            } catch (error: any) {
               // Expected to throw after all retries
             }
 
@@ -217,7 +217,7 @@ describe('Error Handler Property Tests', () => {
 
             try {
               await withRetry(operation, { maxAttempts, delay: 1 })
-            } catch (error) {
+            } catch (error: any) {
               // Expected to throw
             }
 
@@ -239,7 +239,6 @@ describe('Error Handler Property Tests', () => {
      * **Validates: Requirements 4.4**
      */
     it('should use exponential backoff correctly', async () => {
-      const delays: number[] = []
       const initialDelay = 10
       const maxAttempts = 4
 
@@ -256,7 +255,7 @@ describe('Error Handler Property Tests', () => {
           delay: initialDelay,
           backoff: 'exponential'
         })
-      } catch (error) {
+      } catch (error: any) {
         // Expected
       }
       const totalTime = Date.now() - startTime
@@ -284,7 +283,7 @@ describe('Error Handler Property Tests', () => {
           delay: initialDelay,
           backoff: 'linear'
         })
-      } catch (error) {
+      } catch (error: any) {
         // Expected
       }
       const totalTime = Date.now() - startTime
@@ -351,9 +350,9 @@ describe('Error Handler Property Tests', () => {
 
             // Verify logger was called with context
             const loggerCalls = [
-              ...logger.error.mock.calls,
-              ...logger.warn.mock.calls,
-              ...logger.info.mock.calls
+              ...(logger.error as any).mock.calls,
+              ...(logger.warn as any).mock.calls,
+              ...(logger.info as any).mock.calls
             ]
 
             expect(loggerCalls.length).toBeGreaterThan(0)
@@ -510,16 +509,16 @@ describe('useErrorHandler Composable Tests', () => {
       expect(handler).toHaveProperty('formatErrorMessage')
 
       expect(typeof handler.handleError).toBe('function')
-      expect(typeof handler.handleApiError).toBe('function')
-      expect(typeof handler.handlePromiseError).toBe('function')
-      expect(typeof handler.handleWarning).toBe('function')
-      expect(typeof handler.formatErrorMessage).toBe('function')
+      expect(typeof (handler as any).handleApiError).toBe('function')
+      expect(typeof (handler as any).handlePromiseError).toBe('function')
+      expect(typeof (handler as any).handleWarning).toBe('function')
+      expect(typeof (handler as any).formatErrorMessage).toBe('function')
     })
 
     it('should handle API errors correctly', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
       
-      const { handleApiError } = useErrorHandler()
+      const { handleApiError } = useErrorHandler() as any
 
       // Success response
       const successResponse = { isSuccess: true }
@@ -539,7 +538,7 @@ describe('useErrorHandler Composable Tests', () => {
       
       mockShowWarning.mockClear()
       
-      const { handleWarning } = useErrorHandler()
+      const { handleWarning } = useErrorHandler() as any
       handleWarning('Test warning')
 
       expect(mockShowWarning).toHaveBeenCalledTimes(1)

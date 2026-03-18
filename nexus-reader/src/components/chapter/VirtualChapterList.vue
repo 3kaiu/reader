@@ -152,7 +152,7 @@ const handleDownload = async (chapter: Chapter) => {
   try {
     chapter.isDownloading = true;
     emit("download", chapter);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Download failed:", error);
     chapter.isDownloading = false;
   }

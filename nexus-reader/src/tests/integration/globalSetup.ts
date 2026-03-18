@@ -40,7 +40,7 @@ export async function setup() {
 
     console.log('✅ Global integration test setup completed');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Global integration test setup failed:', error);
     throw error;
   }
@@ -61,7 +61,7 @@ export async function teardown() {
 
     console.log('✅ Global integration test teardown completed');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Global integration test teardown failed:', error);
     // Don't throw here to avoid masking test failures
   }

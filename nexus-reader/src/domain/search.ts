@@ -75,19 +75,8 @@ const searchState = reactive({
   searchHistory: [] as SearchQuery[],
   recommendations: [] as RecommendationItem[],
   isSearching: false,
-  lastSearchTime: null as Date | null
+  lastSearchTime: null as Date | null,
 })
 
 // Export reactive state
 export { searchState }
-
-// Export types
-export type {
-  SearchQuery,
-  SearchFilters,
-  SearchSort,
-  SearchResult,
-  SearchResultItem,
-  RecommendationContext,
-  RecommendationItem
-}

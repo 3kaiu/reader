@@ -171,7 +171,7 @@ const preloadImage = async () => {
     })
     
     console.log('🖼️ Image preloaded:', props.src)
-  } catch (error) {
+  } catch (error: any) {
     console.warn('🖼️ Image preload failed:', props.src, error)
   }
 }

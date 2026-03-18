@@ -3,7 +3,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api, errorHandler, logger } from '@/utils/unified-utils'
+import { errorHandler, logger } from '@/utils/unified-utils'
 
 interface InsightData {
   id: string
@@ -84,7 +84,7 @@ export const useAIInsightsStore = defineStore('aiInsights', () => {
 
       logger.info('Reading pattern analysis completed', { insightsCount: insights.length })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'ai-insights-store', operation: 'analyzeReadingPatterns' })
     } finally {
       state.value.isAnalyzing = false
@@ -120,7 +120,7 @@ export const useAIInsightsStore = defineStore('aiInsights', () => {
 
       logger.info('Content preference analysis completed')
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'ai-insights-store', operation: 'analyzeContentPreferences' })
     } finally {
       state.value.isAnalyzing = false
@@ -153,7 +153,7 @@ export const useAIInsightsStore = defineStore('aiInsights', () => {
 
       logger.info('AI recommendations generated', { count: recommendations.length })
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'ai-insights-store', operation: 'generateRecommendations' })
     }
   }
@@ -181,7 +181,7 @@ export const useAIInsightsStore = defineStore('aiInsights', () => {
 
   return {
     // State
-    state: readonly(state),
+    state,
 
     // Getters
     insightsCount,

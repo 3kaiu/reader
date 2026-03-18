@@ -1,0 +1,170 @@
+name: Setup Cloudflare Resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_databases:
+        description: 'Create D1 databases'
+        required: true
+        default: 'true'
+      create_kv:
+        description: 'Create KV namespaces'
+        required: true
+        default: 'true'
+      create_r2:
+        description: 'Create R2 buckets'
+        required: true
+        default: 'true'
+
+jobs:
+  setup-cloudflare:
+    name: Setup Cloudflare Resources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Configure Wrangler
+        run: |
+          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" > ~/.wrangler/config/default.toml
+          echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" >> ~/.wrangler/config/default.toml
+
+      - name: Create D1 databases
+        if: inputs.create_databases == 'true'
+        run: |
+          echo "Creating D1 databases..."
+          
+          # Create analytics database
+          wrangler d1 create nexus_analytics || true
+          ANALYTICS_DB_ID=$(wrangler d1 list --json | jq -r '.[] | select(.name=="nexus_analytics") | .uuid')
+          echo "ANALYTICS_DB_ID=$ANALYTICS_DB_ID" >> $GITHUB_ENV
+          
+          # Create user preferences database
+          wrangler d1 create nexus_user_prefs || true
+          USER_PREFS_DB_ID=$(wrangler d1 list --json | jq -r '.[] | select(.name=="nexus_user_prefs") | .uuid')
+          echo "USER_PREFS_DB_ID=$USER_PREFS_DB_ID" >> $GITHUB_ENV
+          
+          # Create production databases
+          wrangler d1 create nexus_analytics_prod || true
+          PROD_ANALYTICS_DB_ID=$(wrangler d1 list --json | jq -r '.[] | select(.name=="nexus_analytics_prod") | .uuid')
+          echo "PROD_ANALYTICS_DB_ID=$PROD_ANALYTICS_DB_ID" >> $GITHUB_ENV
+          
+          wrangler d1 create nexus_user_prefs_prod || true
+          PROD_USER_PREFS_DB_ID=$(wrangler d1 list --json | jq -r '.[] | select(.name=="nexus_user_prefs_prod") | .uuid')
+          echo "PROD_USER_PREFS_DB_ID=$PROD_USER_PREFS_DB_ID" >> $GITHUB_ENV
+
+      - name: Create KV namespaces
+        if: inputs.create_kv == 'true'
+        run: |
+          echo "Creating KV namespaces..."
+          
+          # Create KV namespaces
+          wrangler kv:namespace create "PROGRESS_KV" || true
+          PROGRESS_KV_ID=$(wrangler kv:namespace list --json | jq -r '.[] | select(.title=="PROGRESS_KV") | .id')
+          echo "PROGRESS_KV_ID=$PROGRESS_KV_ID" >> $GITHUB_ENV
+          
+          wrangler kv:namespace create "CONTENT_CACHE_KV" || true
+          CONTENT_CACHE_KV_ID=$(wrangler kv:namespace list --json | jq -r '.[] | select(.title=="CONTENT_CACHE_KV") | .id')
+          echo "CONTENT_CACHE_KV_ID=$CONTENT_CACHE_KV_ID" >> $GITHUB_ENV
+          
+          wrangler kv:namespace create "DECODER_KV" || true
+          DECODER_KV_ID=$(wrangler kv:namespace list --json | jq -r '.[] | select(.title=="DECODER_KV") | .id')
+          echo "DECODER_KV_ID=$DECODER_KV_ID" >> $GITHUB_ENV
+          
+          wrangler kv:namespace create "AI_CACHE_KV" || true
+          AI_CACHE_KV_ID=$(wrangler kv:namespace list --json | jq -r '.[] | select(.title=="AI_CACHE_KV") | .id')
+          echo "AI_CACHE_KV_ID=$AI_CACHE_KV_ID" >> $GITHUB_ENV
+
+      - name: Create R2 buckets
+        if: inputs.create_r2 == 'true'
+        run: |
+          echo "Creating R2 buckets..."
+          
+          wrangler r2 bucket create nexus-user-content || true
+          wrangler r2 bucket create nexus-backup || true
+
+      - name: Create Analytics dataset
+        run: |
+          echo "Creating Analytics Engine dataset..."
+          wrangler analytics-engine create nexus_usage_analytics || true
+
+      - name: Output resource IDs
+        run: |
+          echo "=== Cloudflare Resource IDs ==="
+          echo "D1 Databases:"
+          echo "  Analytics DB ID: ${{ env.ANALYTICS_DB_ID }}"
+          echo "  User Preferences DB ID: ${{ env.USER_PREFS_DB_ID }}"
+          echo "  Production Analytics DB ID: ${{ env.PROD_ANALYTICS_DB_ID }}"
+          echo "  Production User Preferences DB ID: ${{ env.PROD_USER_PREFS_DB_ID }}"
+          echo ""
+          echo "KV Namespaces:"
+          echo "  Progress KV ID: ${{ env.PROGRESS_KV_ID }}"
+          echo "  Content Cache KV ID: ${{ env.CONTENT_CACHE_KV_ID }}"
+          echo "  Decoder KV ID: ${{ env.DECODER_KV_ID }}"
+          echo "  AI Cache KV ID: ${{ env.AI_CACHE_KV_ID }}"
+
+      - name: Create GitHub Secrets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            
+            // List of secrets to update
+            const secrets = [
+              { name: 'CF_ANALYTICS_DB_ID', value: process.env.ANALYTICS_DB_ID },
+              { name: 'CF_USER_PREFS_DB_ID', value: process.env.USER_PREFS_DB_ID },
+              { name: 'CF_PROD_ANALYTICS_DB_ID', value: process.env.PROD_ANALYTICS_DB_ID },
+              { name: 'CF_PROD_USER_PREFS_DB_ID', value: process.env.PROD_USER_PREFS_DB_ID },
+              { name: 'CF_PROGRESS_KV_ID', value: process.env.PROGRESS_KV_ID },
+              { name: 'CF_CONTENT_CACHE_KV_ID', value: process.env.CONTENT_CACHE_KV_ID },
+              { name: 'CF_DECODER_KV_ID', value: process.env.DECODER_KV_ID },
+              { name: 'CF_AI_CACHE_KV_ID', value: process.env.AI_CACHE_KV_ID },
+            ];
+            
+            for (const secret of secrets) {
+              if (secret.value) {
+                try {
+                  await github.rest.actions.createOrUpdateRepoSecret({
+                    owner: repo.owner,
+                    repo: repo.repo,
+                    secret_name: secret.name,
+                    encrypted_value: Buffer.from(secret.value).toString('base64'),
+                  });
+                  console.log(`Updated secret: ${secret.name}`);
+                } catch (error) {
+                  console.error(`Failed to update secret ${secret.name}:`, error);
+                }
+              }
+            }
+
+      - name: Generate setup summary
+        run: |
+          echo "=== Setup Complete ==="
+          echo ""
+          echo "Add these secrets to your GitHub repository:"
+          echo "- CLOUDFLARE_API_TOKEN"
+          echo "- CLOUDFLARE_ACCOUNT_ID"
+          echo "- HUGGINGFACE_API_KEY"
+          echo "- VITE_API_URL"
+          echo "- VITE_NEXUS_LITE_DIRECT_URL"
+          echo "- VITE_NEXUS_LITE_API_KEY"
+          echo "- DOCKER_USERNAME"
+          echo "- DOCKER_PASSWORD"
+          echo ""
+          echo "The following secrets have been automatically created:"
+          echo "- CF_ANALYTICS_DB_ID"
+          echo "- CF_USER_PREFS_DB_ID"
+          echo "- CF_PROD_ANALYTICS_DB_ID"
+          echo "- CF_PROD_USER_PREFS_DB_ID"
+          echo "- CF_PROGRESS_KV_ID"
+          echo "- CF_CONTENT_CACHE_KV_ID"
+          echo "- CF_DECODER_KV_ID"
+          echo "- CF_AI_CACHE_KV_ID"

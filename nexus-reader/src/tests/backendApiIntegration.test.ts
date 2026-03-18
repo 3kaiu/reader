@@ -67,22 +67,26 @@ describe('Backend API Enhancements - Integration Tests', () => {
         { id: 'test-entry-456', original: '李四', real: 'Li Si', category: 'person', level: 'user' },
       ]
 
+      // This line is incorrect in the instruction, assuming it meant to insert before the mockGetDictionary call
+      // (mockAiServiceManager.isModelLoaded as any).value = false
       mockGetDictionary.mockResolvedValueOnce(initialDictionary).mockResolvedValueOnce(updatedDictionary)
 
       const { deleteDictionaryEntry, getDictionary } = await import('@/api/decoder')
 
       // Step 1: Get initial dictionary
-      const before = await getDictionary({ level })
+      const beforeResult = await getDictionary({ level: level as any }) as any
+      const before = beforeResult.entries || beforeResult
       expect(before).toHaveLength(2)
       expect(before.find((e: any) => e.id === entryId)).toBeDefined()
 
       // Step 2: Delete entry
-      const deleteResult = await deleteDictionaryEntry(entryId, { level })
+      const deleteResult = await deleteDictionaryEntry(entryId, { level: level as any })
       expect(deleteResult.success).toBe(true)
       expect(deleteResult.deletedId).toBe(entryId)
 
       // Step 3: Verify persistence - entry should be gone
-      const after = await getDictionary({ level })
+      const afterResult = await getDictionary({ level: level as any }) as any
+      const after = afterResult.entries || afterResult
       expect(after).toHaveLength(1)
       expect(after.find((e: any) => e.id === entryId)).toBeUndefined()
       expect(after.find((e: any) => e.id === 'test-entry-456')).toBeDefined()
@@ -102,13 +106,13 @@ describe('Backend API Enhancements - Integration Tests', () => {
       const { deleteDictionaryEntry } = await import('@/api/decoder')
 
       // Attempt to delete non-existent entry
-      await expect(deleteDictionaryEntry(nonExistentId, { level })).rejects.toMatchObject({
+      await expect(deleteDictionaryEntry(nonExistentId, { level: level as any })).rejects.toMatchObject({
         status: 404,
         error: 'Entry not found',
       })
 
       // Verify API was called
-      expect(mockDeleteDictionaryEntry).toHaveBeenCalledWith(nonExistentId, { level })
+      expect(mockDeleteDictionaryEntry).toHaveBeenCalledWith(nonExistentId, { level: level as any })
     })
 
     it('should handle deletion across different dictionary levels', async () => {
@@ -171,7 +175,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       // Batch delete entries
       const result = await batchDeleteDictionaryEntries({
         ids: idsToDelete,
-        level,
+        level: level as any,
       })
 
       // Verify all entries were deleted
@@ -204,7 +208,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       // Batch delete with mixed IDs
       const result = await batchDeleteDictionaryEntries({
         ids: allIds,
-        level,
+        level: level as any,
       })
 
       // Verify partial success
@@ -238,7 +242,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       const result = await batchDeleteDictionaryEntries({
         ids: maxIds,
-        level,
+        level: level as any,
       })
 
       expect(result.success).toBe(true)
@@ -262,7 +266,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       await expect(
         batchDeleteDictionaryEntries({
           ids: tooManyIds,
-          level,
+          level: level as any,
         })
       ).rejects.toMatchObject({
         status: 400,
@@ -286,7 +290,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       await expect(
         batchDeleteDictionaryEntries({
           ids: emptyIds,
-          level,
+          level: level as any,
         })
       ).rejects.toMatchObject({
         status: 400,
@@ -340,16 +344,16 @@ describe('Backend API Enhancements - Integration Tests', () => {
       const { sourceApi } = await import('@/api/source')
 
       // Step 1: Get initial source state
-      const before = await sourceApi.getSource(sourceId)
-      expect(before.enabled).toBe(initialEnabled)
+      const before = await (sourceApi as any).getBookSource(sourceId)
+      expect((before as any).enabled).toBe(initialEnabled)
 
       // Step 2: Update status
       const updateResult = await sourceApi.updateSourceStatus(sourceId, updatedEnabled)
-      expect(updateResult.enabled).toBe(updatedEnabled)
+      expect((updateResult as any).enabled).toBe(updatedEnabled)
 
       // Step 3: Verify persistence - status should be updated
-      const after = await sourceApi.getSource(sourceId)
-      expect(after.enabled).toBe(updatedEnabled)
+      const after = await (sourceApi as any).getBookSource(sourceId)
+      expect((after as any).enabled).toBe(updatedEnabled)
     })
 
     it('should toggle source status multiple times', async () => {
@@ -358,7 +362,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       // Simulate multiple toggles
       for (let i = 0; i < 5; i++) {
-        const newEnabled = !currentEnabled
+        const newEnabled: any = !currentEnabled
 
         mockUpdateSourceStatus.mockResolvedValue({
           id: sourceId,
@@ -370,9 +374,9 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
         const { sourceApi } = await import('@/api/source')
 
-        const result = await sourceApi.updateSourceStatus(sourceId, newEnabled)
+        const result = await sourceApi.updateSourceStatus(sourceId, newEnabled as any)
 
-        expect(result.enabled).toBe(newEnabled)
+        expect((result as any).enabled).toBe(newEnabled)
         expect(mockUpdateSourceStatus).toHaveBeenCalledWith(sourceId, newEnabled)
 
         currentEnabled = newEnabled
@@ -475,7 +479,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       const { deleteDictionaryEntry } = await import('@/api/decoder')
 
-      await expect(deleteDictionaryEntry(entryId, { level })).rejects.toMatchObject({
+      await expect(deleteDictionaryEntry(entryId, { level: level as any })).rejects.toMatchObject({
         status: 500,
         error: 'Internal server error',
       })
@@ -493,7 +497,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       const { deleteDictionaryEntry } = await import('@/api/decoder')
 
-      await expect(deleteDictionaryEntry(entryId, { level })).rejects.toMatchObject({
+      await expect(deleteDictionaryEntry(entryId, { level: level as any })).rejects.toMatchObject({
         status: 401,
         error: 'Unauthorized',
       })

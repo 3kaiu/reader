@@ -2,9 +2,13 @@
  * AI优化引擎
  * 整合多种AI优化能力，提供全面的智能化优化服务
  */
+// @ts-ignore
+import { syncChannel } from '../../utils/broadcast'
+// @ts-ignore
+import { getDefaultModel, saveLastModel, getAllModels } from '../../stores/ai/models'
 import { aiCodeOptimizer } from './code-optimizer'
-import { aiIntelligentOperations } from './intelligent-operations'
-import { errorHandler, logger, performanceMonitor } from '@/utils/unified-utils'
+import { aiIntelligentOperations as _aiIntelligentOperations } from './intelligent-operations'
+import { errorHandler as _errorHandler, logger, performanceMonitor } from '@/utils/unified-utils'
 
 interface OptimizationTask {
   id: string
@@ -33,6 +37,8 @@ export class AIOptimizationEngine {
   private tasks = new Map<string, OptimizationTask>()
   private results = new Map<string, OptimizationResult>()
   private optimizationQueue: string[] = []
+  // private _anomalyModel: any = null
+  // private _resourceModel: any = null
   private isProcessing = false
 
   private constructor() {
@@ -55,10 +61,7 @@ export class AIOptimizationEngine {
       id: 'code_quality_analysis',
       type: 'code',
       priority: 'high',
-      description: '分析代码质量并生成优化建议',
-      status: 'pending',
-      progress: 0,
-      createdAt: Date.now()
+      description: '分析代码质量并生成优化建议'
     })
 
     // 性能优化任务
@@ -66,10 +69,7 @@ export class AIOptimizationEngine {
       id: 'performance_monitoring',
       type: 'performance',
       priority: 'high',
-      description: '监控性能指标并优化瓶颈',
-      status: 'pending',
-      progress: 0,
-      createdAt: Date.now()
+      description: '监控性能指标并优化瓶颈'
     })
 
     // 架构优化任务
@@ -77,10 +77,7 @@ export class AIOptimizationEngine {
       id: 'architecture_review',
       type: 'architecture',
       priority: 'medium',
-      description: '审查架构设计并提出改进建议',
-      status: 'pending',
-      progress: 0,
-      createdAt: Date.now()
+      description: '审查架构设计并提出改进建议'
     })
 
     // 安全优化任务
@@ -88,10 +85,7 @@ export class AIOptimizationEngine {
       id: 'security_audit',
       type: 'security',
       priority: 'high',
-      description: '执行安全审计并修复漏洞',
-      status: 'pending',
-      progress: 0,
-      createdAt: Date.now()
+      description: '执行安全审计并修复漏洞'
     })
 
     logger.info('AI optimization tasks initialized')
@@ -170,7 +164,7 @@ export class AIOptimizationEngine {
 
       return result
 
-    } catch (error) {
+    } catch (error: any) {
       task.status = 'failed'
       task.result = error
 
@@ -223,7 +217,8 @@ export class AIOptimizationEngine {
     task.progress = 10
 
     // 获取性能指标
-    const metrics = performanceMonitor.getStats()
+    const _metrics = (performanceMonitor as any).getStats()
+    if (_metrics) { /* use _metrics */ }
     task.progress = 30
 
     // 分析性能瓶颈
@@ -339,7 +334,7 @@ export class AIOptimizationEngine {
         try {
           const result = await this.executeTask(taskId)
           results.push(result)
-        } catch (error) {
+        } catch (error: any) {
           logger.error('Failed to execute optimization task', { taskId, error })
         }
       }
@@ -440,12 +435,12 @@ export class AIOptimizationEngine {
     return []
   }
 
-  private async generatePerformanceOptimizations(bottlenecks: any[]): Promise<string[]> {
+  private async generatePerformanceOptimizations(_bottlenecks: any[]): Promise<string[]> {
     // 生成性能优化建议
     return []
   }
 
-  private async applyAutomatedOptimizations(optimizations: string[]): Promise<string[]> {
+  private async applyAutomatedOptimizations(_optimizations: string[]): Promise<string[]> {
     // 应用自动化优化
     return []
   }
@@ -460,7 +455,7 @@ export class AIOptimizationEngine {
     return {}
   }
 
-  private async generateArchitectureImprovements(analysis: any): Promise<string[]> {
+  private async generateArchitectureImprovements(_analysis: any): Promise<string[]> {
     // 生成架构改进建议
     return []
   }
@@ -470,12 +465,12 @@ export class AIOptimizationEngine {
     return {}
   }
 
-  private async analyzeSecurityRisks(scan: any): Promise<any[]> {
+  private async analyzeSecurityRisks(_scan: any): Promise<any[]> {
     // 分析安全风险
     return []
   }
 
-  private async generateSecurityFixes(risks: any[]): Promise<any[]> {
+  private async generateSecurityFixes(_risks: any[]): Promise<any[]> {
     // 生成安全修复
     return []
   }

@@ -6,10 +6,11 @@ Provides composable middleware system for request processing, caching, monitorin
 import asyncio
 import time
 import logging
+import jwt
 from typing import Dict, List, Optional, Any, Callable, Awaitable, TypeVar, Generic
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -155,20 +156,50 @@ class AuthenticationMiddleware(Middleware[Dict[str, Any], Dict[str, Any]]):
 
         token = auth_header[7:]  # Remove 'Bearer ' prefix
 
-        # TODO: Implement JWT validation
-        # For now, create mock user context
-        user_context = UserContext(
-            user_id="user123",
-            roles=["user"],
-            permissions=["read"],
-            session_id="session123"
-        )
+        try:
+            # Validate JWT token
+            payload = jwt.decode(
+                token,
+                self.jwt_secret,
+                algorithms=['HS256'],
+                options={
+                    'verify_signature': True,
+                    'verify_exp': True,
+                    'verify_iat': True,
+                }
+            )
 
-        context.user_context = user_context
-        context.metadata['authenticated'] = True
-        context.metadata['user_id'] = user_context.user_id
+            # Extract user information from payload
+            user_id = payload.get('sub')
+            if not user_id:
+                raise MiddlewareError("Invalid token: missing user ID")
 
-        return MiddlewareResult.success(input_data, context)
+            roles = payload.get('roles', ['user'])
+            permissions = payload.get('permissions', ['read'])
+            session_id = payload.get('session_id')
+
+            # Create user context
+            user_context = UserContext(
+                user_id=user_id,
+                roles=roles,
+                permissions=permissions,
+                session_id=session_id
+            )
+
+            context.user_context = user_context
+            context.metadata['authenticated'] = True
+            context.metadata['user_id'] = user_id
+            context.metadata['token_exp'] = payload.get('exp')
+
+            return MiddlewareResult.success(input_data, context)
+
+        except jwt.ExpiredSignatureError:
+            raise MiddlewareError("Token has expired")
+        except jwt.InvalidTokenError as e:
+            raise MiddlewareError(f"Invalid token: {str(e)}")
+        except Exception as e:
+            logger.error(f"JWT validation error: {e}")
+            raise MiddlewareError("Authentication failed")
 
 
 class LoggingMiddleware(Middleware[TInput, TOutput]):

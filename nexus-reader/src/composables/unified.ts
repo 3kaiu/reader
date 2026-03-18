@@ -8,10 +8,10 @@
  * - 性能优化组合函数
  */
 
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, config, errorHandler, performanceMonitor, storage } from '@/utils/unified-utils'
-import { useUserStore, useReaderStore, useAiStore, useSettingsStore } from '@/stores/unified'
+import { errorHandler, storage } from '@/utils/unified-utils'
+import { useReaderStore, useAiStore, useSettingsStore } from '@/stores/unified'
 
 // ===== 阅读相关组合函数 =====
 
@@ -56,7 +56,7 @@ export function useReadingSession() {
         //   progress: readerStore.readingProgress,
         // })
         console.log('Reading session ended:', readingTime.value, 'seconds')
-      } catch (error) {
+      } catch (error: any) {
         errorHandler.handle(error, { component: 'reading-session', operation: 'end-session' })
       }
     }
@@ -100,18 +100,23 @@ export function useReadingProgress() {
   const saveProgress = async () => {
     if (readerStore.readingProgress) {
       try {
-        await api.post('/reading/progress', readerStore.readingProgress)
-      } catch (error) {
+        // 该端点在当前后端契约中不存在；阅读进度以 bookshef patch 或 Worker /progress/{bookId} 为准。
+        // 若需要云端同步，应在此处对接 `bookApi.saveBookProgress()` 或 Worker progress API。
+      } catch (error: any) {
         errorHandler.handle(error, { component: 'reading-progress', operation: 'save' })
       }
     }
   }
 
   // 自动保存进度
-  watch([progress, scrollTop], () => {
-    const timer = setTimeout(saveProgress, 2000) // 2秒后自动保存
-    return () => clearTimeout(timer)
-  }, { deep: true })
+  watch(
+    [progress, scrollTop],
+    () => {
+      const timer = setTimeout(saveProgress, 2000) // 2秒后自动保存
+      return () => clearTimeout(timer)
+    },
+    { deep: true }
+  )
 
   return {
     progress: computed(() => progress.value),
@@ -131,6 +136,7 @@ export function useBookmarks() {
         chapterId: readerStore.currentChapter.id,
         position,
         note,
+        createdAt: new Date(),
       })
     }
   }
@@ -142,7 +148,7 @@ export function useBookmarks() {
         readerStore.bookmarks.findIndex(b => b.id === bookmarkId),
         1
       )
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'bookmarks', operation: 'remove' })
     }
   }
@@ -192,7 +198,10 @@ export function useContentAnalysis() {
   const isAnalyzing = computed(() => aiStore.isProcessing)
   const results = computed(() => aiStore.analysisResults)
 
-  const analyzeContent = async (content: string, type: 'summary' | 'insights' | 'tags' | 'sentiment') => {
+  const analyzeContent = async (
+    content: string,
+    type: 'summary' | 'insights' | 'tags' | 'sentiment'
+  ) => {
     await aiStore.analyzeContent(content, type)
   }
 
@@ -222,7 +231,7 @@ export function useAiRecommendations() {
       // const response = await api.post('/ai/recommendations', context)
       // recommendations.value = response.data.recommendations
       console.log('Getting recommendations for:', context)
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'ai-recommendations', operation: 'get' })
     } finally {
       isLoading.value = false
@@ -312,7 +321,7 @@ export function useResponsive() {
 }
 
 export function useLocalStorage<T>(key: string, defaultValue: T) {
-  const storedValue = ref<T>(storage.get(key, defaultValue))
+  const storedValue = ref<T>(storage.get(key, defaultValue) as T)
 
   const setValue = (value: T) => {
     storedValue.value = value
@@ -361,7 +370,6 @@ export function usePerformanceMonitor() {
     const duration = performance.now() - start
 
     metrics.value[name] = duration
-    performanceMonitor.recordMetric(`vue_${name}`, duration)
 
     return result
   }
@@ -372,7 +380,6 @@ export function usePerformanceMonitor() {
     const duration = performance.now() - start
 
     metrics.value[name] = duration
-    performanceMonitor.recordMetric(`vue_async_${name}`, duration)
 
     return result
   }
@@ -395,8 +402,8 @@ export function useLazyLoad() {
     if (!elementRef.value) return
 
     observer.value = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
             isVisible.value = true
             // 停止观察
@@ -434,10 +441,7 @@ export function useLazyLoad() {
   }
 }
 
-export function useDebounce<T extends (...args: any[]) => any>(
-  fn: T,
-  delay: number
-): T {
+export function useDebounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
   let timeoutId: NodeJS.Timeout | null = null
 
   return ((...args: Parameters<T>) => {
@@ -451,10 +455,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
   }) as T
 }
 
-export function useThrottle<T extends (...args: any[]) => any>(
-  fn: T,
-  limit: number
-): T {
+export function useThrottle<T extends (...args: any[]) => any>(fn: T, limit: number): T {
   let inThrottle = false
 
   return ((...args: Parameters<T>) => {
@@ -524,7 +525,7 @@ export function useOfflineSync() {
       for (const operation of operations) {
         await operation()
       }
-    } catch (error) {
+    } catch (error: any) {
       // 如果同步失败，将操作重新添加到队列
       pendingOperations.value.unshift(...operations)
       errorHandler.handle(error, { component: 'offline-sync', operation: 'sync' })

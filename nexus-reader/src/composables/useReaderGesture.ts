@@ -54,7 +54,7 @@ export function useReaderGesture(
     maxSwipeTime: 300,
     velocityThreshold: 0.3,
     enablePinch: true,
-    enablePan: true
+    enablePan: true,
   }
 
   const mergedConfig = { ...defaultConfig, ...config }
@@ -68,7 +68,7 @@ export function useReaderGesture(
     deltaY: 0,
     velocity: 0,
     direction: null,
-    distance: 0
+    distance: 0,
   })
 
   const isPinching = ref(false)
@@ -116,8 +116,7 @@ export function useReaderGesture(
       const touch2 = event.touches[1]
 
       const distance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) +
-        Math.pow(touch2.clientY - touch1.clientY, 2)
+        Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2)
       )
 
       initialPinchDistance.value = distance
@@ -132,7 +131,7 @@ export function useReaderGesture(
     logger.debug('Gesture start', {
       touches: event.touches.length,
       startX: gestureState.startX,
-      startY: gestureState.startY
+      startY: gestureState.startY,
     })
   }
 
@@ -149,17 +148,11 @@ export function useReaderGesture(
       gestureState.deltaX = touch.clientX - gestureState.startX
       gestureState.deltaY = touch.clientY - gestureState.startY
       gestureState.distance = Math.sqrt(
-        gestureState.deltaX * gestureState.deltaX +
-        gestureState.deltaY * gestureState.deltaY
+        gestureState.deltaX * gestureState.deltaX + gestureState.deltaY * gestureState.deltaY
       )
 
       if (mergedConfig.enablePan && handlers.onPanMove) {
-        handlers.onPanMove(
-          touch.clientX,
-          touch.clientY,
-          gestureState.deltaX,
-          gestureState.deltaY
-        )
+        handlers.onPanMove(touch.clientX, touch.clientY, gestureState.deltaX, gestureState.deltaY)
       }
     } else if (event.touches.length === 2 && isPinching.value && mergedConfig.enablePinch) {
       // Two touch move - pinch
@@ -167,8 +160,7 @@ export function useReaderGesture(
       const touch2 = event.touches[1]
 
       const distance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) +
-        Math.pow(touch2.clientY - touch1.clientY, 2)
+        Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2)
       )
 
       const scale = distance / initialPinchDistance.value
@@ -201,10 +193,11 @@ export function useReaderGesture(
       gestureState.direction = calculateDirection(gestureState.deltaX, gestureState.deltaY)
 
       // Check for swipe gestures
-      if (gestureState.distance >= mergedConfig.minSwipeDistance &&
-          touchDuration <= mergedConfig.maxSwipeTime &&
-          gestureState.velocity >= mergedConfig.velocityThreshold) {
-
+      if (
+        gestureState.distance >= mergedConfig.minSwipeDistance &&
+        touchDuration <= mergedConfig.maxSwipeTime &&
+        gestureState.velocity >= mergedConfig.velocityThreshold
+      ) {
         switch (gestureState.direction) {
           case 'left':
             handlers.onSwipeLeft?.()
@@ -223,7 +216,7 @@ export function useReaderGesture(
         logger.debug('Swipe gesture detected', {
           direction: gestureState.direction,
           distance: gestureState.distance,
-          velocity: gestureState.velocity
+          velocity: gestureState.velocity,
         })
       } else if (gestureState.distance < 10 && touchDuration < 300) {
         // Check for tap gestures
@@ -289,9 +282,6 @@ export function useReaderGesture(
     removeEventListeners,
 
     // Config
-    config: mergedConfig
+    config: mergedConfig,
   }
 }
-
-// Export types
-export type { GestureState, GestureConfig, GestureHandlers }

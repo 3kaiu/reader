@@ -77,8 +77,8 @@ export class StorageHealthMonitor {
       })
 
       return report
-    } catch (error) {
-      logger.error('Storage health check failed', { error: error.message })
+    } catch (error: any) {
+      logger.error('Storage health check failed', { error: error?.message })
 
       // Return a basic error report
       return {
@@ -173,7 +173,7 @@ export class StorageHealthMonitor {
    * Generate maintenance recommendations
    */
   private generateRecommendations(
-    issues: StorageHealthReport['issues'],
+    _issues: StorageHealthReport['issues'],
     stats: StorageStats
   ): string[] {
     const recommendations: string[] = []
@@ -212,8 +212,8 @@ export class StorageHealthMonitor {
       await this.optimizeDatabase()
 
       logger.info('Storage maintenance completed')
-    } catch (error) {
-      logger.error('Storage maintenance failed', { error: error.message })
+    } catch (error: any) {
+      logger.error('Storage maintenance failed', { error: error?.message })
       throw error
     }
   }

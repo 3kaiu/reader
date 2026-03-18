@@ -122,7 +122,13 @@ export interface UIToast {
   title?: string
   message: string
   duration: number
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center'
+  position:
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
+    | 'top-center'
+    | 'bottom-center'
 }
 
 export interface UIDrawer {
@@ -163,7 +169,7 @@ const uiState = reactive<UIState>({
       error: '#dc3545',
       warning: '#ffc107',
       success: '#28a745',
-      info: '#17a2b8'
+      info: '#17a2b8',
     },
     typography: {
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -174,20 +180,20 @@ const uiState = reactive<UIState>({
         lg: '1.125rem',
         xl: '1.25rem',
         '2xl': '1.5rem',
-        '3xl': '1.875rem'
+        '3xl': '1.875rem',
       },
       fontWeight: {
         light: 300,
         normal: 400,
         medium: 500,
         semibold: 600,
-        bold: 700
+        bold: 700,
       },
       lineHeight: {
         tight: 1.25,
         normal: 1.5,
-        relaxed: 1.75
-      }
+        relaxed: 1.75,
+      },
     },
     spacing: {
       spacing: {
@@ -202,54 +208,39 @@ const uiState = reactive<UIState>({
         16: '4rem',
         20: '5rem',
         24: '6rem',
-        32: '8rem'
-      }
+        32: '8rem',
+      },
     },
     breakpoints: {
       sm: '640px',
       md: '768px',
       lg: '1024px',
       xl: '1280px',
-      '2xl': '1536px'
-    }
+      '2xl': '1536px',
+    },
   },
   layout: {
     sidebar: {
       width: '280px',
       collapsedWidth: '64px',
-      isCollapsed: false
+      isCollapsed: false,
     },
     header: {
-      height: '64px'
+      height: '64px',
     },
     content: {
-      padding: '24px'
+      padding: '24px',
     },
     footer: {
-      height: '60px'
-    }
+      height: '60px',
+    },
   },
   modals: [],
   toasts: [],
   drawers: [],
   loadingStates: new Map(),
-  errorStates: new Map()
+  errorStates: new Map(),
 })
 
 // Export reactive state
 export { uiState }
-
-// Export types
-export type {
-  UITheme,
-  ThemeColors,
-  TypographySettings,
-  SpacingSettings,
-  BreakpointSettings,
-  UILayout,
-  UIComponent,
-  UIModal,
-  UIToast,
-  UIDrawer,
-  UIState
-}

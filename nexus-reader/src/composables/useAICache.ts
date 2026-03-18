@@ -64,13 +64,13 @@ export function useAICache() {
         ttl: options.ttl || 30 * 60 * 1000, // 30 minutes default
         metadata: {
           tags: options.tags,
-          priority: options.priority
-        }
+          priority: options.priority,
+        },
       }
 
       cache.set(cacheKey, entry, options.ttl)
       return data
-    } catch (error) {
+    } catch (error: any) {
       logger.error('AI cache fetch failed', { key: cacheKey, error: error.message })
       throw error
     }
@@ -88,8 +88,8 @@ export function useAICache() {
       ttl: options.ttl || 30 * 60 * 1000,
       metadata: {
         tags: options.tags,
-        priority: options.priority
-      }
+        priority: options.priority,
+      },
     }
 
     cache.set(cacheKey, entry, options.ttl)
@@ -122,7 +122,7 @@ export function useAICache() {
     hits: cacheHits.value,
     misses: cacheMisses.value,
     totalRequests: totalRequests.value,
-    hitRate: hitRate.value
+    hitRate: hitRate.value,
   })
 
   /**
@@ -142,7 +142,7 @@ export function useAICache() {
     const promises = entries.map(async ({ key, fetcher, options = {} }) => {
       try {
         await get(key, fetcher, options)
-      } catch (error) {
+      } catch (error: any) {
         logger.warn('Failed to preload AI cache entry', { key, error: error.message })
       }
     })
@@ -162,7 +162,7 @@ export function useAICache() {
     cacheHits: readonly(cacheHits),
     cacheMisses: readonly(cacheMisses),
     totalRequests,
-    hitRate
+    hitRate,
   }
 }
 
@@ -185,6 +185,3 @@ export const setCache = async <T>(
   const cacheKey = `${key}:${chapterIndex}:${type}`
   cache.set(cacheKey, data, 30 * 60 * 1000) // 30 minutes
 }
-
-// Export types
-export type { AICacheEntry, AICacheOptions }

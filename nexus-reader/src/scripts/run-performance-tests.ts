@@ -125,7 +125,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
         throw new Error(`Server not ready: ${response.status}`)
       }
       console.log('✅ Application is ready')
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Application not accessible:', error)
       throw error
     }
@@ -230,7 +230,7 @@ async function main() {
       process.exit(1)
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Performance test runner failed:', error)
     process.exit(1)
   }

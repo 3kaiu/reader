@@ -43,7 +43,7 @@ try {
       configurable: true
     })
   }
-} catch (error) {
+} catch (error: any) {
   // If we can't override crypto, try to patch the specific methods we need
   if (globalThis.crypto && !globalThis.crypto.subtle) {
     Object.defineProperty(globalThis.crypto, 'subtle', {
@@ -56,9 +56,9 @@ try {
   if (globalThis.crypto?.subtle) {
     // Patch individual methods
     Object.keys(cryptoPolyfill.subtle).forEach(method => {
-      if (!globalThis.crypto.subtle[method]) {
+      if (!(globalThis.crypto.subtle as any)[method]) {
         Object.defineProperty(globalThis.crypto.subtle, method, {
-          value: cryptoPolyfill.subtle[method],
+          value: (cryptoPolyfill.subtle as any)[method],
           writable: true,
           configurable: true
         })
@@ -71,7 +71,7 @@ try {
 globalThis.btoa = globalThis.btoa || ((str: string) => {
   try {
     return Buffer.from(str, 'binary').toString('base64')
-  } catch (error) {
+  } catch (error: any) {
     // Fallback for invalid characters
     const cleanStr = str.replace(/[^\x00-\xFF]/g, '?')
     return Buffer.from(cleanStr, 'binary').toString('base64')
@@ -81,7 +81,7 @@ globalThis.btoa = globalThis.btoa || ((str: string) => {
 globalThis.atob = globalThis.atob || ((str: string) => {
   try {
     return Buffer.from(str, 'base64').toString('binary')
-  } catch (error) {
+  } catch (error: any) {
     // Fallback for invalid base64
     console.warn('Invalid base64 string:', str)
     return ''
@@ -142,13 +142,13 @@ if (typeof globalThis.window === 'undefined') {
       length: 0,
       key: () => null
     },
-    addEventListener: (event: string, handler: Function) => {
+    addEventListener: (_event: string, _handler: Function) => {
       // Mock event listener - do nothing in test environment
     },
-    removeEventListener: (event: string, handler: Function) => {
+    removeEventListener: (_event: string, _handler: Function) => {
       // Mock event listener removal - do nothing in test environment
     },
-    dispatchEvent: (event: Event) => {
+    dispatchEvent: (_event: Event) => {
       // Mock event dispatch - do nothing in test environment
       return true
     }

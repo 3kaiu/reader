@@ -2,178 +2,165 @@
 /**
  * 搜索页面 - 上一版搜索组件在内容区，顶部保留搜索按钮
  */
-import { ref, computed, onUnmounted, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
-import { useStorage } from "@vueuse/core";
-import { logger } from "@/utils/logger";
-import {
-  Search,
-  ArrowLeft,
-  X,
-  Loader2,
-  BookMarked,
-  Check,
-} from "lucide-vue-next";
-import { bookApi, type Book } from "@/api/unified";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton, LazyImage } from "@/components/ui";
-import { useMessage } from "@/composables/useMessage";
-import { useErrorHandler } from "@/composables/useErrorHandler";
+import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStorage } from '@vueuse/core'
+import { logger } from '@/utils/logger'
+import { Search, ArrowLeft, X, Loader2, BookMarked, Check } from 'lucide-vue-next'
+import { bookApi, type Book } from '@/api/unified'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton, LazyImage } from '@/components/ui'
+import { useMessage } from '@/composables/useMessage'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 
-const router = useRouter();
-const { success, error, warning } = useMessage();
-const { handleApiError, handlePromiseError } = useErrorHandler();
+const router = useRouter()
+const { success, error, warning } = useMessage()
+const { handleApiError, handlePromiseError } = useErrorHandler()
 
-import { useWebSocketStore } from "@/stores/websocket";
+import { useWebSocketStore } from '@/stores/websocket'
 
-const wsStore = useWebSocketStore();
-console.log("wsStore:", wsStore);
-console.log("wsStore.searchState:", wsStore.searchState);
+const wsStore = useWebSocketStore()
 
 // ====== 状态 ======
-const searchKeyword = ref("");
+const searchKeyword = ref('')
 // Use store state
-const searchResult = computed(() => wsStore.searchState?.results || []);
-const loading = computed(() => wsStore.searchState?.isSearching || false);
-const progress = computed(
-  () => wsStore.searchState?.progress || { current: 0, total: 0 }
-);
+const searchResult = computed(() => wsStore.searchState?.results || [])
+const loading = computed(() => wsStore.searchState?.isSearching || false)
+const progress = computed(() => wsStore.searchState?.progress || { current: 0, total: 0 })
 
 // 本地状态
-const hasSearched = ref(false);
-const addedBooks = ref<Set<string>>(new Set());
-const openingBook = ref<string | null>(null);
+const hasSearched = ref(false)
+const addedBooks = ref<Set<string>>(new Set())
+const openingBook = ref<string | null>(null)
 
-const searchHistory = useStorage<string[]>("search-history", []);
+const searchHistory = useStorage<string[]>('search-history', [])
 
 // ====== 计算属性 ======
-const resultCount = computed(() => searchResult.value.length);
+const resultCount = computed(() => searchResult.value.length)
 
 // 书源筛选
-const selectedSources = ref<Set<string>>(new Set());
+const selectedSources = ref<Set<string>>(new Set())
 const availableSources = computed(() => {
-  const sources = new Set<string>();
+  const sources = new Set<string>()
   searchResult.value.forEach((book: Book) => {
-    if (book.sourceName) sources.add(book.sourceName);
-  });
-  return Array.from(sources).sort();
-});
+    if (book.sourceName) sources.add(book.sourceName)
+  })
+  return Array.from(sources).sort()
+})
 
 const filteredResults = computed(() => {
-  if (selectedSources.value.size === 0) return searchResult.value;
-  return searchResult.value.filter((book: Book) =>
-    selectedSources.value.has(book.sourceName || "")
-  );
-});
+  if (selectedSources.value.size === 0) return searchResult.value
+  return searchResult.value.filter((book: Book) => selectedSources.value.has(book.sourceName || ''))
+})
 
 function toggleSource(source: string) {
-  const newSet = new Set(selectedSources.value);
+  const newSet = new Set(selectedSources.value)
   if (newSet.has(source)) {
-    newSet.delete(source);
+    newSet.delete(source)
   } else {
-    newSet.add(source);
+    newSet.add(source)
   }
-  selectedSources.value = newSet;
+  selectedSources.value = newSet
 }
 
 function clearSourceFilter() {
-  selectedSources.value = new Set();
+  selectedSources.value = new Set()
 }
 
 // ====== 方法 ======
 
 function stopSearch() {
   // Send cancel command to backend to stop the search
-  wsStore.cancelSearch();
+  wsStore.cancelSearch()
 }
 
 async function search(keyword?: string) {
-  const query = keyword || searchKeyword.value.trim();
+  const query = keyword || searchKeyword.value.trim()
   if (!query) {
-    warning("请输入搜索关键词");
-    return;
+    warning('请输入搜索关键词')
+    return
   }
 
   // Ensure WS connected
   if (!wsStore.isConnected) {
-    warning("正在连接服务器，请稍候...");
-    wsStore.connect();
+    warning('正在连接服务器，请稍候...')
+    wsStore.connect()
 
     // Watch for connection and auto-retry search
     const unwatch = watch(
       () => wsStore.isConnected,
-      (connected) => {
+      connected => {
         if (connected) {
-          unwatch();
+          unwatch()
           // Retry search after connected
-          doSearch(query);
+          doSearch(query)
         }
       }
-    );
-    return;
+    )
+    return
   }
 
-  doSearch(query);
+  doSearch(query)
 }
 
 function doSearch(query: string) {
-  searchKeyword.value = query;
+  searchKeyword.value = query
 
   if (!searchHistory.value.includes(query)) {
-    searchHistory.value = [query, ...searchHistory.value.slice(0, 9)];
+    searchHistory.value = [query, ...searchHistory.value.slice(0, 9)]
   }
 
-  hasSearched.value = true;
+  hasSearched.value = true
 
   // 使用 requestAnimationFrame 确保 DOM 更新后再滚动，实现平滑过渡
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-  });
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  })
 
   // Call WS Search
-  wsStore.search(query);
+  wsStore.search(query)
 }
 
 // 页面挂载时检查是否需要重置搜索状态
 // 使用 sessionStorage 标记，避免路由跳转失败时误清除状态
 onMounted(async () => {
-  const shouldReset = sessionStorage.getItem("search-should-reset");
-  if (shouldReset === "true") {
-    hasSearched.value = false;
-    wsStore.searchState.results = [];
-    searchKeyword.value = "";
-    sessionStorage.removeItem("search-should-reset");
+  const shouldReset = sessionStorage.getItem('search-should-reset')
+  if (shouldReset === 'true') {
+    hasSearched.value = false
+    wsStore.searchState.results = []
+    searchKeyword.value = ''
+    sessionStorage.removeItem('search-should-reset')
   }
 
   // 加载书架，初始化已添加状态
   try {
-    const res = await bookApi.getBookshelf();
+    const res = await bookApi.getBookshelf()
     if (res.isSuccess) {
-      res.data.forEach((book) => addedBooks.value.add(book.bookUrl));
+      res.data.forEach(book => addedBooks.value.add(book.bookUrl))
     }
   } catch (e) {
-    console.error("Failed to load bookshelf", e);
+    console.error('Failed to load bookshelf', e)
   }
-});
+})
 
 onUnmounted(() => {
-  stopSearch();
+  stopSearch()
   // 标记离开搜索页，下次进入时重置
-  sessionStorage.setItem("search-should-reset", "true");
-});
+  sessionStorage.setItem('search-should-reset', 'true')
+})
 
 declare global {
   interface Window {
-    searchEventSource: EventSource | null;
+    searchEventSource: EventSource | null
   }
 }
 
 async function addToShelf(book: Book) {
-  if (addedBooks.value.has(book.bookUrl)) return;
+  if (addedBooks.value.has(book.bookUrl)) return
 
   try {
     const res = await bookApi.saveBook({
@@ -182,27 +169,27 @@ async function addToShelf(book: Book) {
       name: book.name,
       author: book.author,
       coverUrl: book.coverUrl,
-    });
+    })
     if (res.isSuccess) {
-      addedBooks.value.add(book.bookUrl);
-      success(`《${book.name}》已添加到书架`);
+      addedBooks.value.add(book.bookUrl)
+      success(`《${book.name}》已添加到书架`)
     } else {
-      handleApiError(res, "添加失败");
+      handleApiError(res, '添加失败')
     }
   } catch (e: any) {
     // 忽略 409 (已存在) 错误
-    if (e.message?.includes("409") || e.code === 409) {
-      addedBooks.value.add(book.bookUrl);
-      success(`《${book.name}》已在书架`);
-      return;
+    if (e.message?.includes('409') || e.code === 409) {
+      addedBooks.value.add(book.bookUrl)
+      success(`《${book.name}》已在书架`)
+      return
     }
-    handlePromiseError(e, "添加失败");
+    handlePromiseError(e, '添加失败')
   }
 }
 
 async function openBook(book: Book) {
-  if (openingBook.value === book.bookUrl) return;
-  openingBook.value = book.bookUrl;
+  if (openingBook.value === book.bookUrl) return
+  openingBook.value = book.bookUrl
 
   try {
     if (!addedBooks.value.has(book.bookUrl)) {
@@ -212,54 +199,52 @@ async function openBook(book: Book) {
         name: book.name,
         author: book.author,
         coverUrl: book.coverUrl,
-      });
+      })
       // 即使添加失败（例如已存在），也继续跳转
       if (res.isSuccess) {
-        addedBooks.value.add(book.bookUrl);
+        addedBooks.value.add(book.bookUrl)
       }
     }
     router.push({
-      name: "reader",
+      name: 'reader',
       query: { url: book.bookUrl, source: book.sourceId },
-    });
+    })
   } catch (e: any) {
     // 忽略 409 (已存在) 错误
-    if (e.message?.includes("409") || e.code === 409) {
-      addedBooks.value.add(book.bookUrl);
+    if (e.message?.includes('409') || e.code === 409) {
+      addedBooks.value.add(book.bookUrl)
       router.push({
-        name: "reader",
+        name: 'reader',
         query: { url: book.bookUrl, source: book.sourceId },
-      });
-      return;
+      })
+      return
     }
-    handlePromiseError(e, "打开书籍失败");
+    handlePromiseError(e, '打开书籍失败')
   } finally {
-    openingBook.value = null;
+    openingBook.value = null
   }
 }
 
 function clearHistory() {
-  searchHistory.value = [];
+  searchHistory.value = []
 }
 
 function goBack() {
-  router.push("/");
+  router.push('/')
 }
 
 function resetSearch() {
-  stopSearch();
-  hasSearched.value = false;
-  wsStore.searchState.results = []; // Clear store state instead of computed property
-  searchKeyword.value = "";
+  stopSearch()
+  hasSearched.value = false
+  wsStore.searchState.results = [] // Clear store state instead of computed property
+  searchKeyword.value = ''
   // 重置后滚动到顶部，准备新的搜索
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 </script>
 
 <template>
-  <div
-    class="min-h-screen bg-background text-foreground pb-24 selection:bg-primary/20"
-  >
+  <div class="min-h-screen bg-background text-foreground pb-24 selection:bg-primary/20">
     <div class="h-safe-top" />
 
     <!-- 搜索前：Hero 状态 -->
@@ -297,9 +282,7 @@ function resetSearch() {
               @click="searchKeyword = ''"
               aria-label="清除"
             >
-              <X
-                class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-              />
+              <X class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           </div>
           <!-- 搜索按钮 -->
@@ -307,8 +290,8 @@ function resetSearch() {
             variant="outline"
             size="sm"
             @click="
-              searchKeyword = '测试';
-              search('测试');
+              searchKeyword = '测试'
+              search('测试')
             "
             class="rounded-full shrink-0 min-w-[80px]"
           >
@@ -332,9 +315,7 @@ function resetSearch() {
           class="w-full max-w-xl animate-in slide-in-from-bottom-4 duration-500 delay-100"
         >
           <div class="flex items-center justify-between mb-4 px-1">
-            <span
-              class="text-xs font-semibold text-muted-foreground uppercase tracking-widest"
-            >
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
               最近搜索
             </span>
             <button
@@ -376,9 +357,7 @@ function resetSearch() {
         class="sticky top-4 z-30 mb-6 flex justify-center animate-in fade-in slide-in-from-top-2 duration-300"
       >
         <div class="relative w-full max-w-2xl group">
-          <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10"
-          >
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
             <Search
               class="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
             />
@@ -395,9 +374,7 @@ function resetSearch() {
             @click="searchKeyword = ''"
             aria-label="清除"
           >
-            <X
-              class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-            />
+            <X class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
           </button>
         </div>
       </div>
@@ -412,9 +389,7 @@ function resetSearch() {
             <Loader2 class="h-3 w-3 animate-spin" />
             搜索中...
           </Badge>
-          <Badge v-else-if="resultCount > 0" variant="secondary">
-            {{ resultCount }} 本
-          </Badge>
+          <Badge v-else-if="resultCount > 0" variant="secondary"> {{ resultCount }} 本 </Badge>
         </div>
         <div class="flex items-center gap-2">
           <Button
@@ -494,13 +469,12 @@ function resetSearch() {
 
             <div class="flex items-center gap-1.5 mb-2">
               <span class="text-xs text-muted-foreground truncate">{{
-                book.author || "未知作者"
+                book.author || '未知作者'
               }}</span>
               <span class="text-xs text-muted-foreground/30">•</span>
-              <span
-                class="text-[10px] text-muted-foreground/70 truncate max-w-[6rem]"
-                >{{ book.sourceName }}</span
-              >
+              <span class="text-[10px] text-muted-foreground/70 truncate max-w-24">{{
+                book.sourceName
+              }}</span>
             </div>
 
             <!-- 简介 -->
@@ -525,19 +499,12 @@ function resetSearch() {
                 size="sm"
                 variant="ghost"
                 class="h-7 px-3 text-xs rounded-md hover:bg-secondary"
-                :class="
-                  addedBooks.has(book.bookUrl)
-                    ? 'text-green-600'
-                    : 'text-muted-foreground'
-                "
+                :class="addedBooks.has(book.bookUrl) ? 'text-green-600' : 'text-muted-foreground'"
                 @click.stop="addToShelf(book)"
               >
-                <Check
-                  v-if="addedBooks.has(book.bookUrl)"
-                  class="h-3 w-3 mr-1"
-                />
+                <Check v-if="addedBooks.has(book.bookUrl)" class="h-3 w-3 mr-1" />
                 <span v-else class="mr-1 text-[10px]">+</span>
-                {{ addedBooks.has(book.bookUrl) ? "已添加" : "收藏" }}
+                {{ addedBooks.has(book.bookUrl) ? '已添加' : '收藏' }}
               </Button>
             </div>
           </div>
@@ -588,12 +555,8 @@ function resetSearch() {
           尝试更换搜索关键词或检查输入是否正确
         </p>
         <div class="flex gap-3">
-          <Button @click="resetSearch" variant="outline" class="rounded-full">
-            重新搜索
-          </Button>
-          <Button @click="goBack" variant="ghost" class="rounded-full">
-            返回书架
-          </Button>
+          <Button @click="resetSearch" variant="outline" class="rounded-full"> 重新搜索 </Button>
+          <Button @click="goBack" variant="ghost" class="rounded-full"> 返回书架 </Button>
         </div>
       </div>
     </main>

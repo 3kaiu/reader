@@ -3,23 +3,25 @@
  * 提供自适应图片质量、请求优化和网络条件检测
  */
 
+import { logger } from '@/utils/logger'
+
 // 网络连接信息接口
 export interface NetworkInfo {
   effectiveType: '2g' | '3g' | '4g' | 'slow-2g' | 'unknown'
-  downlink: number        // 下行带宽 (Mbps)
-  rtt: number            // 往返时间 (ms)
-  saveData: boolean      // 用户是否启用了数据节省模式
-  isOnline: boolean      // 是否在线
+  downlink: number // 下行带宽 (Mbps)
+  rtt: number // 往返时间 (ms)
+  saveData: boolean // 用户是否启用了数据节省模式
+  isOnline: boolean // 是否在线
   connectionType: string // 连接类型
 }
 
 // 图片质量配置
 export interface ImageQualityConfig {
-  quality: number        // 图片质量 (0-100)
-  maxWidth: number       // 最大宽度
-  maxHeight: number      // 最大高度
+  quality: number // 图片质量 (0-100)
+  maxWidth: number // 最大宽度
+  maxHeight: number // 最大高度
   format: 'webp' | 'jpeg' | 'png' | 'auto'
-  progressive: boolean   // 是否使用渐进式加载
+  progressive: boolean // 是否使用渐进式加载
 }
 
 // 请求优化配置
@@ -36,14 +38,6 @@ export interface RequestOptimizationConfig {
 // 网络质量等级
 export type NetworkQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'offline'
 
-// CORS 缓存头（静态优化）
-const STATIC_CORS_HEADERS = {
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
-  'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Max-Age': '86400',
-}
-
 // 默认图片质量配置
 const IMAGE_QUALITY_CONFIGS: Record<NetworkQuality, ImageQualityConfig> = {
   excellent: {
@@ -51,36 +45,36 @@ const IMAGE_QUALITY_CONFIGS: Record<NetworkQuality, ImageQualityConfig> = {
     maxWidth: 2048,
     maxHeight: 2048,
     format: 'webp',
-    progressive: true
+    progressive: true,
   },
   good: {
     quality: 85,
     maxWidth: 1536,
     maxHeight: 1536,
     format: 'webp',
-    progressive: true
+    progressive: true,
   },
   fair: {
     quality: 75,
     maxWidth: 1024,
     maxHeight: 1024,
     format: 'webp',
-    progressive: false
+    progressive: false,
   },
   poor: {
     quality: 60,
     maxWidth: 768,
     maxHeight: 768,
     format: 'jpeg',
-    progressive: false
+    progressive: false,
   },
   offline: {
     quality: 50,
     maxWidth: 512,
     maxHeight: 512,
     format: 'jpeg',
-    progressive: false
-  }
+    progressive: false,
+  },
 }
 
 // 默认请求优化配置
@@ -92,7 +86,7 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
     jitterFactor: 0.1,
     batchSize: 10,
     batchDelay: 50,
-    timeout: 10000
+    timeout: 10000,
   },
   good: {
     maxRetries: 3,
@@ -101,7 +95,7 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
     jitterFactor: 0.2,
     batchSize: 8,
     batchDelay: 100,
-    timeout: 15000
+    timeout: 15000,
   },
   fair: {
     maxRetries: 4,
@@ -110,7 +104,7 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
     jitterFactor: 0.3,
     batchSize: 5,
     batchDelay: 200,
-    timeout: 20000
+    timeout: 20000,
   },
   poor: {
     maxRetries: 5,
@@ -119,7 +113,7 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
     jitterFactor: 0.4,
     batchSize: 3,
     batchDelay: 500,
-    timeout: 30000
+    timeout: 30000,
   },
   offline: {
     maxRetries: 0,
@@ -128,8 +122,8 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
     jitterFactor: 0,
     batchSize: 1,
     batchDelay: 0,
-    timeout: 5000
-  }
+    timeout: 5000,
+  },
 }
 
 /**
@@ -209,7 +203,7 @@ export class NetworkDetector {
 
   // 开始监控网络变化 (性能优化：废弃定时轮询，全由系统事件驱动)
   startMonitoring(): void {
-    console.log('🌐 Network monitoring started (Event-driven)')
+    // Event-driven monitoring - no polling needed
   }
 
   // 停止监控网络变化
@@ -217,7 +211,6 @@ export class NetworkDetector {
     if (this.updateInterval && typeof window !== 'undefined') {
       clearInterval(this.updateInterval)
       this.updateInterval = null
-      console.log('🌐 Network monitoring stopped')
     }
   }
 
@@ -251,7 +244,7 @@ export class NetworkDetector {
         rtt: connection.rtt || 0,
         saveData: connection.saveData || false,
         isOnline,
-        connectionType: connection.type || 'unknown'
+        connectionType: connection.type || 'unknown',
       }
     }
 
@@ -265,7 +258,7 @@ export class NetworkDetector {
       rtt: 0,
       saveData: false,
       isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      connectionType: 'unknown'
+      connectionType: 'unknown',
     }
   }
 
@@ -299,7 +292,7 @@ export class NetworkDetector {
     this.listeners.forEach(listener => {
       try {
         listener(info)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Network change listener error:', error)
       }
     })
@@ -318,11 +311,11 @@ export class AdaptiveImageQuality {
     this.currentQuality = networkDetector.getNetworkQuality()
 
     // 监听网络变化
-    networkDetector.addNetworkChangeListener((info) => {
+    networkDetector.addNetworkChangeListener(_info => {
       const newQuality = networkDetector.getNetworkQuality()
       if (newQuality !== this.currentQuality) {
         this.currentQuality = newQuality
-        console.log(`📱 Image quality adjusted to: ${newQuality}`)
+        logger.debug(`Image quality adjusted to: ${newQuality}`)
       }
     })
   }
@@ -358,7 +351,10 @@ export class AdaptiveImageQuality {
   }
 
   // 预加载图片
-  async preloadImage(url: string, options?: Partial<ImageQualityConfig>): Promise<HTMLImageElement> {
+  async preloadImage(
+    url: string,
+    options?: Partial<ImageQualityConfig>
+  ): Promise<HTMLImageElement> {
     const optimizedUrl = this.optimizeImageUrl(url, options)
 
     return new Promise((resolve, reject) => {
@@ -383,7 +379,10 @@ export class AdaptiveImageQuality {
   }
 
   // 批量预加载图片
-  async preloadImages(urls: string[], options?: Partial<ImageQualityConfig>): Promise<HTMLImageElement[]> {
+  async preloadImages(
+    urls: string[],
+    options?: Partial<ImageQualityConfig>
+  ): Promise<HTMLImageElement[]> {
     const config = this.networkDetector.getNetworkInfo()
     const batchSize = config.effectiveType === 'slow-2g' || config.effectiveType === '2g' ? 2 : 5
 
@@ -399,7 +398,7 @@ export class AdaptiveImageQuality {
       )
 
       const batchResults = await Promise.all(batchPromises)
-      results.push(...batchResults.filter(img => img !== null) as HTMLImageElement[])
+      results.push(...(batchResults.filter(img => img !== null) as HTMLImageElement[]))
 
       // 在批次之间添加延迟，避免网络拥塞
       if (i + batchSize < urls.length) {
@@ -447,12 +446,12 @@ export class RequestOptimizer {
         if (window.performanceMonitor) {
           window.performanceMonitor.reportMetric('request_retry_success', attempt, {
             networkQuality,
-            totalAttempts: attempt + 1
+            totalAttempts: attempt + 1,
           })
         }
 
         return result
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error
 
         // 最后一次尝试失败
@@ -460,7 +459,7 @@ export class RequestOptimizer {
           if (window.performanceMonitor) {
             window.performanceMonitor.reportMetric('request_retry_failed', config.maxRetries, {
               networkQuality,
-              error: lastError.message
+              error: lastError.message,
             })
           }
           break
@@ -474,10 +473,14 @@ export class RequestOptimizer {
           (error as any)?.response?.headers?.['retry-after'] ??
           (error as any)?.response?.headers?.['Retry-After']
 
-        const retryAfterSeconds = retryAfterHeader ? Number.parseInt(String(retryAfterHeader), 10) : NaN
+        const retryAfterSeconds = retryAfterHeader
+          ? Number.parseInt(String(retryAfterHeader), 10)
+          : NaN
         if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
           const delay = Math.min(retryAfterSeconds * 1000, config.maxDelay)
-          console.log(`🔄 Server asked retry-after=${retryAfterSeconds}s, retrying in ${delay}ms...`)
+          console.log(
+            `🔄 Server asked retry-after=${retryAfterSeconds}s, retrying in ${delay}ms...`
+          )
           await new Promise(resolve => setTimeout(resolve, delay))
           continue
         }
@@ -487,7 +490,9 @@ export class RequestOptimizer {
         const jitter = baseDelay * config.jitterFactor * Math.random()
         const delay = baseDelay + jitter
 
-        console.log(`🔄 Request failed (attempt ${attempt + 1}), retrying in ${delay.toFixed(0)}ms...`)
+        console.log(
+          `🔄 Request failed (attempt ${attempt + 1}), retrying in ${delay.toFixed(0)}ms...`
+        )
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
@@ -499,16 +504,15 @@ export class RequestOptimizer {
   async deduplicateRequest<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
     // 如果已有相同的请求在进行中，返回该请求的Promise
     if (this.pendingRequests.has(key)) {
-      console.log(`🔄 Request deduplicated: ${key}`)
+      logger.debug(`Request deduplicated: ${key}`)
       return this.pendingRequests.get(key) as Promise<T>
     }
 
     // 创建新请求
-    const requestPromise = this.requestWithRetry(requestFn)
-      .finally(() => {
-        // 请求完成后从pending列表中移除
-        this.pendingRequests.delete(key)
-      })
+    const requestPromise = this.requestWithRetry(requestFn).finally(() => {
+      // 请求完成后从pending列表中移除
+      this.pendingRequests.delete(key)
+    })
 
     this.pendingRequests.set(key, requestPromise)
     return requestPromise
@@ -535,7 +539,7 @@ export class RequestOptimizer {
       )
 
       const batchResults = await Promise.all(batchPromises)
-      results.push(...batchResults.filter(result => result !== null) as T[])
+      results.push(...(batchResults.filter(result => result !== null) as T[]))
 
       // 在批次之间添加延迟
       if (i + config.batchSize < requests.length) {
@@ -553,7 +557,7 @@ export class RequestOptimizer {
         try {
           const result = await this.requestWithRetry(requestFn)
           resolve(result)
-        } catch (error) {
+        } catch (error: any) {
           reject(error)
         }
       })
@@ -614,8 +618,8 @@ if (typeof window !== 'undefined') {
   })
 
   // 监听网络变化并报告
-  networkDetector.addNetworkChangeListener((info) => {
-    console.log('🌐 Network changed:', info)
+  networkDetector.addNetworkChangeListener(info => {
+    logger.debug('Network changed:', info)
 
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('network_change', 1, {
@@ -623,7 +627,7 @@ if (typeof window !== 'undefined') {
         downlink: info.downlink,
         rtt: info.rtt,
         saveData: info.saveData,
-        isOnline: info.isOnline
+        isOnline: info.isOnline,
       })
     }
   })
@@ -636,7 +640,7 @@ export function getNetworkQualityDescription(quality: NetworkQuality): string {
     good: '良好 - 快速网络',
     fair: '一般 - 中等网络',
     poor: '较差 - 慢速网络',
-    offline: '离线 - 无网络连接'
+    offline: '离线 - 无网络连接',
   }
   return descriptions[quality]
 }
@@ -648,7 +652,9 @@ export function shouldUseHighQualityImages(): boolean {
 
 export function shouldPreloadContent(): boolean {
   const info = networkDetector.getNetworkInfo()
-  return info.isOnline && !info.saveData && (info.effectiveType === '4g' || info.effectiveType === '3g')
+  return (
+    info.isOnline && !info.saveData && (info.effectiveType === '4g' || info.effectiveType === '3g')
+  )
 }
 
 // 类型声明扩展

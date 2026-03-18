@@ -4,6 +4,7 @@
  */
 
 import { perfMonitor } from './monitor'
+import { logger } from '@/utils/logger'
 
 // 性能系统配置
 export interface PerformanceSystemConfig {
@@ -65,14 +66,11 @@ export class PerformanceSystemManager {
       return
     }
 
-    console.log('🚀 Initializing performance monitoring...')
-
     try {
       perfMonitor.observeWebVitals()
       this.isInitialized = true
-      console.log('✅ Performance monitoring initialized (WebVitals)')
-    } catch (error) {
-      console.error('❌ Failed to initialize performance monitoring:', error)
+    } catch (error: unknown) {
+      logger.error('Failed to initialize performance monitoring', { error })
     }
   }
 
@@ -82,16 +80,14 @@ export class PerformanceSystemManager {
       monitoring: {
         active: this.isInitialized,
         metricsCollected: 0,
-        lastUpdate: Date.now()
-      }
+        lastUpdate: Date.now(),
+      },
     }
   }
 
   // 优化性能
   async optimizePerformance(): Promise<void> {
-    console.log('🔧 Running performance optimization...')
-    // 简化版本 - 只记录日志
-    console.log('✅ Performance optimization completed')
+    // Simplified version - only logs
   }
 
   // 生成性能报告
@@ -99,15 +95,13 @@ export class PerformanceSystemManager {
     return {
       timestamp: new Date().toISOString(),
       status: this.isInitialized ? 'active' : 'inactive',
-      systemHealth: 1.0
+      systemHealth: 1.0,
     }
   }
 
   // 销毁系统
   async destroy(): Promise<void> {
-    console.log('🛑 Shutting down performance monitoring...')
     this.isInitialized = false
-    console.log('✅ Performance monitoring stopped')
   }
 }
 

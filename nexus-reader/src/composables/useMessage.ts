@@ -1,7 +1,7 @@
 /**
  * 消息提示组合函数
  */
-import { ref } from 'vue'
+import { ref, readonly } from 'vue'
 
 interface MessageOptions {
   duration?: number
@@ -9,12 +9,14 @@ interface MessageOptions {
 }
 
 export function useMessage() {
-  const messages = ref<Array<{
-    id: string
-    content: string
-    type: 'info' | 'success' | 'warning' | 'error'
-    duration: number
-  }>>([])
+  const messages = ref<
+    Array<{
+      id: string
+      content: string
+      type: 'info' | 'success' | 'warning' | 'error'
+      duration: number
+    }>
+  >([])
 
   const showMessage = (content: string, options: MessageOptions = {}) => {
     const { duration = 3000, type = 'info' } = options
@@ -23,7 +25,7 @@ export function useMessage() {
       id: Date.now().toString(),
       content,
       type,
-      duration
+      duration,
     }
 
     messages.value.push(message)
@@ -66,6 +68,6 @@ export function useMessage() {
       showMessage(content, { ...options, type: 'warning' }),
 
     error: (content: string, options?: Omit<MessageOptions, 'type'>) =>
-      showMessage(content, { ...options, type: 'error' })
+      showMessage(content, { ...options, type: 'error' }),
   }
 }

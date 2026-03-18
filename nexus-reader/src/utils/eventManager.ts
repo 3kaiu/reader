@@ -19,7 +19,7 @@ class EventManager {
   /**
    * Register an event listener
    */
-  on<T = EventData>(event: string, handler: EventHandler<T>): () => void {
+  on<T extends EventData = EventData>(event: string, handler: EventHandler<T>): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set())
     }
@@ -35,7 +35,7 @@ class EventManager {
   /**
    * Remove an event listener
    */
-  off<T = EventData>(event: string, handler: EventHandler<T>): void {
+  off<T extends EventData = EventData>(event: string, handler: EventHandler<T>): void {
     const listeners = this.listeners.get(event)
     if (listeners) {
       listeners.delete(handler as EventHandler)
@@ -49,7 +49,7 @@ class EventManager {
   /**
    * Emit an event to all listeners
    */
-  async emit<T = EventData>(event: string, data: T): Promise<void> {
+  async emit<T extends EventData = EventData>(event: string, data: T): Promise<void> {
     const listeners = this.listeners.get(event)
     if (!listeners || listeners.size === 0) {
       return
@@ -65,7 +65,7 @@ class EventManager {
         if (result instanceof Promise) {
           promises.push(result)
         }
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Event handler error', { event, error: error.message })
       }
     }
@@ -79,7 +79,7 @@ class EventManager {
   /**
    * Emit an event synchronously
    */
-  emitSync<T = EventData>(event: string, data: T): void {
+  emitSync<T extends EventData = EventData>(event: string, data: T): void {
     const listeners = this.listeners.get(event)
     if (!listeners || listeners.size === 0) {
       return
@@ -90,7 +90,7 @@ class EventManager {
     for (const handler of listeners) {
       try {
         handler(data)
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Event handler error', { event, error: error.message })
       }
     }
@@ -140,10 +140,10 @@ class EventManager {
     const originalEmit = namespaced.emit.bind(namespaced)
     const originalEmitSync = namespaced.emitSync.bind(namespaced)
 
-    namespaced.emit = <T = EventData>(event: string, data: T) =>
+    namespaced.emit = <T extends EventData = EventData>(event: string, data: T) =>
       originalEmit(`${prefix}:${event}`, data)
 
-    namespaced.emitSync = <T = EventData>(event: string, data: T) =>
+    namespaced.emitSync = <T extends EventData = EventData>(event: string, data: T) =>
       originalEmitSync(`${prefix}:${event}`, data)
 
     return namespaced
@@ -176,7 +176,7 @@ export const emitSync = eventManager.emitSync.bind(eventManager)
 export function useEventManager() {
   const listeners = new Set<() => void>()
 
-  const addEventListener = <T = EventData>(
+  const addEventListener = <T extends EventData = EventData>(
     event: string,
     handler: EventHandler<T>
   ) => {
@@ -184,18 +184,18 @@ export function useEventManager() {
     listeners.add(unsubscribe)
   }
 
-  const removeEventListener = <T = EventData>(
+  const removeEventListener = <T extends EventData = EventData>(
     event: string,
     handler: EventHandler<T>
   ) => {
     eventManager.off(event, handler)
   }
 
-  const emitEvent = <T = EventData>(event: string, data: T) => {
+  const emitEvent = <T extends EventData = EventData>(event: string, data: T) => {
     return eventManager.emit(event, data)
   }
 
-  const emitEventSync = <T = EventData>(event: string, data: T) => {
+  const emitEventSync = <T extends EventData = EventData>(event: string, data: T) => {
     eventManager.emitSync(event, data)
   }
 

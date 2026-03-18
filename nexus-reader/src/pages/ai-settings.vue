@@ -149,7 +149,7 @@ async function downloadModel(modelId: string) {
     }
 
     success(`模型 ${modelId} 加载成功`);
-  } catch (error) {
+  } catch (error: any) {
     handlePromiseError(error, "模型加载失败");
   } finally {
     downloadingModel.value = null;

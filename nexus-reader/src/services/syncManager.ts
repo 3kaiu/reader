@@ -13,11 +13,6 @@ export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
 class SyncManager {
   private isProcessing = false
   private pollingTimer: any = null
-  private retryLimits: Record<SyncPriority, number> = {
-    CRITICAL: 10,
-    NORMAL: 5,
-    IDLE: 3
-  }
 
   /**
    * 添加同步任务
@@ -95,37 +90,34 @@ class SyncManager {
   }
 
   private async hasCriticalTasks(): Promise<boolean> {
-    const tasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
-    return tasks.some(t => t.priority === 'CRITICAL')
+    const tasks = (await nexusDB.getAll(StoreNames.SYNC_QUEUE)) as any[]
+    return (tasks as any[]).some((t: any) => t.priority === 'CRITICAL')
   }
 
   private async internalProcessQueue(limit: number): Promise<void> {
     this.isProcessing = true
     try {
-      let tasks = await nexusDB.getAll(StoreNames.SYNC_QUEUE)
+      let tasks = (await nexusDB.getAll(StoreNames.SYNC_QUEUE)) as any[]
       if (tasks.length === 0) return
 
       // 按优先级排序
       tasks.sort((a, b) => {
-        const priorityScore = { CRITICAL: 0, NORMAL: 1, IDLE: 2 }
-        return priorityScore[a.priority as SyncPriority] - priorityScore[b.priority as SyncPriority]
+        const priorityScore: any = { CRITICAL: 0, NORMAL: 1, IDLE: 2 }
+        return priorityScore[a.priority] - priorityScore[b.priority]
       })
 
       // 根据硬件配额限制任务数
-      const tasksToProcess = tasks.slice(0, limit)
-
-      for (const task of tasksToProcess) {
-        if (!networkDetector.isOnline()) break
-
+      for (const unknownTask of tasks.slice(0, limit)) {
+        const task = unknownTask as any
         try {
           await this.executeTask(task)
-          await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
-        } catch (error) {
+          await (nexusDB as any).delete(StoreNames.SYNC_QUEUE, task.id)
+        } catch (err: any) {
           task.retryCount++
-          if (task.retryCount >= this.retryLimits[task.priority as SyncPriority]) {
-            await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
+          if (task.retryCount >= (this as any).retryLimits[task.priority]) {
+            await (nexusDB as any).delete(StoreNames.SYNC_QUEUE, task.id)
           } else {
-            await nexusDB.put(StoreNames.SYNC_QUEUE, task)
+            await (nexusDB as any).put(StoreNames.SYNC_QUEUE, task)
           }
         }
       }

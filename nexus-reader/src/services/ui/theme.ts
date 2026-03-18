@@ -43,7 +43,6 @@ export interface ThemeState {
 export class ThemeTransitionManager {
   private state: ThemeState
   private themes = new Map<string, ThemeConfig>()
-  private transitionElement?: HTMLElement
   private mediaQuery?: MediaQueryList
   private observers: Array<(theme: Theme) => void> = []
 
@@ -114,7 +113,7 @@ export class ThemeTransitionManager {
         })
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Theme transition failed:', error)
     } finally {
       this.state.isTransitioning = false
@@ -198,7 +197,7 @@ export class ThemeTransitionManager {
       await animationManager.fadeIn(mask, config.duration! / 2)
 
       // 应用新主题
-      this.applyTheme(effectiveTheme)
+      this.applyTheme(effectiveTheme as any)
 
       // 第二阶段：遮罩退出
       await animationManager.fadeOut(mask, config.duration! / 2)
@@ -213,7 +212,7 @@ export class ThemeTransitionManager {
 
   private async performInstantTransition(theme: Theme): Promise<void> {
     const effectiveTheme = theme === 'auto' ? this.state.systemPreference : theme
-    this.applyTheme(effectiveTheme)
+    this.applyTheme(effectiveTheme as any)
   }
 
   private applyTheme(theme: 'light' | 'dark'): void {
@@ -351,7 +350,7 @@ export class ThemeTransitionManager {
     this.observers.forEach(callback => {
       try {
         callback(theme)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Theme observer error:', error)
       }
     })

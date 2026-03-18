@@ -1,7 +1,7 @@
 /**
  * 解码器组合函数
  */
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useDecoderStore } from '@/stores'
 
 export function useDecoder() {
@@ -38,14 +38,12 @@ export function useDecoder() {
   }> => {
     return {
       title: await decodeText(chapter.title),
-      content: await decodeText(chapter.content)
+      content: await decodeText(chapter.content),
     }
   }
 
   const batchDecode = async (texts: string[]): Promise<string[]> => {
-    const results = await Promise.all(
-      texts.map(text => decodeText(text))
-    )
+    const results = await Promise.all(texts.map(text => decodeText(text)))
     return results
   }
 
@@ -54,7 +52,7 @@ export function useDecoder() {
       totalRules: decoderStore.state.stats.totalRules,
       enabledRules: decoderStore.state.stats.enabledRules,
       appliedCount: decoderStore.state.stats.appliedCount,
-      lastApplied: decoderStore.state.stats.lastApplied
+      lastApplied: decoderStore.state.stats.lastApplied,
     }
   }
 
@@ -66,6 +64,6 @@ export function useDecoder() {
     getDecodingStats,
     rules: computed(() => decoderStore.state.rules),
     enabledRules: computed(() => decoderStore.enabledRules),
-    isProcessing: computed(() => decoderStore.isProcessing)
+    isProcessing: computed(() => decoderStore.isProcessing),
   }
 }

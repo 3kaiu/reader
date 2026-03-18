@@ -1,0 +1,23 @@
+# Cloudflare Workers Environment Variables Example
+# This file shows what variables are automatically loaded from GitHub Secrets
+
+# ===== Authentication =====
+AUTH_SECRET=your_auth_secret_here
+OAUTH_GITHUB_CLIENT_ID=your_github_client_id_here
+OAUTH_GITHUB_CLIENT_SECRET=your_github_client_secret_here
+
+# ===== Cloudflare =====
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token_here
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id_here
+
+# ===== Hugging Face =====
+HF_TOKEN=your_huggingface_token_here
+HF_SPACE_URL=https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+
+# ===== API Endpoints =====
+VITE_API_URL=https://nexus-reader-edge.your-account.workers.dev
+VITE_NEXUS_LITE_DIRECT_URL=${HF_SPACE_URL}
+VITE_NEXUS_LITE_API_KEY=your-nexus-lite-api-key-here
+VITE_PROGRESS_SYNC_URL=https://nexus-reader-edge.your-account.workers.dev
+VITE_BACKUP_URL=https://nexus-reader-edge.your-account.workers.dev
+VITE_DECODER_URL=https://nexus-reader-edge.your-account.workers.dev

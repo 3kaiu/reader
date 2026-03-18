@@ -4,6 +4,7 @@
  */
 import { UnifiedPerformanceMonitor } from '@/utils/unified-utils'
 import { errorHandler } from '@/utils/unified-utils'
+import { logger } from '@/utils/logger'
 
 interface SystemMetrics {
   timestamp: number
@@ -85,65 +86,65 @@ export class AIIntelligentOperations {
         id: 'high_cpu_usage',
         type: 'performance',
         severity: 'high',
-        pattern: (metrics) => {
+        pattern: metrics => {
           const recent = metrics.slice(-5)
           const avgCpu = recent.reduce((sum, m) => sum + m.cpuUsage, 0) / recent.length
           return avgCpu > 90
         },
         description: 'CPU使用率异常升高',
-        actions: ['scale_up_cpu', 'optimize_queries', 'enable_caching']
+        actions: ['scale_up_cpu', 'optimize_queries', 'enable_caching'],
       },
       {
         id: 'memory_leak',
         type: 'performance',
         severity: 'critical',
-        pattern: (metrics) => {
+        pattern: metrics => {
           const recent = metrics.slice(-10)
           const memoryTrend = recent.map(m => m.memoryUsage)
           // 检测内存持续增长趋势
-          const increasing = memoryTrend.every((val, idx) =>
-            idx === 0 || val >= memoryTrend[idx - 1] * 0.95
+          const increasing = memoryTrend.every(
+            (val, idx) => idx === 0 || val >= memoryTrend[idx - 1] * 0.95
           )
           return increasing && memoryTrend[memoryTrend.length - 1] > 85
         },
         description: '检测到内存泄漏',
-        actions: ['force_gc', 'restart_service', 'analyze_heap']
+        actions: ['force_gc', 'restart_service', 'analyze_heap'],
       },
       {
         id: 'network_attack',
         type: 'security',
         severity: 'critical',
-        pattern: (metrics) => {
+        pattern: metrics => {
           const recent = metrics.slice(-1)[0]
           return recent.networkRequests > 10000 // 异常高的请求数
         },
         description: '疑似网络攻击',
-        actions: ['enable_rate_limiting', 'block_ip', 'alert_security_team']
+        actions: ['enable_rate_limiting', 'block_ip', 'alert_security_team'],
       },
       {
         id: 'cache_miss_spike',
         type: 'performance',
         severity: 'medium',
-        pattern: (metrics) => {
+        pattern: metrics => {
           const recent = metrics.slice(-3)
           const avgHitRate = recent.reduce((sum, m) => sum + m.cacheHitRate, 0) / recent.length
           return avgHitRate < 50
         },
         description: '缓存命中率异常降低',
-        actions: ['warm_up_cache', 'adjust_cache_strategy', 'increase_cache_size']
+        actions: ['warm_up_cache', 'adjust_cache_strategy', 'increase_cache_size'],
       },
       {
         id: 'error_rate_spike',
         type: 'reliability',
         severity: 'high',
-        pattern: (metrics) => {
+        pattern: metrics => {
           const recent = metrics.slice(-5)
           const avgErrorRate = recent.reduce((sum, m) => sum + m.errorRate, 0) / recent.length
           return avgErrorRate > 5 // 5%错误率阈值
         },
         description: '错误率异常升高',
-        actions: ['rollback_deployment', 'increase_logging', 'analyze_error_patterns']
-      }
+        actions: ['rollback_deployment', 'increase_logging', 'analyze_error_patterns'],
+      },
     ]
   }
 
@@ -170,9 +171,11 @@ export class AIIntelligentOperations {
 
         // 自动优化配置
         await this.autoOptimizeConfiguration(currentMetrics)
-
-      } catch (error) {
-        errorHandler.handle(error, { component: 'AIIntelligentOperations', operation: 'monitoring' })
+      } catch (error: any) {
+        errorHandler.handle(error, {
+          component: 'AIIntelligentOperations',
+          operation: 'monitoring',
+        })
       }
     }, 30000) // 每30秒监控一次
   }
@@ -186,8 +189,7 @@ export class AIIntelligentOperations {
 
         // 优化异常检测模式
         await this.optimizeAnomalyPatterns()
-
-      } catch (error) {
+      } catch (error: any) {
         errorHandler.handle(error, { component: 'AIIntelligentOperations', operation: 'learning' })
       }
     }, 3600000) // 每小时学习一次
@@ -199,13 +201,14 @@ export class AIIntelligentOperations {
     return {
       timestamp: Date.now(),
       cpuUsage: await this.getCpuUsage(),
-      memoryUsage: performance.memory?.usedJSHeapSize ?
-        (performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize) * 100 : 0,
+      memoryUsage: performance.memory?.usedJSHeapSize
+        ? (performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize) * 100
+        : 0,
       networkRequests: await this.getNetworkRequestCount(),
       errorRate: await this.getErrorRate(),
       responseTime: performanceStats.averageValue || 0,
       cacheHitRate: await this.getCacheHitRate(),
-      userActivity: await this.getUserActivityLevel()
+      userActivity: await this.getUserActivityLevel(),
     }
   }
 
@@ -226,7 +229,7 @@ export class AIIntelligentOperations {
     for (const action of anomaly.actions) {
       try {
         await this.executeAction(action, metrics)
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[AI Ops] 执行动作失败: ${action}`, error)
       }
     }
@@ -234,15 +237,17 @@ export class AIIntelligentOperations {
     // 记录到历史数据
     await this.recordHistoricalData({
       metrics: [metrics],
-      anomalies: [{
-        timestamp: Date.now(),
-        type: anomaly.type,
-        probability: 1.0,
-        severity: anomaly.severity,
-        expectedImpact: anomaly.description
-      }],
+      anomalies: [
+        {
+          timestamp: Date.now(),
+          type: anomaly.type,
+          probability: 1.0,
+          severity: anomaly.severity,
+          expectedImpact: anomaly.description,
+        },
+      ],
       actions: anomaly.actions,
-      outcomes: ['handled']
+      outcomes: ['handled'],
     })
 
     // 发送告警
@@ -250,7 +255,9 @@ export class AIIntelligentOperations {
   }
 
   private async handlePrediction(prediction: AnomalyPrediction, metrics: SystemMetrics) {
-    console.info(`[AI Ops] 预测到潜在异常: ${prediction.type} (概率: ${(prediction.probability * 100).toFixed(1)}%)`)
+    console.info(
+      `[AI Ops] 预测到潜在异常: ${prediction.type} (概率: ${(prediction.probability * 100).toFixed(1)}%)`
+    )
 
     // 预先采取预防措施
     await this.executePreventiveActions(prediction, metrics)
@@ -286,7 +293,7 @@ export class AIIntelligentOperations {
     }
   }
 
-  private async executeAction(action: string, metrics: SystemMetrics) {
+  private async executeAction(action: string, _metrics: SystemMetrics) {
     switch (action) {
       case 'scale_up_cpu':
         await this.scaleResources('cpu', 1.5)
@@ -304,11 +311,11 @@ export class AIIntelligentOperations {
         await this.rollbackDeployment()
         break
       default:
-        console.log(`[AI Ops] 执行动作: ${action}`)
+        logger.debug(`Executing action: ${action}`)
     }
   }
 
-  private async executePreventiveActions(prediction: AnomalyPrediction, metrics: SystemMetrics) {
+  private async executePreventiveActions(prediction: AnomalyPrediction, _metrics: SystemMetrics) {
     // 根据预测类型采取预防措施
     switch (prediction.type) {
       case 'memory_pressure':
@@ -325,56 +332,56 @@ export class AIIntelligentOperations {
 
   private async scaleResources(type: string, factor: number) {
     // 在无服务器环境中，资源扩展通常由平台处理
-    console.log(`[AI Ops] 资源扩展请求: ${type} x${factor}`)
+    logger.debug(`Resource scaling request: ${type} x${factor}`)
     // 这里可以集成云平台的自动扩展API
   }
 
   private async adjustMemorySettings(factor: number) {
     // 调整内存相关配置
-    console.log(`[AI Ops] 调整内存设置: ${factor}`)
+    logger.debug(`Adjusting memory settings: ${factor}`)
   }
 
   private async optimizeCacheSize(size: number) {
     // 优化缓存大小
-    console.log(`[AI Ops] 优化缓存大小: ${size}`)
+    logger.debug(`Optimizing cache size: ${size}`)
   }
 
   private async applyConfiguration(config: any) {
     // 应用优化后的配置
-    console.log('[AI Ops] 应用配置优化', config)
+    logger.debug('Applying configuration optimization', config)
   }
 
   private async enableRateLimiting() {
-    console.log('[AI Ops] 启用速率限制')
+    logger.debug('Enabling rate limiting')
   }
 
   private async warmUpCache() {
-    console.log('[AI Ops] 预热缓存')
+    logger.debug('Warming up cache')
   }
 
   private async rollbackDeployment() {
-    console.log('[AI Ops] 回滚部署')
+    logger.debug('Rolling back deployment')
   }
 
   private async preallocateMemory() {
-    console.log('[AI Ops] 预分配内存')
+    logger.debug('Preallocating memory')
   }
 
   private async optimizeQueries() {
-    console.log('[AI Ops] 优化查询')
+    logger.debug('Optimizing queries')
   }
 
   private async enableCompression() {
-    console.log('[AI Ops] 启用压缩')
+    logger.debug('Enabling compression')
   }
 
-  private async sendAlert(anomaly: AnomalyPattern, metrics: SystemMetrics) {
+  private async sendAlert(anomaly: AnomalyPattern, _metrics: SystemMetrics) {
     const alert = {
       type: 'anomaly_detected',
       anomaly: anomaly.description,
       severity: anomaly.severity,
-      metrics,
-      timestamp: Date.now()
+      metrics: _metrics,
+      timestamp: Date.now(),
     }
 
     // 这里可以集成告警系统，如发送到Slack、邮件等
@@ -389,7 +396,7 @@ export class AIIntelligentOperations {
     }
   }
 
-  private async recordPrediction(prediction: AnomalyPrediction) {
+  private async recordPrediction(_prediction: AnomalyPrediction) {
     // 记录预测用于准确性评估
   }
 
@@ -473,9 +480,6 @@ export class AIIntelligentOperations {
 
 // 自适应预测模型
 class AdaptivePredictiveModel implements PredictiveModel {
-  private anomalyModel: any = null
-  private resourceModel: any = null
-
   predictAnomalies(metrics: SystemMetrics[]): AnomalyPrediction[] {
     // 简化的异常预测逻辑
     const predictions: AnomalyPrediction[] = []
@@ -493,7 +497,7 @@ class AdaptivePredictiveModel implements PredictiveModel {
         type: 'cpu_spike',
         probability: Math.min(avgCpu / 100, 0.9),
         severity: avgCpu > 85 ? 'high' : 'medium',
-        expectedImpact: '系统响应变慢'
+        expectedImpact: '系统响应变慢',
       })
     }
 
@@ -504,7 +508,7 @@ class AdaptivePredictiveModel implements PredictiveModel {
         type: 'memory_pressure',
         probability: Math.min(avgMemory / 100, 0.8),
         severity: avgMemory > 90 ? 'critical' : 'high',
-        expectedImpact: '可能导致内存溢出'
+        expectedImpact: '可能导致内存溢出',
       })
     }
 
@@ -518,7 +522,7 @@ class AdaptivePredictiveModel implements PredictiveModel {
         memoryScaling: 1,
         cacheSize: 100,
         workerCount: 1,
-        recommendations: []
+        recommendations: [],
       }
     }
 
@@ -531,7 +535,7 @@ class AdaptivePredictiveModel implements PredictiveModel {
       memoryScaling: Math.max(1, avgMemory / 70), // 内存使用率超过70%时扩展
       cacheSize: Math.max(50, Math.min(500, avgMemory * 2)), // 根据内存使用调整缓存
       workerCount: Math.max(1, Math.ceil(avgCpu / 40)), // 根据CPU使用调整worker数量
-      recommendations: this.generateRecommendations(avgCpu, avgMemory)
+      recommendations: this.generateRecommendations(avgCpu, avgMemory),
     }
   }
 
@@ -550,9 +554,9 @@ class AdaptivePredictiveModel implements PredictiveModel {
     return Object.keys(optimizations).length > 0 ? { ...currentConfig, ...optimizations } : null
   }
 
-  learnFromHistoricalData(data: HistoricalData[]): void {
+  learnFromHistoricalData(_data: HistoricalData[]): void {
     // 从历史数据中学习和改进模型
-    console.log('[AI Model] 学习历史数据:', data.length, '条记录')
+    logger.debug(`Learning from historical data: ${_data.length} records`)
     // 这里可以实现更复杂的机器学习算法
   }
 

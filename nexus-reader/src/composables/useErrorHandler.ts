@@ -1,7 +1,7 @@
 /**
  * 错误处理组合函数
  */
-import { ref } from 'vue'
+import { ref, readonly } from 'vue'
 import { errorHandler } from '@/utils/unified-utils'
 
 export function useErrorHandler() {
@@ -12,7 +12,7 @@ export function useErrorHandler() {
     timestamp: number
   }>>([])
 
-  const handleError = (error: any, context?: any) => {
+  const handleError = (error: any, context?: any, _silent?: boolean) => {
     const errorId = Date.now().toString()
 
     const errorInfo = {

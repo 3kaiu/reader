@@ -78,6 +78,7 @@ beforeAll(() => {
       requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 16)),
       cancelAnimationFrame: vi.fn(),
       setTimeout: vi.fn((cb, delay) => setTimeout(cb, delay)),
+      loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => { /* mock implementation */ }),
       clearTimeout: vi.fn(),
       setInterval: vi.fn((cb, delay) => setInterval(cb, delay)),
       clearInterval: vi.fn()
@@ -100,12 +101,15 @@ beforeAll(() => {
   console.debug = vi.fn();
 
   // Restore console for important messages
+  // @ts-ignore
   globalThis.__originalConsole = originalConsole;
 });
 
 afterAll(() => {
   // Restore original console
+  // @ts-ignore
   if (globalThis.__originalConsole) {
+    // @ts-ignore
     Object.assign(console, globalThis.__originalConsole);
   }
 });

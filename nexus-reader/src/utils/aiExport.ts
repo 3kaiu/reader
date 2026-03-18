@@ -66,7 +66,7 @@ export class AIExportManager {
       })
 
       return blob
-    } catch (error) {
+    } catch (error: any) {
       logger.error('AI data export failed', { error: error.message })
       throw error
     }
@@ -84,7 +84,7 @@ export class AIExportManager {
     return JSON.stringify(exportData, null, 2)
   }
 
-  private static exportAsMarkdown(data: AIExportData, options: ExportOptions): string {
+  public static exportAsMarkdown(data: AIExportData, options: ExportOptions): string {
     let content = '# AI Insights Export\n\n'
 
     if (options.includeMetadata && data.metadata) {
@@ -257,7 +257,7 @@ export const exportAIAnalysis = async (data: {
   exportData.metadata!.totalInsights = exportData.insights.length
 
   // Export as markdown
-  return AIExportManager.exportAsMarkdown(exportData, { includeMetadata: true, includeTimestamps: true })
+  return AIExportManager.exportAsMarkdown(exportData, { format: 'markdown', includeMetadata: true, includeTimestamps: true })
 }
 
 export const downloadMarkdown = (content: string, filename: string): void => {

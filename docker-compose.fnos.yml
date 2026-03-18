@@ -1,0 +1,34 @@
+services:
+  nexus-lite:
+    image: ghcr.io/3kaiu/nexus-lite:latest
+    container_name: nexus-lite
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      # Allow local frontends / workers to call the API
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:4173
+      # Optional: cf-bypass service (uncomment if you enable it)
+      # - CF_SERVICE_URL=http://cf-bypass:8000
+    volumes:
+      - ./data/nexus:/data
+      - ./data/cache:/cache
+      - ./data/logs:/logs
+
+  cf-bypass:
+    build:
+      context: ./cf-bypass-service
+    container_name: cf-bypass
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      # Optional API key for /fetch endpoints:
+      # - CF_API_KEY=change-me
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - ./data/cf-bypass:/data
+

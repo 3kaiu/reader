@@ -221,14 +221,14 @@ export class NexusError extends Error {
         ErrorCode.NETWORK_ERROR,
         'Network request failed',
         error.message,
-        { url, originalError: error.message }
+        { url, originalError: error.message, level: 'user' as any }
       )
     } else {
       return new NexusError(
         ErrorCode.NETWORK_ERROR,
         error.message || 'Unknown network error',
         undefined,
-        { url, originalError: error.message }
+        { url, originalError: error.message, level: 'user' as any }
       )
     }
   }
@@ -322,13 +322,13 @@ export function reportError(error: NexusError, additionalContext?: ErrorContext)
 }
 
 // Async error handler decorator
-export function errorHandler(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function errorHandler(_target: any, propertyKey: string, descriptor: PropertyDescriptor) {
   const originalMethod = descriptor.value
 
   descriptor.value = async function (...args: any[]) {
     try {
       return await originalMethod.apply(this, args)
-    } catch (error) {
+    } catch (error: any) {
       if (isNexusError(error)) {
         throw error
       }
@@ -353,14 +353,117 @@ export function errorHandler(target: any, propertyKey: string, descriptor: Prope
   return descriptor
 }
 
+// Support for legacy ErrorInfo and ErrorContext naming/structure if needed by tests
+export interface ErrorInfo {
+  message: string
+  code: string
+  severity: ErrorSeverity
+  userMessage: string
+  retryable: boolean
+  context?: any
+}
+
+/**
+ * Process any error into a standardized ErrorInfo object
+ */
+export function processError(error: any, context?: any): ErrorInfo {
+  let message = 'Unknown error'
+  let code = 'UNKNOWN_ERROR'
+  let severity = ErrorSeverity.MEDIUM
+  let userMessage = '操作失败，请重试'
+  let retryable = false
+
+  if (error instanceof NexusError) {
+    message = error.message
+    code = ErrorCode[error.code] || String(error.code)
+    severity = error.severity
+    userMessage = message // Fallback
+    retryable = error.isRetryable
+  } else if (error instanceof Error) {
+    message = error.message
+    code = error.name || 'ERROR'
+    if (message.includes('Network') || message.includes('fetch')) {
+      code = 'NETWORK_ERROR'
+      severity = ErrorSeverity.HIGH
+      retryable = true
+      userMessage = '网络连接失败，请检查网络设置'
+    }
+  } else if (typeof error === 'string') {
+    message = error
+    if (error === 'NetworkError' || error === 'TimeoutError') {
+      code = error.toUpperCase()
+      severity = ErrorSeverity.HIGH
+      retryable = true
+      userMessage = error === 'NetworkError' ? '网络连接失败' : '请求超时'
+    }
+  }
+
+  // Known error mappings for user messages
+  const userMessageMap: Record<string, string> = {
+    'Unauthorized': '登录已过期，请重新登录',
+    'Forbidden': '没有权限执行此操作',
+    'QuotaExceededError': '存储空间已满',
+    'TocEmptyException': '目录为空',
+  }
+
+  if (userMessageMap[code]) {
+    userMessage = userMessageMap[code]
+  }
+
+  return {
+    message,
+    code,
+    severity,
+    userMessage,
+    retryable,
+    context
+  }
+}
+
+/**
+ * Retry utility for async operations
+ */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: {
+    maxAttempts?: number
+    delay?: number
+    backoff?: 'linear' | 'exponential'
+  } = {}
+): Promise<T> {
+  const { maxAttempts = 3, delay = 1000, backoff = 'exponential' } = options
+  let lastError: any
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error
+      const info = processError(error)
+      
+      if (!info.retryable || attempt === maxAttempts) {
+        throw error
+      }
+
+      const waitTime = backoff === 'exponential' 
+        ? delay * Math.pow(2, attempt - 1)
+        : delay * attempt
+        
+      await new Promise(resolve => setTimeout(resolve, waitTime))
+    }
+  }
+
+  throw lastError
+}
+
 // Synchronous error handler
-export function syncErrorHandler(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function syncErrorHandler(_target: any, propertyKey: string, descriptor: PropertyDescriptor) {
   const originalMethod = descriptor.value
 
   descriptor.value = function (...args: any[]) {
     try {
       return originalMethod.apply(this, args)
-    } catch (error) {
+    } catch (error: any) {
       if (isNexusError(error)) {
         throw error
       }

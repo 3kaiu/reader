@@ -2,7 +2,7 @@
  * AI驱动的代码优化器
  * 基于机器学习分析代码质量，提供智能优化建议
  */
-import { api, errorHandler, logger } from '@/utils/unified-utils'
+import { errorHandler, logger } from '@/utils/unified-utils'
 
 interface CodeAnalysis {
   file: string
@@ -64,7 +64,9 @@ export class AICodeOptimizer {
   private optimizationHistory: CodeOptimizationResult[] = []
 
   private constructor() {
-    this.initializePatterns()
+    this.updateThreatIntelligence().catch(error => {
+      logger.error('Failed to initialize threat intelligence', { error })
+    })
   }
 
   static getInstance(): AICodeOptimizer {
@@ -72,6 +74,11 @@ export class AICodeOptimizer {
       AICodeOptimizer.instance = new AICodeOptimizer()
     }
     return AICodeOptimizer.instance
+  }
+
+  private async updateThreatIntelligence(): Promise<void> {
+    // 初始化分析模式和规则
+    logger.debug('Initializing AI code optimizer patterns')
   }
 
   /**
@@ -87,11 +94,11 @@ export class AICodeOptimizer {
         const analysis = await this.analyzeFile(file)
         analyses.push(analysis)
         this.analysisCache.set(file, analysis)
-      } catch (error) {
-        errorHandler.handle(error, {
+      } catch (error: any) {
+        errorHandler.handle(error instanceof Error ? error : new Error(String(error)), {
           component: 'ai-code-optimizer',
           operation: 'analyzeFile',
-          file
+          file,
         })
       }
     }
@@ -102,7 +109,7 @@ export class AICodeOptimizer {
     logger.info('Code analysis completed', {
       analyzedFiles: analyses.length,
       issuesFound: result.summary.issuesCount,
-      suggestions: result.summary.suggestionsCount
+      suggestions: result.summary.suggestionsCount,
     })
 
     return result
@@ -115,7 +122,7 @@ export class AICodeOptimizer {
     const content = await this.readFile(filePath)
     const language = this.detectLanguage(filePath)
 
-    const metrics = await this.calculateMetrics(content, language)
+    const metrics = await this.calculateMetrics(filePath, content, language)
     const issues = await this.detectIssues(content, language, filePath)
     const suggestions = await this.generateSuggestions(issues, content, language)
 
@@ -124,7 +131,7 @@ export class AICodeOptimizer {
       language,
       metrics,
       issues,
-      suggestions
+      suggestions,
     }
   }
 
@@ -151,48 +158,49 @@ export class AICodeOptimizer {
   /**
    * 计算代码指标
    */
-  private async calculateMetrics(content: string, language: string): Promise<CodeAnalysis['metrics']> {
+  private async calculateMetrics(
+    _file: string,
+    content: string,
+    _language: string
+  ): Promise<CodeAnalysis['metrics']> {
     // 复杂度分析
-    const complexity = this.calculateComplexity(content, language)
+    const complexity = this.calculateComplexity(content, _language)
 
     // 可维护性评分
-    const maintainability = this.calculateMaintainability(content, language)
+    const maintainability = this.calculateMaintainability(content, _language)
 
     // 性能评分
-    const performanceScore = this.calculatePerformanceScore(content, language)
+    const performanceScore = this.calculatePerformanceScore(content, _language)
 
     // 安全评分
-    const securityScore = this.calculateSecurityScore(content, language)
+    const securityScore = this.calculateSecurityScore(content, _language)
 
     return {
       complexity,
       maintainability,
       performanceScore,
-      securityScore
+      securityScore,
     }
   }
 
-  /**
-   * 检测代码问题
-   */
   private async detectIssues(
     content: string,
-    language: string,
-    filePath: string
+    _language: string,
+    _filePath: string
   ): Promise<CodeIssue[]> {
     const issues: CodeIssue[] = []
 
     // 性能问题检测
-    issues.push(...this.detectPerformanceIssues(content, language))
+    issues.push(...this.detectPerformanceIssues(content, _language))
 
     // 安全问题检测
-    issues.push(...this.detectSecurityIssues(content, language))
+    issues.push(...this.detectSecurityIssues(content, _language))
 
     // 可维护性问题检测
-    issues.push(...this.detectMaintainabilityIssues(content, language))
+    issues.push(...this.detectMaintainabilityIssues(content, _language))
 
     // 可靠性问题检测
-    issues.push(...this.detectReliabilityIssues(content, language))
+    issues.push(...this.detectReliabilityIssues(content, _language))
 
     return issues
   }
@@ -223,7 +231,7 @@ export class AICodeOptimizer {
   /**
    * 计算圈复杂度
    */
-  private calculateComplexity(content: string, language: string): number {
+  private calculateComplexity(content: string, _language: string): number {
     let complexity = 1 // 基础复杂度
 
     // 条件语句
@@ -244,7 +252,7 @@ export class AICodeOptimizer {
   /**
    * 计算可维护性评分
    */
-  private calculateMaintainability(content: string, language: string): number {
+  private calculateMaintainability(content: string, _language: string): number {
     let score = 100
 
     // 代码长度惩罚
@@ -254,7 +262,9 @@ export class AICodeOptimizer {
     else if (lines > 100) score -= 5
 
     // 函数长度惩罚
-    const functions = content.split(/\bfunction\b|\bconst\s+\w+\s*=\s*(?:\([^)]*\)\s*=>|async\s*\([^)]*\)\s*=>)/)
+    const functions = content.split(
+      /\bfunction\b|\bconst\s+\w+\s*=\s*(?:\([^)]*\)\s*=>|async\s*\([^)]*\)\s*=>)/
+    )
     functions.forEach(func => {
       const funcLines = func.split('\n').length
       if (funcLines > 50) score -= 15
@@ -264,7 +274,7 @@ export class AICodeOptimizer {
 
     // 注释比例奖励
     const commentLines = (content.match(/^\s*(\/\/|\/\*|<!--|#)/gm) || []).length
-    const commentRatio = commentLines / lines
+    const commentRatio = lines > 0 ? commentLines / lines : 0
     if (commentRatio > 0.3) score += 10
     else if (commentRatio > 0.2) score += 5
     else if (commentRatio > 0.1) score += 2
@@ -275,7 +285,7 @@ export class AICodeOptimizer {
   /**
    * 计算性能评分
    */
-  private calculatePerformanceScore(content: string, language: string): number {
+  private calculatePerformanceScore(content: string, _language: string): number {
     let score = 100
 
     // 检测性能反模式
@@ -306,7 +316,7 @@ export class AICodeOptimizer {
   /**
    * 计算安全评分
    */
-  private calculateSecurityScore(content: string, language: string): number {
+  private calculateSecurityScore(content: string, _language: string): number {
     let score = 100
 
     // 检测安全漏洞
@@ -334,9 +344,6 @@ export class AICodeOptimizer {
     return Math.max(0, Math.min(100, score))
   }
 
-  /**
-   * 计算最大嵌套深度
-   */
   private calculateMaxNesting(content: string): number {
     let maxDepth = 0
     let currentDepth = 0
@@ -356,11 +363,13 @@ export class AICodeOptimizer {
   /**
    * 检测性能问题
    */
-  private detectPerformanceIssues(content: string, language: string): CodeIssue[] {
+  private detectPerformanceIssues(content: string, _language: string): CodeIssue[] {
     const issues: CodeIssue[] = []
 
     // 检测未缓存的数组长度
-    const arrayLengthMatches = content.match(/for\s*\(\s*let\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*\w+\.length\s*;\s*\w+\+\+\s*\)/g)
+    const arrayLengthMatches = content.match(
+      /for\s*\(\s*let\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*\w+\.length\s*;\s*\w+\+\+\s*\)/g
+    )
     if (arrayLengthMatches) {
       issues.push({
         type: 'performance',
@@ -368,7 +377,7 @@ export class AICodeOptimizer {
         message: '数组长度未缓存，可能导致性能问题',
         line: 0, // 需要具体行号
         code: 'for (let i = 0; i < arr.length; i++)',
-        suggestion: 'const len = arr.length; for (let i = 0; i < len; i++)'
+        suggestion: 'const len = arr.length; for (let i = 0; i < len; i++)',
       })
     }
 
@@ -380,7 +389,7 @@ export class AICodeOptimizer {
         message: '在循环中使用DOM查询，建议缓存DOM元素',
         line: 0,
         code: 'for (let item of items) { document.querySelector(...) }',
-        suggestion: 'const element = document.querySelector(...); for (let item of items) { ... }'
+        suggestion: 'const element = document.querySelector(...); for (let item of items) { ... }',
       })
     }
 
@@ -390,7 +399,7 @@ export class AICodeOptimizer {
   /**
    * 检测安全问题
    */
-  private detectSecurityIssues(content: string, language: string): CodeIssue[] {
+  private detectSecurityIssues(content: string, _language: string): CodeIssue[] {
     const issues: CodeIssue[] = []
 
     // 检测XSS风险
@@ -400,8 +409,8 @@ export class AICodeOptimizer {
         severity: 'high',
         message: '使用innerHTML可能存在XSS风险',
         line: 0,
-        code: 'element.innerHTML = userInput',
-        suggestion: 'element.textContent = userInput 或使用DOMPurify.sanitize(userInput)'
+        code: 'element.innerHTML = content',
+        suggestion: 'element.textContent = content 或使用DOMPurify.sanitize(content)',
       })
     }
 
@@ -414,8 +423,8 @@ export class AICodeOptimizer {
           severity: 'critical',
           message: '可能存在SQL注入风险，建议使用参数化查询',
           line: 0,
-          code: 'SELECT * FROM table WHERE id = ' + userInput,
-          suggestion: 'SELECT * FROM table WHERE id = ?'
+          code: 'SELECT * FROM table WHERE id = 123',
+          suggestion: 'SELECT * FROM table WHERE id = ?',
         })
       }
     }
@@ -426,12 +435,14 @@ export class AICodeOptimizer {
   /**
    * 检测可维护性问题
    */
-  private detectMaintainabilityIssues(content: string, language: string): CodeIssue[] {
+  private detectMaintainabilityIssues(content: string, _language: string): CodeIssue[] {
     const issues: CodeIssue[] = []
 
     // 检测过长的函数
-    const functions = content.split(/\bfunction\b|\bconst\s+\w+\s*=\s*(?:\([^)]*\)\s*=>|async\s*\([^)]*\)\s*=>)/)
-    functions.forEach((func, index) => {
+    const functions = content.split(
+      /\bfunction\b|\bconst\s+\w+\s*=\s*(?:\([^)]*\)\s*=>|async\s*\([^)]*\)\s*=>)/
+    )
+    functions.forEach((func, _index) => {
       const lines = func.split('\n').length
       if (lines > 50) {
         issues.push({
@@ -440,7 +451,7 @@ export class AICodeOptimizer {
           message: `函数过长 (${lines} 行)，建议拆分为更小的函数`,
           line: 0,
           code: `function longFunction() { // ${lines} lines }`,
-          suggestion: '将函数拆分为多个职责单一的函数'
+          suggestion: '将函数拆分为多个职责单一的函数',
         })
       }
     })
@@ -454,7 +465,7 @@ export class AICodeOptimizer {
         message: '存在魔法数字，建议使用常量定义',
         line: 0,
         code: 'if (value > 100) { ... }',
-        suggestion: 'const MAX_VALUE = 100; if (value > MAX_VALUE) { ... }'
+        suggestion: 'const MAX_VALUE = 100; if (value > MAX_VALUE) { ... }',
       })
     }
 
@@ -464,7 +475,7 @@ export class AICodeOptimizer {
   /**
    * 检测可靠性问题
    */
-  private detectReliabilityIssues(content: string, language: string): CodeIssue[] {
+  private detectReliabilityIssues(content: string, _language: string): CodeIssue[] {
     const issues: CodeIssue[] = []
 
     // 检测未处理的Promise
@@ -477,7 +488,7 @@ export class AICodeOptimizer {
         message: '存在未处理的Promise，建议添加错误处理',
         line: 0,
         code: 'new Promise((resolve, reject) => { ... })',
-        suggestion: 'try { await promise; } catch (error) { handleError(error); }'
+        suggestion: 'try { await promise; } catch (error: any) { handleError(error); }',
       })
     }
 
@@ -489,7 +500,7 @@ export class AICodeOptimizer {
         message: '存在console.log语句，建议在生产环境中移除',
         line: 0,
         code: 'console.log("debug info")',
-        suggestion: '使用logger或移除调试语句'
+        suggestion: '使用logger or remove the debug statement',
       })
     }
 
@@ -501,34 +512,41 @@ export class AICodeOptimizer {
    */
   private async generateIssueSuggestion(
     issue: CodeIssue,
-    content: string,
-    language: string
+    _content: string,
+    _language: string
   ): Promise<OptimizationSuggestion | null> {
     // 这里可以调用AI API生成更智能的建议
     // 目前使用规则基础的建议
 
     return {
       id: `opt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: issue.type === 'performance' ? 'optimize' :
-        issue.type === 'security' ? 'security' :
-          issue.type === 'maintainability' ? 'refactor' : 'refactor',
+      type:
+        issue.type === 'performance'
+          ? 'optimize'
+          : issue.type === 'security'
+            ? 'security'
+            : issue.type === 'maintainability'
+              ? 'refactor'
+              : 'refactor',
       title: issue.message,
       description: issue.suggestion,
-      impact: issue.severity === 'critical' ? 'high' :
-        issue.severity === 'high' ? 'medium' : 'low',
+      impact: issue.severity === 'critical' ? 'high' : issue.severity === 'high' ? 'medium' : 'low',
       effort: 'medium',
       code: {
         before: issue.code,
-        after: issue.suggestion
+        after: issue.suggestion,
       },
-      automated: false
+      automated: false,
     }
   }
 
   /**
    * 生成基于模式的优化建议
    */
-  private generatePatternBasedSuggestions(content: string, language: string): OptimizationSuggestion[] {
+  private generatePatternBasedSuggestions(
+    content: string,
+    language: string
+  ): OptimizationSuggestion[] {
     const suggestions: OptimizationSuggestion[] = []
 
     // React/Vue优化建议
@@ -543,9 +561,9 @@ export class AICodeOptimizer {
           effort: 'low',
           code: {
             before: '<div v-for="item in items">',
-            after: '<div v-for="item in items" :key="item.id">'
+            after: '<div v-for="item in items" :key="item.id">',
           },
-          automated: true
+          automated: true,
         })
       }
 
@@ -559,9 +577,9 @@ export class AICodeOptimizer {
           effort: 'medium',
           code: {
             before: 'const expensiveValue = computed(() => heavyCalculation())',
-            after: 'const expensiveValue = computed(() => { /* cached */ heavyCalculation() })'
+            after: 'const expensiveValue = computed(() => { /* cached */ heavyCalculation() })',
           },
-          automated: false
+          automated: false,
         })
       }
     }
@@ -573,29 +591,35 @@ export class AICodeOptimizer {
    * 生成优化结果
    */
   private generateOptimizationResult(analyses: CodeAnalysis[]): CodeOptimizationResult {
+    const totalFiles = analyses.length
     const summary = {
-      totalFiles: analyses.length,
+      totalFiles,
       issuesCount: analyses.reduce((sum, a) => sum + a.issues.length, 0),
       suggestionsCount: analyses.reduce((sum, a) => sum + a.suggestions.length, 0),
-      averageComplexity: analyses.reduce((sum, a) => sum + a.metrics.complexity, 0) / analyses.length,
-      averageMaintainability: analyses.reduce((sum, a) => sum + a.metrics.maintainability, 0) / analyses.length
+      averageComplexity:
+        totalFiles > 0
+          ? analyses.reduce((sum, a) => sum + a.metrics.complexity, 0) / totalFiles
+          : 0,
+      averageMaintainability:
+        totalFiles > 0
+          ? analyses.reduce((sum, a) => sum + a.metrics.maintainability, 0) / totalFiles
+          : 0,
     }
 
     const recommendations = {
-      immediate: analyses.flatMap(a => a.suggestions.filter(s => s.impact === 'high' && s.effort === 'low')),
-      planned: analyses.flatMap(a => a.suggestions.filter(s => s.impact === 'medium' || s.effort === 'medium')),
-      monitoring: [
-        '代码复杂度趋势',
-        '测试覆盖率变化',
-        '性能指标监控',
-        '安全漏洞扫描'
-      ]
+      immediate: analyses.flatMap(a =>
+        a.suggestions.filter(s => s.impact === 'high' && s.effort === 'low')
+      ),
+      planned: analyses.flatMap(a =>
+        a.suggestions.filter(s => s.impact === 'medium' || s.effort === 'medium')
+      ),
+      monitoring: ['代码复杂度趋势', '测试覆盖率变化', '性能指标监控', '安全漏洞扫描'],
     }
 
     return {
       analysis: analyses,
       summary,
-      recommendations
+      recommendations,
     }
   }
 
@@ -624,15 +648,24 @@ export class AICodeOptimizer {
     averageSuggestionsPerFile: number
   } {
     const totalAnalyses = this.optimizationHistory.length
-    const totalIssues = this.optimizationHistory.reduce((sum, result) => sum + result.summary.issuesCount, 0)
-    const totalSuggestions = this.optimizationHistory.reduce((sum, result) => sum + result.summary.suggestionsCount, 0)
-    const totalFiles = this.optimizationHistory.reduce((sum, result) => sum + result.summary.totalFiles, 0)
+    const totalIssues = this.optimizationHistory.reduce(
+      (sum, result) => sum + result.summary.issuesCount,
+      0
+    )
+    const totalSuggestions = this.optimizationHistory.reduce(
+      (sum, result) => sum + result.summary.suggestionsCount,
+      0
+    )
+    const totalFiles = this.optimizationHistory.reduce(
+      (sum, result) => sum + result.summary.totalFiles,
+      0
+    )
 
     return {
       cachedFiles: this.analysisCache.size,
       totalAnalyses,
       averageIssuesPerFile: totalFiles > 0 ? totalIssues / totalFiles : 0,
-      averageSuggestionsPerFile: totalFiles > 0 ? totalSuggestions / totalFiles : 0
+      averageSuggestionsPerFile: totalFiles > 0 ? totalSuggestions / totalFiles : 0,
     }
   }
 }

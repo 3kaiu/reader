@@ -34,57 +34,79 @@ export interface ServiceUrls {
   cfBypassUrl: string;
 }
 
-// ============================================
-// 通讯协议 (Bypass Protocol)
-// ============================================
-
-export interface BypassRequest {
+export interface DecodeRequest {
   url: string;
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string;
-  timeout?: number;
-  proxy?: string;
-  engine?: 'scraper' | 'mesh';
+  source?: string;
+  content?: string;
+  type?: 'html' | 'text' | 'json';
+  options?: Record<string, any>;
 }
 
-export interface BypassResponse {
-  status: number;
-  html: string;
-  cookies: Record<string, string>;
-  headers: Record<string, string>;
-  cf_bypassed: boolean;
-  error?: string;
-  engine_used: string;
-}
+// Fallback types for Cloudflare-specific globals to resolve build errors
+// when @cloudflare/workers-types are not explicitly included in the environment.
+export type D1DatabaseFallback = {
+  prepare: (sql: string) => {
+    bind: (...args: any[]) => {
+      run: () => Promise<any>;
+      first: () => Promise<any>;
+      all: () => Promise<any>;
+    }
+  }
+};
+
+export type R2BucketFallback = {
+  get: (key: string) => Promise<any>;
+  put: (key: string, value: any, options?: any) => Promise<any>;
+  delete: (key: string) => Promise<void>;
+  list: (options?: any) => AsyncIterableIterator<any>;
+};
+
+export type KVNamespaceFallback = {
+  get: (key: string, options?: any) => Promise<any>;
+  put: (key: string, value: any, options?: any) => Promise<any>;
+  delete: (key: string) => Promise<void>;
+};
+
+export type QueueFallback = {
+  send: (message: any, options?: any) => Promise<void>;
+};
+
+export type AnalyticsEngineDatasetFallback = {
+  writeDataPoint: (data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }) => Promise<void>;
+  query: (sql: string) => Promise<any>;
+};
 
 export interface WorkerEnv {
   NEXUS_LITE_URL: string;
   CF_BYPASS_URL: string;
-  CF_API_KEY?: string; // 增加 API Key 支持
+  CF_API_KEY?: string;
   ENVIRONMENT?: 'development' | 'staging' | 'production' | string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error' | string;
   ENABLE_ANALYTICS?: string;
   ENABLE_CACHE?: string;
 
-  // Core storage bindings (required in production)
-  ANALYTICS_DB: D1Database;
-  USER_PREFERENCES_DB: D1Database;
-  USER_CONTENT_R2: R2Bucket;
-  BACKUP_R2: R2Bucket;
-  ANALYTICS_QUEUE: Queue;
-  ANALYTICS_ENGINE: AnalyticsEngineDataset;
+  // Storage bindings (matched with wrangler.toml)
+  ANALYTICS_DB: any | D1DatabaseFallback;
+  USER_PREFERENCES_DB: any | D1DatabaseFallback;
+  USER_CONTENT_R2: any | R2BucketFallback;
+  BACKUP_R2: any | R2BucketFallback;
+  PROGRESS_KV: any | KVNamespaceFallback;
+  CONTENT_CACHE_KV: any | KVNamespaceFallback;
+  DECODER_KV: any | KVNamespaceFallback;
+  AI_CACHE_KV: any | KVNamespaceFallback;
+  ANALYTICS_QUEUE: any | QueueFallback;
+  ANALYTICS_ENGINE: any | AnalyticsEngineDatasetFallback;
+  AI: any;
 
+  // Secrets and Config
   AUTH_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GITHUB_OWNER: string;
   FRONTEND_URL: string;
   WORKER_URL: string;
-  PROGRESS_KV?: any;
-  CONTENT_CACHE_KV?: any;
-  DECODER_KV?: any;
-  AI_CACHE_KV?: any;
+  
+  // Optional/AI Config
   GROQ_API_KEY?: string;
   HF_API_KEY?: string;
   ctx?: any;

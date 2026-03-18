@@ -69,7 +69,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           const { deleteDictionaryEntry } = await import('@/api/decoder')
 
           // Call API with malicious input
-          const result = await deleteDictionaryEntry(maliciousId, { level: 'user' })
+          const result = await deleteDictionaryEntry(maliciousId, { level: 'user' as any })
 
           // Verify the API was called (sanitization happens on backend)
           expect(mockDeleteDictionaryEntry).toHaveBeenCalledWith(
@@ -115,7 +115,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           // Call API with malicious input
           const result = await batchDeleteDictionaryEntries({
             ids: maliciousIds,
-            level: 'user',
+            level: 'user' as any,
           })
 
           // Verify the API was called
@@ -163,7 +163,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           // Verify response structure
           expect(result).toHaveProperty('id')
           expect(result).toHaveProperty('enabled')
-          expect(typeof result.enabled).toBe('boolean')
+          expect(typeof (result as any).enabled).toBe('boolean')
         }),
         { numRuns: 20 }
       )
@@ -190,7 +190,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           const { deleteDictionaryEntry } = await import('@/api/decoder')
 
           // Call API with path traversal attempt
-          const result = await deleteDictionaryEntry(traversalPath, { level: 'user' })
+          const result = await deleteDictionaryEntry(traversalPath, { level: 'user' as any })
 
           // Verify the API was called
           expect(mockDeleteDictionaryEntry).toHaveBeenCalled()
@@ -224,7 +224,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           const { deleteDictionaryEntry } = await import('@/api/decoder')
 
           // Call API with command injection attempt
-          const result = await deleteDictionaryEntry(commandPayload, { level: 'user' })
+          const result = await deleteDictionaryEntry(commandPayload, { level: 'user' as any })
 
           // Verify the API was called
           expect(mockDeleteDictionaryEntry).toHaveBeenCalled()
@@ -267,7 +267,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           const { deleteDictionaryEntry } = await import('@/api/decoder')
 
           // Delete the entry
-          const deleteResult = await deleteDictionaryEntry(entryId, { level: 'user' })
+          const deleteResult = await deleteDictionaryEntry(entryId, { level: 'user' as any })
 
           // Verify deletion was successful
           expect(deleteResult.success).toBe(true)
@@ -309,7 +309,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           // Batch delete entries
           const result = await batchDeleteDictionaryEntries({
             ids: entryIds,
-            level: 'user',
+            level: 'user' as any,
           })
 
           // Verify all entries were deleted
@@ -351,7 +351,7 @@ describe('Backend API Enhancements - Property Tests', () => {
           // Batch delete with mixed results
           const result = await batchDeleteDictionaryEntries({
             ids: allIds,
-            level: 'user',
+            level: 'user' as any,
           })
 
           // Verify partial success

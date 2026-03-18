@@ -1,11 +1,9 @@
 /**
  * 护眼模式组合函数
  */
-import { ref, watch } from 'vue'
-import { useSettingsStore } from '@/stores'
+import { ref, watch, readonly } from 'vue'
 
 export function useEyeCare() {
-  const settingsStore = useSettingsStore()
   const isEyeCareMode = ref(false)
   const eyeCareStartTime = ref<number | null>(null)
   const continuousReadingTime = ref(0)
@@ -13,10 +11,10 @@ export function useEyeCare() {
   // 护眼模式设置
   const eyeCareSettings = ref({
     enabled: false,
-    reminderInterval: 20 * 60 * 1000, // 20分钟
-    breakDuration: 20 * 1000, // 20秒
+    reminderInterval: 30, // 分钟
+    restDuration: 5, // 分钟
     nightMode: false,
-    blueLightFilter: true
+    blueLightFilter: true,
   })
 
   const toggleEyeCareMode = () => {
@@ -33,7 +31,7 @@ export function useEyeCare() {
 
   const startEyeCareTimer = () => {
     // 每分钟更新连续阅读时间
-    const timer = setInterval(() => {
+    setInterval(() => {
       if (eyeCareStartTime.value) {
         continuousReadingTime.value = Date.now() - eyeCareStartTime.value
 
@@ -83,6 +81,6 @@ export function useEyeCare() {
     continuousReadingTime: readonly(continuousReadingTime),
     eyeCareSettings: readonly(eyeCareSettings),
     toggleEyeCareMode,
-    showBreakReminder
+    showBreakReminder,
   }
 }

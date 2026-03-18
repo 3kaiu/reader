@@ -2,8 +2,8 @@
  * 语音功能状态管理
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { api, errorHandler, logger } from '@/utils/unified-utils'
+import { ref, computed, readonly } from 'vue'
+import { errorHandler, logger } from '@/utils/unified-utils'
 
 interface VoiceSettings {
   rate: number
@@ -46,7 +46,7 @@ export const useVoiceStore = defineStore('voice', () => {
     try {
       state.value.settings = { ...state.value.settings, ...newSettings }
       logger.info('Voice settings updated', { settings: state.value.settings })
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'voice-store', operation: 'updateSettings' })
     }
   }
@@ -76,7 +76,7 @@ export const useVoiceStore = defineStore('voice', () => {
         }
       }, 500)
 
-    } catch (error) {
+    } catch (error: any) {
       errorHandler.handle(error, { component: 'voice-store', operation: 'playText' })
       state.value.isPlaying = false
     }

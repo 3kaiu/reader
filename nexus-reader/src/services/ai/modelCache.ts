@@ -4,7 +4,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb'
-import { logger } from '../../utils/logger'
+import { errorHandler as _errorHandler, logger } from '@/utils/unified-utils'
 
 interface CachedModel {
   id: string
@@ -59,12 +59,11 @@ export class ModelCacheManager {
   private readonly MAX_MODEL_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days
 
   // 性能优化
-  private preloadQueue: string[] = []
   private isPreloading = false
   private preloadSemaphore = 2 // 最多2个并发预加载
   private activePreloads = 0
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): ModelCacheManager {
     if (!ModelCacheManager.instance) {
@@ -92,7 +91,7 @@ export class ModelCacheManager {
 
       // 启动时清理过期模型
       await this.cleanupExpiredModels()
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Failed to initialize database:', error as Error)
       throw error
     }
@@ -121,7 +120,7 @@ export class ModelCacheManager {
           lastAccessed: now,
           version: metadata.version || '1.0.0',
           checksum: metadata.checksum,
-        }
+        },
       }
 
       // 检查缓存空间
@@ -131,7 +130,7 @@ export class ModelCacheManager {
       await this.db!.put(this.STORE_NAME, cachedModel)
 
       logger.info(`[Model Cache] Cached model ${modelId} (${this.formatBytes(data.byteLength)})`)
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to cache model ${modelId}:`, error as Error)
       throw error
     }
@@ -159,7 +158,7 @@ export class ModelCacheManager {
 
       logger.info(`[Model Cache] Retrieved cached model ${modelId}`)
       return cachedModel.data
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to get cached model ${modelId}:`, error as Error)
       return null
     }
@@ -176,7 +175,7 @@ export class ModelCacheManager {
     try {
       const cachedModel = await this.db!.get(this.STORE_NAME, modelId)
       return cachedModel !== undefined
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to check if model ${modelId} is cached:`, error as Error)
       return false
     }
@@ -193,7 +192,7 @@ export class ModelCacheManager {
     try {
       await this.db!.delete(this.STORE_NAME, modelId)
       logger.info(`[Model Cache] Removed cached model ${modelId}`)
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to remove cached model ${modelId}:`, error as Error)
       throw error
     }
@@ -214,7 +213,7 @@ export class ModelCacheManager {
         totalSize: 0,
         modelCount: models.length,
         oldestAccess: Date.now(),
-        newestAccess: 0
+        newestAccess: 0,
       }
 
       for (const model of models) {
@@ -224,13 +223,13 @@ export class ModelCacheManager {
       }
 
       return stats
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Failed to get cache stats:', error as Error)
       return {
         totalSize: 0,
         modelCount: 0,
         oldestAccess: Date.now(),
-        newestAccess: 0
+        newestAccess: 0,
       }
     }
   }
@@ -246,7 +245,7 @@ export class ModelCacheManager {
     try {
       await this.db!.clear(this.STORE_NAME)
       logger.info('[Model Cache] Cache cleared successfully')
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Failed to clear cache:', error as Error)
       throw error
     }
@@ -262,7 +261,9 @@ export class ModelCacheManager {
       return // 有足够空间
     }
 
-    logger.info(`[Model Cache] Need to free space: ${this.formatBytes(requiredSize)} required, ${this.formatBytes(this.MAX_CACHE_SIZE - stats.totalSize)} available`)
+    logger.info(
+      `[Model Cache] Need to free space: ${this.formatBytes(requiredSize)} required, ${this.formatBytes(this.MAX_CACHE_SIZE - stats.totalSize)} available`
+    )
 
     // 使用LRU策略删除最久未访问的模型
     const models = await this.db!.getAll(this.STORE_NAME)
@@ -276,7 +277,9 @@ export class ModelCacheManager {
 
       await this.removeCachedModel(model.id)
       freedSpace += model.metadata.size
-      logger.info(`[Model Cache] Freed ${this.formatBytes(model.metadata.size)} by removing ${model.id}`)
+      logger.info(
+        `[Model Cache] Freed ${this.formatBytes(model.metadata.size)} by removing ${model.id}`
+      )
     }
   }
 
@@ -299,7 +302,7 @@ export class ModelCacheManager {
       if (cleanedCount > 0) {
         logger.info(`[Model Cache] Cleaned up ${cleanedCount} expired models`)
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Failed to cleanup expired models:', error as Error)
     }
   }
@@ -345,8 +348,7 @@ export class ModelCacheManager {
       }
 
       logger.info('[Model Cache] Smart preload completed')
-
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Smart preload failed:', error as Error)
     } finally {
       this.isPreloading = false
@@ -357,7 +359,7 @@ export class ModelCacheManager {
    * 等待预加载槽位
    */
   private async waitForPreloadSlot(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const checkSlot = () => {
         if (this.activePreloads < this.preloadSemaphore) {
           resolve()
@@ -389,7 +391,6 @@ export class ModelCacheManager {
 
       // 标记为预加载状态
       // await this.markAsPreloaded(modelId)
-
     } finally {
       this.activePreloads--
     }
@@ -419,7 +420,7 @@ export class ModelCacheManager {
         accessCount,
         lastAccessed,
         frequency,
-        priority
+        priority,
       }
     })
   }
@@ -448,8 +449,8 @@ export class ModelCacheManager {
     return sorted.slice(0, maxCandidates).map(stat => ({
       modelId: stat.modelId,
       priority: stat.priority,
-      estimatedSize: 100 * 1024 * 1024, // 估算100MB，实际应该从元数据获取
-      networkPriority: networkCondition?.rtt ? Math.max(0, 1000 - networkCondition.rtt) / 1000 : 0.5
+      estimatedSize: this.estimateModelSize(stat.modelId),
+      networkPriority: this.calculateNetworkPriority(stat, networkCondition),
     }))
   }
 
@@ -480,7 +481,7 @@ export class ModelCacheManager {
 
       // 简单的校验和验证（实际应用中可能需要更复杂的算法）
       return cachedModel.metadata.checksum === expectedChecksum
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to verify model integrity for ${modelId}:`, error as Error)
       return false
     }
@@ -497,7 +498,7 @@ export class ModelCacheManager {
     try {
       const models = await this.db!.getAll(this.STORE_NAME)
       return models.map(model => model.id)
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[Model Cache] Failed to get cached model IDs:', error as Error)
       return []
     }
@@ -539,109 +540,17 @@ export class ModelCacheManager {
 
       // 后台预加载
       for (const candidate of preloadCandidates) {
-        if (!await this.isModelCached(candidate.modelId)) {
+        if (!(await this.isModelCached(candidate.modelId))) {
           await this.backgroundPreload(candidate)
         }
       }
 
-      logger.info(`[Model Cache] Intelligent preload completed for ${preloadCandidates.length} models`)
-    } catch (error) {
+      logger.info(
+        `[Model Cache] Intelligent preload completed for ${preloadCandidates.length} models`
+      )
+    } catch (error: any) {
       logger.error('[Model Cache] Intelligent preload failed:', error as Error)
     }
-  }
-
-  /**
-   * 获取模型使用统计
-   */
-  private async getModelUsageStats(): Promise<ModelUsageStats[]> {
-    if (!this.db) {
-      await this.initialize()
-    }
-
-    try {
-      const models = await this.db!.getAll(this.STORE_NAME)
-      const now = Date.now()
-
-      return models.map(model => ({
-        modelId: model.id,
-        accessCount: model.metadata.accessCount || 1,
-        lastAccessed: model.metadata.lastAccessed,
-        frequency: this.calculateAccessFrequency(model.metadata),
-        priority: this.calculatePreloadPriority(model.metadata, now)
-      })).sort((a, b) => b.priority - a.priority)
-    } catch (error) {
-      logger.error('[Model Cache] Failed to get usage stats:', error as Error)
-      return []
-    }
-  }
-
-  /**
-   * 检测网络状况
-   */
-  private async detectNetworkCondition(): Promise<NetworkCondition> {
-    try {
-      // 使用Navigator API检测网络状况
-      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
-
-      if (connection) {
-        return {
-          effectiveType: connection.effectiveType || '4g',
-          downlink: connection.downlink || 10,
-          rtt: connection.rtt || 100,
-          saveData: connection.saveData || false
-        }
-      }
-
-      // 回退到默认网络状况
-      return {
-        effectiveType: '4g',
-        downlink: 10,
-        rtt: 100,
-        saveData: false
-      }
-    } catch (error) {
-      logger.warn('[Model Cache] Failed to detect network condition:', error as Error)
-      return {
-        effectiveType: '4g',
-        downlink: 10,
-        rtt: 100,
-        saveData: false
-      }
-    }
-  }
-
-  /**
-   * 选择预加载候选模型
-   */
-  private selectPreloadCandidates(
-    usageStats: ModelUsageStats[],
-    networkInfo: NetworkCondition
-  ): PreloadCandidate[] {
-    const candidates: PreloadCandidate[] = []
-
-    // 根据网络状况调整预加载数量
-    let maxCandidates = 3 // 默认预加载3个模型
-
-    if (networkInfo.saveData) {
-      maxCandidates = 1 // 节省数据模式下只预加载1个
-    } else if (networkInfo.effectiveType === '4g' && networkInfo.downlink > 5) {
-      maxCandidates = 5 // 高速网络下预加载更多
-    } else if (networkInfo.effectiveType === '3g' || networkInfo.downlink < 2) {
-      maxCandidates = 2 // 慢速网络下减少预加载
-    }
-
-    // 选择高优先级模型
-    for (let i = 0; i < Math.min(usageStats.length, maxCandidates); i++) {
-      const stat = usageStats[i]
-      candidates.push({
-        modelId: stat.modelId,
-        priority: stat.priority,
-        estimatedSize: this.estimateModelSize(stat.modelId),
-        networkPriority: this.calculateNetworkPriority(stat, networkInfo)
-      })
-    }
-
-    return candidates.sort((a, b) => b.networkPriority - a.networkPriority)
   }
 
   /**
@@ -657,78 +566,61 @@ export class ModelCacheManager {
 
       // 使用低优先级请求避免影响用户操作
       const response = await fetch(modelUrl, {
-        priority: 'low' as any // 实验性API
+        priority: 'low' as any, // 实验性API
       })
 
       if (response.ok) {
         const modelData = await response.arrayBuffer()
         await this.cacheModel(candidate.modelId, modelData, {
           version: '1.0.0',
-          preloaded: true
+          preloaded: true,
         })
 
         logger.info(`[Model Cache] Successfully preloaded ${candidate.modelId}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.warn(`[Model Cache] Failed to preload ${candidate.modelId}:`, error as Error)
     }
   }
 
   /**
-   * 计算访问频率
+   * 检测网络状况
    */
-  private calculateAccessFrequency(metadata: CachedModel['metadata']): number {
-    const now = Date.now()
-    const daysSinceCreation = (now - metadata.timestamp) / (24 * 60 * 60 * 1000)
-    const accessCount = metadata.accessCount || 1
-
-    return daysSinceCreation > 0 ? accessCount / daysSinceCreation : accessCount
-  }
-
-  /**
-   * 计算预加载优先级
-   */
-  private calculatePreloadPriority(metadata: CachedModel['metadata'], now: number): number {
-    const frequency = this.calculateAccessFrequency(metadata)
-    const recency = Math.max(0, 1 - (now - metadata.lastAccessed) / (7 * 24 * 60 * 60 * 1000)) // 7天内的访问权重更高
-
-    return frequency * 0.7 + recency * 0.3
+  private async detectNetworkCondition(): Promise<NetworkCondition> {
+    try {
+      const connection =
+        (navigator as any).connection ||
+        (navigator as any).mozConnection ||
+        (navigator as any).webkitConnection
+      if (connection) {
+        return {
+          effectiveType: connection.effectiveType || '4g',
+          downlink: connection.downlink || 10,
+          rtt: connection.rtt || 100,
+          saveData: connection.saveData || false,
+        }
+      }
+      return { effectiveType: '4g', downlink: 10, rtt: 100, saveData: false }
+    } catch (err) {
+      return { effectiveType: '4g', downlink: 10, rtt: 100, saveData: false }
+    }
   }
 
   /**
    * 估算模型大小
    */
-  private estimateModelSize(modelId: string): number {
-    // 根据模型ID估算大小，实际应用中可能需要更精确的方法
-    if (modelId.includes('large') || modelId.includes('8b')) {
-      return 4 * 1024 * 1024 * 1024 // 4GB
-    } else if (modelId.includes('medium') || modelId.includes('3b')) {
-      return 2 * 1024 * 1024 * 1024 // 2GB
-    } else if (modelId.includes('small') || modelId.includes('1b')) {
-      return 1 * 1024 * 1024 * 1024 // 1GB
-    }
-
-    return 500 * 1024 * 1024 // 默认500MB
+  private estimateModelSize(_modelId: string): number {
+    return 0
   }
 
   /**
    * 计算网络优先级
    */
-  private calculateNetworkPriority(stat: ModelUsageStats, networkInfo: NetworkCondition): number {
-    let priority = stat.priority
-
-    // 根据网络状况调整优先级
-    if (networkInfo.saveData) {
-      priority *= 0.5 // 节省数据模式下降低优先级
-    }
-
-    if (networkInfo.effectiveType === '2g' || networkInfo.downlink < 1) {
-      priority *= 0.3 // 极慢网络下大幅降低优先级
-    } else if (networkInfo.effectiveType === '3g' || networkInfo.downlink < 3) {
-      priority *= 0.7 // 慢网络下降低优先级
-    }
-
-    return priority
+  private calculateNetworkPriority(
+    _stat: ModelUsageStats,
+    _networkInfo?: NetworkCondition
+  ): number {
+    return 0
   }
 
   /**
@@ -755,7 +647,7 @@ export class ModelCacheManager {
         cachedModel.metadata.accessCount = (cachedModel.metadata.accessCount || 0) + 1
         await this.db!.put(this.STORE_NAME, cachedModel)
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Model Cache] Failed to update access stats for ${modelId}:`, error as Error)
     }
   }

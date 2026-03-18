@@ -5,7 +5,7 @@
  * supporting different swipe behaviors and customization.
  */
 
-import { ref, computed, readonly, watch, nextTick } from 'vue'
+import { ref, computed, readonly, watch } from 'vue'
 import { logger } from '@/utils/logger'
 
 export type SwipeMode = 'page' | 'scroll' | 'chapter' | 'disabled'
@@ -34,17 +34,14 @@ export interface SwipeHandlers {
   onSwipeCancel?: (direction: string) => void
 }
 
-export function useSwipeMode(
-  config: Partial<SwipeConfig> = {},
-  handlers: SwipeHandlers = {}
-) {
+export function useSwipeMode(config: Partial<SwipeConfig> = {}, handlers: SwipeHandlers = {}) {
   const defaultConfig: SwipeConfig = {
     mode: 'page',
     sensitivity: 0.5,
     velocityThreshold: 0.5,
     enableHapticFeedback: true,
     enableAnimation: true,
-    animationDuration: 300
+    animationDuration: 300,
   }
 
   const currentConfig = ref<SwipeConfig>({ ...defaultConfig, ...config })
@@ -53,7 +50,7 @@ export function useSwipeMode(
     direction: null,
     progress: 0,
     velocity: 0,
-    distance: 0
+    distance: 0,
   })
 
   const isSwipeEnabled = computed(() => currentConfig.value.mode !== 'disabled')
@@ -78,7 +75,7 @@ export function useSwipeMode(
       direction,
       progress: 0,
       velocity: 0,
-      distance: 0
+      distance: 0,
     }
 
     handlers.onSwipeStart?.(direction || '')
@@ -109,8 +106,8 @@ export function useSwipeMode(
     if (!swipeState.value.isActive) return
 
     swipeState.value.velocity = velocity
-    const success = swipeState.value.progress >= 1 ||
-                   (velocity > currentConfig.value.velocityThreshold)
+    const success =
+      swipeState.value.progress >= 1 || velocity > currentConfig.value.velocityThreshold
 
     if (success) {
       // Trigger haptic feedback if enabled
@@ -128,7 +125,7 @@ export function useSwipeMode(
       direction: swipeState.value.direction,
       success,
       progress: swipeState.value.progress,
-      velocity
+      velocity,
     })
 
     // Reset state
@@ -176,7 +173,7 @@ export function useSwipeMode(
   const performPageNavigation = async (direction: string) => {
     // Emit navigation events
     const event = new CustomEvent('swipe-navigation', {
-      detail: { direction, mode: 'page' }
+      detail: { direction, mode: 'page' },
     })
     window.dispatchEvent(event)
 
@@ -204,7 +201,7 @@ export function useSwipeMode(
   const performChapterNavigation = async (direction: string) => {
     // Emit chapter navigation events
     const event = new CustomEvent('chapter-navigation', {
-      detail: { direction, mode: 'chapter' }
+      detail: { direction, mode: 'chapter' },
     })
     window.dispatchEvent(event)
 
@@ -221,7 +218,7 @@ export function useSwipeMode(
       direction: swipeState.value.direction,
       progress: swipeState.value.progress,
       threshold: swipeThreshold.value,
-      willComplete: swipeState.value.progress >= 1
+      willComplete: swipeState.value.progress >= 1,
     }
   }
 
@@ -240,7 +237,7 @@ export function useSwipeMode(
   // Watch config changes
   watch(
     () => currentConfig.value,
-    (newConfig) => {
+    newConfig => {
       logger.debug('Swipe config changed', { config: newConfig })
     },
     { deep: true }
@@ -265,9 +262,6 @@ export function useSwipeMode(
     // Actions
     performPageNavigation,
     performScrollAction,
-    performChapterNavigation
+    performChapterNavigation,
   }
 }
-
-// Export types
-export type { SwipeMode, SwipeConfig, SwipeState, SwipeHandlers }

@@ -5,9 +5,9 @@
 import { logger } from '@/utils/unified-utils'
 
 // ===== 单例模式 =====
-export class Singleton<T> {
+export class Singleton<_T> {
   private static instances = new Map<string, any>()
-  protected constructor() { }
+  protected constructor() {}
 
   static getInstance<T extends Singleton<any>>(this: new () => T): T {
     const className = this.name
@@ -79,10 +79,10 @@ export class Subject<T = any> {
     for (const observer of this.observers.values()) {
       try {
         observer.update(data)
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Observer update failed', {
           observerId: observer.id,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         })
       }
     }
@@ -323,7 +323,7 @@ export abstract class TemplateMethod {
 }
 
 // ===== 组合模式 =====
-export abstract class Component {
+export abstract class CompositeComponent {
   protected name: string
 
   constructor(name: string) {
@@ -337,7 +337,7 @@ export abstract class Component {
   }
 }
 
-export class File extends Component {
+export class File extends CompositeComponent {
   private size: number
 
   constructor(name: string, size: number) {
@@ -350,14 +350,14 @@ export class File extends Component {
   }
 }
 
-export class Folder extends Component {
-  private children: Component[] = []
+export class Folder extends CompositeComponent {
+  private children: CompositeComponent[] = []
 
-  add(component: Component): void {
+  add(component: CompositeComponent): void {
     this.children.push(component)
   }
 
-  remove(component: Component): void {
+  remove(component: CompositeComponent): void {
     const index = this.children.indexOf(component)
     if (index >= 0) {
       this.children.splice(index, 1)
@@ -368,7 +368,7 @@ export class Folder extends Component {
     return this.children.reduce((total, child) => total + child.getSize(), 0)
   }
 
-  getChildren(): Component[] {
+  getChildren(): CompositeComponent[] {
     return [...this.children]
   }
 }
@@ -396,17 +396,17 @@ export class FlyweightFactory<T> {
 }
 
 // ===== 代理模式 =====
-export interface Subject {
+export interface ProxySubject {
   request(): string
 }
 
-export class RealSubject implements Subject {
+export class RealSubject implements ProxySubject {
   request(): string {
     return 'Real subject response'
   }
 }
 
-export class Proxy implements Subject {
+export class Proxy implements ProxySubject {
   private realSubject: RealSubject | null = null
   private accessCount = 0
 
@@ -487,7 +487,7 @@ export class Originator {
   createMemento(): Memento {
     return {
       getState: () => ({ ...this.state }),
-      getTimestamp: () => Date.now()
+      getTimestamp: () => Date.now(),
     }
   }
 
@@ -559,7 +559,7 @@ export interface Expression {
 }
 
 export class VariableExpression implements Expression {
-  constructor(private name: string) { }
+  constructor(private name: string) {}
 
   interpret(context: Map<string, any>): boolean {
     return Boolean(context.get(this.name))
@@ -567,7 +567,10 @@ export class VariableExpression implements Expression {
 }
 
 export class AndExpression implements Expression {
-  constructor(private left: Expression, private right: Expression) { }
+  constructor(
+    private left: Expression,
+    private right: Expression
+  ) {}
 
   interpret(context: Map<string, any>): boolean {
     return this.left.interpret(context) && this.right.interpret(context)
@@ -575,7 +578,10 @@ export class AndExpression implements Expression {
 }
 
 export class OrExpression implements Expression {
-  constructor(private left: Expression, private right: Expression) { }
+  constructor(
+    private left: Expression,
+    private right: Expression
+  ) {}
 
   interpret(context: Map<string, any>): boolean {
     return this.left.interpret(context) || this.right.interpret(context)
@@ -583,7 +589,7 @@ export class OrExpression implements Expression {
 }
 
 export class NotExpression implements Expression {
-  constructor(private expression: Expression) { }
+  constructor(private expression: Expression) {}
 
   interpret(context: Map<string, any>): boolean {
     return !this.expression.interpret(context)

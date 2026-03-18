@@ -1,6 +1,11 @@
 import { ofetch, type FetchOptions } from 'ofetch'
 import { decode, encode } from '@msgpack/msgpack'
-import { API_CACHE_TTL, API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
+import {
+  API_CACHE_TTL,
+  API_TIMEOUT,
+  API_MAX_RETRIES,
+  API_RETRY_DELAY_MULTIPLIER,
+} from '@/constants/api'
 import { requestOptimizer, networkDetector } from '@/services/network/optimizer'
 import { perfMonitor } from '@/services/performance/monitor'
 import { offlineManager, offlineContentServer } from '@/services/offline/manager'
@@ -29,8 +34,8 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
   'Bad request': '请求参数错误，请重试',
 
   // 认证错误
-  'Unauthorized': '登录已过期，请重新登录',
-  'Forbidden': '没有权限访问此资源',
+  Unauthorized: '登录已过期，请重新登录',
+  Forbidden: '没有权限访问此资源',
 }
 
 // 将技术性错误消息转换为用户友好的消息
@@ -60,13 +65,15 @@ function convertToNexusError(error: any, url: string, method: string): NexusErro
 
   // 根据错误类型转换为相应的ErrorCode
   if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-    return new NexusError(
-      ErrorCode.TIMEOUT,
-      '请求超时，请稍后重试',
-      error.message,
-      { url, method, originalError: error.toString() }
-    )
-  } else if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+    return new NexusError(ErrorCode.TIMEOUT, '请求超时，请稍后重试', error.message, {
+      url,
+      method,
+      originalError: error.toString(),
+    })
+  } else if (
+    error.message?.includes('NetworkError') ||
+    error.message?.includes('Failed to fetch')
+  ) {
     return new NexusError(
       ErrorCode.NETWORK_ERROR,
       '网络连接失败，请检查网络后重试',
@@ -74,33 +81,30 @@ function convertToNexusError(error: any, url: string, method: string): NexusErro
       { url, method, originalError: error.toString() }
     )
   } else if (error.status === 401) {
-    return new NexusError(
-      ErrorCode.UNAUTHORIZED,
-      '登录已过期，请重新登录',
-      undefined,
-      { url, method, status: error.status }
-    )
+    return new NexusError(ErrorCode.UNAUTHORIZED, '登录已过期，请重新登录', undefined, {
+      url,
+      method,
+      status: error.status,
+    })
   } else if (error.status === 403) {
-    return new NexusError(
-      ErrorCode.FORBIDDEN,
-      '没有权限访问此资源',
-      undefined,
-      { url, method, status: error.status }
-    )
+    return new NexusError(ErrorCode.FORBIDDEN, '没有权限访问此资源', undefined, {
+      url,
+      method,
+      status: error.status,
+    })
   } else if (error.status === 429) {
-    return new NexusError(
-      ErrorCode.RATE_LIMITED,
-      '请求过于频繁，请稍后重试',
-      undefined,
-      { url, method, status: error.status, retryAfter: error.response?.headers?.['retry-after'] }
-    )
+    return new NexusError(ErrorCode.RATE_LIMITED, '请求过于频繁，请稍后重试', undefined, {
+      url,
+      method,
+      status: error.status,
+      retryAfter: error.response?.headers?.['retry-after'],
+    })
   } else if (error.status >= 500) {
-    return new NexusError(
-      ErrorCode.INTERNAL_ERROR,
-      '服务器内部错误，请稍后重试',
-      undefined,
-      { url, method, status: error.status }
-    )
+    return new NexusError(ErrorCode.INTERNAL_ERROR, '服务器内部错误，请稍后重试', undefined, {
+      url,
+      method,
+      status: error.status,
+    })
   } else {
     // 其他错误
     return new NexusError(
@@ -110,48 +114,6 @@ function convertToNexusError(error: any, url: string, method: string): NexusErro
       { url, method, originalError: error.toString() }
     )
   }
-}
-
-// 将 HTTP 状态码转换为用户友好的消息
-function translateHttpError(status: number, error?: unknown): string {
-  const errorMsg = error instanceof Error ? error.message : String(error)
-
-  switch (status) {
-    case 400:
-      return '请求参数错误，请检查后重试'
-    case 401:
-      return '登录已过期，请重新登录'
-    case 403:
-      return '没有权限访问此资源'
-    case 404:
-      return '请求的资源不存在'
-    case 408:
-      return '请求超时，请稍后重试'
-    case 429:
-      return '请求过于频繁，请稍后再试'
-    case 500:
-      return '服务器内部错误，请稍后重试'
-    case 502:
-      return '服务器暂时不可用，请稍后重试'
-    case 503:
-      return '服务正在维护中，请稍后重试'
-    case 504:
-      return '服务器响应超时，请稍后重试'
-    default:
-      return translateErrorMessage(errorMsg) || `请求失败 (${status})`
-  }
-}
-
-// 导入性能监控
-let performanceMonitor: any = null
-try {
-  // 动态导入以避免循环依赖
-  import('../composables/usePerformanceMonitor').then(module => {
-    const { useGlobalPerformanceMonitor } = module
-    performanceMonitor = useGlobalPerformanceMonitor()
-  })
-} catch (e) {
-  console.warn('Performance monitoring not available:', e)
 }
 
 // API 响应类型
@@ -174,14 +136,14 @@ const pendingRequests = new Map<string, Promise<unknown>>()
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
 interface ErrorHandlerInstance {
-  handleApiError: (error: unknown, context?: string) => void
+  handleError: (error: unknown, context?: string, silent?: boolean) => void
 }
 
 // 统一错误处理实例 (单例，由 internalFetch 使用)
 let errorHandlerInstance: ErrorHandlerInstance | null = null
 function getGlobalErrorHandler() {
   if (!errorHandlerInstance) {
-    errorHandlerInstance = useErrorHandler() as ErrorHandlerInstance
+    errorHandlerInstance = useErrorHandler() as unknown as ErrorHandlerInstance
   }
   return errorHandlerInstance
 }
@@ -207,58 +169,72 @@ const internalFetch = ofetch.create({
       ;(options as any).baseURL = edgeBaseUrl
       ;(options as any)._usedDirect = false
     } else {
-    // Only direct-connect a safe allowlist of nexus-lite endpoints.
-    const directAllowlistPrefixes = [
-      '/api/search',
-      '/api/book',
-      '/api/chapters',
-      '/api/content',
-      '/api/batch/content',
-      '/api/sources',
-      '/api/bookshelf',
-      '/api/groups',
-      '/api/replace_rules',
-      '/api/discovery',
-      '/api/ai/',
-      '/api/voice/',
-      '/ws/',
-    ]
-    const shouldUseDirect =
-      Boolean(directBaseUrl) &&
-      !isAbsolute &&
-      directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+      // Only direct-connect a safe allowlist of nexus-lite endpoints.
+      const directAllowlistPrefixes = [
+        '/api/search',
+        '/api/book',
+        '/api/chapters',
+        '/api/content',
+        '/api/batch/content',
+        '/api/sources',
+        '/api/bookshelf',
+        '/api/groups',
+        '/api/replace_rules',
+        '/api/discovery',
+        '/api/ai/',
+        '/api/voice/',
+        '/ws/',
+      ]
+      const shouldUseDirect =
+        Boolean(directBaseUrl) &&
+        !isAbsolute &&
+        directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
 
-    // Worker-only endpoints must always go through edge.
-    const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
-    const isWorkerOnly = !isAbsolute && workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
+      // Worker-only endpoints must always go through edge.
+      const workerOnlyPrefixes = [
+        '/api/analytics',
+        '/api/preferences',
+        '/api/content/upload',
+        '/api/backup',
+      ]
+      const isWorkerOnly =
+        !isAbsolute && workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
 
-    if (shouldUseDirect && !isWorkerOnly) {
-      ;(options as any).baseURL = directBaseUrl
-      ;(options as any)._usedDirect = true
-      if (directApiKey) {
-        options.headers = {
-          ...options.headers,
-          'X-API-Key': directApiKey
+      if (shouldUseDirect && !isWorkerOnly) {
+        ;(options as any).baseURL = directBaseUrl
+        ;(options as any)._usedDirect = true
+        if (directApiKey) {
+          options.headers = {
+            ...((options.headers as any) || {}),
+            'X-API-Key': directApiKey,
+          }
         }
+      } else {
+        ;(options as any).baseURL = edgeBaseUrl
+        ;(options as any)._usedDirect = false
       }
-    } else {
-      ;(options as any).baseURL = edgeBaseUrl
-      ;(options as any)._usedDirect = false
-    }
     }
 
     // 记录请求开始时间
     const startTime = performance.now()
-      ; (options as any)._startTime = startTime
-      ; (options as any)._requestUrl = request.toString()
-      ; (options as any)._method = options.method || 'GET'
-      ; (options as any)._directFallbackTried = (options as any)._directFallbackTried === true
+    ;(options as any)._startTime = startTime
+    ;(options as any)._requestUrl = request.toString()
+    ;(options as any)._method = options.method || 'GET'
+    ;(options as any)._directFallbackTried = (options as any)._directFallbackTried === true
+
+    // Attach request id for end-to-end tracing (Worker/Rust can log/echo it).
+    const requestId = crypto.randomUUID()
+    ;(options as any)._requestId = requestId
+    options.headers = {
+      ...((options.headers as any) || {}),
+      'X-Request-ID': requestId,
+    }
 
     const token = localStorage.getItem('nexus_auth_token')
     if (token) {
       options.headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
+        ...((options.headers as any) || {}),
+        Authorization: `Bearer ${token}`,
       }
     }
 
@@ -266,9 +242,9 @@ const internalFetch = ofetch.create({
     if ((options as any).msgpack && options.body) {
       options.body = encode(options.body)
       options.headers = {
-        ...options.headers,
+        ...((options.headers as any) || {}),
         'Content-Type': 'application/x-msgpack',
-        'Accept': 'application/x-msgpack'
+        Accept: 'application/x-msgpack',
       }
     }
   },
@@ -281,17 +257,35 @@ const internalFetch = ofetch.create({
     if (startTime) {
       const responseTime = performance.now() - startTime
       const endpoint = new URL(response.url).pathname
+      const route = (options as any)._usedDirect
+        ? (options as any)._directFallbackTried
+          ? 'direct_fallback'
+          : 'direct'
+        : 'edge'
+
+      // Route distribution (count)
       perfMonitor.record({
-        name: 'api_response',
+        name: 'api_route',
+        value: 1,
+        unit: 'ms',
+        tags: {
+          endpoint,
+          status: response.status,
+          route,
+          method: (options as any)._method || 'GET',
+        },
+      })
+
+      perfMonitor.record({
+        name: 'api_response_ms',
         value: Number(responseTime.toFixed(2)),
         unit: 'ms',
         tags: {
           endpoint,
           status: response.status,
-          route: (options as any)._usedDirect
-            ? ((options as any)._directFallbackTried ? 'direct_fallback' : 'direct')
-            : 'edge'
-        }
+          route,
+          method: (options as any)._method || 'GET',
+        },
       })
     }
 
@@ -336,18 +330,37 @@ const internalFetch = ofetch.create({
     const startTime = (options as any)._startTime
     if (startTime) {
       const responseTime = performance.now() - startTime
+      const endpoint = new URL(response.url).pathname
+      const route = (options as any)._usedDirect
+        ? (options as any)._directFallbackTried
+          ? 'direct_fallback'
+          : 'direct'
+        : 'edge'
+
+      // Route distribution (count) including errors
+      perfMonitor.record({
+        name: 'api_route',
+        value: 1,
+        unit: 'ms',
+        tags: {
+          endpoint,
+          status: response.status,
+          route,
+          method,
+        },
+      })
+
       perfMonitor.record({
         name: 'api_error_duration',
         value: Number(responseTime.toFixed(2)),
         unit: 'ms',
         tags: {
           status: response.status,
+          endpoint,
           url,
           method,
-          route: (options as any)._usedDirect
-            ? ((options as any)._directFallbackTried ? 'direct_fallback' : 'direct')
-            : 'edge'
-        }
+          route,
+        },
       })
     }
 
@@ -362,28 +375,28 @@ const internalFetch = ofetch.create({
     if (response.status >= 400 && !silent) {
       try {
         // 转换为NexusError
-        const nexusError = convertToNexusError({
-          status: response.status,
-          message: error?.message || response.statusText,
-          response
-        }, url, method)
+        const nexusError = convertToNexusError(
+          {
+            status: response.status,
+            message: error?.message || response.statusText,
+            response,
+          },
+          url,
+          method
+        )
 
         // 报告错误
         reportError(nexusError, {
           status: response.status,
           url,
           method,
-          responseData: response._data
+          responseData: response._data,
         })
 
         // 向后兼容：使用全局错误处理器
         const handler = getGlobalErrorHandler()
-        handler.value = {
-          isSuccess: false,
-          errorMsg: nexusError.message,
-          originalError: nexusError.details || nexusError.message,
-          statusCode: response.status,
-          timestamp: nexusError.timestamp
+        if (handler && 'handleError' in handler) {
+          handler.handleError(nexusError.message, nexusError.details || nexusError.message)
         }
       } catch (e) {
         if (import.meta.env.DEV) {
@@ -404,7 +417,10 @@ function isLikelyNetworkOrCorsError(err: any): boolean {
   )
 }
 
-async function requestWithDirectFallback<T>(url: string, options: FetchOptions = {}): Promise<T> {
+async function requestWithDirectFallback<T>(
+  url: string,
+  options: FetchOptions<'json'> = {}
+): Promise<T> {
   try {
     return await internalFetch<T>(url, options)
   } catch (e) {
@@ -443,11 +459,18 @@ export function getApiBaseUrlForPath(path: string): string {
     '/api/ai/',
     '/api/voice/',
   ]
-  const workerOnlyPrefixes = ['/api/analytics', '/api/preferences', '/api/content/upload', '/api/backup']
+  const workerOnlyPrefixes = [
+    '/api/analytics',
+    '/api/preferences',
+    '/api/content/upload',
+    '/api/backup',
+  ]
   const isWorkerOnly = workerOnlyPrefixes.some(p => pathname === p || pathname.startsWith(p))
   if (isWorkerOnly) return edgeBaseUrl
 
-  const shouldUseDirect = directAllowlistPrefixes.some(p => pathname === p || pathname.startsWith(p))
+  const shouldUseDirect = directAllowlistPrefixes.some(
+    p => pathname === p || pathname.startsWith(p)
+  )
   return shouldUseDirect ? directBaseUrl : edgeBaseUrl
 }
 
@@ -485,8 +508,9 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
 
   // 如果离线，尝试从缓存提供内容
   if (!networkDetector.getNetworkInfo().isOnline) {
-    return offlineContentServer.serveFromCache(cacheKey)
-      .then(data => ({ isSuccess: true, data } as ApiResponse<T>))
+    return offlineContentServer
+      .serveFromCache(cacheKey)
+      .then(data => ({ isSuccess: true, data }) as ApiResponse<T>)
       .catch(() => {
         throw new Error('Content not available offline')
       })
@@ -506,9 +530,10 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
     const response = await requestWithDirectFallback<any>(url, { ...options, method } as any)
 
     // 适配 Nexus-lite: 如果已经是包装后的格式则直接返回，否则手动包装
-    const result: ApiResponse<T> = (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response
-      : { isSuccess: true, data: response }
+    const result: ApiResponse<T> =
+      response && typeof response === 'object' && 'isSuccess' in response
+        ? response
+        : { isSuccess: true, data: response }
 
     if (result.isSuccess) {
       // 写入缓存
@@ -527,7 +552,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
         url,
         data: result,
         size: JSON.stringify(result).length * 2,
-        priority: 5
+        priority: 5,
       })
     }
 
@@ -543,56 +568,70 @@ export const $post = <T>(url: string, body?: unknown, options?: FetchOptions) =>
       method: 'POST',
       url,
       data: body,
-      maxRetries: 3
     })
     return Promise.resolve({ isSuccess: true, data: null } as ApiResponse<T>)
   }
 
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await requestWithDirectFallback<any>(url, { method: 'POST', body, ...options } as any)
+    const response = await requestWithDirectFallback<any>(url, {
+      method: 'POST',
+      body,
+      ...options,
+    } as any)
     apiCacheMap.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
+    return response && typeof response === 'object' && 'isSuccess' in response
+      ? (response as ApiResponse<T>)
+      : ({ isSuccess: true, data: response } as ApiResponse<T>)
   })
 }
 
 export const $put = <T>(url: string, body?: unknown, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await requestWithDirectFallback<any>(url, { method: 'PUT', body, ...options } as any)
+    const response = await requestWithDirectFallback<any>(url, {
+      method: 'PUT',
+      body,
+      ...options,
+    } as any)
     apiCacheMap.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
+    return response && typeof response === 'object' && 'isSuccess' in response
+      ? (response as ApiResponse<T>)
+      : ({ isSuccess: true, data: response } as ApiResponse<T>)
   })
 }
 
 export const $delete = <T>(url: string, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await requestWithDirectFallback<any>(url, { ...options, method: 'DELETE' } as any)
+    const response = await requestWithDirectFallback<any>(url, {
+      ...options,
+      method: 'DELETE',
+    } as any)
     apiCacheMap.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
+    return response && typeof response === 'object' && 'isSuccess' in response
+      ? (response as ApiResponse<T>)
+      : ({ isSuccess: true, data: response } as ApiResponse<T>)
   })
 }
 
 export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) => {
   return requestOptimizer.requestWithRetry(async () => {
-    const response = await requestWithDirectFallback<any>(url, { method: 'PATCH', body, ...options } as any)
+    const response = await requestWithDirectFallback<any>(url, {
+      method: 'PATCH',
+      body,
+      ...options,
+    } as any)
     apiCacheMap.clear()
-    return (response && typeof response === 'object' && 'isSuccess' in response)
-      ? response as ApiResponse<T>
-      : { isSuccess: true, data: response } as ApiResponse<T>
+    return response && typeof response === 'object' && 'isSuccess' in response
+      ? (response as ApiResponse<T>)
+      : ({ isSuccess: true, data: response } as ApiResponse<T>)
   })
 }
 
 /**
  * 清理 API 请求缓存
- * 
+ *
  * 清除所有缓存的请求响应和待处理的请求
  * 通常在用户登出或需要强制刷新数据时调用
- * 
+ *
  * @example
  * ```typescript
  * clearApiCache() // 清除所有缓存
@@ -606,10 +645,10 @@ export function clearApiCache() {
 
 /**
  * 清理过期的 API 缓存
- * 
+ *
  * 只删除超过 TTL 的缓存项，保留仍在有效期内的缓存
  * 可以定期调用以释放内存
- * 
+ *
  * @example
  * ```typescript
  * // 定期清理（例如每分钟）
@@ -632,7 +671,7 @@ export function cleanExpiredCache() {
 export function getApiCacheStats() {
   return {
     size: apiCacheMap.size,
-    pending: pendingRequests.size
+    pending: pendingRequests.size,
   }
 }
 

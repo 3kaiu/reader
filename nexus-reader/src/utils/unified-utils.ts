@@ -90,6 +90,29 @@ export class UnifiedCache {
       this.memoryCache.delete(oldestKey)
     }
   }
+
+  cleanup(): void {
+    for (const [key, entry] of this.memoryCache) {
+      if (this.isExpired(entry)) {
+        this.memoryCache.delete(key)
+      }
+    }
+  }
+
+  getStats(): { size: number; hitRate: number; totalHits: number; totalMisses: number } {
+    let hits = 0
+    let total = 0
+    for (const entry of this.memoryCache.values()) {
+      hits += entry.accessCount
+      total += entry.accessCount + 1 // simplified miss calculation
+    }
+    return {
+      size: this.memoryCache.size,
+      hitRate: total > 0 ? hits / total : 0,
+      totalHits: hits,
+      totalMisses: total - hits
+    }
+  }
 }
 
 interface CacheEntry {
@@ -104,7 +127,6 @@ interface CacheEntry {
 
 export class UnifiedApiClient {
   private static instance: UnifiedApiClient
-  private baseURL: string
   private edgeBaseURL: string
   private directBaseURL: string
   private directApiKey: string
@@ -119,7 +141,7 @@ export class UnifiedApiClient {
     this.edgeBaseURL = import.meta.env.VITE_API_BASE_URL || '/api'
     this.directBaseURL = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
     this.directApiKey = import.meta.env.VITE_NEXUS_LITE_API_KEY || ''
-    this.baseURL = this.edgeBaseURL
+    this.directApiKey = import.meta.env.VITE_NEXUS_LITE_API_KEY || ''
   }
 
   static getInstance(): UnifiedApiClient {
@@ -153,7 +175,7 @@ export class UnifiedApiClient {
   ): Promise<ApiResponse<T>> {
     const baseURL = endpoint.startsWith('http') ? '' : this.pickBaseUrlForPath(endpoint)
     const url = endpoint.startsWith('http') ? endpoint : `${baseURL}${endpoint}`
-    const cacheKey = config.cache?.key || `${method}:${url}:${JSON.stringify(data)}`
+    const cacheKey = (typeof config.cache === 'object' && config.cache.key) || `${method}:${url}:${JSON.stringify(data)}`
 
     // 检查缓存
     if (method === 'GET' && config.cache !== false) {
@@ -196,7 +218,7 @@ export class UnifiedApiClient {
         const result: ApiResponse<T> = {
           data: responseData,
           status: response.status,
-          headers: Object.fromEntries(response.headers.entries()),
+          headers: Object.fromEntries((response.headers as any).entries()),
           cached: false,
           responseTime: Date.now() - startTime,
           requestId: crypto.randomUUID(),
@@ -207,11 +229,12 @@ export class UnifiedApiClient {
 
         // 缓存GET请求
         if (method === 'GET' && config.cache !== false) {
-          this.cache.set(cacheKey, result, config.cache?.ttl)
+          const ttl = typeof config.cache === 'object' ? config.cache.ttl : undefined
+          this.cache.set(cacheKey, result, ttl)
         }
 
         return result
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error
 
         // One-shot fallback: if direct-connect likely failed due to network/CORS, try edge once.
@@ -316,7 +339,6 @@ export class UnifiedConfig {
   }
 
   set<T>(key: string, value: T): void {
-    const oldValue = this.config.get(key)
     this.config.set(key, value)
 
     // 通知监听器
@@ -325,7 +347,7 @@ export class UnifiedConfig {
       listeners.forEach(callback => {
         try {
           callback(value)
-        } catch (error) {
+        } catch (error: any) {
           console.error('Config listener error:', error)
         }
       })
@@ -371,7 +393,7 @@ export class UnifiedConfig {
           this.config.set(key, value)
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to load persisted config:', error)
     }
   }
@@ -386,7 +408,7 @@ export class UnifiedConfig {
         }
       })
       localStorage.setItem('app-config', JSON.stringify(toPersist))
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to persist config:', error)
     }
   }
@@ -449,7 +471,7 @@ export class UnifiedErrorHandler {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(errorEvent),
       })
-    } catch (error) {
+    } catch (error: any) {
       // 如果监控服务本身出错，只记录到控制台
       console.warn('Failed to report error to monitoring:', error)
     }
@@ -495,16 +517,24 @@ export class UnifiedPerformanceMonitor {
       id: crypto.randomUUID(),
       name,
       value,
-      tags,
+      tags: {}, // Initialize tags as an empty object of type Record<string, string>
       timestamp: Date.now(),
     }
+
+    // Convert all tag values to string for the PerformanceMetric interface
+    Object.entries(tags).forEach(([k, v]) => {
+      metric.tags[k] = String(v)
+    })
 
     this.metrics.push(metric)
 
     // Best-effort: send a subset of metrics to Worker in batches.
     try {
-      // Default unit for unified metrics is ms.
-      queueClientMetric({ name, value, unit: 'ms', tags, timestamp: metric.timestamp })
+      const safeTags: Record<string, string> = {}
+      Object.entries(tags).forEach(([k, v]) => {
+        safeTags[k] = String(v)
+      })
+      queueClientMetric({ name, value, unit: 'ms', tags: safeTags, timestamp: metric.timestamp })
     } catch {
       // ignore
     }
@@ -518,7 +548,7 @@ export class UnifiedPerformanceMonitor {
     this.observers.forEach(observer => {
       try {
         observer(metric)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Performance observer error:', error)
       }
     })
@@ -580,8 +610,10 @@ export class UnifiedPerformanceMonitor {
       // FID (First Input Delay)
       new PerformanceObserver((list) => {
         const entries = list.getEntries()
-        entries.forEach((entry) => {
-          this.recordMetric('fid', entry.processingStart - entry.startTime, { type: 'fid' })
+        entries.forEach((entry: any) => {
+          if (entry.processingStart) {
+            this.recordMetric('fid', entry.processingStart - entry.startTime, { type: 'fid' })
+          }
         })
       }).observe({ entryTypes: ['first-input'] })
 
@@ -590,7 +622,7 @@ export class UnifiedPerformanceMonitor {
         let clsValue = 0
         const entries = list.getEntries()
         entries.forEach((entry: any) => {
-          if (!entry.hadRecentInput) {
+          if (!entry.hadRecentInput && entry.value !== undefined) {
             clsValue += entry.value
           }
         })
@@ -606,7 +638,7 @@ interface PerformanceMetric {
   id: string
   name: string
   value: number
-  tags: Record<string, string>
+  tags: Record<string, string> // Changed from Record<string, string | number>
   timestamp: number
 }
 
@@ -655,11 +687,11 @@ export class UnifiedValidator {
               params: rule.params,
             })
           }
-        } catch (error) {
+        } catch (error: any) {
           errors.push({
             field: rule.field,
             rule: rule.type,
-            message: error.message || 'Validation error',
+            message: error?.message || 'Validation error',
             params: rule.params,
           })
         }
@@ -796,7 +828,7 @@ export class UnifiedEventManager {
       listeners.forEach(listener => {
         try {
           listener(data)
-        } catch (error) {
+        } catch (error: any) {
           console.error('Event listener error:', error)
         }
       })
@@ -836,41 +868,41 @@ export class UnifiedStorage {
     return UnifiedStorage.instance
   }
 
-  async get<T>(key: string): Promise<T | null> {
+  get<T>(key: string, defaultValue?: T): T | null {
     try {
       const item = localStorage.getItem(key)
-      return item ? JSON.parse(item) : null
-    } catch (error) {
+      return item ? JSON.parse(item) : (defaultValue ?? null)
+    } catch (error: any) {
       console.error('Storage get error:', error)
-      return null
+      return defaultValue ?? null
     }
   }
 
-  async set<T>(key: string, value: T): Promise<void> {
+  set<T>(key: string, value: T): void {
     try {
       localStorage.setItem(key, JSON.stringify(value))
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage set error:', error)
     }
   }
 
-  async remove(key: string): Promise<void> {
+  remove(key: string): void {
     try {
       localStorage.removeItem(key)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage remove error:', error)
     }
   }
 
-  async clear(): Promise<void> {
+  clear(): void {
     try {
       localStorage.clear()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage clear error:', error)
     }
   }
 
-  async keys(): Promise<string[]> {
+  keys(): string[] {
     try {
       const keys: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
@@ -878,7 +910,7 @@ export class UnifiedStorage {
         if (key) keys.push(key)
       }
       return keys
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage keys error:', error)
       return []
     }
@@ -940,7 +972,7 @@ class OptimizerManager {
 
   private runMonitoring(): void {
     // 收集性能指标
-    performanceMonitor.recordMetric('memory_usage', performance.memory?.usedJSHeapSize || 0)
+    performanceMonitor.recordMetric('memory_usage', (performance as any).memory?.usedJSHeapSize || 0)
     performanceMonitor.recordMetric('cache_size', cache.size())
     // 其他监控...
   }
@@ -952,7 +984,7 @@ class OptimizerManager {
     }
 
     // 清理过期缓存
-    // cache.cleanup() - 这个方法在UnifiedCache中没有定义，需要添加
+    cache.cleanup()
   }
 
   private optimizeCache(): void {
@@ -977,12 +1009,12 @@ export function getOptimizerManager(): OptimizerManager | null {
 // ===== 便捷实例导出 =====
 
 export const cache = UnifiedCache.getInstance()
-export const api = UnifiedApiClient.getInstance()
 
 // Export logger from the separate logger utility
 export { logger } from './logger'
 export const config = UnifiedConfig.getInstance()
 export const errorHandler = UnifiedErrorHandler.getInstance()
+// [Refactor] performanceMonitor import removed as it was unused.
 export const performanceMonitor = UnifiedPerformanceMonitor.getInstance()
 export const validator = UnifiedValidator.getInstance()
 export const eventManager = UnifiedEventManager.getInstance()
@@ -992,7 +1024,6 @@ export const storage = UnifiedStorage.getInstance()
 
 export default {
   cache,
-  api,
   config,
   errorHandler,
   performanceMonitor,

@@ -109,8 +109,8 @@ export const sortBy = <T>(arr: T[], keyFn: (item: T) => unknown): T[] => {
     const aVal = keyFn(a)
     const bVal = keyFn(b)
 
-    if (aVal < bVal) return -1
-    if (aVal > bVal) return 1
+    if ((aVal as any) < (bVal as any)) return -1
+    if ((aVal as any) > (bVal as any)) return 1
     return 0
   })
 }
@@ -161,7 +161,7 @@ export const merge = <T extends Record<string, unknown>>(
   target: T,
   ...sources: Partial<T>[]
 ): T => {
-  return sources.reduce((acc, source) => ({ ...acc, ...source }), target)
+  return Object.assign({}, target, ...sources) as T
 }
 
 export const deepMerge = <T extends Record<string, unknown>>(
@@ -171,13 +171,13 @@ export const deepMerge = <T extends Record<string, unknown>>(
   const result = { ...target }
 
   Object.keys(source).forEach(key => {
-    const targetValue = result[key]
+    const targetValue = (result as any)[key]
     const sourceValue = source[key]
 
     if (isObject(targetValue) && isObject(sourceValue)) {
-      result[key] = deepMerge(targetValue, sourceValue)
+      (result as any)[key] = deepMerge(targetValue as any, sourceValue as any)
     } else {
-      result[key] = sourceValue as T[Extract<keyof T, string>]
+      (result as any)[key] = sourceValue as T[Extract<keyof T, string>]
     }
   })
 
@@ -294,7 +294,7 @@ export const retry = async <T>(
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn()
-    } catch (error) {
+    } catch (error: any) {
       if (i === attempts - 1) throw error
       await sleep(delay * Math.pow(2, i)) // 指数退避
     }
@@ -351,7 +351,7 @@ export const parseUrl = (url: string): URL | null => {
 
 // ===== 本地存储 =====
 
-export const storage = {
+export const coreStorage = {
   get: <T>(key: string, defaultValue?: T): T | null => {
     try {
       const item = localStorage.getItem(key)
@@ -364,7 +364,7 @@ export const storage = {
   set: <T>(key: string, value: T): void => {
     try {
       localStorage.setItem(key, JSON.stringify(value))
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage set error:', error)
     }
   },
@@ -372,7 +372,7 @@ export const storage = {
   remove: (key: string): void => {
     try {
       localStorage.removeItem(key)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage remove error:', error)
     }
   },
@@ -380,7 +380,7 @@ export const storage = {
   clear: (): void => {
     try {
       localStorage.clear()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Storage clear error:', error)
     }
   },
@@ -422,18 +422,18 @@ export const device = {
 
 // ===== 性能监控 =====
 
-export const performance = {
-  measure: (name: string, fn: () => void): number => {
-    const start = performance.now()
+export const corePerformance = {
+  measure: (_name: string, fn: () => void): number => {
+    const start = globalThis.performance.now()
     fn()
-    const end = performance.now()
+    const end = globalThis.performance.now()
     return end - start
   },
 
-  measureAsync: async (name: string, fn: () => Promise<void>): Promise<number> => {
-    const start = performance.now()
+  measureAsync: async (_name: string, fn: () => Promise<void>): Promise<number> => {
+    const start = globalThis.performance.now()
     await fn()
-    const end = performance.now()
+    const end = globalThis.performance.now()
     return end - start
   },
 }

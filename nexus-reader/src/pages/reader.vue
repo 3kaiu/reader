@@ -473,7 +473,7 @@ async function initReader() {
         variant: "destructive",
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     toast({ title: "加载书籍失败", variant: "destructive" });
   }
 }
