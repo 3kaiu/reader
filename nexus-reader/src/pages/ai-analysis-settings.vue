@@ -1,20 +1,18 @@
 <script setup lang="ts">
 /**
- * 网文分析助手管理页面
- * 管理谐音映射规则、分析历史、配置等
+ * AI 映射规则管理页面
+ * 管理映射规则与分析历史
  */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import {
   Brain,
-  Search,
   Plus,
   Edit,
   Trash2,
   Save,
   X,
   History,
-  Settings,
   AlertCircle,
   User,
   Building2,
@@ -30,7 +28,12 @@ import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
 import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api/ai";
-import { PageHeader, PageToolbar, EmptyState } from "@/components/common";
+import { PageHeader, EmptyState } from "@/components/common";
+
+type AiMappingTransferRule = Pick<
+  AiMappingRule,
+  "id" | "original" | "target" | "type" | "confidence" | "enabled"
+>;
 
 const router = useRouter();
 const { success, error } = useMessage();
@@ -42,6 +45,7 @@ const isLoading = ref(false);
 const mappings = ref<AiMappingRule[]>([]);
 const history = ref<AiAnalysisHistory[]>([]);
 const searchKeyword = ref("");
+const importInputRef = useTemplateRef<HTMLInputElement>("importInput");
 const filterType = ref<
   "all" | "person" | "company" | "department" | "location" | "other"
 >("all");
@@ -55,75 +59,80 @@ const newRule = ref<Partial<AiMappingRule>>({
   enabled: true,
 });
 
-// 配置
-const autoAnalysis = ref(true);
-const showMappingsInReader = ref(true);
-const highlightMappings = ref(true);
+function normalizeText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-// 从 LocalStorage 加载配置，并从 API 加载规则和历史
+function normalizeConfidence(value: unknown): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return 0.8;
+  }
+
+  return Math.min(1, Math.max(0, value));
+}
+
+function normalizeMappingType(value: unknown): string {
+  const type = normalizeText(value);
+  return type || "person";
+}
+
+function toTransferRule(rule: AiMappingRule): AiMappingTransferRule {
+  return {
+    id: rule.id,
+    original: rule.original,
+    target: rule.target,
+    type: rule.type,
+    confidence: rule.confidence,
+    enabled: rule.enabled,
+  };
+}
+
+function normalizeImportRule(value: unknown): AiMappingRule | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const raw = value as Partial<AiMappingTransferRule> &
+    Partial<Pick<AiMappingRule, "createdAt" | "usageCount">>;
+  const original = normalizeText(raw.original);
+  const target = normalizeText(raw.target);
+
+  if (!original || !target) {
+    return null;
+  }
+
+  return {
+    id: normalizeText(raw.id) || `mapping_${Date.now()}_${crypto.randomUUID()}`,
+    original,
+    target,
+    type: normalizeMappingType(raw.type),
+    confidence: normalizeConfidence(raw.confidence),
+    enabled: raw.enabled !== false,
+    createdAt: typeof raw.createdAt === "number" ? raw.createdAt : Date.now(),
+    usageCount: typeof raw.usageCount === "number" ? raw.usageCount : undefined,
+  };
+}
+
+// 从 API 加载规则和历史
 async function loadData() {
   isLoading.value = true;
   try {
-    // 1. 加载配置 (UI 偏好保留在本地)
-    const savedConfig = localStorage.getItem("ai-analysis-config");
-    if (savedConfig) {
-      const config = JSON.parse(savedConfig);
-      autoAnalysis.value = config.autoAnalysis ?? true;
-      showMappingsInReader.value = config.showMappingsInReader ?? true;
-      highlightMappings.value = config.highlightMappings ?? true;
-    }
-
-    // 2. 从 API 加载映射规则
+    // 1. 从 API 加载映射规则
     const mappingRes = await aiApi.getMappings();
     if (mappingRes.isSuccess && Array.isArray(mappingRes.data)) {
       mappings.value = mappingRes.data;
     }
 
-    // 3. 从 API 加载历史
+    // 2. 从 API 加载历史
     const historyRes = await aiApi.getHistory();
     if (historyRes.isSuccess && Array.isArray(historyRes.data)) {
       history.value = historyRes.data;
-    }
-
-    // 4. 单次迁移：如果 API 返回为空但本地有数据，则提示迁移
-    if (mappings.value.length === 0) {
-      const localRules = localStorage.getItem("ai-analysis-mappings");
-      if (localRules) {
-        const rules = JSON.parse(localRules);
-        if (rules.length > 0) {
-          const migrateResult = await confirm({
-            title: "发现本地规则",
-            description: `我们在浏览器中发现了 ${rules.length} 条映射规则。是否将其迁移至云端？`,
-          });
-          if (migrateResult) {
-            for (const r of rules) {
-              await aiApi.saveMapping(r);
-            }
-            const newRes = await aiApi.getMappings();
-            if (newRes.isSuccess) mappings.value = newRes.data;
-            localStorage.removeItem("ai-analysis-mappings");
-            success("迁移完成");
-          }
-        }
-      }
     }
   } catch (e) {
     handlePromiseError(e, "加载数据失败");
   } finally {
     isLoading.value = false;
   }
-}
-
-// 保存配置到本地
-function saveConfig() {
-  localStorage.setItem(
-    "ai-analysis-config",
-    JSON.stringify({
-      autoAnalysis: autoAnalysis.value,
-      showMappingsInReader: showMappingsInReader.value,
-      highlightMappings: highlightMappings.value,
-    })
-  );
 }
 
 // 计算显示的映射规则
@@ -204,17 +213,20 @@ function openAddDialog(rule?: AiMappingRule) {
 
 // 保存映射规则
 async function saveMapping() {
-  if (!newRule.value.original?.trim() || !newRule.value.target?.trim()) {
+  const original = normalizeText(newRule.value.original);
+  const target = normalizeText(newRule.value.target);
+
+  if (!original || !target) {
     error("请填写完整信息");
     return;
   }
 
   const ruleToSave: AiMappingRule = {
     id: editingRule.value?.id || `mapping_${Date.now()}`,
-    original: newRule.value.original!,
-    target: newRule.value.target!,
-    type: (newRule.value.type as string) || "person",
-    confidence: newRule.value.confidence ?? 0.8,
+    original,
+    target,
+    type: normalizeMappingType(newRule.value.type),
+    confidence: normalizeConfidence(newRule.value.confidence),
     enabled: newRule.value.enabled ?? true,
     createdAt: editingRule.value?.createdAt || Date.now(),
     usageCount: editingRule.value?.usageCount || 0,
@@ -277,11 +289,7 @@ async function toggleMapping(rule: AiMappingRule) {
 // 导出映射规则
 function exportMappings() {
   try {
-    const data = {
-      mappings: mappings.value,
-      exportedAt: Date.now(),
-      version: "1.0",
-    };
+    const data = mappings.value.map(toTransferRule);
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
@@ -307,22 +315,48 @@ async function importMappings(event: Event) {
 
   try {
     const text = await file.text();
-    const data = JSON.parse(text);
-    if (data.mappings && Array.isArray(data.mappings)) {
-      for (const rule of data.mappings) {
-        await aiApi.saveMapping(rule);
-      }
-      const mappingRes = await aiApi.getMappings();
-      if (mappingRes.isSuccess) mappings.value = mappingRes.data;
-      success("映射规则导入成功");
-    } else {
+    const parsed = JSON.parse(text) as unknown;
+    const list =
+      Array.isArray(parsed)
+        ? parsed
+        : parsed && typeof parsed === "object" && Array.isArray((parsed as any).mappings)
+          ? (parsed as any).mappings
+          : null;
+
+    if (!list) {
       error("文件格式不正确");
+      return;
     }
+
+    const rules = list
+      .map((item) => normalizeImportRule(item))
+      .filter((item): item is AiMappingRule => item !== null);
+
+    if (rules.length === 0) {
+      error("未找到有效的映射规则");
+      return;
+    }
+
+    const skipped = list.length - rules.length;
+    for (const rule of rules) {
+      await aiApi.saveMapping(rule);
+    }
+    const mappingRes = await aiApi.getMappings();
+    if (mappingRes.isSuccess) mappings.value = mappingRes.data;
+    success(
+      skipped > 0
+        ? `映射规则导入成功，导入 ${rules.length} 条，跳过 ${skipped} 条无效数据`
+        : `映射规则导入成功，共 ${rules.length} 条`
+    );
   } catch (e) {
     handlePromiseError(e, "导入失败");
   } finally {
     input.value = "";
   }
+}
+
+function triggerImport() {
+  importInputRef.value?.click();
 }
 
 // 清除历史记录
@@ -364,13 +398,7 @@ onMounted(() => {
           {
             label: '导入',
             icon: Upload,
-            onClick: () => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.json';
-              input.onchange = importMappings;
-              input.click();
-            },
+            onClick: triggerImport,
             variant: 'outline',
             hideLabelOnMobile: true,
           },
@@ -392,54 +420,13 @@ onMounted(() => {
         @back="router.push('/settings')"
       />
 
-      <!-- 配置卡片 -->
-      <div class="mb-6 p-4 rounded-xl border border-border/50 bg-card">
-        <div class="flex items-center gap-2 mb-4">
-          <Settings class="h-4 w-4 text-primary" />
-          <h3 class="font-semibold text-sm">分析配置</h3>
-        </div>
-
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="font-medium text-sm mb-0.5">自动分析</div>
-              <div class="text-xs text-muted-foreground">
-                阅读时自动分析文本中的映射关系
-              </div>
-            </div>
-            <Switch
-              v-model:checked="autoAnalysis"
-              @update:checked="saveConfig"
-            />
-          </div>
-
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="font-medium text-sm mb-0.5">在阅读器中显示映射</div>
-              <div class="text-xs text-muted-foreground">
-                在阅读页面显示识别到的映射关系
-              </div>
-            </div>
-            <Switch
-              v-model:checked="showMappingsInReader"
-              @update:checked="saveConfig"
-            />
-          </div>
-
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="font-medium text-sm mb-0.5">高亮显示映射</div>
-              <div class="text-xs text-muted-foreground">
-                在文本中高亮显示识别到的映射词
-              </div>
-            </div>
-            <Switch
-              v-model:checked="highlightMappings"
-              @update:checked="saveConfig"
-            />
-          </div>
-        </div>
-      </div>
+      <input
+        ref="importInput"
+        type="file"
+        accept=".json"
+        class="hidden"
+        @change="importMappings"
+      />
 
       <!-- 页面工具栏 -->
       <div class="flex items-center gap-3 mb-6">
@@ -487,6 +474,10 @@ onMounted(() => {
             class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
           />
         </div>
+      </div>
+
+      <div class="mb-6 rounded-xl border border-border/50 bg-card px-4 py-3 text-xs text-muted-foreground">
+        当前页面仅管理 AI 映射规则与分析历史。导入导出使用精简 JSON：`original`、`target`、`type`，可选 `id`、`confidence`、`enabled`。
       </div>
 
       <!-- 空状态 -->

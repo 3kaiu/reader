@@ -5,10 +5,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router'
 import './styles/main.css'
-import { initDomainLayer } from './domain'
-import { initOptimizerManager } from '@/utils/unified-utils'
-import { aiIntelligentOperations } from '@/services/ai/intelligent-operations'
-import { useSettingsStore } from '@/stores/unified'
+import { useSettingsStore } from '@/stores/settings'
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -20,22 +17,6 @@ const app = createApp(App)
 // 注册插件
 app.use(pinia)
 app.use(router)
-
-// 初始化领域层
-initDomainLayer()
-
-// 初始化优化器管理器
-initOptimizerManager({
-  enableMemoryOptimization: true,
-  enableCpuOptimization: true,
-  enableIoOptimization: true,
-  enableNetworkOptimization: true,
-  enableCacheOptimization: true,
-  enableAlgorithmOptimization: true,
-  monitoringIntervalMs: 30000,
-  optimizationIntervalMs: 300000,
-  maxConcurrentOptimizations: 3,
-})
 
 // 初始化Pinia stores
 const settingsStore = useSettingsStore()
@@ -56,9 +37,6 @@ window.addEventListener('unhandledrejection', event => {
 
 // 挂载应用
 app.mount('#root')
-
-// 初始化AI智能化运维系统
-aiIntelligentOperations // 系统已在导入时自动启动
 
 // 监控路由变化性能
 router.beforeEach((to, _from, next) => {
@@ -89,7 +67,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 if (import.meta.env.DEV) {
   // 暴露调试对象到 window（仅开发环境）
   Object.assign(window, {
-    performanceSystem: (window as any).performanceSystem,
     aiServiceManager: (window as any).aiServiceManager,
   })
 }

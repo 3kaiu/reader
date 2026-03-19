@@ -27,6 +27,31 @@ const message = useMessage()
 const loading = ref(false)
 const jsonText = ref('')
 
+function normalizeOptionalText(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
+function normalizeRule(rule: Partial<ReplaceRule>): ReplaceRule | null {
+  const name = typeof rule.name === 'string' ? rule.name.trim() : ''
+  const pattern = typeof rule.pattern === 'string' ? rule.pattern.trim() : ''
+
+  if (!name || !pattern) {
+    return null
+  }
+
+  return {
+    id: typeof rule.id === 'string' ? rule.id : undefined,
+    name,
+    pattern,
+    replacement: normalizeOptionalText(rule.replacement),
+    scope: normalizeOptionalText(rule.scope),
+    isEnabled: rule.isEnabled !== false,
+    isRegex: Boolean(rule.isRegex)
+  }
+}
+
 async function handleImport() {
   if (!jsonText.value.trim()) {
     message.warning('请输入内容')
@@ -35,23 +60,27 @@ async function handleImport() {
   
   loading.value = true
   try {
-    // 尝试解析
     let rules: ReplaceRule[] = []
     try {
       const parsed = JSON.parse(jsonText.value)
-      if (Array.isArray(parsed)) {
-        rules = parsed
-      } else {
-        rules = [parsed]
+      const list = Array.isArray(parsed) ? parsed : [parsed]
+      rules = list
+        .map(item => normalizeRule(item as Partial<ReplaceRule>))
+        .filter((rule): rule is ReplaceRule => rule !== null)
+
+      if (rules.length === 0) {
+        message.warning('未找到符合契约的规则，至少需要 name 和 pattern')
+        loading.value = false
+        return
       }
+
+      if (rules.length < list.length) {
+        message.warning(`已跳过 ${list.length - rules.length} 条不合法规则`)
+      }
+
+      jsonText.value = JSON.stringify(rules, null, 2)
     } catch (e) {
       message.error('JSON 格式错误')
-      loading.value = false
-      return
-    }
-
-    if (rules.length === 0) {
-      message.warning('未找到有效的规则')
       loading.value = false
       return
     }
@@ -96,12 +125,12 @@ function onFileChange(e: Event) {
           <textarea
             v-model="jsonText"
             class="w-full h-full p-3 rounded-md border bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-ring text-xs font-mono"
-            placeholder='[{"name": "...", "pattern": "..."}]'
+            placeholder='[{"name":"规则名","pattern":"原文","replacement":"替换后文本","scope":"source-id","isEnabled":true,"isRegex":false}]'
           ></textarea>
         </div>
-        
+
         <div class="flex items-center justify-between">
-          <span class="text-xs text-muted-foreground">支持 JSON 数组</span>
+          <span class="text-xs text-muted-foreground">仅支持 ReplaceRule JSON，`scope` 只接受书源 ID 或留空</span>
           <label class="cursor-pointer">
             <input type="file" accept=".json,.txt" class="hidden" @change="onFileChange">
             <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors">

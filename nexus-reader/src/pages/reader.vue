@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 阅读器页面 - 沉浸式设计 [Refactored v4.0]
- * 已拆分为多个子组件：ReaderToolbar, ReaderContent, ReaderTTS, ReaderModals, ReaderKeyboard, ReaderGesture
+ * 已拆分为多个子组件：ReaderToolbar, ReaderContent, ReaderModals, ReaderKeyboard, ReaderGesture
  */
 import {
   ref,
@@ -14,10 +14,10 @@ import {
 } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "@/components/ui/toast/use-toast";
-import { X, Loader2, Sparkles } from "lucide-vue-next";
+import { X, Loader2 } from "lucide-vue-next";
 import { useReaderStore } from "@/stores/reader";
 import { useSettingsStore } from "@/stores/settings";
-import { readingJourneyService } from "@/services/journey";
+import { readingJourneyService } from "@/services/journey/reading";
 import {
   useFullscreen,
   useThrottleFn,
@@ -25,28 +25,22 @@ import {
   useNow,
   useScroll,
 } from "@vueuse/core";
-import { useTTS } from "@/composables/useTTS";
 import { useOfflineStore } from "@/stores/offlineStorage";
 import { useSwipeMode } from "@/composables/useSwipeMode";
-import { useTTSReader } from "@/composables/useTTSReader";
 import { useEyeCare } from "@/composables/useEyeCare";
-import { useAIInsightsStore } from "@/stores/aiInsights";
-import { useAiStore } from "@/stores";
 import { useDecoderStore } from "@/stores/decoder";
 import { useEngagementTracker } from "@/composables/useEngagementTracker";
 import { useEventManager } from "@/utils/eventManager";
+import { isOptionalFeatureEnabled } from "@/utils/features";
 
 // 组件导入
 import ReaderToolbar from "@/components/reader/ReaderToolbar.vue";
 import ReaderContent from "@/components/reader/ReaderContent.vue";
-import ReaderTTS from "@/components/reader/ReaderTTS.vue";
 import ReaderModals from "@/components/reader/ReaderModals.vue";
 import ReaderKeyboard from "@/components/reader/ReaderKeyboard.vue";
 import ReaderGesture from "@/components/reader/ReaderGesture.vue";
 import { KEYBOARD_SHORTCUTS, MOOD_COLORS } from "@/constants/reader";
-import ParagraphSelectionMenu from "@/components/ParagraphSelectionMenu.vue";
 import BreakReminder from "@/components/BreakReminder.vue";
-import SmartRecap from "@/components/reader/SmartRecap.vue";
 import DecoderStatusIndicator from "@/components/decoder/DecoderStatusIndicator.vue";
 import DecoderSettingsSheet from "@/components/decoder/DecoderSettingsSheet.vue";
 import DecoderCard from "@/components/decoder/DecoderCard.vue";
@@ -57,11 +51,9 @@ const { toast } = useToast();
 const readerStore = useReaderStore();
 const settingsStore = useSettingsStore();
 const offlineStore = useOfflineStore();
-const insightsStore = useAIInsightsStore();
-const aiStore = useAiStore();
 const decoderStore = useDecoderStore();
-const tts = useTTS();
 const eyeCare = useEyeCare();
+const decoderAddonEnabled = isOptionalFeatureEnabled("decoder");
 
 // ====== 状态与全屏 ======
 const readerRef = ref<HTMLElement | null>(null);
@@ -72,14 +64,8 @@ const showCatalog = ref(false);
 const showSettings = ref(false);
 const showSourcePicker = ref(false);
 const showBookInfo = ref(false);
-const showTTSPanel = ref(false);
-const showAIPanel = ref(false);
-const showInsightsPanel = ref(false);
 const showKeyboardHelp = ref(false);
-const showVoiceSettings = ref(false);
-const showSmartRecap = ref(false);
 const showDecoderSettings = ref(false);
-const recapChapters = ref<Array<{ title: string; content: string }>>([]);
 const hideToolbarTimer = ref<ReturnType<typeof setTimeout> | null>(null);
 
 // ====== 综合样式计算 ======
@@ -123,35 +109,12 @@ function toggleDayNight() {
 
 // ====== Composables 初始化 ======
 const {
-  contentRef: swipeContentRef,
   page: swipePage,
   totalPages: swipeTotalPages,
   layout: swipeLayout,
-  handleClick: handleSwipeClick,
   nextPage,
   prevPage,
 } = useSwipeMode({ readerStore, settingsStore, toggleToolbar, toast });
-
-const {
-  currentParagraphIndex: currentTTSParagraphIndex,
-  isSpeaking: ttsIsSpeaking,
-  isPaused: ttsIsPaused,
-  start: startTTS,
-  stop: stopTTS,
-  toggle: toggleTTS,
-  sleepTimerRemaining,
-  setSleepTimer,
-  cancelSleepTimer,
-  formatSleepTimerRemaining,
-} = useTTSReader({
-  readerStore,
-  settingsStore,
-  swipeContentRef,
-  swipePage,
-  swipeTotalPages,
-  showTTSPanel,
-  toast,
-});
 
 const { startTracking, stopTracking } = useEngagementTracker(
   route.query.url as string,
@@ -177,24 +140,69 @@ async function handleNextChapter() {
 }
 
 async function handleRefresh() {
-  const scrollRatio = await readerStore.refreshChapter();
-  await nextTick();
-  setTimeout(() => {
-    const newScrollHeight =
-      document.documentElement.scrollHeight - window.innerHeight;
-    window.scrollTo({
-      top: scrollRatio * newScrollHeight,
-      behavior: "instant",
+  try {
+    const scrollRatio = await readerStore.refreshChapter();
+    await nextTick();
+    setTimeout(() => {
+      const newScrollHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo({
+        top: scrollRatio * newScrollHeight,
+        behavior: "auto",
+      });
+    }, 100);
+  } catch (error) {
+    toast({
+      title: "刷新失败",
+      description: error instanceof Error ? error.message : "章节刷新失败",
+      duration: 3000,
     });
-  }, 100);
+  }
 }
 
 function goBack() {
   router.push("/");
 }
 
+function handleEscape() {
+  if (decoderAddonEnabled && decoderStore.showCard) {
+    decoderStore.closeCard();
+    return;
+  }
+  if (showDecoderSettings.value) {
+    showDecoderSettings.value = false;
+    return;
+  }
+  if (showKeyboardHelp.value) {
+    showKeyboardHelp.value = false;
+    return;
+  }
+  if (showBookInfo.value) {
+    showBookInfo.value = false;
+    return;
+  }
+  if (showSourcePicker.value) {
+    showSourcePicker.value = false;
+    return;
+  }
+  if (showSettings.value) {
+    showSettings.value = false;
+    return;
+  }
+  if (showCatalog.value) {
+    showCatalog.value = false;
+    return;
+  }
+  if (showToolbar.value) {
+    showToolbar.value = false;
+    return;
+  }
+  goBack();
+}
+
 // ====== 解密功能 ======
 async function handleToggleDecoder(enabled: boolean) {
+  if (!decoderAddonEnabled) return;
   const bookUrl = route.query.url as string;
   if (!bookUrl) return;
 
@@ -207,6 +215,7 @@ async function handleToggleDecoder(enabled: boolean) {
 }
 
 async function decodeCurrentChapter() {
+  if (!decoderAddonEnabled) return;
   const bookUrl = route.query.url as string;
   const sourceId = route.query.source as string;
   if (!bookUrl || !readerStore.content) return;
@@ -241,7 +250,7 @@ async function decodeCurrentChapter() {
 watch(
   () => readerStore.currentChapterIndex,
   async () => {
-    if (decoderStore.isEnabled) {
+    if (decoderAddonEnabled && decoderStore.isEnabled) {
       await decodeCurrentChapter();
     }
   }
@@ -313,17 +322,6 @@ async function handleCorrectEntity(entity: any, newReal: string) {
   }
 }
 
-// 处理实体关联
-async function handleLinkEntity(entity: any, targetAlias: any) {
-  decoderStore.addAliasChain(
-    entity.original,
-    targetAlias.realName,
-    targetAlias.entityId
-  );
-  decoderStore.closeCard();
-  toast({ title: "已关联", duration: 2000 });
-}
-
 // ====== 自动控制 ======
 function startHideTimer() {
   clearHideTimer();
@@ -382,21 +380,6 @@ onUnmounted(() => {
   cleanupEventListeners();
 });
 
-watch(
-  () => readerStore.content,
-  (newContent) => {
-    const chapter = readerStore.currentChapter;
-    if (newContent && chapter && readerStore.currentBook) {
-      insightsStore.analyzeChapter(
-        readerStore.currentBook.bookUrl,
-        readerStore.currentChapterIndex,
-        newContent,
-        chapter.title
-      );
-    }
-  }
-);
-
 // ====== 生命周期 ======
 onMounted(() => {
   initReader();
@@ -426,7 +409,9 @@ async function initReader() {
   settingsStore.applyAutoNightMode();
 
   // 初始化解密 store
-  decoderStore.setCurrentBook(bookUrl as string);
+  if (decoderAddonEnabled) {
+    decoderStore.setCurrentBook(bookUrl as string);
+  }
 
   try {
     const res = await readingJourneyService.getBookInfo(
@@ -441,32 +426,6 @@ async function initReader() {
       });
       readerStore.initInfiniteScroll();
 
-      // 检测是否需要显示剧情回顾 (如果阅读超过 2 章)
-      if (readerStore.currentChapterIndex > 1) {
-        const prevIndices = [
-          readerStore.currentChapterIndex - 2,
-          readerStore.currentChapterIndex - 1,
-        ];
-        const chapters: any[] = [];
-        for (const idx of prevIndices) {
-          if (idx < 0) continue;
-          const chapter = readerStore.catalog[idx];
-          const contentRes = await readingJourneyService.getContent(
-            sourceId as string,
-            chapter.url
-          );
-          if (contentRes.isSuccess) {
-            chapters.push({
-              title: chapter.title,
-              content: contentRes.data.content,
-            });
-          }
-        }
-        if (chapters.length > 0) {
-          recapChapters.value = chapters;
-          showSmartRecap.value = true;
-        }
-      }
     } else {
       toast({
         title: res.errorMsg || "获取书籍信息失败",
@@ -507,7 +466,6 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
   >
     <!-- 键盘控制与手势 -->
     <ReaderKeyboard
-      :reading-mode="settingsStore.config.readingMode"
       @prev="handlePrevChapter"
       @next="handleNextChapter"
       @toggle-fullscreen="toggleFullscreen"
@@ -515,13 +473,8 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
       @toggle-settings="showSettings = !showSettings"
       @toggle-day-night="toggleDayNight"
       @toggle-zen-mode="toggleZenMode"
-      @toggle-ai-panel="showAIPanel = !showAIPanel"
-      @toggle-insights="showInsightsPanel = !showInsightsPanel"
       @toggle-help="showKeyboardHelp = !showKeyboardHelp"
-      @escape="
-        showToolbar = showSettings = showCatalog = false;
-        if (!showToolbar && !showSettings && !showCatalog) goBack();
-      "
+      @escape="handleEscape"
     />
 
     <ReaderGesture
@@ -559,7 +512,7 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
             class="w-full py-3 px-6 rounded-xl bg-primary/10 hover:bg-primary/20"
             @click="showSourcePicker = true"
           >
-            换个书源
+            查看书源说明
           </button>
         </div>
       </div>
@@ -577,28 +530,25 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
           :has-next-chapter="readerStore.hasNextChapter"
           :is-night-mode="isNightMode"
           :is-fullscreen="isFullscreen"
-          :is-tts-speaking="ttsIsSpeaking"
-          :is-tts-paused="ttsIsPaused"
           :is-eye-care-enabled="eyeCare.config.value.enabled"
-          :book-url="route.query.url as string"
-          :is-decoder-enabled="decoderStore.isEnabled"
-          :is-decoding="decoderStore.isDecoding"
+          :content-issue="readerStore.loadError"
+          :show-decoder-action="decoderAddonEnabled"
+          :is-decoder-enabled="decoderAddonEnabled && decoderStore.isEnabled"
+          :is-decoding="decoderAddonEnabled && decoderStore.isDecoding"
           @back="goBack"
           @toggle-catalog="showCatalog = true"
           @toggle-fullscreen="toggleFullscreen"
           @toggle-day-night="toggleDayNight"
-          @toggle-tts="toggleTTS"
           @toggle-settings="showSettings = true"
-          @toggle-ai="showAIPanel = true"
-          @toggle-insights="showInsightsPanel = true"
           @toggle-eye-care="
             eyeCare.config.value.enabled ? eyeCare.disable() : eyeCare.enable()
           "
           @toggle-zen-mode="toggleZenMode"
-          @refresh="readerStore.reloadCurrentChapter"
+          @refresh="handleRefresh"
           @prev-chapter="handlePrevChapter"
           @next-chapter="handleNextChapter"
           @open-source-picker="showSourcePicker = true"
+          @open-book-info="showBookInfo = true"
           @toggle-decoder="handleToggleDecoder"
           @open-decoder-settings="showDecoderSettings = true"
         />
@@ -609,36 +559,26 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
           :content-style="contentStyle"
           :loaded-chapters="readerStore.loadedChapters"
           :is-loading-more="readerStore.isLoadingMore"
+          :current-chapter="readerStore.currentChapter"
           :current-chapter-index="readerStore.currentChapterIndex"
+          :total-chapters="readerStore.totalChapters"
           :swipe-page="swipePage"
           :swipe-total-pages="swipeTotalPages"
           :swipe-layout="swipeLayout"
+          :page-transition="settingsStore.config.pageAnimation"
+          :show-toolbar="showToolbar"
+          :is-fullscreen="isFullscreen"
           :formatted-time="formattedTime"
           :paragraph-spacing="settingsStore.config.paragraphSpacing"
           :formatted-content="readerStore.formattedContent"
           :is-parsing="readerStore.isParsing"
           :has-next-chapter="readerStore.hasNextChapter"
           :load-error="readerStore.loadError"
-          :decoder-enabled="decoderStore.isEnabled"
-          :decoder-entities="decoderStore.currentEntities"
+          :decoder-enabled="decoderAddonEnabled && decoderStore.isEnabled"
+          :decoder-entities="decoderAddonEnabled ? decoderStore.currentEntities : []"
           @load-next-chapter="readerStore.appendNextChapter"
           @retry-load="readerStore.retryLoadNext"
           @entity-click="handleEntityClick"
-        />
-
-        <ReaderTTS
-          :show="showTTSPanel"
-          :is-speaking="ttsIsSpeaking"
-          :is-paused="ttsIsPaused"
-          :current-rate="tts.rate.value"
-          :sleep-timer-remaining="sleepTimerRemaining"
-          :formatted-remaining-time="formatSleepTimerRemaining()"
-          @toggle="toggleTTS"
-          @set-rate="tts.setRate"
-          @set-timer="setSleepTimer"
-          @cancel-timer="cancelSleepTimer"
-          @stop="stopTTS"
-          @open-voice-settings="showVoiceSettings = true"
         />
 
         <ReaderModals
@@ -646,10 +586,7 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
           v-model:show-settings="showSettings"
           v-model:show-source-picker="showSourcePicker"
           v-model:show-book-info="showBookInfo"
-          v-model:show-a-i-panel="showAIPanel"
-          v-model:show-insights-panel="showInsightsPanel"
           v-model:show-keyboard-help="showKeyboardHelp"
-          v-model:show-voice-settings="showVoiceSettings"
           :book="readerStore.currentBook"
           :chapters="readerStore.catalog"
           :current-ind="readerStore.currentChapterIndex"
@@ -678,27 +615,18 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
               }
             }
           "
-          @refresh-catalog="readerStore.refreshChapter"
+          @refresh="handleRefresh"
         />
 
-        <ParagraphSelectionMenu :container-ref="selectionContainerRef" />
         <BreakReminder
           v-if="eyeCare.showBreakReminder.value"
           :reading-time="eyeCare.formatReadingTime()"
           @dismiss="eyeCare.dismissBreakReminder()"
         />
 
-        <!-- 剧情回顾 -->
-        <SmartRecap
-          v-if="showSmartRecap"
-          :book-title="readerStore.currentBook?.name"
-          :last-chapters="recapChapters"
-          @close="showSmartRecap = false"
-        />
-
         <!-- 解密状态指示器 -->
         <DecoderStatusIndicator
-          v-if="decoderStore.isEnabled"
+          v-if="decoderAddonEnabled && decoderStore.isEnabled"
           :is-decoding="decoderStore.isDecoding"
           :error="decoderStore.decodeError"
           :entities-count="decoderStore.validEntitiesCount"
@@ -711,6 +639,7 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
 
         <!-- 解密设置面板 -->
         <DecoderSettingsSheet
+          v-if="decoderAddonEnabled"
           v-model:open="showDecoderSettings"
           :book-url="route.query.url as string"
         />
@@ -718,15 +647,13 @@ const formattedTime = useDateFormat(useNow(), "HH:mm");
         <!-- 解密卡片 -->
         <Teleport to="body">
           <DecoderCard
-            v-if="decoderStore.selectedEntity"
+            v-if="decoderAddonEnabled && decoderStore.selectedEntity"
             :entity="decoderStore.selectedEntity"
             :position="decoderStore.cardPosition"
             :visible="decoderStore.showCard"
-            :known-aliases="decoderStore.knownAliases"
             @close="decoderStore.closeCard"
             @confirm="handleConfirmEntity"
             @correct="handleCorrectEntity"
-            @link-entity="handleLinkEntity"
           />
         </Teleport>
       </template>

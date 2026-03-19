@@ -10,9 +10,21 @@ import { hardwareScheduler, PowerMode } from './hardware/scheduler'
 
 export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
 
+const PRIORITY_SCORE: Record<SyncPriority, number> = {
+  CRITICAL: 0,
+  NORMAL: 1,
+  IDLE: 2,
+}
+
+const RETRY_LIMITS: Record<SyncPriority, number> = {
+  CRITICAL: 5,
+  NORMAL: 3,
+  IDLE: 1,
+}
+
 class SyncManager {
   private isProcessing = false
-  private pollingTimer: any = null
+  private pollingTimer: number | null = null
 
   /**
    * 添加同步任务
@@ -70,7 +82,7 @@ class SyncManager {
     if (this.isProcessing || !networkDetector.isOnline()) return
 
     const quota = hardwareScheduler.getQuota()
-    if (quota.mode === PowerMode.ULTRA_LOW && !this.hasCriticalTasks()) {
+    if (quota.mode === PowerMode.ULTRA_LOW && !(await this.hasCriticalTasks())) {
       logger.debug('[Sync] Skipping sync: Ultra low power mode and no critical tasks.')
       return
     }
@@ -90,34 +102,32 @@ class SyncManager {
   }
 
   private async hasCriticalTasks(): Promise<boolean> {
-    const tasks = (await nexusDB.getAll(StoreNames.SYNC_QUEUE)) as any[]
-    return (tasks as any[]).some((t: any) => t.priority === 'CRITICAL')
+    const tasks = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
+    return tasks.some(task => task.priority === 'CRITICAL')
   }
 
   private async internalProcessQueue(limit: number): Promise<void> {
     this.isProcessing = true
     try {
-      let tasks = (await nexusDB.getAll(StoreNames.SYNC_QUEUE)) as any[]
+      const tasks = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
       if (tasks.length === 0) return
 
       // 按优先级排序
       tasks.sort((a, b) => {
-        const priorityScore: any = { CRITICAL: 0, NORMAL: 1, IDLE: 2 }
-        return priorityScore[a.priority] - priorityScore[b.priority]
+        return PRIORITY_SCORE[a.priority] - PRIORITY_SCORE[b.priority]
       })
 
       // 根据硬件配额限制任务数
-      for (const unknownTask of tasks.slice(0, limit)) {
-        const task = unknownTask as any
+      for (const task of tasks.slice(0, limit)) {
         try {
           await this.executeTask(task)
-          await (nexusDB as any).delete(StoreNames.SYNC_QUEUE, task.id)
-        } catch (err: any) {
+          await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
+        } catch (_err: unknown) {
           task.retryCount++
-          if (task.retryCount >= (this as any).retryLimits[task.priority]) {
-            await (nexusDB as any).delete(StoreNames.SYNC_QUEUE, task.id)
+          if (task.retryCount >= RETRY_LIMITS[task.priority]) {
+            await nexusDB.delete(StoreNames.SYNC_QUEUE, task.id)
           } else {
-            await (nexusDB as any).put(StoreNames.SYNC_QUEUE, task)
+            await nexusDB.put(StoreNames.SYNC_QUEUE, task)
           }
         }
       }

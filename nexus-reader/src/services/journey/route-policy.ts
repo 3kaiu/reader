@@ -28,7 +28,6 @@ const DIRECT_RULES: JourneyRule[] = [
   { pattern: '/api/replace_rules', journey: 'bookshelf' },
   { pattern: '/api/discovery', journey: 'bookshelf' },
   { pattern: '/api/ai/', journey: 'reading' },
-  { pattern: '/api/voice/', journey: 'reading' },
   { pattern: '/ws/', journey: 'sync' },
 ]
 

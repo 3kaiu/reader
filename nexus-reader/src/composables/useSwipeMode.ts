@@ -1,267 +1,166 @@
-/**
- * Swipe Mode Composables
- *
- * Provides swipe-based navigation modes for reading interfaces,
- * supporting different swipe behaviors and customization.
- */
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { ref, computed, readonly, watch } from 'vue'
-import { logger } from '@/utils/logger'
+type SwipeModeDeps = {
+  readerStore: {
+    formattedContent?: string;
+    content?: string;
+    currentChapterIndex: number;
+    hasNextChapter: boolean;
+    hasPrevChapter: boolean;
+    nextChapter: () => Promise<void>;
+    prevChapter: () => Promise<void>;
+    initInfiniteScroll?: () => void;
+  };
+  settingsStore: {
+    config: {
+      fontSize: number;
+      lineHeight: number;
+      readingMode: "scroll" | "swipe";
+      pageAnimation: "slide" | "fade" | "none";
+    };
+  };
+  toggleToolbar?: () => void;
+};
 
-export type SwipeMode = 'page' | 'scroll' | 'chapter' | 'disabled'
-
-export interface SwipeConfig {
-  mode: SwipeMode
-  sensitivity: number // 0-1
-  velocityThreshold: number
-  enableHapticFeedback: boolean
-  enableAnimation: boolean
-  animationDuration: number
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, "\n").replace(/\n{2,}/g, "\n");
 }
 
-export interface SwipeState {
-  isActive: boolean
-  direction: 'left' | 'right' | 'up' | 'down' | null
-  progress: number // 0-1
-  velocity: number
-  distance: number
+function estimateCharsPerPage(
+  width: number,
+  height: number,
+  fontSize: number,
+  lineHeight: number,
+): number {
+  const safeWidth = Math.max(width - 48, 240);
+  const safeHeight = Math.max(height - 96, 320);
+  const charsPerLine = Math.max(12, Math.floor(safeWidth / (fontSize * 0.58)));
+  const linesPerPage = Math.max(
+    8,
+    Math.floor(safeHeight / (fontSize * lineHeight)),
+  );
+  return charsPerLine * linesPerPage;
 }
 
-export interface SwipeHandlers {
-  onSwipeStart?: (direction: string) => void
-  onSwipeProgress?: (progress: number, direction: string) => void
-  onSwipeComplete?: (direction: string, success: boolean) => void
-  onSwipeCancel?: (direction: string) => void
-}
+export function useSwipeMode({
+  readerStore,
+  settingsStore,
+  toggleToolbar,
+}: SwipeModeDeps) {
+  const contentRef = ref<HTMLElement | null>(null);
+  const page = ref(0);
+  const viewportWidth = ref(
+    typeof window !== "undefined" ? window.innerWidth : 375,
+  );
+  const viewportHeight = ref(
+    typeof window !== "undefined" ? window.innerHeight : 667,
+  );
 
-export function useSwipeMode(config: Partial<SwipeConfig> = {}, handlers: SwipeHandlers = {}) {
-  const defaultConfig: SwipeConfig = {
-    mode: 'page',
-    sensitivity: 0.5,
-    velocityThreshold: 0.5,
-    enableHapticFeedback: true,
-    enableAnimation: true,
-    animationDuration: 300,
-  }
+  const layout = computed(() => ({
+    columnWidth: Math.max(viewportWidth.value - 48, 240),
+    columnGap: 0,
+    padding: 24,
+  }));
 
-  const currentConfig = ref<SwipeConfig>({ ...defaultConfig, ...config })
-  const swipeState = ref<SwipeState>({
-    isActive: false,
-    direction: null,
-    progress: 0,
-    velocity: 0,
-    distance: 0,
-  })
-
-  const isSwipeEnabled = computed(() => currentConfig.value.mode !== 'disabled')
-  const swipeThreshold = computed(() => 100 * currentConfig.value.sensitivity)
-
-  /**
-   * Update swipe configuration
-   */
-  const updateConfig = (newConfig: Partial<SwipeConfig>) => {
-    currentConfig.value = { ...currentConfig.value, ...newConfig }
-    logger.debug('Swipe mode config updated', { config: currentConfig.value })
-  }
-
-  /**
-   * Start a swipe gesture
-   */
-  const startSwipe = (startX: number, startY: number, direction: SwipeState['direction']) => {
-    if (!isSwipeEnabled.value) return false
-
-    swipeState.value = {
-      isActive: true,
-      direction,
-      progress: 0,
-      velocity: 0,
-      distance: 0,
+  const totalPages = computed(() => {
+    if (settingsStore.config.readingMode !== "swipe") {
+      return 1;
     }
 
-    handlers.onSwipeStart?.(direction || '')
-    logger.debug('Swipe started', { direction, startX, startY })
-    return true
-  }
+    const source =
+      readerStore.formattedContent || readerStore.content || "";
+    const text = stripHtml(source);
+    const charsPerPage = estimateCharsPerPage(
+      viewportWidth.value,
+      viewportHeight.value,
+      settingsStore.config.fontSize || 18,
+      settingsStore.config.lineHeight || 1.8,
+    );
 
-  /**
-   * Update swipe progress
-   */
-  const updateSwipe = (currentX: number, currentY: number, startX: number, startY: number) => {
-    if (!swipeState.value.isActive) return
+    return Math.max(1, Math.ceil(text.length / Math.max(charsPerPage, 1)));
+  });
 
-    const deltaX = currentX - startX
-    const deltaY = currentY - startY
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+  const syncViewport = () => {
+    viewportWidth.value = window.innerWidth;
+    viewportHeight.value = window.innerHeight;
+  };
 
-    swipeState.value.distance = distance
-    swipeState.value.progress = Math.min(distance / swipeThreshold.value, 1)
-
-    handlers.onSwipeProgress?.(swipeState.value.progress, swipeState.value.direction || '')
-  }
-
-  /**
-   * Complete a swipe gesture
-   */
-  const completeSwipe = (velocity: number = 0) => {
-    if (!swipeState.value.isActive) return
-
-    swipeState.value.velocity = velocity
-    const success =
-      swipeState.value.progress >= 1 || velocity > currentConfig.value.velocityThreshold
-
-    if (success) {
-      // Trigger haptic feedback if enabled
-      if (currentConfig.value.enableHapticFeedback && 'vibrate' in navigator) {
-        navigator.vibrate(50)
-      }
-
-      handlers.onSwipeComplete?.(swipeState.value.direction || '', true)
-      performSwipeAction(swipeState.value.direction || '')
-    } else {
-      handlers.onSwipeCancel?.(swipeState.value.direction || '')
-    }
-
-    logger.debug('Swipe completed', {
-      direction: swipeState.value.direction,
-      success,
-      progress: swipeState.value.progress,
-      velocity,
-    })
-
-    // Reset state
-    swipeState.value.isActive = false
-    swipeState.value.progress = 0
-    swipeState.value.distance = 0
-  }
-
-  /**
-   * Cancel swipe gesture
-   */
-  const cancelSwipe = () => {
-    if (!swipeState.value.isActive) return
-
-    handlers.onSwipeCancel?.(swipeState.value.direction || '')
-    logger.debug('Swipe cancelled', { direction: swipeState.value.direction })
-
-    swipeState.value.isActive = false
-    swipeState.value.progress = 0
-    swipeState.value.distance = 0
-  }
-
-  /**
-   * Perform the actual swipe action based on mode
-   */
-  const performSwipeAction = async (direction: string) => {
-    switch (currentConfig.value.mode) {
-      case 'page':
-        await performPageNavigation(direction)
-        break
-      case 'scroll':
-        await performScrollAction(direction)
-        break
-      case 'chapter':
-        await performChapterNavigation(direction)
-        break
-      default:
-        logger.warn('Unknown swipe mode', { mode: currentConfig.value.mode })
-    }
-  }
-
-  /**
-   * Page navigation mode
-   */
-  const performPageNavigation = async (direction: string) => {
-    // Emit navigation events
-    const event = new CustomEvent('swipe-navigation', {
-      detail: { direction, mode: 'page' },
-    })
-    window.dispatchEvent(event)
-
-    logger.info('Page navigation swipe', { direction })
-  }
-
-  /**
-   * Scroll mode
-   */
-  const performScrollAction = async (direction: string) => {
-    const scrollAmount = window.innerHeight * 0.8
-
-    if (direction === 'up') {
-      window.scrollBy({ top: -scrollAmount, behavior: 'smooth' })
-    } else if (direction === 'down') {
-      window.scrollBy({ top: scrollAmount, behavior: 'smooth' })
-    }
-
-    logger.debug('Scroll swipe action', { direction, amount: scrollAmount })
-  }
-
-  /**
-   * Chapter navigation mode
-   */
-  const performChapterNavigation = async (direction: string) => {
-    // Emit chapter navigation events
-    const event = new CustomEvent('chapter-navigation', {
-      detail: { direction, mode: 'chapter' },
-    })
-    window.dispatchEvent(event)
-
-    logger.info('Chapter navigation swipe', { direction })
-  }
-
-  /**
-   * Get swipe progress for UI feedback
-   */
-  const getProgressIndicator = () => {
-    if (!swipeState.value.isActive) return null
-
-    return {
-      direction: swipeState.value.direction,
-      progress: swipeState.value.progress,
-      threshold: swipeThreshold.value,
-      willComplete: swipeState.value.progress >= 1,
-    }
-  }
-
-  /**
-   * Enable/disable swipe mode
-   */
-  const setEnabled = (enabled: boolean) => {
-    if (!enabled) {
-      currentConfig.value.mode = 'disabled'
-    } else if (currentConfig.value.mode === 'disabled') {
-      currentConfig.value.mode = 'page'
-    }
-    logger.debug('Swipe mode toggled', { enabled: currentConfig.value.mode !== 'disabled' })
-  }
-
-  // Watch config changes
   watch(
-    () => currentConfig.value,
-    newConfig => {
-      logger.debug('Swipe config changed', { config: newConfig })
+    () => readerStore.currentChapterIndex,
+    () => {
+      page.value = 0;
     },
-    { deep: true }
-  )
+  );
+
+  watch(totalPages, (value) => {
+    if (page.value >= value) {
+      page.value = Math.max(0, value - 1);
+    }
+  });
+
+  const nextPage = async () => {
+    if (page.value < totalPages.value - 1) {
+      page.value += 1;
+      return;
+    }
+
+    if (!readerStore.hasNextChapter) {
+      return;
+    }
+
+    await readerStore.nextChapter();
+    readerStore.initInfiniteScroll?.();
+    page.value = 0;
+  };
+
+  const prevPage = async () => {
+    if (page.value > 0) {
+      page.value -= 1;
+      return;
+    }
+
+    if (!readerStore.hasPrevChapter) {
+      return;
+    }
+
+    await readerStore.prevChapter();
+    readerStore.initInfiniteScroll?.();
+    await nextTick();
+    page.value = Math.max(0, totalPages.value - 1);
+  };
+
+  const handleClick = (event: MouseEvent) => {
+    const clickRatio = window.innerWidth > 0 ? event.clientX / window.innerWidth : 0.5;
+
+    if (clickRatio <= 0.3) {
+      void prevPage();
+      return;
+    }
+
+    if (clickRatio >= 0.7) {
+      void nextPage();
+      return;
+    }
+
+    toggleToolbar?.();
+  };
+
+  onMounted(() => {
+    syncViewport();
+    window.addEventListener("resize", syncViewport, { passive: true });
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("resize", syncViewport);
+  });
 
   return {
-    // State
-    config: currentConfig,
-    swipeState: readonly(swipeState),
-    isSwipeEnabled,
-    swipeThreshold,
-
-    // Methods
-    updateConfig,
-    startSwipe,
-    updateSwipe,
-    completeSwipe,
-    cancelSwipe,
-    getProgressIndicator,
-    setEnabled,
-
-    // Actions
-    performPageNavigation,
-    performScrollAction,
-    performChapterNavigation,
-  }
+    contentRef,
+    page,
+    totalPages,
+    layout,
+    handleClick,
+    nextPage,
+    prevPage,
+  };
 }

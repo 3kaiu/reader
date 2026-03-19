@@ -6,7 +6,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { errorHandler } from '@/utils/unified-utils'
+import { errorHandler } from '@/utils/error-handler'
 import { $post, $put } from '@/api/client'
 import type { User, UserPreferences, LoginCredentials } from './types'
 

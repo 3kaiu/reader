@@ -3,7 +3,9 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
-import { errorHandler, logger, storage } from '@/utils/unified-utils'
+import { errorHandler } from '@/utils/error-handler'
+import { logger } from '@/utils/logger'
+import { storage } from '@/utils/storage'
 
 interface OfflineItem {
   id: string
@@ -184,6 +186,32 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
     }
   }
 
+  const loadCacheIndex = async () => {
+    if (state.value.items.length > 0) {
+      return
+    }
+    await initialize()
+  }
+
+  const getBookCacheStatus = (bookUrl: string, totalChapters: number) => {
+    const cached = state.value.items.filter(
+      item =>
+        item.type === 'chapter' &&
+        typeof item.id === 'string' &&
+        item.id.includes(bookUrl)
+    ).length
+
+    const safeTotal = Math.max(totalChapters, 0)
+    const percentage =
+      safeTotal > 0 ? Math.min(100, Math.round((cached / safeTotal) * 100)) : 0
+
+    return {
+      cached,
+      total: safeTotal,
+      percentage,
+    }
+  }
+
   // 初始化
   const initialize = async () => {
     try {
@@ -238,5 +266,8 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
     removeItem,
     clearAll,
     syncWithServer
+    ,
+    loadCacheIndex,
+    getBookCacheStatus,
   }
 })

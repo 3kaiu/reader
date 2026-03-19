@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useMessage } from '@/composables/useMessage'
-import { Check, RefreshCw, Globe, ShieldAlert } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Check, Globe, ShieldAlert } from 'lucide-vue-next'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useReaderStore } from '@/stores/reader'
 import { LazyImage } from '@/components/ui'
+import type { Book } from '@/api/book'
 
 withDefaults(defineProps<{
   open?: boolean
@@ -16,23 +16,9 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const message = useMessage()
 const readerStore = useReaderStore()
-const loading = ref(false)
 
-const currentBook = computed(() => readerStore.currentBook as Record<string, any> | null)
-
-async function refresh() {
-  loading.value = true
-  message.warning('当前版本已临时下线换源能力，优先保证阅读主链路稳定。')
-  window.setTimeout(() => {
-    loading.value = false
-  }, 200)
-}
-
-function showDisabledMessage() {
-  message.warning('当前版本已临时下线自动换源与多源搜索能力。')
-}
+const currentBook = computed<Book | null>(() => readerStore.currentBook)
 </script>
 
 <template>
@@ -77,32 +63,13 @@ function showDisabledMessage() {
           <span class="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">1</span>
           <span class="text-[10px] text-muted-foreground/60 ml-1">仅保留当前书源</span>
         </div>
-        <div class="flex gap-2">
-          <button
-            class="h-8 px-3 text-xs rounded-full border bg-background hover:bg-muted transition-colors flex items-center gap-1.5"
-            :disabled="loading"
-            @click="refresh"
-          >
-            <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
-            说明
-          </button>
-          <button
-            class="h-8 px-3 text-xs rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1.5"
-            @click="showDisabledMessage"
-          >
-            <Globe class="h-3.5 w-3.5" />
-            换源已下线
-          </button>
-        </div>
+        <span class="text-xs text-muted-foreground/60">Phase 0 收口中</span>
       </div>
 
       <div class="border-t" />
 
       <div class="flex-1 overflow-y-auto px-5 py-6">
-        <button
-          class="w-full p-4 rounded-2xl text-left bg-primary/10 ring-2 ring-primary/20 transition-all"
-          @click="showDisabledMessage"
-        >
+        <div class="w-full p-4 rounded-2xl text-left bg-primary/10 ring-2 ring-primary/20">
           <div class="flex items-start gap-3">
             <div
               class="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 mt-0.5"
@@ -124,7 +91,7 @@ function showDisabledMessage() {
               </p>
             </div>
           </div>
-        </button>
+        </div>
 
         <div class="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
           <div class="flex items-start gap-3">

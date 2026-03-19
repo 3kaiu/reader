@@ -12,9 +12,8 @@ import { offlineManager, offlineContentServer } from '@/services/offline/manager
 import { resolveRoutePolicy } from '@/services/journey/route-policy'
 import { NexusError, ErrorCode, reportError } from '@/utils/errors'
 
-// 请求缓存
-const MAX_CACHE_SIZE = 100
-const requestCache = new Map<string, { data: any; timestamp: number }>()
+// API 响应缓存
+const MAX_CACHE_SIZE = 1000
 
 // 错误消息翻译映射（技术性错误 -> 用户友好消息）
 const ERROR_MESSAGE_MAP: Record<string, string> = {
@@ -124,15 +123,12 @@ export interface ApiResponse<T = unknown> {
   errorMsg?: string
 }
 
-// 请求缓存 Map (LRU实现)
+// 请求缓存 Map (近似 LRU)
 const apiCacheMap = new Map<string, { data: unknown; timestamp: number }>()
 
 function createCacheKey(prefix: string, url: string, params: string): string {
   return `${prefix}:${url}:${params}`
 }
-
-// 请求去重 Map
-const pendingRequests = new Map<string, Promise<unknown>>()
 
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
@@ -429,24 +425,7 @@ export const api = internalFetch
 // 自动清理过期缓存 (每分钟)
 if (typeof window !== 'undefined') {
   setInterval(() => {
-    const now = Date.now()
-    const keysToDelete: string[] = []
-
-    for (const [key, value] of requestCache.entries()) {
-      if (now - value.timestamp > API_CACHE_TTL) {
-        keysToDelete.push(key)
-      }
-    }
-
-    // 批量删除过期缓存
-    keysToDelete.forEach(key => requestCache.delete(key))
-
-    // 如果缓存仍然过大，删除最旧的项
-    if (requestCache.size > MAX_CACHE_SIZE) {
-      const excess = requestCache.size - MAX_CACHE_SIZE
-      const oldestKeys = Array.from(requestCache.keys()).slice(0, excess)
-      oldestKeys.forEach(key => requestCache.delete(key))
-    }
+    cleanExpiredCache()
   }, 60 * 1000)
 }
 
@@ -489,7 +468,7 @@ export const $get = <T>(url: string, options?: FetchOptions) => {
       apiCacheMap.set(cacheKey, { data: result, timestamp: Date.now() })
 
       // 限制缓存大小
-      if (apiCacheMap.size > 1000) {
+      if (apiCacheMap.size > MAX_CACHE_SIZE) {
         const firstKey = apiCacheMap.keys().next().value
         if (firstKey) apiCacheMap.delete(firstKey)
       }
@@ -587,8 +566,6 @@ export const $patch = <T>(url: string, body?: unknown, options?: FetchOptions) =
  * ```
  */
 export function clearApiCache() {
-  requestCache.clear()
-  pendingRequests.clear()
   apiCacheMap.clear()
 }
 
@@ -606,12 +583,17 @@ export function clearApiCache() {
  */
 export function cleanExpiredCache() {
   const now = Date.now()
-  for (const [key, value] of requestCache.entries()) {
+  for (const [key, value] of apiCacheMap.entries()) {
     if (now - value.timestamp > API_CACHE_TTL) {
-      requestCache.delete(key)
+      apiCacheMap.delete(key)
     }
   }
-  // 新的缓存管理器会自动清理过期项
+
+  if (apiCacheMap.size > MAX_CACHE_SIZE) {
+    const excess = apiCacheMap.size - MAX_CACHE_SIZE
+    const oldestKeys = Array.from(apiCacheMap.keys()).slice(0, excess)
+    oldestKeys.forEach(key => apiCacheMap.delete(key))
+  }
 }
 
 /**
@@ -620,7 +602,7 @@ export function cleanExpiredCache() {
 export function getApiCacheStats() {
   return {
     size: apiCacheMap.size,
-    pending: pendingRequests.size,
+    pending: requestOptimizer.getPendingRequestCount(),
   }
 }
 

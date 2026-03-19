@@ -3,10 +3,8 @@
  * 阅读器主内容区组件
  * 支持无限滚动模式和左右翻页模式
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
-import { useRenderWorker } from '@/composables/useRenderWorker'
-import { useSettingsStore } from '@/stores/settings'
 
 // 本地类型定义
 interface LoadedChapter {
@@ -68,11 +66,7 @@ const emit = defineEmits<{
   entityClick: [entity: DecodedEntity, event: MouseEvent] // 解密实体点击
 }>()
 
-const settingsStore = useSettingsStore()
 const swipeContentRef = ref<HTMLElement | null>(null)
-
-// 初始化渲染 Worker
-const { renderedPages, requestRender } = useRenderWorker()
 
 /** 处理解密高亮的内容 */
 function applyDecoderHighlight(html: string, entities: DecodedEntity[]): string {
@@ -131,23 +125,6 @@ function getHighlightedContent(content: string | undefined): string {
   return applyDecoderHighlight(content, props.decoderEntities)
 }
 
-// 监听内容变化并请求背景渲染
-watch(() => props.formattedContent, (newContent) => {
-  if (props.readingMode === 'swipe' && newContent) {
-    requestRender({
-      text: newContent.replace(/<[^>]*>/g, '\n'), // 简单转义用于 Mesh 构建
-      width: window.innerWidth,
-      height: window.innerHeight,
-      fontSize: settingsStore.config.fontSize || 18,
-      lineHeight: 1.6,
-      padding: 32,
-      fontFamily: 'sans-serif',
-      color: props.contentStyle.color as string || '#000',
-      theme: settingsStore.config.theme
-    }, props.currentChapterIndex)
-  }
-}, { immediate: true })
-
 // 暴露给父组件，供 useSwipeMode 使用
 defineExpose({
   swipeContentRef
@@ -176,9 +153,6 @@ defineExpose({
             {{ chapter.title }}
           </h2>
         </div>
-        
-        <!-- 智能摘要 -->
-        <ChapterSummary :chapter="chapter" />
         
         <!-- 章节内容 -->
         <article class="reader-text" @click="handleContentClick">
@@ -289,11 +263,6 @@ defineExpose({
            </h2>
         </div>
         
-        <!-- 智能摘要 -->
-        <div v-if="currentChapter" class="px-4 mb-4">
-           <ChapterSummary :chapter="currentChapter" />
-        </div>
-
         <!-- 章节内容 -->
         <article class="reader-text text-justify" @click="handleContentClick">
           <div v-if="isParsing" class="h-60 flex flex-col items-center justify-center opacity-40">

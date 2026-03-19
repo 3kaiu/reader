@@ -8,16 +8,6 @@ import type { ModelInfo } from "@/types/ai";
 const DEFAULT_MODEL_KEY = "nexus_default_model";
 const MODELS_KEY = "nexus_available_models";
 
-export interface ModelConfig {
-  id: string;
-  name: string;
-  description: string;
-  recommended: boolean;
-  size: string;
-  quantization: string;
-  contextLength: number;
-}
-
 export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: "Llama-3-8B-Instruct-q4f16_1-MLC",
@@ -116,51 +106,4 @@ export async function getAllModels(): Promise<ModelInfo[]> {
   }
 
   return AVAILABLE_MODELS;
-}
-
-/**
- * Add a custom model to the list
- */
-export async function addCustomModel(model: ModelInfo): Promise<void> {
-  try {
-    const models = await getAllModels();
-    models.push(model);
-    localStorage.setItem(MODELS_KEY, JSON.stringify(models));
-  } catch (error) {
-    console.warn("Failed to add custom model:", error);
-  }
-}
-
-/**
- * Remove a model from the list
- */
-export async function removeModel(modelId: string): Promise<void> {
-  try {
-    const models = await getAllModels();
-    const filtered = models.filter((m) => m.id !== modelId);
-    localStorage.setItem(MODELS_KEY, JSON.stringify(filtered));
-
-    // If removed model was default, reset to first available
-    const currentDefault = await getDefaultModel();
-    if (currentDefault === modelId) {
-      const newDefault = filtered.find((m) => m.recommended) || filtered[0];
-      if (newDefault) {
-        await saveLastModel(newDefault.id);
-      }
-    }
-  } catch (error) {
-    console.warn("Failed to remove model:", error);
-  }
-}
-
-/**
- * Reset models to default list
- */
-export async function resetModels(): Promise<void> {
-  try {
-    localStorage.removeItem(MODELS_KEY);
-    localStorage.removeItem(DEFAULT_MODEL_KEY);
-  } catch (error) {
-    console.warn("Failed to reset models:", error);
-  }
 }

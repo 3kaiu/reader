@@ -13,8 +13,6 @@ export enum PowerMode {
 export interface ResourceQuota {
   mode: PowerMode
   maxConcurrentTasks: number
-  allowVectorization: boolean
-  allowPrefetch: boolean
   syncIntervalMs: number
 }
 
@@ -70,32 +68,24 @@ class HardwareScheduler {
         return {
           mode: PowerMode.ULTRA_LOW,
           maxConcurrentTasks: 1,
-          allowVectorization: false,
-          allowPrefetch: false,
           syncIntervalMs: 300000 // 5 分钟
         }
       case PowerMode.LOW:
         return {
           mode: PowerMode.LOW,
           maxConcurrentTasks: 2,
-          allowVectorization: false,
-          allowPrefetch: true,
           syncIntervalMs: 60000 // 1 分钟
         }
       case PowerMode.PERFORMANCE:
         return {
           mode: PowerMode.PERFORMANCE,
           maxConcurrentTasks: 8,
-          allowVectorization: true,
-          allowPrefetch: true,
           syncIntervalMs: 15000 // 15 秒
         }
       default:
         return {
           mode: PowerMode.NORMAL,
           maxConcurrentTasks: 4,
-          allowVectorization: true,
-          allowPrefetch: true,
           syncIntervalMs: 30000
         }
     }

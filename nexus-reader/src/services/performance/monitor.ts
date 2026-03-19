@@ -14,7 +14,6 @@ export interface PerformanceMetric {
 
 class PerformanceMonitor {
     private static instance: PerformanceMonitor
-    private marks: Map<string, number> = new Map()
 
     private constructor() { }
 
@@ -23,37 +22,6 @@ class PerformanceMonitor {
             PerformanceMonitor.instance = new PerformanceMonitor()
         }
         return PerformanceMonitor.instance
-    }
-
-    /**
-     * 开始计时
-     * @param key 标识符
-     */
-    startMark(key: string) {
-        this.marks.set(key, performance.now())
-    }
-
-    /**
-     * 结束计时并记录指标
-     * @param key 标识符
-     * @param metricName 最终上报的指标名称
-     * @param tags 附加标签
-     */
-    endMark(key: string, metricName?: string, tags?: Record<string, string | number>) {
-        const startTime = this.marks.get(key)
-        if (startTime === undefined) return
-
-        const duration = performance.now() - startTime
-        this.marks.delete(key)
-
-        this.record({
-            name: metricName || key,
-            value: Number(duration.toFixed(2)),
-            unit: 'ms',
-            tags
-        })
-
-        return duration
     }
 
     /**
@@ -83,33 +51,6 @@ class PerformanceMonitor {
         // if (!import.meta.env.DEV) {
         //   reportToAnalytics(metric)
         // }
-    }
-
-    /**
-     * 监控 Web Vitals
-     * Note: Using native PerformanceObserver API for LCP/FID/CLS monitoring
-     */
-    observeWebVitals() {
-        if (typeof window === 'undefined') return
-
-        // Native Web Vitals monitoring using PerformanceObserver
-        try {
-            const observer = new PerformanceObserver((entryList) => {
-                for (const entry of entryList.getEntries()) {
-                    this.record({
-                        name: `Vital-${entry.name}`,
-                        value: Number(entry.startTime.toFixed(2)),
-                        unit: 'ms'
-                    })
-                }
-            })
-            observer.observe({ type: 'largest-contentful-paint', buffered: true })
-            observer.observe({ type: 'first-input', buffered: true })
-            observer.observe({ type: 'layout-shift', buffered: true })
-        } catch {
-            // Browser doesn't support PerformanceObserver or specific entry types
-            logger.debug('Web Vitals monitoring not available')
-        }
     }
 }
 

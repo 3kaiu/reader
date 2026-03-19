@@ -1,28 +1,57 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
+  Compass,
   Download,
   Info,
   Trash2,
   Database,
   Settings,
   HardDrive,
-  Volume2,
   Brain,
 } from "lucide-vue-next";
 import { useMessage } from "@/composables/useMessage";
 import { useConfirm } from "@/composables/useConfirm";
 import { useErrorHandler } from "@/composables/useErrorHandler";
-import { bookshelfJourneyService, searchJourneyService, syncJourneyService } from "@/services/journey";
+import { bookshelfJourneyService } from "@/services/journey/bookshelf";
+import { searchJourneyService } from "@/services/journey/search";
+import { syncJourneyService } from "@/services/journey/sync";
+import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/common";
+import {
+  getOptionalFeatureState,
+  isOptionalFeature,
+  setOptionalFeatureEnabled,
+  type OptionalFeature,
+} from "@/utils/features";
 
 const router = useRouter();
-const { success } = useMessage();
+const route = useRoute();
+const { success, warning } = useMessage();
 const { confirm } = useConfirm();
 const { handlePromiseError } = useErrorHandler();
 
 const storageUsage = ref<{ used: number; quota: number } | null>(null);
+const addonFeatures = ref(getOptionalFeatureState());
+
+const APP_LOCAL_STORAGE_KEYS = [
+  "app-config",
+  "reader-progress",
+  "reader-settings",
+  "nexus_auth_token",
+  "nexus_default_model",
+  "nexus_available_models",
+  "offline_operations",
+  "offline_content",
+] as const;
+
+const LEGACY_LOCAL_STORAGE_KEYS = [
+  "ai-analysis-config",
+  "ai-analysis-mappings",
+] as const;
+
+const APP_INDEXED_DB_NAMES = ["nexus-reader", "nexus-ai-models"] as const;
 
 type ClientRoutingAnalytics = {
   window: string;
@@ -34,6 +63,81 @@ type ClientRoutingAnalytics = {
 
 const clientRouting = ref<ClientRoutingAnalytics | null>(null);
 const clientRoutingLoading = ref(false);
+
+const addonFeatureToggles: Array<{
+  key: OptionalFeature;
+  label: string;
+  description: string;
+  icon: typeof Compass;
+  color: string;
+  bg: string;
+}> = [
+  {
+    key: "discovery",
+    label: "探索发现",
+    description: "发现页与阅读周报改为可选模块",
+    icon: Compass,
+    color: "text-orange-500",
+    bg: "bg-orange-500/10",
+  },
+  {
+    key: "ai",
+    label: "AI 助手",
+    description: "本地 AI 运行时与映射规则改为可选模块",
+    icon: Brain,
+    color: "text-blue-500",
+    bg: "bg-blue-500/10",
+  },
+  {
+    key: "decoder",
+    label: "解密词典",
+    description: "解码与词典管理改为可选模块",
+    icon: Info,
+    color: "text-purple-500",
+    bg: "bg-purple-500/10",
+  },
+];
+
+const addonEntryCards = computed(() =>
+  [
+    {
+      feature: "discovery" as OptionalFeature,
+      label: "探索发现",
+      description: "发现新书与阅读周报",
+      icon: Compass,
+      path: "/discovery",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+    },
+    {
+      feature: "decoder" as OptionalFeature,
+      label: "解密词典",
+      description: "查看和编辑解密词典",
+      icon: Info,
+      path: "/decoder-dictionary",
+      color: "text-purple-500",
+      bg: "bg-purple-500/10",
+    },
+    {
+      feature: "ai" as OptionalFeature,
+      label: "AI 模型",
+      description: "实验性本地 AI 运行时管理",
+      icon: Brain,
+      path: "/ai-settings",
+      color: "text-green-500",
+      bg: "bg-green-500/10",
+    },
+    {
+      feature: "ai" as OptionalFeature,
+      label: "AI 映射规则",
+      description: "AI 映射规则与分析历史",
+      icon: Brain,
+      path: "/ai-analysis-settings",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+    },
+  ].filter((item) => addonFeatures.value[item.feature])
+);
 
 // Data Management
 async function handleExportData() {
@@ -79,31 +183,101 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+async function refreshStorageUsage() {
+  if (!navigator.storage?.estimate) {
+    storageUsage.value = null;
+    return;
+  }
+
+  const estimate = await navigator.storage.estimate();
+  storageUsage.value = {
+    used: estimate.usage || 0,
+    quota: estimate.quota || 0,
+  };
+}
+
+async function deleteIndexedDB(name: string): Promise<void> {
+  if (typeof indexedDB === "undefined") {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => resolve();
+  });
+}
+
 async function handleClearCache() {
   const result = await confirm({
     title: "确认清除缓存",
     description:
-      "确定清除所有应用缓存吗？这将重置所有本地设置。此操作不可恢复。",
+      "确定清除当前应用的本地缓存与设置吗？不会影响浏览器中其他站点的数据。",
     variant: "destructive",
   });
   if (!result) return;
-  localStorage.clear();
-  location.reload();
+
+  try {
+    for (const key of [...APP_LOCAL_STORAGE_KEYS, ...LEGACY_LOCAL_STORAGE_KEYS]) {
+      localStorage.removeItem(key);
+    }
+
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("offline_")) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    if (typeof caches !== "undefined") {
+      const cacheNames = await caches.keys();
+      for (const name of cacheNames) {
+        if (
+          name.includes("webllm") ||
+          name.includes("mlc") ||
+          name.includes("ai-models") ||
+          name.includes("nexus")
+        ) {
+          await caches.delete(name);
+        }
+      }
+    }
+
+    await Promise.all(APP_INDEXED_DB_NAMES.map((name) => deleteIndexedDB(name)));
+    addonFeatures.value = getOptionalFeatureState();
+    clientRouting.value = null;
+    await refreshStorageUsage();
+    success("应用本地缓存已清理");
+  } catch (e) {
+    handlePromiseError(e, "清理缓存失败");
+  }
 }
 
 function goBack() {
   router.push("/");
 }
 
+function updateAddonFeature(feature: OptionalFeature, enabled: boolean) {
+  addonFeatures.value = {
+    ...addonFeatures.value,
+    [feature]: enabled,
+  };
+  setOptionalFeatureEnabled(feature, enabled);
+  success(enabled ? `已启用${feature}附属模块` : `已关闭${feature}附属模块`);
+}
+
 onMounted(async () => {
-  // 获取存储使用情况
-  if (navigator.storage?.estimate) {
-    const estimate = await navigator.storage.estimate();
-    storageUsage.value = {
-      used: estimate.usage || 0,
-      quota: estimate.quota || 0,
-    };
+  addonFeatures.value = getOptionalFeatureState();
+
+  const requestedAddon =
+    typeof route.query.addon === "string" ? route.query.addon : null;
+  if (requestedAddon && isOptionalFeature(requestedAddon) && !addonFeatures.value[requestedAddon]) {
+    warning("该功能已从主阅读链路下沉为可选模块，可在设置页手动启用。");
   }
+
+  // 获取存储使用情况
+  await refreshStorageUsage();
 
   // Load client routing analytics (best-effort)
   void refreshClientRouting();
@@ -145,7 +319,7 @@ function formatMs(v?: number) {
       <!-- 页面头部 -->
       <PageHeader @back="goBack" />
 
-      <!-- AI 功能 -->
+      <!-- 附属功能 -->
       <section
         class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
       >
@@ -154,55 +328,60 @@ function formatMs(v?: number) {
           <h2
             class="text-sm font-bold text-muted-foreground uppercase tracking-wider"
           >
-            AI 功能
+            附属功能
           </h2>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <!-- 自定义音色朗读引擎 -->
+        <div class="space-y-3 mb-4">
           <div
-            class="group rounded-2xl border border-border/50 bg-card hover:bg-muted/30 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            @click="router.push('/voice-settings')"
-            role="button"
-            tabindex="0"
-            @keydown.enter="router.push('/voice-settings')"
-            @keydown.space.prevent="router.push('/voice-settings')"
-            aria-label="自定义音色朗读引擎"
+            v-for="item in addonFeatureToggles"
+            :key="item.key"
+            class="rounded-2xl border border-border/50 bg-card overflow-hidden"
           >
-            <div class="p-5 flex items-center gap-4">
-              <div
-                class="w-12 h-12 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center shrink-0 group-hover:bg-pink-500/20 transition-colors"
-              >
-                <Volume2 class="h-6 w-6" />
+            <div class="p-5 flex items-center justify-between gap-4">
+              <div class="flex items-center gap-4 min-w-0">
+                <div
+                  class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  :class="[item.bg, item.color]"
+                >
+                  <component :is="item.icon" class="h-6 w-6" />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-base mb-1">{{ item.label }}</h3>
+                  <p class="text-xs text-muted-foreground">
+                    {{ item.description }}
+                  </p>
+                </div>
               </div>
-              <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-base mb-1">自定义音色朗读引擎</h3>
-                <p class="text-xs text-muted-foreground line-clamp-1">
-                  管理自定义音色、训练新音色
-                </p>
-              </div>
+              <Switch
+                :checked="addonFeatures[item.key]"
+                @update:checked="(value: boolean) => updateAddonFeature(item.key, value)"
+              />
             </div>
           </div>
-
-          <!-- 网文分析助手 -->
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div
+            v-for="item in addonEntryCards"
+            :key="item.path"
             class="group rounded-2xl border border-border/50 bg-card hover:bg-muted/30 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            @click="router.push('/ai-analysis-settings')"
+            @click="router.push(item.path)"
             role="button"
             tabindex="0"
-            @keydown.enter="router.push('/ai-analysis-settings')"
-            @keydown.space.prevent="router.push('/ai-analysis-settings')"
-            aria-label="网文分析助手"
+            @keydown.enter="router.push(item.path)"
+            @keydown.space.prevent="router.push(item.path)"
+            :aria-label="item.label"
           >
             <div class="p-5 flex items-center gap-4">
               <div
-                class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors"
+                class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                :class="[item.bg, item.color]"
               >
-                <Brain class="h-6 w-6" />
+                <component :is="item.icon" class="h-6 w-6" />
               </div>
               <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-base mb-1">网文分析助手</h3>
+                <h3 class="font-semibold text-base mb-1">{{ item.label }}</h3>
                 <p class="text-xs text-muted-foreground line-clamp-1">
-                  谐音映射规则、分析历史管理
+                  {{ item.description }}
                 </p>
               </div>
             </div>

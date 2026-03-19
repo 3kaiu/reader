@@ -2,7 +2,7 @@
 import { Toaster } from '@/components/ui/toast'
 
 import { useUserStore } from '@/stores/user'
-import { AuthGuard } from '@/components/auth'
+import AuthGuard from '@/components/auth/AuthGuard.vue'
 import LoginModal from '@/components/LoginModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 

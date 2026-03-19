@@ -56,7 +56,6 @@ export const KEYBOARD_SHORTCUTS = [
   { key: 'S', desc: '设置' },
   { key: 'D', desc: '日/夜模式' },
   { key: 'Z', desc: '禅模式' },
-  { key: 'A', desc: 'AI 助手' },
   { key: 'I', desc: '人物洞察' },
   { key: 'Esc', desc: '返回/关闭' },
   { key: '?/H', desc: '快捷键帮助' },

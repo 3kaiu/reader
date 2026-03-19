@@ -1,40 +1,70 @@
-import { $get, $post, $delete } from './client'
+import type { ApiResponse } from './client'
+import { $delete, $get, $post } from './client'
 
 export interface ReplaceRule {
-    id?: number | string
-    name: string
-    pattern: string
-    replacement: string
-    scope: string
-    isEnabled: boolean
-    isRegex: boolean
-    group?: string // Added for future grouping if needed, present in some versions
+  id?: string
+  name: string
+  pattern: string
+  replacement?: string | null
+  scope?: string | null
+  isEnabled: boolean
+  isRegex: boolean
+  group?: string
+}
+
+function normalizeOptionalText(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
+function normalizeRulePayload(rule: ReplaceRule) {
+  return {
+    id: typeof rule.id === 'string' ? rule.id : '',
+    name: rule.name.trim(),
+    pattern: rule.pattern.trim(),
+    replacement: normalizeOptionalText(rule.replacement),
+    scope: normalizeOptionalText(rule.scope),
+    isEnabled: Boolean(rule.isEnabled),
+    isRegex: Boolean(rule.isRegex),
+  }
 }
 
 export const replaceApi = {
-    // Get all rules
-    getReplaceRules: () => $get<ReplaceRule[]>('/replace_rules'),
+  getReplaceRules: () => $get<ReplaceRule[]>('/replace_rules'),
 
-    // Save a rule (add or edit)
-    saveReplaceRule: (rule: ReplaceRule) => $post<ReplaceRule>('/replace_rules', rule),
+  saveReplaceRule: (rule: ReplaceRule) =>
+    $post<ReplaceRule>('/replace_rules', normalizeRulePayload(rule)),
 
-    // Save multiple rules (import)
-    saveReplaceRules: async (rules: ReplaceRule[]) => {
-        const results = await Promise.all(rules.map(rule => $post('/replace_rules', rule)))
-        return {
-            isSuccess: results.every(r => r.isSuccess),
-            data: results.map(r => r.data),
-            errorMsg: results.find(r => !r.isSuccess)?.errorMsg
-        }
-    },
+  saveReplaceRules: async (rules: ReplaceRule[]): Promise<ApiResponse<ReplaceRule[]>> => {
+    const results = await Promise.all(
+      rules.map(rule => $post<ReplaceRule>('/replace_rules', normalizeRulePayload(rule)))
+    )
 
-    // Delete rules
-    deleteReplaceRules: async (rules: ReplaceRule[]) => {
-        const results = await Promise.all(rules.map(rule => $delete(`/replace_rules/${rule.id}`)))
-        return {
-            isSuccess: results.every(r => r.isSuccess),
-            data: results.map(r => r.data),
-            errorMsg: results.find(r => !r.isSuccess)?.errorMsg
-        }
+    return {
+      isSuccess: results.every(result => result.isSuccess),
+      data: results.map(result => result.data).filter(Boolean) as ReplaceRule[],
+      errorMsg: results.find(result => !result.isSuccess)?.errorMsg,
     }
+  },
+
+  deleteReplaceRules: async (rules: ReplaceRule[]): Promise<ApiResponse<null[]>> => {
+    if (rules.some(rule => !rule.id)) {
+      return {
+        isSuccess: false,
+        data: [],
+        errorMsg: '规则缺少 ID，无法删除',
+      }
+    }
+
+    const results = await Promise.all(
+      rules.map(rule => $delete<null>(`/replace_rules/${rule.id}`))
+    )
+
+    return {
+      isSuccess: results.every(result => result.isSuccess),
+      data: results.map(result => result.data),
+      errorMsg: results.find(result => !result.isSuccess)?.errorMsg,
+    }
+  },
 }

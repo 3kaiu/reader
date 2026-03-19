@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { isOptionalFeature, isOptionalFeatureEnabled } from '@/utils/features'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -25,9 +26,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/discovery',
     name: 'discovery',
-    // 发现页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/discovery.vue'),
-    meta: { title: '发现' },
+    // 可选发现页按需加载
+    component: () => import('@/pages/discovery.vue'),
+    meta: { title: '发现', feature: 'discovery' },
   },
   {
     path: '/sources',
@@ -48,7 +49,7 @@ const routes: RouteRecordRaw[] = [
     name: 'ai-settings',
     // AI 设置页面 - 按需加载（包含大依赖）
     component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-settings.vue'),
-    meta: { title: 'AI 模型', feature: 'ai' },
+    meta: { title: '本地 AI 模型', feature: 'ai' },
   },
   {
     path: '/statistics',
@@ -65,25 +66,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '设置' },
   },
   {
-    path: '/voice-settings',
-    name: 'voice-settings',
-    // 音色管理页面 - 按需加载（包含TTS依赖）
-    component: () => import(/* webpackChunkName: "tts-features" */ '@/pages/voice-settings.vue'),
-    meta: { title: '自定义音色', feature: 'tts' },
-  },
-  {
     path: '/ai-analysis-settings',
     name: 'ai-analysis-settings',
     // AI 分析助手页面 - 按需加载（包含AI依赖）
     component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-analysis-settings.vue'),
-    meta: { title: '网文分析助手', feature: 'ai' },
+    meta: { title: 'AI 映射规则', feature: 'ai' },
   },
   {
     path: '/decoder-dictionary',
     name: 'decoder-dictionary',
-    // 解密词典页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/decoder-dictionary.vue'),
-    meta: { title: '解密词典' },
+    // 解密词典页按需加载
+    component: () => import('@/pages/decoder-dictionary.vue'),
+    meta: { title: '解密词典', feature: 'decoder' },
   },
 ]
 
@@ -97,6 +91,14 @@ router.beforeEach((to, _from, next) => {
   if (to.meta?.title) {
     document.title = `${to.meta.title} - Reader`
   }
+
+  if (typeof to.meta?.feature === 'string' && isOptionalFeature(to.meta.feature)) {
+    if (!isOptionalFeatureEnabled(to.meta.feature)) {
+      next({ name: 'settings', query: { addon: to.meta.feature } })
+      return
+    }
+  }
+
   next()
 })
 

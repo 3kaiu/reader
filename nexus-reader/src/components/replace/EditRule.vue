@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useMessage } from '@/composables/useMessage'
-import { 
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -10,15 +10,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox' // Need to check if exists
-import { Label } from '@/components/ui/label' // Need to check if exists
 import { replaceApi, type ReplaceRule } from '@/api/replace'
-
-// Assuming Shadcn Input/Button available. 
-// If Checkbox/Label missing, use HTML standard or Naive UI.
-// I'll use standard HTML input keys for checkbox to be safe if Checkbox component not verified.
-// Actually list_dir showed input, button... not sure about checkbox.
-// I'll simple HTML for checkbox to avoid errors.
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -35,7 +27,43 @@ const emit = defineEmits<{
 const message = useMessage()
 const loading = ref(false)
 
-const form = ref<ReplaceRule>({
+type ReplaceRuleForm = {
+  id?: string
+  name: string
+  pattern: string
+  replacement: string
+  scope: string
+  isEnabled: boolean
+  isRegex: boolean
+}
+
+function createEmptyForm(): ReplaceRuleForm {
+  return {
+    name: '',
+    pattern: '',
+    replacement: '',
+    scope: '',
+    isEnabled: true,
+    isRegex: false
+  }
+}
+
+function toForm(rule?: ReplaceRule | null): ReplaceRuleForm {
+  if (!rule) return createEmptyForm()
+
+  return {
+    id: rule.id,
+    name: rule.name,
+    pattern: rule.pattern,
+    replacement: rule.replacement || '',
+    scope: rule.scope || '',
+    isEnabled: rule.isEnabled,
+    isRegex: rule.isRegex
+  }
+}
+
+const form = ref<ReplaceRuleForm>({
+  id: undefined,
   name: '',
   pattern: '',
   replacement: '',
@@ -46,35 +74,27 @@ const form = ref<ReplaceRule>({
 
 watch(() => props.open, (val) => {
   if (val) {
-    if (props.rule) {
-      form.value = { ...props.rule }
-    } else {
-      // Reset
-      form.value = {
-        name: '',
-        pattern: '',
-        replacement: '',
-        scope: '',
-        isEnabled: true,
-        isRegex: false
-      }
-    }
+    form.value = toForm(props.rule)
   }
 })
 
 async function handleSave() {
-  if (!form.value.name) {
+  if (!form.value.name.trim()) {
     message.warning('请输入规则名称')
     return
   }
-  if (!form.value.pattern) {
+  if (!form.value.pattern.trim()) {
     message.warning('请输入替换规则')
     return
   }
 
   loading.value = true
   try {
-    const res = await replaceApi.saveReplaceRule(form.value)
+    const res = await replaceApi.saveReplaceRule({
+      ...form.value,
+      name: form.value.name.trim(),
+      pattern: form.value.pattern.trim()
+    })
     if (res.isSuccess) {
       message.success(props.rule ? '修改成功' : '新增成功')
       emit('saved')
@@ -115,8 +135,8 @@ async function handleSave() {
 
         <div class="space-y-2">
           <label class="text-sm font-medium">作用范围 (Scope)</label>
-          <Input v-model="form.scope" placeholder="书名或正则，留空作用于所有" />
-          <p class="text-xs text-muted-foreground">可填写书名、作者或"所有"/"全局"</p>
+          <Input v-model="form.scope" placeholder="书源 ID，留空表示全局" />
+          <p class="text-xs text-muted-foreground">Phase 0 仅支持全局规则或指定书源 ID</p>
         </div>
 
         <div class="flex items-center gap-4 py-2">

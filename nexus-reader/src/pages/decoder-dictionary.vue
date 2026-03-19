@@ -3,7 +3,7 @@
  * 词典管理页面
  * 查看、编辑、导入导出解密词典
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Plus,
@@ -17,7 +17,6 @@ import {
   MapPin,
   Calendar,
   Users,
-  Search,
   Filter,
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
@@ -34,7 +33,25 @@ import {
   EmptyState,
   LoadingGrid,
 } from '@/components/common'
-import type { DictionaryEntry, EntityCategory, DictionaryLevel } from '@/types/decoder'
+import type { BookType, DictionaryEntry, EntityCategory, DictionaryLevel } from '@/types/decoder'
+
+type DecoderTransferEntry = {
+  id?: string
+  original: string
+  real: string
+  category: EntityCategory
+  aliases?: string[]
+  description?: string
+  level?: DictionaryLevel
+  bookId?: string
+  bookType?: BookType
+  categoryTags?: BookType[]
+  confidence?: number
+  confirmCount?: number
+  source?: DictionaryEntry['source']
+  createdAt?: number
+  updatedAt?: number
+}
 
 const router = useRouter()
 const { success, error: showError } = useMessage()
@@ -50,6 +67,7 @@ const selectedEntries = ref<Set<string>>(new Set())
 const isManageMode = ref(false)
 const filterCategory = ref<EntityCategory | 'all'>('all')
 const filterLevel = ref<DictionaryLevel | 'all'>('all')
+const importInputRef = useTemplateRef<HTMLInputElement>('importInput')
 
 // 编辑状态
 const showEdit = ref(false)
@@ -61,6 +79,146 @@ const editForm = ref({
   description: '',
   aliases: '',
 })
+
+function normalizeText(value: string): string {
+  return value.trim()
+}
+
+function isEntityCategory(value: unknown): value is EntityCategory {
+  return (
+    value === 'person' ||
+    value === 'company' ||
+    value === 'place' ||
+    value === 'event' ||
+    value === 'organization'
+  )
+}
+
+function isDictionaryLevel(value: unknown): value is DictionaryLevel {
+  return value === 'global' || value === 'category' || value === 'book'
+}
+
+function isBookType(value: unknown): value is BookType {
+  return (
+    value === 'era' ||
+    value === 'entertainment' ||
+    value === 'urban' ||
+    value === 'history' ||
+    value === 'business'
+  )
+}
+
+function isEntrySource(value: unknown): value is DictionaryEntry['source'] {
+  return value === 'system' || value === 'user' || value === 'ai' || value === 'community'
+}
+
+function getEntryBookType(entry?: Partial<DictionaryEntry> | null): BookType | undefined {
+  const tag = entry?.categoryTags?.[0]
+  if (isBookType(tag)) {
+    return tag
+  }
+  return undefined
+}
+
+function getEntryScopeLabel(entry?: Partial<DictionaryEntry> | null): string {
+  if (!entry?.level) return '公共词典'
+
+  if (entry.level === 'book') {
+    return entry.bookId ? `书籍词典 · ${entry.bookId}` : '书籍词典'
+  }
+
+  if (entry.level === 'category') {
+    return getEntryBookType(entry) ? `分类词典 · ${getEntryBookType(entry)}` : '分类词典'
+  }
+
+  return '公共词典'
+}
+
+function toTransferEntry(entry: DictionaryEntry): DecoderTransferEntry {
+  return {
+    original: entry.original,
+    real: entry.real,
+    category: entry.category,
+    aliases: entry.aliases?.length ? entry.aliases : undefined,
+    description: entry.description || undefined,
+    level: entry.level,
+    bookId: entry.bookId,
+    bookType: getEntryBookType(entry),
+  }
+}
+
+function parseAliases(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const aliases = value
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+    return aliases.length > 0 ? aliases : undefined
+  }
+
+  if (typeof value === 'string') {
+    const aliases = value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+    return aliases.length > 0 ? aliases : undefined
+  }
+
+  return undefined
+}
+
+function normalizeImportEntry(
+  input: unknown,
+  now: number
+): { entry: DictionaryEntry | null; error?: string } {
+  if (!input || typeof input !== 'object') {
+    return { entry: null, error: '词条必须是对象' }
+  }
+
+  const raw = input as Partial<DecoderTransferEntry>
+  const original = typeof raw.original === 'string' ? raw.original.trim() : ''
+  const real = typeof raw.real === 'string' ? raw.real.trim() : ''
+
+  if (!original || !real) {
+    return { entry: null, error: '缺少 original 或 real' }
+  }
+
+  if (!isEntityCategory(raw.category)) {
+    return { entry: null, error: 'category 不合法' }
+  }
+
+  const level = isDictionaryLevel(raw.level) ? raw.level : 'global'
+  const bookId = typeof raw.bookId === 'string' && raw.bookId.trim() ? raw.bookId.trim() : undefined
+  const bookType = isBookType(raw.bookType)
+    ? raw.bookType
+    : raw.categoryTags?.find(tag => isBookType(tag))
+
+  if (level === 'book' && !bookId) {
+    return { entry: null, error: 'book 级词条缺少 bookId' }
+  }
+
+  if (level === 'category' && !bookType) {
+    return { entry: null, error: 'category 级词条缺少 bookType' }
+  }
+
+  const entry: DictionaryEntry = {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : crypto.randomUUID(),
+    original,
+    real,
+    category: raw.category,
+    aliases: parseAliases(raw.aliases),
+    description: typeof raw.description === 'string' ? raw.description.trim() || undefined : undefined,
+    level,
+    categoryTags: level === 'category' && bookType ? [bookType] : undefined,
+    bookId: level === 'book' ? bookId : undefined,
+    confidence: typeof raw.confidence === 'number' ? raw.confidence : 100,
+    confirmCount: typeof raw.confirmCount === 'number' ? raw.confirmCount : 0,
+    source: isEntrySource(raw.source) ? raw.source : 'user',
+    createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : now,
+    updatedAt: now,
+  }
+
+  return { entry }
+}
 
 // 过滤后的词条
 const filteredEntries = computed(() => {
@@ -188,26 +346,31 @@ function openEdit(entry?: DictionaryEntry) {
 
 // 保存词条
 async function saveEntry() {
-  if (!editForm.value.original || !editForm.value.real) {
+  const original = normalizeText(editForm.value.original)
+  const real = normalizeText(editForm.value.real)
+
+  if (!original || !real) {
     showError('请填写加密词和真实指代')
     return
   }
 
   try {
+    const targetLevel = currentEditEntry.value?.level || 'global'
+    const targetBookId = targetLevel === 'book' ? currentEditEntry.value?.bookId : undefined
     const entry: Partial<DictionaryEntry> = {
       ...currentEditEntry.value,
-      original: editForm.value.original,
-      real: editForm.value.real,
+      original,
+      real,
       category: editForm.value.category,
-      description: editForm.value.description || undefined,
+      description: normalizeText(editForm.value.description) || undefined,
       aliases: editForm.value.aliases
         ? editForm.value.aliases.split(',').map((s) => s.trim()).filter(Boolean)
         : undefined,
     }
 
-    const result = await decoder.addEntry(entry, 'book')
+    const result = await decoder.addEntry(entry, targetLevel, targetBookId)
     if (result) {
-      success('保存成功')
+      success(currentEditEntry.value ? '保存成功' : '已保存到公共词典')
       showEdit.value = false
       await loadEntries()
     } else {
@@ -229,11 +392,15 @@ async function deleteEntry(entry: DictionaryEntry) {
 
   try {
     loading.value = true
-    await decoder.deleteDictionaryEntry(entry.id, {
+    const response = await decoder.deleteDictionaryEntry(entry.id, {
       level: entry.level,
       bookId: entry.bookId,
-      category: entry.category,
+      category: getEntryBookType(entry),
     })
+    if (!response.success) {
+      showError('删除失败')
+      return
+    }
     entries.value = entries.value.filter((e) => e.id !== entry.id)
     selectedEntries.value.delete(entry.id)
     success('删除成功')
@@ -280,25 +447,50 @@ async function batchDelete() {
 
   try {
     loading.value = true
-    const ids = Array.from(selectedEntries.value)
-    // 获取第一个条目的 level 信息（假设批量删除的条目在同一层级）
-    const firstEntry = entries.value.find((e) => selectedEntries.value.has(e.id))
-    const response = await decoder.batchDeleteDictionaryEntries({
-      ids,
-      level: firstEntry?.level,
-      bookId: firstEntry?.bookId,
-      category: firstEntry?.category,
-    })
-    
-    // 从列表中移除已删除的条目
-    entries.value = entries.value.filter((e) => !response.details.deletedIds.includes(e.id))
+    const groupedRequests = new Map<
+      string,
+      { ids: string[]; level?: DictionaryLevel; bookId?: string; category?: BookType }
+    >()
+
+    entries.value
+      .filter((entry) => selectedEntries.value.has(entry.id))
+      .forEach((entry) => {
+        const category = getEntryBookType(entry)
+        const key = [entry.level, entry.bookId || '', category || ''].join('::')
+        const existing = groupedRequests.get(key)
+
+        if (existing) {
+          existing.ids.push(entry.id)
+          return
+        }
+
+        groupedRequests.set(key, {
+          ids: [entry.id],
+          level: entry.level,
+          bookId: entry.bookId,
+          category,
+        })
+      })
+
+    let deleted = 0
+    let failed = 0
+    const deletedIds: string[] = []
+
+    for (const request of groupedRequests.values()) {
+      const response = await decoder.batchDeleteDictionaryEntries(request)
+      deleted += response.deleted
+      failed += response.failed
+      deletedIds.push(...response.details.deletedIds)
+    }
+
+    entries.value = entries.value.filter((e) => !deletedIds.includes(e.id))
     selectedEntries.value.clear()
     isManageMode.value = false
-    
-    if (response.failed > 0) {
-      success(`删除成功 ${response.deleted} 条，失败 ${response.failed} 条`)
+
+    if (failed > 0) {
+      success(`删除成功 ${deleted} 条，失败 ${failed} 条`)
     } else {
-      success(`成功删除 ${response.deleted} 条词条`)
+      success(`成功删除 ${deleted} 条词条`)
     }
   } catch (e) {
     handlePromiseError(e, '批量删除失败')
@@ -315,7 +507,7 @@ async function exportEntries() {
         ? entries.value.filter((e) => selectedEntries.value.has(e.id))
         : await decoder.exportEntries()
 
-    const data = JSON.stringify(target, null, 2)
+    const data = JSON.stringify(target.map(toTransferEntry), null, 2)
     const blob = new Blob([data], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -337,16 +529,38 @@ async function importEntries(event: Event) {
 
   try {
     const text = await file.text()
-    const data = JSON.parse(text) as DictionaryEntry[]
+    const data = JSON.parse(text) as unknown
 
     if (!Array.isArray(data)) {
       showError('无效的词典格式')
       return
     }
 
-    const result = await decoder.importEntries(data)
+    const now = Date.now()
+    const normalizedEntries: DictionaryEntry[] = []
+    let invalidCount = 0
+
+    for (const item of data) {
+      const { entry } = normalizeImportEntry(item, now)
+      if (entry) {
+        normalizedEntries.push(entry)
+      } else {
+        invalidCount += 1
+      }
+    }
+
+    if (normalizedEntries.length === 0) {
+      showError('未找到可导入的有效词条')
+      return
+    }
+
+    const result = await decoder.importEntries(normalizedEntries)
     if (result.success) {
-      success(`成功导入 ${result.imported} 条词条`)
+      if (invalidCount > 0) {
+        success(`成功导入 ${result.imported} 条词条，跳过 ${invalidCount} 条无效数据`)
+      } else {
+        success(`成功导入 ${result.imported} 条词条`)
+      }
       await loadEntries()
     } else {
       showError('导入失败')
@@ -356,6 +570,10 @@ async function importEntries(event: Event) {
   } finally {
     input.value = ''
   }
+}
+
+function triggerImport() {
+  importInputRef.value?.click()
 }
 
 // 返回
@@ -389,7 +607,7 @@ onMounted(() => {
           {
             label: '导入',
             icon: Upload,
-            onClick: () => ($refs.importInput as HTMLInputElement)?.click(),
+            onClick: triggerImport,
             variant: 'outline',
             hideLabelOnMobile: true,
           },
@@ -443,6 +661,10 @@ onMounted(() => {
           <option value="category">分类词典</option>
           <option value="book">书籍词典</option>
         </select>
+
+        <span class="text-xs text-muted-foreground">
+          导入导出使用精简 JSON：`original`、`real`、`category`，可选 `aliases`、`description`、`level`、`bookId`、`bookType`
+        </span>
       </div>
 
       <!-- 页面工具栏 -->
@@ -542,6 +764,9 @@ onMounted(() => {
                       {{ getLevelName(entry.level) }}
                     </Badge>
                     <span class="text-xs text-muted-foreground">
+                      {{ getEntryScopeLabel(entry) }}
+                    </span>
+                    <span class="text-xs text-muted-foreground">
                       {{ getCategoryName(entry.category) }}
                     </span>
                   </div>
@@ -619,6 +844,14 @@ onMounted(() => {
           </h2>
 
           <div class="space-y-4">
+            <div class="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              {{
+                currentEditEntry
+                  ? `当前作用域：${getEntryScopeLabel(currentEditEntry)}`
+                  : '新建词条默认保存到公共词典；当前页面不提供书籍级或分类级新建入口。'
+              }}
+            </div>
+
             <!-- 加密词 -->
             <div>
               <label class="text-sm text-muted-foreground mb-1 block">加密词</label>

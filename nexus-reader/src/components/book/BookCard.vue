@@ -4,7 +4,7 @@
  */
 import { ref, computed } from 'vue'
 import { BookOpen, MoreVertical, Trash2, Play, Cloud, CloudDownload, CheckCircle2 } from 'lucide-vue-next'
-import type { Book } from '@/api'
+import type { Book } from '@/api/book'
 import { LazyImage } from '@/components/ui'
 
 const props = withDefaults(defineProps<{

@@ -8,37 +8,16 @@ import ChapterList from '@/components/book/ChapterList.vue'
 import ReadSettings from '@/components/ReadSettings.vue'
 import BookSourcePicker from '@/components/book/BookSourcePicker.vue'
 import BookInfoModal from '@/components/book/BookInfoModal.vue'
-import VoiceSettings from '@/components/reader/VoiceSettings.vue'
-import { defineAsyncComponent } from 'vue'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-
-// 懒加载重型组件
-const AIPanel = defineAsyncComponent(() => import('@/components/AIPanel.vue'))
-const CharacterInsightsPanel = defineAsyncComponent(() => import('@/components/CharacterInsightsPanel.vue'))
-
-// 本地类型定义
-interface BookInfo {
-  name?: string
-  bookUrl?: string
-}
-
-interface ChapterInfo {
-  title?: string
-  index?: number
-}
+import type { Book, Chapter } from '@/api/book'
 
 interface Props {
   showCatalog: boolean
   showSettings: boolean
   showSourcePicker: boolean
   showBookInfo: boolean
-  showAIPanel: boolean
-  showInsightsPanel: boolean
   showKeyboardHelp: boolean
-  showVoiceSettings: boolean
-  book?: BookInfo
-  chapters?: ChapterInfo[]
+  book?: Book | null
+  chapters?: Chapter[]
   currentInd?: number
   catalogLoading?: boolean
   isCached?: (index: number) => boolean
@@ -54,12 +33,9 @@ const emit = defineEmits<{
   'update:showSettings': [val: boolean]
   'update:showSourcePicker': [val: boolean]
   'update:showBookInfo': [val: boolean]
-  'update:showAIPanel': [val: boolean]
-  'update:showInsightsPanel': [val: boolean]
   'update:showKeyboardHelp': [val: boolean]
-  'update:showVoiceSettings': [val: boolean]
   'select-chapter': [index: number]
-  'refresh-catalog': []
+  'refresh': []
   'download-all': []
 }>()
 </script>
@@ -70,7 +46,7 @@ const emit = defineEmits<{
     <ChapterList 
       v-model:open="props.showCatalog" 
       :chapters="chapters || []"
-      :current-ind="currentInd || 0"
+      :current-ind="currentInd ?? -1"
       :loading="catalogLoading"
       :book-name="book?.name"
       :is-cached="isCached"
@@ -78,7 +54,7 @@ const emit = defineEmits<{
       :download-progress="downloadProgress"
       @update:open="emit('update:showCatalog', $event)"
       @select="emit('select-chapter', $event)"
-      @refresh="emit('refresh-catalog')"
+      @refresh="emit('refresh')"
       @download-all="emit('download-all')"
     />
     
@@ -91,7 +67,6 @@ const emit = defineEmits<{
     <!-- 换源弹窗 -->
     <BookSourcePicker 
       v-model:open="props.showSourcePicker"
-      :book-url="book?.bookUrl"
       @update:open="emit('update:showSourcePicker', $event)"
     />
     
@@ -103,18 +78,6 @@ const emit = defineEmits<{
       @update:open="emit('update:showBookInfo', $event)"
     />
     
-    <!-- AI 助手面板 -->
-    <AIPanel 
-      v-model:open="props.showAIPanel" 
-      @update:open="emit('update:showAIPanel', $event)"
-    />
-    
-    <!-- 人物洞察面板 -->
-    <CharacterInsightsPanel 
-      v-model:open="props.showInsightsPanel" 
-      @update:open="emit('update:showInsightsPanel', $event)"
-    />
-
     <!-- 快捷键帮助浮层 -->
     <Transition name="fade">
       <div
@@ -136,23 +99,6 @@ const emit = defineEmits<{
         </div>
       </div>
     </Transition>
-
-    <!-- 语音引擎设置 (使用 Sheet 替代缺失的 Drawer) -->
-    <Sheet :open="showVoiceSettings" @update:open="emit('update:showVoiceSettings', $event)">
-      <SheetContent side="bottom" class="h-[80vh] rounded-t-3xl border-t-0 p-0 overflow-hidden">
-        <div class="max-w-screen-md mx-auto h-full flex flex-col">
-          <SheetHeader class="flex flex-row items-center justify-between px-6 py-4 shrink-0 border-b bg-background/50 backdrop-blur-md sticky top-0 z-10">
-            <SheetTitle class="text-xl font-bold">语音引擎与模型</SheetTitle>
-            <SheetClose as-child>
-              <Button variant="ghost" size="icon" class="rounded-full"><X class="w-5 h-5" /></Button>
-            </SheetClose>
-          </SheetHeader>
-          <div class="flex-1 overflow-y-auto">
-            <VoiceSettings />
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
   </div>
 </template>
 

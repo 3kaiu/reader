@@ -114,7 +114,10 @@ async function startReading() {
   await readerStore.openBook(displayBook.value)
   router.push({
     path: '/reader',
-    query: { url: displayBook.value.bookUrl }
+    query: {
+      url: displayBook.value.bookUrl,
+      source: displayBook.value.sourceId,
+    }
   })
   emit('update:open', false)
 }

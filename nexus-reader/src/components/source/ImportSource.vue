@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * 书源导入组件 - 增强版
- * 支持：阅读(Legado)书源JSON、订阅源JSON、书源合集包装格式
+ * 书源导入组件
+ * 仅支持 Nexus-Lite NXS 书源定义
  */
 import { ref } from 'vue'
 import { useMessage } from '@/composables/useMessage'
@@ -13,10 +13,9 @@ import {
   SheetFooter
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Upload, Link, FileJson, AlertCircle, CheckCircle2, XCircle, Rss } from 'lucide-vue-next'
-import { $post } from '@/api'
+import { Upload, FileJson, CheckCircle2, XCircle } from 'lucide-vue-next'
+import { $post } from '@/api/client'
 
 
 const props = withDefaults(defineProps<{
@@ -45,21 +44,31 @@ const parseResult = ref<{
 
 // 支持的格式类型
 const FORMAT_TYPES = {
-  NXS: 'Nexus-Lite 标准 (NXS)',
-  ARRAY: '标准书源数组 (Legacy)',
-  LEGADO_WRAPPER: '阅读合集包装 (Legacy)',
-  SUBSCRIPTION: '订阅源格式',
-  SINGLE: '单个书源对象 (Legacy)',
+  NXS: 'NXS 单源',
+  ARRAY: 'NXS 数组',
+  WRAPPER: 'NXS 包装集合',
   UNKNOWN: '未知格式'
 }
 
 /**
- * 智能解析书源JSON
- * 支持多种格式：
- * 1. 标准数组: [{bookSourceUrl, bookSourceName, ...}, ...]
- * 2. 阅读包装: {bookSources: [...], rssSource: [...], ...}
- * 3. 订阅源: 带有 sourceUrl/sourceName 的格式
- * 4. 单个对象: {bookSourceUrl, bookSourceName, ...}
+ * 判断是否为可直接提交给后端的 NXS 书源
+ */
+function isNxsSource(source: any): boolean {
+  return Boolean(
+    source &&
+      typeof source === 'object' &&
+      source.id &&
+      source.name &&
+      source.url &&
+      source.search &&
+      source.book &&
+      source.toc &&
+      source.content
+  )
+}
+
+/**
+ * 解析书源 JSON，仅接受 NXS 单源 / NXS 数组 / 包装后的 NXS 数组
  */
 function parseSourceJson(text: string): { success: boolean; sources: any[]; format: string; error?: string } {
   try {
@@ -74,77 +83,30 @@ function parseSourceJson(text: string): { success: boolean; sources: any[]; form
     } catch (e) {
       return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: 'JSON格式错误' }
     }
-    // Case 0: Nexus-Lite (NXS) 格式识别
-    if (data.id && data.search && data.book && data.content) {
+
+    if (isNxsSource(data)) {
       return { success: true, sources: [data], format: FORMAT_TYPES.NXS }
     }
 
-    // Case 1: 标准数组
     if (Array.isArray(data)) {
-      // 检查是否是书源数组
-      if (data.length > 0 && (data[0].bookSourceUrl || data[0].sourceUrl)) {
-        // 统一转换格式
-        const sources = data.map(normalizeSource)
-        return { success: true, sources, format: FORMAT_TYPES.ARRAY }
+      if (data.every(isNxsSource)) {
+        return { success: true, sources: data, format: FORMAT_TYPES.ARRAY }
       }
-      return { success: true, sources: data, format: FORMAT_TYPES.ARRAY }
+      return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '数组中的书源必须全部符合 NXS 结构' }
     }
 
-    // Case 2: 阅读合集包装格式 (通常包含 bookSources 字段)
-    if (data.bookSources && Array.isArray(data.bookSources)) {
-      const sources = data.bookSources.map(normalizeSource)
-      return { success: true, sources, format: FORMAT_TYPES.LEGADO_WRAPPER }
-    }
-
-    // Case 3: 可能的订阅源包装
-    if (data.sources && Array.isArray(data.sources)) {
-      const sources = data.sources.map(normalizeSource)
-      return { success: true, sources, format: FORMAT_TYPES.SUBSCRIPTION }
-    }
-
-    // Case 4: 单个书源对象
-    if (data.bookSourceUrl || data.sourceUrl) {
-      return { success: true, sources: [normalizeSource(data)], format: FORMAT_TYPES.SINGLE }
-    }
-
-    // 尝试查找任何包含书源数组的字段
-    for (const key of Object.keys(data)) {
-      if (Array.isArray(data[key]) && data[key].length > 0) {
-        const first = data[key][0]
-        if (first.bookSourceUrl || first.sourceUrl || first.bookSourceName) {
-          const sources = data[key].map(normalizeSource)
-          return { success: true, sources, format: `${FORMAT_TYPES.LEGADO_WRAPPER} (${key})` }
+    for (const key of ['sources', 'bookSources', 'items']) {
+      if (Array.isArray(data?.[key]) && data[key].length > 0) {
+        if (data[key].every(isNxsSource)) {
+          return { success: true, sources: data[key], format: `${FORMAT_TYPES.WRAPPER} (${key})` }
         }
       }
     }
 
-    return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '无法识别的格式' }
+    return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '仅支持符合 NXS 结构的书源 JSON' }
   } catch (e: any) {
     return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: e.message }
   }
-}
-
-/**
- * 统一书源格式（兼容不同命名规范）
- */
-function normalizeSource(source: any): any {
-  // 如果已经是标准格式，直接返回
-  if (source.bookSourceUrl) {
-    return source
-  }
-
-  // 订阅源格式转换
-  if (source.sourceUrl) {
-    return {
-      bookSourceUrl: source.sourceUrl,
-      bookSourceName: source.sourceName || source.name || '未知书源',
-      bookSourceGroup: source.sourceGroup || source.group || '',
-      enabled: source.enabled !== false,
-      ...source // 保留其他字段
-    }
-  }
-
-  return source
 }
 
 /**
@@ -192,7 +154,6 @@ async function handleImport() {
     let successCount = 0
     for (const source of result.sources) {
       try {
-        // 注：Nexus-lite 目前可能只支持标准 NXS 格式的直接添加
         const res = await $post('/sources', source)
         if (res.isSuccess) successCount++
       } catch (e) {
@@ -253,7 +214,7 @@ function onInputChange() {
     <SheetContent class="w-full sm:max-w-lg flex flex-col h-full">
       <SheetHeader class="mb-4">
         <SheetTitle>导入书源</SheetTitle>
-        <p class="text-sm text-muted-foreground">直接粘贴书源 JSON 代码，或导入本地 .nxs 文件</p>
+        <p class="text-sm text-muted-foreground">仅支持粘贴或导入符合 Nexus-Lite NXS 结构的 JSON 文件</p>
       </SheetHeader>
 
       <div class="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -285,7 +246,7 @@ function onInputChange() {
               v-model="jsonText"
               class="flex-1 w-full p-4 bg-transparent resize-none focus:outline-none text-xs font-mono leading-relaxed placeholder:text-muted-foreground/40"
               placeholder='在此粘贴书源 JSON 内容...
-Example: { "id": "...", "name": "...", "url": "..." }'
+Example: { "$v": 1, "id": "...", "name": "...", "url": "...", "search": { ... }, "book": { ... }, "toc": { ... }, "content": { ... } }'
               @input="onInputChange"
               @dragenter="isDragging = true"
               @dragleave="isDragging = false"

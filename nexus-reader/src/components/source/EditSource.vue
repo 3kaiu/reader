@@ -27,48 +27,34 @@ const message = useMessage()
 const loading = ref(false)
 const jsonText = ref('')
 
-watch(() => props.open, (val) => {
+watch(() => props.open, async (val) => {
   if (val && props.source) {
-    // 格式化 JSON
     jsonText.value = JSON.stringify(props.source, null, 2)
+
+    if (!props.source.id) {
+      return
+    }
+
+    loading.value = true
+    try {
+      const res = await sourceApi.getBookSource(props.source.id)
+      if (res.isSuccess && res.data) {
+        jsonText.value = JSON.stringify(res.data, null, 2)
+      }
+    } catch (err) {
+      message.warning('无法加载最新书源定义，已显示当前列表中的数据')
+    } finally {
+      loading.value = false
+    }
   }
 })
-
-async function handleSave() {
-  if (!jsonText.value.trim()) return
-  
-  loading.value = true
-  try {
-    // 验证 JSON
-    JSON.parse(jsonText.value)
-    
-    // 保存
-    const sourceObj = JSON.parse(jsonText.value)
-    const res = await sourceApi.addSource(sourceObj)
-    if (res.isSuccess) {
-      message.success('保存成功')
-      emit('saved')
-      emit('update:open', false)
-    } else {
-      message.error(res.errorMsg || '保存失败')
-    }
-  } catch (err) {
-    if (err instanceof SyntaxError) {
-      message.error('JSON 格式错误')
-    } else {
-      message.error('保存出错')
-    }
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <template>
   <Sheet :open="open" @update:open="emit('update:open', $event)">
     <SheetContent class="w-full sm:max-w-lg flex flex-col h-full rounded-l-xl">
       <SheetHeader class="mb-4">
-        <SheetTitle>编辑书源</SheetTitle>
+        <SheetTitle>书源详情</SheetTitle>
       </SheetHeader>
 
       <div class="flex-1 min-h-0">
@@ -76,12 +62,13 @@ async function handleSave() {
           v-model="jsonText"
           class="w-full h-full p-4 rounded-md border bg-muted/30 font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
           spellcheck="false"
+          readonly
         ></textarea>
       </div>
 
       <SheetFooter class="mt-4">
-        <Button class="w-full" :disabled="loading" @click="handleSave">
-          {{ loading ? '保存中...' : '保存修改' }}
+        <Button class="w-full" variant="outline" @click="emit('update:open', false)">
+          关闭
         </Button>
       </SheetFooter>
     </SheetContent>

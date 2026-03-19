@@ -1,7 +1,6 @@
 import { bookApi } from '@/api/book'
 import type { Book } from '@/api/book'
 import { groupApi, type BookGroup } from '@/api/group'
-import { manageApi } from '@/api/manage'
 import { replaceApi } from '@/api/replace'
 
 export const bookshelfJourneyService = {
@@ -16,12 +15,16 @@ export const bookshelfJourneyService = {
   }) => bookApi.saveBook(book),
   deleteBook: (id: string) => bookApi.deleteBook(id),
   moveBookToGroup: (id: string, groupId: string | null) => bookApi.moveToGroup(id, groupId),
-  moveBooksToGroup: (groupId: string | null, books: Book[]) =>
-    manageApi.addBookGroupMulti(groupId, books),
-  saveProgress: (id: string, chapterIndex: number, position: number) =>
-    bookApi.saveBookProgress(id, chapterIndex, position),
+  moveBooksToGroup: async (groupId: string | null, books: Book[]) => {
+    const targets = books.filter((book): book is Book & { id: string } => Boolean(book.id))
+    const results = await Promise.all(targets.map(book => bookApi.moveToGroup(book.id, groupId)))
+
+    return {
+      isSuccess: results.every(result => result.isSuccess),
+      data: undefined,
+      errorMsg: results.find(result => !result.isSuccess)?.errorMsg,
+    }
+  },
   listGroups: () => groupApi.getBookGroups(),
-  saveGroup: (group: Partial<BookGroup>) => groupApi.saveBookGroup(group),
-  deleteGroup: (groupId: string | number) => groupApi.deleteBookGroup(groupId),
   listReplaceRules: () => replaceApi.getReplaceRules(),
 }

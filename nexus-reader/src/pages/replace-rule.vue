@@ -10,7 +10,6 @@ import {
   Edit2,
 } from "lucide-vue-next";
 import { replaceApi, type ReplaceRule } from "@/api/replace";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -28,7 +27,7 @@ import {
 } from "@/components/common";
 
 const router = useRouter();
-const { success, error, warning } = useMessage();
+const { success } = useMessage();
 const { confirm } = useConfirm();
 const { handleApiError, handlePromiseError } = useErrorHandler();
 
@@ -41,6 +40,14 @@ const currentEditRule = ref<ReplaceRule | null>(null);
 const selectedRules = ref<Set<string>>(new Set());
 const isManageMode = ref(false);
 
+function getRuleKey(rule: ReplaceRule): string {
+  return rule.id || `${rule.name}::${rule.pattern}::${rule.scope || ""}`;
+}
+
+function isRuleSelected(rule: ReplaceRule): boolean {
+  return selectedRules.value.has(getRuleKey(rule));
+}
+
 const filteredRules = computed(() => {
   if (!searchKeyword.value) return rules.value;
   const keyword = searchKeyword.value.toLowerCase();
@@ -48,7 +55,7 @@ const filteredRules = computed(() => {
     (s) =>
       s.name.toLowerCase().includes(keyword) ||
       s.pattern.toLowerCase().includes(keyword) ||
-      s.scope.toLowerCase().includes(keyword) ||
+      (s.scope || "").toLowerCase().includes(keyword) ||
       (s.group || "").toLowerCase().includes(keyword)
   );
 });
@@ -107,15 +114,16 @@ function selectAll() {
   if (selectedRules.value.size === filteredRules.value.length) {
     selectedRules.value.clear();
   } else {
-    selectedRules.value = new Set(filteredRules.value.map((r) => r.name));
+    selectedRules.value = new Set(filteredRules.value.map(getRuleKey));
   }
 }
 
 function toggleSelect(rule: ReplaceRule) {
-  if (selectedRules.value.has(rule.name)) {
-    selectedRules.value.delete(rule.name);
+  const ruleKey = getRuleKey(rule);
+  if (selectedRules.value.has(ruleKey)) {
+    selectedRules.value.delete(ruleKey);
   } else {
-    selectedRules.value.add(rule.name);
+    selectedRules.value.add(ruleKey);
   }
 }
 
@@ -129,29 +137,29 @@ async function batchDelete() {
   if (!result) return;
 
   const rulesToDelete = rules.value.filter((r) =>
-    selectedRules.value.has(r.name)
+    selectedRules.value.has(getRuleKey(r))
   );
-  let successCount = 0;
-  for (const rule of rulesToDelete) {
-    try {
-      const res = await replaceApi.deleteReplaceRules([rule]);
-      if (res.isSuccess) {
-        successCount++;
-        rules.value = rules.value.filter((r) => r.name !== rule.name);
-      }
-    } catch (e) {
-      handlePromiseError(e, "删除失败", false);
+
+  try {
+    const res = await replaceApi.deleteReplaceRules(rulesToDelete);
+    if (res.isSuccess) {
+      const deletedRuleKeys = new Set(rulesToDelete.map(getRuleKey));
+      rules.value = rules.value.filter((rule) => !deletedRuleKeys.has(getRuleKey(rule)));
+      selectedRules.value = new Set();
+      isManageMode.value = false;
+      success(`删除了 ${rulesToDelete.length} 条规则`);
+    } else {
+      handleApiError(res, "批量删除失败");
     }
+  } catch (e) {
+    handlePromiseError(e, "批量删除失败");
   }
-  selectedRules.value = new Set();
-  isManageMode.value = false;
-  success(`删除了 ${successCount} 条规则`);
 }
 
 function exportRules() {
   const target =
     selectedRules.value.size > 0
-      ? rules.value.filter((r) => selectedRules.value.has(r.name))
+      ? rules.value.filter((r) => selectedRules.value.has(getRuleKey(r)))
       : filteredRules.value;
   try {
     const data = JSON.stringify(target, null, 2);
@@ -178,8 +186,9 @@ async function deleteRule(rule: ReplaceRule) {
   try {
     const res = await replaceApi.deleteReplaceRules([rule]);
     if (res.isSuccess) {
-      rules.value = rules.value.filter((r) => r.name !== rule.name);
-      selectedRules.value.delete(rule.name);
+      const ruleKey = getRuleKey(rule);
+      rules.value = rules.value.filter((r) => getRuleKey(r) !== ruleKey);
+      selectedRules.value.delete(ruleKey);
       success("删除成功");
     } else {
       handleApiError(res, "删除失败");
@@ -292,13 +301,13 @@ onMounted(() => {
       >
         <div
           v-for="rule in filteredRules"
-          :key="rule.name"
+          :key="getRuleKey(rule)"
           class="group relative bg-card hover:bg-muted/50 rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden"
           :class="{
             'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50':
-              selectedRules.has(rule.name) && isManageMode,
+              isRuleSelected(rule) && isManageMode,
             'border-border/50 hover:border-border hover:shadow-md':
-              !selectedRules.has(rule.name),
+              !isRuleSelected(rule),
             'opacity-50': !rule.isEnabled && !isManageMode,
           }"
           @click="isManageMode ? toggleSelect(rule) : openEdit(rule)"
@@ -315,7 +324,7 @@ onMounted(() => {
                     @click.stop="toggleSelect(rule)"
                   >
                     <Checkbox
-                      :checked="selectedRules.has(rule.name)"
+                      :checked="isRuleSelected(rule)"
                       @update:checked="toggleSelect(rule)"
                       @click.stop
                       class="data-[state=checked]:bg-primary data-[state=checked]:border-primary"

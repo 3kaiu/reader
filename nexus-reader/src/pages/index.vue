@@ -35,13 +35,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -49,10 +42,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
-import { Input } from "@/components/ui/input";
 import type { Book } from "@/api/book";
 import type { BookGroup } from "@/api/group";
-import { bookshelfJourneyService } from "@/services/journey";
+import { bookshelfJourneyService } from "@/services/journey/bookshelf";
+import {
+  getOptionalFeatureState,
+  type OptionalFeature,
+} from "@/utils/features";
 import { Button } from "@/components/ui/button";
 import BookCard from "@/components/book/BookCard.vue";
 import { Skeleton } from "@/components/ui";
@@ -73,70 +69,81 @@ const toggleDark = useToggle(isDark);
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isDesktop = breakpoints.greater("sm");
 const menuOpen = ref(false);
+const optionalFeatures = ref(getOptionalFeatureState());
+
+function isFeatureEnabled(feature: OptionalFeature) {
+  return optionalFeatures.value[feature];
+}
 
 // 菜单配置
-const menuGroups = [
-  {
-    title: "发现",
-    items: [
-      {
-        label: "探索发现",
-        desc: "发现新书与阅读周报",
-        icon: Compass,
-        path: "/discovery",
-        color: "text-orange-500",
-        bg: "bg-orange-500/10",
-      },
-    ],
-  },
-  {
-    title: "内容管理",
-    items: [
-      {
-        label: "书源管理",
-        desc: "管理接入的书源站点",
-        icon: Server,
-        path: "/sources",
-        color: "text-blue-500",
-        bg: "bg-blue-500/10",
-      },
-      {
-        label: "替换规则",
-        desc: "净化与替换文本内容",
-        icon: Wand2,
-        path: "/replace-rule",
-        color: "text-purple-500",
-        bg: "bg-purple-500/10",
-      },
-    ],
-  },
-  {
-    title: "智能助理",
-    items: [
-      {
-        label: "AI 模型",
-        desc: "配置 LLM 助手",
-        icon: Brain,
-        path: "/ai-settings",
-        color: "text-green-500",
-        bg: "bg-green-500/10",
-      },
-    ],
-  },
-  {
-    title: "系统",
-    items: [
-      {
-        label: "系统设置",
-        desc: "偏好与通用设置",
-        icon: Settings,
-        path: "/settings",
-        color: "text-slate-500",
-        bg: "bg-slate-500/10",
-      },
-    ],
-  },
-];
+const menuGroups = computed(() =>
+  [
+    {
+      title: "发现",
+      items: isFeatureEnabled("discovery")
+        ? [
+            {
+              label: "探索发现",
+              desc: "发现新书与阅读周报",
+              icon: Compass,
+              path: "/discovery",
+              color: "text-orange-500",
+              bg: "bg-orange-500/10",
+            },
+          ]
+        : [],
+    },
+    {
+      title: "内容管理",
+      items: [
+        {
+          label: "书源管理",
+          desc: "管理接入的书源站点",
+          icon: Server,
+          path: "/sources",
+          color: "text-blue-500",
+          bg: "bg-blue-500/10",
+        },
+        {
+          label: "替换规则",
+          desc: "净化与替换文本内容",
+          icon: Wand2,
+          path: "/replace-rule",
+          color: "text-purple-500",
+          bg: "bg-purple-500/10",
+        },
+      ],
+    },
+    {
+      title: "附属模块",
+      items: isFeatureEnabled("ai")
+        ? [
+            {
+              label: "AI 模型",
+              desc: "管理实验性的本地 AI 运行时",
+              icon: Brain,
+              path: "/ai-settings",
+              color: "text-green-500",
+              bg: "bg-green-500/10",
+            },
+          ]
+        : [],
+    },
+    {
+      title: "系统",
+      items: [
+        {
+          label: "系统设置",
+          desc: "偏好与通用设置",
+          icon: Settings,
+          path: "/settings",
+          color: "text-slate-500",
+          bg: "bg-slate-500/10",
+        },
+      ],
+    },
+  ].filter((group) => group.items.length > 0)
+);
 
 const booksWithStatus = computed(() => {
   return deduplicatedBooks.value.map(({ book, sourceCount }) => {
@@ -174,10 +181,6 @@ const nonEmptyGroups = computed(() => {
   );
   return groups.value.filter((g) => bookGroupIds.has(String(g.groupId)));
 });
-
-// 快速创建分组
-const showCreateGroupDialog = ref(false);
-const newGroupName = ref("");
 
 // ====== 计算属性 ======
 const isManageMode = ref(false);
@@ -444,27 +447,8 @@ function goSearch() {
   router.push("/search");
 }
 
-// 快速创建分组
-async function createGroup() {
-  if (!newGroupName.value.trim()) return;
-  try {
-    const res = await bookshelfJourneyService.saveGroup({
-      groupName: newGroupName.value.trim(),
-      order: groups.value.length,
-      show: true,
-    });
-    if (res.isSuccess) {
-      success("分组创建成功");
-      await getGroups();
-      showCreateGroupDialog.value = false;
-      newGroupName.value = "";
-    }
-  } catch (e) {
-    // 拦截器处理
-  }
-}
-
 onMounted(() => {
+  optionalFeatures.value = getOptionalFeatureState();
   getBooks();
   getGroups();
   offlineStore.loadCacheIndex();
@@ -513,6 +497,7 @@ onMounted(() => {
           </button>
 
           <button
+            v-if="isFeatureEnabled('discovery')"
             class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
             @click="router.push('/discovery')"
             aria-label="发现"
@@ -967,30 +952,6 @@ onMounted(() => {
       :selected-count="selectedBooks.size"
       @confirm="handleMoveConfirm"
     />
-
-    <!-- 创建分组对话框 -->
-    <Dialog v-model:open="showCreateGroupDialog">
-      <DialogContent class="sm:max-w-[350px]">
-        <DialogHeader>
-          <DialogTitle>创建分组</DialogTitle>
-        </DialogHeader>
-        <div class="py-4">
-          <Input
-            v-model="newGroupName"
-            placeholder="输入分组名称"
-            @keyup.enter="createGroup"
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showCreateGroupDialog = false"
-            >取消</Button
-          >
-          <Button @click="createGroup" :disabled="!newGroupName.trim()"
-            >创建</Button
-          >
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 </template>
 

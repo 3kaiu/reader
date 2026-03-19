@@ -5,10 +5,9 @@
  */
 import { 
   ArrowLeft, List, Moon, Sun, RotateCcw,
-  ArrowLeftRight, Type, Eye, Sparkles, Users, X,
-  Pause, Play, Volume2, Settings, Trash2, Loader2
+  ArrowLeftRight, Type, Eye, Sparkles, X,
+  Settings, BookOpen, Loader2
 } from 'lucide-vue-next'
-import { storageHealth } from '@/utils/storageHealth'
 import ReaderNavigation from './ReaderNavigation.vue'
 import ReaderProgress from './ReaderProgress.vue'
 
@@ -23,33 +22,29 @@ interface Props {
   hasNextChapter: boolean
   isNightMode: boolean
   isFullscreen: boolean
-  isTTSCharting: boolean
-  isTTSPaused: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
   // 解密相关
-  bookUrl?: string
+  showDecoderAction?: boolean
   isDecoderEnabled?: boolean
   isDecoding?: boolean
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   back: []
   toggleCatalog: []
   toggleSettings: []
-  toggleAI: []
-  toggleTTS: []
   toggleDayNight: []
   toggleFullscreen: []
   toggleEyeCare: []
-  toggleInsights: []
   toggleZenMode: []
   refresh: []
   prevChapter: []
   nextChapter: []
   openSourcePicker: []
+  openBookInfo: []
   // 解密相关
   toggleDecoder: [enabled: boolean]
   openDecoderSettings: []
@@ -160,15 +155,6 @@ const emit = defineEmits<{
               <span class="toolbar-item-label">{{ isNightMode ? '夜间' : '日间' }}</span>
             </button>
             
-            <button class="toolbar-item group relative" @click="emit('toggleTTS')">
-              <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
-                <Pause v-if="isTTSCharting && !isTTSPaused" class="w-5 h-5" />
-                <Play v-else-if="isTTSPaused" class="w-5 h-5" />
-                <Volume2 v-else class="w-5 h-5" />
-              </div>
-              <span class="toolbar-item-label">{{ isTTSCharting ? '暂停' : '朗读' }}</span>
-            </button>
-            
             <button class="toolbar-item group" @click="emit('toggleSettings')">
               <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
                 <Type class="w-5 h-5" />
@@ -185,7 +171,7 @@ const emit = defineEmits<{
                 <ArrowLeftRight class="w-5 h-5" />
                 <span v-if="contentIssue" class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
               </div>
-              <span class="toolbar-item-label">换源</span>
+              <span class="toolbar-item-label">书源</span>
             </button>
             
             <button class="toolbar-item group" @click="emit('refresh')">
@@ -206,16 +192,9 @@ const emit = defineEmits<{
               <span class="toolbar-item-label">{{ isEyeCareEnabled ? '护眼开' : '护眼' }}</span>
             </button>
             
-            <button class="toolbar-item group" @click="emit('toggleAI')">
-              <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
-                <Sparkles class="w-5 h-5" />
-              </div>
-              <span class="toolbar-item-label font-medium">AI</span>
-            </button>
-
             <!-- 解密按钮 -->
             <button 
-              v-if="bookUrl"
+              v-if="showDecoderAction"
               class="toolbar-item group relative"
               :class="{ 'text-purple-500': isDecoderEnabled }"
               @click="emit('toggleDecoder', !isDecoderEnabled)"
@@ -232,13 +211,6 @@ const emit = defineEmits<{
               />
             </button>
 
-            <button class="toolbar-item group" @click="emit('toggleInsights')">
-              <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
-                <Users class="w-5 h-5" />
-              </div>
-              <span class="toolbar-item-label">洞察</span>
-            </button>
-            
             <button class="toolbar-item group" @click="emit('toggleZenMode')">
               <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
                 <Settings class="w-5 h-5 text-primary" />
@@ -246,14 +218,11 @@ const emit = defineEmits<{
               <span class="toolbar-item-label">禅模式</span>
             </button>
 
-            <button 
-                class="toolbar-item group text-red-400" 
-                @click="async () => { if(confirm('确定要清除所有本地数据（包括已下载的模型和缓存）吗？')) await storageHealth.deepReset(); location.reload(); }"
-            >
+            <button class="toolbar-item group" @click="emit('openBookInfo')">
               <div class="toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform">
-                <Trash2 class="w-5 h-5" />
+                <BookOpen class="w-5 h-5" />
               </div>
-              <span class="toolbar-item-label">重置</span>
+              <span class="toolbar-item-label">详情</span>
             </button>
           </div>
         </div>

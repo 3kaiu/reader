@@ -5,7 +5,7 @@
  */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { BookOpen, Hash, Clock, ExternalLink, Sparkles } from 'lucide-vue-next'
+import { BookOpen, ExternalLink, Sparkles } from 'lucide-vue-next'
 import {
   Sheet,
   SheetContent,
@@ -43,18 +43,6 @@ const bookTypeOptions: { value: BookType; label: string; description: string }[]
 /** 当前书籍设置 */
 const settings = computed(() => decoderStore.getBookSettings(props.bookUrl))
 
-/** 格式化时间 */
-function formatTime(timestamp: number): string {
-  if (!timestamp) return '从未'
-  const date = new Date(timestamp)
-  return date.toLocaleString('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 /** 更新书籍类型 */
 function updateBookType(type: BookType) {
   decoderStore.updateBookSettings(props.bookUrl, { bookType: type })
@@ -85,7 +73,7 @@ function goToDictionary() {
         <div>
           <h3 class="text-sm font-medium mb-3">书籍类型</h3>
           <p class="text-xs text-muted-foreground mb-3">
-            选择书籍类型可以提高解密准确度
+            用于选择更贴近当前书的解密分类上下文
           </p>
           <div class="grid grid-cols-2 gap-2">
             <button
@@ -107,28 +95,6 @@ function goToDictionary() {
           </div>
         </div>
 
-        <!-- 统计信息 -->
-        <div>
-          <h3 class="text-sm font-medium mb-3">统计信息</h3>
-          <div class="grid grid-cols-3 gap-3">
-            <div class="p-3 bg-muted/50 rounded-lg text-center">
-              <BookOpen class="w-5 h-5 mx-auto mb-1 opacity-60" />
-              <div class="text-lg font-bold">{{ settings.stats.decodedChapters }}</div>
-              <div class="text-xs text-muted-foreground">已解码章节</div>
-            </div>
-            <div class="p-3 bg-muted/50 rounded-lg text-center">
-              <Hash class="w-5 h-5 mx-auto mb-1 opacity-60" />
-              <div class="text-lg font-bold">{{ settings.stats.totalEntities }}</div>
-              <div class="text-xs text-muted-foreground">识别实体</div>
-            </div>
-            <div class="p-3 bg-muted/50 rounded-lg text-center">
-              <Clock class="w-5 h-5 mx-auto mb-1 opacity-60" />
-              <div class="text-sm font-medium">{{ formatTime(settings.stats.lastDecoded) }}</div>
-              <div class="text-xs text-muted-foreground">上次解码</div>
-            </div>
-          </div>
-        </div>
-
         <!-- 词典管理入口 -->
         <div>
           <button
@@ -142,7 +108,7 @@ function goToDictionary() {
               <div class="text-left">
                 <div class="font-medium">词典管理</div>
                 <div class="text-xs text-muted-foreground">
-                  查看和编辑解密词典
+                  查看和编辑公共 / 分类 / 书籍词典
                 </div>
               </div>
             </div>

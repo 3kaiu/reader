@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 书源管理页面 - 统一风格版
- * 特性：分组筛选、批量测速、响应式网格布局、与首页一致的布局风格
+ * 特性：导入、启停、删除、只读查看定义
  */
 import { ref, shallowRef, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
@@ -272,7 +272,6 @@ onMounted(() => loadSources());
           <template #left>
             <TabsList class="mr-4">
               <TabsTrigger value="local">本地书源</TabsTrigger>
-              <!-- <TabsTrigger value="subscription">订阅管理</TabsTrigger> -->
             </TabsList>
           </template>
         </PageHeader>
@@ -444,7 +443,7 @@ onMounted(() => loadSources());
                    <button
                     class="w-7 h-7 rounded-md hover:bg-background border border-transparent hover:border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
                     @click.stop="openEdit(source)"
-                    title="编辑"
+                    title="查看详情"
                   >
                     <Edit2 class="h-3.5 w-3.5" />
                   </button>
@@ -463,9 +462,6 @@ onMounted(() => loadSources());
       </div>
       </TabsContent>
 
-      <!-- <TabsContent value="subscription">
-         <SubscriptionManager />
-      </TabsContent> -->
     </Tabs>
     </main>
 

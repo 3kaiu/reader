@@ -1,86 +1,120 @@
-/**
- * 护眼模式组合函数
- */
-import { ref, watch, readonly } from 'vue'
+import { onUnmounted, readonly, ref, watch } from "vue";
+
+type EyeCareConfig = {
+  enabled: boolean;
+  reminderInterval: number;
+  restDuration: number;
+  nightMode: boolean;
+  blueLightFilter: boolean;
+};
 
 export function useEyeCare() {
-  const isEyeCareMode = ref(false)
-  const eyeCareStartTime = ref<number | null>(null)
-  const continuousReadingTime = ref(0)
-
-  // 护眼模式设置
-  const eyeCareSettings = ref({
+  const config = ref<EyeCareConfig>({
     enabled: false,
-    reminderInterval: 30, // 分钟
-    restDuration: 5, // 分钟
+    reminderInterval: 30,
+    restDuration: 5,
     nightMode: false,
     blueLightFilter: true,
-  })
-
-  const toggleEyeCareMode = () => {
-    isEyeCareMode.value = !isEyeCareMode.value
-
-    if (isEyeCareMode.value) {
-      eyeCareStartTime.value = Date.now()
-      startEyeCareTimer()
-    } else {
-      eyeCareStartTime.value = null
-      stopEyeCareTimer()
-    }
-  }
-
-  const startEyeCareTimer = () => {
-    // 每分钟更新连续阅读时间
-    setInterval(() => {
-      if (eyeCareStartTime.value) {
-        continuousReadingTime.value = Date.now() - eyeCareStartTime.value
-
-        // 检查是否需要休息提醒
-        if (continuousReadingTime.value >= eyeCareSettings.value.reminderInterval) {
-          showBreakReminder()
-        }
-      }
-    }, 60000)
-  }
-
-  const stopEyeCareTimer = () => {
-    continuousReadingTime.value = 0
-  }
-
-  const showBreakReminder = () => {
-    // 这里应该显示休息提醒UI
-    console.log('Eye care: Time for a break!')
-
-    // 自动暂停阅读
-    // pauseReading()
-  }
+  });
+  const startedAt = ref<number | null>(null);
+  const showBreakReminder = ref(false);
+  let timer: ReturnType<typeof setInterval> | null = null;
 
   const applyEyeCareStyling = () => {
-    if (isEyeCareMode.value) {
-      // 应用护眼样式
-      document.body.classList.add('eye-care-mode')
-
-      if (eyeCareSettings.value.nightMode) {
-        document.body.classList.add('night-mode')
-      }
-
-      if (eyeCareSettings.value.blueLightFilter) {
-        document.body.classList.add('blue-light-filter')
-      }
-    } else {
-      // 移除护眼样式
-      document.body.classList.remove('eye-care-mode', 'night-mode', 'blue-light-filter')
+    if (typeof document === "undefined") {
+      return;
     }
-  }
 
-  // 监听护眼模式变化
-  watch(isEyeCareMode, applyEyeCareStyling)
+    document.body.classList.toggle("eye-care-mode", config.value.enabled);
+    document.body.classList.toggle(
+      "night-mode",
+      config.value.enabled && config.value.nightMode,
+    );
+    document.body.classList.toggle(
+      "blue-light-filter",
+      config.value.enabled && config.value.blueLightFilter,
+    );
+  };
+
+  const getReadingDurationMs = () => {
+    if (!startedAt.value) {
+      return 0;
+    }
+    return Math.max(0, Date.now() - startedAt.value);
+  };
+
+  const formatReadingTime = () => {
+    const totalMinutes = Math.max(1, Math.floor(getReadingDurationMs() / 60000));
+    if (totalMinutes < 60) {
+      return `${totalMinutes} 分钟`;
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  };
+
+  const dismissBreakReminder = () => {
+    showBreakReminder.value = false;
+    startedAt.value = Date.now();
+  };
+
+  const stopTimer = () => {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+
+  const checkReminder = () => {
+    if (!config.value.enabled || !startedAt.value) {
+      return;
+    }
+
+    const elapsedMinutes = getReadingDurationMs() / 60000;
+    if (elapsedMinutes >= config.value.reminderInterval) {
+      showBreakReminder.value = true;
+    }
+  };
+
+  const startTimer = () => {
+    stopTimer();
+    timer = setInterval(checkReminder, 60_000);
+  };
+
+  const enable = () => {
+    config.value.enabled = true;
+    startedAt.value = Date.now();
+    showBreakReminder.value = false;
+    startTimer();
+    applyEyeCareStyling();
+  };
+
+  const disable = () => {
+    config.value.enabled = false;
+    showBreakReminder.value = false;
+    startedAt.value = null;
+    stopTimer();
+    applyEyeCareStyling();
+  };
+
+  watch(
+    () => config.value.enabled,
+    () => {
+      applyEyeCareStyling();
+    },
+  );
+
+  onUnmounted(() => {
+    stopTimer();
+  });
 
   return {
-    isEyeCareMode: readonly(isEyeCareMode),
-    continuousReadingTime: readonly(continuousReadingTime),
-    eyeCareSettings: readonly(eyeCareSettings),
-    toggleEyeCareMode,
-    showBreakReminder,
-  }
+    config: readonly(config),
+    showBreakReminder: readonly(showBreakReminder),
+    enable,
+    disable,
+    dismissBreakReminder,
+    formatReadingTime,
+  };
 }

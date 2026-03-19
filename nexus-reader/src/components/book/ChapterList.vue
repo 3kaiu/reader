@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import { 
-  Search, ArrowDown, ArrowUp, Locate, RotateCw, X, Check, CloudDownload, Download
+  Search, ArrowDown, ArrowUp, Locate, RotateCw, X, Check, CloudDownload
 } from 'lucide-vue-next'
 import { useVirtualList } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
@@ -35,12 +35,11 @@ const emit = defineEmits<{
   (e: 'downloadAll'): void
 }>()
 
-const { success, warning } = useMessage()
+const { warning } = useMessage()
 
 // State
 const searchKeyword = ref('')
 const isReverse = ref(false)
-const containerRef = ref<HTMLElement | null>(null)
 
 // Computed
 const filteredChapters = computed(() => {
@@ -57,6 +56,12 @@ const filteredChapters = computed(() => {
   
   return list
 })
+
+const showCacheControls = computed(() =>
+  typeof props.isCached === 'function' ||
+  typeof props.isDownloading === 'boolean' ||
+  !!props.downloadProgress
+)
 
 // Virtual List
 const { list, containerProps, wrapperProps, scrollTo } = useVirtualList(
@@ -163,7 +168,8 @@ watch(() => props.open, (val) => {
             <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
             刷新
           </Button>
-          <Button 
+          <Button
+            v-if="showCacheControls"
             variant="outline" 
             size="sm" 
             class="flex-1 h-8 text-xs gap-1"
@@ -176,7 +182,7 @@ watch(() => props.open, (val) => {
         </div>
 
         <!-- 下载进度条 -->
-        <div v-if="isDownloading" class="mb-3 px-1">
+        <div v-if="showCacheControls && isDownloading" class="mb-3 px-1">
           <div class="flex items-center justify-between text-[10px] mb-1 opacity-60">
             <span>正在缓存剩余章节...</span>
             <span>{{ downloadProgress?.current }} / {{ downloadProgress?.total }}</span>

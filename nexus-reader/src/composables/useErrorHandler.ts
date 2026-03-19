@@ -2,7 +2,7 @@
  * 错误处理组合函数
  */
 import { ref, readonly } from 'vue'
-import { errorHandler } from '@/utils/unified-utils'
+import { errorHandler } from '@/utils/error-handler'
 
 export function useErrorHandler() {
   const errors = ref<Array<{
