@@ -50,8 +50,8 @@ impl CfBypassStrategy {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
             .build()
-            .map_err(|e| {
-                EngineError::InvalidConfig { message: format!("Failed to build HTTP client: {}", e) }
+            .map_err(|e| EngineError::InvalidConfig {
+                message: format!("Failed to build HTTP client: {}", e),
             })?;
 
         debug!(
@@ -113,22 +113,25 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         let response = req.send().await.map_err(|e| {
             warn!("CF Bypass: Request failed: {}", e);
-            EngineError::Network { message: format!("CF bypass service error: {}", e) }
+            EngineError::Network {
+                message: format!("CF bypass service error: {}", e),
+            }
         })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             warn!("CF Bypass: Service returned error: {} - {}", status, text);
-            return Err(EngineError::Network { message: format!(
-                "CF bypass service returned {}",
-                status
-            ) });
+            return Err(EngineError::Network {
+                message: format!("CF bypass service returned {}", status),
+            });
         }
 
         let body: CfFetchResponse = response.json().await.map_err(|e| {
             warn!("CF Bypass: Failed to parse response: {}", e);
-            EngineError::JsonParse { message: format!("Invalid response from CF bypass service: {}", e) }
+            EngineError::JsonParse {
+                message: format!("Invalid response from CF bypass service: {}", e),
+            }
         })?;
 
         if let Some(error) = body.error {
@@ -147,10 +150,9 @@ impl AntiCrawlStrategy for CfBypassStrategy {
         // If we got blocked (403/429) and CF bypass didn't succeed, return error
         if (status == 403 || status == 429) && !body.cf_bypassed {
             warn!("CF Bypass: Target blocked with status {}", status);
-            return Err(EngineError::Network { message: format!(
-                "HTTP {} for {}",
-                status, ctx.url
-            ) });
+            return Err(EngineError::Network {
+                message: format!("HTTP {} for {}", status, ctx.url),
+            });
         }
 
         info!(

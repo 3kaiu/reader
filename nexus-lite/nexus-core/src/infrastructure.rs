@@ -11,11 +11,10 @@
 
 /// 基础设施层通用接口和类型
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
-
 
 /// 基础设施配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +54,10 @@ pub trait ConnectionPool: Send + Sync {
     async fn get_connection(&self) -> Result<Arc<dyn DatabaseConnection>, InfrastructureError>;
 
     /// 返回连接
-    async fn return_connection(&self, connection: Arc<dyn DatabaseConnection>) -> Result<(), InfrastructureError>;
+    async fn return_connection(
+        &self,
+        connection: Arc<dyn DatabaseConnection>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 获取连接池统计信息
     async fn stats(&self) -> Result<ConnectionPoolStats, InfrastructureError>;
@@ -65,10 +67,18 @@ pub trait ConnectionPool: Send + Sync {
 #[async_trait]
 pub trait DatabaseConnection: Send + Sync {
     /// 执行查询
-    async fn execute_query(&self, query: &str, params: Vec<serde_json::Value>) -> Result<Vec<HashMap<String, serde_json::Value>>, InfrastructureError>;
+    async fn execute_query(
+        &self,
+        query: &str,
+        params: Vec<serde_json::Value>,
+    ) -> Result<Vec<HashMap<String, serde_json::Value>>, InfrastructureError>;
 
     /// 执行命令
-    async fn execute_command(&self, command: &str, params: Vec<serde_json::Value>) -> Result<u64, InfrastructureError>;
+    async fn execute_command(
+        &self,
+        command: &str,
+        params: Vec<serde_json::Value>,
+    ) -> Result<u64, InfrastructureError>;
 
     /// 开始事务
     async fn begin_transaction(&self) -> Result<(), InfrastructureError>;
@@ -87,7 +97,12 @@ pub trait CacheClient: Send + Sync {
     async fn get(&self, key: &str) -> Result<Option<serde_json::Value>, InfrastructureError>;
 
     /// 设置缓存值
-    async fn set(&self, key: &str, value: serde_json::Value, ttl_seconds: Option<u64>) -> Result<(), InfrastructureError>;
+    async fn set(
+        &self,
+        key: &str,
+        value: serde_json::Value,
+        ttl_seconds: Option<u64>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 删除缓存值
     async fn delete(&self, key: &str) -> Result<(), InfrastructureError>;
@@ -103,10 +118,18 @@ pub trait CacheClient: Send + Sync {
 #[async_trait]
 pub trait MessageProducer: Send + Sync {
     /// 发送消息
-    async fn send_message(&self, topic: &str, message: serde_json::Value) -> Result<(), InfrastructureError>;
+    async fn send_message(
+        &self,
+        topic: &str,
+        message: serde_json::Value,
+    ) -> Result<(), InfrastructureError>;
 
     /// 批量发送消息
-    async fn send_batch(&self, topic: &str, messages: Vec<serde_json::Value>) -> Result<(), InfrastructureError>;
+    async fn send_batch(
+        &self,
+        topic: &str,
+        messages: Vec<serde_json::Value>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 获取生产者统计信息
     async fn stats(&self) -> Result<MessageProducerStats, InfrastructureError>;
@@ -116,7 +139,11 @@ pub trait MessageProducer: Send + Sync {
 #[async_trait]
 pub trait MessageConsumer: Send + Sync {
     /// 订阅主题
-    async fn subscribe(&self, topic: &str, handler: Box<dyn MessageHandler>) -> Result<(), InfrastructureError>;
+    async fn subscribe(
+        &self,
+        topic: &str,
+        handler: Box<dyn MessageHandler>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 取消订阅
     async fn unsubscribe(&self, topic: &str) -> Result<(), InfrastructureError>;
@@ -132,20 +159,39 @@ pub trait MessageConsumer: Send + Sync {
 #[async_trait]
 pub trait MessageHandler: Send + Sync {
     /// 处理消息
-    async fn handle_message(&self, topic: &str, message: serde_json::Value) -> Result<(), InfrastructureError>;
+    async fn handle_message(
+        &self,
+        topic: &str,
+        message: serde_json::Value,
+    ) -> Result<(), InfrastructureError>;
 }
 
 /// 指标收集器接口
 #[async_trait]
 pub trait MetricsCollector: Send + Sync {
     /// 记录计数器指标
-    async fn increment_counter(&self, name: &str, value: u64, labels: HashMap<String, String>) -> Result<(), InfrastructureError>;
+    async fn increment_counter(
+        &self,
+        name: &str,
+        value: u64,
+        labels: HashMap<String, String>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 记录仪表盘指标
-    async fn set_gauge(&self, name: &str, value: f64, labels: HashMap<String, String>) -> Result<(), InfrastructureError>;
+    async fn set_gauge(
+        &self,
+        name: &str,
+        value: f64,
+        labels: HashMap<String, String>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 记录直方图指标
-    async fn record_histogram(&self, name: &str, value: f64, labels: HashMap<String, String>) -> Result<(), InfrastructureError>;
+    async fn record_histogram(
+        &self,
+        name: &str,
+        value: f64,
+        labels: HashMap<String, String>,
+    ) -> Result<(), InfrastructureError>;
 
     /// 获取指标快照
     async fn snapshot(&self) -> Result<MetricsSnapshot, InfrastructureError>;
@@ -155,16 +201,34 @@ pub trait MetricsCollector: Send + Sync {
 #[async_trait]
 pub trait ExternalApiClient: Send + Sync {
     /// 执行GET请求
-    async fn get(&self, url: &str, headers: HashMap<String, String>) -> Result<ExternalApiResponse, InfrastructureError>;
+    async fn get(
+        &self,
+        url: &str,
+        headers: HashMap<String, String>,
+    ) -> Result<ExternalApiResponse, InfrastructureError>;
 
     /// 执行POST请求
-    async fn post(&self, url: &str, body: serde_json::Value, headers: HashMap<String, String>) -> Result<ExternalApiResponse, InfrastructureError>;
+    async fn post(
+        &self,
+        url: &str,
+        body: serde_json::Value,
+        headers: HashMap<String, String>,
+    ) -> Result<ExternalApiResponse, InfrastructureError>;
 
     /// 执行PUT请求
-    async fn put(&self, url: &str, body: serde_json::Value, headers: HashMap<String, String>) -> Result<ExternalApiResponse, InfrastructureError>;
+    async fn put(
+        &self,
+        url: &str,
+        body: serde_json::Value,
+        headers: HashMap<String, String>,
+    ) -> Result<ExternalApiResponse, InfrastructureError>;
 
     /// 执行DELETE请求
-    async fn delete(&self, url: &str, headers: HashMap<String, String>) -> Result<ExternalApiResponse, InfrastructureError>;
+    async fn delete(
+        &self,
+        url: &str,
+        headers: HashMap<String, String>,
+    ) -> Result<ExternalApiResponse, InfrastructureError>;
 }
 
 /// 基础设施错误
@@ -214,27 +278,39 @@ impl InfrastructureAdapterFactory {
     }
 
     /// 创建领域仓库适配器
-    pub async fn create_domain_repositories(&self) -> Result<DomainRepositories, InfrastructureError> {
+    pub async fn create_domain_repositories(
+        &self,
+    ) -> Result<DomainRepositories, InfrastructureError> {
         let book_repo = Box::new(DatabaseBookRepository::new(self.context.clone()).await?);
         let chapter_repo = Box::new(DatabaseChapterRepository::new(self.context.clone()).await?);
-        let progress_repo = Box::new(DatabaseReadingProgressRepository::new(self.context.clone()).await?);
-        let session_repo = Box::new(DatabaseReadingSessionRepository::new(self.context.clone()).await?);
+        let progress_repo =
+            Box::new(DatabaseReadingProgressRepository::new(self.context.clone()).await?);
+        let session_repo =
+            Box::new(DatabaseReadingSessionRepository::new(self.context.clone()).await?);
 
         let search_engine = Box::new(ElasticsearchSearchEngine::new(self.context.clone()).await?);
-        let recommendation_service = Box::new(AiRecommendationService::new(self.context.clone()).await?);
-        let search_history_repo = Box::new(DatabaseSearchHistoryRepository::new(self.context.clone()).await?);
-        let analytics_service = Box::new(DatabaseSearchAnalyticsService::new(self.context.clone()).await?);
+        let recommendation_service =
+            Box::new(AiRecommendationService::new(self.context.clone()).await?);
+        let search_history_repo =
+            Box::new(DatabaseSearchHistoryRepository::new(self.context.clone()).await?);
+        let analytics_service =
+            Box::new(DatabaseSearchAnalyticsService::new(self.context.clone()).await?);
 
         let user_repo = Box::new(DatabaseUserRepository::new(self.context.clone()).await?);
-        let user_session_repo = Box::new(DatabaseUserSessionRepository::new(self.context.clone()).await?);
+        let user_session_repo =
+            Box::new(DatabaseUserSessionRepository::new(self.context.clone()).await?);
         let auth_service = Box::new(JwtAuthenticationService::new(self.context.clone()).await?);
         let authz_service = Box::new(RbacAuthorizationService::new(self.context.clone()).await?);
 
-        let config_repo = Box::new(DatabaseSystemConfigRepository::new(self.context.clone()).await?);
-        let metric_repo = Box::new(DatabaseSystemMetricRepository::new(self.context.clone()).await?);
+        let config_repo =
+            Box::new(DatabaseSystemConfigRepository::new(self.context.clone()).await?);
+        let metric_repo =
+            Box::new(DatabaseSystemMetricRepository::new(self.context.clone()).await?);
         let alert_repo = Box::new(DatabaseSystemAlertRepository::new(self.context.clone()).await?);
-        let optimization_service = Box::new(AiOptimizationService::new(self.context.clone()).await?);
-        let monitoring_service = Box::new(ComprehensiveMonitoringService::new(self.context.clone()).await?);
+        let optimization_service =
+            Box::new(AiOptimizationService::new(self.context.clone()).await?);
+        let monitoring_service =
+            Box::new(ComprehensiveMonitoringService::new(self.context.clone()).await?);
 
         Ok(DomainRepositories {
             // 阅读领域
@@ -265,8 +341,11 @@ impl InfrastructureAdapterFactory {
     }
 
     /// 创建应用服务适配器
-    pub async fn create_application_services(&self) -> Result<ApplicationServices, InfrastructureError> {
-        let transaction_manager = Box::new(DatabaseTransactionManager::new(self.context.clone()).await?);
+    pub async fn create_application_services(
+        &self,
+    ) -> Result<ApplicationServices, InfrastructureError> {
+        let transaction_manager =
+            Box::new(DatabaseTransactionManager::new(self.context.clone()).await?);
         let cache_manager = Box::new(RedisCacheManager::new(self.context.clone()).await?);
         let event_publisher = Box::new(KafkaEventPublisher::new(self.context.clone()).await?);
         let security_service = Box::new(JwtSecurityService::new(self.context.clone()).await?);
@@ -317,7 +396,9 @@ pub struct ApplicationServices {
 }
 
 /// 基础设施层初始化函数
-pub async fn init_infrastructure_layer(config: InfrastructureConfig) -> Result<(DomainRepositories, ApplicationServices), InfrastructureError> {
+pub async fn init_infrastructure_layer(
+    config: InfrastructureConfig,
+) -> Result<(DomainRepositories, ApplicationServices), InfrastructureError> {
     let factory = InfrastructureAdapterFactory::new(config);
 
     let domain_repos = factory.create_domain_repositories().await?;
@@ -383,19 +464,32 @@ impl DatabaseBookRepository {
 
 #[async_trait]
 impl crate::domain::reading::BookRepository for DatabaseBookRepository {
-    async fn save(&self, _book: &crate::domain::reading::Book) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _book: &crate::domain::reading::Book,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
 
-    async fn find_by_id(&self, _id: &crate::domain::reading::BookId) -> Result<Option<crate::domain::reading::Book>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::reading::BookId,
+    ) -> Result<Option<crate::domain::reading::Book>, crate::domain::DomainError> {
         Ok(None)
     }
 
-    async fn find_by_author(&self, _author: &str, _limit: u32) -> Result<Vec<crate::domain::reading::Book>, crate::domain::DomainError> {
+    async fn find_by_author(
+        &self,
+        _author: &str,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::reading::Book>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 
-    async fn find_all(&self, _limit: u32) -> Result<Vec<crate::domain::reading::Book>, crate::domain::DomainError> {
+    async fn find_all(
+        &self,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::reading::Book>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -414,13 +508,22 @@ impl DatabaseChapterRepository {
 
 #[async_trait]
 impl crate::domain::reading::ChapterRepository for DatabaseChapterRepository {
-    async fn save(&self, _chapter: &crate::domain::reading::Chapter) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _chapter: &crate::domain::reading::Chapter,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::reading::ChapterId) -> Result<Option<crate::domain::reading::Chapter>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::reading::ChapterId,
+    ) -> Result<Option<crate::domain::reading::Chapter>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_book(&self, _book_id: &crate::domain::reading::BookId) -> Result<Vec<crate::domain::reading::Chapter>, crate::domain::DomainError> {
+    async fn find_by_book(
+        &self,
+        _book_id: &crate::domain::reading::BookId,
+    ) -> Result<Vec<crate::domain::reading::Chapter>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -437,16 +540,30 @@ impl DatabaseReadingProgressRepository {
 
 #[async_trait]
 impl crate::domain::reading::ReadingProgressRepository for DatabaseReadingProgressRepository {
-    async fn save_progress(&self, _progress: &crate::domain::reading::ReadingProgress) -> Result<(), crate::domain::DomainError> {
+    async fn save_progress(
+        &self,
+        _progress: &crate::domain::reading::ReadingProgress,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_user_and_book(&self, _user_id: &str, _book_id: &crate::domain::reading::BookId) -> Result<Option<crate::domain::reading::ReadingProgress>, crate::domain::DomainError> {
+    async fn find_by_user_and_book(
+        &self,
+        _user_id: &str,
+        _book_id: &crate::domain::reading::BookId,
+    ) -> Result<Option<crate::domain::reading::ReadingProgress>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_bookmarks_by_user(&self, _user_id: &str) -> Result<Vec<crate::domain::reading::Bookmark>, crate::domain::DomainError> {
+    async fn find_bookmarks_by_user(
+        &self,
+        _user_id: &str,
+    ) -> Result<Vec<crate::domain::reading::Bookmark>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn find_bookmarks_by_user_and_book(&self, _user_id: &str, _book_id: &crate::domain::reading::BookId) -> Result<Vec<crate::domain::reading::Bookmark>, crate::domain::DomainError> {
+    async fn find_bookmarks_by_user_and_book(
+        &self,
+        _user_id: &str,
+        _book_id: &crate::domain::reading::BookId,
+    ) -> Result<Vec<crate::domain::reading::Bookmark>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -463,16 +580,30 @@ impl DatabaseReadingSessionRepository {
 
 #[async_trait]
 impl crate::domain::reading::ReadingSessionRepository for DatabaseReadingSessionRepository {
-    async fn save(&self, _session: &crate::domain::reading::ReadingSession) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _session: &crate::domain::reading::ReadingSession,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::reading::ReadingSessionId) -> Result<Option<crate::domain::reading::ReadingSession>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::reading::ReadingSessionId,
+    ) -> Result<Option<crate::domain::reading::ReadingSession>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_user(&self, _user_id: &str, _limit: u32) -> Result<Vec<crate::domain::reading::ReadingSession>, crate::domain::DomainError> {
+    async fn find_by_user(
+        &self,
+        _user_id: &str,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::reading::ReadingSession>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn get_reading_statistics(&self, _user_id: &str, _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>) -> Result<crate::domain::reading::ReadingStatistics, crate::domain::DomainError> {
+    async fn get_reading_statistics(
+        &self,
+        _user_id: &str,
+        _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+    ) -> Result<crate::domain::reading::ReadingStatistics, crate::domain::DomainError> {
         Ok(crate::domain::reading::ReadingStatistics {
             total_sessions: 0,
             total_reading_time: 0,
@@ -496,7 +627,10 @@ impl ElasticsearchSearchEngine {
 
 #[async_trait]
 impl crate::domain::search::SearchEngine for ElasticsearchSearchEngine {
-    async fn search(&self, query: crate::domain::search::SearchQuery) -> Result<crate::domain::search::SearchResult, crate::domain::DomainError> {
+    async fn search(
+        &self,
+        query: crate::domain::search::SearchQuery,
+    ) -> Result<crate::domain::search::SearchResult, crate::domain::DomainError> {
         Ok(crate::domain::search::SearchResult {
             id: crate::domain::search::SearchResultId(uuid::Uuid::new_v4().to_string()),
             query,
@@ -507,7 +641,10 @@ impl crate::domain::search::SearchEngine for ElasticsearchSearchEngine {
             metadata: HashMap::new(),
         })
     }
-    async fn index_book(&self, _book: &crate::domain::reading::Book) -> Result<(), crate::domain::DomainError> {
+    async fn index_book(
+        &self,
+        _book: &crate::domain::reading::Book,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
     async fn remove_from_index(&self, _book_id: &str) -> Result<(), crate::domain::DomainError> {
@@ -535,10 +672,18 @@ impl crate::domain::search::RecommendationService for AiRecommendationService {
     ) -> Result<Vec<crate::domain::search::RecommendationItem>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn update_user_preferences(&self, _user_id: &str, _preferences: HashMap<String, f32>) -> Result<(), crate::domain::DomainError> {
+    async fn update_user_preferences(
+        &self,
+        _user_id: &str,
+        _preferences: HashMap<String, f32>,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn get_similar_books(&self, _book_id: &str, _limit: u32) -> Result<Vec<crate::domain::search::RecommendationItem>, crate::domain::DomainError> {
+    async fn get_similar_books(
+        &self,
+        _book_id: &str,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::search::RecommendationItem>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -555,16 +700,30 @@ impl DatabaseSearchHistoryRepository {
 
 #[async_trait]
 impl crate::domain::search::SearchHistoryRepository for DatabaseSearchHistoryRepository {
-    async fn save(&self, _history: &crate::domain::search::SearchHistory) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _history: &crate::domain::search::SearchHistory,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::search::SearchHistoryId) -> Result<Option<crate::domain::search::SearchHistory>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::search::SearchHistoryId,
+    ) -> Result<Option<crate::domain::search::SearchHistory>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_user(&self, _user_id: &str, _limit: u32) -> Result<Vec<crate::domain::search::SearchHistory>, crate::domain::DomainError> {
+    async fn find_by_user(
+        &self,
+        _user_id: &str,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::search::SearchHistory>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn get_search_statistics(&self, _user_id: &str, _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>) -> Result<crate::domain::search::SearchStatistics, crate::domain::DomainError> {
+    async fn get_search_statistics(
+        &self,
+        _user_id: &str,
+        _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+    ) -> Result<crate::domain::search::SearchStatistics, crate::domain::DomainError> {
         Ok(crate::domain::search::SearchStatistics {
             total_searches: 0,
             average_execution_time: 0,
@@ -585,13 +744,24 @@ impl DatabaseSearchAnalyticsService {
 
 #[async_trait]
 impl crate::domain::search::SearchAnalyticsService for DatabaseSearchAnalyticsService {
-    async fn record_search_result(&self, _result: &crate::domain::search::SearchResult) -> Result<(), crate::domain::DomainError> {
+    async fn record_search_result(
+        &self,
+        _result: &crate::domain::search::SearchResult,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn update_recommendation_metrics(&self, _engine_id: &str, _metrics: &crate::domain::search::RecommendationMetrics) -> Result<(), crate::domain::DomainError> {
+    async fn update_recommendation_metrics(
+        &self,
+        _engine_id: &str,
+        _metrics: &crate::domain::search::RecommendationMetrics,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn get_search_analytics(&self, _user_id: Option<String>, _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>) -> Result<crate::domain::search::SearchAnalytics, crate::domain::DomainError> {
+    async fn get_search_analytics(
+        &self,
+        _user_id: Option<String>,
+        _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+    ) -> Result<crate::domain::search::SearchAnalytics, crate::domain::DomainError> {
         Ok(crate::domain::search::SearchAnalytics {
             total_searches: 0,
             unique_users: 0,
@@ -600,7 +770,10 @@ impl crate::domain::search::SearchAnalyticsService for DatabaseSearchAnalyticsSe
             conversion_rate: 0.0,
         })
     }
-    async fn get_popular_searches(&self, _limit: u32) -> Result<Vec<crate::domain::search::PopularSearch>, crate::domain::DomainError> {
+    async fn get_popular_searches(
+        &self,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::search::PopularSearch>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -619,19 +792,37 @@ impl DatabaseUserRepository {
 
 #[async_trait]
 impl crate::domain::user::UserRepository for DatabaseUserRepository {
-    async fn save(&self, _user: &crate::domain::user::User) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _user: &crate::domain::user::User,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::user::UserId) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::user::UserId,
+    ) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_username(&self, _username: &str) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
+    async fn find_by_username(
+        &self,
+        _username: &str,
+    ) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_email(&self, _email: &str) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
+    async fn find_by_email(
+        &self,
+        _email: &str,
+    ) -> Result<Option<crate::domain::user::User>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn list_users(&self, _status: Option<crate::domain::user::UserStatus>, _role: Option<crate::domain::user::UserRole>, _limit: u32, _offset: u32) -> Result<Vec<crate::domain::user::User>, crate::domain::DomainError> {
+    async fn list_users(
+        &self,
+        _status: Option<crate::domain::user::UserStatus>,
+        _role: Option<crate::domain::user::UserRole>,
+        _limit: u32,
+        _offset: u32,
+    ) -> Result<Vec<crate::domain::user::User>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -648,16 +839,30 @@ impl DatabaseUserSessionRepository {
 
 #[async_trait]
 impl crate::domain::user::UserSessionRepository for DatabaseUserSessionRepository {
-    async fn save(&self, _session: &crate::domain::user::UserSession) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _session: &crate::domain::user::UserSession,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::user::UserSessionId) -> Result<Option<crate::domain::user::UserSession>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::user::UserSessionId,
+    ) -> Result<Option<crate::domain::user::UserSession>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_user(&self, _user_id: &crate::domain::user::UserId, _active_only: bool, _limit: u32) -> Result<Vec<crate::domain::user::UserSession>, crate::domain::DomainError> {
+    async fn find_by_user(
+        &self,
+        _user_id: &crate::domain::user::UserId,
+        _active_only: bool,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::user::UserSession>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn get_user_statistics(&self, _user_id: &crate::domain::user::UserId) -> Result<crate::domain::user::UserStatistics, crate::domain::DomainError> {
+    async fn get_user_statistics(
+        &self,
+        _user_id: &crate::domain::user::UserId,
+    ) -> Result<crate::domain::user::UserStatistics, crate::domain::DomainError> {
         Ok(crate::domain::user::UserStatistics {
             total_sessions: 0,
             active_sessions: 0,
@@ -679,13 +884,27 @@ impl JwtAuthenticationService {
 
 #[async_trait]
 impl crate::domain::user::AuthenticationService for JwtAuthenticationService {
-    async fn authenticate(&self, _username_or_email: &str, _password_hash: &str) -> Result<crate::domain::user::User, crate::domain::DomainError> {
-        Err(crate::domain::DomainError::Unauthorized("stub: not implemented".to_string()))
+    async fn authenticate(
+        &self,
+        _username_or_email: &str,
+        _password_hash: &str,
+    ) -> Result<crate::domain::user::User, crate::domain::DomainError> {
+        Err(crate::domain::DomainError::Unauthorized(
+            "stub: not implemented".to_string(),
+        ))
     }
-    async fn validate_session(&self, _session_id: &str) -> Result<crate::domain::user::User, crate::domain::DomainError> {
-        Err(crate::domain::DomainError::Unauthorized("stub: not implemented".to_string()))
+    async fn validate_session(
+        &self,
+        _session_id: &str,
+    ) -> Result<crate::domain::user::User, crate::domain::DomainError> {
+        Err(crate::domain::DomainError::Unauthorized(
+            "stub: not implemented".to_string(),
+        ))
     }
-    async fn invalidate_session(&self, _session_id: &str) -> Result<(), crate::domain::DomainError> {
+    async fn invalidate_session(
+        &self,
+        _session_id: &str,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
 }
@@ -702,10 +921,17 @@ impl RbacAuthorizationService {
 
 #[async_trait]
 impl crate::domain::user::AuthorizationService for RbacAuthorizationService {
-    async fn check_permission(&self, _user: &crate::domain::user::User, _permission: &crate::domain::user::Permission) -> Result<bool, crate::domain::DomainError> {
+    async fn check_permission(
+        &self,
+        _user: &crate::domain::user::User,
+        _permission: &crate::domain::user::Permission,
+    ) -> Result<bool, crate::domain::DomainError> {
         Ok(false)
     }
-    async fn get_user_permissions(&self, _user: &crate::domain::user::User) -> Result<Vec<crate::domain::user::Permission>, crate::domain::DomainError> {
+    async fn get_user_permissions(
+        &self,
+        _user: &crate::domain::user::User,
+    ) -> Result<Vec<crate::domain::user::Permission>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
 }
@@ -724,19 +950,35 @@ impl DatabaseSystemConfigRepository {
 
 #[async_trait]
 impl crate::domain::system::SystemConfigRepository for DatabaseSystemConfigRepository {
-    async fn save(&self, _config: &crate::domain::system::SystemConfig) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _config: &crate::domain::system::SystemConfig,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::system::SystemConfigId) -> Result<Option<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::system::SystemConfigId,
+    ) -> Result<Option<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn find_by_key(&self, _key: &str) -> Result<Option<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
+    async fn find_by_key(
+        &self,
+        _key: &str,
+    ) -> Result<Option<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn list_configs(&self, _filter_by_tag: Option<String>, _limit: u32) -> Result<Vec<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
+    async fn list_configs(
+        &self,
+        _filter_by_tag: Option<String>,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::system::SystemConfig>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn delete(&self, _id: &crate::domain::system::SystemConfigId) -> Result<(), crate::domain::DomainError> {
+    async fn delete(
+        &self,
+        _id: &crate::domain::system::SystemConfigId,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
 }
@@ -753,13 +995,24 @@ impl DatabaseSystemMetricRepository {
 
 #[async_trait]
 impl crate::domain::system::SystemMetricRepository for DatabaseSystemMetricRepository {
-    async fn save(&self, _metric: &crate::domain::system::SystemMetric) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _metric: &crate::domain::system::SystemMetric,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn get_metrics(&self, _metric_name: Option<String>, _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>, _limit: u32) -> Result<Vec<crate::domain::system::SystemMetric>, crate::domain::DomainError> {
+    async fn get_metrics(
+        &self,
+        _metric_name: Option<String>,
+        _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::system::SystemMetric>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn get_latest_metric(&self, _metric_name: &str) -> Result<Option<crate::domain::system::SystemMetric>, crate::domain::DomainError> {
+    async fn get_latest_metric(
+        &self,
+        _metric_name: &str,
+    ) -> Result<Option<crate::domain::system::SystemMetric>, crate::domain::DomainError> {
         Ok(None)
     }
 }
@@ -776,16 +1029,31 @@ impl DatabaseSystemAlertRepository {
 
 #[async_trait]
 impl crate::domain::system::SystemAlertRepository for DatabaseSystemAlertRepository {
-    async fn save(&self, _alert: &crate::domain::system::SystemAlert) -> Result<(), crate::domain::DomainError> {
+    async fn save(
+        &self,
+        _alert: &crate::domain::system::SystemAlert,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
-    async fn find_by_id(&self, _id: &crate::domain::system::SystemAlertId) -> Result<Option<crate::domain::system::SystemAlert>, crate::domain::DomainError> {
+    async fn find_by_id(
+        &self,
+        _id: &crate::domain::system::SystemAlertId,
+    ) -> Result<Option<crate::domain::system::SystemAlert>, crate::domain::DomainError> {
         Ok(None)
     }
-    async fn get_alerts(&self, _status: Option<crate::domain::system::AlertStatus>, _severity: Option<crate::domain::system::AlertSeverity>, _limit: u32) -> Result<Vec<crate::domain::system::SystemAlert>, crate::domain::DomainError> {
+    async fn get_alerts(
+        &self,
+        _status: Option<crate::domain::system::AlertStatus>,
+        _severity: Option<crate::domain::system::AlertSeverity>,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::system::SystemAlert>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
-    async fn update_status(&self, _id: &crate::domain::system::SystemAlertId, _status: crate::domain::system::AlertStatus) -> Result<(), crate::domain::DomainError> {
+    async fn update_status(
+        &self,
+        _id: &crate::domain::system::SystemAlertId,
+        _status: crate::domain::system::AlertStatus,
+    ) -> Result<(), crate::domain::DomainError> {
         Ok(())
     }
 }
@@ -802,7 +1070,11 @@ impl AiOptimizationService {
 
 #[async_trait]
 impl crate::domain::system::SystemOptimizationService for AiOptimizationService {
-    async fn run_optimization(&self, _optimization_type: &str, _target: &str) -> Result<crate::domain::system::OptimizationResult, crate::domain::DomainError> {
+    async fn run_optimization(
+        &self,
+        _optimization_type: &str,
+        _target: &str,
+    ) -> Result<crate::domain::system::OptimizationResult, crate::domain::DomainError> {
         Ok(crate::domain::system::OptimizationResult {
             optimization_type: String::new(),
             target: String::new(),
@@ -813,7 +1085,10 @@ impl crate::domain::system::SystemOptimizationService for AiOptimizationService 
             timestamp: chrono::Utc::now(),
         })
     }
-    async fn get_optimization_history(&self, _limit: u32) -> Result<Vec<crate::domain::system::OptimizationRecord>, crate::domain::DomainError> {
+    async fn get_optimization_history(
+        &self,
+        _limit: u32,
+    ) -> Result<Vec<crate::domain::system::OptimizationRecord>, crate::domain::DomainError> {
         Ok(Vec::new())
     }
     async fn get_available_optimizations(&self) -> Result<Vec<String>, crate::domain::DomainError> {
@@ -833,7 +1108,10 @@ impl ComprehensiveMonitoringService {
 
 #[async_trait]
 impl crate::domain::system::SystemMonitoringService for ComprehensiveMonitoringService {
-    async fn get_system_health(&self, _include_details: bool) -> Result<crate::domain::system::SystemHealth, crate::domain::DomainError> {
+    async fn get_system_health(
+        &self,
+        _include_details: bool,
+    ) -> Result<crate::domain::system::SystemHealth, crate::domain::DomainError> {
         Ok(crate::domain::system::SystemHealth {
             overall_status: "unknown".to_string(),
             components: Vec::new(),
@@ -841,7 +1119,10 @@ impl crate::domain::system::SystemMonitoringService for ComprehensiveMonitoringS
             last_check: chrono::Utc::now(),
         })
     }
-    async fn get_system_performance(&self, _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>) -> Result<crate::domain::system::SystemPerformance, crate::domain::DomainError> {
+    async fn get_system_performance(
+        &self,
+        _time_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+    ) -> Result<crate::domain::system::SystemPerformance, crate::domain::DomainError> {
         Ok(crate::domain::system::SystemPerformance {
             cpu_usage_percent: 0.0,
             memory_usage_percent: 0.0,
@@ -853,7 +1134,9 @@ impl crate::domain::system::SystemMonitoringService for ComprehensiveMonitoringS
             timestamp: chrono::Utc::now(),
         })
     }
-    async fn get_resource_usage(&self) -> Result<crate::domain::system::ResourceUsage, crate::domain::DomainError> {
+    async fn get_resource_usage(
+        &self,
+    ) -> Result<crate::domain::system::ResourceUsage, crate::domain::DomainError> {
         Ok(crate::domain::system::ResourceUsage {
             cpu_cores: 0,
             memory_total_gb: 0.0,
@@ -878,16 +1161,24 @@ impl DatabaseTransactionManager {
 
 #[async_trait]
 impl crate::application::TransactionManager for DatabaseTransactionManager {
-    async fn begin_transaction(&self) -> Result<crate::application::Transaction, crate::application::ApplicationError> {
+    async fn begin_transaction(
+        &self,
+    ) -> Result<crate::application::Transaction, crate::application::ApplicationError> {
         Ok(crate::application::Transaction {
             id: uuid::Uuid::new_v4(),
             started_at: chrono::Utc::now(),
         })
     }
-    async fn commit_transaction(&self, _transaction: crate::application::Transaction) -> Result<(), crate::application::ApplicationError> {
+    async fn commit_transaction(
+        &self,
+        _transaction: crate::application::Transaction,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
-    async fn rollback_transaction(&self, _transaction: crate::application::Transaction) -> Result<(), crate::application::ApplicationError> {
+    async fn rollback_transaction(
+        &self,
+        _transaction: crate::application::Transaction,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
 }
@@ -904,10 +1195,18 @@ impl RedisCacheManager {
 
 #[async_trait]
 impl crate::application::CacheManager for RedisCacheManager {
-    async fn get(&self, _key: &str) -> Result<Option<serde_json::Value>, crate::application::ApplicationError> {
+    async fn get(
+        &self,
+        _key: &str,
+    ) -> Result<Option<serde_json::Value>, crate::application::ApplicationError> {
         Ok(None)
     }
-    async fn set(&self, _key: &str, _value: serde_json::Value, _ttl_seconds: Option<u64>) -> Result<(), crate::application::ApplicationError> {
+    async fn set(
+        &self,
+        _key: &str,
+        _value: serde_json::Value,
+        _ttl_seconds: Option<u64>,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
     async fn delete(&self, _key: &str) -> Result<(), crate::application::ApplicationError> {
@@ -930,10 +1229,16 @@ impl KafkaEventPublisher {
 
 #[async_trait]
 impl crate::application::EventPublisher for KafkaEventPublisher {
-    async fn publish(&self, _event: crate::domain::DomainEvent) -> Result<(), crate::application::ApplicationError> {
+    async fn publish(
+        &self,
+        _event: crate::domain::DomainEvent,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
-    async fn publish_batch(&self, _events: Vec<crate::domain::DomainEvent>) -> Result<(), crate::application::ApplicationError> {
+    async fn publish_batch(
+        &self,
+        _events: Vec<crate::domain::DomainEvent>,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
 }
@@ -950,13 +1255,25 @@ impl JwtSecurityService {
 
 #[async_trait]
 impl crate::application::SecurityService for JwtSecurityService {
-    async fn authorize_command(&self, _command: &crate::application::ApplicationCommand, _context: &crate::application::ApplicationContext) -> Result<(), crate::application::ApplicationError> {
+    async fn authorize_command(
+        &self,
+        _command: &crate::application::ApplicationCommand,
+        _context: &crate::application::ApplicationContext,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
-    async fn authorize_query(&self, _query: &crate::application::ApplicationQuery, _context: &crate::application::ApplicationContext) -> Result<(), crate::application::ApplicationError> {
+    async fn authorize_query(
+        &self,
+        _query: &crate::application::ApplicationQuery,
+        _context: &crate::application::ApplicationContext,
+    ) -> Result<(), crate::application::ApplicationError> {
         Ok(())
     }
-    async fn validate_permission(&self, _user_id: &str, _permission: &str) -> Result<bool, crate::application::ApplicationError> {
+    async fn validate_permission(
+        &self,
+        _user_id: &str,
+        _permission: &str,
+    ) -> Result<bool, crate::application::ApplicationError> {
         Ok(false)
     }
 }

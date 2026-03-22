@@ -6,8 +6,8 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
 use nexus_core::types::Chapter;
+use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
 use scraper::Html;
 use std::sync::Arc;
 use tracing::{info, instrument};
@@ -47,7 +47,11 @@ impl CompiledNxs {
     fn compile(source: &NxsSource) -> Result<Self, EngineError> {
         // Use global selector cache for cross-engine sharing
         let compile = |rule: &str| -> Result<Arc<FallbackSelector>, EngineError> {
-            FallbackSelector::get_or_compile_global(rule).map_err(|e| EngineError::InvalidSelector { selector: e.to_string() })
+            FallbackSelector::get_or_compile_global(rule).map_err(|e| {
+                EngineError::InvalidSelector {
+                    selector: e.to_string(),
+                }
+            })
         };
 
         let compile_opt = |rule: &Option<String>| -> Result<Arc<FallbackSelector>, EngineError> {
@@ -145,10 +149,9 @@ impl NxsEngine {
         let response = self.anti_crawl.execute(&mut ctx).await?;
 
         if !response.is_success() {
-            return Err(EngineError::Network { message: format!(
-                "HTTP {} for {}",
-                response.status, url
-            ) });
+            return Err(EngineError::Network {
+                message: format!("HTTP {} for {}", response.status, url),
+            });
         }
 
         Ok(response.body)

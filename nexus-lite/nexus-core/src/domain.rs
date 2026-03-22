@@ -11,21 +11,21 @@
 
 pub mod reading;
 pub mod search;
-pub mod user;
 pub mod system;
+pub mod user;
 
 // 重新导出主要领域类型
 pub use reading::*;
 pub use search::*;
-pub use user::*;
 pub use system::*;
+pub use user::*;
 
 /// 领域层通用接口和类型
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use chrono::{DateTime, Utc};
 
 /// 领域实体基特质
 #[async_trait]
@@ -241,7 +241,11 @@ pub trait BusinessRuleValidator<T>: Send + Sync {
 #[async_trait]
 pub trait DomainFactory<T: Entity>: Send + Sync {
     /// 创建新实体
-    async fn create(&self, data: serde_json::Value, context: &DomainContext) -> Result<T, DomainError>;
+    async fn create(
+        &self,
+        data: serde_json::Value,
+        context: &DomainContext,
+    ) -> Result<T, DomainError>;
 
     /// 从现有数据重建实体
     async fn reconstruct(&self, data: serde_json::Value, version: u64) -> Result<T, DomainError>;
@@ -320,10 +324,18 @@ impl DomainLayerBuilder {
     pub fn build(self) -> Result<DomainLayer, DomainError> {
         Ok(DomainLayer {
             config: self.config,
-            reading_domain: self.reading_domain.ok_or_else(|| DomainError::Validation("Reading domain is required".to_string()))?,
-            search_domain: self.search_domain.ok_or_else(|| DomainError::Validation("Search domain is required".to_string()))?,
-            user_domain: self.user_domain.ok_or_else(|| DomainError::Validation("User domain is required".to_string()))?,
-            system_domain: self.system_domain.ok_or_else(|| DomainError::Validation("System domain is required".to_string()))?,
+            reading_domain: self
+                .reading_domain
+                .ok_or_else(|| DomainError::Validation("Reading domain is required".to_string()))?,
+            search_domain: self
+                .search_domain
+                .ok_or_else(|| DomainError::Validation("Search domain is required".to_string()))?,
+            user_domain: self
+                .user_domain
+                .ok_or_else(|| DomainError::Validation("User domain is required".to_string()))?,
+            system_domain: self
+                .system_domain
+                .ok_or_else(|| DomainError::Validation("System domain is required".to_string()))?,
         })
     }
 }
@@ -339,7 +351,10 @@ pub struct DomainLayer {
 
 impl DomainLayer {
     /// 处理领域命令
-    pub async fn handle_command(&self, command: DomainCommand) -> Result<DomainResult, DomainError> {
+    pub async fn handle_command(
+        &self,
+        command: DomainCommand,
+    ) -> Result<DomainResult, DomainError> {
         match command {
             DomainCommand::Reading(cmd) => self.reading_domain.handle_command(cmd).await,
             DomainCommand::Search(cmd) => self.search_domain.handle_command(cmd).await,

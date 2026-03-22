@@ -27,8 +27,11 @@ pub struct EngineConfig {
     /// Cloudflare bypass service configuration
     #[serde(default)]
     pub cf_bypass: CloudflareBypassConfig,
-}
 
+    /// Optional feature switches
+    #[serde(default)]
+    pub features: FeatureConfig,
+}
 
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -248,6 +251,23 @@ impl Default for CloudflareBypassConfig {
             enabled: true,
             proxy: None,
             timeout_seconds: default_cf_timeout(),
+        }
+    }
+}
+
+/// Optional platform features that should stay out of the critical reading path
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureConfig {
+    /// Include AI mapping rules in chapter content cleaning
+    #[serde(default = "default_true")]
+    pub enable_ai_content_rules: bool,
+}
+
+impl Default for FeatureConfig {
+    fn default() -> Self {
+        Self {
+            enable_ai_content_rules: default_true(),
         }
     }
 }

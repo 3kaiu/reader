@@ -1,7 +1,7 @@
 use memmap2::Mmap;
+use metrics::{counter, histogram};
 use moka::future::Cache;
 use nexus_core::EngineError;
-use metrics::{counter, histogram};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -136,7 +136,9 @@ impl ChapterCache {
         if !self.disk_dir.exists() {
             tokio::fs::create_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
         }
 
         let path = self.disk_path(key);
@@ -151,7 +153,9 @@ impl ChapterCache {
 
         tokio::fs::write(&path, content)
             .await
-            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+            .map_err(|e| EngineError::FileIo {
+                message: e.to_string(),
+            })?;
 
         let new_size = content.len() as u64;
         self.disk_size
@@ -196,10 +200,14 @@ impl ChapterCache {
         if self.disk_dir.exists() {
             tokio::fs::remove_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
             tokio::fs::create_dir_all(&self.disk_dir)
                 .await
-                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
         }
         self.disk_size.store(0, Ordering::Relaxed);
         self.hits.store(0, Ordering::Relaxed);
@@ -218,19 +226,27 @@ impl ChapterCache {
         let mut entries = Vec::new();
         let mut total_size = 0u64;
 
-        let mut dir = tokio::fs::read_dir(&self.disk_dir)
-            .await
-            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
-
-        while let Some(entry) = dir
-            .next_entry()
-            .await
-            .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?
-        {
-            let metadata = entry
-                .metadata()
+        let mut dir =
+            tokio::fs::read_dir(&self.disk_dir)
                 .await
-                .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
+
+        while let Some(entry) =
+            dir.next_entry()
+                .await
+                .map_err(|e: std::io::Error| EngineError::FileIo {
+                    message: e.to_string(),
+                })?
+        {
+            let metadata =
+                entry
+                    .metadata()
+                    .await
+                    .map_err(|e: std::io::Error| EngineError::FileIo {
+                        message: e.to_string(),
+                    })?;
             let size = metadata.len();
             let modified = metadata
                 .modified()

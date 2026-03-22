@@ -8,9 +8,9 @@
 //! - 系统事件(SystemEvent): 系统级别事件
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -150,7 +150,11 @@ impl SystemConfig {
     }
 
     /// 更新配置值
-    pub fn update_value(&mut self, new_value: serde_json::Value, modified_by: Option<String>) -> Result<(), DomainError> {
+    pub fn update_value(
+        &mut self,
+        new_value: serde_json::Value,
+        modified_by: Option<String>,
+    ) -> Result<(), DomainError> {
         // 验证配置值
         self.validate_value(&new_value)?;
 
@@ -159,12 +163,13 @@ impl SystemConfig {
         self.last_modified_by = modified_by;
         self.increment_version();
 
-        self.uncommitted_events.push(DomainEvent::System(SystemEvent::SystemConfigUpdated {
-            config_id: self.id.0.clone(),
-            config_key: self.config_key.clone(),
-            old_value,
-            new_value: self.config_value.clone(),
-        }));
+        self.uncommitted_events
+            .push(DomainEvent::System(SystemEvent::SystemConfigUpdated {
+                config_id: self.id.0.clone(),
+                config_key: self.config_key.clone(),
+                old_value,
+                new_value: self.config_value.clone(),
+            }));
 
         Ok(())
     }
@@ -185,7 +190,8 @@ impl SystemConfig {
                     }
                 }
                 ValidationRuleType::MinLength => {
-                    if let Some(min_len) = rule.parameters.get("minLength").and_then(|v| v.as_u64()) {
+                    if let Some(min_len) = rule.parameters.get("minLength").and_then(|v| v.as_u64())
+                    {
                         if let Some(str_val) = value.as_str() {
                             if str_val.len() < min_len as usize {
                                 return Err(DomainError::Validation(rule.error_message.clone()));
@@ -194,7 +200,8 @@ impl SystemConfig {
                     }
                 }
                 ValidationRuleType::MaxLength => {
-                    if let Some(max_len) = rule.parameters.get("maxLength").and_then(|v| v.as_u64()) {
+                    if let Some(max_len) = rule.parameters.get("maxLength").and_then(|v| v.as_u64())
+                    {
                         if let Some(str_val) = value.as_str() {
                             if str_val.len() > max_len as usize {
                                 return Err(DomainError::Validation(rule.error_message.clone()));
@@ -203,7 +210,8 @@ impl SystemConfig {
                     }
                 }
                 ValidationRuleType::MinValue => {
-                    if let Some(min_val) = rule.parameters.get("minValue").and_then(|v| v.as_f64()) {
+                    if let Some(min_val) = rule.parameters.get("minValue").and_then(|v| v.as_f64())
+                    {
                         if let Some(num_val) = value.as_f64() {
                             if num_val < min_val {
                                 return Err(DomainError::Validation(rule.error_message.clone()));
@@ -212,7 +220,8 @@ impl SystemConfig {
                     }
                 }
                 ValidationRuleType::MaxValue => {
-                    if let Some(max_val) = rule.parameters.get("maxValue").and_then(|v| v.as_f64()) {
+                    if let Some(max_val) = rule.parameters.get("maxValue").and_then(|v| v.as_f64())
+                    {
                         if let Some(num_val) = value.as_f64() {
                             if num_val > max_val {
                                 return Err(DomainError::Validation(rule.error_message.clone()));
@@ -221,7 +230,9 @@ impl SystemConfig {
                     }
                 }
                 ValidationRuleType::Enum => {
-                    if let Some(allowed_values) = rule.parameters.get("values").and_then(|v| v.as_array()) {
+                    if let Some(allowed_values) =
+                        rule.parameters.get("values").and_then(|v| v.as_array())
+                    {
                         let is_valid = allowed_values.iter().any(|allowed| allowed == value);
                         if !is_valid {
                             return Err(DomainError::Validation(rule.error_message.clone()));
@@ -536,52 +547,126 @@ impl SystemDomain {
         })
     }
 
-    pub async fn handle_command(&self, command: SystemCommand) -> Result<DomainResult, DomainError> {
+    pub async fn handle_command(
+        &self,
+        command: SystemCommand,
+    ) -> Result<DomainResult, DomainError> {
         match command {
-            SystemCommand::CreateSystemConfig { config_id, config_key, config_value, config_type, description } => {
-                self.create_system_config(config_id, config_key, config_value, config_type, description).await
+            SystemCommand::CreateSystemConfig {
+                config_id,
+                config_key,
+                config_value,
+                config_type,
+                description,
+            } => {
+                self.create_system_config(
+                    config_id,
+                    config_key,
+                    config_value,
+                    config_type,
+                    description,
+                )
+                .await
             }
-            SystemCommand::UpdateSystemConfig { config_id, new_value, modified_by } => {
-                self.update_system_config(config_id, new_value, modified_by).await
+            SystemCommand::UpdateSystemConfig {
+                config_id,
+                new_value,
+                modified_by,
+            } => {
+                self.update_system_config(config_id, new_value, modified_by)
+                    .await
             }
             SystemCommand::DeleteSystemConfig { config_id } => {
                 self.delete_system_config(config_id).await
             }
-            SystemCommand::RecordSystemMetric { metric_name, metric_value, metric_type, unit, tags, source } => {
-                self.record_system_metric(metric_name, metric_value, metric_type, unit, tags, source).await
+            SystemCommand::RecordSystemMetric {
+                metric_name,
+                metric_value,
+                metric_type,
+                unit,
+                tags,
+                source,
+            } => {
+                self.record_system_metric(
+                    metric_name,
+                    metric_value,
+                    metric_type,
+                    unit,
+                    tags,
+                    source,
+                )
+                .await
             }
-            SystemCommand::CreateSystemAlert { alert_type, severity, title, message, source, condition, threshold, current_value } => {
-                self.create_system_alert(alert_type, severity, title, message, source, condition, threshold, current_value).await
+            SystemCommand::CreateSystemAlert {
+                alert_type,
+                severity,
+                title,
+                message,
+                source,
+                condition,
+                threshold,
+                current_value,
+            } => {
+                self.create_system_alert(
+                    alert_type,
+                    severity,
+                    title,
+                    message,
+                    source,
+                    condition,
+                    threshold,
+                    current_value,
+                )
+                .await
             }
-            SystemCommand::AcknowledgeSystemAlert { alert_id, acknowledged_by } => {
-                self.acknowledge_system_alert(alert_id, acknowledged_by).await
+            SystemCommand::AcknowledgeSystemAlert {
+                alert_id,
+                acknowledged_by,
+            } => {
+                self.acknowledge_system_alert(alert_id, acknowledged_by)
+                    .await
             }
             SystemCommand::ResolveSystemAlert { alert_id } => {
                 self.resolve_system_alert(alert_id).await
             }
-            SystemCommand::RunSystemOptimization { optimization_type, target } => {
-                self.run_system_optimization(optimization_type, target).await
+            SystemCommand::RunSystemOptimization {
+                optimization_type,
+                target,
+            } => {
+                self.run_system_optimization(optimization_type, target)
+                    .await
             }
-            SystemCommand::ScheduleSystemMaintenance { maintenance_type, scheduled_time, description } => {
-                self.schedule_system_maintenance(maintenance_type, scheduled_time, description).await
+            SystemCommand::ScheduleSystemMaintenance {
+                maintenance_type,
+                scheduled_time,
+                description,
+            } => {
+                self.schedule_system_maintenance(maintenance_type, scheduled_time, description)
+                    .await
             }
         }
     }
 
     pub async fn handle_query(&self, query: SystemQuery) -> Result<DomainResult, DomainError> {
         match query {
-            SystemQuery::GetSystemConfig { config_id } => {
-                self.get_system_config(config_id).await
+            SystemQuery::GetSystemConfig { config_id } => self.get_system_config(config_id).await,
+            SystemQuery::ListSystemConfigs {
+                filter_by_tag,
+                limit,
+            } => self.list_system_configs(filter_by_tag, limit).await,
+            SystemQuery::GetSystemMetrics {
+                metric_name,
+                time_range,
+                limit,
+            } => {
+                self.get_system_metrics(metric_name, time_range, limit)
+                    .await
             }
-            SystemQuery::ListSystemConfigs { filter_by_tag, limit } => {
-                self.list_system_configs(filter_by_tag, limit).await
-            }
-            SystemQuery::GetSystemMetrics { metric_name, time_range, limit } => {
-                self.get_system_metrics(metric_name, time_range, limit).await
-            }
-            SystemQuery::GetSystemAlerts { status, severity, limit } => {
-                self.get_system_alerts(status, severity, limit).await
-            }
+            SystemQuery::GetSystemAlerts {
+                status,
+                severity,
+                limit,
+            } => self.get_system_alerts(status, severity, limit).await,
             SystemQuery::GetSystemHealth { include_details } => {
                 self.get_system_health(include_details).await
             }
@@ -603,7 +688,13 @@ impl SystemDomain {
         description: String,
     ) -> Result<DomainResult, DomainError> {
         let config_id = SystemConfigId(config_id);
-        let config = SystemConfig::new(config_id.clone(), config_key, config_value, config_type, description);
+        let config = SystemConfig::new(
+            config_id.clone(),
+            config_key,
+            config_value,
+            config_type,
+            description,
+        );
 
         // 验证业务规则
         for rule in &self.business_rules {
@@ -627,7 +718,10 @@ impl SystemDomain {
         modified_by: Option<String>,
     ) -> Result<DomainResult, DomainError> {
         let config_id = SystemConfigId(config_id);
-        let mut config = self.config_repository.find_by_id(&config_id).await?
+        let mut config = self
+            .config_repository
+            .find_by_id(&config_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Config {} not found", config_id.0)))?;
 
         config.update_value(new_value, modified_by)?;
@@ -739,9 +833,16 @@ impl SystemDomain {
         })
     }
 
-    async fn acknowledge_system_alert(&self, alert_id: String, acknowledged_by: String) -> Result<DomainResult, DomainError> {
+    async fn acknowledge_system_alert(
+        &self,
+        alert_id: String,
+        acknowledged_by: String,
+    ) -> Result<DomainResult, DomainError> {
         let alert_id = SystemAlertId(alert_id);
-        let mut alert = self.alert_repository.find_by_id(&alert_id).await?
+        let mut alert = self
+            .alert_repository
+            .find_by_id(&alert_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Alert {} not found", alert_id.0)))?;
 
         alert.acknowledge(acknowledged_by.clone());
@@ -760,7 +861,10 @@ impl SystemDomain {
 
     async fn resolve_system_alert(&self, alert_id: String) -> Result<DomainResult, DomainError> {
         let alert_id = SystemAlertId(alert_id);
-        let mut alert = self.alert_repository.find_by_id(&alert_id).await?
+        let mut alert = self
+            .alert_repository
+            .find_by_id(&alert_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Alert {} not found", alert_id.0)))?;
 
         alert.resolve();
@@ -776,19 +880,31 @@ impl SystemDomain {
         })
     }
 
-    async fn run_system_optimization(&self, optimization_type: String, target: String) -> Result<DomainResult, DomainError> {
-        let result = self.optimization_service.run_optimization(&optimization_type, &target).await?;
+    async fn run_system_optimization(
+        &self,
+        optimization_type: String,
+        target: String,
+    ) -> Result<DomainResult, DomainError> {
+        let result = self
+            .optimization_service
+            .run_optimization(&optimization_type, &target)
+            .await?;
 
         Ok(DomainResult {
             success: true,
             data: Some(serde_json::to_value(result).unwrap()),
-            events: vec![DomainEvent::System(SystemEvent::SystemOptimizationApplied {
-                optimization_type: optimization_type.clone(),
-                target: target.clone(),
-                improvement: 0.1, // 示例改进值
-            })],
+            events: vec![DomainEvent::System(
+                SystemEvent::SystemOptimizationApplied {
+                    optimization_type: optimization_type.clone(),
+                    target: target.clone(),
+                    improvement: 0.1, // 示例改进值
+                },
+            )],
             metadata: HashMap::from([
-                ("optimization_type".to_string(), serde_json::json!(optimization_type)),
+                (
+                    "optimization_type".to_string(),
+                    serde_json::json!(optimization_type),
+                ),
                 ("target".to_string(), serde_json::json!(target)),
             ]),
         })
@@ -809,17 +925,22 @@ impl SystemDomain {
                 "description": description,
                 "status": "scheduled"
             })),
-            events: vec![DomainEvent::System(SystemEvent::SystemMaintenanceScheduled {
-                maintenance_type,
-                scheduled_time,
-            })],
+            events: vec![DomainEvent::System(
+                SystemEvent::SystemMaintenanceScheduled {
+                    maintenance_type,
+                    scheduled_time,
+                },
+            )],
             metadata: HashMap::new(),
         })
     }
 
     async fn get_system_config(&self, config_id: String) -> Result<DomainResult, DomainError> {
         let config_id = SystemConfigId(config_id);
-        let config = self.config_repository.find_by_id(&config_id).await?
+        let config = self
+            .config_repository
+            .find_by_id(&config_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Config {} not found", config_id.0)))?;
 
         Ok(DomainResult {
@@ -830,8 +951,15 @@ impl SystemDomain {
         })
     }
 
-    async fn list_system_configs(&self, filter_by_tag: Option<String>, limit: Option<u32>) -> Result<DomainResult, DomainError> {
-        let configs = self.config_repository.list_configs(filter_by_tag, limit.unwrap_or(50)).await?;
+    async fn list_system_configs(
+        &self,
+        filter_by_tag: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let configs = self
+            .config_repository
+            .list_configs(filter_by_tag, limit.unwrap_or(50))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -847,7 +975,10 @@ impl SystemDomain {
         time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
         limit: Option<u32>,
     ) -> Result<DomainResult, DomainError> {
-        let metrics = self.metric_repository.get_metrics(metric_name, time_range, limit.unwrap_or(100)).await?;
+        let metrics = self
+            .metric_repository
+            .get_metrics(metric_name, time_range, limit.unwrap_or(100))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -863,7 +994,10 @@ impl SystemDomain {
         severity: Option<AlertSeverity>,
         limit: Option<u32>,
     ) -> Result<DomainResult, DomainError> {
-        let alerts = self.alert_repository.get_alerts(status, severity, limit.unwrap_or(50)).await?;
+        let alerts = self
+            .alert_repository
+            .get_alerts(status, severity, limit.unwrap_or(50))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -874,7 +1008,10 @@ impl SystemDomain {
     }
 
     async fn get_system_health(&self, include_details: bool) -> Result<DomainResult, DomainError> {
-        let health = self.monitoring_service.get_system_health(include_details).await?;
+        let health = self
+            .monitoring_service
+            .get_system_health(include_details)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -884,8 +1021,14 @@ impl SystemDomain {
         })
     }
 
-    async fn get_system_performance(&self, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<DomainResult, DomainError> {
-        let performance = self.monitoring_service.get_system_performance(time_range).await?;
+    async fn get_system_performance(
+        &self,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<DomainResult, DomainError> {
+        let performance = self
+            .monitoring_service
+            .get_system_performance(time_range)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -895,8 +1038,14 @@ impl SystemDomain {
         })
     }
 
-    async fn get_system_optimization_history(&self, limit: Option<u32>) -> Result<DomainResult, DomainError> {
-        let history = self.optimization_service.get_optimization_history(limit.unwrap_or(20)).await?;
+    async fn get_system_optimization_history(
+        &self,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let history = self
+            .optimization_service
+            .get_optimization_history(limit.unwrap_or(20))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -914,36 +1063,67 @@ pub trait SystemConfigRepository: Send + Sync {
     async fn save(&self, config: &SystemConfig) -> Result<(), DomainError>;
     async fn find_by_id(&self, id: &SystemConfigId) -> Result<Option<SystemConfig>, DomainError>;
     async fn find_by_key(&self, key: &str) -> Result<Option<SystemConfig>, DomainError>;
-    async fn list_configs(&self, filter_by_tag: Option<String>, limit: u32) -> Result<Vec<SystemConfig>, DomainError>;
+    async fn list_configs(
+        &self,
+        filter_by_tag: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<SystemConfig>, DomainError>;
     async fn delete(&self, id: &SystemConfigId) -> Result<(), DomainError>;
 }
 
 #[async_trait]
 pub trait SystemMetricRepository: Send + Sync {
     async fn save(&self, metric: &SystemMetric) -> Result<(), DomainError>;
-    async fn get_metrics(&self, metric_name: Option<String>, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>, limit: u32) -> Result<Vec<SystemMetric>, DomainError>;
-    async fn get_latest_metric(&self, metric_name: &str) -> Result<Option<SystemMetric>, DomainError>;
+    async fn get_metrics(
+        &self,
+        metric_name: Option<String>,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+        limit: u32,
+    ) -> Result<Vec<SystemMetric>, DomainError>;
+    async fn get_latest_metric(
+        &self,
+        metric_name: &str,
+    ) -> Result<Option<SystemMetric>, DomainError>;
 }
 
 #[async_trait]
 pub trait SystemAlertRepository: Send + Sync {
     async fn save(&self, alert: &SystemAlert) -> Result<(), DomainError>;
     async fn find_by_id(&self, id: &SystemAlertId) -> Result<Option<SystemAlert>, DomainError>;
-    async fn get_alerts(&self, status: Option<AlertStatus>, severity: Option<AlertSeverity>, limit: u32) -> Result<Vec<SystemAlert>, DomainError>;
-    async fn update_status(&self, id: &SystemAlertId, status: AlertStatus) -> Result<(), DomainError>;
+    async fn get_alerts(
+        &self,
+        status: Option<AlertStatus>,
+        severity: Option<AlertSeverity>,
+        limit: u32,
+    ) -> Result<Vec<SystemAlert>, DomainError>;
+    async fn update_status(
+        &self,
+        id: &SystemAlertId,
+        status: AlertStatus,
+    ) -> Result<(), DomainError>;
 }
 
 #[async_trait]
 pub trait SystemOptimizationService: Send + Sync {
-    async fn run_optimization(&self, optimization_type: &str, target: &str) -> Result<OptimizationResult, DomainError>;
-    async fn get_optimization_history(&self, limit: u32) -> Result<Vec<OptimizationRecord>, DomainError>;
+    async fn run_optimization(
+        &self,
+        optimization_type: &str,
+        target: &str,
+    ) -> Result<OptimizationResult, DomainError>;
+    async fn get_optimization_history(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<OptimizationRecord>, DomainError>;
     async fn get_available_optimizations(&self) -> Result<Vec<String>, DomainError>;
 }
 
 #[async_trait]
 pub trait SystemMonitoringService: Send + Sync {
     async fn get_system_health(&self, include_details: bool) -> Result<SystemHealth, DomainError>;
-    async fn get_system_performance(&self, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SystemPerformance, DomainError>;
+    async fn get_system_performance(
+        &self,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SystemPerformance, DomainError>;
     async fn get_resource_usage(&self) -> Result<ResourceUsage, DomainError>;
 }
 
@@ -980,10 +1160,19 @@ impl SystemConfigRepository for InMemorySystemConfigRepository {
         Ok(config)
     }
 
-    async fn list_configs(&self, filter_by_tag: Option<String>, limit: u32) -> Result<Vec<SystemConfig>, DomainError> {
+    async fn list_configs(
+        &self,
+        filter_by_tag: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<SystemConfig>, DomainError> {
         let configs = self.configs.read().unwrap();
-        let filtered: Vec<SystemConfig> = configs.values()
-            .filter(|c| filter_by_tag.as_ref().map_or(true, |tag| c.tags.contains(tag)))
+        let filtered: Vec<SystemConfig> = configs
+            .values()
+            .filter(|c| {
+                filter_by_tag
+                    .as_ref()
+                    .map_or(true, |tag| c.tags.contains(tag))
+            })
             .take(limit as usize)
             .cloned()
             .collect();
@@ -1021,20 +1210,38 @@ impl SystemMetricRepository for InMemorySystemMetricRepository {
         Ok(())
     }
 
-    async fn get_metrics(&self, metric_name: Option<String>, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>, limit: u32) -> Result<Vec<SystemMetric>, DomainError> {
+    async fn get_metrics(
+        &self,
+        metric_name: Option<String>,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+        limit: u32,
+    ) -> Result<Vec<SystemMetric>, DomainError> {
         let metrics = self.metrics.read().unwrap();
-        let filtered: Vec<SystemMetric> = metrics.iter()
-            .filter(|m| metric_name.as_ref().map_or(true, |name| m.metric_name == *name))
-            .filter(|m| time_range.as_ref().map_or(true, |(start, end)| m.timestamp >= *start && m.timestamp <= *end))
+        let filtered: Vec<SystemMetric> = metrics
+            .iter()
+            .filter(|m| {
+                metric_name
+                    .as_ref()
+                    .map_or(true, |name| m.metric_name == *name)
+            })
+            .filter(|m| {
+                time_range.as_ref().map_or(true, |(start, end)| {
+                    m.timestamp >= *start && m.timestamp <= *end
+                })
+            })
             .take(limit as usize)
             .cloned()
             .collect();
         Ok(filtered)
     }
 
-    async fn get_latest_metric(&self, metric_name: &str) -> Result<Option<SystemMetric>, DomainError> {
+    async fn get_latest_metric(
+        &self,
+        metric_name: &str,
+    ) -> Result<Option<SystemMetric>, DomainError> {
         let metrics = self.metrics.read().unwrap();
-        let latest = metrics.iter()
+        let latest = metrics
+            .iter()
             .filter(|m| m.metric_name == metric_name)
             .max_by_key(|m| m.timestamp)
             .cloned();
@@ -1067,9 +1274,15 @@ impl SystemAlertRepository for InMemorySystemAlertRepository {
         Ok(alerts.get(id).cloned())
     }
 
-    async fn get_alerts(&self, status: Option<AlertStatus>, severity: Option<AlertSeverity>, limit: u32) -> Result<Vec<SystemAlert>, DomainError> {
+    async fn get_alerts(
+        &self,
+        status: Option<AlertStatus>,
+        severity: Option<AlertSeverity>,
+        limit: u32,
+    ) -> Result<Vec<SystemAlert>, DomainError> {
         let alerts = self.alerts.read().unwrap();
-        let filtered: Vec<SystemAlert> = alerts.values()
+        let filtered: Vec<SystemAlert> = alerts
+            .values()
             .filter(|a| status.as_ref().map_or(true, |s| matches!(&a.status, s)))
             .filter(|a| severity.as_ref().map_or(true, |s| matches!(&a.severity, s)))
             .take(limit as usize)
@@ -1078,7 +1291,11 @@ impl SystemAlertRepository for InMemorySystemAlertRepository {
         Ok(filtered)
     }
 
-    async fn update_status(&self, id: &SystemAlertId, status: AlertStatus) -> Result<(), DomainError> {
+    async fn update_status(
+        &self,
+        id: &SystemAlertId,
+        status: AlertStatus,
+    ) -> Result<(), DomainError> {
         let mut alerts = self.alerts.write().unwrap();
         if let Some(alert) = alerts.get_mut(id) {
             alert.status = status;
@@ -1098,7 +1315,11 @@ impl BasicSystemOptimizationService {
 
 #[async_trait]
 impl SystemOptimizationService for BasicSystemOptimizationService {
-    async fn run_optimization(&self, optimization_type: &str, target: &str) -> Result<OptimizationResult, DomainError> {
+    async fn run_optimization(
+        &self,
+        optimization_type: &str,
+        target: &str,
+    ) -> Result<OptimizationResult, DomainError> {
         // 模拟优化结果
         Ok(OptimizationResult {
             optimization_type: optimization_type.to_string(),
@@ -1111,18 +1332,23 @@ impl SystemOptimizationService for BasicSystemOptimizationService {
         })
     }
 
-    async fn get_optimization_history(&self, limit: u32) -> Result<Vec<OptimizationRecord>, DomainError> {
+    async fn get_optimization_history(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<OptimizationRecord>, DomainError> {
         // 返回模拟的历史记录
-        let records = (0..limit.min(10)).map(|i| OptimizationRecord {
-            id: Uuid::new_v4().to_string(),
-            optimization_type: format!("optimization_{}", i),
-            target: format!("target_{}", i),
-            improvement: 0.1 + (i as f64 * 0.01),
-            before_value: 100.0,
-            after_value: 100.0 - (i as f64 * 5.0),
-            duration_ms: 100 + (i as u64 * 10),
-            timestamp: Utc::now() - chrono::Duration::hours(i as i64),
-        }).collect();
+        let records = (0..limit.min(10))
+            .map(|i| OptimizationRecord {
+                id: Uuid::new_v4().to_string(),
+                optimization_type: format!("optimization_{}", i),
+                target: format!("target_{}", i),
+                improvement: 0.1 + (i as f64 * 0.01),
+                before_value: 100.0,
+                after_value: 100.0 - (i as f64 * 5.0),
+                duration_ms: 100 + (i as u64 * 10),
+                timestamp: Utc::now() - chrono::Duration::hours(i as i64),
+            })
+            .collect();
 
         Ok(records)
     }
@@ -1169,7 +1395,10 @@ impl SystemMonitoringService for BasicSystemMonitoringService {
         })
     }
 
-    async fn get_system_performance(&self, _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SystemPerformance, DomainError> {
+    async fn get_system_performance(
+        &self,
+        _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SystemPerformance, DomainError> {
         Ok(SystemPerformance {
             cpu_usage_percent: 45.2,
             memory_usage_percent: 67.8,
@@ -1203,9 +1432,15 @@ impl BusinessRuleValidator<SystemConfig> for ConfigKeyNotEmptyRule {
         "config_key_not_empty"
     }
 
-    async fn validate(&self, entity: &SystemConfig, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &SystemConfig,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         if entity.config_key.trim().is_empty() {
-            return Err(DomainError::Validation("Config key cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Config key cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }
@@ -1223,22 +1458,32 @@ impl BusinessRuleValidator<SystemConfig> for ConfigValueValidRule {
         "config_value_valid"
     }
 
-    async fn validate(&self, entity: &SystemConfig, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &SystemConfig,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         // 验证配置值是否符合类型要求
         match entity.config_type {
             ConfigType::Number => {
                 if !entity.config_value.is_number() {
-                    return Err(DomainError::Validation("Config value must be a number".to_string()));
+                    return Err(DomainError::Validation(
+                        "Config value must be a number".to_string(),
+                    ));
                 }
             }
             ConfigType::Boolean => {
                 if !entity.config_value.is_boolean() {
-                    return Err(DomainError::Validation("Config value must be a boolean".to_string()));
+                    return Err(DomainError::Validation(
+                        "Config value must be a boolean".to_string(),
+                    ));
                 }
             }
             ConfigType::String => {
                 if !entity.config_value.is_string() {
-                    return Err(DomainError::Validation("Config value must be a string".to_string()));
+                    return Err(DomainError::Validation(
+                        "Config value must be a string".to_string(),
+                    ));
                 }
             }
             _ => {} // 其他类型暂时跳过验证

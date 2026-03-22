@@ -8,16 +8,16 @@
 //! - 存储策略 (StorageStrategy): 数据存储策略
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use nexus_core::{ValueObject, DomainError, Entity};
+use nexus_core::{DomainError, Entity, ValueObject};
 
-use nexus_core::EngineError as StorageError;
-use nexus_core::{AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 use nexus_core::domain::StorageEvent as CoreStorageEvent;
+use nexus_core::EngineError as StorageError;
+use nexus_core::{AggregateRoot, BusinessRuleValidator, DomainContext, DomainEvent, DomainResult};
 
 /// 数据对象实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +121,8 @@ impl DataObject {
 
     /// 检查数据是否过期
     pub fn is_expired(&self) -> bool {
-        self.expires_at.map_or(false, |expires| Utc::now() > expires)
+        self.expires_at
+            .map_or(false, |expires| Utc::now() > expires)
     }
 
     /// 更新数据内容
@@ -213,8 +214,7 @@ impl Entity for StorageBucket {
 }
 
 /// 缓存条目值对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CacheEntry {
     pub key: String,
     pub value: serde_json::Value,
@@ -426,11 +426,12 @@ impl StorageDomain {
         })
     }
 
-    pub async fn handle_command(&self, command: StorageCommand) -> Result<DomainResult, StorageError> {
+    pub async fn handle_command(
+        &self,
+        command: StorageCommand,
+    ) -> Result<DomainResult, StorageError> {
         match command {
-            StorageCommand::CreateDataObject { object } => {
-                self.create_data_object(object).await
-            }
+            StorageCommand::CreateDataObject { object } => self.create_data_object(object).await,
             StorageCommand::UpdateDataObject { object_id, data } => {
                 self.update_data_object(object_id, data).await
             }
@@ -443,50 +444,37 @@ impl StorageDomain {
             StorageCommand::UpdateBucketLifecycle { bucket_id, rules } => {
                 self.update_bucket_lifecycle(bucket_id, rules).await
             }
-            StorageCommand::SetCacheEntry { entry } => {
-                self.set_cache_entry(entry).await
-            }
-            StorageCommand::DeleteCacheEntry { key } => {
-                self.delete_cache_entry(key).await
-            }
-            StorageCommand::ClearExpiredCache => {
-                self.clear_expired_cache().await
-            }
-            StorageCommand::ApplyStorageStrategy { strategy, target_bucket } => {
-                self.apply_storage_strategy(strategy, target_bucket).await
-            }
+            StorageCommand::SetCacheEntry { entry } => self.set_cache_entry(entry).await,
+            StorageCommand::DeleteCacheEntry { key } => self.delete_cache_entry(key).await,
+            StorageCommand::ClearExpiredCache => self.clear_expired_cache().await,
+            StorageCommand::ApplyStorageStrategy {
+                strategy,
+                target_bucket,
+            } => self.apply_storage_strategy(strategy, target_bucket).await,
         }
     }
 
     pub async fn handle_query(&self, query: StorageQuery) -> Result<DomainResult, StorageError> {
         match query {
-            StorageQuery::GetDataObject { object_id } => {
-                self.get_data_object(object_id).await
-            }
-            StorageQuery::ListObjectsInBucket { bucket, prefix, limit } => {
-                self.list_objects_in_bucket(bucket, prefix, limit).await
-            }
+            StorageQuery::GetDataObject { object_id } => self.get_data_object(object_id).await,
+            StorageQuery::ListObjectsInBucket {
+                bucket,
+                prefix,
+                limit,
+            } => self.list_objects_in_bucket(bucket, prefix, limit).await,
             StorageQuery::GetStorageBucket { bucket_id } => {
                 self.get_storage_bucket(bucket_id).await
             }
-            StorageQuery::ListBuckets { limit } => {
-                self.list_buckets(limit).await
-            }
-            StorageQuery::GetCacheEntry { key } => {
-                self.get_cache_entry(key).await
-            }
+            StorageQuery::ListBuckets { limit } => self.list_buckets(limit).await,
+            StorageQuery::GetCacheEntry { key } => self.get_cache_entry(key).await,
             StorageQuery::ListCacheEntries { tag, limit } => {
                 self.list_cache_entries(tag, limit).await
             }
-            StorageQuery::GetStorageStatistics => {
-                self.get_storage_statistics().await
-            }
+            StorageQuery::GetStorageStatistics => self.get_storage_statistics().await,
             StorageQuery::GetBucketStatistics { bucket_id } => {
                 self.get_bucket_statistics(bucket_id).await
             }
-            StorageQuery::GetCacheStatistics => {
-                self.get_cache_statistics().await
-            }
+            StorageQuery::GetCacheStatistics => self.get_cache_statistics().await,
         }
     }
 
@@ -511,10 +499,19 @@ impl StorageDomain {
         })
     }
 
-    async fn update_data_object(&self, object_id: String, data: Vec<u8>) -> Result<DomainResult, StorageError> {
+    async fn update_data_object(
+        &self,
+        object_id: String,
+        data: Vec<u8>,
+    ) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
-        let mut object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
+        let mut object = self
+            .object_repository
+            .find_by_id(&object_id)
+            .await?
+            .ok_or_else(|| StorageError::NotFound {
+                resource: format!("Object {}", object_id.0),
+            })?;
 
         let old_size = object.size_bytes;
         object.update_data(data);
@@ -536,8 +533,13 @@ impl StorageDomain {
 
     async fn delete_data_object(&self, object_id: String) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
-        let object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
+        let object = self
+            .object_repository
+            .find_by_id(&object_id)
+            .await?
+            .ok_or_else(|| StorageError::NotFound {
+                resource: format!("Object {}", object_id.0),
+            })?;
 
         self.object_repository.delete(&object_id).await?;
 
@@ -553,7 +555,10 @@ impl StorageDomain {
         })
     }
 
-    async fn create_storage_bucket(&self, bucket: StorageBucket) -> Result<DomainResult, StorageError> {
+    async fn create_storage_bucket(
+        &self,
+        bucket: StorageBucket,
+    ) -> Result<DomainResult, StorageError> {
         self.bucket_repository.save(&bucket).await?;
 
         Ok(DomainResult {
@@ -567,10 +572,19 @@ impl StorageDomain {
         })
     }
 
-    async fn update_bucket_lifecycle(&self, bucket_id: String, rules: Vec<LifecycleRule>) -> Result<DomainResult, StorageError> {
+    async fn update_bucket_lifecycle(
+        &self,
+        bucket_id: String,
+        rules: Vec<LifecycleRule>,
+    ) -> Result<DomainResult, StorageError> {
         let bucket_id = StorageBucketId(bucket_id);
-        let mut bucket = self.bucket_repository.find_by_id(&bucket_id).await?
-            .ok_or_else(|| StorageError::NotFound { resource: format!("Bucket {}", bucket_id.0) })?;
+        let mut bucket = self
+            .bucket_repository
+            .find_by_id(&bucket_id)
+            .await?
+            .ok_or_else(|| StorageError::NotFound {
+                resource: format!("Bucket {}", bucket_id.0),
+            })?;
 
         bucket.lifecycle_rules = rules;
         bucket.updated_at = Utc::now();
@@ -620,8 +634,15 @@ impl StorageDomain {
         })
     }
 
-    async fn apply_storage_strategy(&self, strategy: StorageStrategy, target_bucket: String) -> Result<DomainResult, StorageError> {
-        let result = self.strategy_service.apply_strategy(&strategy, &target_bucket).await?;
+    async fn apply_storage_strategy(
+        &self,
+        strategy: StorageStrategy,
+        target_bucket: String,
+    ) -> Result<DomainResult, StorageError> {
+        let result = self
+            .strategy_service
+            .apply_strategy(&strategy, &target_bucket)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -633,8 +654,13 @@ impl StorageDomain {
 
     async fn get_data_object(&self, object_id: String) -> Result<DomainResult, StorageError> {
         let object_id = DataObjectId(object_id);
-        let object = self.object_repository.find_by_id(&object_id).await?
-            .ok_or_else(|| StorageError::NotFound { resource: format!("Object {}", object_id.0) })?;
+        let object = self
+            .object_repository
+            .find_by_id(&object_id)
+            .await?
+            .ok_or_else(|| StorageError::NotFound {
+                resource: format!("Object {}", object_id.0),
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -644,8 +670,16 @@ impl StorageDomain {
         })
     }
 
-    async fn list_objects_in_bucket(&self, bucket: String, prefix: Option<String>, limit: Option<u32>) -> Result<DomainResult, StorageError> {
-        let objects = self.object_repository.find_by_bucket(&bucket, prefix, limit.unwrap_or(100)).await?;
+    async fn list_objects_in_bucket(
+        &self,
+        bucket: String,
+        prefix: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, StorageError> {
+        let objects = self
+            .object_repository
+            .find_by_bucket(&bucket, prefix, limit.unwrap_or(100))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -657,8 +691,13 @@ impl StorageDomain {
 
     async fn get_storage_bucket(&self, bucket_id: String) -> Result<DomainResult, StorageError> {
         let bucket_id = StorageBucketId(bucket_id);
-        let bucket = self.bucket_repository.find_by_id(&bucket_id).await?
-            .ok_or_else(|| StorageError::NotFound { resource: format!("Bucket {}", bucket_id.0) })?;
+        let bucket = self
+            .bucket_repository
+            .find_by_id(&bucket_id)
+            .await?
+            .ok_or_else(|| StorageError::NotFound {
+                resource: format!("Bucket {}", bucket_id.0),
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -702,8 +741,15 @@ impl StorageDomain {
         }
     }
 
-    async fn list_cache_entries(&self, tag: Option<String>, limit: Option<u32>) -> Result<DomainResult, StorageError> {
-        let entries = self.cache_repository.find_by_tag(tag, limit.unwrap_or(100)).await?;
+    async fn list_cache_entries(
+        &self,
+        tag: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, StorageError> {
+        let entries = self
+            .cache_repository
+            .find_by_tag(tag, limit.unwrap_or(100))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -725,7 +771,10 @@ impl StorageDomain {
     }
 
     async fn get_bucket_statistics(&self, bucket_id: String) -> Result<DomainResult, StorageError> {
-        let stats = self.metrics_service.get_bucket_statistics(&bucket_id).await?;
+        let stats = self
+            .metrics_service
+            .get_bucket_statistics(&bucket_id)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -753,14 +802,20 @@ impl StorageDomain {
 pub trait DataObjectRepository: Send + Sync {
     async fn save(&self, object: &DataObject) -> Result<(), StorageError>;
     async fn find_by_id(&self, id: &DataObjectId) -> Result<Option<DataObject>, StorageError>;
-    async fn find_by_bucket(&self, bucket: &str, prefix: Option<String>, limit: u32) -> Result<Vec<DataObject>, StorageError>;
+    async fn find_by_bucket(
+        &self,
+        bucket: &str,
+        prefix: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<DataObject>, StorageError>;
     async fn delete(&self, id: &DataObjectId) -> Result<(), StorageError>;
 }
 
 #[async_trait]
 pub trait StorageBucketRepository: Send + Sync {
     async fn save(&self, bucket: &StorageBucket) -> Result<(), StorageError>;
-    async fn find_by_id(&self, id: &StorageBucketId) -> Result<Option<StorageBucket>, StorageError>;
+    async fn find_by_id(&self, id: &StorageBucketId)
+        -> Result<Option<StorageBucket>, StorageError>;
     async fn find_by_name(&self, name: &str) -> Result<Option<StorageBucket>, StorageError>;
     async fn find_all(&self, limit: u32) -> Result<Vec<StorageBucket>, StorageError>;
     async fn delete(&self, id: &StorageBucketId) -> Result<(), StorageError>;
@@ -770,21 +825,32 @@ pub trait StorageBucketRepository: Send + Sync {
 pub trait CacheRepository: Send + Sync {
     async fn save(&self, entry: &CacheEntry) -> Result<(), StorageError>;
     async fn find_by_key(&self, key: &str) -> Result<Option<CacheEntry>, StorageError>;
-    async fn find_by_tag(&self, tag: Option<String>, limit: u32) -> Result<Vec<CacheEntry>, StorageError>;
+    async fn find_by_tag(
+        &self,
+        tag: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<CacheEntry>, StorageError>;
     async fn delete(&self, key: &str) -> Result<(), StorageError>;
     async fn clear_expired(&self) -> Result<u64, StorageError>;
 }
 
 #[async_trait]
 pub trait StorageStrategyService: Send + Sync {
-    async fn apply_strategy(&self, strategy: &StorageStrategy, target_bucket: &str) -> Result<StrategyApplicationResult, StorageError>;
+    async fn apply_strategy(
+        &self,
+        strategy: &StorageStrategy,
+        target_bucket: &str,
+    ) -> Result<StrategyApplicationResult, StorageError>;
     async fn get_available_strategies(&self) -> Result<Vec<StorageStrategy>, StorageError>;
 }
 
 #[async_trait]
 pub trait StorageMetricsService: Send + Sync {
     async fn get_storage_statistics(&self) -> Result<StorageStatistics, StorageError>;
-    async fn get_bucket_statistics(&self, bucket_id: &str) -> Result<BucketStatistics, StorageError>;
+    async fn get_bucket_statistics(
+        &self,
+        bucket_id: &str,
+    ) -> Result<BucketStatistics, StorageError>;
     async fn get_cache_statistics(&self) -> Result<CacheStatistics, StorageError>;
 }
 
@@ -815,9 +881,15 @@ impl DataObjectRepository for InMemoryDataObjectRepository {
         Ok(objects.get(id).cloned())
     }
 
-    async fn find_by_bucket(&self, bucket: &str, prefix: Option<String>, limit: u32) -> Result<Vec<DataObject>, StorageError> {
+    async fn find_by_bucket(
+        &self,
+        bucket: &str,
+        prefix: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<DataObject>, StorageError> {
         let objects = self.objects.read().unwrap();
-        let filtered: Vec<DataObject> = objects.values()
+        let filtered: Vec<DataObject> = objects
+            .values()
             .filter(|o| o.bucket == bucket)
             .filter(|o| prefix.as_ref().map_or(true, |p| o.key.starts_with(p)))
             .take(limit as usize)
@@ -853,7 +925,10 @@ impl StorageBucketRepository for InMemoryStorageBucketRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, id: &StorageBucketId) -> Result<Option<StorageBucket>, StorageError> {
+    async fn find_by_id(
+        &self,
+        id: &StorageBucketId,
+    ) -> Result<Option<StorageBucket>, StorageError> {
         let buckets = self.buckets.read().unwrap();
         Ok(buckets.get(id).cloned())
     }
@@ -866,10 +941,7 @@ impl StorageBucketRepository for InMemoryStorageBucketRepository {
 
     async fn find_all(&self, limit: u32) -> Result<Vec<StorageBucket>, StorageError> {
         let buckets = self.buckets.read().unwrap();
-        let all: Vec<StorageBucket> = buckets.values()
-            .take(limit as usize)
-            .cloned()
-            .collect();
+        let all: Vec<StorageBucket> = buckets.values().take(limit as usize).cloned().collect();
         Ok(all)
     }
 
@@ -905,19 +977,21 @@ impl CacheRepository for InMemoryCacheRepository {
         Ok(entries.get(key).cloned())
     }
 
-    async fn find_by_tag(&self, tag: Option<String>, limit: u32) -> Result<Vec<CacheEntry>, StorageError> {
+    async fn find_by_tag(
+        &self,
+        tag: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<CacheEntry>, StorageError> {
         let entries = self.entries.read().unwrap();
         let filtered: Vec<CacheEntry> = if let Some(tag) = tag {
-            entries.values()
+            entries
+                .values()
                 .filter(|e| e.tags.contains(&tag))
                 .take(limit as usize)
                 .cloned()
                 .collect()
         } else {
-            entries.values()
-                .take(limit as usize)
-                .cloned()
-                .collect()
+            entries.values().take(limit as usize).cloned().collect()
         };
         Ok(filtered)
     }
@@ -955,7 +1029,11 @@ impl BasicStorageStrategyService {
 
 #[async_trait]
 impl StorageStrategyService for BasicStorageStrategyService {
-    async fn apply_strategy(&self, _strategy: &StorageStrategy, _target_bucket: &str) -> Result<StrategyApplicationResult, StorageError> {
+    async fn apply_strategy(
+        &self,
+        _strategy: &StorageStrategy,
+        _target_bucket: &str,
+    ) -> Result<StrategyApplicationResult, StorageError> {
         Ok(StrategyApplicationResult {
             strategy_name: _strategy.name.clone(),
             target_bucket: _target_bucket.to_string(),
@@ -1008,11 +1086,14 @@ impl StorageMetricsService for BasicStorageMetricsService {
         })
     }
 
-    async fn get_bucket_statistics(&self, _bucket_id: &str) -> Result<BucketStatistics, StorageError> {
+    async fn get_bucket_statistics(
+        &self,
+        _bucket_id: &str,
+    ) -> Result<BucketStatistics, StorageError> {
         Ok(BucketStatistics {
             bucket_id: _bucket_id.to_string(),
             object_count: 200,
-            total_size_bytes: 52428800, // 50MB
+            total_size_bytes: 52428800,  // 50MB
             average_object_size: 262144, // 256KB
             last_modified: Utc::now(),
             storage_class_distribution: HashMap::from([
@@ -1046,12 +1127,20 @@ impl BusinessRuleValidator<DataObject> for DataObjectKeyValidRule {
         "data_object_key_valid"
     }
 
-    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &DataObject,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         if entity.key.trim().is_empty() {
-            return Err(DomainError::Validation("Data object key cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Data object key cannot be empty".to_string(),
+            ));
         }
         if entity.key.len() > 1024 {
-            return Err(DomainError::Validation("Data object key is too long (max 1024 characters)".to_string()));
+            return Err(DomainError::Validation(
+                "Data object key is too long (max 1024 characters)".to_string(),
+            ));
         }
         Ok(())
     }
@@ -1069,10 +1158,17 @@ impl BusinessRuleValidator<DataObject> for DataObjectSizeValidRule {
         "data_object_size_valid"
     }
 
-    async fn validate(&self, entity: &DataObject, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &DataObject,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         const MAX_SIZE: u64 = 100 * 1024 * 1024; // 100MB
         if entity.size_bytes > MAX_SIZE {
-            return Err(DomainError::Validation(format!("Data object is too large (max {} bytes)", MAX_SIZE)));
+            return Err(DomainError::Validation(format!(
+                "Data object is too large (max {} bytes)",
+                MAX_SIZE
+            )));
         }
         Ok(())
     }

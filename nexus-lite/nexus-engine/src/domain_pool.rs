@@ -50,7 +50,7 @@ impl DomainPooledClient {
     pub fn with_full_config(
         timeout: Duration,
         max_connections_per_host: usize,
-        pool_idle_timeout: Duration
+        pool_idle_timeout: Duration,
     ) -> Self {
         Self {
             pools: DashMap::new(),
@@ -87,7 +87,7 @@ impl DomainPooledClient {
                 .pool_idle_timeout(self.pool_idle_timeout)
                 .tcp_keepalive(Duration::from_secs(60))
                 .tcp_nodelay(true)
-                .gzip(true)  // Enable compression
+                .gzip(true) // Enable compression
                 .no_deflate()
                 .brotli(true)
                 .build()

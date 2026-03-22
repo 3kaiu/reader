@@ -3,7 +3,7 @@ use axum::{
     Json,
 };
 use futures::future::join_all;
-use nexus_core::{BookInfo, ChapterContent, types::Chapter};
+use nexus_core::{types::Chapter, BookInfo, ChapterContent};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -86,32 +86,14 @@ pub async fn content(
         .get_engine(&query.source)
         .ok_or_else(|| not_found("Source"))?;
 
-    // Load replacement rules from storage
-    let mut rules = state
-        .store
-        .get_replace_rules()
+    let rules = state
+        .content_rules
+        .current()
         .await
         .map_err(|e| internal_error(e.to_string()))?;
 
-    // Load AI mapping rules and convert to ReplaceRules
-    if let Ok(ai_mappings) = state.store.get_ai_mapping_rules().await {
-        for mapping in ai_mappings {
-            if mapping.enabled {
-                rules.push(nexus_core::ReplaceRule {
-                    id: mapping.id,
-                    name: format!("AI: {}", mapping.original),
-                    pattern: mapping.original,
-                    replacement: Some(mapping.target),
-                    scope: Some("all".to_string()),
-                    is_enabled: true,
-                    is_regex: false,
-                });
-            }
-        }
-    }
-
     let content = engine
-        .content(&query.url, &rules)
+        .content(&query.url, rules.as_ref())
         .await
         .map_err(|e| internal_error(e.to_string()))?;
 
@@ -163,30 +145,11 @@ pub async fn batch_content(
         .get_engine(&query.source)
         .ok_or_else(|| not_found("Source"))?;
 
-    let mut rules = state
-        .store
-        .get_replace_rules()
+    let rules = state
+        .content_rules
+        .current()
         .await
         .map_err(|e| internal_error(e.to_string()))?;
-
-    // Load AI mapping rules and convert to ReplaceRules
-    if let Ok(ai_mappings) = state.store.get_ai_mapping_rules().await {
-        for mapping in ai_mappings {
-            if mapping.enabled {
-                rules.push(nexus_core::ReplaceRule {
-                    id: mapping.id,
-                    name: format!("AI: {}", mapping.original),
-                    pattern: mapping.original,
-                    replacement: Some(mapping.target),
-                    scope: Some("all".to_string()),
-                    is_enabled: true,
-                    is_regex: false,
-                });
-            }
-        }
-    }
-
-    let rules = Arc::new(rules);
 
     let mut futures = Vec::new();
 
@@ -205,7 +168,7 @@ pub async fn batch_content(
                 };
             }
 
-            match engine.content(&url_clone, &rules).await {
+            match engine.content(&url_clone, rules.as_ref()).await {
                 Ok(content) => BatchContentResult {
                     url: url_clone,
                     content: Some(content),

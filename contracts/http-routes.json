@@ -1,0 +1,78 @@
+{
+  "frontend": {
+    "edgeOnlyPrefixes": [
+      "/api/analytics",
+      "/api/preferences",
+      "/api/content/upload",
+      "/api/backup",
+      "/api/metrics/client",
+      "/progress/",
+      "/decode/",
+      "/auth/"
+    ],
+    "directEligiblePrefixes": [
+      "/api/search",
+      "/api/sources",
+      "/api/book",
+      "/api/chapters",
+      "/api/content",
+      "/api/batch/content",
+      "/api/bookshelf",
+      "/api/groups",
+      "/api/replace_rules",
+      "/api/discovery",
+      "/api/ai/",
+      "/ws/"
+    ]
+  },
+  "worker": {
+    "userServicePrefixes": [
+      "/api/health",
+      "/api/analytics/",
+      "/api/preferences",
+      "/api/content/upload",
+      "/api/backup",
+      "/api/metrics/client"
+    ],
+    "experimentalRoutes": [
+      "/api/search",
+      "/api/book",
+      "/api/chapters",
+      "/api/content"
+    ],
+    "experimentalExcludeRoutes": [
+      "/api/health",
+      "/api/analytics",
+      "/api/metrics"
+    ]
+  },
+  "backend": {
+    "requiredRoutes": [
+      "/api/health",
+      "/api/sources",
+      "/api/sources/{id}",
+      "/api/sources/{id}/status",
+      "/api/sources/health",
+      "/api/search",
+      "/api/search/stream",
+      "/ws/search",
+      "/api/book",
+      "/api/chapters",
+      "/api/content",
+      "/api/batch/content",
+      "/api/bookshelf",
+      "/api/bookshelf/{id}",
+      "/api/groups",
+      "/api/groups/{id}",
+      "/api/replace_rules",
+      "/api/replace_rules/{id}",
+      "/api/discovery",
+      "/api/ai/mappings",
+      "/api/ai/mappings/{id}",
+      "/api/ai/history",
+      "/api/voice/metadata",
+      "/api/voice/metadata/{id}",
+      "/api/voice/config/{key}"
+    ]
+  }
+}

@@ -36,8 +36,11 @@ pub async fn save_rule(
         .store
         .save_replace_rule(rule.clone())
         .await
-        .map(|_| Json(rule))
-        .map_err(|e| internal_error(e.to_string()))
+        .map_err(|e| internal_error(e.to_string()))?;
+
+    state.content_rules.invalidate().await;
+
+    Ok(Json(rule))
 }
 
 /// Delete a replace rule
@@ -49,6 +52,9 @@ pub async fn delete_rule(
         .store
         .delete_replace_rule(id)
         .await
-        .map(|_| StatusCode::NO_CONTENT)
-        .map_err(|e| internal_error(e.to_string()))
+        .map_err(|e| internal_error(e.to_string()))?;
+
+    state.content_rules.invalidate().await;
+
+    Ok(StatusCode::NO_CONTENT)
 }

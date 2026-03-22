@@ -11,11 +11,11 @@
 
 /// 展示层通用接口和类型
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use warp::Filter;
-use chrono::{DateTime, Utc};
 
 use crate::application::*;
 
@@ -227,34 +227,43 @@ impl ApiRouter {
             .and(warp::query::<HashMap<String, String>>())
             .and(warp::header::headers_cloned())
             .and(warp::body::json().or(warp::any().map(|| None)).unify())
-            .and_then(move |path, method: warp::http::Method, query: HashMap<String, String>, headers: warp::http::HeaderMap, body: Option<serde_json::Value>| {
-                let service_bus = service_bus.clone();
+            .and_then(
+                move |path,
+                      method: warp::http::Method,
+                      query: HashMap<String, String>,
+                      headers: warp::http::HeaderMap,
+                      body: Option<serde_json::Value>| {
+                    let service_bus = service_bus.clone();
 
-                async move {
-                    // 创建展示上下文
-                    let context = PresentationContext {
-                        user_id: None, // 从认证中间件获取
-                        session_id: None, // 从会话中间件获取
-                        request_id: uuid::Uuid::new_v4().to_string(),
-                        user_agent: headers.get("user-agent").and_then(|h| h.to_str().ok()).map(|s| s.to_string()),
-                        ip_address: None, // 从请求中获取
-                        timestamp: Utc::now(),
-                        locale: "zh-CN".to_string(),
-                        timezone: "Asia/Shanghai".to_string(),
-                    };
+                    async move {
+                        // 创建展示上下文
+                        let context = PresentationContext {
+                            user_id: None,    // 从认证中间件获取
+                            session_id: None, // 从会话中间件获取
+                            request_id: uuid::Uuid::new_v4().to_string(),
+                            user_agent: headers
+                                .get("user-agent")
+                                .and_then(|h| h.to_str().ok())
+                                .map(|s| s.to_string()),
+                            ip_address: None, // 从请求中获取
+                            timestamp: Utc::now(),
+                            locale: "zh-CN".to_string(),
+                            timezone: "Asia/Shanghai".to_string(),
+                        };
 
-                    // 查找匹配的路由处理器
-                    // 这里简化为返回一个默认响应，实际实现需要匹配具体路由
-                    let response = HttpApiResponse {
-                        status_code: 200,
-                        headers: HashMap::new(),
-                        body: Some(serde_json::json!({"message": "API endpoint"})),
-                        execution_time_ms: 10,
-                    };
+                        // 查找匹配的路由处理器
+                        // 这里简化为返回一个默认响应，实际实现需要匹配具体路由
+                        let response = HttpApiResponse {
+                            status_code: 200,
+                            headers: HashMap::new(),
+                            body: Some(serde_json::json!({"message": "API endpoint"})),
+                            execution_time_ms: 10,
+                        };
 
-                    Ok::<_, warp::Rejection>(warp::reply::json(&response.body))
-                }
-            });
+                        Ok::<_, warp::Rejection>(warp::reply::json(&response.body))
+                    }
+                },
+            );
 
         routes_filter.boxed()
     }
@@ -319,7 +328,9 @@ pub struct RateLimitMiddleware {
 
 impl RateLimitMiddleware {
     pub fn new(requests_per_minute: u32) -> Self {
-        Self { requests_per_minute }
+        Self {
+            requests_per_minute,
+        }
     }
 }
 
@@ -383,12 +394,16 @@ impl RequestValidator for DefaultRequestValidator {
     ) -> Result<(), PresentationError> {
         // 基本的请求验证
         if method.is_empty() || path.is_empty() {
-            return Err(PresentationError::BadRequest("Invalid request method or path".to_string()));
+            return Err(PresentationError::BadRequest(
+                "Invalid request method or path".to_string(),
+            ));
         }
 
         // 检查必需的头
         if !headers.contains_key("content-type") && body.is_some() {
-            return Err(PresentationError::BadRequest("Content-Type header required for requests with body".to_string()));
+            return Err(PresentationError::BadRequest(
+                "Content-Type header required for requests with body".to_string(),
+            ));
         }
 
         Ok(())
@@ -469,13 +484,15 @@ impl DtoMapper for ReadingDtoMapper {
         // 将请求DTO映射为阅读领域命令
         // 这里是简化的实现
         if let Some(book_id) = request.get("book_id").and_then(|v| v.as_str()) {
-            Ok(ApplicationCommand::Reading(crate::domain::ReadingCommand::CreateBook {
-                book_id: book_id.to_string(),
-                title: "Default Title".to_string(),
-                author: "Default Author".to_string(),
-                source_url: "http://example.com".to_string(),
-                source_engine: "default".to_string(),
-            }))
+            Ok(ApplicationCommand::Reading(
+                crate::domain::ReadingCommand::CreateBook {
+                    book_id: book_id.to_string(),
+                    title: "Default Title".to_string(),
+                    author: "Default Author".to_string(),
+                    source_url: "http://example.com".to_string(),
+                    source_engine: "default".to_string(),
+                },
+            ))
         } else {
             Err(PresentationError::BadRequest("Missing book_id".to_string()))
         }
@@ -488,9 +505,11 @@ impl DtoMapper for ReadingDtoMapper {
     ) -> Result<ApplicationQuery, PresentationError> {
         // 将请求DTO映射为阅读领域查询
         if let Some(book_id) = request.get("book_id").and_then(|v| v.as_str()) {
-            Ok(ApplicationQuery::Reading(crate::domain::ReadingQuery::GetBook {
-                book_id: book_id.to_string(),
-            }))
+            Ok(ApplicationQuery::Reading(
+                crate::domain::ReadingQuery::GetBook {
+                    book_id: book_id.to_string(),
+                },
+            ))
         } else {
             Err(PresentationError::BadRequest("Missing book_id".to_string()))
         }
@@ -506,12 +525,16 @@ impl DtoMapper for ReadingDtoMapper {
 }
 
 /// 展示层初始化函数
-pub async fn init_presentation_layer(service_bus: Arc<ApplicationServiceBus>) -> Result<ApiRouter, PresentationError> {
+pub async fn init_presentation_layer(
+    service_bus: Arc<ApplicationServiceBus>,
+) -> Result<ApiRouter, PresentationError> {
     let mut router = ApiRouter::new(service_bus);
 
     // 添加中间件
     router.add_middleware(Box::new(LoggingMiddleware::new()));
-    router.add_middleware(Box::new(AuthenticationMiddleware::new(router.service_bus())));
+    router.add_middleware(Box::new(AuthenticationMiddleware::new(
+        router.service_bus(),
+    )));
     router.add_middleware(Box::new(RateLimitMiddleware::new(1000))); // 每分钟1000个请求
 
     // 添加路由处理器

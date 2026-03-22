@@ -108,13 +108,22 @@ pub trait OptimizationEngine: Send + Sync {
     async fn collect_metrics(&self) -> Result<PerformanceMetrics, OptimizerError>;
 
     /// 生成优化建议
-    async fn generate_suggestions(&self, metrics: &PerformanceMetrics) -> Result<Vec<OptimizationSuggestion>, OptimizerError>;
+    async fn generate_suggestions(
+        &self,
+        metrics: &PerformanceMetrics,
+    ) -> Result<Vec<OptimizationSuggestion>, OptimizerError>;
 
     /// 执行优化
-    async fn execute_optimization(&self, suggestion: &OptimizationSuggestion) -> Result<OptimizationResult, OptimizerError>;
+    async fn execute_optimization(
+        &self,
+        suggestion: &OptimizationSuggestion,
+    ) -> Result<OptimizationResult, OptimizerError>;
 
     /// 回滚优化
-    async fn rollback_optimization(&self, result: &OptimizationResult) -> Result<(), OptimizerError>;
+    async fn rollback_optimization(
+        &self,
+        result: &OptimizationResult,
+    ) -> Result<(), OptimizerError>;
 
     /// 健康检查
     async fn health_check(&self) -> Result<(), OptimizerError>;
@@ -165,7 +174,11 @@ impl UnifiedOptimizer {
     }
 
     /// 注册优化引擎
-    pub fn register_engine(&mut self, category: OptimizationCategory, engine: Box<dyn OptimizationEngine>) {
+    pub fn register_engine(
+        &mut self,
+        category: OptimizationCategory,
+        engine: Box<dyn OptimizationEngine>,
+    ) {
         self.engines.insert(category, engine);
     }
 
@@ -227,7 +240,10 @@ impl UnifiedOptimizer {
     }
 
     /// 获取优化建议
-    pub async fn get_optimization_suggestions(&self, category: Option<OptimizationCategory>) -> Result<Vec<OptimizationSuggestion>, OptimizerError> {
+    pub async fn get_optimization_suggestions(
+        &self,
+        category: Option<OptimizationCategory>,
+    ) -> Result<Vec<OptimizationSuggestion>, OptimizerError> {
         let current_metrics = self.get_current_metrics().await?;
         let mut all_suggestions = Vec::new();
 
@@ -253,21 +269,32 @@ impl UnifiedOptimizer {
 
         // 按优先级和改进程度排序
         all_suggestions.sort_by(|a, b| {
-            b.priority.cmp(&a.priority)
-                .then(b.estimated_improvement_percent.partial_cmp(&a.estimated_improvement_percent).unwrap())
+            b.priority.cmp(&a.priority).then(
+                b.estimated_improvement_percent
+                    .partial_cmp(&a.estimated_improvement_percent)
+                    .unwrap(),
+            )
         });
 
         Ok(all_suggestions)
     }
 
     /// 执行优化
-    pub async fn execute_optimization(&self, suggestion_id: &str) -> Result<OptimizationResult, OptimizerError> {
+    pub async fn execute_optimization(
+        &self,
+        suggestion_id: &str,
+    ) -> Result<OptimizationResult, OptimizerError> {
         let suggestions = self.suggestions_cache.read().await;
-        let suggestion = suggestions.get(suggestion_id)
-            .ok_or_else(|| OptimizerError::OptimizationFailed(format!("Suggestion {} not found", suggestion_id)))?;
+        let suggestion = suggestions.get(suggestion_id).ok_or_else(|| {
+            OptimizerError::OptimizationFailed(format!("Suggestion {} not found", suggestion_id))
+        })?;
 
-        let engine = self.engines.get(&suggestion.category)
-            .ok_or_else(|| OptimizerError::OptimizationFailed(format!("Engine for category {:?} not found", suggestion.category)))?;
+        let engine = self.engines.get(&suggestion.category).ok_or_else(|| {
+            OptimizerError::OptimizationFailed(format!(
+                "Engine for category {:?} not found",
+                suggestion.category
+            ))
+        })?;
 
         let start_time = Instant::now();
         let result = engine.execute_optimization(suggestion).await?;
@@ -283,13 +310,19 @@ impl UnifiedOptimizer {
         };
 
         // 记录执行历史
-        self.execution_history.write().await.push(full_result.clone());
+        self.execution_history
+            .write()
+            .await
+            .push(full_result.clone());
 
         Ok(full_result)
     }
 
     /// 批量执行优化（顺序执行以避免 spawn 导致的 Send 约束）
-    pub async fn execute_optimizations_batch(&self, suggestion_ids: &[String]) -> Result<Vec<OptimizationResult>, OptimizerError> {
+    pub async fn execute_optimizations_batch(
+        &self,
+        suggestion_ids: &[String],
+    ) -> Result<Vec<OptimizationResult>, OptimizerError> {
         let mut results = Vec::new();
         for id in suggestion_ids {
             let result = self.execute_optimization(id).await?;
@@ -306,11 +339,16 @@ impl UnifiedOptimizer {
     }
 
     /// 获取性能趋势
-    pub async fn get_performance_trend(&self, duration_minutes: u32) -> Result<PerformanceTrend, OptimizerError> {
+    pub async fn get_performance_trend(
+        &self,
+        duration_minutes: u32,
+    ) -> Result<PerformanceTrend, OptimizerError> {
         let history = self.metrics_history.read().await;
-        let cutoff_time = chrono::Utc::now().timestamp_millis() as u64 - (duration_minutes as u64 * 60 * 1000);
+        let cutoff_time =
+            chrono::Utc::now().timestamp_millis() as u64 - (duration_minutes as u64 * 60 * 1000);
 
-        let relevant_metrics: Vec<_> = history.iter()
+        let relevant_metrics: Vec<_> = history
+            .iter()
             .filter(|m| m.timestamp >= cutoff_time)
             .collect();
 
@@ -326,18 +364,34 @@ impl UnifiedOptimizer {
             });
         }
 
-        let avg_memory = relevant_metrics.iter().map(|m| m.memory_usage_mb).sum::<f64>() / relevant_metrics.len() as f64;
-        let avg_cpu = relevant_metrics.iter().map(|m| m.cpu_usage_percent).sum::<f64>() / relevant_metrics.len() as f64;
-        let peak_memory = relevant_metrics.iter().map(|m| m.memory_usage_mb).fold(0.0, f64::max);
-        let peak_cpu = relevant_metrics.iter().map(|m| m.cpu_usage_percent).fold(0.0, f64::max);
+        let avg_memory = relevant_metrics
+            .iter()
+            .map(|m| m.memory_usage_mb)
+            .sum::<f64>()
+            / relevant_metrics.len() as f64;
+        let avg_cpu = relevant_metrics
+            .iter()
+            .map(|m| m.cpu_usage_percent)
+            .sum::<f64>()
+            / relevant_metrics.len() as f64;
+        let peak_memory = relevant_metrics
+            .iter()
+            .map(|m| m.memory_usage_mb)
+            .fold(0.0, f64::max);
+        let peak_cpu = relevant_metrics
+            .iter()
+            .map(|m| m.cpu_usage_percent)
+            .fold(0.0, f64::max);
 
         // 简单的趋势分析
         let trend_direction = if relevant_metrics.len() >= 2 {
-            let first_half = &relevant_metrics[0..relevant_metrics.len()/2];
-            let second_half = &relevant_metrics[relevant_metrics.len()/2..];
+            let first_half = &relevant_metrics[0..relevant_metrics.len() / 2];
+            let second_half = &relevant_metrics[relevant_metrics.len() / 2..];
 
-            let first_avg = first_half.iter().map(|m| m.cpu_usage_percent).sum::<f64>() / first_half.len() as f64;
-            let second_avg = second_half.iter().map(|m| m.cpu_usage_percent).sum::<f64>() / second_half.len() as f64;
+            let first_avg = first_half.iter().map(|m| m.cpu_usage_percent).sum::<f64>()
+                / first_half.len() as f64;
+            let second_avg = second_half.iter().map(|m| m.cpu_usage_percent).sum::<f64>()
+                / second_half.len() as f64;
 
             if second_avg > first_avg + 5.0 {
                 TrendDirection::Increasing
@@ -429,7 +483,10 @@ impl OptimizationEngine for DefaultOptimizationEngine {
         })
     }
 
-    async fn generate_suggestions(&self, metrics: &PerformanceMetrics) -> Result<Vec<OptimizationSuggestion>, OptimizerError> {
+    async fn generate_suggestions(
+        &self,
+        metrics: &PerformanceMetrics,
+    ) -> Result<Vec<OptimizationSuggestion>, OptimizerError> {
         let mut suggestions = Vec::new();
 
         match self.category {
@@ -458,7 +515,10 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         description: "CPU使用率过高，建议优化计算密集型任务".to_string(),
                         estimated_improvement_percent: 30.0,
                         implementation_complexity: Complexity::Medium,
-                        affected_components: vec!["thread_pool".to_string(), "task_scheduler".to_string()],
+                        affected_components: vec![
+                            "thread_pool".to_string(),
+                            "task_scheduler".to_string(),
+                        ],
                         prerequisites: vec![],
                     });
                 }
@@ -484,7 +544,10 @@ impl OptimizationEngine for DefaultOptimizationEngine {
         Ok(suggestions)
     }
 
-    async fn execute_optimization(&self, suggestion: &OptimizationSuggestion) -> Result<OptimizationResult, OptimizerError> {
+    async fn execute_optimization(
+        &self,
+        suggestion: &OptimizationSuggestion,
+    ) -> Result<OptimizationResult, OptimizerError> {
         // 简化的优化执行实现
         Ok(OptimizationResult {
             suggestion_id: suggestion.id.clone(),
@@ -496,7 +559,10 @@ impl OptimizationEngine for DefaultOptimizationEngine {
         })
     }
 
-    async fn rollback_optimization(&self, _result: &OptimizationResult) -> Result<(), OptimizerError> {
+    async fn rollback_optimization(
+        &self,
+        _result: &OptimizationResult,
+    ) -> Result<(), OptimizerError> {
         // 简化的回滚实现
         Ok(())
     }
@@ -516,12 +582,48 @@ impl OptimizerManager {
         let mut optimizer = UnifiedOptimizer::new(config);
 
         // 注册默认优化引擎
-        optimizer.register_engine(OptimizationCategory::Memory, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::Memory, "memory_optimizer")));
-        optimizer.register_engine(OptimizationCategory::CPU, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::CPU, "cpu_optimizer")));
-        optimizer.register_engine(OptimizationCategory::Cache, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::Cache, "cache_optimizer")));
-        optimizer.register_engine(OptimizationCategory::IO, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::IO, "io_optimizer")));
-        optimizer.register_engine(OptimizationCategory::Network, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::Network, "network_optimizer")));
-        optimizer.register_engine(OptimizationCategory::Algorithm, Box::new(DefaultOptimizationEngine::new(OptimizationCategory::Algorithm, "algorithm_optimizer")));
+        optimizer.register_engine(
+            OptimizationCategory::Memory,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::Memory,
+                "memory_optimizer",
+            )),
+        );
+        optimizer.register_engine(
+            OptimizationCategory::CPU,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::CPU,
+                "cpu_optimizer",
+            )),
+        );
+        optimizer.register_engine(
+            OptimizationCategory::Cache,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::Cache,
+                "cache_optimizer",
+            )),
+        );
+        optimizer.register_engine(
+            OptimizationCategory::IO,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::IO,
+                "io_optimizer",
+            )),
+        );
+        optimizer.register_engine(
+            OptimizationCategory::Network,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::Network,
+                "network_optimizer",
+            )),
+        );
+        optimizer.register_engine(
+            OptimizationCategory::Algorithm,
+            Box::new(DefaultOptimizationEngine::new(
+                OptimizationCategory::Algorithm,
+                "algorithm_optimizer",
+            )),
+        );
 
         Self {
             optimizer: Arc::new(RwLock::new(optimizer)),

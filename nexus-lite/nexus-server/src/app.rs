@@ -10,8 +10,8 @@ use nexus_engine::anti_crawl::{CfBypassStrategy, FallbackChain};
 use nexus_engine::fetcher::HttpFetcher;
 use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::sync::Arc;
-use tower_governor::{governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor};
 use tower_governor::GovernorLayer;
+use tower_governor::{governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor};
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -19,13 +19,17 @@ use tower_http::{
 };
 use tracing::info;
 
-use crate::{engine_registry::EngineRegistry, orchestrator::SearchOrchestrator, routes, ws};
+use crate::{
+    content_rules::ContentRuleResolver, engine_registry::EngineRegistry,
+    orchestrator::SearchOrchestrator, routes, ws,
+};
 
 /// Application state shared across handlers
 #[derive(Clone)]
 pub struct AppState {
     pub engine_registry: Arc<EngineRegistry>,
     pub store: Arc<SledStore>,
+    pub content_rules: Arc<ContentRuleResolver>,
     pub _chapter_cache: Arc<ChapterCache>,
     pub _fetcher: Arc<HttpFetcher>,
     pub _anti_crawl: Arc<FallbackChain>,
@@ -42,6 +46,11 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     info!("Loaded {} book sources", source_store.count());
 
     let store = Arc::new(SledStore::new(&config.storage.db_path)?);
+    let content_rules = Arc::new(ContentRuleResolver::new(
+        store.clone(),
+        config.features.enable_ai_content_rules,
+    ));
+    content_rules.refresh().await?;
     let chapter_cache = Arc::new(ChapterCache::new(
         &config.storage.cache_dir,
         config.limits.chapter_cache_mb,
@@ -84,6 +93,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let state = AppState {
         engine_registry,
         store,
+        content_rules,
         _chapter_cache: chapter_cache,
         _fetcher: fetcher,
         _anti_crawl: anti_crawl,

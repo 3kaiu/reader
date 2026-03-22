@@ -28,8 +28,8 @@ pub mod fetch_anti_crawl {
 /// Parsing result models and cache abstractions.
 pub mod parse_cache {
     pub use crate::cache::{
-        get_cache_manager, init_cache_manager, CacheConfig, CacheError, CacheManager, CacheMetadata,
-        CachePriority, CacheStats, PutOptions,
+        get_cache_manager, init_cache_manager, CacheConfig, CacheError, CacheManager,
+        CacheMetadata, CachePriority, CacheStats, PutOptions,
     };
     pub use crate::types::{Chapter, ChapterContent, TocItem};
 }

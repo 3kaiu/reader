@@ -43,36 +43,52 @@ impl SledStore {
     pub fn new(path: &Path) -> Result<Self, EngineError> {
         info!("Opening sled database at: {:?}", path);
 
-        let db = sled::open(path).map_err(|e| EngineError::Database { message: e.to_string() })?;
+        let db = sled::open(path).map_err(|e| EngineError::Database {
+            message: e.to_string(),
+        })?;
 
         Ok(Self {
             bookshelf: db
                 .open_tree("bookshelf")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             bookshelf_idx: db
                 .open_tree("bookshelf_idx")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
-            groups: db
-                .open_tree("groups")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
-            rules: db
-                .open_tree("rules")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
+            groups: db.open_tree("groups").map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?,
+            rules: db.open_tree("rules").map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?,
             ai_mappings: db
                 .open_tree("ai_mappings")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             ai_history: db
                 .open_tree("ai_history")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             voice_meta: db
                 .open_tree("voice_meta")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             voice_config: db
                 .open_tree("voice_config")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             source_status: db
                 .open_tree("source_status")
-                .map_err(|e| EngineError::Database { message: e.to_string() })?,
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             db,
             health: Arc::new(HealthTracker::new()),
         })
@@ -86,10 +102,9 @@ impl SledStore {
     // ========== Generic KV Helpers (Internal Sync) ==========
 
     fn get_sync<T: DeserializeOwned>(tree: &Tree, key: &str) -> Result<Option<T>, EngineError> {
-        match tree
-            .get(key)
-            .map_err(|e| EngineError::Database { message: e.to_string() })?
-        {
+        match tree.get(key).map_err(|e| EngineError::Database {
+            message: e.to_string(),
+        })? {
             Some(bytes) => {
                 let value: T = serde_json::from_slice(&bytes)?;
                 Ok(Some(value))
@@ -100,21 +115,25 @@ impl SledStore {
 
     fn put_sync<T: Serialize>(tree: &Tree, key: &str, value: &T) -> Result<(), EngineError> {
         let bytes = serde_json::to_vec(value)?;
-        tree.insert(key, bytes)
-            .map_err(|e| EngineError::Database { message: e.to_string() })?;
+        tree.insert(key, bytes).map_err(|e| EngineError::Database {
+            message: e.to_string(),
+        })?;
         Ok(())
     }
 
     fn delete_sync(tree: &Tree, key: &str) -> Result<(), EngineError> {
-        tree.remove(key)
-            .map_err(|e| EngineError::Database { message: e.to_string() })?;
+        tree.remove(key).map_err(|e| EngineError::Database {
+            message: e.to_string(),
+        })?;
         Ok(())
     }
 
     fn scan_all_sync<T: DeserializeOwned>(tree: &Tree) -> Result<Vec<T>, EngineError> {
         let mut results = Vec::new();
         for entry in tree.iter() {
-            let (_, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
+            let (_, value) = entry.map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
             let item: T = serde_json::from_slice(&value)?;
             results.push(item);
         }
@@ -132,7 +151,9 @@ impl SledStore {
             let mut results = Vec::new();
             // Use index for sorted retrieval
             for entry in idx_tree.iter() {
-                let (key, _) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
+                let (key, _) = entry.map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
                 let key_str = String::from_utf8_lossy(&key);
 
                 // Key format: {inverted_timestamp}:{id}
@@ -145,7 +166,9 @@ impl SledStore {
             Ok(results)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Add item to bookshelf
@@ -165,13 +188,17 @@ impl SledStore {
             let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
             idx_tree
                 .insert(idx_key, &[])
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
 
             debug!("Added book to shelf: {}", item.name);
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Update reading progress
@@ -203,12 +230,16 @@ impl SledStore {
                 let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
                 idx_tree
                     .insert(idx_key, &[])
-                    .map_err(|e| EngineError::Database { message: e.to_string() })?;
+                    .map_err(|e| EngineError::Database {
+                        message: e.to_string(),
+                    })?;
             }
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Remove from bookshelf
@@ -223,7 +254,9 @@ impl SledStore {
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Check if book exists
@@ -233,7 +266,9 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             // Scan all books to check (could optimize with secondary index if needed)
             for entry in bookshelf_tree.iter() {
-                let (_, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
+                let (_, value) = entry.map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
                 let item: BookshelfItem = serde_json::from_slice(&value)?;
                 if item.source_id.as_ref() == source_id && item.book_url.as_ref() == book_url {
                     return Ok(true);
@@ -242,7 +277,9 @@ impl SledStore {
             Ok(false)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Move book to group
@@ -261,7 +298,9 @@ impl SledStore {
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Helper: remove book from time index (Sync)
@@ -271,7 +310,9 @@ impl SledStore {
         let mut to_remove = None;
 
         for entry in idx_tree.iter() {
-            let (key, _) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
+            let (key, _) = entry.map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
             let key_str = String::from_utf8_lossy(&key);
             if key_str.ends_with(&prefix_to_find) {
                 to_remove = Some(key.to_vec());
@@ -280,9 +321,9 @@ impl SledStore {
         }
 
         if let Some(key) = to_remove {
-            idx_tree
-                .remove(key)
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+            idx_tree.remove(key).map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
         }
 
         Ok(())
@@ -298,14 +339,18 @@ impl SledStore {
             Ok(groups)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     pub async fn save_group(&self, group: BookGroup) -> Result<(), EngineError> {
         let groups_tree = self.groups.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&groups_tree, &group.id, &group))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn delete_group(&self, id: String) -> Result<(), EngineError> {
@@ -315,7 +360,9 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             // Clear group_id from all books in this group
             for entry in bookshelf_tree.iter() {
-                let (key, value) = entry.map_err(|e| EngineError::Database { message: e.to_string() })?;
+                let (key, value) = entry.map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
                 let mut item: BookshelfItem = serde_json::from_slice(&value)?;
                 if item.group_id.as_deref() == Some(&id) {
                     item.group_id = None;
@@ -326,7 +373,9 @@ impl SledStore {
             Self::delete_sync(&groups_tree, &id)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     // ========== Replace Rules (Async) ==========
@@ -335,21 +384,27 @@ impl SledStore {
         let rules_tree = self.rules.clone();
         tokio::task::spawn_blocking(move || Self::scan_all_sync(&rules_tree))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn save_replace_rule(&self, rule: ReplaceRule) -> Result<(), EngineError> {
         let rules_tree = self.rules.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&rules_tree, &rule.id, &rule))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn delete_replace_rule(&self, id: String) -> Result<(), EngineError> {
         let rules_tree = self.rules.clone();
         tokio::task::spawn_blocking(move || Self::delete_sync(&rules_tree, &id))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     // ========== AI Mapping Rules (Async) ==========
@@ -362,21 +417,27 @@ impl SledStore {
             Ok(rules)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     pub async fn save_ai_mapping_rule(&self, rule: AiMappingRule) -> Result<(), EngineError> {
         let mapping_tree = self.ai_mappings.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&mapping_tree, &rule.id, &rule))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn delete_ai_mapping_rule(&self, id: String) -> Result<(), EngineError> {
         let mapping_tree = self.ai_mappings.clone();
         tokio::task::spawn_blocking(move || Self::delete_sync(&mapping_tree, &id))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     // ========== AI Analysis History (Async) ==========
@@ -393,7 +454,9 @@ impl SledStore {
             Ok(history)
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     pub async fn save_ai_analysis_history(
@@ -403,19 +466,23 @@ impl SledStore {
         let history_tree = self.ai_history.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&history_tree, &history.id, &history))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn clear_ai_analysis_history(&self) -> Result<(), EngineError> {
         let history_tree = self.ai_history.clone();
         tokio::task::spawn_blocking(move || {
-            history_tree
-                .clear()
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+            history_tree.clear().map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     // ========== Voice Metadata (Async) ==========
@@ -424,21 +491,27 @@ impl SledStore {
         let voice_tree = self.voice_meta.clone();
         tokio::task::spawn_blocking(move || Self::scan_all_sync(&voice_tree))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn save_voice_metadata(&self, model: VoiceModelMetadata) -> Result<(), EngineError> {
         let voice_tree = self.voice_meta.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&voice_tree, &model.id, &model))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     pub async fn delete_voice_metadata(&self, id: String) -> Result<(), EngineError> {
         let voice_tree = self.voice_meta.clone();
         tokio::task::spawn_blocking(move || Self::delete_sync(&voice_tree, &id))
             .await
-            .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 
     // ========== Voice Configuration (Async) ==========
@@ -446,20 +519,21 @@ impl SledStore {
     pub async fn get_voice_config(&self, key: String) -> Result<Option<String>, EngineError> {
         let config_tree = self.voice_config.clone();
         tokio::task::spawn_blocking(move || {
-            match config_tree
-                .get(&key)
-                .map_err(|e| EngineError::Database { message: e.to_string() })?
-            {
+            match config_tree.get(&key).map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })? {
                 Some(bytes) => {
                     let bytes_ref: &[u8] = &bytes;
                     let s = String::from_utf8_lossy(bytes_ref);
                     Ok(Some(s.into_owned()))
-                },
+                }
                 None => Ok(None),
             }
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     pub async fn save_voice_config(&self, key: String, value: String) -> Result<(), EngineError> {
@@ -467,11 +541,15 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             config_tree
                 .insert(&key, value.as_bytes())
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     // ========== Source Status (Async) ==========
@@ -482,8 +560,9 @@ impl SledStore {
         tokio::task::spawn_blocking(move || {
             match status_tree
                 .get(&source_id)
-                .map_err(|e| EngineError::Database { message: e.to_string() })?
-            {
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })? {
                 Some(bytes) => {
                     // Store as "1" for enabled, "0" for disabled
                     Ok(bytes[0] == b'1')
@@ -492,7 +571,9 @@ impl SledStore {
             }
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Set source enabled status
@@ -506,23 +587,30 @@ impl SledStore {
             let value = if enabled { b"1" } else { b"0" };
             status_tree
                 .insert(&source_id, value)
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 
     /// Flush all pending writes to disk
     pub async fn flush(&self) -> Result<(), EngineError> {
         let db = self.db.clone();
         tokio::task::spawn_blocking(move || {
-            db.flush()
-                .map_err(|e| EngineError::Database { message: e.to_string() })?;
+            db.flush().map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
             Ok(())
         })
         .await
-        .map_err(|e| EngineError::Internal { message: format!("Storage execution failed: {}", e) })?
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
     }
 }
 

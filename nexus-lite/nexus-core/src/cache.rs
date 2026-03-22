@@ -133,7 +133,9 @@ impl MultiLevelCache {
     pub async fn new(config: CacheConfig) -> Result<Self, CacheError> {
         let memory_cache = Arc::new(RwLock::new(MemoryCache::new(config.memory_capacity).await?));
         let disk_cache = if config.disk_capacity > 0 {
-            Some(Arc::new(RwLock::new(DiskCache::new(config.disk_capacity).await?)))
+            Some(Arc::new(RwLock::new(
+                DiskCache::new(config.disk_capacity).await?,
+            )))
         } else {
             None
         };
@@ -197,7 +199,11 @@ where
 
     async fn put(&self, key: K, value: V, options: PutOptions) -> Result<(), CacheError> {
         // 写入内存缓存
-        self.memory_cache.write().await.put(key.clone(), value.clone(), options.clone()).await?;
+        self.memory_cache
+            .write()
+            .await
+            .put(key.clone(), value.clone(), options.clone())
+            .await?;
 
         // 写入Redis缓存（如果有）
         if let Some(redis) = &self.redis_cache {
@@ -206,8 +212,15 @@ where
 
         // 写入磁盘缓存（如果有且优先级足够高）
         if let Some(disk) = &self.disk_cache {
-            if matches!(options.priority, CachePriority::High | CachePriority::Critical) {
-                let _ = disk.write().await.put(key.clone(), value.clone(), options).await;
+            if matches!(
+                options.priority,
+                CachePriority::High | CachePriority::Critical
+            ) {
+                let _ = disk
+                    .write()
+                    .await
+                    .put(key.clone(), value.clone(), options)
+                    .await;
             }
         }
 
@@ -338,19 +351,26 @@ impl MemoryCache {
         }
     }
 
-    async fn put<V>(&mut self, key: impl std::fmt::Display, value: V, options: PutOptions) -> Result<(), CacheError>
+    async fn put<V>(
+        &mut self,
+        key: impl std::fmt::Display,
+        value: V,
+        options: PutOptions,
+    ) -> Result<(), CacheError>
     where
         V: serde::Serialize,
     {
         let key_str = key.to_string();
-        let value_json = serde_json::to_value(&value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let value_json =
+            serde_json::to_value(&value).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         let size_bytes = serde_json::to_string(&value_json)
             .map_err(|e| CacheError::Serialization(e.to_string()))?
             .len() as u64;
 
-        let expires_at = options.ttl.map(|ttl| chrono::Utc::now() + chrono::Duration::from_std(ttl).unwrap());
+        let expires_at = options
+            .ttl
+            .map(|ttl| chrono::Utc::now() + chrono::Duration::from_std(ttl).unwrap());
 
         let entry = CacheEntry {
             key: key_str.clone(),
@@ -461,7 +481,12 @@ impl DiskCache {
         Ok(None)
     }
 
-    async fn put<V>(&mut self, _key: impl std::fmt::Display, _value: V, _options: PutOptions) -> Result<(), CacheError> {
+    async fn put<V>(
+        &mut self,
+        _key: impl std::fmt::Display,
+        _value: V,
+        _options: PutOptions,
+    ) -> Result<(), CacheError> {
         // 简化的磁盘缓存实现
         Ok(())
     }
@@ -504,7 +529,12 @@ impl RedisCache {
         Ok(None)
     }
 
-    async fn put<V>(&self, _key: impl std::fmt::Display, _value: V, _options: PutOptions) -> Result<(), CacheError> {
+    async fn put<V>(
+        &self,
+        _key: impl std::fmt::Display,
+        _value: V,
+        _options: PutOptions,
+    ) -> Result<(), CacheError> {
         Ok(())
     }
 

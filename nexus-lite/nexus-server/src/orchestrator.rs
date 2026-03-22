@@ -99,21 +99,21 @@ impl SearchOrchestrator {
 
                         match result {
                             Ok(Ok(items)) => {
-                            let latency = start.elapsed();
-                            health_clone.record_success(&source_id, latency);
-                            debug!(
-                                "Source {} found {} items in {:?}",
-                                source_id,
-                                items.len(),
-                                latency
-                            );
-                            for item in items {
-                                if tx_clone.send(SearchResult::Item(item)).await.is_err() {
-                                    break;
+                                let latency = start.elapsed();
+                                health_clone.record_success(&source_id, latency);
+                                debug!(
+                                    "Source {} found {} items in {:?}",
+                                    source_id,
+                                    items.len(),
+                                    latency
+                                );
+                                for item in items {
+                                    if tx_clone.send(SearchResult::Item(item)).await.is_err() {
+                                        break;
+                                    }
                                 }
+                                break;
                             }
-                            break;
-                        }
                             Ok(Err(e)) => {
                                 let can_retry = e.is_retryable() && attempt < max_attempts;
                                 if can_retry {

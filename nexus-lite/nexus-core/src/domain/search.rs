@@ -8,9 +8,9 @@
 //! - 搜索历史(SearchHistory): 用户搜索行为记录
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -348,17 +348,20 @@ impl SearchDomain {
         })
     }
 
-    pub async fn handle_command(&self, command: SearchCommand) -> Result<DomainResult, DomainError> {
+    pub async fn handle_command(
+        &self,
+        command: SearchCommand,
+    ) -> Result<DomainResult, DomainError> {
         match command {
-            SearchCommand::ExecuteSearch { query } => {
-                self.execute_search(query).await
-            }
+            SearchCommand::ExecuteSearch { query } => self.execute_search(query).await,
             SearchCommand::RecordSearchResult { search_result } => {
                 self.record_search_result(search_result).await
             }
-            SearchCommand::GenerateRecommendations { user_id, context, limit } => {
-                self.generate_recommendations(user_id, context, limit).await
-            }
+            SearchCommand::GenerateRecommendations {
+                user_id,
+                context,
+                limit,
+            } => self.generate_recommendations(user_id, context, limit).await,
             SearchCommand::UpdateRecommendationMetrics { engine_id, metrics } => {
                 self.update_recommendation_metrics(engine_id, metrics).await
             }
@@ -368,20 +371,24 @@ impl SearchDomain {
         }
     }
 
-    pub async fn handle_query(&self, query: SearchDomainQuery) -> Result<DomainResult, DomainError> {
+    pub async fn handle_query(
+        &self,
+        query: SearchDomainQuery,
+    ) -> Result<DomainResult, DomainError> {
         match query {
-            SearchDomainQuery::SearchBooks { query } => {
-                self.search_books(query).await
-            }
+            SearchDomainQuery::SearchBooks { query } => self.search_books(query).await,
             SearchDomainQuery::GetSearchHistory { user_id, limit } => {
                 self.get_search_history(user_id, limit).await
             }
-            SearchDomainQuery::GetRecommendations { user_id, algorithm, limit } => {
-                self.get_recommendations(user_id, algorithm, limit).await
-            }
-            SearchDomainQuery::GetSearchAnalytics { user_id, time_range } => {
-                self.get_search_analytics(user_id, time_range).await
-            }
+            SearchDomainQuery::GetRecommendations {
+                user_id,
+                algorithm,
+                limit,
+            } => self.get_recommendations(user_id, algorithm, limit).await,
+            SearchDomainQuery::GetSearchAnalytics {
+                user_id,
+                time_range,
+            } => self.get_search_analytics(user_id, time_range).await,
             SearchDomainQuery::GetPopularSearches { limit } => {
                 self.get_popular_searches(limit).await
             }
@@ -432,15 +439,21 @@ impl SearchDomain {
                 result_count: result.total_count,
                 execution_time_ms: execution_time,
             })],
-            metadata: HashMap::from([
-                ("execution_time_ms".to_string(), serde_json::json!(execution_time)),
-            ]),
+            metadata: HashMap::from([(
+                "execution_time_ms".to_string(),
+                serde_json::json!(execution_time),
+            )]),
         })
     }
 
-    async fn record_search_result(&self, search_result: SearchResult) -> Result<DomainResult, DomainError> {
+    async fn record_search_result(
+        &self,
+        search_result: SearchResult,
+    ) -> Result<DomainResult, DomainError> {
         // 这里可以记录搜索结果用于分析
-        self.analytics_service.record_search_result(&search_result).await?;
+        self.analytics_service
+            .record_search_result(&search_result)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -457,7 +470,10 @@ impl SearchDomain {
         limit: u32,
     ) -> Result<DomainResult, DomainError> {
         let start_time = Utc::now();
-        let recommendations = self.recommendation_engine.generate_recommendations(&user_id, &context, limit).await?;
+        let recommendations = self
+            .recommendation_engine
+            .generate_recommendations(&user_id, &context, limit)
+            .await?;
         let execution_time = (Utc::now() - start_time).num_milliseconds() as u64;
 
         Ok(DomainResult {
@@ -471,14 +487,23 @@ impl SearchDomain {
             })],
             metadata: HashMap::from([
                 ("algorithm".to_string(), serde_json::json!("hybrid")),
-                ("execution_time_ms".to_string(), serde_json::json!(execution_time)),
+                (
+                    "execution_time_ms".to_string(),
+                    serde_json::json!(execution_time),
+                ),
             ]),
         })
     }
 
-    async fn update_recommendation_metrics(&self, engine_id: String, metrics: RecommendationMetrics) -> Result<DomainResult, DomainError> {
+    async fn update_recommendation_metrics(
+        &self,
+        engine_id: String,
+        metrics: RecommendationMetrics,
+    ) -> Result<DomainResult, DomainError> {
         // 更新推荐引擎性能指标
-        self.analytics_service.update_recommendation_metrics(&engine_id, &metrics).await?;
+        self.analytics_service
+            .update_recommendation_metrics(&engine_id, &metrics)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -488,7 +513,10 @@ impl SearchDomain {
         })
     }
 
-    async fn add_to_search_history(&self, history: SearchHistory) -> Result<DomainResult, DomainError> {
+    async fn add_to_search_history(
+        &self,
+        history: SearchHistory,
+    ) -> Result<DomainResult, DomainError> {
         self.search_history_repository.save(&history).await?;
 
         Ok(DomainResult {
@@ -503,8 +531,15 @@ impl SearchDomain {
         self.execute_search(query).await
     }
 
-    async fn get_search_history(&self, user_id: String, limit: Option<u32>) -> Result<DomainResult, DomainError> {
-        let history = self.search_history_repository.find_by_user(&user_id, limit.unwrap_or(20)).await?;
+    async fn get_search_history(
+        &self,
+        user_id: String,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let history = self
+            .search_history_repository
+            .find_by_user(&user_id, limit.unwrap_or(20))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -530,7 +565,8 @@ impl SearchDomain {
             mood_indicators: Vec::new(),
         };
 
-        self.generate_recommendations(user_id, context, limit.unwrap_or(10)).await
+        self.generate_recommendations(user_id, context, limit.unwrap_or(10))
+            .await
     }
 
     async fn get_search_analytics(
@@ -538,7 +574,10 @@ impl SearchDomain {
         user_id: Option<String>,
         time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
     ) -> Result<DomainResult, DomainError> {
-        let analytics = self.analytics_service.get_search_analytics(user_id, time_range).await?;
+        let analytics = self
+            .analytics_service
+            .get_search_analytics(user_id, time_range)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -577,23 +616,47 @@ pub trait RecommendationService: Send + Sync {
         context: &RecommendationContext,
         limit: u32,
     ) -> Result<Vec<RecommendationItem>, DomainError>;
-    async fn update_user_preferences(&self, user_id: &str, preferences: HashMap<String, f32>) -> Result<(), DomainError>;
-    async fn get_similar_books(&self, book_id: &str, limit: u32) -> Result<Vec<RecommendationItem>, DomainError>;
+    async fn update_user_preferences(
+        &self,
+        user_id: &str,
+        preferences: HashMap<String, f32>,
+    ) -> Result<(), DomainError>;
+    async fn get_similar_books(
+        &self,
+        book_id: &str,
+        limit: u32,
+    ) -> Result<Vec<RecommendationItem>, DomainError>;
 }
 
 #[async_trait]
 pub trait SearchHistoryRepository: Send + Sync {
     async fn save(&self, history: &SearchHistory) -> Result<(), DomainError>;
     async fn find_by_id(&self, id: &SearchHistoryId) -> Result<Option<SearchHistory>, DomainError>;
-    async fn find_by_user(&self, user_id: &str, limit: u32) -> Result<Vec<SearchHistory>, DomainError>;
-    async fn get_search_statistics(&self, user_id: &str, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SearchStatistics, DomainError>;
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        limit: u32,
+    ) -> Result<Vec<SearchHistory>, DomainError>;
+    async fn get_search_statistics(
+        &self,
+        user_id: &str,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SearchStatistics, DomainError>;
 }
 
 #[async_trait]
 pub trait SearchAnalyticsService: Send + Sync {
     async fn record_search_result(&self, result: &SearchResult) -> Result<(), DomainError>;
-    async fn update_recommendation_metrics(&self, engine_id: &str, metrics: &RecommendationMetrics) -> Result<(), DomainError>;
-    async fn get_search_analytics(&self, user_id: Option<String>, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SearchAnalytics, DomainError>;
+    async fn update_recommendation_metrics(
+        &self,
+        engine_id: &str,
+        metrics: &RecommendationMetrics,
+    ) -> Result<(), DomainError>;
+    async fn get_search_analytics(
+        &self,
+        user_id: Option<String>,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SearchAnalytics, DomainError>;
     async fn get_popular_searches(&self, limit: u32) -> Result<Vec<PopularSearch>, DomainError>;
 }
 
@@ -614,22 +677,20 @@ impl SearchEngine for SimpleSearchEngine {
     async fn search(&self, query: SearchQuery) -> Result<SearchResult, DomainError> {
         // 模拟搜索结果
         let result_id = SearchResultId(Uuid::new_v4().to_string());
-        let items = vec![
-            SearchResultItem {
-                book_id: "book1".to_string(),
-                title: "示例书籍1".to_string(),
-                author: "作者1".to_string(),
-                description: Some("书籍描述".to_string()),
-                cover_url: None,
-                genres: vec!["小说".to_string()],
-                rating: Some(4.5),
-                status: BookStatus::Ongoing,
-                word_count: 100000,
-                relevance_score: 0.95,
-                matched_keywords: query.keywords.clone(),
-                highlights: vec!["关键词高亮".to_string()],
-            },
-        ];
+        let items = vec![SearchResultItem {
+            book_id: "book1".to_string(),
+            title: "示例书籍1".to_string(),
+            author: "作者1".to_string(),
+            description: Some("书籍描述".to_string()),
+            cover_url: None,
+            genres: vec!["小说".to_string()],
+            rating: Some(4.5),
+            status: BookStatus::Ongoing,
+            word_count: 100000,
+            relevance_score: 0.95,
+            matched_keywords: query.keywords.clone(),
+            highlights: vec!["关键词高亮".to_string()],
+        }];
 
         Ok(SearchResult {
             id: result_id,
@@ -670,31 +731,43 @@ impl RecommendationService for HybridRecommendationEngine {
         limit: u32,
     ) -> Result<Vec<RecommendationItem>, DomainError> {
         // 模拟推荐结果
-        let recommendations = (0..limit).map(|i| RecommendationItem {
-            book_id: format!("rec_book_{}", i),
-            score: 0.8 - (i as f32 * 0.1),
-            reason: RecommendationReason::SimilarBooks,
-            algorithm_used: RecommendationAlgorithm::Hybrid,
-            confidence: 0.75,
-            features: vec!["genre_match".to_string(), "author_popular".to_string()],
-        }).collect();
+        let recommendations = (0..limit)
+            .map(|i| RecommendationItem {
+                book_id: format!("rec_book_{}", i),
+                score: 0.8 - (i as f32 * 0.1),
+                reason: RecommendationReason::SimilarBooks,
+                algorithm_used: RecommendationAlgorithm::Hybrid,
+                confidence: 0.75,
+                features: vec!["genre_match".to_string(), "author_popular".to_string()],
+            })
+            .collect();
 
         Ok(recommendations)
     }
 
-    async fn update_user_preferences(&self, _user_id: &str, _preferences: HashMap<String, f32>) -> Result<(), DomainError> {
+    async fn update_user_preferences(
+        &self,
+        _user_id: &str,
+        _preferences: HashMap<String, f32>,
+    ) -> Result<(), DomainError> {
         Ok(())
     }
 
-    async fn get_similar_books(&self, _book_id: &str, limit: u32) -> Result<Vec<RecommendationItem>, DomainError> {
-        let similar = (0..limit).map(|i| RecommendationItem {
-            book_id: format!("similar_book_{}", i),
-            score: 0.9 - (i as f32 * 0.05),
-            reason: RecommendationReason::SimilarBooks,
-            algorithm_used: RecommendationAlgorithm::ContentBased,
-            confidence: 0.8,
-            features: vec!["content_similarity".to_string()],
-        }).collect();
+    async fn get_similar_books(
+        &self,
+        _book_id: &str,
+        limit: u32,
+    ) -> Result<Vec<RecommendationItem>, DomainError> {
+        let similar = (0..limit)
+            .map(|i| RecommendationItem {
+                book_id: format!("similar_book_{}", i),
+                score: 0.9 - (i as f32 * 0.05),
+                reason: RecommendationReason::SimilarBooks,
+                algorithm_used: RecommendationAlgorithm::ContentBased,
+                confidence: 0.8,
+                features: vec!["content_similarity".to_string()],
+            })
+            .collect();
 
         Ok(similar)
     }
@@ -725,9 +798,14 @@ impl SearchHistoryRepository for InMemorySearchHistoryRepository {
         Ok(store.get(id).cloned())
     }
 
-    async fn find_by_user(&self, user_id: &str, limit: u32) -> Result<Vec<SearchHistory>, DomainError> {
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        limit: u32,
+    ) -> Result<Vec<SearchHistory>, DomainError> {
         let store = self.history.read().unwrap();
-        let filtered: Vec<SearchHistory> = store.values()
+        let filtered: Vec<SearchHistory> = store
+            .values()
             .filter(|h| h.user_id == user_id)
             .take(limit as usize)
             .cloned()
@@ -735,15 +813,22 @@ impl SearchHistoryRepository for InMemorySearchHistoryRepository {
         Ok(filtered)
     }
 
-    async fn get_search_statistics(&self, user_id: &str, _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SearchStatistics, DomainError> {
+    async fn get_search_statistics(
+        &self,
+        user_id: &str,
+        _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SearchStatistics, DomainError> {
         let store = self.history.read().unwrap();
-        let user_history: Vec<&SearchHistory> = store.values()
-            .filter(|h| h.user_id == user_id)
-            .collect();
+        let user_history: Vec<&SearchHistory> =
+            store.values().filter(|h| h.user_id == user_id).collect();
 
         let total_searches = user_history.len() as u64;
         let average_execution_time = if total_searches > 0 {
-            user_history.iter().map(|h| h.execution_time_ms).sum::<u64>() / total_searches
+            user_history
+                .iter()
+                .map(|h| h.execution_time_ms)
+                .sum::<u64>()
+                / total_searches
         } else {
             0
         };
@@ -770,11 +855,19 @@ impl SearchAnalyticsService for BasicSearchAnalyticsService {
         Ok(())
     }
 
-    async fn update_recommendation_metrics(&self, _engine_id: &str, _metrics: &RecommendationMetrics) -> Result<(), DomainError> {
+    async fn update_recommendation_metrics(
+        &self,
+        _engine_id: &str,
+        _metrics: &RecommendationMetrics,
+    ) -> Result<(), DomainError> {
         Ok(())
     }
 
-    async fn get_search_analytics(&self, _user_id: Option<String>, _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<SearchAnalytics, DomainError> {
+    async fn get_search_analytics(
+        &self,
+        _user_id: Option<String>,
+        _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<SearchAnalytics, DomainError> {
         Ok(SearchAnalytics {
             total_searches: 1000,
             unique_users: 500,
@@ -785,11 +878,17 @@ impl SearchAnalyticsService for BasicSearchAnalyticsService {
     }
 
     async fn get_popular_searches(&self, limit: u32) -> Result<Vec<PopularSearch>, DomainError> {
-        let popular = (0..limit).map(|i| PopularSearch {
-            keyword: format!("热门关键词{}", i),
-            search_count: 100 - (i as u64 * 5),
-            trend: if i % 2 == 0 { "上升".to_string() } else { "稳定".to_string() },
-        }).collect();
+        let popular = (0..limit)
+            .map(|i| PopularSearch {
+                keyword: format!("热门关键词{}", i),
+                search_count: 100 - (i as u64 * 5),
+                trend: if i % 2 == 0 {
+                    "上升".to_string()
+                } else {
+                    "稳定".to_string()
+                },
+            })
+            .collect();
 
         Ok(popular)
     }
@@ -805,9 +904,15 @@ impl BusinessRuleValidator<SearchQuery> for SearchQueryNotEmptyRule {
         "search_query_not_empty"
     }
 
-    async fn validate(&self, entity: &SearchQuery, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &SearchQuery,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         if entity.keywords.is_empty() {
-            return Err(DomainError::Validation("Search query keywords cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Search query keywords cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }
@@ -825,9 +930,15 @@ impl BusinessRuleValidator<SearchQuery> for SearchPageSizeValidRule {
         "search_page_size_valid"
     }
 
-    async fn validate(&self, entity: &SearchQuery, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &SearchQuery,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         if entity.page_size == 0 || entity.page_size > 100 {
-            return Err(DomainError::Validation("Page size must be between 1 and 100".to_string()));
+            return Err(DomainError::Validation(
+                "Page size must be between 1 and 100".to_string(),
+            ));
         }
         Ok(())
     }

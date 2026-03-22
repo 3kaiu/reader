@@ -32,14 +32,20 @@ impl SourceStore {
         }
 
         let mut count = 0;
-        let mut entries = tokio::fs::read_dir(&self.sources_dir)
-            .await
-            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+        let mut entries =
+            tokio::fs::read_dir(&self.sources_dir)
+                .await
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
 
-        while let Some(entry) = entries
-            .next_entry()
-            .await
-            .map_err(|e: std::io::Error| EngineError::FileIo { message: e.to_string() })?
+        while let Some(entry) =
+            entries
+                .next_entry()
+                .await
+                .map_err(|e: std::io::Error| EngineError::FileIo {
+                    message: e.to_string(),
+                })?
         {
             let path = entry.path();
             // Only load .nxs files
@@ -59,7 +65,9 @@ impl SourceStore {
     async fn load_file(&self, path: &Path) -> Result<usize, EngineError> {
         let content = tokio::fs::read_to_string(path)
             .await
-            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+            .map_err(|e| EngineError::FileIo {
+                message: e.to_string(),
+            })?;
 
         let content = content.trim();
 
@@ -94,7 +102,9 @@ impl SourceStore {
 
         tokio::fs::write(&path, content)
             .await
-            .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+            .map_err(|e| EngineError::FileIo {
+                message: e.to_string(),
+            })?;
 
         self.add(source.clone());
         Ok(())
@@ -107,7 +117,9 @@ impl SourceStore {
         if path.exists() {
             tokio::fs::remove_file(&path)
                 .await
-                .map_err(|e| EngineError::FileIo { message: e.to_string() })?;
+                .map_err(|e| EngineError::FileIo {
+                    message: e.to_string(),
+                })?;
         }
 
         self.sources.write().remove(id);

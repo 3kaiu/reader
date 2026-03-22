@@ -8,9 +8,9 @@
 //! - 用户会话(UserSession): 用户登录状态
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -138,9 +138,10 @@ impl User {
         self.avatar_url = avatar_url;
         self.increment_version();
 
-        self.uncommitted_events.push(DomainEvent::User(UserEvent::UserProfileUpdated {
-            user_id: self.id.0.clone(),
-        }));
+        self.uncommitted_events
+            .push(DomainEvent::User(UserEvent::UserProfileUpdated {
+                user_id: self.id.0.clone(),
+            }));
     }
 
     /// 更新用户偏好
@@ -148,9 +149,10 @@ impl User {
         self.preferences = preferences;
         self.increment_version();
 
-        self.uncommitted_events.push(DomainEvent::User(UserEvent::UserPreferencesUpdated {
-            user_id: self.id.0.clone(),
-        }));
+        self.uncommitted_events
+            .push(DomainEvent::User(UserEvent::UserPreferencesUpdated {
+                user_id: self.id.0.clone(),
+            }));
     }
 
     /// 记录登录
@@ -158,9 +160,10 @@ impl User {
         self.last_login_at = Some(Utc::now());
         self.increment_version();
 
-        self.uncommitted_events.push(DomainEvent::User(UserEvent::UserLoggedIn {
-            user_id: self.id.0.clone(),
-        }));
+        self.uncommitted_events
+            .push(DomainEvent::User(UserEvent::UserLoggedIn {
+                user_id: self.id.0.clone(),
+            }));
     }
 
     /// 更改用户状态
@@ -170,11 +173,12 @@ impl User {
             self.status = status.clone();
             self.increment_version();
 
-            self.uncommitted_events.push(DomainEvent::User(UserEvent::UserStatusChanged {
-                user_id: self.id.0.clone(),
-                old_status: format!("{:?}", old_status),
-                new_status: format!("{:?}", status),
-            }));
+            self.uncommitted_events
+                .push(DomainEvent::User(UserEvent::UserStatusChanged {
+                    user_id: self.id.0.clone(),
+                    old_status: format!("{:?}", old_status),
+                    new_status: format!("{:?}", status),
+                }));
         }
     }
 
@@ -185,11 +189,12 @@ impl User {
             self.role = role.clone();
             self.increment_version();
 
-            self.uncommitted_events.push(DomainEvent::User(UserEvent::UserRoleChanged {
-                user_id: self.id.0.clone(),
-                old_role: format!("{:?}", old_role),
-                new_role: format!("{:?}", role),
-            }));
+            self.uncommitted_events
+                .push(DomainEvent::User(UserEvent::UserRoleChanged {
+                    user_id: self.id.0.clone(),
+                    old_role: format!("{:?}", old_role),
+                    new_role: format!("{:?}", role),
+                }));
         }
     }
 
@@ -606,62 +611,77 @@ impl UserDomain {
 
     pub async fn handle_command(&self, command: UserCommand) -> Result<DomainResult, DomainError> {
         match command {
-            UserCommand::CreateUser { user_id, username, email, password_hash } => {
-                self.create_user(user_id, username, email, password_hash).await
+            UserCommand::CreateUser {
+                user_id,
+                username,
+                email,
+                password_hash,
+            } => {
+                self.create_user(user_id, username, email, password_hash)
+                    .await
             }
-            UserCommand::UpdateUserProfile { user_id, display_name, avatar_url, profile } => {
-                self.update_user_profile(user_id, display_name, avatar_url, profile).await
+            UserCommand::UpdateUserProfile {
+                user_id,
+                display_name,
+                avatar_url,
+                profile,
+            } => {
+                self.update_user_profile(user_id, display_name, avatar_url, profile)
+                    .await
             }
-            UserCommand::UpdateUserPreferences { user_id, preferences } => {
-                self.update_user_preferences(user_id, preferences).await
-            }
-            UserCommand::ChangeUserPassword { user_id, new_password_hash } => {
-                self.change_user_password(user_id, new_password_hash).await
-            }
+            UserCommand::UpdateUserPreferences {
+                user_id,
+                preferences,
+            } => self.update_user_preferences(user_id, preferences).await,
+            UserCommand::ChangeUserPassword {
+                user_id,
+                new_password_hash,
+            } => self.change_user_password(user_id, new_password_hash).await,
             UserCommand::ChangeUserStatus { user_id, status } => {
                 self.change_user_status(user_id, status).await
             }
             UserCommand::UpgradeUserRole { user_id, role } => {
                 self.upgrade_user_role(user_id, role).await
             }
-            UserCommand::CreateUserSession { user_id, device_info, ip_address, user_agent } => {
-                self.create_user_session(user_id, device_info, ip_address, user_agent).await
+            UserCommand::CreateUserSession {
+                user_id,
+                device_info,
+                ip_address,
+                user_agent,
+            } => {
+                self.create_user_session(user_id, device_info, ip_address, user_agent)
+                    .await
             }
-            UserCommand::EndUserSession { session_id } => {
-                self.end_user_session(session_id).await
-            }
-            UserCommand::AuthenticateUser { username_or_email, password_hash } => {
-                self.authenticate_user(username_or_email, password_hash).await
+            UserCommand::EndUserSession { session_id } => self.end_user_session(session_id).await,
+            UserCommand::AuthenticateUser {
+                username_or_email,
+                password_hash,
+            } => {
+                self.authenticate_user(username_or_email, password_hash)
+                    .await
             }
         }
     }
 
     pub async fn handle_query(&self, query: UserQuery) -> Result<DomainResult, DomainError> {
         match query {
-            UserQuery::GetUser { user_id } => {
-                self.get_user(user_id).await
-            }
-            UserQuery::GetUserByUsername { username } => {
-                self.get_user_by_username(username).await
-            }
-            UserQuery::GetUserByEmail { email } => {
-                self.get_user_by_email(email).await
-            }
-            UserQuery::GetUserProfile { user_id } => {
-                self.get_user_profile(user_id).await
-            }
-            UserQuery::GetUserPreferences { user_id } => {
-                self.get_user_preferences(user_id).await
-            }
-            UserQuery::GetUserSessions { user_id, active_only, limit } => {
-                self.get_user_sessions(user_id, active_only, limit).await
-            }
-            UserQuery::GetUserStatistics { user_id } => {
-                self.get_user_statistics(user_id).await
-            }
-            UserQuery::ListUsers { status, role, limit, offset } => {
-                self.list_users(status, role, limit, offset).await
-            }
+            UserQuery::GetUser { user_id } => self.get_user(user_id).await,
+            UserQuery::GetUserByUsername { username } => self.get_user_by_username(username).await,
+            UserQuery::GetUserByEmail { email } => self.get_user_by_email(email).await,
+            UserQuery::GetUserProfile { user_id } => self.get_user_profile(user_id).await,
+            UserQuery::GetUserPreferences { user_id } => self.get_user_preferences(user_id).await,
+            UserQuery::GetUserSessions {
+                user_id,
+                active_only,
+                limit,
+            } => self.get_user_sessions(user_id, active_only, limit).await,
+            UserQuery::GetUserStatistics { user_id } => self.get_user_statistics(user_id).await,
+            UserQuery::ListUsers {
+                status,
+                role,
+                limit,
+                offset,
+            } => self.list_users(status, role, limit, offset).await,
         }
     }
 
@@ -703,7 +723,10 @@ impl UserDomain {
         profile: UserProfile,
     ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         user.update_profile(display_name, avatar_url);
@@ -718,9 +741,16 @@ impl UserDomain {
         })
     }
 
-    async fn update_user_preferences(&self, user_id: String, preferences: UserPreferences) -> Result<DomainResult, DomainError> {
+    async fn update_user_preferences(
+        &self,
+        user_id: String,
+        preferences: UserPreferences,
+    ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         user.update_preferences(preferences);
@@ -734,18 +764,26 @@ impl UserDomain {
         })
     }
 
-    async fn change_user_password(&self, user_id: String, new_password_hash: String) -> Result<DomainResult, DomainError> {
+    async fn change_user_password(
+        &self,
+        user_id: String,
+        new_password_hash: String,
+    ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         user.security_info.password_hash = new_password_hash;
         user.security_info.password_updated_at = Utc::now();
         user.increment_version();
 
-        user.uncommitted_events.push(DomainEvent::User(UserEvent::UserPasswordChanged {
-            user_id: user_id.0,
-        }));
+        user.uncommitted_events
+            .push(DomainEvent::User(UserEvent::UserPasswordChanged {
+                user_id: user_id.0,
+            }));
 
         self.user_repository.save(&user).await?;
 
@@ -757,9 +795,16 @@ impl UserDomain {
         })
     }
 
-    async fn change_user_status(&self, user_id: String, status: UserStatus) -> Result<DomainResult, DomainError> {
+    async fn change_user_status(
+        &self,
+        user_id: String,
+        status: UserStatus,
+    ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         user.change_status(status);
@@ -773,9 +818,16 @@ impl UserDomain {
         })
     }
 
-    async fn upgrade_user_role(&self, user_id: String, role: UserRole) -> Result<DomainResult, DomainError> {
+    async fn upgrade_user_role(
+        &self,
+        user_id: String,
+        role: UserRole,
+    ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         user.upgrade_role(role);
@@ -816,7 +868,10 @@ impl UserDomain {
         self.session_repository.save(&session).await?;
 
         // 更新用户最后登录时间
-        let mut user = self.user_repository.find_by_id(&user_id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
         user.record_login();
         self.user_repository.save(&user).await?;
@@ -830,9 +885,7 @@ impl UserDomain {
                     session_id: session_id.0,
                     user_id: uid.clone(),
                 }),
-                DomainEvent::User(UserEvent::UserLoggedIn {
-                    user_id: uid,
-                }),
+                DomainEvent::User(UserEvent::UserLoggedIn { user_id: uid }),
             ],
             metadata: HashMap::new(),
         })
@@ -840,7 +893,10 @@ impl UserDomain {
 
     async fn end_user_session(&self, session_id: String) -> Result<DomainResult, DomainError> {
         let session_id = UserSessionId(session_id);
-        let mut session = self.session_repository.find_by_id(&session_id).await?
+        let mut session = self
+            .session_repository
+            .find_by_id(&session_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Session {} not found", session_id.0)))?;
 
         session.ended_at = Some(Utc::now());
@@ -858,38 +914,45 @@ impl UserDomain {
         })
     }
 
-    async fn authenticate_user(&self, username_or_email: String, password_hash: String) -> Result<DomainResult, DomainError> {
+    async fn authenticate_user(
+        &self,
+        username_or_email: String,
+        password_hash: String,
+    ) -> Result<DomainResult, DomainError> {
         let user = if username_or_email.contains('@') {
-            self.user_repository.find_by_email(&username_or_email).await?
+            self.user_repository
+                .find_by_email(&username_or_email)
+                .await?
         } else {
-            self.user_repository.find_by_username(&username_or_email).await?
+            self.user_repository
+                .find_by_username(&username_or_email)
+                .await?
         };
 
         match user {
-            Some(user) if user.security_info.password_hash == password_hash => {
-                Ok(DomainResult {
-                    success: true,
-                    data: Some(serde_json::json!({
-                        "user_id": user.id.0,
-                        "username": user.username,
-                        "role": user.role,
-                        "status": user.status
-                    })),
-                    events: vec![DomainEvent::User(UserEvent::UserLoggedIn {
-                        user_id: user.id.0,
-                    })],
-                    metadata: HashMap::from([
-                        ("authenticated".to_string(), serde_json::json!(true)),
-                    ]),
-                })
-            }
+            Some(user) if user.security_info.password_hash == password_hash => Ok(DomainResult {
+                success: true,
+                data: Some(serde_json::json!({
+                    "user_id": user.id.0,
+                    "username": user.username,
+                    "role": user.role,
+                    "status": user.status
+                })),
+                events: vec![DomainEvent::User(UserEvent::UserLoggedIn {
+                    user_id: user.id.0,
+                })],
+                metadata: HashMap::from([("authenticated".to_string(), serde_json::json!(true))]),
+            }),
             _ => Err(DomainError::Unauthorized("Invalid credentials".to_string())),
         }
     }
 
     async fn get_user(&self, user_id: String) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let user = self.user_repository.find_by_id(&user_id).await?
+        let user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         Ok(DomainResult {
@@ -901,8 +964,13 @@ impl UserDomain {
     }
 
     async fn get_user_by_username(&self, username: String) -> Result<DomainResult, DomainError> {
-        let user = self.user_repository.find_by_username(&username).await?
-            .ok_or_else(|| DomainError::NotFound(format!("User with username {} not found", username)))?;
+        let user = self
+            .user_repository
+            .find_by_username(&username)
+            .await?
+            .ok_or_else(|| {
+                DomainError::NotFound(format!("User with username {} not found", username))
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -913,7 +981,10 @@ impl UserDomain {
     }
 
     async fn get_user_by_email(&self, email: String) -> Result<DomainResult, DomainError> {
-        let user = self.user_repository.find_by_email(&email).await?
+        let user = self
+            .user_repository
+            .find_by_email(&email)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User with email {} not found", email)))?;
 
         Ok(DomainResult {
@@ -926,7 +997,10 @@ impl UserDomain {
 
     async fn get_user_profile(&self, user_id: String) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let user = self.user_repository.find_by_id(&user_id).await?
+        let user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         Ok(DomainResult {
@@ -939,7 +1013,10 @@ impl UserDomain {
 
     async fn get_user_preferences(&self, user_id: String) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let user = self.user_repository.find_by_id(&user_id).await?
+        let user = self
+            .user_repository
+            .find_by_id(&user_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("User {} not found", user_id.0)))?;
 
         Ok(DomainResult {
@@ -950,9 +1027,17 @@ impl UserDomain {
         })
     }
 
-    async fn get_user_sessions(&self, user_id: String, active_only: bool, limit: Option<u32>) -> Result<DomainResult, DomainError> {
+    async fn get_user_sessions(
+        &self,
+        user_id: String,
+        active_only: bool,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let sessions = self.session_repository.find_by_user(&user_id, active_only, limit.unwrap_or(20)).await?;
+        let sessions = self
+            .session_repository
+            .find_by_user(&user_id, active_only, limit.unwrap_or(20))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -964,7 +1049,10 @@ impl UserDomain {
 
     async fn get_user_statistics(&self, user_id: String) -> Result<DomainResult, DomainError> {
         let user_id = UserId(user_id);
-        let stats = self.session_repository.get_user_statistics(&user_id).await?;
+        let stats = self
+            .session_repository
+            .get_user_statistics(&user_id)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -974,8 +1062,17 @@ impl UserDomain {
         })
     }
 
-    async fn list_users(&self, status: Option<UserStatus>, role: Option<UserRole>, limit: Option<u32>, offset: Option<u32>) -> Result<DomainResult, DomainError> {
-        let users = self.user_repository.list_users(status, role, limit.unwrap_or(50), offset.unwrap_or(0)).await?;
+    async fn list_users(
+        &self,
+        status: Option<UserStatus>,
+        role: Option<UserRole>,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let users = self
+            .user_repository
+            .list_users(status, role, limit.unwrap_or(50), offset.unwrap_or(0))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -994,27 +1091,46 @@ pub trait UserRepository: Send + Sync {
     async fn find_by_id(&self, id: &UserId) -> Result<Option<User>, DomainError>;
     async fn find_by_username(&self, username: &str) -> Result<Option<User>, DomainError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError>;
-    async fn list_users(&self, status: Option<UserStatus>, role: Option<UserRole>, limit: u32, offset: u32) -> Result<Vec<User>, DomainError>;
+    async fn list_users(
+        &self,
+        status: Option<UserStatus>,
+        role: Option<UserRole>,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<User>, DomainError>;
 }
 
 #[async_trait]
 pub trait UserSessionRepository: Send + Sync {
     async fn save(&self, session: &UserSession) -> Result<(), DomainError>;
     async fn find_by_id(&self, id: &UserSessionId) -> Result<Option<UserSession>, DomainError>;
-    async fn find_by_user(&self, user_id: &UserId, active_only: bool, limit: u32) -> Result<Vec<UserSession>, DomainError>;
+    async fn find_by_user(
+        &self,
+        user_id: &UserId,
+        active_only: bool,
+        limit: u32,
+    ) -> Result<Vec<UserSession>, DomainError>;
     async fn get_user_statistics(&self, user_id: &UserId) -> Result<UserStatistics, DomainError>;
 }
 
 #[async_trait]
 pub trait AuthenticationService: Send + Sync {
-    async fn authenticate(&self, username_or_email: &str, password_hash: &str) -> Result<User, DomainError>;
+    async fn authenticate(
+        &self,
+        username_or_email: &str,
+        password_hash: &str,
+    ) -> Result<User, DomainError>;
     async fn validate_session(&self, session_id: &str) -> Result<User, DomainError>;
     async fn invalidate_session(&self, session_id: &str) -> Result<(), DomainError>;
 }
 
 #[async_trait]
 pub trait AuthorizationService: Send + Sync {
-    async fn check_permission(&self, user: &User, permission: &Permission) -> Result<bool, DomainError>;
+    async fn check_permission(
+        &self,
+        user: &User,
+        permission: &Permission,
+    ) -> Result<bool, DomainError>;
     async fn get_user_permissions(&self, user: &User) -> Result<Vec<Permission>, DomainError>;
 }
 
@@ -1057,9 +1173,16 @@ impl UserRepository for InMemoryUserRepository {
         Ok(user)
     }
 
-    async fn list_users(&self, status: Option<UserStatus>, role: Option<UserRole>, limit: u32, _offset: u32) -> Result<Vec<User>, DomainError> {
+    async fn list_users(
+        &self,
+        status: Option<UserStatus>,
+        role: Option<UserRole>,
+        limit: u32,
+        _offset: u32,
+    ) -> Result<Vec<User>, DomainError> {
         let users = self.users.read().unwrap();
-        let filtered: Vec<User> = users.values()
+        let filtered: Vec<User> = users
+            .values()
             .filter(|u| status.as_ref().map_or(true, |s| matches!(&u.status, s)))
             .filter(|u| role.as_ref().map_or(true, |r| matches!(&u.role, r)))
             .take(limit as usize)
@@ -1094,9 +1217,15 @@ impl UserSessionRepository for InMemoryUserSessionRepository {
         Ok(sessions.get(id).cloned())
     }
 
-    async fn find_by_user(&self, user_id: &UserId, active_only: bool, limit: u32) -> Result<Vec<UserSession>, DomainError> {
+    async fn find_by_user(
+        &self,
+        user_id: &UserId,
+        active_only: bool,
+        limit: u32,
+    ) -> Result<Vec<UserSession>, DomainError> {
         let sessions = self.sessions.read().unwrap();
-        let filtered: Vec<UserSession> = sessions.values()
+        let filtered: Vec<UserSession> = sessions
+            .values()
             .filter(|s| &s.user_id == user_id)
             .filter(|s| !active_only || s.is_active)
             .take(limit as usize)
@@ -1107,14 +1236,19 @@ impl UserSessionRepository for InMemoryUserSessionRepository {
 
     async fn get_user_statistics(&self, user_id: &UserId) -> Result<UserStatistics, DomainError> {
         let sessions = self.sessions.read().unwrap();
-        let user_sessions: Vec<&UserSession> = sessions.values()
+        let user_sessions: Vec<&UserSession> = sessions
+            .values()
             .filter(|s| &s.user_id == user_id)
             .collect();
 
         let total_sessions = user_sessions.len() as u64;
         let active_sessions = user_sessions.iter().filter(|s| s.is_active).count() as u32;
-        let total_session_time: u64 = user_sessions.iter()
-            .filter_map(|s| s.ended_at.map(|end| (end - s.started_at).num_seconds() as u64))
+        let total_session_time: u64 = user_sessions
+            .iter()
+            .filter_map(|s| {
+                s.ended_at
+                    .map(|end| (end - s.started_at).num_seconds() as u64)
+            })
             .sum();
 
         let average_session_time = if total_sessions > 0 {
@@ -1142,14 +1276,22 @@ impl BasicAuthenticationService {
 
 #[async_trait]
 impl AuthenticationService for BasicAuthenticationService {
-    async fn authenticate(&self, username_or_email: &str, password_hash: &str) -> Result<User, DomainError> {
+    async fn authenticate(
+        &self,
+        username_or_email: &str,
+        password_hash: &str,
+    ) -> Result<User, DomainError> {
         // 简化实现 - 在实际应用中应该查询数据库
-        Err(DomainError::Unauthorized("Authentication not implemented".to_string()))
+        Err(DomainError::Unauthorized(
+            "Authentication not implemented".to_string(),
+        ))
     }
 
     async fn validate_session(&self, session_id: &str) -> Result<User, DomainError> {
         // 简化实现
-        Err(DomainError::Unauthorized("Session validation not implemented".to_string()))
+        Err(DomainError::Unauthorized(
+            "Session validation not implemented".to_string(),
+        ))
     }
 
     async fn invalidate_session(&self, session_id: &str) -> Result<(), DomainError> {
@@ -1168,7 +1310,11 @@ impl RBACAuthorizationService {
 
 #[async_trait]
 impl AuthorizationService for RBACAuthorizationService {
-    async fn check_permission(&self, user: &User, permission: &Permission) -> Result<bool, DomainError> {
+    async fn check_permission(
+        &self,
+        user: &User,
+        permission: &Permission,
+    ) -> Result<bool, DomainError> {
         Ok(user.has_permission(permission))
     }
 
@@ -1181,7 +1327,8 @@ impl AuthorizationService for RBACAuthorizationService {
             Permission::PremiumFeature,
         ];
 
-        let user_permissions: Vec<Permission> = all_permissions.into_iter()
+        let user_permissions: Vec<Permission> = all_permissions
+            .into_iter()
             .filter(|p| user.has_permission(p))
             .collect();
 
@@ -1221,7 +1368,9 @@ impl BusinessRuleValidator<User> for UsernameNotEmptyRule {
 
     async fn validate(&self, entity: &User, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.username.trim().is_empty() {
-            return Err(DomainError::Validation("Username cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Username cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }
@@ -1252,7 +1401,9 @@ impl BusinessRuleValidator<User> for UsernameUniqueRule {
     async fn validate(&self, entity: &User, _context: &DomainContext) -> Result<(), DomainError> {
         let existing = self.existing_usernames.read().unwrap();
         if existing.contains_key(&entity.username) {
-            return Err(DomainError::Validation("Username already exists".to_string()));
+            return Err(DomainError::Validation(
+                "Username already exists".to_string(),
+            ));
         }
 
         // 添加到已知用户名中

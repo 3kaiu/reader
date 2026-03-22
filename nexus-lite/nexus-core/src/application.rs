@@ -11,10 +11,10 @@
 
 /// 应用层通用接口和类型
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -26,7 +26,10 @@ pub trait ApplicationService: Send + Sync {
     fn name(&self) -> &str;
 
     /// 执行应用服务
-    async fn execute(&self, command: ApplicationCommand) -> Result<ApplicationResult, ApplicationError>;
+    async fn execute(
+        &self,
+        command: ApplicationCommand,
+    ) -> Result<ApplicationResult, ApplicationError>;
 
     /// 查询数据
     async fn query(&self, query: ApplicationQuery) -> Result<ApplicationResult, ApplicationError>;
@@ -151,7 +154,12 @@ pub trait CacheManager: Send + Sync {
     async fn get(&self, key: &str) -> Result<Option<serde_json::Value>, ApplicationError>;
 
     /// 设置缓存
-    async fn set(&self, key: &str, value: serde_json::Value, ttl_seconds: Option<u64>) -> Result<(), ApplicationError>;
+    async fn set(
+        &self,
+        key: &str,
+        value: serde_json::Value,
+        ttl_seconds: Option<u64>,
+    ) -> Result<(), ApplicationError>;
 
     /// 删除缓存
     async fn delete(&self, key: &str) -> Result<(), ApplicationError>;
@@ -212,7 +220,9 @@ impl ApplicationServiceBus {
         let start_time = Utc::now();
 
         // 安全检查
-        self.security_service.authorize_command(&command, &context).await?;
+        self.security_service
+            .authorize_command(&command, &context)
+            .await?;
 
         // 缓存检查（对于查询命令）
         if let ApplicationCommand::Search(_) | ApplicationCommand::System(_) = &command {
@@ -224,22 +234,26 @@ impl ApplicationServiceBus {
 
         // 执行命令
         let result = match &command {
-            ApplicationCommand::Reading(cmd) => {
-                self.domain_layer.handle_command(DomainCommand::Reading(cmd.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationCommand::Search(cmd) => {
-                self.domain_layer.handle_command(DomainCommand::Search(cmd.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationCommand::User(cmd) => {
-                self.domain_layer.handle_command(DomainCommand::User(cmd.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationCommand::System(cmd) => {
-                self.domain_layer.handle_command(DomainCommand::System(cmd.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
+            ApplicationCommand::Reading(cmd) => self
+                .domain_layer
+                .handle_command(DomainCommand::Reading(cmd.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationCommand::Search(cmd) => self
+                .domain_layer
+                .handle_command(DomainCommand::Search(cmd.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationCommand::User(cmd) => self
+                .domain_layer
+                .handle_command(DomainCommand::User(cmd.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationCommand::System(cmd) => self
+                .domain_layer
+                .handle_command(DomainCommand::System(cmd.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
         };
 
         // 转换结果
@@ -254,11 +268,15 @@ impl ApplicationServiceBus {
 
         // 发布事件
         if !app_result.events.is_empty() {
-            self.event_publisher.publish_batch(app_result.events.clone()).await?;
+            self.event_publisher
+                .publish_batch(app_result.events.clone())
+                .await?;
         }
 
         // 提交事务
-        self.transaction_manager.commit_transaction(transaction).await?;
+        self.transaction_manager
+            .commit_transaction(transaction)
+            .await?;
 
         // 缓存结果（对于查询命令）
         if let ApplicationCommand::Search(_) | ApplicationCommand::System(_) = &command {
@@ -277,39 +295,47 @@ impl ApplicationServiceBus {
         let start_time = Utc::now();
 
         // 安全检查
-        self.security_service.authorize_query(&query, &context).await?;
+        self.security_service
+            .authorize_query(&query, &context)
+            .await?;
 
         // 缓存检查
         let cache_key = self.generate_cache_key(&query);
         if let Some(cached_result) = self.cache_manager.get(&cache_key).await? {
-            return Ok(serde_json::from_value(cached_result).unwrap_or_else(|_| ApplicationResult {
-                success: false,
-                data: None,
-                events: Vec::new(),
-                metadata: HashMap::new(),
-                execution_time_ms: (Utc::now() - start_time).num_milliseconds() as u64,
-                timestamp: Utc::now(),
+            return Ok(serde_json::from_value(cached_result).unwrap_or_else(|_| {
+                ApplicationResult {
+                    success: false,
+                    data: None,
+                    events: Vec::new(),
+                    metadata: HashMap::new(),
+                    execution_time_ms: (Utc::now() - start_time).num_milliseconds() as u64,
+                    timestamp: Utc::now(),
+                }
             }));
         }
 
         // 执行查询
         let result = match &query {
-            ApplicationQuery::Reading(q) => {
-                self.domain_layer.handle_query(DomainQuery::Reading(q.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationQuery::Search(q) => {
-                self.domain_layer.handle_query(DomainQuery::Search(q.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationQuery::User(q) => {
-                self.domain_layer.handle_query(DomainQuery::User(q.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
-            ApplicationQuery::System(q) => {
-                self.domain_layer.handle_query(DomainQuery::System(q.clone())).await
-                    .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?
-            }
+            ApplicationQuery::Reading(q) => self
+                .domain_layer
+                .handle_query(DomainQuery::Reading(q.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationQuery::Search(q) => self
+                .domain_layer
+                .handle_query(DomainQuery::Search(q.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationQuery::User(q) => self
+                .domain_layer
+                .handle_query(DomainQuery::User(q.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
+            ApplicationQuery::System(q) => self
+                .domain_layer
+                .handle_query(DomainQuery::System(q.clone()))
+                .await
+                .map_err(|e| ApplicationError::BusinessLogic(e.to_string()))?,
         };
 
         // 转换结果
@@ -325,7 +351,13 @@ impl ApplicationServiceBus {
         // 缓存结果
         let cache_ttl = self.determine_cache_ttl(&query);
         if let Some(ttl) = cache_ttl {
-            self.cache_manager.set(&cache_key, serde_json::to_value(&app_result).unwrap(), Some(ttl)).await?;
+            self.cache_manager
+                .set(
+                    &cache_key,
+                    serde_json::to_value(&app_result).unwrap(),
+                    Some(ttl),
+                )
+                .await?;
         }
 
         Ok(app_result)
@@ -354,13 +386,25 @@ impl ApplicationServiceBus {
 #[async_trait]
 pub trait SecurityService: Send + Sync {
     /// 授权命令
-    async fn authorize_command(&self, command: &ApplicationCommand, context: &ApplicationContext) -> Result<(), ApplicationError>;
+    async fn authorize_command(
+        &self,
+        command: &ApplicationCommand,
+        context: &ApplicationContext,
+    ) -> Result<(), ApplicationError>;
 
     /// 授权查询
-    async fn authorize_query(&self, query: &ApplicationQuery, context: &ApplicationContext) -> Result<(), ApplicationError>;
+    async fn authorize_query(
+        &self,
+        query: &ApplicationQuery,
+        context: &ApplicationContext,
+    ) -> Result<(), ApplicationError>;
 
     /// 验证用户权限
-    async fn validate_permission(&self, user_id: &str, permission: &str) -> Result<bool, ApplicationError>;
+    async fn validate_permission(
+        &self,
+        user_id: &str,
+        permission: &str,
+    ) -> Result<bool, ApplicationError>;
 }
 
 /// 默认安全服务实现
@@ -374,18 +418,30 @@ impl DefaultSecurityService {
 
 #[async_trait]
 impl SecurityService for DefaultSecurityService {
-    async fn authorize_command(&self, _command: &ApplicationCommand, _context: &ApplicationContext) -> Result<(), ApplicationError> {
+    async fn authorize_command(
+        &self,
+        _command: &ApplicationCommand,
+        _context: &ApplicationContext,
+    ) -> Result<(), ApplicationError> {
         // 简化的权限检查逻辑
         // 在实际实现中，这里会检查用户的角色和权限
         Ok(())
     }
 
-    async fn authorize_query(&self, _query: &ApplicationQuery, _context: &ApplicationContext) -> Result<(), ApplicationError> {
+    async fn authorize_query(
+        &self,
+        _query: &ApplicationQuery,
+        _context: &ApplicationContext,
+    ) -> Result<(), ApplicationError> {
         // 简化的权限检查逻辑
         Ok(())
     }
 
-    async fn validate_permission(&self, _user_id: &str, _permission: &str) -> Result<bool, ApplicationError> {
+    async fn validate_permission(
+        &self,
+        _user_id: &str,
+        _permission: &str,
+    ) -> Result<bool, ApplicationError> {
         // 简化的权限验证逻辑
         Ok(true)
     }
@@ -414,7 +470,10 @@ impl TransactionManager for DefaultTransactionManager {
         Ok(())
     }
 
-    async fn rollback_transaction(&self, _transaction: Transaction) -> Result<(), ApplicationError> {
+    async fn rollback_transaction(
+        &self,
+        _transaction: Transaction,
+    ) -> Result<(), ApplicationError> {
         // 在实际实现中，这里会回滚数据库事务
         Ok(())
     }
@@ -436,7 +495,12 @@ impl CacheManager for DefaultCacheManager {
         Ok(None)
     }
 
-    async fn set(&self, _key: &str, _value: serde_json::Value, _ttl_seconds: Option<u64>) -> Result<(), ApplicationError> {
+    async fn set(
+        &self,
+        _key: &str,
+        _value: serde_json::Value,
+        _ttl_seconds: Option<u64>,
+    ) -> Result<(), ApplicationError> {
         // 简化的缓存实现
         Ok(())
     }
@@ -473,7 +537,9 @@ impl EventPublisher for DefaultEventPublisher {
 }
 
 /// 应用层初始化函数
-pub async fn init_application_layer(domain_layer: Arc<DomainLayer>) -> Result<ApplicationServiceBus, ApplicationError> {
+pub async fn init_application_layer(
+    domain_layer: Arc<DomainLayer>,
+) -> Result<ApplicationServiceBus, ApplicationError> {
     let transaction_manager = Arc::new(DefaultTransactionManager::new());
     let cache_manager = Arc::new(DefaultCacheManager::new());
     let event_publisher = Arc::new(DefaultEventPublisher::new());

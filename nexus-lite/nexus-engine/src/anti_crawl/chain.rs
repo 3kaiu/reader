@@ -55,7 +55,9 @@ impl FallbackChain {
         let breaker = self.get_breaker(&ctx.source_id);
         if !breaker.should_allow() {
             debug!("Circuit OPEN for source {}, rejecting", ctx.source_id);
-            return Err(EngineError::CircuitOpen { message: ctx.source_id.clone() });
+            return Err(EngineError::CircuitOpen {
+                message: ctx.source_id.clone(),
+            });
         }
         drop(breaker);
 

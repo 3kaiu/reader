@@ -7,7 +7,7 @@
 //! - 缓存算法优化
 //! - 并行计算优化
 
-use std::collections::{HashMap, HashSet, VecDeque, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -98,7 +98,8 @@ impl DataCompressor {
             encoded.push(dict_index);
         }
 
-        let dict_values: Vec<T> = dictionary.into_iter()
+        let dict_values: Vec<T> = dictionary
+            .into_iter()
             .map(|(k, v)| (v, k))
             .collect::<BTreeMap<_, _>>()
             .into_values()
@@ -109,7 +110,8 @@ impl DataCompressor {
 
     /// 字典解码
     pub fn dictionary_decode<T: Clone>(encoded: &[usize], dictionary: &[T]) -> Vec<T> {
-        encoded.iter()
+        encoded
+            .iter()
             .map(|&index| dictionary[index].clone())
             .collect()
     }
@@ -195,7 +197,10 @@ impl AdaptiveSorter {
     }
 
     /// 并行排序
-    pub async fn parallel_sort<T: Ord + Clone + Copy + Send + Sync + 'static>(data: &mut [T], max_threads: usize) {
+    pub async fn parallel_sort<T: Ord + Clone + Copy + Send + Sync + 'static>(
+        data: &mut [T],
+        max_threads: usize,
+    ) {
         let len = data.len();
         if len <= 1024 {
             // 小数据集使用单线程排序
@@ -312,7 +317,11 @@ impl AdaptiveSearcher {
     }
 
     /// 模糊搜索 - 支持相似度匹配
-    pub fn fuzzy_search<T: AsRef<str>>(data: &[T], query: &str, threshold: f32) -> Vec<(usize, f32)> {
+    pub fn fuzzy_search<T: AsRef<str>>(
+        data: &[T],
+        query: &str,
+        threshold: f32,
+    ) -> Vec<(usize, f32)> {
         let mut results = Vec::new();
 
         for (i, item) in data.iter().enumerate() {
@@ -354,7 +363,11 @@ impl AdaptiveSearcher {
 
         for i in 1..=len_a {
             for j in 1..=len_b {
-                let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+                let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
                 matrix[i][j] = (matrix[i - 1][j] + 1)
                     .min(matrix[i][j - 1] + 1)
                     .min(matrix[i - 1][j - 1] + cost);
@@ -587,7 +600,10 @@ impl AlgorithmOptimizer {
     }
 
     /// 优化的排序算法
-    pub async fn optimized_sort<T: Ord + Clone + Copy + Hash + Send + Sync + 'static>(&self, data: &mut [T]) -> Result<(), String> {
+    pub async fn optimized_sort<T: Ord + Clone + Copy + Hash + Send + Sync + 'static>(
+        &self,
+        data: &mut [T],
+    ) -> Result<(), String> {
         let start = std::time::Instant::now();
 
         if self.config.enable_parallel_processing {
@@ -596,7 +612,8 @@ impl AlgorithmOptimizer {
             AdaptiveSorter::adaptive_sort(data);
         }
 
-        self.record_metrics("sort", data.len(), start.elapsed().as_nanos(), 0, 0, 0).await;
+        self.record_metrics("sort", data.len(), start.elapsed().as_nanos(), 0, 0, 0)
+            .await;
         Ok(())
     }
 
@@ -609,7 +626,10 @@ impl AlgorithmOptimizer {
     }
 
     /// 优化的数据压缩
-    pub fn optimized_compress<T: Eq + Clone + Hash + serde::Serialize>(&self, data: &[T]) -> Vec<u8> {
+    pub fn optimized_compress<T: Eq + Clone + Hash + serde::Serialize>(
+        &self,
+        data: &[T],
+    ) -> Vec<u8> {
         let start = std::time::Instant::now();
 
         // 根据数据特征选择压缩算法
@@ -660,9 +680,18 @@ impl AlgorithmOptimizer {
             data,
             processor,
             self.config.max_parallel_tasks,
-        ).await;
+        )
+        .await;
 
-        self.record_metrics("parallel_process", result.len(), start.elapsed().as_nanos(), 0, 0, 0).await;
+        self.record_metrics(
+            "parallel_process",
+            result.len(),
+            start.elapsed().as_nanos(),
+            0,
+            0,
+            0,
+        )
+        .await;
         Ok(result)
     }
 

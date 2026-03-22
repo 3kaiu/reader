@@ -11,12 +11,11 @@
 
 /// 跨切关注点通用接口和类型
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
 use tracing::{Level, Span};
-
 
 /// 拦截器接口 - 用于AOP风格的横切处理
 #[async_trait]
@@ -25,10 +24,18 @@ pub trait Interceptor: Send + Sync {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError>;
 
     /// 方法执行后拦截
-    async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError>;
+    async fn after(
+        &self,
+        context: &mut InterceptorContext,
+        result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError>;
 
     /// 异常发生时拦截
-    async fn on_error(&self, context: &mut InterceptorContext, error: &mut InterceptorError) -> Result<(), InterceptorError>;
+    async fn on_error(
+        &self,
+        context: &mut InterceptorContext,
+        error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError>;
 }
 
 /// 拦截器上下文
@@ -123,7 +130,9 @@ impl AspectWeaver {
             Ok(value) => {
                 // 执行后拦截
                 for interceptor in &self.interceptors {
-                    interceptor.after(&mut context, &mut interceptor_result).await?;
+                    interceptor
+                        .after(&mut context, &mut interceptor_result)
+                        .await?;
                 }
                 Ok(value)
             }
@@ -152,34 +161,47 @@ impl PerformanceMonitoringInterceptor {
 #[async_trait]
 impl Interceptor for PerformanceMonitoringInterceptor {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError> {
-        context.metadata.insert("start_time".to_string(), serde_json::json!(Utc::now().timestamp_millis()));
+        context.metadata.insert(
+            "start_time".to_string(),
+            serde_json::json!(Utc::now().timestamp_millis()),
+        );
         Ok(())
     }
 
-    async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        context: &mut InterceptorContext,
+        result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         let labels = HashMap::from([
             ("target_type".to_string(), context.target_type.clone()),
             ("method_name".to_string(), context.method_name.clone()),
         ]);
 
         // 记录执行时间
-        self.metrics_collector.record_histogram(
-            "method_execution_time",
-            result.execution_time_ms as f64,
-            labels.clone(),
-        ).await.map_err(|e| InterceptorError::Custom(e.to_string()))?;
+        self.metrics_collector
+            .record_histogram(
+                "method_execution_time",
+                result.execution_time_ms as f64,
+                labels.clone(),
+            )
+            .await
+            .map_err(|e| InterceptorError::Custom(e.to_string()))?;
 
         // 记录调用计数
-        self.metrics_collector.increment_counter(
-            "method_calls_total",
-            1,
-            labels,
-        ).await.map_err(|e| InterceptorError::Custom(e.to_string()))?;
+        self.metrics_collector
+            .increment_counter("method_calls_total", 1, labels)
+            .await
+            .map_err(|e| InterceptorError::Custom(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn on_error(&self, context: &mut InterceptorContext, error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        context: &mut InterceptorContext,
+        error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         let labels = HashMap::from([
             ("target_type".to_string(), context.target_type.clone()),
             ("method_name".to_string(), context.method_name.clone()),
@@ -187,11 +209,10 @@ impl Interceptor for PerformanceMonitoringInterceptor {
         ]);
 
         // 记录错误计数
-        self.metrics_collector.increment_counter(
-            "method_errors_total",
-            1,
-            labels.clone(),
-        ).await.map_err(|e| InterceptorError::Custom(e.to_string()))?;
+        self.metrics_collector
+            .increment_counter("method_errors_total", 1, labels.clone())
+            .await
+            .map_err(|e| InterceptorError::Custom(e.to_string()))?;
 
         Ok(())
     }
@@ -214,21 +235,41 @@ impl Interceptor for SecurityInterceptor {
         // 验证权限
         if let Some(user_id) = context.metadata.get("user_id").and_then(|v| v.as_str()) {
             let permission = format!("{}.{}", context.target_type, context.method_name);
-            match self.security_service.validate_permission(user_id, &permission).await {
+            match self
+                .security_service
+                .validate_permission(user_id, &permission)
+                .await
+            {
                 Ok(true) => Ok(()),
-                Ok(false) => Err(InterceptorError::SecurityViolation(format!("Permission denied: {}", permission))),
-                Err(e) => Err(InterceptorError::Custom(format!("Security check failed: {:?}", e))),
+                Ok(false) => Err(InterceptorError::SecurityViolation(format!(
+                    "Permission denied: {}",
+                    permission
+                ))),
+                Err(e) => Err(InterceptorError::Custom(format!(
+                    "Security check failed: {:?}",
+                    e
+                ))),
             }
         } else {
-            Err(InterceptorError::SecurityViolation("User not authenticated".to_string()))
+            Err(InterceptorError::SecurityViolation(
+                "User not authenticated".to_string(),
+            ))
         }
     }
 
-    async fn after(&self, _context: &mut InterceptorContext, _result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        _context: &mut InterceptorContext,
+        _result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         Ok(())
     }
 
-    async fn on_error(&self, _context: &mut InterceptorContext, _error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        _context: &mut InterceptorContext,
+        _error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         Ok(())
     }
 }
@@ -240,7 +281,10 @@ pub struct CachingInterceptor {
 }
 
 impl CachingInterceptor {
-    pub fn new(cache_manager: Arc<dyn crate::application::CacheManager>, cache_key_prefix: String) -> Self {
+    pub fn new(
+        cache_manager: Arc<dyn crate::application::CacheManager>,
+        cache_key_prefix: String,
+    ) -> Self {
         Self {
             cache_manager,
             cache_key_prefix,
@@ -249,7 +293,10 @@ impl CachingInterceptor {
 
     fn generate_cache_key(&self, context: &InterceptorContext) -> String {
         let params_hash = serde_json::to_string(&context.parameters).unwrap_or_default();
-        format!("{}:{}:{}", self.cache_key_prefix, context.method_name, params_hash)
+        format!(
+            "{}:{}:{}",
+            self.cache_key_prefix, context.method_name, params_hash
+        )
     }
 }
 
@@ -260,26 +307,40 @@ impl Interceptor for CachingInterceptor {
         if context.method_name.contains("query") || context.method_name.contains("get") {
             let cache_key = self.generate_cache_key(context);
             if let Ok(Some(cached_result)) = self.cache_manager.get(&cache_key).await {
-                context.metadata.insert("cached_result".to_string(), cached_result);
+                context
+                    .metadata
+                    .insert("cached_result".to_string(), cached_result);
             }
         }
         Ok(())
     }
 
-    async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        context: &mut InterceptorContext,
+        result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         // 对于查询方法，将结果存入缓存
         if context.method_name.contains("query") || context.method_name.contains("get") {
             if let Some(return_value) = &result.return_value {
                 let cache_key = self.generate_cache_key(context);
                 let ttl_seconds = Some(300u64); // 5分钟TTL
-                self.cache_manager.set(&cache_key, return_value.clone(), ttl_seconds).await
-                    .map_err(|e| InterceptorError::Custom(format!("Cache write failed: {:?}", e)))?;
+                self.cache_manager
+                    .set(&cache_key, return_value.clone(), ttl_seconds)
+                    .await
+                    .map_err(|e| {
+                        InterceptorError::Custom(format!("Cache write failed: {:?}", e))
+                    })?;
             }
         }
         Ok(())
     }
 
-    async fn on_error(&self, _context: &mut InterceptorContext, _error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        _context: &mut InterceptorContext,
+        _error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         Ok(())
     }
 }
@@ -299,27 +360,55 @@ impl LoggingInterceptor {
 impl Interceptor for LoggingInterceptor {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError> {
         match self.log_level {
-            Level::TRACE => tracing::trace!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
-            Level::DEBUG => tracing::debug!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
-            Level::INFO => tracing::info!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
-            Level::WARN => tracing::warn!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
-            Level::ERROR => tracing::error!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started"),
+            Level::TRACE => {
+                tracing::trace!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
+            }
+            Level::DEBUG => {
+                tracing::debug!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
+            }
+            Level::INFO => {
+                tracing::info!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
+            }
+            Level::WARN => {
+                tracing::warn!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
+            }
+            Level::ERROR => {
+                tracing::error!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
+            }
         }
         Ok(())
     }
 
-    async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        context: &mut InterceptorContext,
+        result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         match self.log_level {
-            Level::TRACE => tracing::trace!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
-            Level::DEBUG => tracing::debug!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
-            Level::INFO => tracing::info!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
-            Level::WARN => tracing::warn!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
-            Level::ERROR => tracing::error!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed"),
+            Level::TRACE => {
+                tracing::trace!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
+            }
+            Level::DEBUG => {
+                tracing::debug!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
+            }
+            Level::INFO => {
+                tracing::info!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
+            }
+            Level::WARN => {
+                tracing::warn!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
+            }
+            Level::ERROR => {
+                tracing::error!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
+            }
         }
         Ok(())
     }
 
-    async fn on_error(&self, context: &mut InterceptorContext, error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        context: &mut InterceptorContext,
+        error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         tracing::event!(
             Level::ERROR,
             target = &context.target_type,
@@ -353,11 +442,19 @@ impl Interceptor for ValidationInterceptor {
         Ok(())
     }
 
-    async fn after(&self, _context: &mut InterceptorContext, _result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        _context: &mut InterceptorContext,
+        _result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         Ok(())
     }
 
-    async fn on_error(&self, _context: &mut InterceptorContext, _error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        _context: &mut InterceptorContext,
+        _error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         Ok(())
     }
 }
@@ -380,35 +477,68 @@ impl Interceptor for AuditInterceptor {
         let audit_entry = AuditEntry {
             id: uuid::Uuid::new_v4().to_string(),
             timestamp: Utc::now(),
-            user_id: context.metadata.get("user_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            user_id: context
+                .metadata
+                .get("user_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             action: format!("{}.{}", context.target_type, context.method_name),
-            resource: context.parameters.get("resource_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            resource: context
+                .parameters
+                .get("resource_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             details: context.parameters.clone(),
-            ip_address: context.metadata.get("ip_address").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            user_agent: context.metadata.get("user_agent").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            ip_address: context
+                .metadata
+                .get("ip_address")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            user_agent: context
+                .metadata
+                .get("user_agent")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             success: None, // 会在after中设置
         };
 
-        context.metadata.insert("audit_id".to_string(), serde_json::json!(audit_entry.id.clone()));
-        self.audit_service.record_audit_entry(audit_entry).await
+        context.metadata.insert(
+            "audit_id".to_string(),
+            serde_json::json!(audit_entry.id.clone()),
+        );
+        self.audit_service
+            .record_audit_entry(audit_entry)
+            .await
             .map_err(|e| InterceptorError::Custom(format!("Audit recording failed: {:?}", e)))?;
 
         Ok(())
     }
 
-    async fn after(&self, context: &mut InterceptorContext, result: &mut InterceptorResult) -> Result<(), InterceptorError> {
+    async fn after(
+        &self,
+        context: &mut InterceptorContext,
+        result: &mut InterceptorResult,
+    ) -> Result<(), InterceptorError> {
         // 更新审计记录的状态
         if let Some(audit_id) = context.metadata.get("audit_id").and_then(|v| v.as_str()) {
-            self.audit_service.update_audit_entry_success(audit_id, true).await
+            self.audit_service
+                .update_audit_entry_success(audit_id, true)
+                .await
                 .map_err(|e| InterceptorError::Custom(format!("Audit update failed: {:?}", e)))?;
         }
         Ok(())
     }
 
-    async fn on_error(&self, context: &mut InterceptorContext, error: &mut InterceptorError) -> Result<(), InterceptorError> {
+    async fn on_error(
+        &self,
+        context: &mut InterceptorContext,
+        error: &mut InterceptorError,
+    ) -> Result<(), InterceptorError> {
         // 更新审计记录为失败状态
         if let Some(audit_id) = context.metadata.get("audit_id").and_then(|v| v.as_str()) {
-            self.audit_service.update_audit_entry_success(audit_id, false).await
+            self.audit_service
+                .update_audit_entry_success(audit_id, false)
+                .await
                 .map_err(|e| InterceptorError::Custom(format!("Audit update failed: {:?}", e)))?;
         }
         Ok(())
@@ -445,10 +575,17 @@ pub trait AuditService: Send + Sync {
     async fn record_audit_entry(&self, entry: AuditEntry) -> Result<(), CrossCuttingError>;
 
     /// 更新审计条目成功状态
-    async fn update_audit_entry_success(&self, audit_id: &str, success: bool) -> Result<(), CrossCuttingError>;
+    async fn update_audit_entry_success(
+        &self,
+        audit_id: &str,
+        success: bool,
+    ) -> Result<(), CrossCuttingError>;
 
     /// 查询审计日志
-    async fn query_audit_log(&self, query: AuditQuery) -> Result<Vec<AuditEntry>, CrossCuttingError>;
+    async fn query_audit_log(
+        &self,
+        query: AuditQuery,
+    ) -> Result<Vec<AuditEntry>, CrossCuttingError>;
 }
 
 /// 审计条目

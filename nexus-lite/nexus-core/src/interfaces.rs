@@ -3,11 +3,11 @@
 //! This module defines the core interfaces that all Nexus components must implement
 //! to ensure loose coupling and high cohesion.
 
+use crate::error::EngineError;
+use crate::types::{BookItem, Chapter, FetchResponse, TocItem};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::error::EngineError;
-use crate::types::{BookItem, Chapter, TocItem, FetchResponse};
 
 /// Standard interface for book source engines
 #[async_trait]
@@ -22,7 +22,11 @@ pub trait BookSourceEngine: Send + Sync {
     fn supports_url(&self, url: &str) -> bool;
 
     /// Search for books
-    async fn search_books(&self, query: &str, page: Option<u32>) -> Result<Vec<BookItem>, EngineError>;
+    async fn search_books(
+        &self,
+        query: &str,
+        page: Option<u32>,
+    ) -> Result<Vec<BookItem>, EngineError>;
 
     /// Get book details
     async fn get_book_details(&self, url: &str) -> Result<BookItem, EngineError>;
@@ -47,10 +51,19 @@ pub trait BookSourceEngine: Send + Sync {
 #[async_trait]
 pub trait Fetcher: Send + Sync {
     /// Execute GET request
-    async fn get(&self, url: &str, headers: Option<HashMap<String, String>>) -> Result<FetchResponse, EngineError>;
+    async fn get(
+        &self,
+        url: &str,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<FetchResponse, EngineError>;
 
     /// Execute POST request
-    async fn post(&self, url: &str, body: &str, headers: Option<HashMap<String, String>>) -> Result<FetchResponse, EngineError>;
+    async fn post(
+        &self,
+        url: &str,
+        body: &str,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<FetchResponse, EngineError>;
 
     /// Get fetcher statistics
     fn statistics(&self) -> FetcherStatistics;
@@ -104,17 +117,30 @@ pub trait ConfigProvider: Send + Sync {
     async fn set(&self, key: &str, value: serde_json::Value) -> Result<(), EngineError>;
 
     /// Watch configuration changes
-    async fn watch(&self, key: &str) -> Result<tokio::sync::broadcast::Receiver<ConfigChangeEvent>, EngineError>;
+    async fn watch(
+        &self,
+        key: &str,
+    ) -> Result<tokio::sync::broadcast::Receiver<ConfigChangeEvent>, EngineError>;
 }
 
 /// Standard interface for health monitoring
 #[async_trait]
 pub trait HealthMonitor: Send + Sync {
     /// Record a successful operation
-    async fn record_success(&self, operation: &str, duration_ms: u64, metadata: Option<HashMap<String, String>>) -> Result<(), EngineError>;
+    async fn record_success(
+        &self,
+        operation: &str,
+        duration_ms: u64,
+        metadata: Option<HashMap<String, String>>,
+    ) -> Result<(), EngineError>;
 
     /// Record a failed operation
-    async fn record_failure(&self, operation: &str, error: &EngineError, metadata: Option<HashMap<String, String>>) -> Result<(), EngineError>;
+    async fn record_failure(
+        &self,
+        operation: &str,
+        error: &EngineError,
+        metadata: Option<HashMap<String, String>>,
+    ) -> Result<(), EngineError>;
 
     /// Get health status
     async fn health_status(&self) -> Result<HealthStatus, EngineError>;
@@ -127,13 +153,28 @@ pub trait HealthMonitor: Send + Sync {
 #[async_trait]
 pub trait MetricsCollector: Send + Sync {
     /// Record a counter metric
-    async fn increment_counter(&self, name: &str, value: u64, labels: Option<HashMap<String, String>>) -> Result<(), EngineError>;
+    async fn increment_counter(
+        &self,
+        name: &str,
+        value: u64,
+        labels: Option<HashMap<String, String>>,
+    ) -> Result<(), EngineError>;
 
     /// Record a gauge metric
-    async fn set_gauge(&self, name: &str, value: f64, labels: Option<HashMap<String, String>>) -> Result<(), EngineError>;
+    async fn set_gauge(
+        &self,
+        name: &str,
+        value: f64,
+        labels: Option<HashMap<String, String>>,
+    ) -> Result<(), EngineError>;
 
     /// Record a histogram metric
-    async fn record_histogram(&self, name: &str, value: f64, labels: Option<HashMap<String, String>>) -> Result<(), EngineError>;
+    async fn record_histogram(
+        &self,
+        name: &str,
+        value: f64,
+        labels: Option<HashMap<String, String>>,
+    ) -> Result<(), EngineError>;
 
     /// Get collected metrics
     async fn collect(&self) -> Result<HashMap<String, MetricValue>, EngineError>;

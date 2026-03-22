@@ -8,14 +8,16 @@
 //! - 连接池 (ConnectionPool): 网络连接管理
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use nexus_core::{EngineError, DomainError};
-use nexus_core::{Entity, AggregateRoot, DomainEvent, DomainResult, DomainContext, BusinessRuleValidator};
 use nexus_core::domain::EngineEvent as CoreEngineEvent;
+use nexus_core::{
+    AggregateRoot, BusinessRuleValidator, DomainContext, DomainEvent, DomainResult, Entity,
+};
+use nexus_core::{DomainError, EngineError};
 
 /// 抓取任务实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -430,25 +432,27 @@ impl EngineDomain {
         })
     }
 
-    pub async fn handle_command(&self, command: EngineCommand) -> Result<DomainResult, EngineError> {
+    pub async fn handle_command(
+        &self,
+        command: EngineCommand,
+    ) -> Result<DomainResult, EngineError> {
         match command {
-            EngineCommand::CreateFetchTask { task } => {
-                self.create_fetch_task(task).await
-            }
-            EngineCommand::ExecuteFetchTask { task_id } => {
-                self.execute_fetch_task(task_id).await
-            }
+            EngineCommand::CreateFetchTask { task } => self.create_fetch_task(task).await,
+            EngineCommand::ExecuteFetchTask { task_id } => self.execute_fetch_task(task_id).await,
             EngineCommand::CancelFetchTask { task_id, reason } => {
                 self.cancel_fetch_task(task_id, reason).await
             }
-            EngineCommand::RetryFetchTask { task_id } => {
-                self.retry_fetch_task(task_id).await
-            }
+            EngineCommand::RetryFetchTask { task_id } => self.retry_fetch_task(task_id).await,
             EngineCommand::CreateContentParser { parser } => {
                 self.create_content_parser(parser).await
             }
-            EngineCommand::UpdateContentParser { parser_id, selectors, regex_patterns } => {
-                self.update_content_parser(parser_id, selectors, regex_patterns).await
+            EngineCommand::UpdateContentParser {
+                parser_id,
+                selectors,
+                regex_patterns,
+            } => {
+                self.update_content_parser(parser_id, selectors, regex_patterns)
+                    .await
             }
             EngineCommand::ConfigureConnectionPool { domain, config } => {
                 self.configure_connection_pool(domain, config).await
@@ -461,30 +465,20 @@ impl EngineDomain {
 
     pub async fn handle_query(&self, query: EngineQuery) -> Result<DomainResult, EngineError> {
         match query {
-            EngineQuery::GetFetchTask { task_id } => {
-                self.get_fetch_task(task_id).await
-            }
-            EngineQuery::ListFetchTasks { status, domain, limit } => {
-                self.list_fetch_tasks(status, domain, limit).await
-            }
-            EngineQuery::GetContentParser { parser_id } => {
-                self.get_content_parser(parser_id).await
-            }
+            EngineQuery::GetFetchTask { task_id } => self.get_fetch_task(task_id).await,
+            EngineQuery::ListFetchTasks {
+                status,
+                domain,
+                limit,
+            } => self.list_fetch_tasks(status, domain, limit).await,
+            EngineQuery::GetContentParser { parser_id } => self.get_content_parser(parser_id).await,
             EngineQuery::ListContentParsers { parser_type } => {
                 self.list_content_parsers(parser_type).await
             }
-            EngineQuery::GetConnectionPool { domain } => {
-                self.get_connection_pool(domain).await
-            }
-            EngineQuery::ListConnectionPools { status } => {
-                self.list_connection_pools(status).await
-            }
-            EngineQuery::GetEngineMetrics => {
-                self.get_engine_metrics().await
-            }
-            EngineQuery::GetDomainStatistics { domain } => {
-                self.get_domain_statistics(domain).await
-            }
+            EngineQuery::GetConnectionPool { domain } => self.get_connection_pool(domain).await,
+            EngineQuery::ListConnectionPools { status } => self.list_connection_pools(status).await,
+            EngineQuery::GetEngineMetrics => self.get_engine_metrics().await,
+            EngineQuery::GetDomainStatistics { domain } => self.get_domain_statistics(domain).await,
         }
     }
 
@@ -510,8 +504,13 @@ impl EngineDomain {
 
     async fn execute_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
-        let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
+        let mut task = self
+            .task_repository
+            .find_by_id(&task_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Task {}", task_id.0),
+            })?;
 
         task.start();
         self.task_repository.save(&task).await?;
@@ -527,10 +526,19 @@ impl EngineDomain {
         })
     }
 
-    async fn cancel_fetch_task(&self, task_id: String, _reason: String) -> Result<DomainResult, EngineError> {
+    async fn cancel_fetch_task(
+        &self,
+        task_id: String,
+        _reason: String,
+    ) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
-        let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
+        let mut task = self
+            .task_repository
+            .find_by_id(&task_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Task {}", task_id.0),
+            })?;
 
         task.status = TaskStatus::Cancelled;
         task.completed_at = Some(Utc::now());
@@ -546,8 +554,13 @@ impl EngineDomain {
 
     async fn retry_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
-        let mut task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
+        let mut task = self
+            .task_repository
+            .find_by_id(&task_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Task {}", task_id.0),
+            })?;
 
         if task.can_retry() {
             task.increment_retry();
@@ -563,7 +576,10 @@ impl EngineDomain {
         })
     }
 
-    async fn create_content_parser(&self, parser: ContentParser) -> Result<DomainResult, EngineError> {
+    async fn create_content_parser(
+        &self,
+        parser: ContentParser,
+    ) -> Result<DomainResult, EngineError> {
         self.parser_repository.save(&parser).await?;
 
         Ok(DomainResult {
@@ -584,8 +600,13 @@ impl EngineDomain {
         regex_patterns: HashMap<String, String>,
     ) -> Result<DomainResult, EngineError> {
         let parser_id = ContentParserId(parser_id);
-        let mut parser = self.parser_repository.find_by_id(&parser_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Parser {}", parser_id.0) })?;
+        let mut parser = self
+            .parser_repository
+            .find_by_id(&parser_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Parser {}", parser_id.0),
+            })?;
 
         parser.selectors.extend(selectors);
         parser.regex_patterns.extend(regex_patterns);
@@ -600,9 +621,16 @@ impl EngineDomain {
         })
     }
 
-    async fn configure_connection_pool(&self, domain: String, config: PoolConfig) -> Result<DomainResult, EngineError> {
+    async fn configure_connection_pool(
+        &self,
+        domain: String,
+        config: PoolConfig,
+    ) -> Result<DomainResult, EngineError> {
         let pool_id = ConnectionPoolId(format!("pool_{}", domain));
-        let mut pool = self.pool_repository.find_by_id(&pool_id).await?
+        let mut pool = self
+            .pool_repository
+            .find_by_id(&pool_id)
+            .await?
             .unwrap_or_else(|| ConnectionPool {
                 id: pool_id.clone(),
                 domain: domain.clone(),
@@ -629,10 +657,18 @@ impl EngineDomain {
         })
     }
 
-    async fn health_check_connection_pool(&self, domain: String) -> Result<DomainResult, EngineError> {
+    async fn health_check_connection_pool(
+        &self,
+        domain: String,
+    ) -> Result<DomainResult, EngineError> {
         let pool_id = ConnectionPoolId(format!("pool_{}", domain));
-        let mut pool = self.pool_repository.find_by_id(&pool_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Pool for domain {}", domain) })?;
+        let mut pool = self
+            .pool_repository
+            .find_by_id(&pool_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Pool for domain {}", domain),
+            })?;
 
         pool.last_health_check = Utc::now();
         // 简化的健康检查逻辑
@@ -649,8 +685,13 @@ impl EngineDomain {
 
     async fn get_fetch_task(&self, task_id: String) -> Result<DomainResult, EngineError> {
         let task_id = FetchTaskId(task_id);
-        let task = self.task_repository.find_by_id(&task_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Task {}", task_id.0) })?;
+        let task = self
+            .task_repository
+            .find_by_id(&task_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Task {}", task_id.0),
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -666,7 +707,10 @@ impl EngineDomain {
         domain: Option<String>,
         limit: Option<u32>,
     ) -> Result<DomainResult, EngineError> {
-        let tasks = self.task_repository.find_by_criteria(status, domain, limit.unwrap_or(50)).await?;
+        let tasks = self
+            .task_repository
+            .find_by_criteria(status, domain, limit.unwrap_or(50))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -678,8 +722,13 @@ impl EngineDomain {
 
     async fn get_content_parser(&self, parser_id: String) -> Result<DomainResult, EngineError> {
         let parser_id = ContentParserId(parser_id);
-        let parser = self.parser_repository.find_by_id(&parser_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Parser {}", parser_id.0) })?;
+        let parser = self
+            .parser_repository
+            .find_by_id(&parser_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Parser {}", parser_id.0),
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -689,7 +738,10 @@ impl EngineDomain {
         })
     }
 
-    async fn list_content_parsers(&self, parser_type: Option<ParserType>) -> Result<DomainResult, EngineError> {
+    async fn list_content_parsers(
+        &self,
+        parser_type: Option<ParserType>,
+    ) -> Result<DomainResult, EngineError> {
         let parsers = self.parser_repository.find_by_type(parser_type).await?;
 
         Ok(DomainResult {
@@ -702,8 +754,13 @@ impl EngineDomain {
 
     async fn get_connection_pool(&self, domain: String) -> Result<DomainResult, EngineError> {
         let pool_id = ConnectionPoolId(format!("pool_{}", domain));
-        let pool = self.pool_repository.find_by_id(&pool_id).await?
-            .ok_or_else(|| EngineError::NotFound { resource: format!("Pool for domain {}", domain) })?;
+        let pool = self
+            .pool_repository
+            .find_by_id(&pool_id)
+            .await?
+            .ok_or_else(|| EngineError::NotFound {
+                resource: format!("Pool for domain {}", domain),
+            })?;
 
         Ok(DomainResult {
             success: true,
@@ -713,7 +770,10 @@ impl EngineDomain {
         })
     }
 
-    async fn list_connection_pools(&self, status: Option<PoolStatus>) -> Result<DomainResult, EngineError> {
+    async fn list_connection_pools(
+        &self,
+        status: Option<PoolStatus>,
+    ) -> Result<DomainResult, EngineError> {
         let pools = self.pool_repository.find_by_status(status).await?;
 
         Ok(DomainResult {
@@ -753,7 +813,12 @@ impl EngineDomain {
 pub trait FetchTaskRepository: Send + Sync {
     async fn save(&self, task: &FetchTask) -> Result<(), EngineError>;
     async fn find_by_id(&self, id: &FetchTaskId) -> Result<Option<FetchTask>, EngineError>;
-    async fn find_by_criteria(&self, status: Option<TaskStatus>, domain: Option<String>, limit: u32) -> Result<Vec<FetchTask>, EngineError>;
+    async fn find_by_criteria(
+        &self,
+        status: Option<TaskStatus>,
+        domain: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<FetchTask>, EngineError>;
     async fn delete(&self, id: &FetchTaskId) -> Result<(), EngineError>;
 }
 
@@ -761,23 +826,38 @@ pub trait FetchTaskRepository: Send + Sync {
 pub trait ContentParserRepository: Send + Sync {
     async fn save(&self, parser: &ContentParser) -> Result<(), EngineError>;
     async fn find_by_id(&self, id: &ContentParserId) -> Result<Option<ContentParser>, EngineError>;
-    async fn find_by_type(&self, parser_type: Option<ParserType>) -> Result<Vec<ContentParser>, EngineError>;
+    async fn find_by_type(
+        &self,
+        parser_type: Option<ParserType>,
+    ) -> Result<Vec<ContentParser>, EngineError>;
     async fn delete(&self, id: &ContentParserId) -> Result<(), EngineError>;
 }
 
 #[async_trait]
 pub trait ConnectionPoolRepository: Send + Sync {
     async fn save(&self, pool: &ConnectionPool) -> Result<(), EngineError>;
-    async fn find_by_id(&self, id: &ConnectionPoolId) -> Result<Option<ConnectionPool>, EngineError>;
+    async fn find_by_id(
+        &self,
+        id: &ConnectionPoolId,
+    ) -> Result<Option<ConnectionPool>, EngineError>;
     async fn find_by_domain(&self, domain: &str) -> Result<Option<ConnectionPool>, EngineError>;
-    async fn find_by_status(&self, status: Option<PoolStatus>) -> Result<Vec<ConnectionPool>, EngineError>;
+    async fn find_by_status(
+        &self,
+        status: Option<PoolStatus>,
+    ) -> Result<Vec<ConnectionPool>, EngineError>;
 }
 
 #[async_trait]
 pub trait EngineMetricsService: Send + Sync {
     async fn get_metrics(&self) -> Result<EngineMetrics, EngineError>;
     async fn get_domain_statistics(&self, domain: &str) -> Result<DomainStatistics, EngineError>;
-    async fn record_fetch(&self, domain: &str, success: bool, duration_ms: u64, size_bytes: u64) -> Result<(), EngineError>;
+    async fn record_fetch(
+        &self,
+        domain: &str,
+        success: bool,
+        duration_ms: u64,
+        size_bytes: u64,
+    ) -> Result<(), EngineError>;
 }
 
 // ===== 内存实现 =====
@@ -807,9 +887,15 @@ impl FetchTaskRepository for InMemoryFetchTaskRepository {
         Ok(tasks.get(id).cloned())
     }
 
-    async fn find_by_criteria(&self, status: Option<TaskStatus>, domain: Option<String>, limit: u32) -> Result<Vec<FetchTask>, EngineError> {
+    async fn find_by_criteria(
+        &self,
+        status: Option<TaskStatus>,
+        domain: Option<String>,
+        limit: u32,
+    ) -> Result<Vec<FetchTask>, EngineError> {
         let tasks = self.tasks.read().unwrap();
-        let filtered: Vec<FetchTask> = tasks.values()
+        let filtered: Vec<FetchTask> = tasks
+            .values()
             .filter(|t| status.as_ref().map_or(true, |_s| matches!(&t.status, _s)))
             .filter(|t| domain.as_ref().map_or(true, |d| &t.domain == d))
             .take(limit as usize)
@@ -850,10 +936,14 @@ impl ContentParserRepository for InMemoryContentParserRepository {
         Ok(parsers.get(id).cloned())
     }
 
-    async fn find_by_type(&self, parser_type: Option<ParserType>) -> Result<Vec<ContentParser>, EngineError> {
+    async fn find_by_type(
+        &self,
+        parser_type: Option<ParserType>,
+    ) -> Result<Vec<ContentParser>, EngineError> {
         let parsers = self.parsers.read().unwrap();
         let filtered: Vec<ContentParser> = if let Some(_pt) = parser_type {
-            parsers.values()
+            parsers
+                .values()
                 .filter(|p| matches!(&p.parser_type, _pt))
                 .cloned()
                 .collect()
@@ -890,7 +980,10 @@ impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, id: &ConnectionPoolId) -> Result<Option<ConnectionPool>, EngineError> {
+    async fn find_by_id(
+        &self,
+        id: &ConnectionPoolId,
+    ) -> Result<Option<ConnectionPool>, EngineError> {
         let pools = self.pools.read().unwrap();
         Ok(pools.get(id).cloned())
     }
@@ -901,10 +994,14 @@ impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
         Ok(pool)
     }
 
-    async fn find_by_status(&self, status: Option<PoolStatus>) -> Result<Vec<ConnectionPool>, EngineError> {
+    async fn find_by_status(
+        &self,
+        status: Option<PoolStatus>,
+    ) -> Result<Vec<ConnectionPool>, EngineError> {
         let pools = self.pools.read().unwrap();
         let filtered: Vec<ConnectionPool> = if let Some(_status) = status {
-            pools.values()
+            pools
+                .values()
                 .filter(|p| matches!(&p.status, _status))
                 .cloned()
                 .collect()
@@ -947,7 +1044,13 @@ impl EngineMetricsService for BasicEngineMetricsService {
         })
     }
 
-    async fn record_fetch(&self, _domain: &str, _success: bool, _duration_ms: u64, _size_bytes: u64) -> Result<(), EngineError> {
+    async fn record_fetch(
+        &self,
+        _domain: &str,
+        _success: bool,
+        _duration_ms: u64,
+        _size_bytes: u64,
+    ) -> Result<(), EngineError> {
         Ok(())
     }
 }
@@ -962,12 +1065,20 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskUrlValidRule {
         "fetch_task_url_valid"
     }
 
-    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), DomainError> {
+    async fn validate(
+        &self,
+        entity: &FetchTask,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
         if entity.url.trim().is_empty() {
-            return Err(DomainError::Validation("Fetch task URL cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Fetch task URL cannot be empty".to_string(),
+            ));
         }
         if !entity.url.starts_with("http://") && !entity.url.starts_with("https://") {
-            return Err(DomainError::Validation("Fetch task URL must start with http:// or https://".to_string()));
+            return Err(DomainError::Validation(
+                "Fetch task URL must start with http:// or https://".to_string(),
+            ));
         }
         Ok(())
     }
@@ -985,9 +1096,16 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskTimeoutValidRule {
         "fetch_task_timeout_valid"
     }
 
-    async fn validate(&self, entity: &FetchTask, _context: &DomainContext) -> Result<(), DomainError> {
-        if entity.timeout_ms == 0 || entity.timeout_ms > 300000 { // 5分钟
-            return Err(DomainError::Validation("Timeout must be between 1ms and 5 minutes".to_string()));
+    async fn validate(
+        &self,
+        entity: &FetchTask,
+        _context: &DomainContext,
+    ) -> Result<(), DomainError> {
+        if entity.timeout_ms == 0 || entity.timeout_ms > 300000 {
+            // 5分钟
+            return Err(DomainError::Validation(
+                "Timeout must be between 1ms and 5 minutes".to_string(),
+            ));
         }
         Ok(())
     }

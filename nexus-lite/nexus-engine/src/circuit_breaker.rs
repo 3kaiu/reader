@@ -3,9 +3,9 @@
 //! Prevents cascade failures by temporarily blocking requests
 //! to failing sources.
 
+use parking_lot::RwLock;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Duration, Instant};
-use parking_lot::RwLock;
 
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

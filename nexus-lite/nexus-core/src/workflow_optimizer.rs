@@ -101,7 +101,11 @@ pub struct WorkflowMetrics {
 #[async_trait]
 pub trait WorkflowExecutor: Send + Sync {
     /// 执行工作流程步骤
-    async fn execute_step(&self, step: &WorkflowStep, context: &WorkflowContext) -> Result<serde_json::Value, WorkflowError>;
+    async fn execute_step(
+        &self,
+        step: &WorkflowStep,
+        context: &WorkflowContext,
+    ) -> Result<serde_json::Value, WorkflowError>;
 }
 
 /// 工作流程上下文
@@ -220,7 +224,9 @@ impl WorkflowOptimizer {
 
     async fn validate_workflow(&self, workflow: &Workflow) -> Result<(), WorkflowError> {
         if workflow.steps.is_empty() {
-            return Err(WorkflowError::InvalidWorkflow("Workflow must have at least one step".to_string()));
+            return Err(WorkflowError::InvalidWorkflow(
+                "Workflow must have at least one step".to_string(),
+            ));
         }
 
         // 检查步骤依赖关系
@@ -228,9 +234,10 @@ impl WorkflowOptimizer {
         for step in &workflow.steps {
             for dep in &step.dependencies {
                 if !step_ids.contains(dep) {
-                    return Err(WorkflowError::InvalidWorkflow(
-                        format!("Step {} depends on non-existent step {}", step.id, dep)
-                    ));
+                    return Err(WorkflowError::InvalidWorkflow(format!(
+                        "Step {} depends on non-existent step {}",
+                        step.id, dep
+                    )));
                 }
             }
         }
@@ -257,7 +264,8 @@ impl WorkflowOptimizer {
 
         // 按操作分组
         for step in steps {
-            step_groups.entry(step.operation.clone())
+            step_groups
+                .entry(step.operation.clone())
                 .or_insert_with(Vec::new)
                 .push(step);
         }
@@ -272,19 +280,19 @@ impl WorkflowOptimizer {
                     id: format!("merged_{}", operation),
                     name: format!("Merged {}", operation),
                     operation,
-                    dependencies: group_steps.iter()
+                    dependencies: group_steps
+                        .iter()
                         .flat_map(|s| s.dependencies.clone())
                         .collect::<HashSet<_>>()
                         .into_iter()
                         .collect(),
-                    estimated_duration_ms: group_steps.iter()
+                    estimated_duration_ms: group_steps
+                        .iter()
                         .map(|s| s.estimated_duration_ms)
                         .sum(),
-                    retry_count: group_steps.iter()
-                        .map(|s| s.retry_count)
-                        .max()
-                        .unwrap_or(0),
-                    timeout_ms: group_steps.iter()
+                    retry_count: group_steps.iter().map(|s| s.retry_count).max().unwrap_or(0),
+                    timeout_ms: group_steps
+                        .iter()
                         .map(|s| s.timeout_ms)
                         .max()
                         .unwrap_or(30000),
@@ -306,13 +314,17 @@ impl WorkflowOptimizer {
         for step in &steps {
             in_degree.entry(step.id.clone()).or_insert(0);
             for dep in &step.dependencies {
-                graph.entry(dep.clone()).or_insert_with(Vec::new).push(step.id.clone());
+                graph
+                    .entry(dep.clone())
+                    .or_insert_with(Vec::new)
+                    .push(step.id.clone());
                 *in_degree.entry(step.id.clone()).or_insert(0) += 1;
             }
         }
 
         // Kahn算法进行拓扑排序
-        let mut queue: VecDeque<String> = in_degree.iter()
+        let mut queue: VecDeque<String> = in_degree
+            .iter()
             .filter(|(_, &deg)| deg == 0)
             .map(|(id, _)| id.clone())
             .collect();
@@ -376,11 +388,9 @@ impl WorkflowOptimizer {
             workflow.started_at = Some(start_time);
             workflow.status = WorkflowStatus::Running;
 
-            let result = Self::execute_workflow_steps(
-                workflow,
-                executor,
-                config.workflow_timeout_seconds,
-            ).await;
+            let result =
+                Self::execute_workflow_steps(workflow, executor, config.workflow_timeout_seconds)
+                    .await;
 
             match result {
                 Ok(completed_workflow) => {
@@ -440,7 +450,10 @@ impl WorkflowOptimizer {
             }
 
             // 检查依赖是否满足
-            let deps_satisfied = step.dependencies.iter().all(|dep| context.step_results.contains_key(dep));
+            let deps_satisfied = step
+                .dependencies
+                .iter()
+                .all(|dep| context.step_results.contains_key(dep));
             if !deps_satisfied {
                 continue; // 跳过此步骤，稍后重试
             }
@@ -483,8 +496,14 @@ impl WorkflowOptimizer {
         Ok(workflow)
     }
 
-    fn are_dependencies_satisfied(&self, step: &WorkflowStep, completed_steps: &HashMap<String, serde_json::Value>) -> bool {
-        step.dependencies.iter().all(|dep| completed_steps.contains_key(dep))
+    fn are_dependencies_satisfied(
+        &self,
+        step: &WorkflowStep,
+        completed_steps: &HashMap<String, serde_json::Value>,
+    ) -> bool {
+        step.dependencies
+            .iter()
+            .all(|dep| completed_steps.contains_key(dep))
     }
 }
 
@@ -499,7 +518,11 @@ impl DefaultWorkflowExecutor {
 
 #[async_trait]
 impl WorkflowExecutor for DefaultWorkflowExecutor {
-    async fn execute_step(&self, step: &WorkflowStep, _context: &WorkflowContext) -> Result<serde_json::Value, WorkflowError> {
+    async fn execute_step(
+        &self,
+        step: &WorkflowStep,
+        _context: &WorkflowContext,
+    ) -> Result<serde_json::Value, WorkflowError> {
         // 简化的步骤执行逻辑
         // 实际实现应该根据step.operation调用相应的业务逻辑
         match step.operation.as_str() {

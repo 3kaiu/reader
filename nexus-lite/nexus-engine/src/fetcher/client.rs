@@ -1,8 +1,8 @@
 //! HTTP client implementation
 
 use async_trait::async_trait;
-use nexus_core::{EngineError, FetchResponse};
 use nexus_core::interfaces::{Fetcher, FetcherStatistics};
+use nexus_core::{EngineError, FetchResponse};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,
@@ -34,7 +34,10 @@ impl HttpFetcher {
     }
 
     /// Create with custom concurrency limit
-    pub fn with_concurrency(timeout_seconds: u64, max_concurrent: usize) -> Result<Self, EngineError> {
+    pub fn with_concurrency(
+        timeout_seconds: u64,
+        max_concurrent: usize,
+    ) -> Result<Self, EngineError> {
         use std::sync::atomic::AtomicU64;
 
         let client = Client::builder()
@@ -54,7 +57,9 @@ impl HttpFetcher {
             .cookie_store(true)
             .user_agent("Mozilla/5.0 (compatible; NexusLite/1.0)")
             .build()
-            .map_err(|e: reqwest::Error| EngineError::Network { message: e.to_string() })?;
+            .map_err(|e: reqwest::Error| EngineError::Network {
+                message: e.to_string(),
+            })?;
 
         Ok(Self {
             client: Arc::new(client),
@@ -151,7 +156,9 @@ impl HttpFetcher {
         let body = resp
             .text()
             .await
-            .map_err(|e: reqwest::Error| EngineError::Network { message: e.to_string() })?;
+            .map_err(|e: reqwest::Error| EngineError::Network {
+                message: e.to_string(),
+            })?;
 
         Ok(FetchResponse {
             status,
@@ -174,14 +181,20 @@ impl Fetcher for HttpFetcher {
         let start_time = std::time::Instant::now();
         self.total_requests.fetch_add(1, Ordering::Relaxed);
 
-        debug!("GET {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
+        debug!(
+            "GET {} (concurrency: {}/{})",
+            url,
+            self.max_concurrent_requests - self.semaphore.available_permits(),
+            self.max_concurrent_requests
+        );
 
         // Acquire semaphore permit for concurrency control
-        let _permit = self.semaphore.acquire().await
-            .map_err(|e| {
-                self.failed_requests.fetch_add(1, Ordering::Relaxed);
-                EngineError::Network { message: format!("Semaphore acquire failed: {}", e) }
-            })?;
+        let _permit = self.semaphore.acquire().await.map_err(|e| {
+            self.failed_requests.fetch_add(1, Ordering::Relaxed);
+            EngineError::Network {
+                message: format!("Semaphore acquire failed: {}", e),
+            }
+        })?;
 
         let header_map = self.build_headers(headers);
 
@@ -196,15 +209,20 @@ impl Fetcher for HttpFetcher {
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
-                    EngineError::ConnectionRefused { message: e.to_string() }
+                    EngineError::ConnectionRefused {
+                        message: e.to_string(),
+                    }
                 } else {
-                    EngineError::Network { message: e.to_string() }
+                    EngineError::Network {
+                        message: e.to_string(),
+                    }
                 }
             })?;
 
         let response = self.convert_response(resp).await?;
         self.successful_requests.fetch_add(1, Ordering::Relaxed);
-        self.total_bytes_downloaded.fetch_add(response.body.len() as u64, Ordering::Relaxed);
+        self.total_bytes_downloaded
+            .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
         // Track response time
         let elapsed = start_time.elapsed().as_nanos();
@@ -231,14 +249,20 @@ impl Fetcher for HttpFetcher {
         let start_time = std::time::Instant::now();
         self.total_requests.fetch_add(1, Ordering::Relaxed);
 
-        debug!("POST {} (concurrency: {}/{})", url, self.max_concurrent_requests - self.semaphore.available_permits(), self.max_concurrent_requests);
+        debug!(
+            "POST {} (concurrency: {}/{})",
+            url,
+            self.max_concurrent_requests - self.semaphore.available_permits(),
+            self.max_concurrent_requests
+        );
 
         // Acquire semaphore permit for concurrency control
-        let _permit = self.semaphore.acquire().await
-            .map_err(|e| {
-                self.failed_requests.fetch_add(1, Ordering::Relaxed);
-                EngineError::Network { message: format!("Semaphore acquire failed: {}", e) }
-            })?;
+        let _permit = self.semaphore.acquire().await.map_err(|e| {
+            self.failed_requests.fetch_add(1, Ordering::Relaxed);
+            EngineError::Network {
+                message: format!("Semaphore acquire failed: {}", e),
+            }
+        })?;
 
         let header_map = self.build_headers(headers);
 
@@ -254,15 +278,20 @@ impl Fetcher for HttpFetcher {
                 if e.is_timeout() {
                     EngineError::Timeout
                 } else if e.is_connect() {
-                    EngineError::ConnectionRefused { message: e.to_string() }
+                    EngineError::ConnectionRefused {
+                        message: e.to_string(),
+                    }
                 } else {
-                    EngineError::Network { message: e.to_string() }
+                    EngineError::Network {
+                        message: e.to_string(),
+                    }
                 }
             })?;
 
         let response = self.convert_response(resp).await?;
         self.successful_requests.fetch_add(1, Ordering::Relaxed);
-        self.total_bytes_downloaded.fetch_add(response.body.len() as u64, Ordering::Relaxed);
+        self.total_bytes_downloaded
+            .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
         // Track response time
         let elapsed = start_time.elapsed().as_nanos();
@@ -285,7 +314,8 @@ impl Fetcher for HttpFetcher {
         let average_response_time_ms = if response_times.is_empty() {
             0.0
         } else {
-            response_times.iter().sum::<u128>() as f64 / response_times.len() as f64 / 1_000_000.0 // Convert to ms
+            response_times.iter().sum::<u128>() as f64 / response_times.len() as f64 / 1_000_000.0
+            // Convert to ms
         };
 
         FetcherStatistics {
@@ -294,10 +324,10 @@ impl Fetcher for HttpFetcher {
             failed_requests: self.failed_requests.load(Ordering::Relaxed),
             total_bytes_downloaded: self.total_bytes_downloaded.load(Ordering::Relaxed),
             average_response_time_ms,
-            active_connections: (self.max_concurrent_requests - self.semaphore.available_permits()) as u32,
+            active_connections: (self.max_concurrent_requests - self.semaphore.available_permits())
+                as u32,
         }
     }
-
 }
 
 #[cfg(test)]

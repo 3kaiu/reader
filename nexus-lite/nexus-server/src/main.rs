@@ -1,6 +1,7 @@
 //! NexusLite HTTP API Server
 
 mod app;
+mod content_rules;
 mod engine_registry;
 mod error;
 mod metrics;
@@ -15,7 +16,10 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn is_true_flag(value: &str) -> bool {
-    matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
 }
 
 #[tokio::main]
@@ -39,14 +43,17 @@ async fn main() -> anyhow::Result<()> {
     nexus_storage::init_storage(&config).await?;
 
     // Initialize unified cache system
-    if let Err(e) = nexus_core::parse_cache::init_cache_manager(nexus_core::parse_cache::CacheConfig {
-        memory_capacity: 64 * 1024 * 1024, // 64MB
-        disk_capacity: 512 * 1024 * 1024,  // 512MB
-        redis_url: None,
-        ttl_default: std::time::Duration::from_secs(3600),
-        enable_compression: true,
-        enable_encryption: false,
-    }).await {
+    if let Err(e) =
+        nexus_core::parse_cache::init_cache_manager(nexus_core::parse_cache::CacheConfig {
+            memory_capacity: 64 * 1024 * 1024, // 64MB
+            disk_capacity: 512 * 1024 * 1024,  // 512MB
+            redis_url: None,
+            ttl_default: std::time::Duration::from_secs(3600),
+            enable_compression: true,
+            enable_encryption: false,
+        })
+        .await
+    {
         tracing::warn!("Failed to initialize cache manager: {}", e);
     }
 
@@ -55,17 +62,18 @@ async fn main() -> anyhow::Result<()> {
         .map(|v| is_true_flag(&v))
         .unwrap_or(false);
     if enable_platform_optimizer {
-        let _ = nexus_core::optimizer::init_optimizer_manager(nexus_core::optimizer::OptimizerConfig {
-            enable_memory_optimization: true,
-            enable_cpu_optimization: true,
-            enable_io_optimization: true,
-            enable_network_optimization: true,
-            enable_cache_optimization: true,
-            enable_algorithm_optimization: true,
-            monitoring_interval_ms: 30000,
-            optimization_interval_ms: 300000,
-            max_concurrent_optimizations: 5,
-        });
+        let _ =
+            nexus_core::optimizer::init_optimizer_manager(nexus_core::optimizer::OptimizerConfig {
+                enable_memory_optimization: true,
+                enable_cpu_optimization: true,
+                enable_io_optimization: true,
+                enable_network_optimization: true,
+                enable_cache_optimization: true,
+                enable_algorithm_optimization: true,
+                monitoring_interval_ms: 30000,
+                optimization_interval_ms: 300000,
+                max_concurrent_optimizations: 5,
+            });
         info!("Platform optimizer enabled by ENABLE_PLATFORM_OPTIMIZER");
     } else {
         info!("Platform optimizer skipped (set ENABLE_PLATFORM_OPTIMIZER=true to enable)");
@@ -128,6 +136,11 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     if let Ok(origins) = std::env::var("ALLOWED_ORIGINS") {
         config.server.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
         info!("Overriding ALLOWED_ORIGINS from environment");
+    }
+
+    if let Ok(enabled) = std::env::var("ENABLE_AI_CONTENT_RULES") {
+        config.features.enable_ai_content_rules = is_true_flag(&enabled);
+        info!("Overriding ENABLE_AI_CONTENT_RULES from environment");
     }
 
     Ok(config)

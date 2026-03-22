@@ -9,9 +9,9 @@
 //! - 阅读会话(ReadingSession): 用户的阅读行为记录
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -154,9 +154,10 @@ impl Book {
             self.update_date = Some(Utc::now());
             self.increment_version();
 
-            self.uncommitted_events.push(DomainEvent::Reading(ReadingEvent::BookCompleted {
-                book_id: self.id.0.clone(),
-            }));
+            self.uncommitted_events
+                .push(DomainEvent::Reading(ReadingEvent::BookCompleted {
+                    book_id: self.id.0.clone(),
+                }));
         }
     }
 }
@@ -425,10 +426,20 @@ impl ReadingDomain {
         })
     }
 
-    pub async fn handle_command(&self, command: ReadingCommand) -> Result<DomainResult, DomainError> {
+    pub async fn handle_command(
+        &self,
+        command: ReadingCommand,
+    ) -> Result<DomainResult, DomainError> {
         match command {
-            ReadingCommand::CreateBook { book_id, title, author, source_url, source_engine } => {
-                self.create_book(book_id, title, author, source_url, source_engine).await
+            ReadingCommand::CreateBook {
+                book_id,
+                title,
+                author,
+                source_url,
+                source_engine,
+            } => {
+                self.create_book(book_id, title, author, source_url, source_engine)
+                    .await
             }
             ReadingCommand::UpdateBook { book_id, metadata } => {
                 self.update_book(book_id, metadata).await
@@ -436,14 +447,32 @@ impl ReadingDomain {
             ReadingCommand::MarkBookCompleted { book_id } => {
                 self.mark_book_completed(book_id).await
             }
-            ReadingCommand::StartReadingSession { user_id, book_id, device_info } => {
-                self.start_reading_session(user_id, book_id, device_info).await
+            ReadingCommand::StartReadingSession {
+                user_id,
+                book_id,
+                device_info,
+            } => {
+                self.start_reading_session(user_id, book_id, device_info)
+                    .await
             }
-            ReadingCommand::UpdateReadingProgress { user_id, book_id, chapter_id, progress } => {
-                self.update_reading_progress(user_id, book_id, chapter_id, progress).await
+            ReadingCommand::UpdateReadingProgress {
+                user_id,
+                book_id,
+                chapter_id,
+                progress,
+            } => {
+                self.update_reading_progress(user_id, book_id, chapter_id, progress)
+                    .await
             }
-            ReadingCommand::AddBookmark { user_id, book_id, chapter_id, position, note } => {
-                self.add_bookmark(user_id, book_id, chapter_id, position, note).await
+            ReadingCommand::AddBookmark {
+                user_id,
+                book_id,
+                chapter_id,
+                position,
+                note,
+            } => {
+                self.add_bookmark(user_id, book_id, chapter_id, position, note)
+                    .await
             }
             ReadingCommand::EndReadingSession { session_id } => {
                 self.end_reading_session(session_id).await
@@ -453,9 +482,7 @@ impl ReadingDomain {
 
     pub async fn handle_query(&self, query: ReadingQuery) -> Result<DomainResult, DomainError> {
         match query {
-            ReadingQuery::GetBook { book_id } => {
-                self.get_book(book_id).await
-            }
+            ReadingQuery::GetBook { book_id } => self.get_book(book_id).await,
             ReadingQuery::GetBooksByAuthor { author, limit } => {
                 self.get_books_by_author(author, limit).await
             }
@@ -468,9 +495,10 @@ impl ReadingDomain {
             ReadingQuery::GetReadingHistory { user_id, limit } => {
                 self.get_reading_history(user_id, limit).await
             }
-            ReadingQuery::GetReadingStatistics { user_id, time_range } => {
-                self.get_reading_statistics(user_id, time_range).await
-            }
+            ReadingQuery::GetReadingStatistics {
+                user_id,
+                time_range,
+            } => self.get_reading_statistics(user_id, time_range).await,
         }
     }
 
@@ -501,9 +529,16 @@ impl ReadingDomain {
         })
     }
 
-    async fn update_book(&self, book_id: String, metadata: HashMap<String, serde_json::Value>) -> Result<DomainResult, DomainError> {
+    async fn update_book(
+        &self,
+        book_id: String,
+        metadata: HashMap<String, serde_json::Value>,
+    ) -> Result<DomainResult, DomainError> {
         let book_id = BookId(book_id);
-        let mut book = self.book_repository.find_by_id(&book_id).await?
+        let mut book = self
+            .book_repository
+            .find_by_id(&book_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Book {} not found", book_id.0)))?;
 
         book.update_metadata(metadata);
@@ -519,7 +554,10 @@ impl ReadingDomain {
 
     async fn mark_book_completed(&self, book_id: String) -> Result<DomainResult, DomainError> {
         let book_id = BookId(book_id);
-        let mut book = self.book_repository.find_by_id(&book_id).await?
+        let mut book = self
+            .book_repository
+            .find_by_id(&book_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Book {} not found", book_id.0)))?;
 
         book.mark_completed();
@@ -577,7 +615,9 @@ impl ReadingDomain {
         chapter_id: String,
         progress: ReadingProgress,
     ) -> Result<DomainResult, DomainError> {
-        self.reading_progress_repository.save_progress(&progress).await?;
+        self.reading_progress_repository
+            .save_progress(&progress)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -625,11 +665,15 @@ impl ReadingDomain {
 
     async fn end_reading_session(&self, session_id: String) -> Result<DomainResult, DomainError> {
         let session_id = ReadingSessionId(session_id);
-        let mut session = self.reading_session_repository.find_by_id(&session_id).await?
+        let mut session = self
+            .reading_session_repository
+            .find_by_id(&session_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Session {} not found", session_id.0)))?;
 
         session.end_time = Some(Utc::now());
-        session.total_reading_time = (session.end_time.unwrap() - session.start_time).num_seconds() as u64;
+        session.total_reading_time =
+            (session.end_time.unwrap() - session.start_time).num_seconds() as u64;
 
         self.reading_session_repository.save(&session).await?;
 
@@ -647,7 +691,10 @@ impl ReadingDomain {
 
     async fn get_book(&self, book_id: String) -> Result<DomainResult, DomainError> {
         let book_id = BookId(book_id);
-        let book = self.book_repository.find_by_id(&book_id).await?
+        let book = self
+            .book_repository
+            .find_by_id(&book_id)
+            .await?
             .ok_or_else(|| DomainError::NotFound(format!("Book {} not found", book_id.0)))?;
 
         Ok(DomainResult {
@@ -658,8 +705,15 @@ impl ReadingDomain {
         })
     }
 
-    async fn get_books_by_author(&self, author: String, limit: Option<u32>) -> Result<DomainResult, DomainError> {
-        let books = self.book_repository.find_by_author(&author, limit.unwrap_or(50)).await?;
+    async fn get_books_by_author(
+        &self,
+        author: String,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let books = self
+            .book_repository
+            .find_by_author(&author, limit.unwrap_or(50))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -669,9 +723,16 @@ impl ReadingDomain {
         })
     }
 
-    async fn get_reading_progress(&self, user_id: String, book_id: String) -> Result<DomainResult, DomainError> {
+    async fn get_reading_progress(
+        &self,
+        user_id: String,
+        book_id: String,
+    ) -> Result<DomainResult, DomainError> {
         let book_id = BookId(book_id);
-        let progress = self.reading_progress_repository.find_by_user_and_book(&user_id, &book_id).await?;
+        let progress = self
+            .reading_progress_repository
+            .find_by_user_and_book(&user_id, &book_id)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -681,12 +742,20 @@ impl ReadingDomain {
         })
     }
 
-    async fn get_user_bookmarks(&self, user_id: String, book_id: Option<String>) -> Result<DomainResult, DomainError> {
+    async fn get_user_bookmarks(
+        &self,
+        user_id: String,
+        book_id: Option<String>,
+    ) -> Result<DomainResult, DomainError> {
         let bookmarks = if let Some(book_id) = book_id {
             let book_id = BookId(book_id);
-            self.reading_progress_repository.find_bookmarks_by_user_and_book(&user_id, &book_id).await?
+            self.reading_progress_repository
+                .find_bookmarks_by_user_and_book(&user_id, &book_id)
+                .await?
         } else {
-            self.reading_progress_repository.find_bookmarks_by_user(&user_id).await?
+            self.reading_progress_repository
+                .find_bookmarks_by_user(&user_id)
+                .await?
         };
 
         Ok(DomainResult {
@@ -697,8 +766,15 @@ impl ReadingDomain {
         })
     }
 
-    async fn get_reading_history(&self, user_id: String, limit: Option<u32>) -> Result<DomainResult, DomainError> {
-        let sessions = self.reading_session_repository.find_by_user(&user_id, limit.unwrap_or(20)).await?;
+    async fn get_reading_history(
+        &self,
+        user_id: String,
+        limit: Option<u32>,
+    ) -> Result<DomainResult, DomainError> {
+        let sessions = self
+            .reading_session_repository
+            .find_by_user(&user_id, limit.unwrap_or(20))
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -708,8 +784,15 @@ impl ReadingDomain {
         })
     }
 
-    async fn get_reading_statistics(&self, user_id: String, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<DomainResult, DomainError> {
-        let stats = self.reading_session_repository.get_reading_statistics(&user_id, time_range).await?;
+    async fn get_reading_statistics(
+        &self,
+        user_id: String,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<DomainResult, DomainError> {
+        let stats = self
+            .reading_session_repository
+            .get_reading_statistics(&user_id, time_range)
+            .await?;
 
         Ok(DomainResult {
             success: true,
@@ -740,17 +823,36 @@ pub trait ChapterRepository: Send + Sync {
 #[async_trait]
 pub trait ReadingProgressRepository: Send + Sync {
     async fn save_progress(&self, progress: &ReadingProgress) -> Result<(), DomainError>;
-    async fn find_by_user_and_book(&self, user_id: &str, book_id: &BookId) -> Result<Option<ReadingProgress>, DomainError>;
+    async fn find_by_user_and_book(
+        &self,
+        user_id: &str,
+        book_id: &BookId,
+    ) -> Result<Option<ReadingProgress>, DomainError>;
     async fn find_bookmarks_by_user(&self, user_id: &str) -> Result<Vec<Bookmark>, DomainError>;
-    async fn find_bookmarks_by_user_and_book(&self, user_id: &str, book_id: &BookId) -> Result<Vec<Bookmark>, DomainError>;
+    async fn find_bookmarks_by_user_and_book(
+        &self,
+        user_id: &str,
+        book_id: &BookId,
+    ) -> Result<Vec<Bookmark>, DomainError>;
 }
 
 #[async_trait]
 pub trait ReadingSessionRepository: Send + Sync {
     async fn save(&self, session: &ReadingSession) -> Result<(), DomainError>;
-    async fn find_by_id(&self, id: &ReadingSessionId) -> Result<Option<ReadingSession>, DomainError>;
-    async fn find_by_user(&self, user_id: &str, limit: u32) -> Result<Vec<ReadingSession>, DomainError>;
-    async fn get_reading_statistics(&self, user_id: &str, time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<ReadingStatistics, DomainError>;
+    async fn find_by_id(
+        &self,
+        id: &ReadingSessionId,
+    ) -> Result<Option<ReadingSession>, DomainError>;
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        limit: u32,
+    ) -> Result<Vec<ReadingSession>, DomainError>;
+    async fn get_reading_statistics(
+        &self,
+        user_id: &str,
+        time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<ReadingStatistics, DomainError>;
 }
 
 // ===== 内存实现（用于测试和原型）=====
@@ -782,7 +884,8 @@ impl BookRepository for InMemoryBookRepository {
 
     async fn find_by_author(&self, author: &str, limit: u32) -> Result<Vec<Book>, DomainError> {
         let books = self.books.read().unwrap();
-        let filtered: Vec<Book> = books.values()
+        let filtered: Vec<Book> = books
+            .values()
             .filter(|b| b.author == author)
             .take(limit as usize)
             .cloned()
@@ -792,10 +895,7 @@ impl BookRepository for InMemoryBookRepository {
 
     async fn find_all(&self, limit: u32) -> Result<Vec<Book>, DomainError> {
         let books = self.books.read().unwrap();
-        let all: Vec<Book> = books.values()
-            .take(limit as usize)
-            .cloned()
-            .collect();
+        let all: Vec<Book> = books.values().take(limit as usize).cloned().collect();
         Ok(all)
     }
 }
@@ -829,7 +929,8 @@ impl ChapterRepository for InMemoryChapterRepository {
 
     async fn find_by_book(&self, book_id: &BookId) -> Result<Vec<Chapter>, DomainError> {
         let chapters = self.chapters.read().unwrap();
-        let filtered: Vec<Chapter> = chapters.values()
+        let filtered: Vec<Chapter> = chapters
+            .values()
             .filter(|c| &c.book_id == book_id)
             .cloned()
             .collect();
@@ -858,7 +959,11 @@ impl ReadingProgressRepository for InMemoryReadingProgressRepository {
         Ok(())
     }
 
-    async fn find_by_user_and_book(&self, user_id: &str, book_id: &BookId) -> Result<Option<ReadingProgress>, DomainError> {
+    async fn find_by_user_and_book(
+        &self,
+        user_id: &str,
+        book_id: &BookId,
+    ) -> Result<Option<ReadingProgress>, DomainError> {
         let progress_store = self.progress.read().unwrap();
         let key = (user_id.to_string(), book_id.clone());
         Ok(progress_store.get(&key).cloned())
@@ -866,14 +971,19 @@ impl ReadingProgressRepository for InMemoryReadingProgressRepository {
 
     async fn find_bookmarks_by_user(&self, user_id: &str) -> Result<Vec<Bookmark>, DomainError> {
         let progress_store = self.progress.read().unwrap();
-        let bookmarks: Vec<Bookmark> = progress_store.values()
+        let bookmarks: Vec<Bookmark> = progress_store
+            .values()
             .filter(|p| p.user_id == user_id)
             .flat_map(|p| p.bookmarks.clone())
             .collect();
         Ok(bookmarks)
     }
 
-    async fn find_bookmarks_by_user_and_book(&self, user_id: &str, book_id: &BookId) -> Result<Vec<Bookmark>, DomainError> {
+    async fn find_bookmarks_by_user_and_book(
+        &self,
+        user_id: &str,
+        book_id: &BookId,
+    ) -> Result<Vec<Bookmark>, DomainError> {
         let progress_store = self.progress.read().unwrap();
         let key = (user_id.to_string(), book_id.clone());
         if let Some(progress) = progress_store.get(&key) {
@@ -904,14 +1014,22 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, id: &ReadingSessionId) -> Result<Option<ReadingSession>, DomainError> {
+    async fn find_by_id(
+        &self,
+        id: &ReadingSessionId,
+    ) -> Result<Option<ReadingSession>, DomainError> {
         let sessions = self.sessions.read().unwrap();
         Ok(sessions.get(id).cloned())
     }
 
-    async fn find_by_user(&self, user_id: &str, limit: u32) -> Result<Vec<ReadingSession>, DomainError> {
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        limit: u32,
+    ) -> Result<Vec<ReadingSession>, DomainError> {
         let sessions = self.sessions.read().unwrap();
-        let filtered: Vec<ReadingSession> = sessions.values()
+        let filtered: Vec<ReadingSession> = sessions
+            .values()
             .filter(|s| s.user_id == user_id)
             .take(limit as usize)
             .cloned()
@@ -919,17 +1037,19 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
         Ok(filtered)
     }
 
-    async fn get_reading_statistics(&self, user_id: &str, _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>) -> Result<ReadingStatistics, DomainError> {
+    async fn get_reading_statistics(
+        &self,
+        user_id: &str,
+        _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    ) -> Result<ReadingStatistics, DomainError> {
         let sessions = self.sessions.read().unwrap();
-        let user_sessions: Vec<&ReadingSession> = sessions.values()
-            .filter(|s| s.user_id == user_id)
-            .collect();
+        let user_sessions: Vec<&ReadingSession> =
+            sessions.values().filter(|s| s.user_id == user_id).collect();
 
         let total_sessions = user_sessions.len() as u64;
-        let total_reading_time: u64 = user_sessions.iter()
-            .map(|s| s.total_reading_time)
-            .sum();
-        let total_chapters: u64 = user_sessions.iter()
+        let total_reading_time: u64 = user_sessions.iter().map(|s| s.total_reading_time).sum();
+        let total_chapters: u64 = user_sessions
+            .iter()
             .map(|s| s.chapters_read.len() as u64)
             .sum();
 
@@ -937,7 +1057,11 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
             total_sessions,
             total_reading_time,
             total_chapters,
-            average_session_time: if total_sessions > 0 { total_reading_time / total_sessions } else { 0 },
+            average_session_time: if total_sessions > 0 {
+                total_reading_time / total_sessions
+            } else {
+                0
+            },
         })
     }
 }
@@ -954,7 +1078,9 @@ impl BusinessRuleValidator<Book> for BookTitleNotEmptyRule {
 
     async fn validate(&self, entity: &Book, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.title.trim().is_empty() {
-            return Err(DomainError::Validation("Book title cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Book title cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }
@@ -974,7 +1100,9 @@ impl BusinessRuleValidator<Book> for BookAuthorNotEmptyRule {
 
     async fn validate(&self, entity: &Book, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.author.trim().is_empty() {
-            return Err(DomainError::Validation("Book author cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Book author cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }

@@ -324,17 +324,32 @@ impl EngineError {
     pub fn severity(&self) -> ErrorSeverity {
         match self {
             // Critical errors that require immediate attention
-            Self::CircuitOpen { .. } | Self::AllStrategiesFailed | Self::StorageQuotaExceeded => ErrorSeverity::Critical,
-            Self::IpBanned | Self::CloudflareChallengeFailed | Self::InsufficientResources => ErrorSeverity::High,
+            Self::CircuitOpen { .. } | Self::AllStrategiesFailed | Self::StorageQuotaExceeded => {
+                ErrorSeverity::Critical
+            }
+            Self::IpBanned | Self::CloudflareChallengeFailed | Self::InsufficientResources => {
+                ErrorSeverity::High
+            }
 
             // High impact errors
-            Self::RateLimited { .. } | Self::Unauthorized | Self::Forbidden | Self::ModelTimeout => ErrorSeverity::High,
-            Self::Database { .. } | Self::FileIo { .. } | Self::Internal { .. } => ErrorSeverity::High,
+            Self::RateLimited { .. }
+            | Self::Unauthorized
+            | Self::Forbidden
+            | Self::ModelTimeout => ErrorSeverity::High,
+            Self::Database { .. } | Self::FileIo { .. } | Self::Internal { .. } => {
+                ErrorSeverity::High
+            }
 
             // Medium impact errors
-            Self::Timeout | Self::ConnectionRefused { .. } | Self::TlsHandshakeFailed { .. } => ErrorSeverity::Medium,
-            Self::CloudflareChallenge | Self::ScriptTimeout | Self::ScriptMemoryExceeded => ErrorSeverity::Medium,
-            Self::InvalidConfig { .. } | Self::ConfigValidationFailed { .. } => ErrorSeverity::Medium,
+            Self::Timeout | Self::ConnectionRefused { .. } | Self::TlsHandshakeFailed { .. } => {
+                ErrorSeverity::Medium
+            }
+            Self::CloudflareChallenge | Self::ScriptTimeout | Self::ScriptMemoryExceeded => {
+                ErrorSeverity::Medium
+            }
+            Self::InvalidConfig { .. } | Self::ConfigValidationFailed { .. } => {
+                ErrorSeverity::Medium
+            }
 
             // Low impact errors
             _ => ErrorSeverity::Low,
@@ -436,31 +451,34 @@ impl EngineError {
 // Implement From for common error types
 impl From<std::io::Error> for EngineError {
     fn from(err: std::io::Error) -> Self {
-        Self::FileIo { message: err.to_string() }
+        Self::FileIo {
+            message: err.to_string(),
+        }
     }
 }
 
 impl From<serde_json::Error> for EngineError {
     fn from(err: serde_json::Error) -> Self {
-        Self::JsonParse { message: err.to_string() }
+        Self::JsonParse {
+            message: err.to_string(),
+        }
     }
 }
 
 impl From<crate::domain::DomainError> for EngineError {
     fn from(err: crate::domain::DomainError) -> Self {
         match err {
-            crate::domain::DomainError::Validation(msg) =>
-                Self::Validation { field: "unknown".to_string(), message: msg },
-            crate::domain::DomainError::BusinessLogic(msg) =>
-                Self::Internal { message: msg },
-            crate::domain::DomainError::NotFound(entity) =>
-                Self::SourceNotFound { id: entity },
-            crate::domain::DomainError::Conflict(msg) =>
-                Self::Internal { message: format!("Conflict: {}", msg) },
-            crate::domain::DomainError::Unauthorized(msg) =>
-                Self::Unauthorized,
-            crate::domain::DomainError::ExternalService(msg) =>
-                Self::Network { message: msg },
+            crate::domain::DomainError::Validation(msg) => Self::Validation {
+                field: "unknown".to_string(),
+                message: msg,
+            },
+            crate::domain::DomainError::BusinessLogic(msg) => Self::Internal { message: msg },
+            crate::domain::DomainError::NotFound(entity) => Self::SourceNotFound { id: entity },
+            crate::domain::DomainError::Conflict(msg) => Self::Internal {
+                message: format!("Conflict: {}", msg),
+            },
+            crate::domain::DomainError::Unauthorized(msg) => Self::Unauthorized,
+            crate::domain::DomainError::ExternalService(msg) => Self::Network { message: msg },
         }
     }
 }

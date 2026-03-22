@@ -28,7 +28,10 @@ pub async fn save_mapping_rule(
     Json(rule): Json<AiMappingRule>,
 ) -> Json<ApiResponse<()>> {
     match state.store.save_ai_mapping_rule(rule).await {
-        Ok(_) => Json(ApiResponse::success(())),
+        Ok(_) => {
+            state.content_rules.invalidate().await;
+            Json(ApiResponse::success(()))
+        }
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }
 }
@@ -39,7 +42,10 @@ pub async fn delete_mapping_rule(
     Path(id): Path<String>,
 ) -> Json<ApiResponse<()>> {
     match state.store.delete_ai_mapping_rule(id).await {
-        Ok(_) => Json(ApiResponse::success(())),
+        Ok(_) => {
+            state.content_rules.invalidate().await;
+            Json(ApiResponse::success(()))
+        }
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }
 }
