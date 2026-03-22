@@ -368,59 +368,207 @@ export interface ErrorInfo {
   context?: any
 }
 
+const KNOWN_ERROR_PRESETS = [
+  {
+    match: (message: string, error: any) =>
+      error?.status === 401 || message.toLowerCase().includes('unauthorized'),
+    code: 'UNAUTHORIZED',
+    severity: ErrorSeverity.HIGH,
+    userMessage: '登录已过期，请重新登录',
+    retryable: false,
+  },
+  {
+    match: (message: string, error: any) =>
+      error?.status === 403 || message.toLowerCase().includes('forbidden'),
+    code: 'FORBIDDEN',
+    severity: ErrorSeverity.HIGH,
+    userMessage: '没有权限执行此操作',
+    retryable: false,
+  },
+  {
+    match: (message: string) => {
+      const normalized = message.toLowerCase()
+      return (
+        normalized.includes('networkerror') ||
+        normalized.includes('network error') ||
+        normalized.includes('failed to fetch') ||
+        normalized.includes('network request failed') ||
+        normalized.includes('fetch failed')
+      )
+    },
+    code: 'NETWORK_ERROR',
+    severity: ErrorSeverity.MEDIUM,
+    userMessage: '网络连接失败，请检查网络设置',
+    retryable: true,
+  },
+  {
+    match: (message: string, error: any) => {
+      const normalized = message.toLowerCase()
+      return (
+        error?.name === 'AbortError' ||
+        normalized.includes('timeouterror') ||
+        normalized.includes('timeout error') ||
+        normalized.includes('timed out') ||
+        normalized.includes('timeout')
+      )
+    },
+    code: 'TIMEOUT',
+    severity: ErrorSeverity.MEDIUM,
+    userMessage: '请求超时，请稍后重试',
+    retryable: true,
+  },
+  {
+    match: (message: string) => message.toLowerCase().includes('quotaexceedederror'),
+    code: 'QUOTA_EXCEEDED',
+    severity: ErrorSeverity.HIGH,
+    userMessage: '存储空间已满',
+    retryable: false,
+  },
+  {
+    match: (message: string) => message.toLowerCase().includes('tocemptyexception'),
+    code: 'TOC_EMPTY',
+    severity: ErrorSeverity.LOW,
+    userMessage: '目录为空',
+    retryable: false,
+  },
+  {
+    match: (message: string, error: any) =>
+      error instanceof SyntaxError || message.toLowerCase().includes('syntaxerror'),
+    code: 'SYNTAX_ERROR',
+    severity: ErrorSeverity.LOW,
+    userMessage: '数据格式错误，请重试',
+    retryable: false,
+  },
+] as const
+
+function normalizeErrorCode(value: string): string {
+  const normalized = value
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^\w]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase()
+
+  return normalized || 'UNKNOWN_ERROR'
+}
+
+function cleanErrorMessage(message: string): string {
+  const trimmed = message.trim()
+  if (!trimmed) {
+    return 'Unknown error'
+  }
+
+  const withoutJavaPrefix = trimmed.replace(
+    /^(?:[\w$.]+(?:Exception|Error)):\s+/,
+    ''
+  )
+
+  return withoutJavaPrefix.trim() || trimmed
+}
+
+function extractErrorMessage(error: any): string {
+  if (error instanceof NexusError) {
+    return cleanErrorMessage(error.message)
+  }
+
+  if (error instanceof Error) {
+    return cleanErrorMessage(error.message || error.name || 'Unknown error')
+  }
+
+  if (typeof error === 'string') {
+    return cleanErrorMessage(error)
+  }
+
+  if (error && typeof error === 'object') {
+    const candidate = [error.errorMsg, error.message, error.error].find(
+      value => typeof value === 'string' && value.trim().length > 0
+    )
+    if (candidate) {
+      return cleanErrorMessage(candidate)
+    }
+  }
+
+  return cleanErrorMessage(String(error ?? 'Unknown error'))
+}
+
+function mapUserMessageByCode(code: string, fallback: string): string {
+  const mappedMessages: Record<string, string> = {
+    NETWORK_ERROR: '网络连接失败，请检查网络设置',
+    TIMEOUT: '请求超时，请稍后重试',
+    UNAUTHORIZED: '登录已过期，请重新登录',
+    FORBIDDEN: '没有权限执行此操作',
+    QUOTA_EXCEEDED: '存储空间已满',
+    TOC_EMPTY: '目录为空',
+    SYNTAX_ERROR: '数据格式错误，请重试',
+  }
+
+  return mappedMessages[code] || fallback || '操作失败，请重试'
+}
+
+function resolveErrorPreset(message: string, error: any) {
+  return KNOWN_ERROR_PRESETS.find(preset => preset.match(message, error))
+}
+
+function logProcessedError(errorInfo: ErrorInfo, error: any, context?: any) {
+  const logMethod =
+    errorInfo.severity === ErrorSeverity.CRITICAL || errorInfo.severity === ErrorSeverity.HIGH
+      ? 'error'
+      : errorInfo.severity === ErrorSeverity.MEDIUM
+        ? 'warn'
+        : 'info'
+
+  ;(logger as any)[logMethod](
+    'Processed error',
+    {
+      rawError: error,
+      code: errorInfo.code,
+      message: errorInfo.message,
+      retryable: errorInfo.retryable,
+      severity: errorInfo.severity,
+    },
+    context
+  )
+}
+
 /**
  * Process any error into a standardized ErrorInfo object
  */
 export function processError(error: any, context?: any): ErrorInfo {
-  let message = 'Unknown error'
-  let code = 'UNKNOWN_ERROR'
-  let severity = ErrorSeverity.MEDIUM
-  let userMessage = '操作失败，请重试'
-  let retryable = false
+  const message = extractErrorMessage(error)
+  let errorInfo: ErrorInfo
 
   if (error instanceof NexusError) {
-    message = error.message
-    code = ErrorCode[error.code] || String(error.code)
-    severity = error.severity
-    userMessage = message // Fallback
-    retryable = error.isRetryable
-  } else if (error instanceof Error) {
-    message = error.message
-    code = error.name || 'ERROR'
-    if (message.includes('Network') || message.includes('fetch')) {
-      code = 'NETWORK_ERROR'
-      severity = ErrorSeverity.HIGH
-      retryable = true
-      userMessage = '网络连接失败，请检查网络设置'
+    const code = ErrorCode[error.code] || String(error.code)
+    errorInfo = {
+      message,
+      code,
+      severity: error.severity,
+      userMessage: mapUserMessageByCode(code, message),
+      retryable: error.isRetryable,
+      context,
     }
-  } else if (typeof error === 'string') {
-    message = error
-    if (error === 'NetworkError' || error === 'TimeoutError') {
-      code = error.toUpperCase()
-      severity = ErrorSeverity.HIGH
-      retryable = true
-      userMessage = error === 'NetworkError' ? '网络连接失败' : '请求超时'
+  } else {
+    const preset = resolveErrorPreset(message, error)
+    const code =
+      preset?.code ||
+      normalizeErrorCode(
+        error instanceof Error && error.name && error.name !== 'Error' ? error.name : message
+      )
+    const severity = preset?.severity || ErrorSeverity.LOW
+
+    errorInfo = {
+      message,
+      code,
+      severity,
+      userMessage: preset?.userMessage || mapUserMessageByCode(code, '操作失败，请重试'),
+      retryable: preset?.retryable || false,
+      context,
     }
   }
 
-  // Known error mappings for user messages
-  const userMessageMap: Record<string, string> = {
-    'Unauthorized': '登录已过期，请重新登录',
-    'Forbidden': '没有权限执行此操作',
-    'QuotaExceededError': '存储空间已满',
-    'TocEmptyException': '目录为空',
-  }
-
-  if (userMessageMap[code]) {
-    userMessage = userMessageMap[code]
-  }
+  logProcessedError(errorInfo, error, context)
 
   return {
-    message,
-    code,
-    severity,
-    userMessage,
-    retryable,
+    ...errorInfo,
     context
   }
 }

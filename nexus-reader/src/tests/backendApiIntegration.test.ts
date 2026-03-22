@@ -12,7 +12,7 @@ const mockDeleteDictionaryEntry = vi.fn()
 const mockBatchDeleteDictionaryEntries = vi.fn()
 const mockUpdateSourceStatus = vi.fn()
 const mockGetDictionary = vi.fn()
-const mockGetSource = vi.fn()
+const mockGetBookSource = vi.fn()
 
 vi.mock('@/api/decoder', () => ({
   deleteDictionaryEntry: (...args: any[]) => mockDeleteDictionaryEntry(...args),
@@ -23,7 +23,7 @@ vi.mock('@/api/decoder', () => ({
 vi.mock('@/api/source', () => ({
   sourceApi: {
     updateSourceStatus: (...args: any[]) => mockUpdateSourceStatus(...args),
-    getSource: (...args: any[]) => mockGetSource(...args),
+    getBookSource: (...args: any[]) => mockGetBookSource(...args),
   },
 }))
 
@@ -75,7 +75,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       // Step 1: Get initial dictionary
       const beforeResult = await getDictionary({ level: level as any }) as any
-      const before = beforeResult.entries || beforeResult
+      const before = Array.isArray(beforeResult) ? beforeResult : beforeResult.entries
       expect(before).toHaveLength(2)
       expect(before.find((e: any) => e.id === entryId)).toBeDefined()
 
@@ -86,7 +86,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
 
       // Step 3: Verify persistence - entry should be gone
       const afterResult = await getDictionary({ level: level as any }) as any
-      const after = afterResult.entries || afterResult
+      const after = Array.isArray(afterResult) ? afterResult : afterResult.entries
       expect(after).toHaveLength(1)
       expect(after.find((e: any) => e.id === entryId)).toBeUndefined()
       expect(after.find((e: any) => e.id === 'test-entry-456')).toBeDefined()
@@ -312,7 +312,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       const updatedEnabled = false
 
       // Mock initial source state
-      mockGetSource.mockResolvedValue({
+      mockGetBookSource.mockResolvedValue({
         id: sourceId,
         name: 'Test Source',
         url: 'https://example.com',
@@ -329,7 +329,7 @@ describe('Backend API Enhancements - Integration Tests', () => {
       })
 
       // Mock updated source state (after update)
-      mockGetSource.mockResolvedValueOnce({
+      mockGetBookSource.mockResolvedValueOnce({
         id: sourceId,
         name: 'Test Source',
         url: 'https://example.com',

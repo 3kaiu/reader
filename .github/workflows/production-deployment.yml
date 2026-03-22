@@ -53,39 +53,31 @@ jobs:
   # ===== 代码质量检查 =====
   quality-check:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install dependencies
-        working-directory: nexus-reader
-        run: bun install --frozen-lockfile
-
-      - name: Lint code
-        working-directory: nexus-reader
-        run: bun run lint || echo "Linting completed with warnings"
-
-      - name: Type check
-        working-directory: nexus-reader
-        run: bun run type-check || echo "Type checking completed with warnings"
-
-      - name: Validate contracts (bindings/schema)
+      - name: Validate contracts
         run: node scripts/validate-contracts.mjs
 
-      - name: Run tests
-        working-directory: nexus-reader
-        run: |
-          if [ "${{ github.event.inputs.skip_tests }}" != "true" ]; then
-            bun run test || echo "Tests completed with warnings"
-          else
-            echo "Tests skipped as requested"
-          fi
+      - name: Run frontend quality gates
+        uses: ./.github/actions/nexus-reader-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          run-lint: "true"
+          run-type-check: "true"
+          run-tests: ${{ github.event.inputs.skip_tests != 'true' }}
+
+      - name: Run backend quality gates
+        uses: ./.github/actions/nexus-lite-quality
+        with:
+          run-check: "true"
+          run-tests: "true"
 
   # ===== 安全扫描 (利用GitHub CodeQL免费额度) =====
   security-scan:
@@ -138,14 +130,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup frontend toolchain
+        uses: ./.github/actions/nexus-reader-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        working-directory: nexus-reader
-        run: bun install --frozen-lockfile
 
       - name: Run bun audit
         working-directory: nexus-reader
@@ -185,14 +173,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup frontend toolchain
+        uses: ./.github/actions/nexus-reader-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        working-directory: nexus-reader
-        run: bun install --frozen-lockfile
 
       - name: Build for production
         working-directory: nexus-reader
@@ -231,7 +215,7 @@ jobs:
   deploy-pages:
     runs-on: ubuntu-latest
     needs: [build-frontend, security-scan]
-    if: success() && (github.event_name == 'push' || github.event.inputs.environment != '')
+    if: ${{ always() && needs.build-frontend.result == 'success' && (github.event_name != 'push' || needs.security-scan.result == 'success') && (github.event_name == 'push' || github.event.inputs.environment != '') }}
 
     steps:
       - name: Download frontend build
@@ -262,17 +246,11 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: false
 
-      - name: Update deployment status
-        uses: actions/github-script@v8
-        with:
-          script: |
-            github.rest.repos.createDeploymentStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              deployment_id: context.payload.deployment.id,
-              state: 'success',
-              environment_url: 'https://nexus-reader.pages.dev'
-            })
+      - name: Publish deployment summary
+        run: |
+          echo "### Cloudflare Pages" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://nexus-reader.pages.dev" >> "$GITHUB_STEP_SUMMARY"
 
   # ===== 部署 Cloudflare Workers =====
   deploy-workers:

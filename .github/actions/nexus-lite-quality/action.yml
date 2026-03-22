@@ -1,0 +1,34 @@
+name: Nexus Lite Quality
+description: Setup Rust and run selected nexus-lite cargo quality checks.
+
+inputs:
+  working-directory:
+    description: Path to the nexus-lite workspace.
+    required: false
+    default: nexus-lite
+  run-check:
+    description: Whether to run cargo check --workspace.
+    required: false
+    default: "false"
+  run-tests:
+    description: Whether to run cargo test --workspace --quiet.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Run cargo check
+      if: ${{ inputs.run-check == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: cargo check --workspace
+
+    - name: Run cargo test
+      if: ${{ inputs.run-tests == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: cargo test --workspace --quiet

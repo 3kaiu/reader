@@ -2,9 +2,12 @@
  * 错误处理组合函数
  */
 import { ref, readonly } from 'vue'
+import { useMessage } from './useMessage'
 import { errorHandler } from '@/utils/error-handler'
+import { processError } from '@/utils/errors'
 
 export function useErrorHandler() {
+  const { error: showError, warning: showWarning } = useMessage()
   const errors = ref<Array<{
     id: string
     error: any
@@ -12,20 +15,35 @@ export function useErrorHandler() {
     timestamp: number
   }>>([])
 
-  const handleError = (error: any, context?: any, _silent?: boolean) => {
-    const errorId = Date.now().toString()
+  const formatErrorMessage = (error: any, fallbackMessage?: string) => {
+    const info = processError(error)
+    return info.userMessage || fallbackMessage || info.message || '操作失败，请重试'
+  }
+
+  const handleError = (error: any, context?: any, showToast = true) => {
+    const timestamp = Date.now()
+    const errorId = `${timestamp}-${errors.value.length}`
+    const normalizedError =
+      error instanceof Error
+        ? error
+        : new Error(typeof error === 'string' && error.trim() ? error : 'Unknown error')
+    const userMessage = formatErrorMessage(error)
 
     const errorInfo = {
       id: errorId,
       error,
       context,
-      timestamp: Date.now()
+      timestamp,
     }
 
     errors.value.push(errorInfo)
 
+    if (showToast) {
+      showError(userMessage)
+    }
+
     // 使用统一的错误处理器
-    errorHandler.handle(error, context)
+    errorHandler.handle(normalizedError, typeof context === 'string' ? { message: context } : context)
 
     return errorId
   }
@@ -41,15 +59,30 @@ export function useErrorHandler() {
     errors.value = []
   }
 
-  const handleApiError = (response: { errorMsg?: string }, fallbackMessage?: string) => {
+  const handleApiError = (
+    response: { isSuccess?: boolean; errorMsg?: string },
+    fallbackMessage?: string,
+    showToast = true
+  ) => {
+    if (response?.isSuccess) {
+      return ''
+    }
+
     const message = response.errorMsg || fallbackMessage || '请求失败'
-    return handleError(new Error(message), { source: 'api-response', response })
+    return handleError(new Error(message), { source: 'api-response', response }, showToast)
   }
 
-  const handlePromiseError = (error: unknown, fallbackMessage?: string) => {
-    const wrappedError =
-      error instanceof Error ? error : new Error(fallbackMessage || String(error))
-    return handleError(wrappedError, { source: 'promise', fallbackMessage })
+  const handlePromiseError = (error: unknown, fallbackMessage?: string, showToast = true) => {
+    const wrappedError = error instanceof Error ? error : new Error(fallbackMessage || String(error))
+    return handleError(wrappedError, { source: 'promise', fallbackMessage }, showToast)
+  }
+
+  const handleWarning = (message: string, showToast = true) => {
+    if (!showToast) {
+      return ''
+    }
+
+    return showWarning(message)
   }
 
   return {
@@ -57,6 +90,8 @@ export function useErrorHandler() {
     handleError,
     handleApiError,
     handlePromiseError,
+    handleWarning,
+    formatErrorMessage,
     clearError,
     clearAllErrors
   }

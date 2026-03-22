@@ -18,7 +18,7 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
 }
 
 interface ErrorHandlerInstance {
-  handleError: (error: unknown, context?: string, silent?: boolean) => void
+  handleError: (error: unknown, context?: string, showToast?: boolean) => void
 }
 
 let errorHandlerInstance: ErrorHandlerInstance | null = null
@@ -112,7 +112,7 @@ export function reportBusinessError(errorMsg?: string): void {
   try {
     const handler = getGlobalErrorHandler()
     const userFriendlyMessage = translateErrorMessage(errorMsg || '业务操作失败')
-    handler.handleError(userFriendlyMessage, '', true)
+    handler.handleError(userFriendlyMessage, '', false)
   } catch (error) {
     if (import.meta.env.DEV) {
       logger.error('API interceptor failed to report business error', { error })
