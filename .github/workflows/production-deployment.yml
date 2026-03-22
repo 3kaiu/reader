@@ -208,7 +208,7 @@ jobs:
           cp _headers dist/_headers 2>/dev/null || echo "No _headers file found"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-build
           path: nexus-reader/dist/
@@ -221,7 +221,7 @@ jobs:
           echo "Publish skipped (using Bun; add bun publish if needed)"
 
       - name: Upload source maps
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: source-maps
           path: nexus-reader/dist/**/*.map
@@ -235,7 +235,7 @@ jobs:
 
     steps:
       - name: Download frontend build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: frontend-build
           path: frontend-dist
