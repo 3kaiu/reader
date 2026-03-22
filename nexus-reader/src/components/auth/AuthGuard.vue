@@ -3,89 +3,12 @@
  * 认证守卫组件
  * 只允许 GitHub 仓库 owner 或 Cloudflare 账户 owner 访问
  */
-import { ref, onMounted } from 'vue'
+import { useAuthGuardView } from '@/composables/useAuthGuardView'
 import { Github, Loader2, ShieldAlert } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
-const AUTH_WORKER_URL = import.meta.env.VITE_AUTH_WORKER_URL || ''
-
-console.log('[AuthGuard] AUTH_WORKER_URL:', AUTH_WORKER_URL || '(empty)')
-
-const isChecking = ref(true)
-const isAuthenticated = ref(false)
-const user = ref<{ provider: string; id: string; name: string; avatar?: string } | null>(null)
-const error = ref<string | null>(null)
-
-function checkUrlError() {
-  const params = new URLSearchParams(window.location.search)
-  
-  // 处理登录成功返回的 token
-  const token = params.get('token')
-  if (token) {
-    localStorage.setItem('nexus_auth_token', token)
-    // 清除 URL 中的 token
-    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-  }
-  
-  // 处理错误
-  const urlError = params.get('error')
-  if (urlError) {
-    if (urlError === 'unauthorized') {
-      error.value = '你的账号未被授权访问'
-    } else {
-      error.value = `登录失败: ${urlError}`
-    }
-    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-  }
-}
-
-async function checkAuth() {
-  // 没有配置认证 Worker，跳过认证
-  if (!AUTH_WORKER_URL) {
-    isAuthenticated.value = true
-    isChecking.value = false
-    return
-  }
-
-  // 先检查本地 token
-  const token = localStorage.getItem('nexus_auth_token')
-  if (!token) {
-    isAuthenticated.value = false
-    isChecking.value = false
-    return
-  }
-
-  try {
-    const res = await fetch(`${AUTH_WORKER_URL}/verify`, { 
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    const data = await res.json()
-    
-    isAuthenticated.value = data.authenticated
-    if (data.authenticated && data.user) {
-      user.value = data.user
-    } else {
-      // Token 无效，清除
-      localStorage.removeItem('nexus_auth_token')
-    }
-  } catch (e) {
-    console.error('Auth check failed:', e)
-    isAuthenticated.value = true // 网络错误时降级允许访问
-  } finally {
-    isChecking.value = false
-  }
-}
-
-function loginWithGitHub() {
-  if (AUTH_WORKER_URL) {
-    window.location.href = `${AUTH_WORKER_URL}/login/github`
-  }
-}
-
-onMounted(() => {
-  checkUrlError()
-  checkAuth()
-})
+const { isChecking, isAuthenticated, error, loginWithGitHub } =
+  useAuthGuardView()
 </script>
 
 <template>

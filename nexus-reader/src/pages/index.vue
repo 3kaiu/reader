@@ -2,16 +2,9 @@
 /**
  * 首页/书架 - Neo-Modern Redesign
  */
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
-import { useDark, useToggle, useStorage } from "@vueuse/core";
-import { useVirtualizer } from "@tanstack/vue-virtual";
-import { logger } from "@/utils/logger";
+import { computed } from "vue";
 import {
-  VIRTUAL_SCROLL_THRESHOLD,
-  VIRTUAL_SCROLL_OVERSCAN,
-} from "@/constants/ui";
-import {
+  Compass,
   Search,
   Plus,
   Settings,
@@ -21,10 +14,6 @@ import {
   Library,
   Sparkles,
   Trash2,
-  Server,
-  Brain,
-  Compass,
-  Wand2,
   FolderHeart,
 } from "lucide-vue-next";
 import {
@@ -41,418 +30,48 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
-import type { Book } from "@/api/book";
-import type { BookGroup } from "@/api/group";
-import { bookshelfJourneyService } from "@/services/journey/bookshelf";
-import {
-  getOptionalFeatureState,
-  type OptionalFeature,
-} from "@/utils/features";
 import { Button } from "@/components/ui/button";
 import BookCard from "@/components/book/BookCard.vue";
 import { Skeleton } from "@/components/ui";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
+import { useBookshelfView } from "@/composables/useBookshelfView";
+import { useBookshelfVirtualGrid } from "@/composables/useBookshelfVirtualGrid";
 import MoveBookDialog from "@/components/book/MoveBookDialog.vue";
-
-const offlineStore = useOfflineStore();
-
-const router = useRouter();
-const { success } = useMessage();
-const { confirm } = useConfirm();
-
-const isDark = useDark();
-const toggleDark = useToggle(isDark);
-
-// 响应式断点
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const isDesktop = breakpoints.greater("sm");
-const menuOpen = ref(false);
-const optionalFeatures = ref(getOptionalFeatureState());
-
-function isFeatureEnabled(feature: OptionalFeature) {
-  return optionalFeatures.value[feature];
-}
-
-// 菜单配置
-const menuGroups = computed(() =>
-  [
-    {
-      title: "发现",
-      items: isFeatureEnabled("discovery")
-        ? [
-            {
-              label: "探索发现",
-              desc: "发现新书与阅读周报",
-              icon: Compass,
-              path: "/discovery",
-              color: "text-orange-500",
-              bg: "bg-orange-500/10",
-            },
-          ]
-        : [],
-    },
-    {
-      title: "内容管理",
-      items: [
-        {
-          label: "书源管理",
-          desc: "管理接入的书源站点",
-          icon: Server,
-          path: "/sources",
-          color: "text-blue-500",
-          bg: "bg-blue-500/10",
-        },
-        {
-          label: "替换规则",
-          desc: "净化与替换文本内容",
-          icon: Wand2,
-          path: "/replace-rule",
-          color: "text-purple-500",
-          bg: "bg-purple-500/10",
-        },
-      ],
-    },
-    {
-      title: "附属模块",
-      items: isFeatureEnabled("ai")
-        ? [
-            {
-              label: "AI 模型",
-              desc: "管理实验性的本地 AI 运行时",
-              icon: Brain,
-              path: "/ai-settings",
-              color: "text-green-500",
-              bg: "bg-green-500/10",
-            },
-          ]
-        : [],
-    },
-    {
-      title: "系统",
-      items: [
-        {
-          label: "系统设置",
-          desc: "偏好与通用设置",
-          icon: Settings,
-          path: "/settings",
-          color: "text-slate-500",
-          bg: "bg-slate-500/10",
-        },
-      ],
-    },
-  ].filter((group) => group.items.length > 0)
-);
-
-const booksWithStatus = computed(() => {
-  return deduplicatedBooks.value.map(({ book, sourceCount }) => {
-    const cacheStatus = offlineStore.getBookCacheStatus(
-      book.bookUrl,
-      book.totalChapterNum || 0
-    );
-    return {
-      ...book,
-      sourceCount,
-      cachePercent: cacheStatus.percentage,
-      isFullyCached:
-        cacheStatus.cached >= (book.totalChapterNum || 0) &&
-        (book.totalChapterNum || 0) > 0,
-    };
-  });
-});
-
-// ====== 观察者与生命周期 ======
-const books = ref<Book[]>([]);
-const loading = ref(true);
-const refreshing = ref(false);
-const showProgress = useStorage("bookshelf-progress", true);
-const showMoveDialog = ref(false);
-
-// 分组状态
-const groups = ref<BookGroup[]>([]);
-const currentGroupId = ref<string | number>("all");
-const groupLoading = ref(false);
-
-// 过滤掉空分组（没有书籍的分组）
-const nonEmptyGroups = computed(() => {
-  const bookGroupIds = new Set(
-    books.value.map((b) => b.groupId).filter(Boolean)
-  );
-  return groups.value.filter((g) => bookGroupIds.has(String(g.groupId)));
-});
-
-// ====== 计算属性 ======
-const isManageMode = ref(false);
-const selectedBooks = ref<Set<string>>(new Set());
-
-// 按书名+作者去重
-const deduplicatedBooks = computed(() => {
-  const bookMap = new Map<string, { book: Book; sourceCount: number }>();
-
-  for (const book of books.value) {
-    const key = `${book.name}||${book.author || ""}`;
-    const existing = bookMap.get(key);
-
-    if (!existing) {
-      bookMap.set(key, { book, sourceCount: 1 });
-    } else {
-      existing.sourceCount++;
-      if ((book.lastReadTime || 0) > (existing.book.lastReadTime || 0)) {
-        existing.book = book;
-      }
-    }
-  }
-  return Array.from(bookMap.values());
-});
-
-const sortedBooks = computed(() => {
-  let filtered = booksWithStatus.value; // Use booksWithStatus here
-
-  if (currentGroupId.value !== "all") {
-    filtered = filtered.filter((book) => book.groupId === currentGroupId.value);
-  }
-
-  return [...filtered].sort(
-    (a, b) => (b.lastReadTime || 0) - (a.lastReadTime || 0)
-  );
-});
-
-const recentBooks = computed(() => {
-  // Take top 4 for "Continue Reading"
-  return sortedBooks.value.slice(0, 4);
-});
-
-const otherBooks = computed(() => {
-  // The rest for main bookshelf
-  return sortedBooks.value.slice(4);
-});
-
-// 虚拟滚动：只在书籍数量超过阈值时启用
-const shouldUseVirtualScroll = computed(
-  () => otherBooks.value.length > VIRTUAL_SCROLL_THRESHOLD
-);
-const virtualContainerRef = ref<HTMLElement | null>(null);
-
-// 计算每行显示的列数（响应式）
-const getColumnsPerRow = () => {
-  if (typeof window === "undefined") return 6;
-  const width = window.innerWidth;
-  if (width >= 1280) return 6; // xl
-  if (width >= 1024) return 5; // lg
-  if (width >= 768) return 4; // md
-  if (width >= 480) return 3; // sm
-  return 2; // xs
-};
-
-// 计算行数（响应式）
-const rows = computed(() => {
-  const cols = getColumnsPerRow();
-  return Math.ceil(otherBooks.value.length / cols);
-});
-
-// 窗口宽度响应式（用于监听窗口大小变化，触发虚拟滚动更新）
-const windowWidth = ref(
-  typeof window !== "undefined" ? window.innerWidth : 1280
-);
-
-// 监听窗口大小变化
-onMounted(() => {
-  if (typeof window !== "undefined") {
-    const handleResize = () => {
-      windowWidth.value = window.innerWidth;
-    };
-    window.addEventListener("resize", handleResize);
-  }
-});
-
-// 虚拟滚动器（按行）
-// 注意：@tanstack/vue-virtual 的 count 需要是响应式的，但需要确保在数据变化时更新
-const virtualizer = useVirtualizer({
-  count: rows.value,
-  getScrollElement: () => virtualContainerRef.value,
-  estimateSize: () => {
-    const cols = getColumnsPerRow();
-    // 估算每行高度：卡片高度 + gap
-    return cols <= 3 ? 280 : cols <= 4 ? 260 : 240;
-  },
-  overscan: VIRTUAL_SCROLL_OVERSCAN, // 预渲染行数
-});
-
-// 监听 rows 和 windowWidth 变化，强制虚拟滚动器重新计算
-watch(
-  rows,
-  (newCount) => {
-    if (virtualizer.value) {
-      virtualizer.value.setOptions({
-        ...virtualizer.value.options,
-        count: newCount,
-      });
-      virtualizer.value.measure();
-    }
-  },
-  { flush: "post" }
-);
-
-watch(
-  windowWidth,
-  () => {
-    if (virtualizer.value) {
-      virtualizer.value.measure();
-    }
-  },
-  { flush: "post" }
-);
-
-// ====== 方法 ======
-
-async function getBooks() {
-  try {
-    const res = await bookshelfJourneyService.listBooks();
-    if (res.isSuccess && Array.isArray(res.data)) {
-      books.value = res.data;
-    } else {
-      books.value = [];
-    }
-  } catch (e) {
-    logger.error("加载书架失败", e as Error, { function: "getBooks" });
-    books.value = [];
-  } finally {
-    loading.value = false;
-    refreshing.value = false;
-  }
-}
-
-async function getGroups() {
-  groupLoading.value = true;
-  try {
-    const res = await bookshelfJourneyService.listGroups();
-    if (res.isSuccess && Array.isArray(res.data)) {
-      groups.value = res.data;
-    } else {
-      groups.value = [];
-    }
-  } catch (e) {
-    logger.error("加载分组失败", e as Error);
-    groups.value = [];
-  } finally {
-    groupLoading.value = false;
-  }
-}
-
-function openBook(book: Book) {
-  if (isManageMode.value) {
-    toggleSelection(book);
-  } else {
-    router.push({
-      name: "reader",
-      query: { url: book.bookUrl, source: book.sourceId },
-    });
-  }
-}
-
-function toggleManageMode() {
-  isManageMode.value = !isManageMode.value;
-  selectedBooks.value.clear();
-}
-
-function toggleSelection(book: Book) {
-  if (!book.id) return;
-  if (selectedBooks.value.has(book.id)) {
-    selectedBooks.value.delete(book.id);
-  } else {
-    selectedBooks.value.add(book.id);
-  }
-}
-
-function selectAll() {
-  if (selectedBooks.value.size === booksWithStatus.value.length) {
-    selectedBooks.value.clear();
-  } else {
-    booksWithStatus.value.forEach((book) => {
-      if (book.id) selectedBooks.value.add(book.id);
-    });
-  }
-}
-
-async function batchDelete() {
-  if (selectedBooks.value.size === 0) return;
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定要删除选中的 ${selectedBooks.value.size} 本书籍吗？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  const booksToDelete = books.value.filter(
-    (b: Book) => b.id && selectedBooks.value.has(b.id)
-  );
-  try {
-    for (const book of booksToDelete) {
-      if (book.id) await bookshelfJourneyService.deleteBook(book.id);
-    }
-    books.value = books.value.filter(
-      (b: Book) => !b.id || !selectedBooks.value.has(b.id)
-    );
-    selectedBooks.value.clear();
-    isManageMode.value = false;
-    success("删除成功");
-  } catch (e) {
-    // 全局拦截器会处理报错
-  }
-}
-
-async function handleMoveConfirm(groupId: string | null) {
-  if (selectedBooks.value.size === 0) return;
-
-  const booksToMove = books.value.filter(
-    (b) => b.id && selectedBooks.value.has(b.id)
-  );
-
-  try {
-    const res = await bookshelfJourneyService.moveBooksToGroup(groupId, booksToMove);
-    if (res.isSuccess) {
-      success("移动成功");
-      await getBooks();
-      isManageMode.value = false;
-      selectedBooks.value.clear();
-    }
-  } catch (e) {
-    // 全局拦截器处理
-  }
-}
-
-async function handleDelete(book: Book) {
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定要删除《${book.name}》吗？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  try {
-    if (book.id) {
-      const res = await bookshelfJourneyService.deleteBook(book.id);
-      if (res.isSuccess) {
-        success("删除成功");
-        books.value = books.value.filter((b: Book) => b.id !== book.id);
-      }
-    }
-  } catch (e) {
-    // 拦截器处理
-  }
-}
-
-function goSearch() {
-  router.push("/search");
-}
-
-onMounted(() => {
-  optionalFeatures.value = getOptionalFeatureState();
-  getBooks();
-  getGroups();
-  offlineStore.loadCacheIndex();
-});
+const {
+  isDark,
+  toggleDark,
+  showProgress,
+  menuOpen,
+  isDesktop,
+  menuGroups,
+  isFeatureEnabled,
+  loading,
+  books,
+  groups,
+  nonEmptyGroups,
+  currentGroupId,
+  recentBooks,
+  otherBooks,
+  hasBooks,
+  allBooksSelected,
+  isManageMode,
+  selectedBooks,
+  selectAll,
+  toggleManageMode,
+  showMoveDialog,
+  openBook,
+  batchDelete,
+  handleMoveConfirm,
+  handleDelete,
+  navigateTo,
+  goDiscovery,
+  goSearch,
+} = useBookshelfView();
+const {
+  virtualContainerRef,
+  shouldUseVirtualScroll,
+  virtualizer,
+  getVirtualRowItems,
+} = useBookshelfVirtualGrid(computed(() => otherBooks.value));
 </script>
 
 <template>
@@ -499,7 +118,7 @@ onMounted(() => {
           <button
             v-if="isFeatureEnabled('discovery')"
             class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
-            @click="router.push('/discovery')"
+            @click="goDiscovery()"
             aria-label="发现"
           >
             <Compass class="h-5 w-5 text-foreground" />
@@ -514,7 +133,7 @@ onMounted(() => {
           </button>
 
           <button
-            v-if="booksWithStatus.length > 0"
+            v-if="hasBooks"
             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             @click="toggleManageMode()"
           >
@@ -556,7 +175,7 @@ onMounted(() => {
                   <DropdownMenuItem
                     v-for="item in group.items"
                     :key="item.path"
-                    @click="router.push(item.path)"
+                    @click="navigateTo(item.path)"
                     class="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors group"
                   >
                     <div
@@ -617,8 +236,8 @@ onMounted(() => {
                     <button
                       v-for="item in group.items"
                       :key="item.path"
-                      @click="
-                        router.push(item.path);
+                    @click="
+                        navigateTo(item.path);
                         menuOpen = false;
                       "
                       class="flex items-center gap-4 px-3 py-3 rounded-xl bg-secondary/30 active:scale-[0.98] transition-all border border-transparent active:border-primary/10"
@@ -807,58 +426,28 @@ onMounted(() => {
               <div
                 class="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 px-1"
               >
-                <template v-for="col in getColumnsPerRow()" :key="col">
+                <div
+                  v-for="book in getVirtualRowItems(virtualRow.index)"
+                  :key="book.id || book.bookUrl"
+                  class="relative"
+                >
+                  <BookCard
+                    :book="book"
+                    :show-progress="showProgress"
+                    :manage-mode="isManageMode"
+                    :selected="selectedBooks.has(book.id || '')"
+                    :cache-percent="book.cachePercent"
+                    :is-fully-cached="book.isFullyCached"
+                    @click="openBook"
+                    @delete="handleDelete"
+                  />
                   <div
-                    v-if="
-                      virtualRow.index * getColumnsPerRow() + col - 1 <
-                      otherBooks.length
-                    "
-                    class="relative"
+                    v-if="book.sourceCount > 1 && !isManageMode"
+                    class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-primary/20 backdrop-blur text-primary text-[10px] font-bold flex items-center justify-center ring-2 ring-background z-10 scale-90 sm:scale-100"
                   >
-                    <BookCard
-                      :book="
-                        otherBooks[
-                          virtualRow.index * getColumnsPerRow() + col - 1
-                        ]
-                      "
-                      :show-progress="showProgress"
-                      :manage-mode="isManageMode"
-                      :selected="
-                        selectedBooks.has(
-                          otherBooks[
-                            virtualRow.index * getColumnsPerRow() + col - 1
-                          ].id || ''
-                        )
-                      "
-                      :cache-percent="
-                        otherBooks[
-                          virtualRow.index * getColumnsPerRow() + col - 1
-                        ].cachePercent
-                      "
-                      :is-fully-cached="
-                        otherBooks[
-                          virtualRow.index * getColumnsPerRow() + col - 1
-                        ].isFullyCached
-                      "
-                      @click="openBook"
-                      @delete="handleDelete"
-                    />
-                    <div
-                      v-if="
-                        otherBooks[
-                          virtualRow.index * getColumnsPerRow() + col - 1
-                        ].sourceCount > 1 && !isManageMode
-                      "
-                      class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-primary/20 backdrop-blur text-primary text-[10px] font-bold flex items-center justify-center ring-2 ring-background z-10 scale-90 sm:scale-100"
-                    >
-                      {{
-                        otherBooks[
-                          virtualRow.index * getColumnsPerRow() + col - 1
-                        ].sourceCount
-                      }}
-                    </div>
+                    {{ book.sourceCount }}
                   </div>
-                </template>
+                </div>
               </div>
             </div>
           </div>
@@ -915,7 +504,7 @@ onMounted(() => {
             @click="selectAll"
           >
             {{
-              selectedBooks.size === deduplicatedBooks.length ? "取消" : "全选"
+              allBooksSelected ? "取消" : "全选"
             }}
           </button>
         </div>
@@ -937,7 +526,7 @@ onMounted(() => {
           </button>
           <button
             class="lg:hidden h-8 px-3 rounded-lg text-[11px] font-bold opacity-60 active:bg-background/10"
-            @click="isManageMode = false"
+            @click="toggleManageMode(false)"
           >
             退出
           </button>

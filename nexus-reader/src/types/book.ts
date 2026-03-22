@@ -1,0 +1,34 @@
+export interface Book {
+  id?: string
+  sourceId: string
+  bookUrl: string
+  name: string
+  author: string
+  coverUrl?: string
+  intro?: string
+  tocUrl?: string
+  lastChapterIndex?: number
+  lastReadPosition?: number
+  lastReadTime?: number
+  createdAt?: number
+  sourceName?: string
+  origin?: string
+  originName?: string
+  type?: string
+  durChapterIndex?: number
+  durChapterTitle?: string
+  latestChapterTitle?: string
+  totalChapterNum?: number
+  groupId?: string
+}
+
+export interface Chapter {
+  title: string
+  url: string
+  index: number
+  isVip?: boolean
+}
+
+export interface ChapterContent {
+  content: string
+}

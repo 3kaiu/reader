@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/toast'
 
-import { useUserStore } from '@/stores/user'
 import AuthGuard from '@/components/auth/AuthGuard.vue'
-import LoginModal from '@/components/LoginModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-
-const userStore = useUserStore()
 </script>
 
 <template>
@@ -18,8 +14,6 @@ const userStore = useUserStore()
       </Transition>
     </router-view>
     
-    <!-- 全局登录弹窗 -->
-    <LoginModal v-model:show="userStore.showLoginModal" />
     <!-- 全局确认对话框 -->
     <ConfirmDialog />
   </AuthGuard>

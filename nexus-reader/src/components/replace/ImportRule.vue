@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useMessage } from '@/composables/useMessage'
-import { 
+import { useImportRuleView } from '@/composables/useImportRuleView'
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -10,7 +9,6 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Upload } from 'lucide-vue-next'
-import { replaceApi, type ReplaceRule } from '@/api/replace'
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -23,94 +21,11 @@ const emit = defineEmits<{
   'success': []
 }>()
 
-const message = useMessage()
-const loading = ref(false)
-const jsonText = ref('')
+const { loading, jsonText, onFileChange, handleImport } = useImportRuleView({
+  close: () => emit('update:open', false),
+  notifySuccess: () => emit('success'),
+})
 
-function normalizeOptionalText(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : null
-}
-
-function normalizeRule(rule: Partial<ReplaceRule>): ReplaceRule | null {
-  const name = typeof rule.name === 'string' ? rule.name.trim() : ''
-  const pattern = typeof rule.pattern === 'string' ? rule.pattern.trim() : ''
-
-  if (!name || !pattern) {
-    return null
-  }
-
-  return {
-    id: typeof rule.id === 'string' ? rule.id : undefined,
-    name,
-    pattern,
-    replacement: normalizeOptionalText(rule.replacement),
-    scope: normalizeOptionalText(rule.scope),
-    isEnabled: rule.isEnabled !== false,
-    isRegex: Boolean(rule.isRegex)
-  }
-}
-
-async function handleImport() {
-  if (!jsonText.value.trim()) {
-    message.warning('请输入内容')
-    return
-  }
-  
-  loading.value = true
-  try {
-    let rules: ReplaceRule[] = []
-    try {
-      const parsed = JSON.parse(jsonText.value)
-      const list = Array.isArray(parsed) ? parsed : [parsed]
-      rules = list
-        .map(item => normalizeRule(item as Partial<ReplaceRule>))
-        .filter((rule): rule is ReplaceRule => rule !== null)
-
-      if (rules.length === 0) {
-        message.warning('未找到符合契约的规则，至少需要 name 和 pattern')
-        loading.value = false
-        return
-      }
-
-      if (rules.length < list.length) {
-        message.warning(`已跳过 ${list.length - rules.length} 条不合法规则`)
-      }
-
-      jsonText.value = JSON.stringify(rules, null, 2)
-    } catch (e) {
-      message.error('JSON 格式错误')
-      loading.value = false
-      return
-    }
-
-    const res = await replaceApi.saveReplaceRules(rules)
-    if (res.isSuccess) {
-      message.success(`成功导入 ${rules.length} 条规则`)
-      emit('success')
-      emit('update:open', false)
-      jsonText.value = ''
-    } else {
-      message.error(res.errorMsg || '导入失败')
-    }
-  } catch (err) {
-    message.error('导入出错')
-  } finally {
-    loading.value = false
-  }
-}
-
-function onFileChange(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    jsonText.value = e.target?.result as string
-  }
-  reader.readAsText(file)
-}
 </script>
 
 <template>

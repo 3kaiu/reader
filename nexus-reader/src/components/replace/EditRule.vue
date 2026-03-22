@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useMessage } from '@/composables/useMessage'
+import { useEditRuleView } from '@/composables/useEditRuleView'
 import {
   Sheet,
   SheetContent,
@@ -10,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { replaceApi, type ReplaceRule } from '@/api/replace'
+import type { ReplaceRule } from '@/types/replace'
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -24,90 +23,11 @@ const emit = defineEmits<{
   'saved': []
 }>()
 
-const message = useMessage()
-const loading = ref(false)
-
-type ReplaceRuleForm = {
-  id?: string
-  name: string
-  pattern: string
-  replacement: string
-  scope: string
-  isEnabled: boolean
-  isRegex: boolean
-}
-
-function createEmptyForm(): ReplaceRuleForm {
-  return {
-    name: '',
-    pattern: '',
-    replacement: '',
-    scope: '',
-    isEnabled: true,
-    isRegex: false
-  }
-}
-
-function toForm(rule?: ReplaceRule | null): ReplaceRuleForm {
-  if (!rule) return createEmptyForm()
-
-  return {
-    id: rule.id,
-    name: rule.name,
-    pattern: rule.pattern,
-    replacement: rule.replacement || '',
-    scope: rule.scope || '',
-    isEnabled: rule.isEnabled,
-    isRegex: rule.isRegex
-  }
-}
-
-const form = ref<ReplaceRuleForm>({
-  id: undefined,
-  name: '',
-  pattern: '',
-  replacement: '',
-  scope: '',
-  isEnabled: true,
-  isRegex: false
+const { loading, form, handleSave } = useEditRuleView({
+  props,
+  close: () => emit('update:open', false),
+  notifySaved: () => emit('saved'),
 })
-
-watch(() => props.open, (val) => {
-  if (val) {
-    form.value = toForm(props.rule)
-  }
-})
-
-async function handleSave() {
-  if (!form.value.name.trim()) {
-    message.warning('请输入规则名称')
-    return
-  }
-  if (!form.value.pattern.trim()) {
-    message.warning('请输入替换规则')
-    return
-  }
-
-  loading.value = true
-  try {
-    const res = await replaceApi.saveReplaceRule({
-      ...form.value,
-      name: form.value.name.trim(),
-      pattern: form.value.pattern.trim()
-    })
-    if (res.isSuccess) {
-      message.success(props.rule ? '修改成功' : '新增成功')
-      emit('saved')
-      emit('update:open', false)
-    } else {
-      message.error(res.errorMsg || '保存失败')
-    }
-  } catch (err) {
-    message.error('保存出错')
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <template>

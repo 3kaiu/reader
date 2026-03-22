@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { useChapterListView } from '@/composables/useChapterListView'
 import { 
   Search, ArrowDown, ArrowUp, Locate, RotateCw, X, Check, CloudDownload
 } from 'lucide-vue-next'
-import { useVirtualList } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
@@ -14,8 +13,7 @@ import {
   SheetClose
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui'
-import { useMessage } from '@/composables/useMessage'
-import type { Chapter } from '@/api/book'
+import type { Chapter } from '@/types/book'
 
 const props = defineProps<{
   open: boolean
@@ -35,82 +33,28 @@ const emit = defineEmits<{
   (e: 'downloadAll'): void
 }>()
 
-const { warning } = useMessage()
-
-// State
-const searchKeyword = ref('')
-const isReverse = ref(false)
-
-// Computed
-const filteredChapters = computed(() => {
-  let list = props.chapters.map((c, i) => ({ ...c, originalIndex: i }))
-  
-  if (searchKeyword.value) {
-    const key = searchKeyword.value.toLowerCase()
-    list = list.filter(c => c.title.toLowerCase().includes(key))
-  }
-  
-  if (isReverse.value) {
-    list.reverse()
-  }
-  
-  return list
-})
-
-const showCacheControls = computed(() =>
-  typeof props.isCached === 'function' ||
-  typeof props.isDownloading === 'boolean' ||
-  !!props.downloadProgress
-)
-
-// Virtual List
-const { list, containerProps, wrapperProps, scrollTo } = useVirtualList(
+const {
+  searchKeyword,
+  isReverse,
   filteredChapters,
-  {
-    itemHeight: 50, // Approx height
-    overscan: 10,
-  }
-)
-
-// Actions
-interface VirtualListItem {
-  index: number
-  data: { originalIndex: number; title: string }
-}
-function handleSelect(virtualItem: VirtualListItem) {
-  emit('select', virtualItem.data.originalIndex)
-  emit('update:open', false)
-}
-
-function toggleReverse() {
-  isReverse.value = !isReverse.value
-}
-
-function scrollToCurrent() {
-  if (props.currentInd < 0) return
-  
-  const targetIndex = filteredChapters.value.findIndex(c => c.originalIndex === props.currentInd)
-  if (targetIndex !== -1) {
-    scrollTo(targetIndex)
-  } else {
-    warning('当前章节不在列表中')
-  }
-}
-
-function handleRefresh() {
-  emit('refresh')
-}
-
-// Watchers
-watch(() => props.open, (val) => {
-  if (val) {
-    nextTick(() => {
-      // Auto scroll to current if visible (and not searching)
-      if (!searchKeyword.value) {
-        scrollToCurrent()
-      }
-    })
-  }
+  showCacheControls,
+  currentProgressPercent,
+  currentChapterTitle,
+  list,
+  containerProps,
+  wrapperProps,
+  handleSelect,
+  toggleReverse,
+  clearSearch,
+  scrollToCurrent,
+  handleRefresh,
+  handleDownloadAll,
+} = useChapterListView({
+  props,
+  onSelect: index => emit('select', index),
+  onClose: () => emit('update:open', false),
+  onRefresh: () => emit('refresh'),
+  onDownloadAll: () => emit('downloadAll'),
 })
 </script>
 
@@ -174,7 +118,7 @@ watch(() => props.open, (val) => {
             size="sm" 
             class="flex-1 h-8 text-xs gap-1"
             :disabled="isDownloading"
-            @click="emit('downloadAll')"
+            @click="handleDownloadAll"
           >
             <CloudDownload class="h-3.5 w-3.5" :class="{ 'animate-pulse': isDownloading }" />
             {{ isDownloading ? '下载中' : '缓存全本' }}
@@ -206,7 +150,7 @@ watch(() => props.open, (val) => {
            <button 
              v-if="searchKeyword"
              class="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-muted rounded-full p-1"
-             @click="searchKeyword = ''"
+             @click="clearSearch"
            >
              <X class="h-3.5 w-3.5 text-muted-foreground" />
            </button>
@@ -216,9 +160,9 @@ watch(() => props.open, (val) => {
         <div v-if="currentInd >= 0 && !searchKeyword" class="mt-3 px-3 py-2.5 bg-primary/5 rounded-lg border border-primary/10">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="opacity-60">正在阅读</span>
-            <span class="text-primary font-semibold">{{ Math.round((currentInd + 1) / chapters.length * 100) }}%</span>
+            <span class="text-primary font-semibold">{{ currentProgressPercent }}%</span>
           </div>
-          <p class="text-sm truncate font-medium">第 {{ currentInd + 1 }} 章 · {{ chapters[currentInd]?.title }}</p>
+          <p class="text-sm truncate font-medium">第 {{ currentInd + 1 }} 章 · {{ currentChapterTitle }}</p>
         </div>
       </SheetHeader>
 

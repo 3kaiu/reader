@@ -2,6 +2,11 @@
  * Unified Error Handling System for Nexus Reader
  * Implements standardized error codes and responses compatible with Nexus ecosystem
  */
+import {
+  getLocalStorageItem,
+  getSessionStorageItem,
+} from '@/utils/browserStorage'
+import { logger } from '@/utils/logger'
 
 export enum ErrorCode {
   // Network Layer (1000-1999)
@@ -304,14 +309,14 @@ export function reportError(error: NexusError, additionalContext?: ErrorContext)
     context: {
       ...error.context,
       ...additionalContext,
-      userId: localStorage.getItem('user_id'),
-      sessionId: sessionStorage.getItem('session_id'),
+      userId: getLocalStorageItem('user_id'),
+      sessionId: getSessionStorageItem('session_id'),
     }
   }
 
-  // Log to console in development
+  // Log in development
   if (import.meta.env.DEV) {
-    console.error('[Nexus Error]', errorReport)
+    logger.error('Nexus error', errorReport)
   }
 
   // TODO: Send to error reporting service
@@ -353,7 +358,7 @@ export function errorHandler(_target: any, propertyKey: string, descriptor: Prop
   return descriptor
 }
 
-// Support for legacy ErrorInfo and ErrorContext naming/structure if needed by tests
+// Structured error info used by retry helpers and property tests
 export interface ErrorInfo {
   message: string
   code: string

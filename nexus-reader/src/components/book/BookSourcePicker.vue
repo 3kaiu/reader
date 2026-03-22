@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { useBookSourcePickerView } from '@/composables/useBookSourcePickerView'
 import { Check, Globe, ShieldAlert } from 'lucide-vue-next'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { useReaderStore } from '@/stores/reader'
 import { LazyImage } from '@/components/ui'
-import type { Book } from '@/api/book'
 
 withDefaults(defineProps<{
   open?: boolean
@@ -16,9 +14,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const readerStore = useReaderStore()
-
-const currentBook = computed<Book | null>(() => readerStore.currentBook)
+const { currentBook } = useBookSourcePickerView()
 </script>
 
 <template>

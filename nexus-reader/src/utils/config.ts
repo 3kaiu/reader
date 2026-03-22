@@ -1,4 +1,10 @@
-export class UnifiedConfig {
+import {
+  getLocalStorageItem,
+  setLocalStorageItem,
+} from '@/utils/browserStorage'
+import { logger } from '@/utils/logger'
+
+class UnifiedConfig {
   private static instance: UnifiedConfig
   private config = new Map<string, any>()
 
@@ -23,7 +29,10 @@ export class UnifiedConfig {
   }
 
   private loadDefaultConfig(): void {
-    this.config.set('api.baseURL', import.meta.env.VITE_API_BASE_URL || '/api')
+    this.config.set(
+      'api.baseURL',
+      import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api'
+    )
     this.config.set('api.timeout', 10000)
     this.config.set('cache.enabled', true)
     this.config.set('cache.ttl', 5 * 60 * 1000)
@@ -37,7 +46,7 @@ export class UnifiedConfig {
 
   private loadPersistedConfig(): void {
     try {
-      const persisted = localStorage.getItem('app-config')
+      const persisted = getLocalStorageItem('app-config')
       if (!persisted) return
 
       const parsed = JSON.parse(persisted)
@@ -45,7 +54,7 @@ export class UnifiedConfig {
         this.config.set(key, value)
       })
     } catch (error) {
-      console.warn('Failed to load persisted config:', error)
+      logger.warn('Failed to load persisted config', { error })
     }
   }
 
@@ -62,9 +71,9 @@ export class UnifiedConfig {
           toPersist[key] = value
         }
       })
-      localStorage.setItem('app-config', JSON.stringify(toPersist))
+      setLocalStorageItem('app-config', JSON.stringify(toPersist))
     } catch (error) {
-      console.warn('Failed to persist config:', error)
+      logger.warn('Failed to persist config', { error })
     }
   }
 }

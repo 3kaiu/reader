@@ -1,9 +1,5 @@
-export interface ErrorContext {
-  component?: string
-  operation?: string
-  userId?: string
-  [key: string]: any
-}
+import { logger } from '@/utils/logger'
+import type { ErrorContext } from '@/utils/errors'
 
 interface ErrorEventRecord {
   id: string
@@ -43,7 +39,7 @@ export class UnifiedErrorHandler {
       this.errorQueue.shift()
     }
 
-    console.error('Unified Error Handler:', errorEvent)
+    logger.error('Unified Error Handler', errorEvent)
     void this.reportToMonitoring(errorEvent)
   }
 
@@ -63,7 +59,7 @@ export class UnifiedErrorHandler {
         body: JSON.stringify(errorEvent),
       })
     } catch (error) {
-      console.warn('Failed to report error to monitoring:', error)
+      logger.warn('Failed to report error to monitoring', { error })
     }
   }
 }

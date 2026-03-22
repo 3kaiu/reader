@@ -6,7 +6,7 @@
 import { logger } from '@/utils/logger'
 
 // 网络连接信息接口
-export interface NetworkInfo {
+interface NetworkInfo {
   effectiveType: '2g' | '3g' | '4g' | 'slow-2g' | 'unknown'
   downlink: number // 下行带宽 (Mbps)
   rtt: number // 往返时间 (ms)
@@ -16,7 +16,7 @@ export interface NetworkInfo {
 }
 
 // 请求优化配置
-export interface RequestOptimizationConfig {
+interface RequestOptimizationConfig {
   maxRetries: number
   baseDelay: number
   maxDelay: number
@@ -25,7 +25,7 @@ export interface RequestOptimizationConfig {
 }
 
 // 网络质量等级
-export type NetworkQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'offline'
+type NetworkQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'offline'
 
 // 默认请求优化配置
 const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationConfig> = {
@@ -69,7 +69,7 @@ const REQUEST_OPTIMIZATION_CONFIGS: Record<NetworkQuality, RequestOptimizationCo
 /**
  * 网络条件检测器
  */
-export class NetworkDetector {
+class NetworkDetector {
   private networkInfo: NetworkInfo | null = null
   private listeners: Array<(info: NetworkInfo) => void> = []
   private updateInterval: number | null = null
@@ -233,7 +233,7 @@ export class NetworkDetector {
       try {
         listener(info)
       } catch (error: any) {
-        console.error('Network change listener error:', error)
+        logger.error('Network change listener error', { error })
       }
     })
   }
@@ -242,7 +242,7 @@ export class NetworkDetector {
 /**
  * 请求优化器
  */
-export class RequestOptimizer {
+class RequestOptimizer {
   private networkDetector: NetworkDetector
   private pendingRequests = new Map<string, Promise<any>>()
 
@@ -305,9 +305,11 @@ export class RequestOptimizer {
           : NaN
         if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
           const delay = Math.min(retryAfterSeconds * 1000, config.maxDelay)
-          console.log(
-            `🔄 Server asked retry-after=${retryAfterSeconds}s, retrying in ${delay}ms...`
-          )
+          logger.debug('Retrying request after server Retry-After', {
+            retryAfterSeconds,
+            delay,
+            attempt: attempt + 1,
+          })
           await new Promise(resolve => setTimeout(resolve, delay))
           continue
         }
@@ -317,9 +319,11 @@ export class RequestOptimizer {
         const jitter = baseDelay * config.jitterFactor * Math.random()
         const delay = baseDelay + jitter
 
-        console.log(
-          `🔄 Request failed (attempt ${attempt + 1}), retrying in ${delay.toFixed(0)}ms...`
-        )
+        logger.debug('Request failed, scheduling retry', {
+          attempt: attempt + 1,
+          delay: Number(delay.toFixed(0)),
+          error: lastError?.message,
+        })
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }

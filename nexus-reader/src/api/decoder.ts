@@ -2,6 +2,7 @@
  * 网文解密 API
  */
 import { ofetch } from 'ofetch'
+import { getAuthToken } from '@/utils/authStorage'
 import type {
   DecodeRequest,
   DecodeResponse,
@@ -24,7 +25,7 @@ const decoderFetch = ofetch.create({
   retryDelay: 1000,
   onRequest({ options }) {
     // 添加认证 token
-    const token = localStorage.getItem('nexus_auth_token')
+    const token = getAuthToken()
     if (token) {
       // 使用 HeadersInit 兼容的方式设置 headers
       const headers = new Headers(options.headers as HeadersInit)
@@ -98,7 +99,7 @@ export async function exportDictionary(): Promise<{ entries: DictionaryEntry[] }
  * 确认词条（触发自动提升检查）
  */
 export async function confirmEntry(data: {
-  entry: DictionaryEntry
+  entry: Partial<DictionaryEntry>
   bookId: string
   bookType?: BookType
 }): Promise<ConfirmEntryResponse> {

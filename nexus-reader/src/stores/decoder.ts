@@ -1,5 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import {
+  getLocalStorageItem,
+  setLocalStorageItem,
+} from '@/utils/browserStorage'
 import type {
   BookType,
   ChapterContext,
@@ -25,12 +29,8 @@ function defaultBookSettings(): DecoderBookSettings {
 }
 
 function loadPersistedSettings(): Record<string, DecoderBookSettings> {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = getLocalStorageItem(STORAGE_KEY)
     if (!raw) {
       return {}
     }
@@ -51,12 +51,8 @@ function loadPersistedSettings(): Record<string, DecoderBookSettings> {
 }
 
 function persistSettings(settings: Record<string, DecoderBookSettings>) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+    setLocalStorageItem(STORAGE_KEY, JSON.stringify(settings))
   } catch {
     // ignore persistence failures
   }

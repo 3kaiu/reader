@@ -4,6 +4,8 @@
  */
 
 import type { ModelInfo } from "@/types/ai";
+import { getLocalStorageItem, setLocalStorageItem } from "@/utils/browserStorage";
+import { logger } from "@/utils/logger";
 
 const DEFAULT_MODEL_KEY = "nexus_default_model";
 const MODELS_KEY = "nexus_available_models";
@@ -68,12 +70,12 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
  */
 export async function getDefaultModel(): Promise<string> {
   try {
-    const saved = localStorage.getItem(DEFAULT_MODEL_KEY);
+    const saved = getLocalStorageItem(DEFAULT_MODEL_KEY);
     if (saved) {
       return saved;
     }
   } catch (error) {
-    console.warn("Failed to read default model from localStorage:", error);
+    logger.warn("Failed to read default model from localStorage", { error });
   }
 
   // Return first recommended model as default
@@ -86,9 +88,9 @@ export async function getDefaultModel(): Promise<string> {
  */
 export async function saveLastModel(modelId: string): Promise<void> {
   try {
-    localStorage.setItem(DEFAULT_MODEL_KEY, modelId);
+    setLocalStorageItem(DEFAULT_MODEL_KEY, modelId);
   } catch (error) {
-    console.warn("Failed to save default model to localStorage:", error);
+    logger.warn("Failed to save default model to localStorage", { error });
   }
 }
 
@@ -97,12 +99,12 @@ export async function saveLastModel(modelId: string): Promise<void> {
  */
 export async function getAllModels(): Promise<ModelInfo[]> {
   try {
-    const saved = localStorage.getItem(MODELS_KEY);
+    const saved = getLocalStorageItem(MODELS_KEY);
     if (saved) {
       return JSON.parse(saved);
     }
   } catch (error) {
-    console.warn("Failed to read models from localStorage:", error);
+    logger.warn("Failed to read models from localStorage", { error });
   }
 
   return AVAILABLE_MODELS;

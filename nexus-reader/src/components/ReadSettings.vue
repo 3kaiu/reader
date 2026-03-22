@@ -2,7 +2,7 @@
 /**
  * 阅读设置组件 - shadcn 风格
  */
-import { useSettingsStore, type FontFamily, type ReaderTheme, type ChineseConvert } from '@/stores/settings'
+import { useReadSettingsView } from '@/composables/useReadSettingsView'
 import {
   Sheet,
   SheetContent,
@@ -23,37 +23,35 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const settingsStore = useSettingsStore()
-
-// 主题选项
-const themes: { key: ReaderTheme; label: string; color: string; textColor?: string }[] = [
-  { key: 'white', label: '白', color: '#FFFFFF' },
-  { key: 'paper', label: '护眼', color: '#FAF7ED' },
-  { key: 'sepia', label: '羊皮', color: '#EFE6D5' },
-  { key: 'gray', label: '水墨', color: '#F2F3F5' },
-  { key: 'green', label: '清新', color: '#E6F0E6' },
-  { key: 'night', label: '夜间', color: '#1C1C1E', textColor: '#A1A1AA' },
-]
-
-// 字体选项
-const fonts: { key: FontFamily; label: string }[] = [
-  { key: 'system', label: '系统' },
-  { key: 'heiti', label: '黑体' },
-  { key: 'kaiti', label: '楷体' },
-  { key: 'songti', label: '宋体' },
-  { key: 'fangsong', label: '仿宋' },
-  { key: 'lxgw', label: '霞鹭文楷' },
-]
-
-// 简繁转换
-const chineseOptions: { key: ChineseConvert; label: string }[] = [
-  { key: 'none', label: '不转换' },
-  { key: 'toSimplified', label: '转简体' },
-  { key: 'toTraditional', label: '转繁体' },
-]
-
-// 字重选项
-const fontWeights = [300, 400, 500, 600, 700]
+const {
+  settingsStore,
+  themes,
+  fonts,
+  chineseOptions,
+  fontWeights,
+  isCustomTheme,
+  customThemeBackground,
+  customThemeText,
+  fontSizeValue,
+  lineHeightValue,
+  paragraphSpacingValue,
+  pageWidthValue,
+  resetConfig,
+  selectTheme,
+  updateCustomBackground,
+  updateCustomText,
+  selectFontFamily,
+  selectChineseConvert,
+  updateFontSize,
+  selectFontWeight,
+  updateLineHeight,
+  updateParagraphSpacing,
+  updatePageWidth,
+  selectReadingMode,
+  selectPageAnimation,
+  toggleClickToNextPage,
+  toggleAutoNightMode,
+} = useReadSettingsView()
 </script>
 
 <template>
@@ -65,7 +63,7 @@ const fontWeights = [300, 400, 500, 600, 700]
             <Settings class="h-5 w-5" />
             阅读设置
           </SheetTitle>
-          <Button variant="ghost" size="sm" @click="settingsStore.resetConfig()">
+          <Button variant="ghost" size="sm" @click="resetConfig">
             <RotateCcw class="h-4 w-4 mr-1" />
             重置
           </Button>
@@ -88,7 +86,7 @@ const fontWeights = [300, 400, 500, 600, 700]
                 backgroundColor: theme.color,
                 color: theme.textColor || '#333'
               }"
-              @click="settingsStore.updateConfig('theme', theme.key)"
+              @click="selectTheme(theme.key)"
               :aria-label="`切换到${theme.label}主题`"
               :aria-pressed="settingsStore.config.theme === theme.key"
             >
@@ -101,10 +99,10 @@ const fontWeights = [300, 400, 500, 600, 700]
                 ? 'border-primary scale-105 shadow-md' 
                 : 'border-border'"
               :style="{ 
-                backgroundColor: settingsStore.config.customColors?.background || '#f5f5f5',
-                color: settingsStore.config.customColors?.text || '#333'
+                backgroundColor: customThemeBackground,
+                color: customThemeText
               }"
-              @click="settingsStore.updateConfig('theme', 'custom')"
+              @click="selectTheme('custom')"
               aria-label="切换到自定义主题"
               :aria-pressed="settingsStore.config.theme === 'custom'"
             >
@@ -113,21 +111,18 @@ const fontWeights = [300, 400, 500, 600, 700]
           </div>
           
           <!-- 自定义颜色选择器 (仅在选择自定义主题时显示) -->
-          <div v-if="settingsStore.config.theme === 'custom'" class="mt-4 p-4 rounded-xl bg-muted/50 space-y-4">
+          <div v-if="isCustomTheme" class="mt-4 p-4 rounded-xl bg-muted/50 space-y-4">
             <div class="flex items-center justify-between">
               <span class="text-sm">背景色</span>
               <div class="flex items-center gap-2">
                 <input 
                   type="color" 
-                  :value="settingsStore.config.customColors?.background || '#FAF7ED'"
+                  :value="customThemeBackground"
                   class="w-10 h-10 rounded-lg cursor-pointer border-0"
-                  @input="(e: Event) => settingsStore.updateConfig('customColors', { 
-                    ...settingsStore.config.customColors, 
-                    background: (e.target as HTMLInputElement).value 
-                  })"
+                  @input="updateCustomBackground(($event.target as HTMLInputElement).value)"
                 />
                 <span class="text-xs text-muted-foreground font-mono">
-                  {{ settingsStore.config.customColors?.background || '#FAF7ED' }}
+                  {{ customThemeBackground }}
                 </span>
               </div>
             </div>
@@ -136,15 +131,12 @@ const fontWeights = [300, 400, 500, 600, 700]
               <div class="flex items-center gap-2">
                 <input 
                   type="color" 
-                  :value="settingsStore.config.customColors?.text || '#333333'"
+                  :value="customThemeText"
                   class="w-10 h-10 rounded-lg cursor-pointer border-0"
-                  @input="(e: Event) => settingsStore.updateConfig('customColors', { 
-                    ...settingsStore.config.customColors, 
-                    text: (e.target as HTMLInputElement).value 
-                  })"
+                  @input="updateCustomText(($event.target as HTMLInputElement).value)"
                 />
                 <span class="text-xs text-muted-foreground font-mono">
-                  {{ settingsStore.config.customColors?.text || '#333333' }}
+                  {{ customThemeText }}
                 </span>
               </div>
             </div>
@@ -162,7 +154,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.fontFamily === font.key 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('fontFamily', font.key)"
+              @click="selectFontFamily(font.key)"
               :aria-label="`切换到${font.label}字体`"
               :aria-pressed="settingsStore.config.fontFamily === font.key"
             >
@@ -182,7 +174,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.chineseConvert === opt.key 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('chineseConvert', opt.key)"
+              @click="selectChineseConvert(opt.key)"
               :aria-label="`${opt.label}简繁转换`"
               :aria-pressed="settingsStore.config.chineseConvert === opt.key"
             >
@@ -207,12 +199,12 @@ const fontWeights = [300, 400, 500, 600, 700]
               <Minus class="h-4 w-4" />
             </Button>
             <Slider
-              :model-value="[settingsStore.config.fontSize]"
+              :model-value="fontSizeValue"
               :min="12"
               :max="32"
               :step="1"
               class="flex-1"
-              @update:model-value="(v) => settingsStore.updateConfig('fontSize', v ? v[0] : 12)"
+              @update:model-value="updateFontSize"
             />
             <Button 
               variant="outline" 
@@ -240,7 +232,7 @@ const fontWeights = [300, 400, 500, 600, 700]
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
               :style="{ fontWeight: weight }"
-              @click="settingsStore.updateConfig('fontWeight', weight)"
+              @click="selectFontWeight(weight)"
               :aria-label="`字重${weight}`"
               :aria-pressed="settingsStore.config.fontWeight === weight"
             >
@@ -265,12 +257,12 @@ const fontWeights = [300, 400, 500, 600, 700]
               <Minus class="h-4 w-4" />
             </Button>
             <Slider
-              :model-value="[settingsStore.config.lineHeight]"
+              :model-value="lineHeightValue"
               :min="1.2"
               :max="3"
               :step="0.1"
               class="flex-1"
-              @update:model-value="(v) => settingsStore.updateConfig('lineHeight', v ? v[0] : 1.2)"
+              @update:model-value="updateLineHeight"
             />
             <Button 
               variant="outline" 
@@ -290,12 +282,12 @@ const fontWeights = [300, 400, 500, 600, 700]
             <span class="text-sm text-muted-foreground">{{ settingsStore.config.paragraphSpacing.toFixed(1) }}em</span>
           </div>
           <Slider
-            :model-value="[settingsStore.config.paragraphSpacing]"
+            :model-value="paragraphSpacingValue"
             :min="0.5"
             :max="3"
             :step="0.1"
             class="flex-1 w-full"
-            @update:model-value="(v) => settingsStore.updateConfig('paragraphSpacing', v ? v[0] : 0.5)"
+            @update:model-value="updateParagraphSpacing"
           />
         </section>
 
@@ -306,12 +298,12 @@ const fontWeights = [300, 400, 500, 600, 700]
             <span class="text-sm text-muted-foreground">{{ settingsStore.config.pageWidth }}px</span>
           </div>
           <Slider
-            :model-value="[settingsStore.config.pageWidth]"
+            :model-value="pageWidthValue"
             :min="400"
             :max="1200"
             :step="50"
             class="flex-1 w-full"
-            @update:model-value="(v) => settingsStore.updateConfig('pageWidth', v ? v[0] : 800)"
+            @update:model-value="updatePageWidth"
           />
         </section>
 
@@ -324,7 +316,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.readingMode === 'scroll' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('readingMode', 'scroll')"
+              @click="selectReadingMode('scroll')"
               aria-label="上下滚动模式"
               :aria-pressed="settingsStore.config.readingMode === 'scroll'"
             >
@@ -335,7 +327,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.readingMode === 'swipe' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('readingMode', 'swipe')"
+              @click="selectReadingMode('swipe')"
               aria-label="左右翻页模式"
               :aria-pressed="settingsStore.config.readingMode === 'swipe'"
             >
@@ -353,7 +345,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.pageAnimation === 'slide' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('pageAnimation', 'slide')"
+              @click="selectPageAnimation('slide')"
               aria-label="滑动动画"
               :aria-pressed="settingsStore.config.pageAnimation === 'slide'"
             >
@@ -364,7 +356,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.pageAnimation === 'fade' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('pageAnimation', 'fade')"
+              @click="selectPageAnimation('fade')"
               aria-label="淡入淡出动画"
               :aria-pressed="settingsStore.config.pageAnimation === 'fade'"
             >
@@ -375,7 +367,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.pageAnimation === 'none' 
                 ? 'border-primary bg-primary/10 text-primary' 
                 : 'border-border hover:border-primary/50'"
-              @click="settingsStore.updateConfig('pageAnimation', 'none')"
+              @click="selectPageAnimation('none')"
               aria-label="无动画"
               :aria-pressed="settingsStore.config.pageAnimation === 'none'"
             >
@@ -393,7 +385,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.clickToNextPage 
                 ? 'bg-primary' 
                 : 'bg-muted'"
-              @click="settingsStore.updateConfig('clickToNextPage', !settingsStore.config.clickToNextPage)"
+              @click="toggleClickToNextPage"
               :aria-label="settingsStore.config.clickToNextPage ? '关闭点击翻页' : '开启点击翻页'"
               :aria-checked="settingsStore.config.clickToNextPage"
               role="switch"
@@ -420,7 +412,7 @@ const fontWeights = [300, 400, 500, 600, 700]
               :class="settingsStore.config.autoNightMode 
                 ? 'bg-primary' 
                 : 'bg-muted'"
-              @click="settingsStore.toggleAutoNightMode(!settingsStore.config.autoNightMode)"
+              @click="toggleAutoNightMode"
               :aria-label="settingsStore.config.autoNightMode ? '关闭自动夜间模式' : '开启自动夜间模式'"
               :aria-checked="settingsStore.config.autoNightMode"
               role="switch"

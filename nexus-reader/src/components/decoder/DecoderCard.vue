@@ -4,20 +4,16 @@
  * 显示加密词的真实指代、置信度、推理依据
  * 支持确认、纠正、实体关联功能
  */
-import { ref, computed } from 'vue'
+import { useDecoderCardView } from '@/composables/useDecoderCardView'
 import {
   X,
   Check,
   Edit3,
   ChevronDown,
   ChevronUp,
-  User,
-  Building2,
-  MapPin,
-  Calendar,
-  Users,
 } from 'lucide-vue-next'
-import type { DecodedEntity, EntityCategory } from '@/types/decoder'
+import type { DecodedEntity } from '@/types/decoder'
+import { DECODER_CATEGORY_CONFIG } from '@/constants/decoderDictionary'
 
 interface Props {
   /** 解码后的实体 */
@@ -38,112 +34,26 @@ const emit = defineEmits<{
   correct: [entity: DecodedEntity, newReal: string]
 }>()
 
-// 状态
-const showAllCandidates = ref(false)
-const isEditing = ref(false)
-const editValue = ref('')
-
-/** 获取类别图标 */
-function getCategoryIcon(category: EntityCategory) {
-  switch (category) {
-    case 'person':
-      return User
-    case 'company':
-      return Building2
-    case 'place':
-      return MapPin
-    case 'event':
-      return Calendar
-    case 'organization':
-      return Users
-    default:
-      return User
-  }
-}
-
-/** 获取类别名称 */
-function getCategoryName(category: EntityCategory): string {
-  const names: Record<EntityCategory, string> = {
-    person: '人物',
-    company: '公司',
-    place: '地点',
-    event: '事件',
-    organization: '组织',
-  }
-  return names[category] || '未知'
-}
-
-/** 获取来源名称 */
-function getSourceName(source: string): string {
-  const names: Record<string, string> = {
-    dictionary: '词典',
-    rule: '规则',
-    knowledge_graph: '知识图谱',
-    ai: 'AI推理',
-  }
-  return names[source] || source
-}
-
-/** 获取置信度颜色 */
-function getConfidenceColor(confidence: number): string {
-  if (confidence >= 80) return 'text-green-500'
-  if (confidence >= 50) return 'text-yellow-500'
-  return 'text-red-500'
-}
-
-/** 获取置信度背景色 */
-function getConfidenceBg(confidence: number): string {
-  if (confidence >= 80) return 'bg-green-500/10'
-  if (confidence >= 50) return 'bg-yellow-500/10'
-  return 'bg-red-500/10'
-}
-
-/** 显示的候选列表 */
-const displayCandidates = computed(() => {
-  if (showAllCandidates.value) {
-    return props.entity.candidates
-  }
-  return props.entity.candidates.slice(0, 1)
-})
-
-/** 是否有更多候选 */
-const hasMoreCandidates = computed(() => props.entity.candidates.length > 1)
-
-/** 开始编辑 */
-function startEdit() {
-  editValue.value = props.entity.bestMatch?.real || ''
-  isEditing.value = true
-}
-
-/** 提交编辑 */
-function submitEdit() {
-  if (editValue.value.trim()) {
-    emit('correct', props.entity, editValue.value.trim())
-  }
-  isEditing.value = false
-}
-
-/** 取消编辑 */
-function cancelEdit() {
-  isEditing.value = false
-  editValue.value = ''
-}
-
-/** 确认当前结果 */
-function confirmResult() {
-  emit('confirm', props.entity)
-}
-
-/** 卡片样式 */
-const cardStyle = computed(() => {
-  if (!props.position) return {}
-  return {
-    position: 'fixed' as const,
-    left: `${props.position.x}px`,
-    top: `${props.position.y}px`,
-    transform: 'translateX(-50%)',
-    zIndex: 1000,
-  }
+const {
+  showAllCandidates,
+  isEditing,
+  editValue,
+  displayCandidates,
+  hasMoreCandidates,
+  cardStyle,
+  getSourceName,
+  getConfidenceColor,
+  getConfidenceBg,
+  toggleCandidates,
+  startEdit,
+  submitEdit,
+  cancelEdit,
+  confirmResult,
+} = useDecoderCardView({
+  entity: props.entity,
+  position: props.position,
+  onConfirm: entity => emit('confirm', entity),
+  onCorrect: (entity, newReal) => emit('correct', entity, newReal),
 })
 </script>
 
@@ -184,7 +94,7 @@ const cardStyle = computed(() => {
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
               <component
-                :is="getCategoryIcon(candidate.category)"
+                :is="DECODER_CATEGORY_CONFIG[candidate.category].icon"
                 class="w-4 h-4 opacity-60"
               />
               <span class="font-medium">{{ candidate.real }}</span>
@@ -199,7 +109,7 @@ const cardStyle = computed(() => {
 
           <!-- 类别 -->
           <div class="text-xs text-muted-foreground mb-1">
-            {{ getCategoryName(candidate.category) }}
+            {{ DECODER_CATEGORY_CONFIG[candidate.category].label }}
           </div>
 
           <!-- 推理依据 -->
@@ -221,7 +131,7 @@ const cardStyle = computed(() => {
       <button
         v-if="hasMoreCandidates"
         class="w-full mt-2 py-1 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 transition-colors"
-        @click="showAllCandidates = !showAllCandidates"
+        @click="toggleCandidates"
       >
         <template v-if="showAllCandidates">
           <ChevronUp class="w-3 h-3" />

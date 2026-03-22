@@ -1,23 +1,7 @@
 import { $get, $post, $delete } from './client'
+import type { AiAnalysisHistory, AiMappingRule } from '@/types/ai-analysis'
 
-export interface AiMappingRule {
-    id: string
-    original: string
-    target: string
-    type: string
-    confidence: number
-    enabled: boolean
-    createdAt: number
-    usageCount?: number
-}
-
-export interface AiAnalysisHistory {
-    id: string
-    bookTitle: string
-    chapterTitle: string
-    mappings: AiMappingRule[]
-    analyzedAt: number
-}
+export type { AiAnalysisHistory, AiMappingRule }
 
 export const aiApi = {
     // Mapping Rules

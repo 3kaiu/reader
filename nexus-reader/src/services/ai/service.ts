@@ -6,7 +6,6 @@
 import { ref, shallowRef } from "vue";
 import { AdaptiveLoader } from "../../utils/adaptiveAssetLoader";
 import { logger } from "../../utils/logger";
-import { syncChannel } from "../../utils/broadcast";
 import {
   getDefaultModel,
   saveLastModel,
@@ -42,7 +41,7 @@ interface MLCEngineInterface {
 /**
  * AI服务管理器类
  */
-export class AIServiceManager {
+class AIServiceManager {
   private static instance: AIServiceManager;
 
   // 状态管理
@@ -152,14 +151,7 @@ export class AIServiceManager {
       // 使用 AdaptiveLoader 加载 WebLLM
       const webllmLib = await AdaptiveLoader.loadHeavyModule(
         "@mlc-ai/web-llm",
-        async (data: any) => {
-          const module = await import("@mlc-ai/web-llm");
-          const _isDesc = !!(data as any).files;
-          if (_isDesc) {
-            logger.debug("WebLLM module descriptor found");
-          }
-          return module;
-        },
+        async () => await import("@mlc-ai/web-llm"),
       );
 
       if (!webllmLib || !webllmLib.CreateWebWorkerMLCEngine) {
@@ -287,12 +279,6 @@ export class AIServiceManager {
         // 6. 启动自动卸载定时器
         this.resetAutoUnloadTimer();
 
-        // 7. 广播状态
-        syncChannel.publish("ai-engine-status", {
-          status: "loaded",
-          modelId: targetModelId,
-        });
-
         logger.info(`[AI Service] Model ${targetModelId} loaded successfully`);
         return true;
       });
@@ -335,9 +321,6 @@ export class AIServiceManager {
           this.aiWorker = null;
         }
 
-        // 广播状态
-        syncChannel.publish("ai-engine-status", { status: "unloaded" });
-
         logger.info("[AI Service] Model unloaded successfully");
       } catch (error: any) {
         logger.warn("[AI Service] Error during model unload:", error as Error);
@@ -374,18 +357,6 @@ export class AIServiceManager {
     this.webllm = null;
 
     logger.info("[AI Service] AI service manager cleaned up");
-  }
-
-  /**
-   * 检查AI引擎是否就绪
-   */
-  isReady(): boolean {
-    return this.isModelLoaded.value && this.engine.value !== null;
-  }
-
-  // 计算属性
-  get engineInstance() {
-    return this.engine.value;
   }
 
   // 私有方法
@@ -426,41 +397,3 @@ export function getAIServiceManager(): AIServiceManager {
   }
   return _aiServiceManager;
 }
-
-// 为了向后兼容，提供一个 getter
-export const aiServiceManager = {
-  get instance() {
-    return getAIServiceManager();
-  },
-  // 代理所有属性和方法
-  get isSupported() {
-    return getAIServiceManager().isSupported;
-  },
-  get isLoading() {
-    return getAIServiceManager().isLoading;
-  },
-  get isModelLoaded() {
-    return getAIServiceManager().isModelLoaded;
-  },
-  get loadProgress() {
-    return getAIServiceManager().loadProgress;
-  },
-  get loadStatus() {
-    return getAIServiceManager().loadStatus;
-  },
-  get error() {
-    return getAIServiceManager().error;
-  },
-  get currentModel() {
-    return getAIServiceManager().currentModel;
-  },
-  initialize: () => getAIServiceManager().initialize(),
-  detectWebGPUSupport: () => getAIServiceManager().detectWebGPUSupport(),
-  loadModel: (modelId?: string) => getAIServiceManager().loadModel(modelId),
-  unloadModel: () => getAIServiceManager().unloadModel(),
-  isReady: () => getAIServiceManager().isReady(),
-  getAllModels: () => getAIServiceManager().getAllModels(),
-  cleanup: () => getAIServiceManager().cleanup(),
-  getCacheStats: () => getAIServiceManager().getCacheStats(),
-  clearModelCache: () => getAIServiceManager().clearModelCache(),
-};

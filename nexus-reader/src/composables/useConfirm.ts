@@ -5,7 +5,7 @@ import { ref, readonly } from 'vue'
 
 interface ConfirmOptions {
   title?: string
-  message: string
+  message?: string
   description?: string
   confirmText?: string
   cancelText?: string
@@ -13,10 +13,14 @@ interface ConfirmOptions {
   variant?: 'default' | 'destructive'
 }
 
+type ResolvedConfirmOptions = ConfirmOptions & {
+  message: string
+}
+
 export function useConfirm() {
   const confirmDialog = ref<{
     visible: boolean
-    options: ConfirmOptions | null
+    options: ResolvedConfirmOptions | null
     resolve: ((value: boolean) => void) | null
   }>({
     visible: false,
@@ -24,7 +28,7 @@ export function useConfirm() {
     resolve: null,
   })
 
-  const showConfirm = (options: ConfirmOptions): Promise<boolean> => {
+  const showConfirm = (options: ResolvedConfirmOptions): Promise<boolean> => {
     return new Promise(resolve => {
       confirmDialog.value = {
         visible: true,

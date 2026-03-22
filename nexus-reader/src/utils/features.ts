@@ -1,6 +1,6 @@
 import { config } from './config'
 
-export const optionalFeatureKeys = ['discovery', 'ai', 'decoder'] as const
+const optionalFeatureKeys = ['discovery', 'ai', 'decoder'] as const
 
 export type OptionalFeature = (typeof optionalFeatureKeys)[number]
 

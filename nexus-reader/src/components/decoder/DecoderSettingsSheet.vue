@@ -3,8 +3,7 @@
  * 解密设置底部抽屉组件
  * 显示书籍类型选择、统计信息、词典管理入口
  */
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useDecoderSettingsView } from '@/composables/useDecoderSettingsView'
 import { BookOpen, ExternalLink, Sparkles } from 'lucide-vue-next'
 import {
   Sheet,
@@ -12,8 +11,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useDecoderStore } from '@/stores/decoder'
-import type { BookType } from '@/types/decoder'
 
 interface Props {
   /** 书籍 URL */
@@ -28,31 +25,11 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const router = useRouter()
-const decoderStore = useDecoderStore()
-
-/** 书籍类型选项 */
-const bookTypeOptions: { value: BookType; label: string; description: string }[] = [
-  { value: 'era', label: '年代文', description: '涉及历史人物、政治事件' },
-  { value: 'entertainment', label: '娱乐圈', description: '明星、导演、综艺节目' },
-  { value: 'urban', label: '都市', description: '商业大佬、互联网公司' },
-  { value: 'history', label: '历史', description: '古代人物、朝代事件' },
-  { value: 'business', label: '商战', description: '企业家、商业竞争' },
-]
-
-/** 当前书籍设置 */
-const settings = computed(() => decoderStore.getBookSettings(props.bookUrl))
-
-/** 更新书籍类型 */
-function updateBookType(type: BookType) {
-  decoderStore.updateBookSettings(props.bookUrl, { bookType: type })
-}
-
-/** 跳转到词典管理页面 */
-function goToDictionary() {
-  emit('update:open', false)
-  router.push('/decoder-dictionary')
-}
+const { bookTypeOptions, settings, updateBookType, goToDictionary } =
+  useDecoderSettingsView({
+    bookUrl: props.bookUrl,
+    close: () => emit('update:open', false),
+  })
 </script>
 
 <template>

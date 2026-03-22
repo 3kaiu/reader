@@ -1,16 +1,8 @@
 import type { ApiResponse } from './client'
 import { $delete, $get, $post } from './client'
+import type { ReplaceRule } from '@/types/replace'
 
-export interface ReplaceRule {
-  id?: string
-  name: string
-  pattern: string
-  replacement?: string | null
-  scope?: string | null
-  isEnabled: boolean
-  isRegex: boolean
-  group?: string
-}
+export type { ReplaceRule }
 
 function normalizeOptionalText(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -48,7 +40,7 @@ export const replaceApi = {
     }
   },
 
-  deleteReplaceRules: async (rules: ReplaceRule[]): Promise<ApiResponse<null[]>> => {
+  deleteReplaceRules: async (rules: ReplaceRule[]): Promise<ApiResponse<ReplaceRule[]>> => {
     if (rules.some(rule => !rule.id)) {
       return {
         isSuccess: false,
@@ -60,10 +52,11 @@ export const replaceApi = {
     const results = await Promise.all(
       rules.map(rule => $delete<null>(`/replace_rules/${rule.id}`))
     )
+    const deletedRules = rules.filter((_, index) => results[index].isSuccess)
 
     return {
-      isSuccess: results.every(result => result.isSuccess),
-      data: results.map(result => result.data),
+      isSuccess: deletedRules.length === rules.length,
+      data: deletedRules,
       errorMsg: results.find(result => !result.isSuccess)?.errorMsg,
     }
   },

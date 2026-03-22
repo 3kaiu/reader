@@ -1,11 +1,7 @@
 import { $get, $post, $delete } from './client'
+import type { BookGroup } from '@/types/group'
 
-export interface BookGroup {
-    groupId: number | string
-    groupName: string
-    order: number
-    show: boolean
-}
+export type { BookGroup }
 
 export const groupApi = {
     // Get all groups

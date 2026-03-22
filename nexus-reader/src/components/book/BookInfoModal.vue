@@ -1,27 +1,21 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { useMessage } from '@/composables/useMessage'
-import { logger } from '@/utils/logger'
-import { 
+import { useBookInfoView } from '@/composables/useBookInfoView'
+import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  BookOpen, 
-  Library, 
-  RefreshCw, 
-  Calendar,
+import {
+  BookOpen,
+  Library,
+  RefreshCw,
   User,
   Globe,
   Tag
 } from 'lucide-vue-next'
-import { bookApi, type Book } from '@/api/book'
-import { useReaderStore } from '@/stores/reader'
-import { useRouter } from 'vue-router'
+import type { Book } from '@/types/book'
 import { LazyImage } from '@/components/ui'
 
 const props = withDefaults(defineProps<{
@@ -37,95 +31,16 @@ const emit = defineEmits<{
   'update-shelf': []
 }>()
 
-const router = useRouter()
-const message = useMessage()
-const readerStore = useReaderStore()
-
-// 状态
-const loading = ref(false)
-const info = ref<Book | null>(null)
-
-// 计算属性
-const displayBook = computed(() => info.value || props.initialBook || null)
-
-// 监听
-watch(() => props.open, (val) => {
-  if (val && props.bookUrl) {
-    loadInfo()
-  }
+const {
+  displayBook,
+  addToShelf,
+  startReading,
+  formatIntro,
+} = useBookInfoView({
+  props,
+  close: () => emit('update:open', false),
+  notifyShelfUpdated: () => emit('update-shelf'),
 })
-
-watch(() => props.initialBook, (val) => {
-  if (val) info.value = val
-})
-
-// 方法
-async function loadInfo() {
-  if (!props.bookUrl) return
-  
-  loading.value = true
-  try {
-    const sourceId = props.initialBook?.sourceId
-    if (!sourceId) return
-
-    const res = await bookApi.getBookInfo(sourceId, props.bookUrl)
-    if (res.isSuccess) {
-      info.value = {
-        ...res.data,
-        bookUrl: props.bookUrl,
-        sourceId: sourceId
-      }
-    }
-  } catch (err) {
-    logger.error('加载书籍信息失败', err as Error, { function: 'BookInfoModal', bookUrl: props.bookUrl })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function addToShelf() {
-  if (!displayBook.value) return
-  
-  try {
-    const res = await bookApi.saveBook(displayBook.value)
-    if (res.isSuccess) {
-      message.success('加入书架成功')
-      emit('update-shelf')
-      // 如果是在详情页更新了信息，也同步一下
-      info.value = res.data
-    } else {
-      message.error(res.errorMsg || '操作失败')
-    }
-  } catch (err) {
-    message.error('操作失败')
-  }
-}
-
-async function startReading() {
-  if (!displayBook.value) return
-  
-  // 如果当前已经在阅读该书，直接关闭
-  if (readerStore.currentBook?.bookUrl === displayBook.value.bookUrl) {
-    emit('update:open', false)
-    return
-  }
-  
-  // 否则跳转/打开
-  await readerStore.openBook(displayBook.value)
-  router.push({
-    path: '/reader',
-    query: {
-      url: displayBook.value.bookUrl,
-      source: displayBook.value.sourceId,
-    }
-  })
-  emit('update:open', false)
-}
-
-function formatIntro(intro?: string) {
-  if (!intro) return '暂无简介'
-  return intro.replace(/\s+/g, '\n').trim()
-}
 </script>
 
 <template>

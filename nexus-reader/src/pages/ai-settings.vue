@@ -3,196 +3,29 @@
  * AI 模型设置页面
  * 管理实验性的本地 AI 运行时模型
  */
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { useAiStore } from "@/stores/ai/store";
-import type { ModelInfo } from "@/types/ai";
 import {
   ArrowLeft,
-  Brain,
   Download,
   Trash2,
   Check,
   Loader2,
   AlertCircle,
   HardDrive,
-  Sparkles,
-  Infinity as InfinityIcon,
 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
+import { useAiSettingsView } from "@/composables/useAiSettingsView";
+import { formatBytes } from "@/utils/browserStorage";
 
-const router = useRouter();
-const aiStore = useAiStore();
-const { success } = useMessage();
-const { confirm } = useConfirm();
-const { handlePromiseError } = useErrorHandler();
-
-// 状态
-const downloadingModel = ref<string | null>(null);
-const storageUsage = ref<{ used: number; quota: number } | null>(null);
-const cacheStats = ref<{ totalSize: number; modelCount: number } | null>(null);
-
-function normalizeCacheStats(stats: { totalSize: number; modelCount: number }) {
-  return stats.modelCount > 0 || stats.totalSize > 0 ? stats : null;
-}
-
-// 获取模型系列图标
-function getModelSeriesIcon(modelId: string) {
-  if (modelId.toLowerCase().includes("qwen")) return Sparkles;
-  if (modelId.toLowerCase().includes("llama")) return InfinityIcon;
-  return Brain;
-}
-
-// 获取加载标题
-function getLoadingTitle(): string {
-  const progress = aiStore.loadProgress;
-  if (progress < 30) return "正在加载AI运行时...";
-  if (progress < 80) return "正在准备模型资源...";
-  if (progress < 95) return "正在校验模型资源...";
-  return "正在初始化AI引擎...";
-}
-
-// 重试加载
-async function retryLoading() {
-  if (downloadingModel.value) {
-    await downloadModel(downloadingModel.value);
-  } else {
-    // 重新初始化AI服务
-    await aiStore.initialize();
-  }
-}
-
-// 清除错误状态
-function clearError() {
-  aiStore.clearError();
-}
-
-// 格式化存储大小
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
-async function refreshStorageUsage() {
-  if (!navigator.storage?.estimate) {
-    storageUsage.value = null;
-    return;
-  }
-
-  const estimate = await navigator.storage.estimate();
-  storageUsage.value = {
-    used: estimate.usage || 0,
-    quota: estimate.quota || 0,
-  };
-}
-
-async function refreshCacheStats() {
-  try {
-    cacheStats.value = normalizeCacheStats(await aiStore.getCacheStats());
-  } catch (e) {
-    cacheStats.value = null;
-  }
-}
-
-// 模型列表（异步加载）
-const models = ref<ModelInfo[]>([]);
-
-onMounted(async () => {
-  await aiStore.checkSupport();
-
-  // 异步加载模型列表
-  try {
-    models.value = await aiStore.getAllModels();
-  } catch (e) {
-    console.warn("Failed to load models:", e);
-  }
-
-  // 获取存储使用情况
-  await refreshStorageUsage();
-
-  // 获取缓存统计信息
-  await refreshCacheStats();
-});
-
-// 加载模型
-async function downloadModel(modelId: string) {
-  downloadingModel.value = modelId;
-
-  try {
-    await aiStore.loadModel(modelId);
-
-    // 刷新缓存统计
-    await refreshCacheStats();
-
-    // 刷新存储状态
-    await refreshStorageUsage();
-
-    success(`模型 ${modelId} 已就绪`);
-  } catch (error: any) {
-    handlePromiseError(error, "模型加载失败");
-  } finally {
-    downloadingModel.value = null;
-  }
-}
-
-// 清理缓存
-async function clearCache() {
-  const result = await confirm({
-    title: "确认清理缓存",
-    description: "确定要清理浏览器中的 AI 运行时缓存吗？下次使用相关模型时会重新加载。",
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  try {
-    // 清理浏览器缓存
-    const cacheNames = await caches.keys();
-    for (const name of cacheNames) {
-      if (
-        name.includes("webllm") ||
-        name.includes("mlc") ||
-        name.includes("ai-models")
-      ) {
-        await caches.delete(name);
-      }
-    }
-
-    // 清理模型缓存（IndexedDB 元数据）
-    await aiStore.clearModelCache();
-
-    // 卸载当前模型
-    await aiStore.unloadModel();
-
-    success("本地 AI 运行时缓存已清理");
-
-    // 刷新存储状态
-    await refreshStorageUsage();
-
-    // 刷新缓存统计
-    await refreshCacheStats();
-  } catch (e) {
-    handlePromiseError(e, "清理失败");
-  }
-}
-
-async function handleUnloadModel() {
-  try {
-    await aiStore.unloadModel();
-    aiStore.clearError();
-    success("当前模型已卸载");
-    await refreshStorageUsage();
-    await refreshCacheStats();
-  } catch (error: any) {
-    handlePromiseError(error, "卸载失败");
-  }
-}
+const {
+  aiStore,
+  getModelSeriesIcon,
+  goBack,
+  retryLoading,
+  handleDownloadModel,
+  clearCache,
+  handleUnloadModel,
+} = useAiSettingsView();
 </script>
 
 <template>
@@ -209,7 +42,7 @@ async function handleUnloadModel() {
         <div class="flex items-center gap-3">
           <button
             class="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center transition-colors"
-            @click="router.back()"
+            @click="goBack"
           >
             <ArrowLeft class="h-4 w-4 text-muted-foreground" />
           </button>
@@ -217,7 +50,7 @@ async function handleUnloadModel() {
         </div>
 
         <Button
-          v-if="cacheStats"
+          v-if="aiStore.cacheStats"
           variant="ghost"
           size="sm"
           class="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
@@ -256,7 +89,7 @@ async function handleUnloadModel() {
         <div class="flex items-center gap-3 mb-3">
           <Loader2 class="h-5 w-5 text-primary animate-spin" />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium">{{ getLoadingTitle() }}</p>
+            <p class="text-sm font-medium">{{ aiStore.loadingTitle }}</p>
             <p class="text-xs text-muted-foreground truncate">
               {{ aiStore.loadStatus }}
             </p>
@@ -276,26 +109,16 @@ async function handleUnloadModel() {
         <div
           class="flex items-center justify-between mt-3 text-xs text-muted-foreground"
         >
-          <div class="flex items-center gap-2">
+          <div
+            v-for="step in aiStore.loadingSteps"
+            :key="step.key"
+            class="flex items-center gap-2"
+          >
             <div
               class="w-2 h-2 rounded-full"
-              :class="aiStore.loadProgress >= 30 ? 'bg-primary' : 'bg-muted'"
+              :class="step.complete ? 'bg-primary' : 'bg-muted'"
             ></div>
-            <span>AI库加载</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div
-              class="w-2 h-2 rounded-full"
-              :class="aiStore.loadProgress >= 80 ? 'bg-primary' : 'bg-muted'"
-            ></div>
-            <span>资源准备</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div
-              class="w-2 h-2 rounded-full"
-              :class="aiStore.loadProgress >= 95 ? 'bg-primary' : 'bg-muted'"
-            ></div>
-            <span>初始化</span>
+            <span>{{ step.label }}</span>
           </div>
         </div>
       </div>
@@ -341,7 +164,7 @@ async function handleUnloadModel() {
                 variant="ghost"
                 size="sm"
                 class="h-7 px-3 text-xs text-muted-foreground hover:text-foreground"
-                @click="clearError"
+                @click="aiStore.clearError"
               >
                 忽略
               </Button>
@@ -365,7 +188,7 @@ async function handleUnloadModel() {
 
         <div class="grid gap-3">
           <div
-            v-for="model in models"
+            v-for="model in aiStore.models"
             :key="model.id"
             class="group relative bg-card hover:bg-muted/40 rounded-xl border border-border/40 hover:border-border transition-all duration-200 overflow-hidden"
             :class="
@@ -419,14 +242,14 @@ async function handleUnloadModel() {
                   size="sm"
                   class="h-8 px-3 text-xs font-medium rounded-lg hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
                   :disabled="aiStore.isLoading"
-                  @click="downloadModel(model.id)"
+                  @click="handleDownloadModel(model.id)"
                 >
                   <Download
-                    v-if="downloadingModel !== model.id"
+                    v-if="aiStore.downloadingModel !== model.id"
                     class="h-3.5 w-3.5 mr-1.5"
                   />
                   <Loader2 v-else class="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  {{ downloadingModel === model.id ? "加载中" : "加载" }}
+                  {{ aiStore.downloadingModel === model.id ? "加载中" : "加载" }}
                 </Button>
 
                 <Button
@@ -443,7 +266,7 @@ async function handleUnloadModel() {
           </div>
 
           <!-- 空状态 -->
-          <div v-if="models.length === 0" class="py-12 text-center">
+          <div v-if="aiStore.models.length === 0" class="py-12 text-center">
             <p class="text-sm text-muted-foreground">
               未找到可用模型
             </p>
@@ -453,12 +276,12 @@ async function handleUnloadModel() {
 
       <!-- 存储信息 Footer -->
       <div
-        v-if="storageUsage || cacheStats"
+        v-if="aiStore.storageUsage || aiStore.cacheStats"
         class="space-y-3 pt-4 border-t border-border/40"
       >
         <!-- 缓存统计 -->
         <div
-          v-if="cacheStats"
+          v-if="aiStore.cacheStats"
           class="bg-card rounded-xl border border-border/50 p-4"
         >
           <div class="flex items-center justify-between mb-3">
@@ -467,7 +290,7 @@ async function handleUnloadModel() {
               <span class="text-sm font-medium">运行时缓存</span>
             </div>
             <Badge variant="secondary" class="text-xs">
-              {{ cacheStats.modelCount }} 个模型
+              {{ aiStore.cacheStats.modelCount }} 个模型
             </Badge>
           </div>
 
@@ -475,14 +298,14 @@ async function handleUnloadModel() {
             <div class="flex justify-between">
               <span>缓存大小:</span>
               <span class="font-mono">{{
-                formatBytes(cacheStats.totalSize)
+                formatBytes(aiStore.cacheStats.totalSize)
               }}</span>
             </div>
-            <div v-if="storageUsage" class="flex justify-between">
+            <div v-if="aiStore.storageUsage" class="flex justify-between">
               <span>存储使用:</span>
               <span class="font-mono"
-                >{{ formatBytes(storageUsage.used) }} /
-                {{ formatBytes(storageUsage.quota) }}</span
+                >{{ formatBytes(aiStore.storageUsage.used) }} /
+                {{ formatBytes(aiStore.storageUsage.quota) }}</span
               >
             </div>
             <div class="flex justify-between">
@@ -496,14 +319,14 @@ async function handleUnloadModel() {
 
         <!-- 传统存储信息 -->
         <div
-          v-else-if="storageUsage"
+          v-else-if="aiStore.storageUsage"
           class="flex items-center justify-between px-1 text-[10px] text-muted-foreground/50"
         >
           <div class="flex items-center gap-1.5">
             <HardDrive class="h-3 w-3" />
             <span
-              >存储已用 {{ formatBytes(storageUsage.used) }} /
-              {{ formatBytes(storageUsage.quota) }}</span
+              >存储已用 {{ formatBytes(aiStore.storageUsage.used) }} /
+              {{ formatBytes(aiStore.storageUsage.quota) }}</span
             >
           </div>
         </div>

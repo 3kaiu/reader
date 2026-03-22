@@ -3,8 +3,7 @@
  * 书源管理页面 - 统一风格版
  * 特性：导入、启停、删除、只读查看定义
  */
-import { ref, shallowRef, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { Circle, CheckCircle2 } from "lucide-vue-next";
 import {
   Server,
   Trash2,
@@ -14,230 +13,46 @@ import {
   Edit2,
   X,
 } from "lucide-vue-next";
-import { sourceApi } from "@/api/source";
 import { Switch } from "@/components/ui/switch";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
 import ImportSource from "@/components/source/ImportSource.vue";
 import EditSource from "@/components/source/EditSource.vue";
 import {
   PageHeader,
   PageToolbar,
+  ManageModeBar,
   EmptyState,
   LoadingGrid,
 } from "@/components/common";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Circle, CheckCircle2 } from "lucide-vue-next";
+import { useSourcesPageView } from "@/composables/useSourcesPageView";
 
-
-const router = useRouter();
-const { success, error, warning } = useMessage();
-const { confirm } = useConfirm();
-const { handlePromiseError } = useErrorHandler();
-
-// ====== 类型定义 ======
-interface BookSource {
-  id: string;
-  name: string;
-  url: string;
-  version?: number;
-  enabled: boolean;
-  bookSourceGroup?: string;
-  _ping?: number;
-  _bgTest?: boolean;
-}
-
-// ====== 状态 ======
-const sources = ref<BookSource[]>([]);
-const loading = ref(true);
-const searchKeyword = ref("");
-const activeGroup = ref("全部");
-const showImport = ref(false);
-const showEdit = ref(false);
-const currentEditSource = ref<BookSource | null>(null);
-const selectedIds = shallowRef<Set<string>>(new Set());
-const isManageMode = ref(false);
-const activeTab = ref("local");
-
-// ====== 计算属性 ======
-// 分组统计
-const groups = computed(() => {
-  const groupMap: Record<string, number> = { 全部: sources.value.length };
-  sources.value.forEach(() => {
-    const g = "全部"; // Nexus-lite 暂无分组字段，统一归类
-    groupMap[g] = (groupMap[g] || 0) + 1;
-  });
-  // 排序：全部 -> 未分组 -> 其他按数量
-  const entries = Object.entries(groupMap);
-  return entries.sort((a, b) => {
-    if (a[0] === "全部") return -1;
-    if (b[0] === "全部") return 1;
-    if (a[0] === "未分组") return -1;
-    if (b[0] === "未分组") return 1;
-    return b[1] - a[1];
-  });
-});
-
-const filteredSources = computed(() => {
-  let result = sources.value;
-
-  // 分组筛选 (Nexus-lite 暂不支持源分组，此处保持全部)
-  if (activeGroup.value !== "全部") {
-    // result = result.filter((s) => s.bookSourceGroup?.trim() === activeGroup.value);
-  }
-
-  // 关键词筛选
-  if (searchKeyword.value) {
-    const k = searchKeyword.value.toLowerCase();
-    result = result.filter(
-      (s) =>
-        s.name.toLowerCase().includes(k) ||
-        s.url.toLowerCase().includes(k)
-    );
-  }
-
-  return result;
-});
-
-const stats = computed(() => ({
-  total: sources.value.length,
-  enabled: sources.value.filter((s) => s.enabled !== false).length,
-  filtered: filteredSources.value.length,
-  selected: selectedIds.value.size,
-}));
-
-// ====== 方法 ======
-async function loadSources() {
-  loading.value = true;
-  selectedIds.value.clear();
-  try {
-    const res = await sourceApi.getBookSources();
-    if (res.isSuccess) {
-      sources.value = (res.data || []).map((s: any) => ({
-        ...s,
-        enabled: s.enabled !== false
-      }));
-    }
-  } catch (e) {
-    error("加载书源失败");
-  } finally {
-    loading.value = false;
-  }
-}
-
-// Speed test functions removed
-
-async function toggleEnable(source: BookSource, newValue: boolean) {
-  const previousValue = source.enabled;
-  source.enabled = newValue;
-  
-  try {
-    await sourceApi.updateSourceStatus(source.id, newValue);
-    success(newValue ? '已启用书源' : '已禁用书源');
-  } catch (e) {
-    // 回滚状态
-    source.enabled = previousValue;
-    handlePromiseError(e, '更新书源状态失败');
-  }
-}
-
-async function deleteSource(source: BookSource) {
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定删除「${source.name}」？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-  try {
-    await sourceApi.deleteBookSource(source.id);
-    // res.status 204 or manually handle
-    sources.value = sources.value.filter((s: BookSource) => s.id !== source.id);
-    selectedIds.value.delete(source.id);
-    success("删除成功");
-  } catch (e) {
-    handlePromiseError(e, "删除失败");
-  }
-}
-
-async function batchDelete() {
-  if (selectedIds.value.size === 0) return;
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定删除选中的 ${selectedIds.value.size} 个书源吗？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  let successCount = 0;
-  for (const id of selectedIds.value) {
-    try {
-      await sourceApi.deleteBookSource(id);
-      successCount++;
-      sources.value = sources.value.filter((s: BookSource) => s.id !== id);
-    } catch (e) {
-      // ignore
-    }
-  }
-  selectedIds.value = new Set();
-  isManageMode.value = false;
-  success(`删除了 ${successCount} 个书源`);
-}
-
-function exportSources() {
-  const target =
-    selectedIds.value.size > 0
-      ? sources.value.filter((s: BookSource) => selectedIds.value.has(s.id))
-      : filteredSources.value;
-  const data = JSON.stringify(target, null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `booksources_${Date.now()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  success(`已导出 ${target.length} 个书源`);
-}
-
-function toggleSelect(source: BookSource) {
-  const newSet = new Set(selectedIds.value);
-  if (newSet.has(source.id)) {
-    newSet.delete(source.id);
-  } else {
-    newSet.add(source.id);
-  }
-  selectedIds.value = newSet;
-}
-
-function selectAll() {
-  if (selectedIds.value.size === filteredSources.value.length) {
-    selectedIds.value = new Set();
-  } else {
-    selectedIds.value = new Set(
-      filteredSources.value.map((s: BookSource) => s.id)
-    );
-  }
-}
-
-function openEdit(source: BookSource) {
-  currentEditSource.value = source;
-  showEdit.value = true;
-}
-
-function toggleManageMode() {
-  isManageMode.value = !isManageMode.value;
-  if (!isManageMode.value) selectedIds.value = new Set();
-}
-
-// function getPingColor removed
-
-// 删除分组内所有书源
-async function deleteGroupSources(groupName: string) {
-  warning(`当前版本暂不支持删除整组书源（分组：${groupName}）`);
-}
-
-onMounted(() => loadSources());
+const {
+  searchKeyword,
+  activeGroup,
+  activeTab,
+  loading,
+  groups,
+  filteredSources,
+  isManageMode,
+  selectedSourceIds,
+  isSourceSelected,
+  toggleSelect,
+  selectAll,
+  toggleManageMode,
+  stats,
+  showImport,
+  showEdit,
+  currentEditSource,
+  toggleEnable,
+  openImport,
+  openEdit,
+  deleteSource,
+  batchDelete,
+  exportSources,
+  deleteGroupSources,
+  loadSources,
+  goBack,
+} = useSourcesPageView();
 </script>
 
 <template>
@@ -262,12 +77,12 @@ onMounted(() => loadSources());
             {
               label: '导入书源',
               icon: Upload,
-              onClick: () => (showImport = true),
+              onClick: openImport,
               variant: 'default',
             },
           ] : []"
           @update:search-value="searchKeyword = $event"
-          @back="router.push('/')"
+          @back="goBack"
         >
           <template #left>
             <TabsList class="mr-4">
@@ -361,7 +176,7 @@ onMounted(() => loadSources());
           {
             label: '导入书源',
             icon: Upload,
-            onClick: () => (showImport = true),
+            onClick: openImport,
           },
           ...(searchKeyword || activeGroup !== '全部'
             ? [
@@ -388,8 +203,8 @@ onMounted(() => loadSources());
           :key="source.id"
           class="group relative bg-card hover:bg-muted/50 rounded-xl border border-transparent transition-all duration-200 cursor-pointer overflow-hidden"
           :class="{
-            'bg-muted/20': selectedIds.has(source.id) && isManageMode,
-            'border-border/40 hover:border-border hover:shadow-sm': !isManageMode || !selectedIds.has(source.id),
+            'bg-muted/20': isSourceSelected(source) && isManageMode,
+            'border-border/40 hover:border-border hover:shadow-sm': !isManageMode || !isSourceSelected(source),
             'opacity-60': source.enabled === false && !isManageMode,
           }"
           @click="isManageMode ? toggleSelect(source) : openEdit(source)"
@@ -400,9 +215,9 @@ onMounted(() => loadSources());
                <div
                   v-if="isManageMode"
                   class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-                  :class="selectedIds.has(source.id) ? 'text-primary' : 'text-muted-foreground/30'"
+                  :class="isSourceSelected(source) ? 'text-primary' : 'text-muted-foreground/30'"
                 >
-                  <CheckCircle2 v-if="selectedIds.has(source.id)" class="w-5 h-5 fill-primary/10" />
+                  <CheckCircle2 v-if="isSourceSelected(source)" class="w-5 h-5 fill-primary/10" />
                   <Circle v-else class="w-5 h-5" />
                 </div>
                 <div
@@ -465,25 +280,14 @@ onMounted(() => loadSources());
     </Tabs>
     </main>
 
-    <!-- 底部操作栏 (管理模式) - 替代方案 -->
-    <div v-if="isManageMode" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-50">
-        <div class="bg-popover/80 backdrop-blur-xl border border-border shadow-lg rounded-full p-2 flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 pl-2">
-                <span class="text-xs font-medium">{{ selectedIds.size }} / {{ filteredSources.length }}</span>
-            </div>
-            <div class="flex items-center gap-1">
-                 <button @click="selectAll" class="px-2 py-1 text-xs hover:bg-muted rounded-md transition-colors">
-                    全选
-                 </button>
-                 <button @click="batchDelete" :disabled="selectedIds.size === 0" class="px-2 py-1 text-xs text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:opacity-50">
-                    删除
-                 </button>
-                 <button @click="toggleManageMode" class="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-full transition-colors ml-1">
-                    <X class="h-4 w-4" />
-                 </button>
-            </div>
-        </div>
-    </div>
+    <ManageModeBar
+      v-if="isManageMode"
+      :selected-count="selectedSourceIds.size"
+      :total-count="filteredSources.length"
+      @select-all="selectAll"
+      @delete="batchDelete"
+      @close="toggleManageMode"
+    />
 
     <ImportSource v-model:open="showImport" @success="loadSources" />
     <EditSource

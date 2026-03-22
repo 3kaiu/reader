@@ -1,70 +1,20 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { readingJourneyService } from "@/services/journey/reading";
-import type { Book, Chapter } from "@/api/book";
-
-type LoadedChapter = {
-  index: number;
-  title: string;
-  formattedContent?: string;
-};
-
-type ReaderBook = Book & {
-  sourceId: string;
-  bookUrl: string;
-  tags?: string[];
-};
-
-const PROGRESS_STORAGE_KEY = "reader-progress";
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function formatContent(content: string): string {
-  const normalized = content.replace(/\r\n/g, "\n").trim();
-  if (!normalized) {
-    return "";
-  }
-
-  return normalized
-    .split(/\n{2,}/)
-    .map((paragraph) => {
-      const line = escapeHtml(paragraph.trim()).replace(/\n/g, "<br />");
-      return `<p class="content-paragraph">${line}</p>`;
-    })
-    .join("");
-}
-
-function loadPersistedProgress(): Record<string, number> {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function savePersistedProgress(progressMap: Record<string, number>) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progressMap));
-  } catch {
-    // ignore persist failures
-  }
-}
+import type { ApiResponse } from "@/api/http/types";
+import { readerApi } from "@/api/reader";
+import type { Chapter } from "@/types/book";
+import { isSameReaderRouteTarget } from "@/utils/readerRoute";
+import {
+  createLoadedChapter,
+  formatReaderContent,
+  loadPersistedReaderProgress,
+  mergeLoadedChapters,
+  normalizeReaderCatalog,
+  resolveInitialChapterIndex,
+  savePersistedReaderProgress,
+  type ReaderBook,
+  type ReaderLoadedChapter as LoadedChapter,
+} from "@/utils/readerStore";
 
 export const useReaderStore = defineStore("reader", () => {
   const currentBook = ref<ReaderBook | null>(null);
@@ -79,7 +29,7 @@ export const useReaderStore = defineStore("reader", () => {
   const isParsing = ref(false);
   const error = ref<string | null>(null);
   const loadError = ref<string | null>(null);
-  const progressMap = ref<Record<string, number>>(loadPersistedProgress());
+  const progressMap = ref<Record<string, number>>(loadPersistedReaderProgress());
   const chapterContentCache = ref<Record<string, string>>({});
 
   const totalChapters = computed(() => catalog.value.length);
@@ -98,6 +48,86 @@ export const useReaderStore = defineStore("reader", () => {
   const getCachedChapterContent = (chapterUrl: string) =>
     chapterContentCache.value[chapterUrl];
 
+  const fetchBookInfo = async (
+    sourceId: string,
+    bookUrl: string,
+  ): Promise<ApiResponse<ReaderBook>> => {
+    const response = await readerApi.getBookInfo(sourceId, bookUrl);
+
+    if (!response.isSuccess || !response.data) {
+      return response as ApiResponse<ReaderBook>;
+    }
+
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        sourceId,
+        bookUrl,
+      },
+    };
+  };
+
+  const isCurrentBookTarget = (target: {
+    sourceId: string;
+    bookUrl: string;
+  }) =>
+    Boolean(
+      currentBook.value &&
+        isSameReaderRouteTarget(currentBook.value, target),
+    );
+
+  const hasActiveSession = (target: {
+    sourceId: string;
+    bookUrl: string;
+  }) =>
+    isCurrentBookTarget(target) &&
+    catalog.value.length > 0 &&
+    currentChapter.value !== null;
+
+  const ensureReaderSession = async (book: ReaderBook) => {
+    if (hasActiveSession(book) && currentBook.value) {
+      return currentBook.value;
+    }
+
+    await openBook(book);
+    return currentBook.value || book;
+  };
+
+  const startReaderSession = async (
+    sourceId: string,
+    bookUrl: string,
+  ): Promise<ApiResponse<ReaderBook>> => {
+    const target = { sourceId, bookUrl };
+
+    if (hasActiveSession(target) && currentBook.value) {
+      return {
+        isSuccess: true,
+        data: currentBook.value,
+      };
+    }
+
+    if (isCurrentBookTarget(target) && currentBook.value) {
+      const book = await ensureReaderSession(currentBook.value);
+      return {
+        isSuccess: true,
+        data: book,
+      };
+    }
+
+    const response = await fetchBookInfo(sourceId, bookUrl);
+
+    if (!response.isSuccess || !response.data) {
+      return response;
+    }
+
+    const book = await ensureReaderSession(response.data);
+    return {
+      ...response,
+      data: book,
+    };
+  };
+
   const ensureCatalog = async () => {
     if (!currentBook.value) {
       throw new Error("缺少书籍信息");
@@ -107,7 +137,7 @@ export const useReaderStore = defineStore("reader", () => {
       return catalog.value;
     }
 
-    const res = await readingJourneyService.getChapters(
+    const res = await readerApi.getChapters(
       currentBook.value.sourceId,
       currentBook.value.bookUrl,
     );
@@ -116,10 +146,7 @@ export const useReaderStore = defineStore("reader", () => {
       throw new Error(res.errorMsg || "获取目录失败");
     }
 
-    catalog.value = res.data.map((chapter, index) => ({
-      ...chapter,
-      index: typeof chapter.index === "number" ? chapter.index : index,
-    }));
+    catalog.value = normalizeReaderCatalog(res.data);
 
     return catalog.value;
   };
@@ -128,7 +155,7 @@ export const useReaderStore = defineStore("reader", () => {
     currentChapter.value = chapter;
     content.value = chapterContent;
     isParsing.value = true;
-    formattedContent.value = formatContent(chapterContent);
+    formattedContent.value = formatReaderContent(chapterContent);
     isParsing.value = false;
   };
 
@@ -137,30 +164,10 @@ export const useReaderStore = defineStore("reader", () => {
     chapterContent: string,
     replaceOnly = false,
   ) => {
-    const entry: LoadedChapter = {
-      index: chapter.index,
-      title: chapter.title,
-      formattedContent: formatContent(chapterContent),
-    };
-
-    const existingIndex = loadedChapters.value.findIndex(
-      (item) => item.index === chapter.index,
-    );
-
-    if (replaceOnly) {
-      loadedChapters.value = [entry];
-      return;
-    }
-
-    if (existingIndex >= 0) {
-      const next = [...loadedChapters.value];
-      next[existingIndex] = entry;
-      loadedChapters.value = next;
-      return;
-    }
-
-    loadedChapters.value = [...loadedChapters.value, entry].sort(
-      (a, b) => a.index - b.index,
+    loadedChapters.value = mergeLoadedChapters(
+      loadedChapters.value,
+      createLoadedChapter(chapter, chapterContent),
+      replaceOnly,
     );
   };
 
@@ -174,9 +181,10 @@ export const useReaderStore = defineStore("reader", () => {
       throw new Error("缺少书籍信息");
     }
 
-    const res = await readingJourneyService.getContent(
+    const res = await readerApi.getContent(
       currentBook.value.sourceId,
       chapter.url,
+      currentBook.value.bookUrl,
     );
 
     if (!res.isSuccess) {
@@ -223,16 +231,12 @@ export const useReaderStore = defineStore("reader", () => {
 
       await ensureCatalog();
 
-      const persistedIndex = progressMap.value[book.bookUrl];
-      const initialIndex = Math.max(
-        0,
-        Math.min(
-          typeof persistedIndex === "number"
-            ? persistedIndex
-            : book.lastChapterIndex || book.durChapterIndex || 0,
-          Math.max(catalog.value.length - 1, 0),
-        ),
-      );
+      const initialIndex = resolveInitialChapterIndex({
+        catalogLength: catalog.value.length,
+        persistedIndex: progressMap.value[book.bookUrl],
+        bookLastChapterIndex: book.lastChapterIndex,
+        bookDurChapterIndex: book.durChapterIndex,
+      });
 
       await loadChapterAt(initialIndex, { replaceLoaded: true });
     } catch (err) {
@@ -321,12 +325,6 @@ export const useReaderStore = defineStore("reader", () => {
     await refreshChapter();
   };
 
-  const initInfiniteScroll = () => {
-    if (currentChapter.value && content.value) {
-      updateLoadedChapter(currentChapter.value, content.value, true);
-    }
-  };
-
   const updateChapterIndexByScroll = () => {
     if (loadedChapters.value.length === 0 || typeof document === "undefined") {
       return;
@@ -361,7 +359,12 @@ export const useReaderStore = defineStore("reader", () => {
       ...progressMap.value,
       [currentBook.value.bookUrl]: currentChapterIndex.value,
     };
-    savePersistedProgress(progressMap.value);
+    savePersistedReaderProgress(progressMap.value);
+  };
+
+  const disposeReader = () => {
+    saveProgress();
+    reset();
   };
 
   const reset = () => {
@@ -396,6 +399,10 @@ export const useReaderStore = defineStore("reader", () => {
     totalChapters,
     hasPrevChapter,
     hasNextChapter,
+    fetchBookInfo,
+    isCurrentBookTarget,
+    ensureReaderSession,
+    startReaderSession,
     openBook,
     goToChapter,
     goToChapterInScroll,
@@ -405,9 +412,9 @@ export const useReaderStore = defineStore("reader", () => {
     retryLoadNext,
     refreshChapter,
     reloadCurrentChapter,
-    initInfiniteScroll,
     updateChapterIndexByScroll,
     saveProgress,
+    disposeReader,
     reset,
   };
 });

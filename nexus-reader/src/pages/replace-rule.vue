@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
 import {
   Plus,
   Trash2,
@@ -9,13 +7,10 @@ import {
   Wand2,
   Edit2,
 } from "lucide-vue-next";
-import { replaceApi, type ReplaceRule } from "@/api/replace";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
+import { useReplaceRulePageView } from "@/composables/useReplaceRulePageView";
 import EditRule from "@/components/replace/EditRule.vue";
 import ImportRule from "@/components/replace/ImportRule.vue";
 import {
@@ -25,186 +20,31 @@ import {
   EmptyState,
   LoadingGrid,
 } from "@/components/common";
+import { getReplaceRuleKey } from "@/utils/replaceRules";
 
-const router = useRouter();
-const { success } = useMessage();
-const { confirm } = useConfirm();
-const { handleApiError, handlePromiseError } = useErrorHandler();
-
-const rules = ref<ReplaceRule[]>([]);
-const loading = ref(true);
-const searchKeyword = ref("");
-const showImport = ref(false);
-const showEdit = ref(false);
-const currentEditRule = ref<ReplaceRule | null>(null);
-const selectedRules = ref<Set<string>>(new Set());
-const isManageMode = ref(false);
-
-function getRuleKey(rule: ReplaceRule): string {
-  return rule.id || `${rule.name}::${rule.pattern}::${rule.scope || ""}`;
-}
-
-function isRuleSelected(rule: ReplaceRule): boolean {
-  return selectedRules.value.has(getRuleKey(rule));
-}
-
-const filteredRules = computed(() => {
-  if (!searchKeyword.value) return rules.value;
-  const keyword = searchKeyword.value.toLowerCase();
-  return rules.value.filter(
-    (s) =>
-      s.name.toLowerCase().includes(keyword) ||
-      s.pattern.toLowerCase().includes(keyword) ||
-      (s.scope || "").toLowerCase().includes(keyword) ||
-      (s.group || "").toLowerCase().includes(keyword)
-  );
-});
-
-const stats = computed(() => ({
-  total: rules.value.length,
-  enabled: rules.value.filter((r) => r.isEnabled).length,
-  filtered: filteredRules.value.length,
-  selected: selectedRules.value.size,
-}));
-
-async function loadRules() {
-  loading.value = true;
-  selectedRules.value.clear();
-  try {
-    const res = await replaceApi.getReplaceRules();
-    if (res.isSuccess) {
-      rules.value = res.data || [];
-    } else {
-      handleApiError(res, "加载规则失败");
-    }
-  } catch (e) {
-    handlePromiseError(e, "加载规则失败");
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function toggleEnabled(rule: ReplaceRule) {
-  // Optimistic update
-  rule.isEnabled = !rule.isEnabled;
-  try {
-    const res = await replaceApi.saveReplaceRule(rule);
-    if (!res.isSuccess) {
-      // Revert
-      rule.isEnabled = !rule.isEnabled;
-      handleApiError(res, "更新失败");
-    }
-  } catch (e) {
-    rule.isEnabled = !rule.isEnabled;
-    handlePromiseError(e, "更新失败");
-  }
-}
-
-function openEdit(rule?: ReplaceRule) {
-  currentEditRule.value = rule || null;
-  showEdit.value = true;
-}
-
-function toggleManageMode() {
-  isManageMode.value = !isManageMode.value;
-  if (!isManageMode.value) selectedRules.value.clear();
-}
-
-function selectAll() {
-  if (selectedRules.value.size === filteredRules.value.length) {
-    selectedRules.value.clear();
-  } else {
-    selectedRules.value = new Set(filteredRules.value.map(getRuleKey));
-  }
-}
-
-function toggleSelect(rule: ReplaceRule) {
-  const ruleKey = getRuleKey(rule);
-  if (selectedRules.value.has(ruleKey)) {
-    selectedRules.value.delete(ruleKey);
-  } else {
-    selectedRules.value.add(ruleKey);
-  }
-}
-
-async function batchDelete() {
-  if (selectedRules.value.size === 0) return;
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定删除选中的 ${selectedRules.value.size} 条规则吗？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  const rulesToDelete = rules.value.filter((r) =>
-    selectedRules.value.has(getRuleKey(r))
-  );
-
-  try {
-    const res = await replaceApi.deleteReplaceRules(rulesToDelete);
-    if (res.isSuccess) {
-      const deletedRuleKeys = new Set(rulesToDelete.map(getRuleKey));
-      rules.value = rules.value.filter((rule) => !deletedRuleKeys.has(getRuleKey(rule)));
-      selectedRules.value = new Set();
-      isManageMode.value = false;
-      success(`删除了 ${rulesToDelete.length} 条规则`);
-    } else {
-      handleApiError(res, "批量删除失败");
-    }
-  } catch (e) {
-    handlePromiseError(e, "批量删除失败");
-  }
-}
-
-function exportRules() {
-  const target =
-    selectedRules.value.size > 0
-      ? rules.value.filter((r) => selectedRules.value.has(getRuleKey(r)))
-      : filteredRules.value;
-  try {
-    const data = JSON.stringify(target, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `replacerules_${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    success(`已导出 ${target.length} 条规则`);
-  } catch (e) {
-    handlePromiseError(e, "导出失败");
-  }
-}
-
-async function deleteRule(rule: ReplaceRule) {
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定删除「${rule.name}」？此操作不可恢复。`,
-    variant: "destructive",
-  });
-  if (!result) return;
-  try {
-    const res = await replaceApi.deleteReplaceRules([rule]);
-    if (res.isSuccess) {
-      const ruleKey = getRuleKey(rule);
-      rules.value = rules.value.filter((r) => getRuleKey(r) !== ruleKey);
-      selectedRules.value.delete(ruleKey);
-      success("删除成功");
-    } else {
-      handleApiError(res, "删除失败");
-    }
-  } catch (e) {
-    handlePromiseError(e, "删除失败");
-  }
-}
-
-function goBack() {
-  router.push("/");
-}
-
-onMounted(() => {
-  loadRules();
-});
+const {
+  searchKeyword,
+  loading,
+  filteredRules,
+  isManageMode,
+  selectedRuleKeys,
+  isRuleSelected,
+  toggleSelect,
+  selectAll,
+  toggleManageMode,
+  stats,
+  showImport,
+  showEdit,
+  currentEditRule,
+  toggleEnabled,
+  openImport,
+  openEdit,
+  deleteRule,
+  batchDelete,
+  exportRules,
+  loadRules,
+  goBack,
+} = useReplaceRulePageView();
 </script>
 
 <template>
@@ -228,7 +68,7 @@ onMounted(() => {
           {
             label: '导入',
             icon: Upload,
-            onClick: () => (showImport = true),
+            onClick: openImport,
             variant: 'outline',
             hideLabelOnMobile: true,
           },
@@ -301,7 +141,7 @@ onMounted(() => {
       >
         <div
           v-for="rule in filteredRules"
-          :key="getRuleKey(rule)"
+          :key="getReplaceRuleKey(rule)"
           class="group relative bg-card hover:bg-muted/50 rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden"
           :class="{
             'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50':
@@ -431,7 +271,7 @@ onMounted(() => {
               <Switch
                 v-if="!isManageMode"
                 :checked="rule.isEnabled"
-                @update:checked="toggleEnabled(rule)"
+                @update:checked="(enabled: boolean) => toggleEnabled(rule, enabled)"
                 @click.stop
                 class="data-[state=checked]:bg-primary"
               />
@@ -444,7 +284,7 @@ onMounted(() => {
     <!-- 底部操作栏 (管理模式) -->
     <ManageModeBar
       v-if="isManageMode"
-      :selected-count="selectedRules.size"
+      :selected-count="selectedRuleKeys.size"
       :total-count="filteredRules.length"
       @select-all="selectAll"
       @delete="batchDelete"

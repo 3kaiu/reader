@@ -5,7 +5,7 @@
 import { logger } from '../../utils/logger'
 import { queueClientMetric } from './client-reporter'
 
-export interface PerformanceMetric {
+interface PerformanceMetric {
     name: string
     value: number
     unit: 'ms' | 's'
@@ -28,9 +28,9 @@ class PerformanceMonitor {
      * 记录静态指标
      */
     record(metric: PerformanceMetric) {
-        // 1. 打印到控制台 (仅开发环境或通过 logger)
+        // 1. 仅开发环境记录调试日志
         if (import.meta.env.DEV) {
-            console.debug(`[Performance] ${metric.name}: ${metric.value}${metric.unit}`, metric.tags || '')
+            logger.debug(`[Performance] ${metric.name}: ${metric.value}${metric.unit}`, metric.tags || {})
         }
 
         // 2. 使用 logger 记录（可后续通过后台采集）

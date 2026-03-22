@@ -1,20 +1,7 @@
 import { $post, $get, $delete, $put } from './client'
+import type { BookSource } from '@/types/source'
 
-export interface BookSource {
-    id: string
-    name: string
-    url?: string
-    enabled: boolean
-    version?: number | string
-    origin?: string
-    originName?: string
-    bookUrl?: string
-    coverUrl?: string
-    latestChapterTitle?: string
-    time?: number
-    type?: string
-    bookSourceGroup?: string
-}
+export type { BookSource }
 
 export const sourceApi = {
     // 获取所有书源

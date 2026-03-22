@@ -3,8 +3,6 @@
  * AI 映射规则管理页面
  * 管理映射规则与分析历史
  */
-import { ref, onMounted, computed, useTemplateRef } from "vue";
-import { useRouter } from "vue-router";
 import {
   Brain,
   Plus,
@@ -13,10 +11,6 @@ import {
   Save,
   X,
   History,
-  AlertCircle,
-  User,
-  Building2,
-  MapPin,
   Filter,
   Upload,
   Download,
@@ -24,364 +18,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
-import { aiApi, type AiMappingRule, type AiAnalysisHistory } from "@/api/ai";
+import { useAiAnalysisSettingsView } from "@/composables/useAiAnalysisSettingsView";
+import {
+  AI_MAPPING_FILTER_OPTIONS,
+  AI_MAPPING_TYPE_CONFIG,
+} from "@/constants/aiAnalysis";
 import { PageHeader, EmptyState } from "@/components/common";
 
-type AiMappingTransferRule = Pick<
-  AiMappingRule,
-  "id" | "original" | "target" | "type" | "confidence" | "enabled"
->;
-
-const router = useRouter();
-const { success, error } = useMessage();
-const { confirm } = useConfirm();
-const { handlePromiseError } = useErrorHandler();
-
-// 状态
-const isLoading = ref(false);
-const mappings = ref<AiMappingRule[]>([]);
-const history = ref<AiAnalysisHistory[]>([]);
-const searchKeyword = ref("");
-const importInputRef = useTemplateRef<HTMLInputElement>("importInput");
-const filterType = ref<
-  "all" | "person" | "company" | "department" | "location" | "other"
->("all");
-const showAddDialog = ref(false);
-const editingRule = ref<AiMappingRule | null>(null);
-const newRule = ref<Partial<AiMappingRule>>({
-  original: "",
-  target: "",
-  type: "person",
-  confidence: 0.8,
-  enabled: true,
-});
-
-function normalizeText(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeConfidence(value: unknown): number {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return 0.8;
-  }
-
-  return Math.min(1, Math.max(0, value));
-}
-
-function normalizeMappingType(value: unknown): string {
-  const type = normalizeText(value);
-  return type || "person";
-}
-
-function toTransferRule(rule: AiMappingRule): AiMappingTransferRule {
-  return {
-    id: rule.id,
-    original: rule.original,
-    target: rule.target,
-    type: rule.type,
-    confidence: rule.confidence,
-    enabled: rule.enabled,
-  };
-}
-
-function normalizeImportRule(value: unknown): AiMappingRule | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const raw = value as Partial<AiMappingTransferRule> &
-    Partial<Pick<AiMappingRule, "createdAt" | "usageCount">>;
-  const original = normalizeText(raw.original);
-  const target = normalizeText(raw.target);
-
-  if (!original || !target) {
-    return null;
-  }
-
-  return {
-    id: normalizeText(raw.id) || `mapping_${Date.now()}_${crypto.randomUUID()}`,
-    original,
-    target,
-    type: normalizeMappingType(raw.type),
-    confidence: normalizeConfidence(raw.confidence),
-    enabled: raw.enabled !== false,
-    createdAt: typeof raw.createdAt === "number" ? raw.createdAt : Date.now(),
-    usageCount: typeof raw.usageCount === "number" ? raw.usageCount : undefined,
-  };
-}
-
-// 从 API 加载规则和历史
-async function loadData() {
-  isLoading.value = true;
-  try {
-    // 1. 从 API 加载映射规则
-    const mappingRes = await aiApi.getMappings();
-    if (mappingRes.isSuccess && Array.isArray(mappingRes.data)) {
-      mappings.value = mappingRes.data;
-    }
-
-    // 2. 从 API 加载历史
-    const historyRes = await aiApi.getHistory();
-    if (historyRes.isSuccess && Array.isArray(historyRes.data)) {
-      history.value = historyRes.data;
-    }
-  } catch (e) {
-    handlePromiseError(e, "加载数据失败");
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-// 计算显示的映射规则
-const displayMappings = computed(() => {
-  let list = Array.isArray(mappings.value) ? mappings.value : [];
-
-  if (filterType.value !== "all") {
-    list = list.filter((m) => m.type === filterType.value);
-  }
-
-  if (searchKeyword.value.trim()) {
-    const query = searchKeyword.value.toLowerCase();
-    list = list.filter(
-      (m) =>
-        m.original.toLowerCase().includes(query) ||
-        m.target.toLowerCase().includes(query)
-    );
-  }
-
-  return list;
-});
-
-// 统计信息
-const stats = computed(() => {
-  const list = Array.isArray(mappings.value) ? mappings.value : [];
-  return {
-    total: list.length,
-    enabled: list.filter((m) => m.enabled).length,
-  };
-});
-
-// 类型配置
-const typeConfig = {
-  person: {
-    icon: User,
-    label: "人物",
-    color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  },
-  company: {
-    icon: Building2,
-    label: "公司",
-    color: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-  },
-  department: {
-    icon: Building2,
-    label: "部门",
-    color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-  },
-  location: {
-    icon: MapPin,
-    label: "地点",
-    color: "bg-green-500/10 text-green-600 dark:text-green-400",
-  },
-  other: {
-    icon: AlertCircle,
-    label: "其他",
-    color: "bg-gray-500/10 text-gray-600 dark:text-gray-400",
-  },
-};
-
-// 添加/编辑映射规则
-function openAddDialog(rule?: AiMappingRule) {
-  if (rule) {
-    editingRule.value = rule;
-    newRule.value = { ...rule };
-  } else {
-    editingRule.value = null;
-    newRule.value = {
-      original: "",
-      target: "",
-      type: "person",
-      confidence: 0.8,
-      enabled: true,
-    };
-  }
-  showAddDialog.value = true;
-}
-
-// 保存映射规则
-async function saveMapping() {
-  const original = normalizeText(newRule.value.original);
-  const target = normalizeText(newRule.value.target);
-
-  if (!original || !target) {
-    error("请填写完整信息");
-    return;
-  }
-
-  const ruleToSave: AiMappingRule = {
-    id: editingRule.value?.id || `mapping_${Date.now()}`,
-    original,
-    target,
-    type: normalizeMappingType(newRule.value.type),
-    confidence: normalizeConfidence(newRule.value.confidence),
-    enabled: newRule.value.enabled ?? true,
-    createdAt: editingRule.value?.createdAt || Date.now(),
-    usageCount: editingRule.value?.usageCount || 0,
-  };
-
-  try {
-    const res = await aiApi.saveMapping(ruleToSave);
-    if (res.isSuccess) {
-      const mappingRes = await aiApi.getMappings();
-      if (mappingRes.isSuccess) {
-        mappings.value = mappingRes.data;
-      }
-      success(editingRule.value ? "映射规则已更新" : "映射规则已添加");
-      showAddDialog.value = false;
-      editingRule.value = null;
-    } else {
-      error("保存失败: " + res.errorMsg);
-    }
-  } catch (e) {
-    handlePromiseError(e, "保存失败");
-  }
-}
-
-// 删除映射规则
-async function deleteMapping(rule: AiMappingRule) {
-  const result = await confirm({
-    title: "确认删除",
-    description: `确定要删除映射规则 "${rule.original} → ${rule.target}" 吗？`,
-  });
-
-  if (!result) return;
-
-  try {
-    const res = await aiApi.deleteMapping(rule.id);
-    if (res.isSuccess) {
-      mappings.value = mappings.value.filter((m) => m.id !== rule.id);
-      success("映射规则已删除");
-    }
-  } catch (e) {
-    handlePromiseError(e, "删除失败");
-  }
-}
-
-// 切换规则启用状态
-async function toggleMapping(rule: AiMappingRule) {
-  const oldState = rule.enabled;
-  rule.enabled = !rule.enabled;
-  try {
-    const res = await aiApi.saveMapping(rule);
-    if (!res.isSuccess) {
-      rule.enabled = oldState; // 回滚
-      error("更新失败");
-    }
-  } catch (e) {
-    rule.enabled = oldState;
-    handlePromiseError(e, "更新失败");
-  }
-}
-
-// 导出映射规则
-function exportMappings() {
-  try {
-    const data = mappings.value.map(toTransferRule);
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ai-analysis-mappings_${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    success("映射规则导出成功");
-  } catch (e) {
-    handlePromiseError(e, "导出失败");
-  }
-}
-
-// 导入映射规则
-async function importMappings(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  try {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as unknown;
-    const list =
-      Array.isArray(parsed)
-        ? parsed
-        : parsed && typeof parsed === "object" && Array.isArray((parsed as any).mappings)
-          ? (parsed as any).mappings
-          : null;
-
-    if (!list) {
-      error("文件格式不正确");
-      return;
-    }
-
-    const rules = list
-      .map((item) => normalizeImportRule(item))
-      .filter((item): item is AiMappingRule => item !== null);
-
-    if (rules.length === 0) {
-      error("未找到有效的映射规则");
-      return;
-    }
-
-    const skipped = list.length - rules.length;
-    for (const rule of rules) {
-      await aiApi.saveMapping(rule);
-    }
-    const mappingRes = await aiApi.getMappings();
-    if (mappingRes.isSuccess) mappings.value = mappingRes.data;
-    success(
-      skipped > 0
-        ? `映射规则导入成功，导入 ${rules.length} 条，跳过 ${skipped} 条无效数据`
-        : `映射规则导入成功，共 ${rules.length} 条`
-    );
-  } catch (e) {
-    handlePromiseError(e, "导入失败");
-  } finally {
-    input.value = "";
-  }
-}
-
-function triggerImport() {
-  importInputRef.value?.click();
-}
-
-// 清除历史记录
-async function clearHistory() {
-  const result = await confirm({
-    title: "确认清除",
-    description: "确定要清除所有分析历史记录吗？此操作不可恢复。",
-  });
-
-  if (!result) return;
-
-  try {
-    const res = await aiApi.clearHistory();
-    if (res.isSuccess) {
-      history.value = [];
-      success("历史记录已清除");
-    }
-  } catch (e) {
-    handlePromiseError(e, "清除失败");
-  }
-}
-
-onMounted(() => {
-  loadData();
-});
+const {
+  history,
+  searchKeyword,
+  filterType,
+  displayMappings,
+  stats,
+  importInputRef,
+  importMappings,
+  triggerImport,
+  showAddDialog,
+  editingRule,
+  newRule,
+  goBack,
+  openAddDialog,
+  closeAddDialog,
+  saveMapping,
+  deleteMapping,
+  toggleMapping,
+  exportMappings,
+  clearHistory,
+} = useAiAnalysisSettingsView();
 </script>
 
 <template>
@@ -417,11 +81,11 @@ onMounted(() => {
           },
         ]"
         @update:search-value="searchKeyword = $event"
-        @back="router.push('/settings')"
+        @back="goBack"
       />
 
       <input
-        ref="importInput"
+        ref="importInputRef"
         type="file"
         accept=".json"
         class="hidden"
@@ -463,12 +127,13 @@ onMounted(() => {
             v-model="filterType"
             class="pl-9 pr-4 h-9 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="all">全部类型</option>
-            <option value="person">人物</option>
-            <option value="company">公司</option>
-            <option value="department">部门</option>
-            <option value="location">地点</option>
-            <option value="other">其他</option>
+            <option
+              v-for="option in AI_MAPPING_FILTER_OPTIONS"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
           </select>
           <Filter
             class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
@@ -525,11 +190,11 @@ onMounted(() => {
               <div
                 :class="[
                   'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                  typeConfig[mapping.type as keyof typeof typeConfig]?.color || 'bg-gray-500/10 text-gray-600',
+                  AI_MAPPING_TYPE_CONFIG[mapping.type]?.color || 'bg-gray-500/10 text-gray-600',
                 ]"
               >
                 <component
-                  :is="typeConfig[mapping.type as keyof typeof typeConfig]?.icon || AlertCircle"
+                  :is="AI_MAPPING_TYPE_CONFIG[mapping.type]?.icon || AI_MAPPING_TYPE_CONFIG.other.icon"
                   class="h-5 w-5"
                 />
               </div>
@@ -545,10 +210,10 @@ onMounted(() => {
                   }}</span>
                 </div>
                 <Badge
-                  :class="typeConfig[mapping.type as keyof typeof typeConfig]?.color || 'bg-gray-500/10 text-gray-600'"
+                  :class="AI_MAPPING_TYPE_CONFIG[mapping.type]?.color || 'bg-gray-500/10 text-gray-600'"
                   class="text-xs"
                 >
-                  {{ typeConfig[mapping.type as keyof typeof typeConfig]?.label || '其他' }}
+                  {{ AI_MAPPING_TYPE_CONFIG[mapping.type]?.label || '其他' }}
                 </Badge>
               </div>
             </div>
@@ -565,7 +230,7 @@ onMounted(() => {
             <div class="flex items-center gap-1.5 pt-2 border-t border-border/50">
               <Switch
                 :checked="mapping.enabled"
-                @update:checked="toggleMapping(mapping)"
+                @update:checked="(enabled: boolean) => toggleMapping(mapping, enabled)"
                 class="flex-1"
               />
               <Button
@@ -664,7 +329,7 @@ onMounted(() => {
     <div
       v-if="showAddDialog"
       class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      @click.self="showAddDialog = false"
+      @click.self="closeAddDialog"
     >
       <div
         class="w-full max-w-md rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl p-6 space-y-4 animate-in slide-in-from-bottom sm:slide-in-from-top max-h-[90vh] overflow-y-auto"
@@ -675,7 +340,7 @@ onMounted(() => {
             {{ editingRule ? "编辑映射规则" : "添加映射规则" }}
           </h3>
           <button
-            @click="showAddDialog = false"
+            @click="closeAddDialog"
             class="p-1.5 rounded-lg hover:bg-muted transition-colors"
           >
             <X class="h-4 w-4" />
@@ -744,7 +409,7 @@ onMounted(() => {
           </Button>
           <Button
             variant="outline"
-            @click="showAddDialog = false"
+            @click="closeAddDialog"
             class="flex-1"
           >
             取消

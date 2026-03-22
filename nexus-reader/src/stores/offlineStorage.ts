@@ -3,9 +3,12 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
-import { errorHandler } from '@/utils/error-handler'
 import { logger } from '@/utils/logger'
-import { storage } from '@/utils/storage'
+import {
+  offlineManager,
+  type CachedContent,
+  type OfflineStatus,
+} from '@/services/offline/manager'
 
 interface OfflineItem {
   id: string
@@ -13,6 +16,8 @@ interface OfflineItem {
   data: any
   timestamp: number
   size: number
+  bookUrl?: string
+  chapterUrl?: string
 }
 
 interface OfflineState {
@@ -24,8 +29,12 @@ interface OfflineState {
 }
 
 export const useOfflineStore = defineStore('offlineStorage', () => {
+  let hasInitialized = false
+  let initializePromise: Promise<void> | null = null
+  let statusListenerRegistered = false
+
   const state = ref<OfflineState>({
-    isOnline: navigator.onLine,
+    isOnline: true,
     items: [],
     totalSize: 0,
     syncPending: false,
@@ -37,159 +46,88 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
   const totalSize = computed(() => state.value.totalSize)
   const hasPendingSync = computed(() => state.value.syncPending)
 
-  // 监听在线状态变化
-  const setupNetworkListener = () => {
-    window.addEventListener('online', () => {
-      state.value.isOnline = true
-      logger.info('Network connection restored')
-      autoSync()
-    })
+  const mapCachedTypeToOfflineType = (
+    type: CachedContent['type']
+  ): OfflineItem['type'] => {
+    if (type === 'chapter') return 'chapter'
+    if (type === 'book') return 'book'
+    return 'cache'
+  }
 
-    window.addEventListener('offline', () => {
-      state.value.isOnline = false
-      logger.warn('Network connection lost')
+  const mapOfflineTypeToCachedType = (
+    type: OfflineItem['type']
+  ): CachedContent['type'] => {
+    if (type === 'chapter') return 'chapter'
+    if (type === 'book') return 'book'
+    return 'api-response'
+  }
+
+  const toOfflineItem = (item: CachedContent): OfflineItem => ({
+    id: item.id,
+    type: mapCachedTypeToOfflineType(item.type),
+    data: item.data,
+    timestamp: item.timestamp,
+    size: item.size,
+    bookUrl: item.bookUrl,
+    chapterUrl: item.chapterUrl,
+  })
+
+  const syncStateFromManager = (status?: OfflineStatus) => {
+    const snapshot = offlineManager.exportOfflineData()
+    const nextStatus = status ?? snapshot.status
+    const items = snapshot.content.map(toOfflineItem)
+
+    state.value.isOnline = nextStatus.isOnline
+    state.value.items = items
+    state.value.totalSize = items.reduce((sum, item) => sum + item.size, 0)
+    state.value.syncPending = nextStatus.queuedOperations > 0
+  }
+
+  const registerStatusListener = () => {
+    if (statusListenerRegistered) {
+      return
+    }
+
+    offlineManager.addStatusListener(status => {
+      syncStateFromManager(status)
     })
+    statusListenerRegistered = true
   }
 
   const storeItem = async (item: Omit<OfflineItem, 'timestamp' | 'size'>) => {
-    try {
-      const fullItem: OfflineItem = {
-        ...item,
-        timestamp: Date.now(),
-        size: JSON.stringify(item.data).length
-      }
+    await initialize()
 
-      // 检查是否存在相同ID的项目
-      const existingIndex = state.value.items.findIndex(i => i.id === item.id)
-
-      if (existingIndex >= 0) {
-        // 更新现有项目
-        const oldSize = state.value.items[existingIndex].size
-        state.value.items[existingIndex] = fullItem
-        state.value.totalSize = state.value.totalSize - oldSize + fullItem.size
-      } else {
-        // 添加新项目
-        state.value.items.push(fullItem)
-        state.value.totalSize += fullItem.size
-      }
-
-      // 本地存储持久化
-      await storage.set(`offline_${item.id}`, fullItem)
-
-      // 标记需要同步
-      state.value.syncPending = true
-
-      logger.info('Item stored offline', { id: item.id, type: item.type, size: fullItem.size })
-
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'storeItem' })
-    }
-  }
-
-  const getItem = async (id: string): Promise<OfflineItem | null> => {
-    try {
-      // 首先从内存中查找
-      const memoryItem = state.value.items.find(item => item.id === id)
-      if (memoryItem) {
-        return memoryItem
-      }
-
-      // 从本地存储中查找
-      const storedItem = await storage.get(`offline_${id}`)
-      if (storedItem) {
-        return storedItem as any
-      }
-
-      return null
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'getItem' })
-      return null
-    }
-  }
-
-  const removeItem = async (id: string) => {
-    try {
-      const index = state.value.items.findIndex(item => item.id === id)
-      if (index >= 0) {
-        const removedItem = state.value.items.splice(index, 1)[0]
-        state.value.totalSize -= removedItem.size
-
-        // 从本地存储中删除
-        await storage.remove(`offline_${id}`)
-
-        logger.info('Item removed from offline storage', { id, size: removedItem.size })
-      }
-
-      // 检查是否还有待同步项目
-      state.value.syncPending = state.value.items.some(item => (item as any).type !== 'cache')
-
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'removeItem' })
-    }
-  }
-
-  const clearAll = async () => {
-    try {
-      // 清除内存中的项目
-      state.value.items = []
-      state.value.totalSize = 0
-      state.value.syncPending = false
-
-      // 清除本地存储
-      for (const item of state.value.items) {
-        await storage.remove(`offline_${item.id}`)
-      }
-
-      logger.info('All offline items cleared')
-
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'clearAll' })
-    }
+    const serialized = JSON.stringify(item.data)
+    offlineManager.cacheContent({
+      id: item.id,
+      type: mapOfflineTypeToCachedType(item.type),
+      url:
+        typeof item.data?.url === 'string' && item.data.url.length > 0
+          ? item.data.url
+          : item.id,
+      data: item.data,
+      size: serialized.length * 2,
+      priority: item.type === 'chapter' ? 10 : item.type === 'book' ? 8 : 5,
+      bookUrl: typeof item.bookUrl === 'string' ? item.bookUrl : undefined,
+      chapterUrl: typeof item.chapterUrl === 'string' ? item.chapterUrl : undefined,
+    })
+    syncStateFromManager()
   }
 
   const syncWithServer = async () => {
+    await initialize()
+
     if (!state.value.isOnline || !state.value.syncPending) {
-        return
+      return
     }
 
-    try {
-      logger.info('Starting offline data sync...')
-
-      const syncItems = state.value.items.filter(item =>
-        item.type === 'book' || item.type === 'chapter' || item.type === 'settings'
-      )
-
-      if (syncItems.length === 0) {
-        state.value.syncPending = false
-        return
-      }
-
-      // 这里应该调用API进行数据同步
-      // const response = await api.post('/sync/offline', { items: syncItems })
-
-      // 模拟同步过程
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      state.value.lastSync = Date.now()
-      state.value.syncPending = false
-
-      logger.info('Offline data sync completed', { itemsCount: syncItems.length })
-
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'syncWithServer' })
-    }
-  }
-
-  const autoSync = async () => {
-    if (state.value.isOnline && state.value.syncPending) {
-      await syncWithServer()
-    }
+    logger.info('Starting offline data sync...')
+    await offlineManager.syncQueuedOperations()
+    state.value.lastSync = Date.now()
+    syncStateFromManager()
   }
 
   const loadCacheIndex = async () => {
-    if (state.value.items.length > 0) {
-      return
-    }
     await initialize()
   }
 
@@ -197,8 +135,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
     const cached = state.value.items.filter(
       item =>
         item.type === 'chapter' &&
-        typeof item.id === 'string' &&
-        item.id.includes(bookUrl)
+        item.bookUrl === bookUrl
     ).length
 
     const safeTotal = Math.max(totalChapters, 0)
@@ -214,37 +151,49 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
 
   // 初始化
   const initialize = async () => {
-    try {
-      setupNetworkListener()
-
-      // 从本地存储恢复数据
-      const storedKeys = await storage.keys()
-      const offlineKeys = storedKeys.filter(key => key.startsWith('offline_'))
-
-      for (const key of offlineKeys) {
-        try {
-          const item = await storage.get(key)
-          if (item) {
-            const storedItem = item as any
-            state.value.items.push(storedItem)
-            state.value.totalSize += storedItem.size || 0
-          }
-        } catch (error: any) {
-          logger.warn('Failed to restore offline item', { key, error })
-        }
-      }
-
-      // 检查是否有待同步项目
-      state.value.syncPending = state.value.items.some(item => (item as any).type !== 'cache')
-
-      logger.info('Offline storage initialized', {
-        itemsCount: state.value.items.length,
-        totalSize: state.value.totalSize
-      })
-
-    } catch (error: any) {
-      errorHandler.handle(error, { component: 'offline-store', operation: 'initialize' })
+    if (hasInitialized) {
+      return
     }
+
+    if (initializePromise) {
+      return initializePromise
+    }
+
+    initializePromise = (async () => {
+      try {
+        registerStatusListener()
+        await offlineManager.waitUntilReady()
+        syncStateFromManager()
+        hasInitialized = true
+
+        logger.info('Offline storage initialized from OfflineManager', {
+          itemsCount: state.value.items.length,
+          totalSize: state.value.totalSize,
+        })
+      } finally {
+        initializePromise = null
+      }
+    })()
+
+    return initializePromise
+  }
+
+  const getItem = async (id: string): Promise<OfflineItem | null> => {
+    await initialize()
+    const cachedItem = offlineManager.getCachedContent(id)
+    return cachedItem ? toOfflineItem(cachedItem) : null
+  }
+
+  const removeItem = async (id: string) => {
+    await initialize()
+    await offlineManager.removeCachedContent(id)
+    syncStateFromManager()
+  }
+
+  const clearAll = async () => {
+    await initialize()
+    await offlineManager.clearCachedContent()
+    syncStateFromManager()
   }
 
   // 自动初始化

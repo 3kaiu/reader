@@ -9,14 +9,7 @@ import { logger } from './logger'
 
 // ========= Domain types stored in IndexedDB =========
 
-export interface ReadingProgress {
-  bookId: string
-  chapterIndex: number
-  scrollPercent: number
-  updatedAt: number
-}
-
-export type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
+type SyncPriority = 'CRITICAL' | 'NORMAL' | 'IDLE'
 
 export interface SyncTask {
   id: string
@@ -29,17 +22,7 @@ export interface SyncTask {
   retryCount: number
 }
 
-export interface OfflineContent {
-  id: string
-  type: 'chapter' | 'book' | 'image' | 'api-response'
-  url: string
-  data: unknown
-  timestamp: number
-  size: number
-  priority: number
-}
-
-export interface StoreConfig {
+interface StoreConfig {
   name: string
   keyPath: string
   indexes?: Array<{
@@ -49,13 +32,13 @@ export interface StoreConfig {
   }>
 }
 
-export interface DBConfig {
+interface DBConfig {
   name: string
   version: number
   stores: StoreConfig[]
 }
 
-export class NexusDB {
+class NexusDB {
   private db: IDBDatabase | null = null
   private dbName: string
   private version: number
@@ -112,11 +95,6 @@ export class NexusDB {
     if (!this.db) throw new Error(`Database not initialized: ${this.dbName}@v${this.version}`)
   }
 
-  async getDB(): Promise<IDBDatabase> {
-    await this.ensureReady()
-    return this.db!
-  }
-
   async put<T>(storeName: string, data: T): Promise<void> {
     await this.ensureReady()
 
@@ -126,19 +104,6 @@ export class NexusDB {
       const request = store.put(data)
 
       request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async get<T>(storeName: string, key: IDBValidKey): Promise<T | null> {
-    await this.ensureReady()
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readonly')
-      const store = transaction.objectStore(storeName)
-      const request = store.get(key)
-
-      request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(request.error)
     })
   }
@@ -181,31 +146,6 @@ export class NexusDB {
       request.onerror = () => reject(request.error)
     })
   }
-
-  async query<T>(
-    storeName: string,
-    indexName?: string,
-    range?: IDBKeyRange
-  ): Promise<T[]> {
-    await this.ensureReady()
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readonly')
-      const store = transaction.objectStore(storeName)
-      const source = indexName ? store.index(indexName) : store
-      const request = source.getAll(range)
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  close(): void {
-    if (this.db) {
-      this.db.close()
-      this.db = null
-    }
-  }
 }
 
 // Store names enum for type safety
@@ -226,7 +166,7 @@ export enum StoreNames {
 // Create singleton instance
 let nexusDBInstance: NexusDB | null = null
 
-export function getNexusDB(): NexusDB {
+function getNexusDB(): NexusDB {
   if (!nexusDBInstance) {
     const config: DBConfig = {
       name: 'nexus-reader',
@@ -291,7 +231,4 @@ export function getNexusDB(): NexusDB {
   return nexusDBInstance
 }
 
-// Export singleton instance
 export const nexusDB = getNexusDB()
-
-export default nexusDB

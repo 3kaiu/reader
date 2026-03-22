@@ -24,7 +24,7 @@ const RETRY_LIMITS: Record<SyncPriority, number> = {
 
 class SyncManager {
   private isProcessing = false
-  private pollingTimer: number | null = null
+  private pollingTimer: ReturnType<typeof setInterval> | null = null
 
   /**
    * 添加同步任务

@@ -8,7 +8,7 @@ import ChapterList from '@/components/book/ChapterList.vue'
 import ReadSettings from '@/components/ReadSettings.vue'
 import BookSourcePicker from '@/components/book/BookSourcePicker.vue'
 import BookInfoModal from '@/components/book/BookInfoModal.vue'
-import type { Book, Chapter } from '@/api/book'
+import type { Book, Chapter } from '@/types/book'
 
 interface Props {
   showCatalog: boolean

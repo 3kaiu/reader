@@ -1,6 +1,7 @@
 import { logger } from '@/utils/logger'
+import { getAuthToken } from '@/utils/authStorage'
 
-export type ClientMetric = {
+type ClientMetric = {
   name: string
   value: number
   unit: 'ms' | 's'
@@ -42,8 +43,7 @@ function shouldReport(name: string): boolean {
     name === 'api_response' ||
     name === 'api_error_duration' ||
     name === 'api_route' ||
-    name === 'api_response_ms' ||
-    name === 'api_direct_fallback'
+    name === 'api_response_ms'
   )
 }
 
@@ -57,13 +57,13 @@ export function queueClientMetric(metric: ClientMetric) {
   }
 }
 
-export async function flushClientMetrics(opts?: { keepalive?: boolean }) {
+async function flushClientMetrics(opts?: { keepalive?: boolean }) {
   if (flushing) return
   if (buffer.length === 0) return
   if (typeof window === 'undefined') return
 
   const endpoint = getEndpoint()
-  const token = localStorage.getItem('nexus_auth_token')
+  const token = getAuthToken()
 
   const batch = buffer.splice(0, buffer.length)
   flushing = true
@@ -90,4 +90,3 @@ export async function flushClientMetrics(opts?: { keepalive?: boolean }) {
     flushing = false
   }
 }
-

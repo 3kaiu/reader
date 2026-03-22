@@ -3,8 +3,7 @@
  * 书源导入组件
  * 仅支持 Nexus-Lite NXS 书源定义
  */
-import { ref } from 'vue'
-import { useMessage } from '@/composables/useMessage'
+import { useImportSourceView } from '@/composables/useImportSourceView'
 import { 
   Sheet,
   SheetContent,
@@ -15,8 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Upload, FileJson, CheckCircle2, XCircle } from 'lucide-vue-next'
-import { $post } from '@/api/client'
-
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -29,184 +26,19 @@ const emit = defineEmits<{
   'success': []
 }>()
 
-const message = useMessage()
-const loading = ref(false)
-const jsonText = ref('')
-
-// 解析结果预览
-const parseResult = ref<{
-  success: boolean
-  count: number
-  format: string
-  error?: string
-  sources?: any[]
-} | null>(null)
-
-// 支持的格式类型
-const FORMAT_TYPES = {
-  NXS: 'NXS 单源',
-  ARRAY: 'NXS 数组',
-  WRAPPER: 'NXS 包装集合',
-  UNKNOWN: '未知格式'
-}
-
-/**
- * 判断是否为可直接提交给后端的 NXS 书源
- */
-function isNxsSource(source: any): boolean {
-  return Boolean(
-    source &&
-      typeof source === 'object' &&
-      source.id &&
-      source.name &&
-      source.url &&
-      source.search &&
-      source.book &&
-      source.toc &&
-      source.content
-  )
-}
-
-/**
- * 解析书源 JSON，仅接受 NXS 单源 / NXS 数组 / 包装后的 NXS 数组
- */
-function parseSourceJson(text: string): { success: boolean; sources: any[]; format: string; error?: string } {
-  try {
-    const trimmed = text.trim()
-    if (!trimmed) {
-      return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '内容为空' }
-    }
-
-    let data: any
-    try {
-      data = JSON.parse(trimmed)
-    } catch (e) {
-      return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: 'JSON格式错误' }
-    }
-
-    if (isNxsSource(data)) {
-      return { success: true, sources: [data], format: FORMAT_TYPES.NXS }
-    }
-
-    if (Array.isArray(data)) {
-      if (data.every(isNxsSource)) {
-        return { success: true, sources: data, format: FORMAT_TYPES.ARRAY }
-      }
-      return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '数组中的书源必须全部符合 NXS 结构' }
-    }
-
-    for (const key of ['sources', 'bookSources', 'items']) {
-      if (Array.isArray(data?.[key]) && data[key].length > 0) {
-        if (data[key].every(isNxsSource)) {
-          return { success: true, sources: data[key], format: `${FORMAT_TYPES.WRAPPER} (${key})` }
-        }
-      }
-    }
-
-    return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: '仅支持符合 NXS 结构的书源 JSON' }
-  } catch (e: any) {
-    return { success: false, sources: [], format: FORMAT_TYPES.UNKNOWN, error: e.message }
-  }
-}
-
-/**
- * 预览解析结果
- */
-function previewParse() {
-  if (!jsonText.value.trim()) {
-    parseResult.value = null
-    return
-  }
-  
-  const result = parseSourceJson(jsonText.value)
-  parseResult.value = {
-    success: result.success,
-    count: result.sources.length,
-    format: result.format,
-    error: result.error,
-    sources: result.sources
-  }
-}
-
-async function handleImport() {
-  loading.value = true
-  try {
-    const sourceText = jsonText.value
-    
-    if (!sourceText.trim()) {
-      message.warning('请输入书源内容')
-      return
-    }
-
-    // 解析
-    const result = parseSourceJson(sourceText)
-    if (!result.success) {
-      message.error(result.error || '解析失败')
-      return
-    }
-
-    if (result.sources.length === 0) {
-      message.warning('未找到有效书源')
-      return
-    }
-
-    // 调用 Nexus-lite 的添加接口
-    let successCount = 0
-    for (const source of result.sources) {
-      try {
-        const res = await $post('/sources', source)
-        if (res.isSuccess) successCount++
-      } catch (e) {
-        console.error('Import failed for', source.name, e)
-      }
-    }
-
-    if (successCount > 0) {
-      message.success(`成功导入 ${successCount} 个书源`)
-      emit('success')
-      emit('update:open', false)
-      jsonText.value = ''
-      parseResult.value = null
-    } else {
-      message.error('导入失败，请检查书源格式是否符合 Nexus-Lite (NXS) 标准')
-    }
-  } catch (err: any) {
-    message.error('导入出错: ' + (err.message || '未知错误'))
-  } finally {
-    loading.value = false
-  }
-}
-
-// 拖拽相关
-const isDragging = ref(false)
-
-function onDrop(e: DragEvent) {
-  isDragging.value = false
-  const file = e.dataTransfer?.files?.[0]
-  if (file) {
-    readFile(file)
-  }
-}
-
-function readFile(file: File) {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    jsonText.value = e.target?.result as string
-    previewParse()
-  }
-  reader.readAsText(file)
-}
-
-function onFileChange(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (file) readFile(file)
-}
-
-// 当输入变化时预览
-function onInputChange() {
-  // 防抖预览
-  setTimeout(previewParse, 300)
-}
+const {
+  loading,
+  jsonText,
+  parseResult,
+  isDragging,
+  onFileChange,
+  handleImport,
+  onDrop,
+  onInputChange,
+} = useImportSourceView({
+  close: () => emit('update:open', false),
+  notifySuccess: () => emit('success'),
+})
 </script>
 
 <template>

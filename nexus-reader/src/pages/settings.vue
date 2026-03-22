@@ -1,313 +1,32 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import {
-  Compass,
+  Brain,
   Download,
   Info,
   Trash2,
   Database,
   Settings,
   HardDrive,
-  Brain,
 } from "lucide-vue-next";
-import { useMessage } from "@/composables/useMessage";
-import { useConfirm } from "@/composables/useConfirm";
-import { useErrorHandler } from "@/composables/useErrorHandler";
-import { bookshelfJourneyService } from "@/services/journey/bookshelf";
-import { searchJourneyService } from "@/services/journey/search";
-import { syncJourneyService } from "@/services/journey/sync";
+import { ADDON_FEATURE_TOGGLES } from "@/constants/addons";
+import { useSettingsView } from "@/composables/useSettingsView";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/common";
-import {
-  getOptionalFeatureState,
-  isOptionalFeature,
-  setOptionalFeatureEnabled,
-  type OptionalFeature,
-} from "@/utils/features";
+import { formatBytes } from "@/utils/browserStorage";
 
-const router = useRouter();
-const route = useRoute();
-const { success, warning } = useMessage();
-const { confirm } = useConfirm();
-const { handlePromiseError } = useErrorHandler();
-
-const storageUsage = ref<{ used: number; quota: number } | null>(null);
-const addonFeatures = ref(getOptionalFeatureState());
-
-const APP_LOCAL_STORAGE_KEYS = [
-  "app-config",
-  "reader-progress",
-  "reader-settings",
-  "nexus_auth_token",
-  "nexus_default_model",
-  "nexus_available_models",
-  "offline_operations",
-  "offline_content",
-] as const;
-
-const LEGACY_LOCAL_STORAGE_KEYS = [
-  "ai-analysis-config",
-  "ai-analysis-mappings",
-] as const;
-
-const APP_INDEXED_DB_NAMES = ["nexus-reader", "nexus-ai-models"] as const;
-
-type ClientRoutingAnalytics = {
-  window: string;
-  routeCounts: Record<string, number>;
-  routeSharePct: Record<string, number>;
-  latencySummary: Record<string, { samples: number; p50: number; p95: number; avg: number }>;
-  note?: string;
-};
-
-const clientRouting = ref<ClientRoutingAnalytics | null>(null);
-const clientRoutingLoading = ref(false);
-
-const addonFeatureToggles: Array<{
-  key: OptionalFeature;
-  label: string;
-  description: string;
-  icon: typeof Compass;
-  color: string;
-  bg: string;
-}> = [
-  {
-    key: "discovery",
-    label: "探索发现",
-    description: "发现页与阅读周报改为可选模块",
-    icon: Compass,
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-  },
-  {
-    key: "ai",
-    label: "AI 助手",
-    description: "本地 AI 运行时与映射规则改为可选模块",
-    icon: Brain,
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-  },
-  {
-    key: "decoder",
-    label: "解密词典",
-    description: "解码与词典管理改为可选模块",
-    icon: Info,
-    color: "text-purple-500",
-    bg: "bg-purple-500/10",
-  },
-];
-
-const addonEntryCards = computed(() =>
-  [
-    {
-      feature: "discovery" as OptionalFeature,
-      label: "探索发现",
-      description: "发现新书与阅读周报",
-      icon: Compass,
-      path: "/discovery",
-      color: "text-orange-500",
-      bg: "bg-orange-500/10",
-    },
-    {
-      feature: "decoder" as OptionalFeature,
-      label: "解密词典",
-      description: "查看和编辑解密词典",
-      icon: Info,
-      path: "/decoder-dictionary",
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-    },
-    {
-      feature: "ai" as OptionalFeature,
-      label: "AI 模型",
-      description: "实验性本地 AI 运行时管理",
-      icon: Brain,
-      path: "/ai-settings",
-      color: "text-green-500",
-      bg: "bg-green-500/10",
-    },
-    {
-      feature: "ai" as OptionalFeature,
-      label: "AI 映射规则",
-      description: "AI 映射规则与分析历史",
-      icon: Brain,
-      path: "/ai-analysis-settings",
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
-    },
-  ].filter((item) => addonFeatures.value[item.feature])
-);
-
-// Data Management
-async function handleExportData() {
-  try {
-    const [groups, replaces, sources] = await Promise.all([
-      bookshelfJourneyService.listGroups(),
-      bookshelfJourneyService.listReplaceRules(),
-      searchJourneyService.getSources(),
-    ]);
-
-    const data = {
-      groups: groups.data,
-      replaces: replaces.data,
-      sources: sources.data,
-      timestamp: Date.now(),
-      version: "3.0",
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reader_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    success("备份导出成功");
-  } catch (e) {
-    handlePromiseError(e, "导出失败");
-  }
-}
-
-// 格式化存储大小
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
-async function refreshStorageUsage() {
-  if (!navigator.storage?.estimate) {
-    storageUsage.value = null;
-    return;
-  }
-
-  const estimate = await navigator.storage.estimate();
-  storageUsage.value = {
-    used: estimate.usage || 0,
-    quota: estimate.quota || 0,
-  };
-}
-
-async function deleteIndexedDB(name: string): Promise<void> {
-  if (typeof indexedDB === "undefined") {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(name);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => resolve();
-  });
-}
-
-async function handleClearCache() {
-  const result = await confirm({
-    title: "确认清除缓存",
-    description:
-      "确定清除当前应用的本地缓存与设置吗？不会影响浏览器中其他站点的数据。",
-    variant: "destructive",
-  });
-  if (!result) return;
-
-  try {
-    for (const key of [...APP_LOCAL_STORAGE_KEYS, ...LEGACY_LOCAL_STORAGE_KEYS]) {
-      localStorage.removeItem(key);
-    }
-
-    for (let index = localStorage.length - 1; index >= 0; index--) {
-      const key = localStorage.key(index);
-      if (key?.startsWith("offline_")) {
-        localStorage.removeItem(key);
-      }
-    }
-
-    if (typeof caches !== "undefined") {
-      const cacheNames = await caches.keys();
-      for (const name of cacheNames) {
-        if (
-          name.includes("webllm") ||
-          name.includes("mlc") ||
-          name.includes("ai-models") ||
-          name.includes("nexus")
-        ) {
-          await caches.delete(name);
-        }
-      }
-    }
-
-    await Promise.all(APP_INDEXED_DB_NAMES.map((name) => deleteIndexedDB(name)));
-    addonFeatures.value = getOptionalFeatureState();
-    clientRouting.value = null;
-    await refreshStorageUsage();
-    success("应用本地缓存已清理");
-  } catch (e) {
-    handlePromiseError(e, "清理缓存失败");
-  }
-}
-
-function goBack() {
-  router.push("/");
-}
-
-function updateAddonFeature(feature: OptionalFeature, enabled: boolean) {
-  addonFeatures.value = {
-    ...addonFeatures.value,
-    [feature]: enabled,
-  };
-  setOptionalFeatureEnabled(feature, enabled);
-  success(enabled ? `已启用${feature}附属模块` : `已关闭${feature}附属模块`);
-}
-
-onMounted(async () => {
-  addonFeatures.value = getOptionalFeatureState();
-
-  const requestedAddon =
-    typeof route.query.addon === "string" ? route.query.addon : null;
-  if (requestedAddon && isOptionalFeature(requestedAddon) && !addonFeatures.value[requestedAddon]) {
-    warning("该功能已从主阅读链路下沉为可选模块，可在设置页手动启用。");
-  }
-
-  // 获取存储使用情况
-  await refreshStorageUsage();
-
-  // Load client routing analytics (best-effort)
-  void refreshClientRouting();
-});
-
-async function refreshClientRouting() {
-  clientRoutingLoading.value = true;
-  try {
-    const res = await syncJourneyService.getClientRoutingAnalytics<ClientRoutingAnalytics>();
-    if (res.isSuccess) {
-      clientRouting.value = res.data;
-    } else {
-      clientRouting.value = null;
-    }
-  } catch (e) {
-    clientRouting.value = null;
-  } finally {
-    clientRoutingLoading.value = false;
-  }
-}
-
-function formatPct(v?: number) {
-  if (v == null || Number.isNaN(v)) return "0%";
-  return `${v.toFixed(2)}%`;
-}
-
-function formatMs(v?: number) {
-  if (v == null || Number.isNaN(v)) return "-";
-  return `${v.toFixed(0)}ms`;
-}
+const {
+  addonFeatures,
+  storageUsage,
+  addonEntryCards,
+  clientRoutingLoading,
+  clientRoutingSummary,
+  handleExportData,
+  handleClearCache,
+  updateAddonFeature,
+  refreshClientRouting,
+  navigateTo,
+  goBack,
+} = useSettingsView();
 </script>
 
 <template>
@@ -333,7 +52,7 @@ function formatMs(v?: number) {
         </div>
         <div class="space-y-3 mb-4">
           <div
-            v-for="item in addonFeatureToggles"
+            v-for="item in ADDON_FEATURE_TOGGLES"
             :key="item.key"
             class="rounded-2xl border border-border/50 bg-card overflow-hidden"
           >
@@ -364,11 +83,11 @@ function formatMs(v?: number) {
             v-for="item in addonEntryCards"
             :key="item.path"
             class="group rounded-2xl border border-border/50 bg-card hover:bg-muted/30 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            @click="router.push(item.path)"
+            @click="navigateTo(item.path)"
             role="button"
             tabindex="0"
-            @keydown.enter="router.push(item.path)"
-            @keydown.space.prevent="router.push(item.path)"
+            @keydown.enter="navigateTo(item.path)"
+            @keydown.space.prevent="navigateTo(item.path)"
             :aria-label="item.label"
           >
             <div class="p-5 flex items-center gap-4">
@@ -513,8 +232,8 @@ function formatMs(v?: number) {
           <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
             网络路径 / 直连效果
           </h2>
-          <span v-if="clientRouting?.window" class="text-xs text-muted-foreground/70 ml-auto">
-            窗口：{{ clientRouting.window }}
+          <span v-if="clientRoutingSummary.window" class="text-xs text-muted-foreground/70 ml-auto">
+            窗口：{{ clientRoutingSummary.window }}
           </span>
         </div>
 
@@ -523,7 +242,7 @@ function formatMs(v?: number) {
             <div class="space-y-1">
               <p class="text-sm font-medium">路由占比</p>
               <p class="text-xs text-muted-foreground">
-                direct / edge / direct_fallback
+                direct / edge
               </p>
             </div>
             <button
@@ -535,41 +254,25 @@ function formatMs(v?: number) {
             </button>
           </div>
 
-          <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p class="text-xs text-muted-foreground mb-1">direct</p>
+          <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div
+              v-for="routeStat in clientRoutingSummary.routes"
+              :key="routeStat.key"
+              class="rounded-xl border border-border/50 bg-muted/20 p-4"
+            >
+              <p class="text-xs text-muted-foreground mb-1">{{ routeStat.label }}</p>
               <p class="text-lg font-semibold">
-                {{ formatPct(clientRouting?.routeSharePct?.direct) }}
+                {{ routeStat.shareLabel }}
               </p>
               <p class="text-xs text-muted-foreground mt-2">
-                p50 {{ formatMs(clientRouting?.latencySummary?.direct?.p50) }} ·
-                p95 {{ formatMs(clientRouting?.latencySummary?.direct?.p95) }}
-              </p>
-            </div>
-            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p class="text-xs text-muted-foreground mb-1">edge</p>
-              <p class="text-lg font-semibold">
-                {{ formatPct(clientRouting?.routeSharePct?.edge) }}
-              </p>
-              <p class="text-xs text-muted-foreground mt-2">
-                p50 {{ formatMs(clientRouting?.latencySummary?.edge?.p50) }} ·
-                p95 {{ formatMs(clientRouting?.latencySummary?.edge?.p95) }}
-              </p>
-            </div>
-            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p class="text-xs text-muted-foreground mb-1">direct_fallback</p>
-              <p class="text-lg font-semibold">
-                {{ formatPct(clientRouting?.routeSharePct?.direct_fallback) }}
-              </p>
-              <p class="text-xs text-muted-foreground mt-2">
-                p50 {{ formatMs(clientRouting?.latencySummary?.direct_fallback?.p50) }} ·
-                p95 {{ formatMs(clientRouting?.latencySummary?.direct_fallback?.p95) }}
+                p50 {{ routeStat.p50Label }} ·
+                p95 {{ routeStat.p95Label }}
               </p>
             </div>
           </div>
 
-          <div v-if="clientRouting?.note" class="px-5 pb-5 text-xs text-muted-foreground/70">
-            {{ clientRouting.note }}
+          <div v-if="clientRoutingSummary.note" class="px-5 pb-5 text-xs text-muted-foreground/70">
+            {{ clientRoutingSummary.note }}
           </div>
         </div>
       </section>

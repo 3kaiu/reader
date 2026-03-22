@@ -2,245 +2,38 @@
 /**
  * 搜索页面 - 上一版搜索组件在内容区，顶部保留搜索按钮
  */
-import { ref, computed, onUnmounted, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useStorage } from '@vueuse/core'
 import { Search, X, Loader2, BookMarked, Check } from 'lucide-vue-next'
-import type { SearchResult } from '@/api/book'
-import { bookshelfJourneyService } from '@/services/journey/bookshelf'
-import { searchJourneyService } from '@/services/journey/search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton, LazyImage } from '@/components/ui'
-import { useMessage } from '@/composables/useMessage'
-import { useErrorHandler } from '@/composables/useErrorHandler'
+import { useSearchView } from '@/composables/useSearchView'
 
-const router = useRouter()
-const { success, warning } = useMessage()
-const { handleApiError, handlePromiseError } = useErrorHandler()
-
-// ====== 状态 ======
-const searchKeyword = ref('')
-const searchResult = ref<SearchResult[]>([])
-const loading = ref(false)
-const searchRequestId = ref(0)
-
-// 本地状态
-const hasSearched = ref(false)
-const addedBooks = ref<Set<string>>(new Set())
-const openingBook = ref<string | null>(null)
-
-const searchHistory = useStorage<string[]>('search-history', [])
-
-// ====== 计算属性 ======
-const resultCount = computed(() => searchResult.value.length)
-
-// 书源筛选
-const selectedSources = ref<Set<string>>(new Set())
-const availableSources = computed(() => {
-  const sources = new Set<string>()
-  searchResult.value.forEach((book: SearchResult) => {
-    if (book.sourceName) sources.add(book.sourceName)
-  })
-  return Array.from(sources).sort()
-})
-
-const filteredResults = computed(() => {
-  if (selectedSources.value.size === 0) return searchResult.value
-  return searchResult.value.filter((book: SearchResult) => selectedSources.value.has(book.sourceName || ''))
-})
-
-function toggleSource(source: string) {
-  const newSet = new Set(selectedSources.value)
-  if (newSet.has(source)) {
-    newSet.delete(source)
-  } else {
-    newSet.add(source)
-  }
-  selectedSources.value = newSet
-}
-
-function clearSourceFilter() {
-  selectedSources.value = new Set()
-}
-
-// ====== 方法 ======
-
-function stopSearch() {
-  searchRequestId.value += 1
-  loading.value = false
-}
-
-async function search(keyword?: string) {
-  const query = keyword || searchKeyword.value.trim()
-  if (!query) {
-    warning('请输入搜索关键词')
-    return
-  }
-  await doSearch(query)
-}
-
-async function doSearch(query: string) {
-  const requestId = searchRequestId.value + 1
-  searchRequestId.value = requestId
-  searchKeyword.value = query
-  loading.value = true
-
-  if (!searchHistory.value.includes(query)) {
-    searchHistory.value = [query, ...searchHistory.value.slice(0, 9)]
-  }
-
-  hasSearched.value = true
-
-  // 使用 requestAnimationFrame 确保 DOM 更新后再滚动，实现平滑过渡
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    })
-  })
-
-  try {
-    const res = await searchJourneyService.searchBooks(query)
-    if (requestId !== searchRequestId.value) {
-      return
-    }
-
-    if (res.isSuccess) {
-      searchResult.value = res.data?.results || []
-      return
-    }
-
-    searchResult.value = []
-    handleApiError(res, '搜索失败')
-  } catch (e) {
-    if (requestId === searchRequestId.value) {
-      searchResult.value = []
-      handlePromiseError(e, '搜索失败')
-    }
-  } finally {
-    if (requestId === searchRequestId.value) {
-      loading.value = false
-    }
-  }
-}
-
-// 页面挂载时检查是否需要重置搜索状态
-// 使用 sessionStorage 标记，避免路由跳转失败时误清除状态
-onMounted(async () => {
-  const shouldReset = sessionStorage.getItem('search-should-reset')
-  if (shouldReset === 'true') {
-    hasSearched.value = false
-    searchResult.value = []
-    searchKeyword.value = ''
-    sessionStorage.removeItem('search-should-reset')
-  }
-
-  // 加载书架，初始化已添加状态
-  try {
-    const res = await bookshelfJourneyService.listBooks()
-    if (res.isSuccess) {
-      res.data.forEach(book => addedBooks.value.add(book.bookUrl))
-    }
-  } catch (e) {
-    console.error('Failed to load bookshelf', e)
-  }
-})
-
-onUnmounted(() => {
-  stopSearch()
-  // 标记离开搜索页，下次进入时重置
-  sessionStorage.setItem('search-should-reset', 'true')
-})
-
-declare global {
-  interface Window {
-    searchEventSource: EventSource | null
-  }
-}
-
-async function addToShelf(book: SearchResult) {
-  if (addedBooks.value.has(book.bookUrl)) return
-
-  try {
-    const res = await bookshelfJourneyService.saveBook({
-      sourceId: book.sourceId,
-      bookUrl: book.bookUrl,
-      name: book.name,
-      author: book.author,
-      coverUrl: book.coverUrl,
-    })
-    if (res.isSuccess) {
-      addedBooks.value.add(book.bookUrl)
-      success(`《${book.name}》已添加到书架`)
-    } else {
-      handleApiError(res, '添加失败')
-    }
-  } catch (e: any) {
-    // 忽略 409 (已存在) 错误
-    if (e.message?.includes('409') || e.code === 409) {
-      addedBooks.value.add(book.bookUrl)
-      success(`《${book.name}》已在书架`)
-      return
-    }
-    handlePromiseError(e, '添加失败')
-  }
-}
-
-async function openBook(book: SearchResult) {
-  if (openingBook.value === book.bookUrl) return
-  openingBook.value = book.bookUrl
-
-  try {
-    if (!addedBooks.value.has(book.bookUrl)) {
-      const res = await bookshelfJourneyService.saveBook({
-        sourceId: book.sourceId,
-        bookUrl: book.bookUrl,
-        name: book.name,
-        author: book.author,
-        coverUrl: book.coverUrl,
-      })
-      // 即使添加失败（例如已存在），也继续跳转
-      if (res.isSuccess) {
-        addedBooks.value.add(book.bookUrl)
-      }
-    }
-    router.push({
-      name: 'reader',
-      query: { url: book.bookUrl, source: book.sourceId },
-    })
-  } catch (e: any) {
-    // 忽略 409 (已存在) 错误
-    if (e.message?.includes('409') || e.code === 409) {
-      addedBooks.value.add(book.bookUrl)
-      router.push({
-        name: 'reader',
-        query: { url: book.bookUrl, source: book.sourceId },
-      })
-      return
-    }
-    handlePromiseError(e, '打开书籍失败')
-  } finally {
-    openingBook.value = null
-  }
-}
-
-function clearHistory() {
-  searchHistory.value = []
-}
-
-function goBack() {
-  router.push('/')
-}
-
-function resetSearch() {
-  stopSearch()
-  hasSearched.value = false
-  searchResult.value = []
-  searchKeyword.value = ''
-  // 重置后滚动到顶部，准备新的搜索
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+const {
+  searchKeyword,
+  searchResult,
+  loading,
+  hasSearched,
+  hasResults,
+  showHeroState,
+  showSourceFilters,
+  searchHistory,
+  selectedSources,
+  resultCount,
+  availableSources,
+  filteredResults,
+  openingBook,
+  hasBookOnShelf,
+  stopSearch,
+  search,
+  addToShelf,
+  openBook,
+  clearHistory,
+  toggleSource,
+  clearSourceFilter,
+  goBack,
+  resetSearch,
+} = useSearchView()
 </script>
 
 <template>
@@ -249,7 +42,7 @@ function resetSearch() {
 
     <!-- 搜索前：Hero 状态 -->
     <div
-      v-if="!hasSearched && !loading && searchResult.length === 0"
+      v-if="showHeroState"
       class="min-h-screen flex flex-col items-center justify-center px-6 animate-in fade-in zoom-in-95 duration-500 pt-20"
     >
       <div class="w-full max-w-2xl flex flex-col items-center">
@@ -399,7 +192,7 @@ function resetSearch() {
 
       <!-- 书源筛选器 -->
       <div
-        v-if="availableSources.length > 1 && !loading"
+        v-if="showSourceFilters"
         class="flex flex-wrap gap-2 mb-4 px-1 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-150"
       >
         <button
@@ -418,7 +211,7 @@ function resetSearch() {
         <button
           v-if="selectedSources.size > 0"
           class="px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          @click="clearSourceFilter"
+          @click="clearSourceFilter()"
         >
           <X class="w-3 h-3" />
           清除筛选
@@ -491,12 +284,12 @@ function resetSearch() {
                 size="sm"
                 variant="ghost"
                 class="h-7 px-3 text-xs rounded-md hover:bg-secondary"
-                :class="addedBooks.has(book.bookUrl) ? 'text-green-600' : 'text-muted-foreground'"
+                :class="hasBookOnShelf(book.bookUrl) ? 'text-green-600' : 'text-muted-foreground'"
                 @click.stop="addToShelf(book)"
               >
-                <Check v-if="addedBooks.has(book.bookUrl)" class="h-3 w-3 mr-1" />
+                <Check v-if="hasBookOnShelf(book.bookUrl)" class="h-3 w-3 mr-1" />
                 <span v-else class="mr-1 text-[10px]">+</span>
-                {{ addedBooks.has(book.bookUrl) ? '已添加' : '收藏' }}
+                {{ hasBookOnShelf(book.bookUrl) ? '已添加' : '收藏' }}
               </Button>
             </div>
           </div>

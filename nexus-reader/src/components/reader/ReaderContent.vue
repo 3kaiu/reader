@@ -3,8 +3,9 @@
  * 阅读器主内容区组件
  * 支持无限滚动模式和左右翻页模式
  */
-import { ref } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
+import { useReaderContentView } from '@/composables/useReaderContentView'
+import type { DecodedEntity } from '@/types/decoder'
 
 // 本地类型定义
 interface LoadedChapter {
@@ -20,14 +21,6 @@ interface SwipeLayout {
 }
 
 type ContentStyle = Record<string, string | number>
-
-// 解密实体类型
-interface DecodedEntity {
-  id: string
-  original: string
-  position: { start: number; end: number }
-  bestMatch: { real: string; confidence: number; category: string } | null
-}
 
 interface Props {
   readingMode: 'scroll' | 'swipe'
@@ -66,64 +59,12 @@ const emit = defineEmits<{
   entityClick: [entity: DecodedEntity, event: MouseEvent] // 解密实体点击
 }>()
 
-const swipeContentRef = ref<HTMLElement | null>(null)
-
-/** 处理解密高亮的内容 */
-function applyDecoderHighlight(html: string, entities: DecodedEntity[]): string {
-  if (!entities || entities.length === 0) return html
-  
-  // 提取纯文本用于位置匹配
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
-  const plainText = tempDiv.textContent || ''
-  
-  // 过滤有效实体并按位置排序
-  const validEntities = entities
-    .filter((e) => e.bestMatch !== null)
-    .sort((a, b) => b.position.start - a.position.start) // 从后往前替换
-  
-  // 在 HTML 中查找并替换
-  let result = html
-  for (const entity of validEntities) {
-    const original = entity.original
-    const confidence = entity.bestMatch!.confidence
-    const colorClass = confidence >= 80 ? 'decoder-high' : confidence >= 50 ? 'decoder-medium' : 'decoder-low'
-    
-    // 使用正则替换，避免替换 HTML 标签内的内容
-    const regex = new RegExp(`(?<![<\\w])${escapeRegex(original)}(?![\\w>])`, 'g')
-    result = result.replace(regex, (match) => {
-      return `<span class="decoder-entity ${colorClass}" data-entity-id="${entity.id}" title="${entity.bestMatch!.real} (${confidence}%)">${match}</span>`
-    })
-  }
-  
-  return result
-}
-
-/** 转义正则特殊字符 */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-/** 处理实体点击 (通过事件委托) */
-function handleContentClick(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  if (target.classList.contains('decoder-entity')) {
-    const entityId = target.dataset.entityId
-    if (entityId && props.decoderEntities) {
-      const entity = props.decoderEntities.find(e => e.id === entityId)
-      if (entity) {
-        emit('entityClick', entity, event)
-      }
-    }
-  }
-}
-
-/** 获取带高亮的章节内容 */
-function getHighlightedContent(content: string | undefined): string {
-  if (!content) return ''
-  if (!props.decoderEnabled || !props.decoderEntities?.length) return content
-  return applyDecoderHighlight(content, props.decoderEntities)
-}
+const { swipeContentRef, handleContentClick, getHighlightedContent } =
+  useReaderContentView({
+    decoderEnabled: props.decoderEnabled,
+    decoderEntities: props.decoderEntities,
+    onEntityClick: (entity, event) => emit('entityClick', entity, event),
+  })
 
 // 暴露给父组件，供 useSwipeMode 使用
 defineExpose({

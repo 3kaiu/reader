@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { useMoveBookDialogView } from "@/composables/useMoveBookDialogView";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FolderHeart, Check } from "lucide-vue-next";
-import type { BookGroup } from "@/api/group";
+import type { BookGroup } from "@/types/group";
 
 const props = defineProps<{
   open: boolean;
@@ -23,12 +23,12 @@ const emit = defineEmits<{
   (e: "confirm", groupId: string | null): void;
 }>();
 
-const selectedId = ref<string | null>(null);
-
-function handleConfirm() {
-  emit("confirm", selectedId.value);
-  emit("update:open", false);
-}
+const { selectedId, selectGroup, handleConfirm } = useMoveBookDialogView({
+  open: props.open,
+  groups: props.groups,
+  onConfirm: (groupId) => emit("confirm", groupId),
+  onClose: () => emit("update:open", false),
+});
 </script>
 
 <template>
@@ -54,7 +54,7 @@ function handleConfirm() {
             <button
               class="w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2"
               :class="selectedId === null ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30 hover:bg-muted/50'"
-              @click="selectedId = null"
+              @click="selectGroup(null)"
             >
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-background flex items-center justify-center">
@@ -71,7 +71,7 @@ function handleConfirm() {
               :key="group.groupId"
               class="w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2"
               :class="selectedId === group.groupId ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30 hover:bg-muted/50'"
-              @click="selectedId = group.groupId as string"
+              @click="selectGroup(group.groupId as string)"
             >
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-background flex items-center justify-center">

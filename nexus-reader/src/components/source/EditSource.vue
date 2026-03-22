@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useMessage } from '@/composables/useMessage'
-import { 
+import { useEditSourceView } from '@/composables/useEditSourceView'
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -9,7 +8,7 @@ import {
   SheetFooter
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { sourceApi, type BookSource } from '@/api/source'
+import type { BookSource } from '@/types/source'
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -23,31 +22,7 @@ const emit = defineEmits<{
   'saved': []
 }>()
 
-const message = useMessage()
-const loading = ref(false)
-const jsonText = ref('')
-
-watch(() => props.open, async (val) => {
-  if (val && props.source) {
-    jsonText.value = JSON.stringify(props.source, null, 2)
-
-    if (!props.source.id) {
-      return
-    }
-
-    loading.value = true
-    try {
-      const res = await sourceApi.getBookSource(props.source.id)
-      if (res.isSuccess && res.data) {
-        jsonText.value = JSON.stringify(res.data, null, 2)
-      }
-    } catch (err) {
-      message.warning('无法加载最新书源定义，已显示当前列表中的数据')
-    } finally {
-      loading.value = false
-    }
-  }
-})
+const { jsonText } = useEditSourceView({ props })
 </script>
 
 <template>

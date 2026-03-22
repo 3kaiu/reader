@@ -2,6 +2,7 @@
  * 🔋 Hardware Aware Scheduler
  * 感知设备物理状态（电量、热量、内存）以动态调整后台任务负荷
  */
+import { logger } from '@/utils/logger'
 
 export enum PowerMode {
   ULTRA_LOW = 'ULTRA_LOW', // 电量极低，必须停止一切非必要后台任务
@@ -10,7 +11,7 @@ export enum PowerMode {
   PERFORMANCE = 'PERF'   // 充电中或全速模式
 }
 
-export interface ResourceQuota {
+interface ResourceQuota {
   mode: PowerMode
   maxConcurrentTasks: number
   syncIntervalMs: number
@@ -59,7 +60,7 @@ class HardwareScheduler {
       this.currentMode = PowerMode.NORMAL
     }
 
-    console.debug(`[Hardware] PowerMode changed to: ${this.currentMode}`)
+    logger.debug(`[Hardware] PowerMode changed to: ${this.currentMode}`)
   }
 
   public getQuota(): ResourceQuota {

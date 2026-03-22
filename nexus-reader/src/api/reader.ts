@@ -1,0 +1,100 @@
+import { $get } from "./client"
+import type { Book, Chapter, ChapterContent } from "@/types/book"
+
+export type { Book, Chapter, ChapterContent } from "@/types/book"
+
+function safeDecodeUrl(url: string): string {
+  if (!url || typeof url !== "string") {
+    return url
+  }
+
+  let decoded = url
+  let lastValid = url
+  let attempts = 0
+  const maxAttempts = 5
+
+  if (!decoded.includes("%")) {
+    return decoded
+  }
+
+  while (attempts < maxAttempts && decoded.includes("%")) {
+    try {
+      const previous = decoded
+      decoded = decodeURIComponent(decoded)
+
+      if (decoded === previous) {
+        break
+      }
+
+      try {
+        const urlObj = new URL(decoded)
+        if (urlObj.protocol === "http:" || urlObj.protocol === "https:") {
+          lastValid = decoded
+          if (decoded.includes("%")) {
+            attempts++
+            continue
+          }
+          return decoded
+        }
+      } catch {
+        return lastValid
+      }
+
+      attempts++
+    } catch {
+      return lastValid
+    }
+  }
+
+  try {
+    new URL(decoded)
+    return decoded
+  } catch {
+    return url
+  }
+}
+
+function validateSourceAndUrl(source: string, url: string): string {
+  if (!source || typeof source !== "string" || source.trim().length === 0) {
+    throw new Error("Source parameter is required and must be a non-empty string")
+  }
+  if (!url || typeof url !== "string" || url.trim().length === 0) {
+    throw new Error("URL parameter is required and must be a non-empty string")
+  }
+
+  return safeDecodeUrl(url)
+}
+
+export const readerApi = {
+  getBookInfo: (source: string, url: string) => {
+    const decodedUrl = validateSourceAndUrl(source, url)
+
+    try {
+      const urlObj = new URL(decodedUrl)
+      if (!["http:", "https:"].includes(urlObj.protocol)) {
+        throw new Error("URL must use http or https protocol")
+      }
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error("Invalid URL format")
+      }
+      throw error
+    }
+
+    return $get<Book>("/book", { params: { source: source.trim(), url: decodedUrl } })
+  },
+  getChapters: (source: string, url: string) => {
+    const decodedUrl = validateSourceAndUrl(source, url)
+    return $get<Chapter[]>("/chapters", { params: { source: source.trim(), url: decodedUrl } })
+  },
+  getContent: (source: string, url: string, bookUrl?: string) => {
+    const decodedUrl = validateSourceAndUrl(source, url)
+    return $get<ChapterContent>("/content", {
+      params: {
+        source: source.trim(),
+        url: decodedUrl,
+        ...(bookUrl ? { bookUrl } : {}),
+      },
+    })
+  },
+}

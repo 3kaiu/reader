@@ -11,6 +11,7 @@ import {
 } from '@/api/decoder'
 import type {
   BookType,
+  DecodedEntity,
   DecodeResponse,
   DictionaryEntry,
   DictionaryLevel,
@@ -51,11 +52,7 @@ function sanitizeEntityCategory(value?: string): EntityCategory {
 }
 
 function buildDictionaryEntry(
-  entity: {
-    id?: string
-    original: string
-    bestMatch?: { real: string; confidence: number; category: string } | null
-  },
+  entity: Pick<DecodedEntity, 'id' | 'original' | 'bestMatch'>,
   overrideReal?: string
 ): Partial<DictionaryEntry> {
   const bestMatch = entity.bestMatch ?? null
@@ -176,11 +173,7 @@ export function useDecoder() {
   }
 
   const confirmEntity = async (
-    entity: {
-      id?: string
-      original: string
-      bestMatch?: { real: string; confidence: number; category: string } | null
-    },
+    entity: Pick<DecodedEntity, 'id' | 'original' | 'bestMatch'>,
     bookId: string,
     bookType?: BookType
   ) => {
@@ -204,11 +197,7 @@ export function useDecoder() {
   }
 
   const correctEntity = async (
-    entity: {
-      id?: string
-      original: string
-      bestMatch?: { real: string; confidence: number; category: string } | null
-    },
+    entity: Pick<DecodedEntity, 'id' | 'original' | 'bestMatch'>,
     newReal: string,
     bookId: string,
     _bookType?: BookType

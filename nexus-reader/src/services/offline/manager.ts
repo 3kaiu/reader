@@ -22,6 +22,8 @@ export interface CachedContent {
   id: string
   type: 'chapter' | 'book' | 'image' | 'api-response'
   url: string
+  bookUrl?: string
+  chapterUrl?: string
   data: any
   timestamp: number
   size: number
@@ -31,9 +33,10 @@ export interface CachedContent {
 /**
  * 离线管理器
  */
-export class OfflineManager {
+class OfflineManager {
   private isOnline = true
   private lastOnlineTime = Date.now()
+  private ready: Promise<void>
   // Use SyncManager's persisted queue as the single source of truth.
   private operationQueue: SyncTask[] = []
   private cachedContent = new Map<string, CachedContent>()
@@ -41,8 +44,13 @@ export class OfflineManager {
 
   constructor() {
     this.initOfflineDetection()
-    // Trigger async load
-    this.loadPersistedData().catch(err => console.error('Failed to load offline data', err))
+    this.ready = this.loadPersistedData().catch(error => {
+      logger.error('Failed to load offline data', { error })
+    })
+  }
+
+  async waitUntilReady(): Promise<void> {
+    await this.ready
   }
 
   // 获取离线状态
@@ -64,9 +72,10 @@ export class OfflineManager {
   // 清空操作队列
   clearQueue(): void {
     this.operationQueue = []
-    nexusDB
+    void nexusDB
       .clear(StoreNames.SYNC_QUEUE)
-      .catch(err => console.error('Failed to clear sync queue', err))
+      .then(() => this.refreshPersistedState())
+      .catch(error => logger.error('Failed to clear sync queue', { error }))
     this.notifyListeners()
   }
 
@@ -86,10 +95,7 @@ export class OfflineManager {
       priority: 'NORMAL',
     })
 
-    // Refresh local snapshot for UI/status
-    this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
-
-    this.notifyListeners()
+    await this.refreshPersistedState()
   }
 
   // 缓存内容
@@ -102,6 +108,35 @@ export class OfflineManager {
     this.cachedContent.set(content.id, cachedItem)
     this.persistCachedContent()
 
+    this.notifyListeners()
+  }
+
+  async removeCachedContent(id: string): Promise<void> {
+    if (!this.cachedContent.has(id)) {
+      return
+    }
+
+    this.cachedContent.delete(id)
+    try {
+      await nexusDB.delete(StoreNames.OFFLINE_CONTENT, id)
+    } catch (error: any) {
+      logger.error('Failed to delete cached content by key, falling back to snapshot persist', {
+        error,
+        id,
+      })
+      await this.persistCachedContent()
+    }
+
+    this.notifyListeners()
+  }
+
+  async clearCachedContent(): Promise<void> {
+    this.cachedContent.clear()
+    try {
+      await nexusDB.clear(StoreNames.OFFLINE_CONTENT)
+    } catch (error: any) {
+      logger.error('Failed to clear cached content store', { error })
+    }
     this.notifyListeners()
   }
 
@@ -176,6 +211,7 @@ export class OfflineManager {
   async syncQueuedOperations(): Promise<void> {
     logger.info('🔄 Triggering sync via SyncManager...')
     await syncManager.processQueue()
+    await this.refreshPersistedState()
   }
 
   // 启动自动同步 (由 SyncManager 接管，此处保留空实现或代理)
@@ -263,6 +299,16 @@ export class OfflineManager {
     this.notifyListeners()
   }
 
+  async refreshPersistedState(): Promise<void> {
+    try {
+      await this.syncFromDatabase()
+      this.notifyListeners()
+    } catch (error: any) {
+      logger.error('Failed to refresh offline data', { error })
+      throw error
+    }
+  }
+
   private initOfflineDetection(): void {
     // 监听网络状态变化
     networkDetector.addNetworkChangeListener(info => {
@@ -330,52 +376,29 @@ export class OfflineManager {
         await nexusDB.put(StoreNames.OFFLINE_CONTENT, item)
       }
     } catch (error: any) {
-      console.error('Failed to persist cached content:', error)
+      logger.error('Failed to persist cached content', { error })
     }
   }
 
   private async loadPersistedData(): Promise<void> {
     try {
-      // 1. Load from IndexedDB
-      this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
+      await this.syncFromDatabase()
 
-      const dbContent = await nexusDB.getAll<CachedContent>(StoreNames.OFFLINE_CONTENT)
-      this.cachedContent = new Map<string, CachedContent>(dbContent.map(c => [c.id, c]))
-
-      // 2. Legacy Migration
-      const legacyOps = localStorage.getItem('offline_operations')
-      if (legacyOps) {
-        const parsed = JSON.parse(legacyOps) as SyncTask[]
-        this.operationQueue.push(...parsed)
-        // Best-effort import into syncQueue for compatibility.
-        try {
-          await nexusDB.clear(StoreNames.SYNC_QUEUE)
-          for (const task of this.operationQueue) {
-            await nexusDB.put(StoreNames.SYNC_QUEUE, task)
-          }
-        } catch (e) {
-          console.error('Failed to migrate legacy offline_operations', e)
-        }
-        localStorage.removeItem('offline_operations')
-      }
-
-      const legacyContent = localStorage.getItem('offline_content')
-      if (legacyContent) {
-        const contentArray: Array<[string, any]> = JSON.parse(legacyContent)
-        contentArray.forEach(([id, item]) => {
-          if (!this.cachedContent.has(id)) {
-            this.cachedContent.set(id, item)
-          }
-        })
-        localStorage.removeItem('offline_content')
-      }
-
-      console.log(
-        `📱 Loaded offline data: ${this.operationQueue.length} operations, ${this.cachedContent.size} cached items`
-      )
+      logger.info('Loaded offline data', {
+        queuedOperations: this.operationQueue.length,
+        cachedItems: this.cachedContent.size,
+      })
+      this.notifyListeners()
     } catch (error: any) {
-      console.error('Failed to load persisted offline data:', error)
+      logger.error('Failed to load persisted offline data', { error })
     }
+  }
+
+  private async syncFromDatabase(): Promise<void> {
+    this.operationQueue = await nexusDB.getAll<SyncTask>(StoreNames.SYNC_QUEUE)
+
+    const dbContent = await nexusDB.getAll<CachedContent>(StoreNames.OFFLINE_CONTENT)
+    this.cachedContent = new Map<string, CachedContent>(dbContent.map(c => [c.id, c]))
   }
 
   private notifyListeners(): void {
@@ -393,7 +416,7 @@ export class OfflineManager {
 /**
  * 离线内容服务器
  */
-export class OfflineContentServer {
+class OfflineContentServer {
   private offlineManager: OfflineManager
 
   constructor(offlineManager: OfflineManager) {
@@ -470,7 +493,7 @@ if (typeof window !== 'undefined') {
 
   // 监听离线状态变化
   offlineManager.addStatusListener(status => {
-    console.log('📱 Offline status changed:', status)
+    logger.info('Offline status changed', status)
 
     if (window.performanceMonitor) {
       window.performanceMonitor.reportMetric('offline_status', status.isOnline ? 1 : 0, {
@@ -480,38 +503,4 @@ if (typeof window !== 'undefined') {
       })
     }
   })
-}
-
-// 工具函数
-export function formatOfflineDuration(duration: number): string {
-  if (duration < 60000) {
-    return '刚刚离线'
-  }
-
-  const minutes = Math.floor(duration / 60000)
-  if (minutes < 60) {
-    return `离线 ${minutes} 分钟`
-  }
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) {
-    return `离线 ${hours} 小时`
-  }
-
-  const days = Math.floor(hours / 24)
-  return `离线 ${days} 天`
-}
-
-export function getOfflineCapabilities(): {
-  canCache: boolean
-  canQueue: boolean
-  canSync: boolean
-  storageAvailable: boolean
-} {
-  return {
-    canCache: 'localStorage' in window,
-    canQueue: 'localStorage' in window,
-    canSync: 'fetch' in window,
-    storageAvailable: 'localStorage' in window && 'sessionStorage' in window,
-  }
 }

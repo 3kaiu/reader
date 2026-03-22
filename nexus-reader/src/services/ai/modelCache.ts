@@ -6,17 +6,6 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import { logger } from '@/utils/logger'
 
-interface CachedModel {
-  id: string
-  data: ArrayBuffer
-  metadata: {
-    size: number
-    timestamp: number
-    lastAccessed: number
-    version: string
-  }
-}
-
 interface CacheStats {
   totalSize: number
   modelCount: number
@@ -24,7 +13,7 @@ interface CacheStats {
   newestAccess: number
 }
 
-export class ModelCacheManager {
+class ModelCacheManager {
   private static instance: ModelCacheManager
   private db: IDBPDatabase | null = null
   private readonly DB_NAME = 'nexus-ai-models'

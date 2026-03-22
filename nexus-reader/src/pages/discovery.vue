@@ -3,8 +3,6 @@
  * 发现页 - Discovery / Explore
  * 特性：周报回溯、轮播图展示、精选榜单、沉浸式设计
  */
-import { ref, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
 import {
   ChevronLeft,
   Calendar,
@@ -15,16 +13,10 @@ import {
   BookOpen,
   Users,
 } from "lucide-vue-next";
-import {
-  bookApi,
-  type DiscoveryResponse,
-  type DiscoveryItem,
-} from "@/api/book";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton, LazyImage } from "@/components/ui";
-import { useMessage } from "@/composables/useMessage";
-import { useErrorHandler } from "@/composables/useErrorHandler";
+import { useDiscoveryView } from "@/composables/useDiscoveryView";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,72 +24,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const router = useRouter();
-const { error } = useMessage();
-const { handlePromiseError } = useErrorHandler();
-
-// ====== 状态 ======
-const data = ref<DiscoveryResponse | null>(null);
-const loading = ref(true);
-const currentPeriod = ref<string>("");
-
-// ====== 方法 ======
-async function loadDiscovery(period?: string) {
-  loading.value = true;
-  try {
-    const res = await bookApi.getDiscovery(period);
-    if (res.isSuccess && res.data) {
-      data.value = res.data;
-      currentPeriod.value = res.data.period;
-    }
-  } catch (e) {
-    handlePromiseError(e, "加载发现数据失败");
-  } finally {
-    loading.value = false;
-  }
-}
-
-function handleBookClick(item: DiscoveryItem) {
-  // 优先跳转到官方网址
-  if (item.bookUrl) {
-    window.open(item.bookUrl, "_blank");
-    return;
-  }
-
-  // 没有 URL 则跳转搜索
-  router.push({
-    path: "/search",
-    query: { q: item.name },
-  });
-}
-
-function changePeriod(period: string) {
-  if (period === currentPeriod.value) return;
-  loadDiscovery(period);
-}
-
-onMounted(() => {
-  loadDiscovery();
-});
-
-// 获取各部分数据
-const getSection = (type: string) => {
-  return data.value?.sections.find((s) => s.section === type)?.items || [];
-};
-
-// 格式化日期范围
-const formattedDateRange = (start: string, end: string) => {
-  if (!start) return "";
-  const s = new Date(start).toLocaleDateString("zh-CN", {
-    month: "short",
-    day: "numeric",
-  });
-  const e = new Date(end).toLocaleDateString("zh-CN", {
-    month: "short",
-    day: "numeric",
-  });
-  return `${s} - ${e}`;
-};
+const {
+  data,
+  loading,
+  currentPeriodLabel,
+  currentPeriodButtonLabel,
+  periodOptions,
+  heroItems,
+  featuredItems,
+  rankedItems,
+  dateRangeLabel,
+  changePeriod,
+  openDiscoveryItem,
+  goBack,
+} = useDiscoveryView();
 </script>
 
 <template>
@@ -116,7 +56,7 @@ const formattedDateRange = (start: string, end: string) => {
             variant="ghost"
             size="icon"
             class="rounded-full"
-            @click="router.back()"
+            @click="goBack"
           >
             <ChevronLeft class="h-6 w-6" />
           </Button>
@@ -126,14 +66,14 @@ const formattedDateRange = (start: string, end: string) => {
               v-if="data"
               class="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-70"
             >
-              {{ data.period === "all" ? "全部历史" : data.period }} ·
-              {{ formattedDateRange(data.startDate, data.endDate) }}
+              {{ currentPeriodLabel }} ·
+              {{ dateRangeLabel }}
             </p>
           </div>
         </div>
 
         <!-- 周期切换器 -->
-        <DropdownMenu v-if="data?.availablePeriods.length">
+        <DropdownMenu v-if="periodOptions.length">
           <DropdownMenuTrigger as-child>
             <Button
               variant="outline"
@@ -141,9 +81,7 @@ const formattedDateRange = (start: string, end: string) => {
               class="rounded-full gap-2 border-primary/20 bg-primary/5 hover:bg-primary/10"
             >
               <Calendar class="h-4 w-4 text-primary" />
-              <span class="text-xs font-semibold">{{
-                currentPeriod === "all" ? "全部" : currentPeriod
-              }}</span>
+              <span class="text-xs font-semibold">{{ currentPeriodButtonLabel }}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -151,16 +89,16 @@ const formattedDateRange = (start: string, end: string) => {
             class="w-48 max-h-[16rem] overflow-y-auto rounded-xl shadow-2xl border-primary/10"
           >
             <DropdownMenuItem
-              v-for="p in data.availablePeriods"
-              :key="p"
-              @click="changePeriod(p)"
+              v-for="option in periodOptions"
+              :key="option.value"
+              @click="changePeriod(option.value)"
               class="flex items-center justify-between py-2.5 px-3 cursor-pointer"
               :class="{
-                'bg-primary/10 text-primary font-bold': p === currentPeriod,
+                'bg-primary/10 text-primary font-bold': option.active,
               }"
             >
-              <span class="text-sm">{{ p === "all" ? "全部历史" : p }}</span>
-              <Sparkles v-if="p === currentPeriod" class="h-3 w-3" />
+              <span class="text-sm">{{ option.label }}</span>
+              <Sparkles v-if="option.active" class="h-3 w-3" />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -206,15 +144,15 @@ const formattedDateRange = (start: string, end: string) => {
 
       <template v-else-if="data">
         <!-- 核心轮播区间 (Carousel Section) -->
-        <section v-if="getSection('carousel').length" class="relative group">
+        <section v-if="heroItems.length" class="relative group">
           <div
             class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-4 pb-2"
           >
             <div
-              v-for="book in getSection('carousel')"
+              v-for="book in heroItems"
               :key="book.bookId"
               class="flex-none w-[85vw] sm:w-[60vw] md:w-[45vw] lg:w-[35vw] snap-center"
-              @click="handleBookClick(book)"
+              @click="openDiscoveryItem(book)"
             >
               <div
                 class="relative aspect-[16/9] rounded-3xl overflow-hidden cursor-pointer group/card shadow-lg hover:shadow-2xl transition-all duration-500"
@@ -251,7 +189,7 @@ const formattedDateRange = (start: string, end: string) => {
         </section>
 
         <!-- 精选书单列表 (Image List Section) -->
-        <section v-if="getSection('image_list').length" class="space-y-4">
+        <section v-if="featuredItems.length" class="space-y-4">
           <div class="flex items-center justify-between">
             <h3
               class="flex items-center gap-2 text-xl font-bold tracking-tight"
@@ -264,10 +202,10 @@ const formattedDateRange = (start: string, end: string) => {
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
           >
             <div
-              v-for="book in getSection('image_list')"
+              v-for="book in featuredItems"
               :key="book.bookId"
               class="group cursor-pointer space-y-3"
-              @click="handleBookClick(book)"
+              @click="openDiscoveryItem(book)"
             >
               <div
                 class="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl group-hover:-translate-y-1 transition-all duration-300"
@@ -305,7 +243,7 @@ const formattedDateRange = (start: string, end: string) => {
         </section>
 
         <!-- 潜力新书榜 (New Sign Section) -->
-        <section v-if="getSection('new_sign').length" class="space-y-6">
+        <section v-if="rankedItems.length" class="space-y-6">
           <div class="flex items-center justify-between">
             <h3
               class="flex items-center gap-2 text-xl font-bold tracking-tight"
@@ -316,10 +254,10 @@ const formattedDateRange = (start: string, end: string) => {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              v-for="book in getSection('new_sign')"
+              v-for="book in rankedItems"
               :key="book.bookId"
               class="group flex items-center gap-4 p-4 rounded-3xl bg-muted/30 border border-transparent hover:border-primary/20 hover:bg-muted/50 transition-all duration-300 cursor-pointer"
-              @click="handleBookClick(book)"
+              @click="openDiscoveryItem(book)"
             >
               <div
                 class="relative shrink-0 w-16 h-20 rounded-xl overflow-hidden shadow-sm"

@@ -52,13 +52,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '本地 AI 模型', feature: 'ai' },
   },
   {
-    path: '/statistics',
-    name: 'statistics',
-    // 统计页面预取
-    component: () => import(/* webpackPrefetch: true */ '@/pages/statistics.vue'),
-    meta: { title: '阅读统计' },
-  },
-  {
     path: '/settings',
     name: 'settings',
     // 设置页面预取

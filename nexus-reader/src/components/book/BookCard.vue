@@ -2,9 +2,9 @@
 /**
  * BookCard - shadcn-vue 风格
  */
-import { ref, computed } from 'vue'
-import { BookOpen, MoreVertical, Trash2, Play, Cloud, CloudDownload, CheckCircle2 } from 'lucide-vue-next'
-import type { Book } from '@/api/book'
+import { useBookCardView } from '@/composables/useBookCardView'
+import { BookOpen, MoreVertical, Trash2, CloudDownload, CheckCircle2 } from 'lucide-vue-next'
+import type { Book } from '@/types/book'
 import { LazyImage } from '@/components/ui'
 
 const props = withDefaults(defineProps<{
@@ -27,27 +27,17 @@ const emit = defineEmits<{
   delete: [book: Book]
 }>()
 
-const showMenu = ref(false)
-
-const progress = computed(() => {
-  if (!props.book.totalChapterNum) return 0
-  return Math.round((props.book.durChapterIndex || 0) / props.book.totalChapterNum * 100)
+const {
+  showMenu,
+  progress,
+  unreadCount,
+  coverUrl,
+  toggleMenu,
+  handleDelete,
+} = useBookCardView({
+  book: props.book,
+  onDelete: book => emit('delete', book),
 })
-
-const unreadCount = computed(() => {
-  if (!props.book.totalChapterNum) return 0
-  return props.book.totalChapterNum - 1 - (props.book.durChapterIndex || 0)
-})
-
-const coverUrl = computed(() => {
-  return props.book.coverUrl || ''
-})
-
-function handleDelete(e: Event) {
-  e.stopPropagation()
-  showMenu.value = false
-  emit('delete', props.book)
-}
 </script>
 
 <template>
@@ -162,7 +152,7 @@ function handleDelete(e: Event) {
                flex items-center justify-center text-white/90
                opacity-0 group-hover:opacity-100 hover:bg-black/60 hover:scale-110 active:scale-90
                transition-all duration-300 z-20"
-        @click.stop="showMenu = !showMenu"
+        @click.stop="toggleMenu"
         aria-label="更多选项"
       >
         <MoreVertical class="h-3.5 w-3.5" />
