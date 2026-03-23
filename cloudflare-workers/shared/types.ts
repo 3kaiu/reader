@@ -2,11 +2,22 @@
  * Common Type Definitions for Nexus Reader Workers
  */
 
-export type EntityCategory = 'person' | 'company' | 'place' | 'event' | 'organization';
-export type BookType = 'era' | 'entertainment' | 'urban' | 'history' | 'business';
-export type DecodeSource = 'dictionary' | 'rule' | 'knowledge_graph' | 'ai';
-export type DictionaryLevel = 'global' | 'category' | 'book';
-export type EntrySource = 'system' | 'user' | 'ai' | 'community';
+export type {
+  EntityCategory,
+  BookType,
+  DecodeSource,
+  DictionaryLevel,
+  EntrySource,
+  Candidate,
+  DecodedEntity,
+  ChapterContext,
+  BookMeta,
+  DictionaryEntry,
+  EntryConfirmation,
+  DecodeRequest,
+  DecodeResponse,
+} from '../../contracts/decoder.ts';
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
 export interface JsonObject {
@@ -104,72 +115,6 @@ export interface TokenPayload {
   exp: number;
 }
 
-export interface BookMeta {
-  type: BookType;
-  era?: string;
-  tags?: string[];
-}
-
-export interface Candidate {
-  real: string;
-  confidence: number;
-  category: EntityCategory;
-  reasoning?: string;
-  evidence?: string[];
-}
-
-export interface DecodedEntity {
-  id: string;
-  original: string;
-  position: { start: number; end: number };
-  candidates: Candidate[];
-  bestMatch: Candidate | null;
-  source: DecodeSource;
-}
-
-export interface ChapterContext {
-  timeContext: {
-    era?: string;
-    specificDate?: string;
-    confidence: number;
-  };
-  locationContext: {
-    city?: string;
-    specificPlace?: string;
-    confidence: number;
-  };
-  industryContext: string[];
-  identifiedEntities: Array<{
-    entityId: string;
-    mentions: string[];
-    lastMentionPosition: number;
-  }>;
-}
-
-export interface DictionaryEntry {
-  id: string;
-  original: string;
-  real: string;
-  category: EntityCategory;
-  aliases?: string[];
-  description?: string;
-  level: DictionaryLevel;
-  categoryTags?: BookType[];
-  eraRange?: [number, number];
-  bookId?: string;
-  confidence: number;
-  confirmCount: number;
-  source: EntrySource;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface EntryConfirmation {
-  totalConfirmCount: number;
-  confirmedInBooks: number;
-  threshold: number;
-}
-
 export interface Progress {
   bookId: string;
   chapterIndex: number;
@@ -180,20 +125,6 @@ export interface Progress {
 export interface ServiceUrls {
   nexusLiteUrl: string;
   cfBypassUrl: string;
-}
-
-export interface DecodeRequest {
-  bookId: string;
-  chapterId: string;
-  content: string;
-  bookMeta?: BookMeta;
-}
-
-export interface DecodeResponse {
-  chapterId: string;
-  entities: DecodedEntity[];
-  context: ChapterContext;
-  cached: boolean;
 }
 
 // Fallback types for Cloudflare-specific globals to resolve build errors

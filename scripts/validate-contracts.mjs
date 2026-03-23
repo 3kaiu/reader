@@ -29,71 +29,17 @@ function extractStringArray(source, constName) {
   return values
 }
 
-function extractTypeUnionMembers(source, typeName) {
-  const matcher = new RegExp(`^\\s*export\\s+type\\s+${typeName}\\s*=\\s*([^\\n]+)$`, 'm')
+function extractReexportedTypes(source, modulePath) {
+  const matcher = new RegExp(`export\\s+type\\s*\\{([\\s\\S]*?)\\}\\s*from\\s*['"]${modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`)
   const match = source.match(matcher)
   if (!match) {
-    throw new Error(`Unable to find type alias ${typeName}`)
+    throw new Error(`Unable to find type re-export from ${modulePath}`)
   }
 
-  const values = []
-  const itemMatcher = /['"]([^'"]+)['"]/g
-  let item = itemMatcher.exec(match[1])
-  while (item) {
-    values.push(item[1])
-    item = itemMatcher.exec(match[1])
-  }
-  return values
-}
-
-function extractBraceBlock(source, startIndex) {
-  let depth = 0
-  for (let index = startIndex; index < source.length; index++) {
-    const char = source[index]
-    if (char === '{') {
-      depth++
-      continue
-    }
-    if (char === '}') {
-      depth--
-      if (depth === 0) {
-        return source.slice(startIndex + 1, index)
-      }
-    }
-  }
-  throw new Error(`Unable to extract brace block starting at index ${startIndex}`)
-}
-
-function extractInterfaceFields(source, interfaceName) {
-  const matcher = new RegExp(`export\\s+interface\\s+${interfaceName}\\s*\\{`)
-  const match = matcher.exec(source)
-  if (!match) {
-    throw new Error(`Unable to find interface ${interfaceName}`)
-  }
-
-  const blockStart = source.indexOf('{', match.index)
-  const block = extractBraceBlock(source, blockStart)
-  const fields = []
-  let nestedDepth = 0
-
-  for (const line of block.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed) {
-      continue
-    }
-
-    if (nestedDepth === 0) {
-      const fieldMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)(\?)?\s*:/)
-      if (fieldMatch) {
-        fields.push(`${fieldMatch[1]}${fieldMatch[2] || ''}`)
-      }
-    }
-
-    nestedDepth += (trimmed.match(/\{/g) || []).length
-    nestedDepth -= (trimmed.match(/\}/g) || []).length
-  }
-
-  return fields
+  return match[1]
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean)
 }
 
 function extractTomlCsvVar(source, key) {
@@ -203,29 +149,35 @@ compareContains('backend app routes', backendRoutes, contract.backend.requiredRo
 
 const frontendDecoderTypesSource = read(files.frontendDecoderTypes)
 const workerDecoderTypesSource = read(files.workerDecoderTypes)
-
-compareExact(
-  'decoder type DecodeSource',
-  extractTypeUnionMembers(workerDecoderTypesSource, 'DecodeSource'),
-  extractTypeUnionMembers(frontendDecoderTypesSource, 'DecodeSource'),
-  errors
-)
-
-for (const interfaceName of [
+const sharedDecoderExports = [
+  'EntityCategory',
+  'BookType',
+  'DecodeSource',
+  'DictionaryLevel',
+  'EntrySource',
   'Candidate',
   'DecodedEntity',
   'ChapterContext',
+  'BookMeta',
   'DictionaryEntry',
+  'EntryConfirmation',
   'DecodeRequest',
   'DecodeResponse',
-]) {
-  compareExact(
-    `decoder interface ${interfaceName}`,
-    extractInterfaceFields(workerDecoderTypesSource, interfaceName),
-    extractInterfaceFields(frontendDecoderTypesSource, interfaceName),
-    errors
-  )
-}
+]
+
+compareExact(
+  'frontend decoder shared exports',
+  extractReexportedTypes(frontendDecoderTypesSource, '../../../contracts/decoder.ts'),
+  sharedDecoderExports,
+  errors
+)
+
+compareExact(
+  'worker decoder shared exports',
+  extractReexportedTypes(workerDecoderTypesSource, '../../contracts/decoder.ts'),
+  sharedDecoderExports,
+  errors
+)
 
 if (errors.length > 0) {
   console.error('Route contract validation failed:\n')
