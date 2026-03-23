@@ -4,7 +4,7 @@
 
 export type EntityCategory = 'person' | 'company' | 'place' | 'event' | 'organization';
 export type BookType = 'era' | 'entertainment' | 'urban' | 'history' | 'business';
-export type DecodeSource = 'dictionary' | 'rule' | 'knowledge_graph' | 'ai' | 'ai_cache';
+export type DecodeSource = 'dictionary' | 'rule' | 'knowledge_graph' | 'ai';
 export type DictionaryLevel = 'global' | 'category' | 'book';
 export type EntrySource = 'system' | 'user' | 'ai' | 'community';
 export type JsonPrimitive = string | number | boolean | null;
@@ -113,7 +113,7 @@ export interface BookMeta {
 export interface Candidate {
   real: string;
   confidence: number;
-  category: EntityCategory | string;
+  category: EntityCategory;
   reasoning?: string;
   evidence?: string[];
 }
@@ -123,8 +123,8 @@ export interface DecodedEntity {
   original: string;
   position: { start: number; end: number };
   candidates: Candidate[];
-  bestMatch: Candidate;
-  source: DecodeSource | string;
+  bestMatch: Candidate | null;
+  source: DecodeSource;
 }
 
 export interface ChapterContext {
@@ -139,31 +139,29 @@ export interface ChapterContext {
     confidence: number;
   };
   industryContext: string[];
-  identifiedEntities: Array<
-    string | {
-      entityId: string;
-      mentions: string[];
-      lastMentionPosition: number;
-    }
-  >;
+  identifiedEntities: Array<{
+    entityId: string;
+    mentions: string[];
+    lastMentionPosition: number;
+  }>;
 }
 
 export interface DictionaryEntry {
   id: string;
   original: string;
   real: string;
-  category: EntityCategory | string;
+  category: EntityCategory;
   aliases?: string[];
   description?: string;
-  level?: DictionaryLevel;
+  level: DictionaryLevel;
   categoryTags?: BookType[];
   eraRange?: [number, number];
   bookId?: string;
-  confidence?: number;
-  confirmCount?: number;
-  source?: EntrySource;
-  createdAt?: number;
-  updatedAt?: number;
+  confidence: number;
+  confirmCount: number;
+  source: EntrySource;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface EntryConfirmation {
@@ -185,18 +183,14 @@ export interface ServiceUrls {
 }
 
 export interface DecodeRequest {
-  url: string;
-  source?: string;
-  content?: string;
-  type?: 'html' | 'text' | 'json';
-  options?: JsonObject;
-  bookId?: string;
-  chapterId?: string;
+  bookId: string;
+  chapterId: string;
+  content: string;
   bookMeta?: BookMeta;
 }
 
 export interface DecodeResponse {
-  chapterId?: string;
+  chapterId: string;
   entities: DecodedEntity[];
   context: ChapterContext;
   cached: boolean;

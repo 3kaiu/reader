@@ -8,6 +8,7 @@ import { createLogger, type Logger } from '../shared/logger.ts';
 import { SmartCache, SMART_CACHE_CONFIGS } from '../shared/smart-cache.ts';
 import { getPerformanceMonitor, withPerformanceMonitoring } from '../shared/performance-monitor.ts';
 import {
+  type EntityCategory,
   type DecodeRequest,
   type DecodeResponse,
   type DecodedEntity,
@@ -135,7 +136,11 @@ export class DecoderEngine {
         timeContext: { confidence: 0 },
         locationContext: { confidence: 0 },
         industryContext: [],
-        identifiedEntities: entities.map(e => e.bestMatch.real)
+        identifiedEntities: entities.map(entity => ({
+          entityId: entity.id,
+          mentions: [entity.original],
+          lastMentionPosition: entity.position.end
+        }))
       },
       cached: false
     };
@@ -189,7 +194,7 @@ export class DecoderEngine {
     }
 
     if (aiResult.status === 'fulfilled' && aiResult.value) {
-      return this.buildEntity(term, start, end, aiResult.value.real, 'ai_cache', 85);
+      return this.buildEntity(term, start, end, aiResult.value.real, 'ai', 85);
     }
 
     return null;
@@ -268,8 +273,16 @@ export class DecoderEngine {
           id: crypto.randomUUID(),
           original: e.original,
           position: { start: -1, end: -1 },
-          candidates: [{ real: e.real, confidence: Math.min(80, e.confidence * 100), category: e.type || 'person' }],
-          bestMatch: { real: e.real, confidence: Math.min(80, e.confidence * 100), category: e.type || 'person' },
+          candidates: [{
+            real: e.real,
+            confidence: Math.min(80, e.confidence * 100),
+            category: this.normalizeEntityCategory(e.type)
+          }],
+          bestMatch: {
+            real: e.real,
+            confidence: Math.min(80, e.confidence * 100),
+            category: this.normalizeEntityCategory(e.type)
+          },
           source: 'ai'
         }));
       }
@@ -331,7 +344,27 @@ export class DecoderEngine {
       .map(([word]) => word);
   }
 
-  private buildEntity(original: string, start: number, end: number, real: string, source: any, confidence: number = 90): DecodedEntity {
+  private normalizeEntityCategory(category: string | undefined): EntityCategory {
+    switch (category) {
+      case 'person':
+      case 'company':
+      case 'place':
+      case 'event':
+      case 'organization':
+        return category
+      default:
+        return 'person'
+    }
+  }
+
+  private buildEntity(
+    original: string,
+    start: number,
+    end: number,
+    real: string,
+    source: 'dictionary' | 'knowledge_graph' | 'ai',
+    confidence: number = 90
+  ): DecodedEntity {
     return {
       id: crypto.randomUUID(),
       original,

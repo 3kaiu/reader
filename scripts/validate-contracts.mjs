@@ -29,6 +29,73 @@ function extractStringArray(source, constName) {
   return values
 }
 
+function extractTypeUnionMembers(source, typeName) {
+  const matcher = new RegExp(`^\\s*export\\s+type\\s+${typeName}\\s*=\\s*([^\\n]+)$`, 'm')
+  const match = source.match(matcher)
+  if (!match) {
+    throw new Error(`Unable to find type alias ${typeName}`)
+  }
+
+  const values = []
+  const itemMatcher = /['"]([^'"]+)['"]/g
+  let item = itemMatcher.exec(match[1])
+  while (item) {
+    values.push(item[1])
+    item = itemMatcher.exec(match[1])
+  }
+  return values
+}
+
+function extractBraceBlock(source, startIndex) {
+  let depth = 0
+  for (let index = startIndex; index < source.length; index++) {
+    const char = source[index]
+    if (char === '{') {
+      depth++
+      continue
+    }
+    if (char === '}') {
+      depth--
+      if (depth === 0) {
+        return source.slice(startIndex + 1, index)
+      }
+    }
+  }
+  throw new Error(`Unable to extract brace block starting at index ${startIndex}`)
+}
+
+function extractInterfaceFields(source, interfaceName) {
+  const matcher = new RegExp(`export\\s+interface\\s+${interfaceName}\\s*\\{`)
+  const match = matcher.exec(source)
+  if (!match) {
+    throw new Error(`Unable to find interface ${interfaceName}`)
+  }
+
+  const blockStart = source.indexOf('{', match.index)
+  const block = extractBraceBlock(source, blockStart)
+  const fields = []
+  let nestedDepth = 0
+
+  for (const line of block.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) {
+      continue
+    }
+
+    if (nestedDepth === 0) {
+      const fieldMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)(\?)?\s*:/)
+      if (fieldMatch) {
+        fields.push(`${fieldMatch[1]}${fieldMatch[2] || ''}`)
+      }
+    }
+
+    nestedDepth += (trimmed.match(/\{/g) || []).length
+    nestedDepth -= (trimmed.match(/\}/g) || []).length
+  }
+
+  return fields
+}
+
 function extractTomlCsvVar(source, key) {
   const matcher = new RegExp(`^${key}\\s*=\\s*"([^"]*)"`, 'm')
   const match = source.match(matcher)
@@ -81,6 +148,8 @@ const files = {
   entryAdapter: path.join(rootDir, 'cloudflare-workers', 'src', 'entry-adapter.ts'),
   wrangler: path.join(rootDir, 'cloudflare-workers', 'wrangler.toml'),
   backendApp: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'app.rs'),
+  frontendDecoderTypes: path.join(rootDir, 'nexus-reader', 'src', 'types', 'decoder.ts'),
+  workerDecoderTypes: path.join(rootDir, 'cloudflare-workers', 'shared', 'types.ts'),
 }
 
 const errors = []
@@ -131,6 +200,32 @@ compareExact(
 
 const backendRoutes = extractRustRoutes(read(files.backendApp))
 compareContains('backend app routes', backendRoutes, contract.backend.requiredRoutes, errors)
+
+const frontendDecoderTypesSource = read(files.frontendDecoderTypes)
+const workerDecoderTypesSource = read(files.workerDecoderTypes)
+
+compareExact(
+  'decoder type DecodeSource',
+  extractTypeUnionMembers(workerDecoderTypesSource, 'DecodeSource'),
+  extractTypeUnionMembers(frontendDecoderTypesSource, 'DecodeSource'),
+  errors
+)
+
+for (const interfaceName of [
+  'Candidate',
+  'DecodedEntity',
+  'ChapterContext',
+  'DictionaryEntry',
+  'DecodeRequest',
+  'DecodeResponse',
+]) {
+  compareExact(
+    `decoder interface ${interfaceName}`,
+    extractInterfaceFields(workerDecoderTypesSource, interfaceName),
+    extractInterfaceFields(frontendDecoderTypesSource, interfaceName),
+    errors
+  )
+}
 
 if (errors.length > 0) {
   console.error('Route contract validation failed:\n')
