@@ -32,7 +32,7 @@ memmap2 = "0.9"
 parking_lot = "0.12"
 
 # Hashing
-md5 = "0.7"
+md5 = "0.8"
 
 # File watching (optional)
 notify = { version = "8", optional = true }
