@@ -13,11 +13,6 @@ on:
         required: false
         default: 'nexus-lite'
         type: string
-      force_rebuild:
-        description: 'Force rebuild even if no changes'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -26,7 +21,7 @@ jobs:
   deploy-nexus-lite:
     name: 🚀 Deploy Nexus-Lite to HF Spaces
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event.inputs.force_rebuild == true
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -221,14 +216,15 @@ jobs:
           print(f"🔍 Build Status: {space_url}/build")
           print(f"📊 Space Info: {space_url}/info")
 
-          # 设置 GitHub 环境变量供后续步骤使用
-          print(f"::set-output name=space_url::{space_url}")
-          print(f"::set-output name=api_url::{api_url}")
-          print(f"::set-output name=username::{username}")
-          print(f"::set-output name=space_name::{space_short_name}")
+          # 设置 GitHub 输出供后续步骤使用
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"space_url={space_url}\n")
+              output.write(f"api_url={api_url}\n")
+              output.write(f"username={username}\n")
+              output.write(f"space_name={space_short_name}\n")
 
           # 设置环境变量供后续 workflow 步骤使用
-          with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+          with open(os.environ['GITHUB_ENV'], 'a', encoding="utf-8") as env_file:
               env_file.write(f"STEP_SUMMARY_SPACE_URL={space_url}\n")
               env_file.write(f"STEP_SUMMARY_API_URL={api_url}\n")
 

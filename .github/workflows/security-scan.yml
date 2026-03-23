@@ -68,21 +68,29 @@ jobs:
         run: cargo install cargo-audit --locked
 
       - name: Audit Rust dependencies
+        id: rust-audit
+        working-directory: nexus-lite
         run: |
-          cd nexus-lite
-          cargo audit --format json > ../../rust-audit-results.json || echo "Cargo audit completed with warnings"
-        continue-on-error: true
+          set +e
+          cargo audit --format json > ../rust-audit-results.json
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup frontend toolchain
+        uses: ./.github/actions/nexus-reader-quality
         with:
           bun-version: latest
 
       - name: Audit frontend dependencies
+        id: frontend-audit
         working-directory: nexus-reader
         run: |
-          bun audit --json > ../../bun-audit-results.json || echo "Bun audit completed with warnings"
-        continue-on-error: true
+          set +e
+          bun audit --json > ../bun-audit-results.json
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Upload audit results
         uses: actions/upload-artifact@v6
@@ -92,6 +100,17 @@ jobs:
             rust-audit-results.json
             bun-audit-results.json
           retention-days: 30
+
+      - name: Enforce audit results
+        run: |
+          if [ "${{ steps.rust-audit.outputs.status }}" != "0" ]; then
+            echo "❌ cargo audit reported vulnerabilities"
+            exit 1
+          fi
+          if [ "${{ steps.frontend-audit.outputs.status }}" != "0" ]; then
+            echo "❌ bun audit reported vulnerabilities"
+            exit 1
+          fi
 
   # ===== 自定义安全检查 =====
   custom-security-check:
@@ -107,38 +126,81 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - name: Run custom security checks
         run: |
-          # Check for exposed secrets (basic pattern matching)
+          set -euo pipefail
+          touch potential-secrets.txt insecure-urls.txt
+
+          # Check for hard-coded secrets in non-test source files
           echo "🔍 Checking for potential secrets..."
-          if grep -r "password\|secret\|token\|key.*=.*[^$].*" --include="*.js" --include="*.ts" --include="*.rs" --include="*.py" . \
-              --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git \
-              | grep -v "password.*=.*process\|secret.*=.*process\|token.*=.*process\|key.*=.*process\|password.*=.*import\|secret.*=.*import\|token.*=.*import\|key.*=.*import" \
-              | grep -v "password.*placeholder\|secret.*placeholder\|token.*placeholder\|key.*placeholder" > potential-secrets.txt; then
-              echo "⚠️ Potential exposed secrets found"
-              cat potential-secrets.txt
+          set +e
+          rg -n -P \
+            --glob '!**/dist/**' \
+            --glob '!**/node_modules/**' \
+            --glob '!**/target/**' \
+            --glob '!**/.git/**' \
+            --glob '!**/src/tests/**' \
+            --glob '!**/tests/**' \
+            --glob '!**/__tests__/**' \
+            --glob '!**/*.test.*' \
+            --glob '!**/*.spec.*' \
+            --glob '!**/.env.example' \
+            --glob '!**/wrangler.toml' \
+            '(?i)(api[_-]?key|auth[_-]?secret|client[_-]?secret|access[_-]?token|password)\s*[:=]\s*["\x27][^"\x27$][^"\x27]{6,}["\x27]' \
+            . > potential-secrets.txt
+          secret_scan_status=$?
+          set -e
+
+          if [ "$secret_scan_status" -eq 0 ]; then
+            echo "⚠️ Potential exposed secrets found"
+            cat potential-secrets.txt
+          elif [ "$secret_scan_status" -eq 1 ]; then
+            echo "✅ No obvious exposed secrets found"
           else
-              echo "✅ No obvious exposed secrets found"
+            echo "❌ Secret scan failed to execute (rg exit $secret_scan_status)"
+            exit "$secret_scan_status"
           fi
 
-          # Check for insecure HTTP URLs in production code
+          # Check for hard-coded non-local insecure production URLs
           echo ""
           echo "🔒 Checking for insecure URLs..."
-          if grep -r "http://" --include="*.js" --include="*.ts" --include="*.rs" . \
-              --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git \
-              | grep -v "https://" | grep -v "localhost\|127.0.0.1\|example.com\|test.com" > insecure-urls.txt; then
-              echo "⚠️ Found HTTP URLs in production code"
-              cat insecure-urls.txt
+          set +e
+          rg -n -P \
+            --glob '!**/dist/**' \
+            --glob '!**/node_modules/**' \
+            --glob '!**/target/**' \
+            --glob '!**/.git/**' \
+            --glob '!**/src/tests/**' \
+            --glob '!**/tests/**' \
+            --glob '!**/__tests__/**' \
+            --glob '!**/*.test.*' \
+            --glob '!**/*.spec.*' \
+            --glob '!lighthouse-config.json' \
+            --glob '!**/lighthouserc.js' \
+            --glob '!**/playwright.config.*' \
+            --glob '!**/docker-compose*.yml' \
+            '(?i)(url|origin|endpoint|base_?url|baseURL|target)\s*[:=].*http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|example\.com)' \
+            . > insecure-urls.txt
+          insecure_url_scan_status=$?
+          set -e
+
+          if [ "$insecure_url_scan_status" -eq 0 ]; then
+            echo "⚠️ Found HTTP URLs in production code"
+            cat insecure-urls.txt
+          elif [ "$insecure_url_scan_status" -eq 1 ]; then
+            echo "✅ No insecure URLs found"
           else
-              echo "✅ No insecure URLs found"
+            echo "❌ Insecure URL scan failed to execute (rg exit $insecure_url_scan_status)"
+            exit "$insecure_url_scan_status"
+          fi
+
+          if [ -s potential-secrets.txt ] || [ -s insecure-urls.txt ]; then
+            echo "❌ Custom security checks found issues"
+            exit 1
           fi
 
       - name: Upload security check results
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: custom-security-checks

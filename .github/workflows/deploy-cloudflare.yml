@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run frontend quality gates
         uses: ./.github/actions/nexus-reader-quality
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run backend quality gates
         uses: ./.github/actions/nexus-lite-quality
@@ -61,10 +61,10 @@ jobs:
     needs: [validate-contracts, backend-quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -107,7 +107,7 @@ jobs:
     needs: [validate-contracts, frontend-quality]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup frontend toolchain
         uses: ./.github/actions/nexus-reader-quality
@@ -137,21 +137,3 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=nexus-reader
         working-directory: ./nexus-reader
-
-  deploy-huggingface:
-    name: Deploy to Hugging Face Spaces
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Login to Hugging Face
-        uses: huggingface/hf-space-login@main
-        with:
-          token: ${{ secrets.HF_TOKEN }}
-
-      - name: Deploy to Hugging Face Space
-        run: |
-          # Deploy backend to Hugging Face Spaces
-          echo "Backend deployed to Hugging Face Spaces"
-          echo "Space URL: https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME"
