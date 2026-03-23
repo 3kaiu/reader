@@ -8,6 +8,7 @@
     "deploy": "wrangler deploy",
     "status": "wrangler deployments list",
     "test": "node test-optimization.js",
+    "type-check": "node ./scripts/type-check.mjs",
     "build": "wrangler deploy --dry-run",
     "dev": "wrangler dev",
     "contracts:validate": "node ../scripts/validate-contracts.mjs"

@@ -5,18 +5,24 @@
 
 import { getCorsHeaders } from './cors.ts';
 import { generateCacheKey, getFromCache, saveToCache } from './cache.ts';
+import type {
+  AnalyticsEngineDatasetLike,
+  ExecutionContextLike,
+  KVNamespaceLike,
+  WorkerEnv,
+} from './types.ts';
 
 export interface ProxyOptions {
   useCache?: boolean;
   cacheTTL?: number;
-  kv?: KVNamespace;
-  ctx?: ExecutionContext;
-  analytics?: any; // AnalyticsEngineDataset (optional)
+  kv?: KVNamespaceLike;
+  ctx?: ExecutionContextLike;
+  analytics?: AnalyticsEngineDatasetLike;
 }
 
 function recordCacheMetric(
-  analytics: any | undefined,
-  ctx: ExecutionContext | undefined,
+  analytics: AnalyticsEngineDatasetLike | undefined,
+  ctx: ExecutionContextLike | undefined,
   data: { layer: 'proxy'; result: 'hit' | 'miss' | 'set'; latencyMs?: number }
 ) {
   if (!analytics) return;
@@ -148,7 +154,15 @@ export async function proxyRequest(
  * - `unified-worker.ts` (compat shim)
  * proxyRequest(request, env)
  */
-export async function proxyRequestWithEnv(request: Request, env: any, ctx?: ExecutionContext): Promise<Response> {
+type ProxyEnvLike = Pick<WorkerEnv, 'NEXUS_LITE_URL' | 'ENABLE_CACHE' | 'CONTENT_CACHE_KV' | 'ANALYTICS_ENGINE'> & {
+  nexusLiteUrl?: string;
+};
+
+export async function proxyRequestWithEnv(
+  request: Request,
+  env: ProxyEnvLike,
+  ctx?: ExecutionContextLike
+): Promise<Response> {
   const url = new URL(request.url);
   const targetUrl = env.NEXUS_LITE_URL || env.nexusLiteUrl || '';
   const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true';

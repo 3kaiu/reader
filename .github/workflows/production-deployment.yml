@@ -65,6 +65,11 @@ jobs:
           run-type-check: "true"
           run-tests: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
 
+      - name: Run Cloudflare Workers type check
+        uses: ./.github/actions/cloudflare-workers-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
       - name: Run backend quality gates
         uses: ./.github/actions/nexus-lite-quality
         with:

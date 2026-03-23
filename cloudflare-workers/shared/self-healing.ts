@@ -87,9 +87,12 @@ export class SelfHealingSystem {
       name: '错误率过高',
       description: '错误率超过5%',
       condition: (metrics) => {
-        const operations = Object.values(metrics.performance || {});
-        const avgErrorRate = operations.reduce((sum: number, op: any) =>
-          sum + op.errorRate, 0) / operations.length;
+        const operations = Object.values(metrics.performance || {}) as Array<{ errorRate?: number }>;
+        if (operations.length === 0) {
+          return false;
+        }
+        const avgErrorRate = operations.reduce((sum: number, op) =>
+          sum + (op.errorRate || 0), 0) / operations.length;
         return avgErrorRate > 0.05;
       },
       action: async () => {
@@ -221,22 +224,20 @@ export class SelfHealingSystem {
   private async executeHealingRule(rule: HealingRule): Promise<void> {
     const eventId = crypto.randomUUID();
     const startTime = Date.now();
+    let event: HealingEvent = {
+      id: eventId,
+      timestamp: startTime,
+      ruleId: rule.id,
+      ruleName: rule.name,
+      severity: rule.priority === 'critical' ? 'critical' :
+        rule.priority === 'high' ? 'error' : 'warning',
+      description: rule.description,
+      action: `Executing: ${rule.name}`,
+      success: false,
+      duration: 0
+    };
 
     try {
-      // 记录开始
-      const event: HealingEvent = {
-        id: eventId,
-        timestamp: startTime,
-        ruleId: rule.id,
-        ruleName: rule.name,
-        severity: rule.priority === 'critical' ? 'critical' :
-          rule.priority === 'high' ? 'error' : 'warning',
-        description: rule.description,
-        action: `Executing: ${rule.name}`,
-        success: false,
-        duration: 0
-      };
-
       // 执行修复
       await rule.action();
 
@@ -250,13 +251,9 @@ export class SelfHealingSystem {
 
     } catch (error) {
       // 记录失败
-      const event: HealingEvent = {
-        id: eventId,
-        timestamp: startTime,
-        ruleId: rule.id,
-        ruleName: rule.name,
+      event = {
+        ...event,
         severity: 'error',
-        description: rule.description,
         action: `Failed: ${rule.name}`,
         success: false,
         duration: Date.now() - startTime,

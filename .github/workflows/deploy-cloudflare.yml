@@ -55,10 +55,27 @@ jobs:
           run-check: "true"
           run-tests: "true"
 
+  workers-quality:
+    name: Workers Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run Cloudflare Workers type check
+        uses: ./.github/actions/cloudflare-workers-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
   deploy-worker:
     name: Deploy Cloudflare Worker
     runs-on: ubuntu-latest
-    needs: [validate-contracts, backend-quality]
+    needs: [validate-contracts, backend-quality, workers-quality]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

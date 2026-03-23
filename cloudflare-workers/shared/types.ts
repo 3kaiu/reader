@@ -4,9 +4,97 @@
 
 export type EntityCategory = 'person' | 'company' | 'place' | 'event' | 'organization';
 export type BookType = 'era' | 'entertainment' | 'urban' | 'history' | 'business';
-export type DecodeSource = 'dictionary' | 'rule' | 'knowledge_graph' | 'ai';
+export type DecodeSource = 'dictionary' | 'rule' | 'knowledge_graph' | 'ai' | 'ai_cache';
 export type DictionaryLevel = 'global' | 'category' | 'book';
 export type EntrySource = 'system' | 'user' | 'ai' | 'community';
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
+export interface JsonObject {
+  [key: string]: JsonValue;
+}
+
+export interface ExecutionContextLike {
+  waitUntil(promise: Promise<unknown>): void;
+  passThroughOnException?(): void;
+}
+
+export interface KVGetOptionsLike {
+  type?: 'text' | 'json' | 'arrayBuffer' | 'stream';
+  cacheTtl?: number;
+}
+
+export interface KVPutOptionsLike {
+  expiration?: number;
+  expirationTtl?: number;
+  metadata?: JsonObject;
+}
+
+export interface KVNamespaceLike {
+  get<T = string>(key: string, options?: KVGetOptionsLike): Promise<T | null>;
+  put(
+    key: string,
+    value: string | ArrayBuffer | ArrayBufferView | ReadableStream,
+    options?: KVPutOptionsLike
+  ): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+export interface D1PreparedStatementLike {
+  bind(...args: unknown[]): {
+    run(): Promise<unknown>;
+    first<T extends Record<string, unknown> = Record<string, unknown>>(): Promise<T | null>;
+    all<T extends Record<string, unknown> = Record<string, unknown>>(): Promise<{ results: T[] }>;
+  };
+}
+
+export interface D1DatabaseLike {
+  prepare(sql: string): D1PreparedStatementLike;
+}
+
+export interface R2HttpMetadataLike {
+  contentType?: string;
+}
+
+export interface R2PutOptionsLike {
+  httpMetadata?: R2HttpMetadataLike;
+}
+
+export interface R2ObjectLike {
+  key: string;
+  uploaded: Date;
+}
+
+export interface R2BucketLike {
+  get(key: string): Promise<unknown>;
+  put(
+    key: string,
+    value: string | ArrayBuffer | ArrayBufferView,
+    options?: R2PutOptionsLike
+  ): Promise<unknown>;
+  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string }): AsyncIterable<R2ObjectLike>;
+}
+
+export interface QueueLike {
+  send(message: unknown, options?: JsonObject): Promise<void>;
+}
+
+export interface AnalyticsEngineDatasetLike {
+  writeDataPoint(data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): Promise<void>;
+  query(sql: string): Promise<Record<string, unknown>>;
+}
+
+export interface AiRunResponseLike {
+  response?: string;
+  usage?: {
+    total_tokens?: number;
+  };
+  [key: string]: unknown;
+}
+
+export interface AiBindingLike {
+  run(model: string, input: Record<string, unknown>): Promise<AiRunResponseLike>;
+}
 
 export interface TokenPayload {
   provider: string;
@@ -20,6 +108,68 @@ export interface BookMeta {
   type: BookType;
   era?: string;
   tags?: string[];
+}
+
+export interface Candidate {
+  real: string;
+  confidence: number;
+  category: EntityCategory | string;
+  reasoning?: string;
+  evidence?: string[];
+}
+
+export interface DecodedEntity {
+  id: string;
+  original: string;
+  position: { start: number; end: number };
+  candidates: Candidate[];
+  bestMatch: Candidate;
+  source: DecodeSource | string;
+}
+
+export interface ChapterContext {
+  timeContext: {
+    era?: string;
+    specificDate?: string;
+    confidence: number;
+  };
+  locationContext: {
+    city?: string;
+    specificPlace?: string;
+    confidence: number;
+  };
+  industryContext: string[];
+  identifiedEntities: Array<
+    string | {
+      entityId: string;
+      mentions: string[];
+      lastMentionPosition: number;
+    }
+  >;
+}
+
+export interface DictionaryEntry {
+  id: string;
+  original: string;
+  real: string;
+  category: EntityCategory | string;
+  aliases?: string[];
+  description?: string;
+  level?: DictionaryLevel;
+  categoryTags?: BookType[];
+  eraRange?: [number, number];
+  bookId?: string;
+  confidence?: number;
+  confirmCount?: number;
+  source?: EntrySource;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface EntryConfirmation {
+  totalConfirmCount: number;
+  confirmedInBooks: number;
+  threshold: number;
 }
 
 export interface Progress {
@@ -39,42 +189,26 @@ export interface DecodeRequest {
   source?: string;
   content?: string;
   type?: 'html' | 'text' | 'json';
-  options?: Record<string, any>;
+  options?: JsonObject;
+  bookId?: string;
+  chapterId?: string;
+  bookMeta?: BookMeta;
+}
+
+export interface DecodeResponse {
+  chapterId?: string;
+  entities: DecodedEntity[];
+  context: ChapterContext;
+  cached: boolean;
 }
 
 // Fallback types for Cloudflare-specific globals to resolve build errors
 // when @cloudflare/workers-types are not explicitly included in the environment.
-export type D1DatabaseFallback = {
-  prepare: (sql: string) => {
-    bind: (...args: any[]) => {
-      run: () => Promise<any>;
-      first: () => Promise<any>;
-      all: () => Promise<any>;
-    }
-  }
-};
-
-export type R2BucketFallback = {
-  get: (key: string) => Promise<any>;
-  put: (key: string, value: any, options?: any) => Promise<any>;
-  delete: (key: string) => Promise<void>;
-  list: (options?: any) => AsyncIterableIterator<any>;
-};
-
-export type KVNamespaceFallback = {
-  get: (key: string, options?: any) => Promise<any>;
-  put: (key: string, value: any, options?: any) => Promise<any>;
-  delete: (key: string) => Promise<void>;
-};
-
-export type QueueFallback = {
-  send: (message: any, options?: any) => Promise<void>;
-};
-
-export type AnalyticsEngineDatasetFallback = {
-  writeDataPoint: (data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }) => Promise<void>;
-  query: (sql: string) => Promise<any>;
-};
+export type D1DatabaseFallback = D1DatabaseLike;
+export type R2BucketFallback = R2BucketLike;
+export type KVNamespaceFallback = KVNamespaceLike;
+export type QueueFallback = QueueLike;
+export type AnalyticsEngineDatasetFallback = AnalyticsEngineDatasetLike;
 
 export interface WorkerEnv {
   NEXUS_LITE_URL: string;
@@ -90,17 +224,17 @@ export interface WorkerEnv {
   EDGE_EXPERIMENTAL_ROLLOUT?: string;
 
   // Storage bindings (matched with wrangler.toml)
-  ANALYTICS_DB: any | D1DatabaseFallback;
-  USER_PREFERENCES_DB: any | D1DatabaseFallback;
-  USER_CONTENT_R2: any | R2BucketFallback;
-  BACKUP_R2: any | R2BucketFallback;
-  PROGRESS_KV: any | KVNamespaceFallback;
-  CONTENT_CACHE_KV: any | KVNamespaceFallback;
-  DECODER_KV: any | KVNamespaceFallback;
-  AI_CACHE_KV: any | KVNamespaceFallback;
-  ANALYTICS_QUEUE: any | QueueFallback;
-  ANALYTICS_ENGINE: any | AnalyticsEngineDatasetFallback;
-  AI: any;
+  ANALYTICS_DB: D1DatabaseLike;
+  USER_PREFERENCES_DB: D1DatabaseLike;
+  USER_CONTENT_R2: R2BucketLike;
+  BACKUP_R2: R2BucketLike;
+  PROGRESS_KV: KVNamespaceLike;
+  CONTENT_CACHE_KV: KVNamespaceLike;
+  DECODER_KV: KVNamespaceLike;
+  AI_CACHE_KV: KVNamespaceLike;
+  ANALYTICS_QUEUE: QueueLike;
+  ANALYTICS_ENGINE: AnalyticsEngineDatasetLike;
+  AI?: AiBindingLike;
 
   // Secrets and Config
   AUTH_SECRET: string;
@@ -113,5 +247,5 @@ export interface WorkerEnv {
   // Optional/AI Config
   GROQ_API_KEY?: string;
   HF_API_KEY?: string;
-  ctx?: any;
+  ctx?: ExecutionContextLike;
 }

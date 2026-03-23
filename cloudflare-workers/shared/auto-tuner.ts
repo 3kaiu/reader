@@ -6,6 +6,18 @@
 import { getPerformanceMonitor } from './performance-monitor.ts';
 import { SmartCache, SMART_CACHE_CONFIGS } from './smart-cache.ts';
 
+interface OperationMetric {
+  totalRequests: number;
+  avgDuration: number;
+  errorRate: number;
+  qps: number;
+}
+
+type MutableDecodeCacheConfig = {
+  ttl: number;
+  hitRateThreshold: number;
+};
+
 export interface AutoTunerConfig {
   // 调优周期 (毫秒)
   tuningInterval: number;
@@ -191,7 +203,10 @@ export class AutoTuner {
     const metrics = monitor.getAggregatedMetrics(300000); // 最近5分钟数据
 
     // 检查是否有足够的数据
-    const totalRequests = Object.values(metrics).reduce((sum, m) => sum + m.totalRequests, 0);
+    const totalRequests = Object.values(metrics as Record<string, OperationMetric>).reduce(
+      (sum, metric) => sum + metric.totalRequests,
+      0
+    );
     if (totalRequests < this.config.minSamples) {
       return;
     }
@@ -211,25 +226,26 @@ export class AutoTuner {
   }
 
   private calculateCurrentMetrics(metrics: any): any {
-    const operations = Object.values(metrics);
+    const operations = Object.values(metrics as Record<string, OperationMetric>) as OperationMetric[];
     if (operations.length === 0) return null;
 
     // 加权平均计算
-    const weights = operations.map((op: any) => op.totalRequests);
+    const weights = operations.map(op => op.totalRequests);
     const totalWeight = weights.reduce((a, b) => a + b, 0);
+    if (totalWeight === 0) return null;
 
     return {
-      avgResponseTime: operations.reduce((sum: number, op: any, i: number) =>
+      avgResponseTime: operations.reduce((sum: number, op, i: number) =>
         sum + (op.avgDuration * weights[i]), 0) / totalWeight,
 
-      avgErrorRate: operations.reduce((sum: number, op: any, i: number) =>
+      avgErrorRate: operations.reduce((sum: number, op, i: number) =>
         sum + (op.errorRate * weights[i]), 0) / totalWeight,
 
       totalRequests: totalWeight,
 
       cacheHitRate: 0.75, // 从缓存服务获取
 
-      qps: operations.reduce((sum: number, op: any, i: number) =>
+      qps: operations.reduce((sum: number, op, i: number) =>
         sum + (op.qps * weights[i]), 0) / totalWeight
     };
   }
@@ -363,14 +379,16 @@ export class AutoTuner {
 
   private async applyParameterToSystem(parameter: string, value: number): Promise<void> {
     // 这里实现参数应用逻辑
+    const decodeCacheConfig = SMART_CACHE_CONFIGS.DECODE_RESULTS as MutableDecodeCacheConfig;
+
     switch (parameter) {
       case 'cache.ttl':
         // 更新缓存配置
-        SMART_CACHE_CONFIGS.DECODE_RESULTS.ttl = value;
+        decodeCacheConfig.ttl = value;
         break;
 
       case 'cache.hitRateThreshold':
-        SMART_CACHE_CONFIGS.DECODE_RESULTS.hitRateThreshold = value;
+        decodeCacheConfig.hitRateThreshold = value;
         break;
 
       case 'ai.maxCallsPerMinute':

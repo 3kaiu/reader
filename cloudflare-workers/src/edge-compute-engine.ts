@@ -389,9 +389,10 @@ export class EdgeComputeEngine {
   private async optimizeComputation(request: Request, userContext: UserContext): Promise<Request> {
     // 计算优化：边缘计算、任务分发、负载均衡
     const url = new URL(request.url)
+    const cfContext = this.getCfContext(request)
 
     // 基于边缘位置的计算优化
-    url.searchParams.set('colo', request.cf?.colo as string || 'UNKNOWN')
+    url.searchParams.set('colo', this.asString(cfContext.colo, 'UNKNOWN'))
 
     // 用户上下文感知计算
     url.searchParams.set('compute_priority',

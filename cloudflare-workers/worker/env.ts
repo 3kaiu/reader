@@ -7,9 +7,8 @@ export function requireBinding(
 ) {
   const requiredInProd = opts?.requiredInProd ?? true
   const isProd = env.ENVIRONMENT === 'production'
-  const ok = Boolean((env as any)[key])
+  const ok = Boolean(env[key])
   if (!ok && (!isProd || requiredInProd)) {
     throw new Error(`Missing required binding/env: ${String(key)}`)
   }
 }
-

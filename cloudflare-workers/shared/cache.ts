@@ -6,6 +6,8 @@
  * - Cache warming capabilities
  */
 
+import type { JsonObject, KVNamespaceLike } from './types.ts';
+
 export const CACHE_TTL = {
   CONTENT: 7 * 24 * 60 * 60,  // 7 days
   TOC: 24 * 60 * 60,           // 1 day
@@ -28,7 +30,14 @@ function xxHash32(str: string, seed: number = 0): string {
   return Math.abs(h32).toString(36);
 }
 
-export function generateCacheKey(path: string, params?: Record<string, any>): string {
+interface CachedPayload {
+  body: string;
+  contentType?: string;
+  cachedAt?: string;
+  compressed?: boolean;
+}
+
+export function generateCacheKey(path: string, params?: JsonObject): string {
   // Use xxHash for fast, deterministic key generation
   const keyData = `cache:${path}:${JSON.stringify(params || {})}`;
   const hash = xxHash32(keyData);
@@ -36,7 +45,11 @@ export function generateCacheKey(path: string, params?: Record<string, any>): st
 }
 
 // Optimized cache key for specific data types
-export function generateTypedCacheKey(type: 'content' | 'toc' | 'search' | 'decode', identifier: string, params?: Record<string, any>): string {
+export function generateTypedCacheKey(
+  type: 'content' | 'toc' | 'search' | 'decode',
+  identifier: string,
+  params?: JsonObject
+): string {
   const keyData = `${type}:${identifier}:${JSON.stringify(params || {})}`;
   const hash = xxHash32(keyData);
   return `${type[0]}:${hash}`.substring(0, 512);
@@ -75,8 +88,24 @@ function decompressString(str: string): string {
 
   while (i < compressed.length) {
     if (compressed[i] === '#') {
-      const countEnd = compressed.indexOf(/[a-zA-Z]/, i + 1);
-      const count = parseInt(compressed.substring(i + 1, countEnd));
+      let countEnd = i + 1;
+      while (countEnd < compressed.length && compressed[countEnd] >= '0' && compressed[countEnd] <= '9') {
+        countEnd++;
+      }
+
+      if (countEnd === i + 1 || countEnd >= compressed.length) {
+        decompressed += compressed[i];
+        i++;
+        continue;
+      }
+
+      const count = Number.parseInt(compressed.substring(i + 1, countEnd), 10);
+      if (!Number.isFinite(count) || count <= 0) {
+        decompressed += compressed[i];
+        i++;
+        continue;
+      }
+
       const char = compressed[countEnd];
       decompressed += char.repeat(count);
       i = countEnd + 1;
@@ -116,7 +145,7 @@ export function calculateAdaptiveTTL(
 
 // Cache warming utilities
 export async function warmCache(
-  kv: KVNamespace | undefined,
+  kv: KVNamespaceLike | undefined,
   keys: string[],
   fetcher: (key: string) => Promise<{ body: string; contentType: string } | null>,
   ttl: number = CACHE_TTL.SEARCH
@@ -151,20 +180,19 @@ export async function warmCache(
 }
 
 export async function getFromCache(
-  kv: KVNamespace | undefined,
+  kv: KVNamespaceLike | undefined,
   key: string
 ): Promise<{ body: string; contentType: string; cachedAt?: string } | null> {
   if (!kv) return null;
 
   try {
-    const data = await kv.get(key, { type: 'json' });
+    const data = await kv.get<CachedPayload>(key, { type: 'json' });
     if (!data) return null;
 
-    const cached = data as any;
     return {
-      body: decompressString(cached.body),
-      contentType: cached.contentType || 'application/json',
-      cachedAt: cached.cachedAt
+      body: decompressString(data.body),
+      contentType: data.contentType || 'application/json',
+      cachedAt: data.cachedAt
     };
   } catch (e) {
     console.warn('KV get error:', e);
@@ -173,7 +201,7 @@ export async function getFromCache(
 }
 
 export async function saveToCache(
-  kv: KVNamespace | undefined,
+  kv: KVNamespaceLike | undefined,
   key: string,
   body: string,
   contentType: string,

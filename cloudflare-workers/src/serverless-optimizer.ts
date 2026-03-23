@@ -31,6 +31,12 @@ interface ServerlessConfig {
   optimizeBundles: boolean
 }
 
+interface PerformanceWithMemory extends Performance {
+  memory?: {
+    usedJSHeapSize: number
+  }
+}
+
 export class ServerlessOptimizer {
   private static instance: ServerlessOptimizer
   private metrics: ServerlessMetrics[] = []
@@ -337,8 +343,9 @@ export class ServerlessOptimizer {
 
   private async getMemoryUsage(): Promise<number> {
     // 获取内存使用情况
-    if (typeof performance !== 'undefined' && performance.memory) {
-      return performance.memory.usedJSHeapSize / (1024 * 1024) // MB
+    const performanceWithMemory = performance as PerformanceWithMemory
+    if (typeof performance !== 'undefined' && performanceWithMemory.memory) {
+      return performanceWithMemory.memory.usedJSHeapSize / (1024 * 1024) // MB
     }
     return 0
   }

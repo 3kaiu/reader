@@ -4,12 +4,18 @@
  */
 
 import { getCorsHeaders } from './cors.ts';
+import type { ExecutionContextLike, KVNamespaceLike } from './types.ts';
+
+interface CachedResponsePayload {
+  body: string;
+  contentType?: string;
+}
 
 export interface ProxyOptions {
   useCache?: boolean;
   cacheTTL?: number;
-  kv?: any;
-  ctx?: any;
+  kv?: KVNamespaceLike;
+  ctx?: ExecutionContextLike;
   apiRoute?: boolean;
 }
 
@@ -30,7 +36,7 @@ export async function callService(
   let cacheKey = '';
   if (options.useCache && options.kv && request.method === 'GET') {
     cacheKey = `cache:${path}:${url.search}`.replace(/[^a-zA-Z0-9:_-]/g, '_').substring(0, 512);
-    const cached = await options.kv.get(cacheKey, { type: 'json' });
+    const cached = await options.kv.get<CachedResponsePayload>(cacheKey, { type: 'json' });
     if (cached) {
       return new Response(JSON.stringify(cached.body), {
         headers: {
