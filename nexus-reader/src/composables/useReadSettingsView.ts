@@ -9,9 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import type {
   ChineseConvert,
   FontFamily,
-  PageAnimation,
   ReaderTheme,
-  ReadingMode,
 } from '@/types/settings'
 
 export function useReadSettingsView() {
@@ -80,21 +78,6 @@ export function useReadSettingsView() {
     settingsStore.updateConfig('pageWidth', values[0] ?? 800)
   }
 
-  function selectReadingMode(mode: ReadingMode) {
-    settingsStore.updateConfig('readingMode', mode)
-  }
-
-  function selectPageAnimation(animation: PageAnimation) {
-    settingsStore.updateConfig('pageAnimation', animation)
-  }
-
-  function toggleClickToNextPage() {
-    settingsStore.updateConfig(
-      'clickToNextPage',
-      !settingsStore.config.clickToNextPage
-    )
-  }
-
   function toggleAutoNightMode() {
     settingsStore.toggleAutoNightMode(!settingsStore.config.autoNightMode)
   }
@@ -123,9 +106,6 @@ export function useReadSettingsView() {
     updateLineHeight,
     updateParagraphSpacing,
     updatePageWidth,
-    selectReadingMode,
-    selectPageAnimation,
-    toggleClickToNextPage,
     toggleAutoNightMode,
   }
 }

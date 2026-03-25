@@ -1,0 +1,46 @@
+import {
+  handleClientMetrics,
+  handleClientRoutingAnalytics,
+  handleContentUpload,
+  handleHealthCheck,
+  handlePopularContent,
+  handleUserBackup,
+  handleUserPreferences,
+  handleUserStats,
+} from '../routes.ts'
+import type { EnhancedWorkerEnv } from '../types.ts'
+import type { UserServiceContainer } from './types.ts'
+
+export async function dispatchUserServiceRoute(
+  request: Request,
+  env: EnhancedWorkerEnv,
+  services: UserServiceContainer
+): Promise<Response | undefined> {
+  const url = new URL(request.url)
+
+  switch (url.pathname) {
+    case '/api/health':
+      return handleHealthCheck(request, env, services.getAnalytics())
+    case '/api/analytics/user-stats':
+      return handleUserStats(request, env, services.getAnalytics())
+    case '/api/analytics/popular-content':
+      return handlePopularContent(request, env, services.getAnalytics())
+    case '/api/analytics/client-routing':
+      return handleClientRoutingAnalytics(request, env)
+    case '/api/preferences':
+      return handleUserPreferences(request, env, services.getUserPreferences())
+    case '/api/content/upload':
+      return handleContentUpload(request, env, services.getContentManagement())
+    case '/api/backup':
+      return handleUserBackup(
+        request,
+        env,
+        services.getContentManagement(),
+        services.getQueueProcessor()
+      )
+    case '/api/metrics/client':
+      return handleClientMetrics(request, env)
+    default:
+      return undefined
+  }
+}

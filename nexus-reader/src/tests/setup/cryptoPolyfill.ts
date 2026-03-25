@@ -4,9 +4,123 @@
  */
 
 import { webcrypto } from 'crypto'
+import { TextDecoder as NodeTextDecoder, TextEncoder as NodeTextEncoder } from 'util'
+
+type CryptoSubtleMethod =
+  | 'encrypt'
+  | 'decrypt'
+  | 'sign'
+  | 'verify'
+  | 'digest'
+  | 'generateKey'
+  | 'deriveKey'
+  | 'deriveBits'
+  | 'importKey'
+  | 'exportKey'
+  | 'wrapKey'
+  | 'unwrapKey'
+
+type BoundSubtleCrypto = {
+  [K in CryptoSubtleMethod]: typeof webcrypto.subtle[K]
+}
+
+interface CryptoPolyfillShape {
+  getRandomValues: typeof webcrypto.getRandomValues
+  randomUUID: () => string
+  subtle: BoundSubtleCrypto
+}
+
+interface TestNavigator {
+  userAgent: string
+  language: string
+  languages: string[]
+  platform: string
+  cookieEnabled: boolean
+  onLine: boolean
+  connection: {
+    effectiveType: string
+    downlink: number
+    rtt: number
+    saveData: boolean
+  }
+  serviceWorker: {
+    register: () => Promise<never>
+  }
+}
+
+interface TestWindowLocation {
+  href: string
+  origin: string
+  pathname: string
+  search: string
+  hash: string
+}
+
+interface TestWindow {
+  location: TestWindowLocation
+  localStorage: Storage
+  sessionStorage: Storage
+  addEventListener: (_event: string, _handler: EventListenerOrEventListenerObject) => void
+  removeEventListener: (_event: string, _handler: EventListenerOrEventListenerObject) => void
+  dispatchEvent: (_event: Event) => boolean
+}
+
+interface TestDocument {
+  createElement: (_tagName?: string) => Record<string, never>
+  head: {
+    appendChild: (_node: unknown) => void
+  }
+  body: {
+    appendChild: (_node: unknown) => void
+  }
+}
+
+const subtleMethods: CryptoSubtleMethod[] = [
+  'encrypt',
+  'decrypt',
+  'sign',
+  'verify',
+  'digest',
+  'generateKey',
+  'deriveKey',
+  'deriveBits',
+  'importKey',
+  'exportKey',
+  'wrapKey',
+  'unwrapKey'
+]
+
+const defineGlobalValue = (property: string, value: unknown): void => {
+  Object.defineProperty(globalThis, property, {
+    value,
+    writable: true,
+    configurable: true
+  })
+}
+
+const createStorageMock = (): Storage => {
+  const values = new Map<string, string>()
+
+  return {
+    get length() {
+      return values.size
+    },
+    clear: () => {
+      values.clear()
+    },
+    getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      values.delete(key)
+    },
+    setItem: (key: string, value: string) => {
+      values.set(key, value)
+    }
+  }
+}
 
 // Create a comprehensive crypto polyfill
-const cryptoPolyfill = {
+const cryptoPolyfill: CryptoPolyfillShape = {
   getRandomValues: webcrypto.getRandomValues.bind(webcrypto),
   randomUUID: webcrypto.randomUUID?.bind(webcrypto) || (() => {
     // Fallback UUID generation for older Node.js versions
@@ -36,14 +150,9 @@ const cryptoPolyfill = {
 try {
   // Try to set crypto if it's not already set or is incomplete
   if (!globalThis.crypto || !globalThis.crypto.subtle || !globalThis.crypto.subtle.deriveKey) {
-    // Use Object.defineProperty to override the read-only property
-    Object.defineProperty(globalThis, 'crypto', {
-      value: cryptoPolyfill,
-      writable: true,
-      configurable: true
-    })
+    defineGlobalValue('crypto', cryptoPolyfill)
   }
-} catch (error: any) {
+} catch (error: unknown) {
   // If we can't override crypto, try to patch the specific methods we need
   if (globalThis.crypto && !globalThis.crypto.subtle) {
     Object.defineProperty(globalThis.crypto, 'subtle', {
@@ -55,10 +164,10 @@ try {
   
   if (globalThis.crypto?.subtle) {
     // Patch individual methods
-    Object.keys(cryptoPolyfill.subtle).forEach(method => {
-      if (!(globalThis.crypto.subtle as any)[method]) {
+    subtleMethods.forEach(method => {
+      if (!globalThis.crypto.subtle[method]) {
         Object.defineProperty(globalThis.crypto.subtle, method, {
-          value: (cryptoPolyfill.subtle as any)[method],
+          value: cryptoPolyfill.subtle[method],
           writable: true,
           configurable: true
         })
@@ -68,36 +177,39 @@ try {
 }
 
 // Additional polyfills for browser APIs used in tests
-globalThis.btoa = globalThis.btoa || ((str: string) => {
-  try {
-    return Buffer.from(str, 'binary').toString('base64')
-  } catch (error: any) {
-    // Fallback for invalid characters
-    const cleanStr = str.replace(/[^\x00-\xFF]/g, '?')
-    return Buffer.from(cleanStr, 'binary').toString('base64')
-  }
-})
+if (!globalThis.btoa) {
+  defineGlobalValue('btoa', (str: string) => {
+    try {
+      return Buffer.from(str, 'binary').toString('base64')
+    } catch (error: unknown) {
+      // Fallback for invalid characters
+      const cleanStr = str.replace(/[^\x00-\xFF]/g, '?')
+      return Buffer.from(cleanStr, 'binary').toString('base64')
+    }
+  })
+}
 
-globalThis.atob = globalThis.atob || ((str: string) => {
-  try {
-    return Buffer.from(str, 'base64').toString('binary')
-  } catch (error: any) {
-    // Fallback for invalid base64
-    console.warn('Invalid base64 string:', str)
-    return ''
-  }
-})
+if (!globalThis.atob) {
+  defineGlobalValue('atob', (str: string) => {
+    try {
+      return Buffer.from(str, 'base64').toString('binary')
+    } catch (error: unknown) {
+      // Fallback for invalid base64
+      console.warn('Invalid base64 string:', str)
+      return ''
+    }
+  })
+}
 
 // TextEncoder/TextDecoder polyfills (usually available in Node.js 11+)
 if (!globalThis.TextEncoder) {
-  const { TextEncoder, TextDecoder } = require('util')
-  globalThis.TextEncoder = TextEncoder
-  globalThis.TextDecoder = TextDecoder
+  defineGlobalValue('TextEncoder', NodeTextEncoder)
+  defineGlobalValue('TextDecoder', NodeTextDecoder)
 }
 
 // Mock navigator for tests
 if (typeof globalThis.navigator === 'undefined') {
-  globalThis.navigator = {
+  const navigatorMock: TestNavigator = {
     userAgent: 'test-user-agent',
     language: 'en-US',
     languages: ['en-US'],
@@ -113,12 +225,14 @@ if (typeof globalThis.navigator === 'undefined') {
     serviceWorker: {
       register: () => Promise.reject(new Error('Service Worker not available in test environment'))
     }
-  } as any
+  }
+
+  defineGlobalValue('navigator', navigatorMock)
 }
 
 // Mock window for tests
 if (typeof globalThis.window === 'undefined') {
-  globalThis.window = {
+  const windowMock: TestWindow = {
     location: {
       href: 'http://localhost:3000/test',
       origin: 'http://localhost:3000',
@@ -126,42 +240,32 @@ if (typeof globalThis.window === 'undefined') {
       search: '',
       hash: ''
     },
-    localStorage: {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
-      length: 0,
-      key: () => null
-    },
-    sessionStorage: {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
-      length: 0,
-      key: () => null
-    },
-    addEventListener: (_event: string, _handler: Function) => {
+    localStorage: createStorageMock(),
+    sessionStorage: createStorageMock(),
+    addEventListener: (_event: string, _handler: EventListenerOrEventListenerObject) => {
       // Mock event listener - do nothing in test environment
     },
-    removeEventListener: (_event: string, _handler: Function) => {
+    removeEventListener: (_event: string, _handler: EventListenerOrEventListenerObject) => {
       // Mock event listener removal - do nothing in test environment
     },
     dispatchEvent: (_event: Event) => {
       // Mock event dispatch - do nothing in test environment
       return true
     }
-  } as any
+  }
+
+  defineGlobalValue('window', windowMock)
 }
 
 // Mock document for tests
 if (typeof globalThis.document === 'undefined') {
-  globalThis.document = {
+  const documentMock: TestDocument = {
     createElement: () => ({}),
     head: { appendChild: () => {} },
     body: { appendChild: () => {} }
-  } as any
+  }
+
+  defineGlobalValue('document', documentMock)
 }
 
 console.log('✅ Crypto polyfill loaded successfully')

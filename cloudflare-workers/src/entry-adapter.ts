@@ -1,10 +1,8 @@
+import type { Logger } from '../shared/logger.ts'
 import type { EnhancedWorkerEnv } from '../worker/types.ts'
 
 type StableDispatcher = (request: Request) => Promise<Response>
-
-interface LoggerLike {
-  warn: (...args: any[]) => void
-}
+type LoggerLike = Pick<Logger, 'warn'>
 
 const DEFAULT_ROUTES = ['/api/search', '/api/book', '/api/chapters', '/api/content']
 

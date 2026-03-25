@@ -1,0 +1,57 @@
+.reader-toolbar-glass {
+  background: rgba(var(--background-rgb), 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--foreground-rgb), 0.1);
+}
+
+.reader-toolbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0;
+  gap: 0.25rem;
+  transition: all 0.2s;
+  border-radius: 0.5rem;
+}
+
+.reader-toolbar-item:active {
+  background: rgba(var(--foreground-rgb), 0.05);
+}
+
+.reader-toolbar-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.5rem;
+  width: 1.5rem;
+  opacity: 0.8;
+}
+
+.reader-toolbar-item-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  transform: translateY(-20px);
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(20px);
+  opacity: 0;
+}

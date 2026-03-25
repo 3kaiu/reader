@@ -6,7 +6,7 @@ import { logger } from '@/utils/logger'
 
 class UnifiedConfig {
   private static instance: UnifiedConfig
-  private config = new Map<string, any>()
+  private config = new Map<string, unknown>()
 
   private constructor() {
     this.loadDefaultConfig()
@@ -20,7 +20,7 @@ class UnifiedConfig {
   }
 
   get<T>(key: string, defaultValue?: T): T | undefined {
-    return this.config.get(key) ?? defaultValue
+    return (this.config.get(key) as T | undefined) ?? defaultValue
   }
 
   set<T>(key: string, value: T): void {
@@ -44,12 +44,20 @@ class UnifiedConfig {
     this.loadPersistedConfig()
   }
 
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  }
+
   private loadPersistedConfig(): void {
     try {
       const persisted = getLocalStorageItem('app-config')
       if (!persisted) return
 
-      const parsed = JSON.parse(persisted)
+      const parsed: unknown = JSON.parse(persisted)
+      if (!this.isRecord(parsed)) {
+        return
+      }
+
       Object.entries(parsed).forEach(([key, value]) => {
         this.config.set(key, value)
       })
@@ -60,7 +68,7 @@ class UnifiedConfig {
 
   private persistConfig(): void {
     try {
-      const toPersist: Record<string, any> = {}
+      const toPersist: Record<string, unknown> = {}
       this.config.forEach((value, key) => {
         if (
           key.startsWith('user.') ||

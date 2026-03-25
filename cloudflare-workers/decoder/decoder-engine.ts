@@ -8,13 +8,25 @@ import { createLogger, type Logger } from '../shared/logger.ts';
 import { SmartCache, SMART_CACHE_CONFIGS } from '../shared/smart-cache.ts';
 import { getPerformanceMonitor, withPerformanceMonitoring } from '../shared/performance-monitor.ts';
 import {
-  type EntityCategory,
+  type BookType,
   type DecodeRequest,
   type DecodeResponse,
   type DecodedEntity,
-  type ChapterContext,
   type WorkerEnv
 } from '../shared/types.ts';
+import {
+  buildAIInferRequest,
+  mapAIEntitiesToDecoded,
+} from './decoder-engine/aiFallback.ts';
+import {
+  buildEntity,
+  hashContent,
+} from './decoder-engine/helpers.ts';
+import {
+  createDecodeResponse,
+  type MatchedRange,
+} from './decoder-engine/types.ts';
+import { extractPotentialTerms } from './decoder-engine/termExtraction.ts';
 
 // 导入优化后的服务
 import { DictionaryService } from './dictionaryService.ts';
@@ -44,7 +56,7 @@ export class DecoderEngine {
   }
 
   @withPerformanceMonitoring('decode_init')
-  async init(bookId?: string, bookType?: any) {
+  async init(bookId?: string, bookType?: BookType) {
     await Promise.all([
       this.dictionary.load(bookId, bookType),
       this.kg.load()
@@ -63,8 +75,8 @@ export class DecoderEngine {
     const monitor = getPerformanceMonitor();
 
     // 检查缓存
-    const cacheKey = `decode:${bookId}:${chapterId}:${this.hashContent(content)}`;
-    const analytics = (this.env as any).ANALYTICS_ENGINE;
+    const cacheKey = `decode:${bookId}:${chapterId}:${hashContent(content)}`;
+    const analytics = this.env.ANALYTICS_ENGINE;
     const cacheT0 = Date.now();
     const cached = await this.cache.get<DecodeResponse>(cacheKey);
     if (cached) {
@@ -91,9 +103,11 @@ export class DecoderEngine {
     const startTime = Date.now();
 
     // 1. 提取潜在词汇并匹配
-    const potentialTerms = this.extractPotentialTerms(content);
+    const potentialTerms = extractPotentialTerms(content, {
+      hasMatch: (term) => Boolean(this.dictionary.lookup(term) || this.kg.findEntity(term)),
+    });
     const entities: DecodedEntity[] = [];
-    const matchedRanges: [number, number][] = [];
+    const matchedRanges: MatchedRange[] = [];
 
     monitor.record('term_extraction', Date.now() - startTime, true, {
       contentLength: content.length,
@@ -129,21 +143,7 @@ export class DecoderEngine {
       });
     }
 
-    const result: DecodeResponse = {
-      chapterId,
-      entities,
-      context: {
-        timeContext: { confidence: 0 },
-        locationContext: { confidence: 0 },
-        industryContext: [],
-        identifiedEntities: entities.map(entity => ({
-          entityId: entity.id,
-          mentions: [entity.original],
-          lastMentionPosition: entity.position.end
-        }))
-      },
-      cached: false
-    };
+    const result = createDecodeResponse(chapterId, entities);
 
     // 缓存结果（异步）
     this.cache.set(cacheKey, result).catch(err =>
@@ -165,18 +165,13 @@ export class DecoderEngine {
     return result;
   }
 
-  private hashContent(content: string): string {
-    // 简单的哈希函数，用于缓存键
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  private async matchTermOptimized(term: string, start: number, end: number, bookId?: string, bookType?: any): Promise<DecodedEntity | null> {
+  private async matchTermOptimized(
+    term: string,
+    start: number,
+    end: number,
+    bookId?: string,
+    bookType?: BookType
+  ): Promise<DecodedEntity | null> {
     // 并行检查多个数据源
     const [dictResult, kgResult, aiResult] = await Promise.allSettled([
       Promise.resolve(this.dictionary.lookup(term, bookId, bookType)),
@@ -200,161 +195,29 @@ export class DecoderEngine {
     return null;
   }
 
-  private extractPotentialTerms(content: string): { term: string, start: number, end: number }[] {
-    const MAX_TERM_LEN = 8; // 减少最大长度，提高性能
-    const MIN_TERM_LEN = 2;
-    const results: { term: string, start: number, end: number }[] = [];
-    const processed = new Set<string>(); // 避免重复处理
-
-    for (let i = 0; i < content.length; i++) {
-      // 优化：只检查可能有意义的词汇模式
-      if (!this.isPotentialTermStart(content[i])) continue;
-
-      // 最大匹配优化
-      for (let len = MAX_TERM_LEN; len >= MIN_TERM_LEN; len--) {
-        if (i + len > content.length) continue;
-        const term = content.substring(i, i + len);
-
-        if (processed.has(term)) continue;
-
-        // 快速预过滤
-        if (this.quickPreCheck(term)) {
-          // 并行检查是否存在于数据源
-          const exists = this.dictionary.lookup(term) || this.kg.findEntity(term);
-          if (exists) {
-            results.push({ term, start: i, end: i + len });
-            processed.add(term);
-            i += len - 1; // 跳过已匹配部分
-            break;
-          }
-        }
-      }
-    }
-
-    return results;
-  }
-
-  private isPotentialTermStart(char: string): boolean {
-    // 快速检查字符是否可能是术语开头
-    return /[\u4e00-\u9fa5a-zA-Z]/.test(char); // 中英文字符
-  }
-
-  private quickPreCheck(term: string): boolean {
-    // 快速预检查，过滤明显不可能的词汇
-    if (term.length < 2) return false;
-    if (/^\d+$/.test(term)) return false; // 纯数字
-    if (/^[a-zA-Z]+$/.test(term) && term.length > 6) return false; // 过长的英文单词
-    return true;
-  }
-
   private async aiLookupFallbackOptimized(
     content: string,
-    matchedRanges: [number, number][],
+    matchedRanges: MatchedRange[],
     bookId?: string,
     chapterId?: string
   ): Promise<DecodedEntity[]> {
     try {
-      // 优化：提取更精确的未知词汇
-      const unknownSegments = this.extractUnknownSegments(content, matchedRanges);
-      if (unknownSegments.length === 0) return [];
-
-      const aiRequest = {
-        text: unknownSegments.join('\n'),
-        context: { bookType: 'generic', bookId, chapterId },
-        unknownTerms: this.extractPotentialKeywords(content),
+      const aiRequest = buildAIInferRequest({
+        content,
         bookId,
-        chapterId
-      };
+        chapterId,
+      }, matchedRanges);
+      if (!aiRequest) return [];
 
       const aiResult = await this.ai.infer(aiRequest);
 
       if (aiResult?.entities) {
-        return aiResult.entities.map((e: any) => ({
-          id: crypto.randomUUID(),
-          original: e.original,
-          position: { start: -1, end: -1 },
-          candidates: [{
-            real: e.real,
-            confidence: Math.min(80, e.confidence * 100),
-            category: this.normalizeEntityCategory(e.type)
-          }],
-          bestMatch: {
-            real: e.real,
-            confidence: Math.min(80, e.confidence * 100),
-            category: this.normalizeEntityCategory(e.type)
-          },
-          source: 'ai'
-        }));
+        return mapAIEntitiesToDecoded(aiResult.entities);
       }
     } catch (e) {
       this.logger.error('AI Fallback failed:', e);
     }
     return [];
-  }
-
-  private extractUnknownSegments(content: string, matchedRanges: [number, number][]): string[] {
-    if (matchedRanges.length === 0) {
-      // 如果没有已知匹配，取中间段落
-      const middle = Math.floor(content.length / 2);
-      const segment = content.substring(Math.max(0, middle - 200), Math.min(content.length, middle + 200));
-      return [segment];
-    }
-
-    // 提取未匹配的段落
-    const segments: string[] = [];
-    let lastEnd = 0;
-
-    for (const [start, end] of matchedRanges) {
-      if (start - lastEnd > 50) { // 有足够长的未匹配内容
-        const segment = content.substring(lastEnd, start);
-        if (segment.length > 20) {
-          segments.push(segment);
-        }
-      }
-      lastEnd = end;
-    }
-
-    // 最后的未匹配部分
-    if (content.length - lastEnd > 50) {
-      const segment = content.substring(lastEnd);
-      if (segment.length > 20) {
-        segments.push(segment);
-      }
-    }
-
-    return segments.slice(0, 3); // 最多3个段落
-  }
-
-  private extractPotentialKeywords(content: string): string[] {
-    // 提取可能的关键词（名词、专有名词等）
-    const words = content.split(/[^\u4e00-\u9fa5a-zA-Z]+/).filter(word =>
-      word.length >= 2 && word.length <= 6 &&
-      /[\u4e00-\u9fa5]/.test(word) // 包含中文字符
-    );
-
-    // 统计词频，取最常见的
-    const freq = new Map<string, number>();
-    for (const word of words) {
-      freq.set(word, (freq.get(word) || 0) + 1);
-    }
-
-    return Array.from(freq.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([word]) => word);
-  }
-
-  private normalizeEntityCategory(category: string | undefined): EntityCategory {
-    switch (category) {
-      case 'person':
-      case 'company':
-      case 'place':
-      case 'event':
-      case 'organization':
-        return category
-      default:
-        return 'person'
-    }
   }
 
   private buildEntity(
@@ -365,14 +228,7 @@ export class DecoderEngine {
     source: 'dictionary' | 'knowledge_graph' | 'ai',
     confidence: number = 90
   ): DecodedEntity {
-    return {
-      id: crypto.randomUUID(),
-      original,
-      position: { start, end },
-      candidates: [{ real, confidence, category: 'person' }],
-      bestMatch: { real, confidence, category: 'person' },
-      source
-    };
+    return buildEntity(original, start, end, real, source, confidence);
   }
 
   // 获取引擎统计信息

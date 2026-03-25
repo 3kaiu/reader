@@ -3,68 +3,21 @@
  * 阅读器页面 - 沉浸式设计 [Refactored v4.0]
  * 已拆分为多个子组件：ReaderToolbar, ReaderContent, ReaderModals, ReaderKeyboard, ReaderGesture
  */
-import { Loader2 } from "lucide-vue-next";
 import { useReaderView } from "@/composables/useReaderView";
 
 // 组件导入
-import ReaderToolbar from "@/components/reader/ReaderToolbar.vue";
-import ReaderContent from "@/components/reader/ReaderContent.vue";
-import ReaderModals from "@/components/reader/ReaderModals.vue";
+import ReaderErrorState from "@/components/reader/ReaderErrorState.vue";
+import ReaderExperience from "@/components/reader/ReaderExperience.vue";
 import ReaderKeyboard from "@/components/reader/ReaderKeyboard.vue";
 import ReaderGesture from "@/components/reader/ReaderGesture.vue";
-import { KEYBOARD_SHORTCUTS } from "@/constants/reader";
-import BreakReminder from "@/components/BreakReminder.vue";
-import DecoderStatusIndicator from "@/components/decoder/DecoderStatusIndicator.vue";
-import DecoderSettingsSheet from "@/components/decoder/DecoderSettingsSheet.vue";
-import DecoderCard from "@/components/decoder/DecoderCard.vue";
+import ReaderLoadingOverlay from "@/components/reader/ReaderLoadingOverlay.vue";
 
 const {
   readerRef,
-  isFullscreen,
-  toggleFullscreen,
-  contentRef,
-  activeBookUrl,
-  readerStore,
-  settingsStore,
-  decoderStore,
-  eyeCare,
-  decoderAddonEnabled,
-  showToolbar,
-  showCatalog,
-  showSettings,
-  showSourcePicker,
-  showBookInfo,
-  showKeyboardHelp,
-  showDecoderSettings,
-  toggleToolbar,
-  toggleZenMode,
-  toggleCatalog,
-  openCatalog,
-  toggleSettings,
-  openSettings,
-  toggleKeyboardHelp,
-  openSourcePicker,
-  openBookInfo,
-  openDecoderSettings,
-  goBack,
-  handleEscape,
-  page: swipePage,
-  totalPages: swipeTotalPages,
-  layout: swipeLayout,
-  contentStyle,
-  readerThemeStyle,
-  isNightMode,
-  toggleDayNight,
-  handlePrevChapter,
-  handleNextChapter,
-  handleRefresh,
-  handleSelectChapter,
-  handleToggleDecoder,
-  decodeCurrentChapter,
-  handleEntityClick,
-  handleConfirmEntity,
-  handleCorrectEntity,
-  formattedTime,
+  readerPageState,
+  readerPageActions,
+  readerExperienceState,
+  readerExperienceActions,
 } = useReaderView();
 </script>
 
@@ -72,183 +25,39 @@ const {
   <div
     ref="readerRef"
     class="reader-container min-h-screen transition-colors duration-500 relative"
-    :class="[
-      `theme-${settingsStore.config.theme}`,
-      { 'overflow-hidden': settingsStore.config.readingMode === 'swipe' },
-    ]"
-    :style="readerThemeStyle"
+    :class="readerPageState.themeClass"
+    :style="readerPageState.readerThemeStyle"
   >
     <!-- 键盘控制与手势 -->
     <ReaderKeyboard
-      @prev="handlePrevChapter"
-      @next="handleNextChapter"
-      @toggle-fullscreen="toggleFullscreen"
-      @toggle-catalog="toggleCatalog"
-      @toggle-settings="toggleSettings"
-      @toggle-day-night="toggleDayNight"
-      @toggle-zen-mode="toggleZenMode"
-      @toggle-help="toggleKeyboardHelp"
-      @escape="handleEscape"
+      @prev="readerPageActions.handlePrevChapter"
+      @next="readerPageActions.handleNextChapter"
+      @toggle-fullscreen="readerPageActions.toggleFullscreen"
+      @toggle-catalog="readerPageActions.toggleCatalog"
+      @toggle-settings="readerPageActions.toggleSettings"
+      @toggle-day-night="readerPageActions.toggleDayNight"
+      @toggle-zen-mode="readerPageActions.toggleZenMode"
+      @toggle-help="readerPageActions.toggleKeyboardHelp"
+      @escape="readerPageActions.handleEscape"
     />
 
     <ReaderGesture
-      :reading-mode="settingsStore.config.readingMode"
-      :zen-mode="settingsStore.config.zenMode"
-      @toggle-toolbar="toggleToolbar"
-      @toggle-zen-mode="toggleZenMode"
-      @prev="handlePrevChapter"
-      @next="handleNextChapter"
+      @toggle-toolbar="readerPageActions.toggleToolbar"
+      @toggle-zen-mode="readerPageActions.toggleZenMode"
     >
-      <!-- 加载状态 -->
-      <div
-        v-if="readerStore.isLoading"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-md"
-      >
-        <div class="flex flex-col items-center gap-6">
-          <Loader2 class="w-16 h-16 text-primary/10 animate-spin" />
-          <p
-            class="text-xs font-medium tracking-widest text-primary/40 uppercase"
-          >
-            Loading Content
-          </p>
-        </div>
-      </div>
+      <ReaderLoadingOverlay v-if="readerPageState.isLoading" />
 
-      <!-- 错误状态 -->
-      <div
-        v-else-if="readerStore.error"
-        class="min-h-screen flex items-center justify-center p-6 z-40 relative"
-      >
-        <div class="text-center max-w-sm">
-          <h2 class="text-lg font-semibold mb-2">加载失败</h2>
-          <p class="text-sm mb-6 opacity-60">{{ readerStore.error }}</p>
-          <button
-            class="w-full py-3 px-6 rounded-xl bg-primary/10 hover:bg-primary/20"
-            @click="openSourcePicker"
-          >
-            查看书源说明
-          </button>
-        </div>
-      </div>
+      <ReaderErrorState
+        v-else-if="readerPageState.error"
+        :error="readerPageState.error"
+        @open-source-picker="readerPageActions.openSourcePicker"
+      />
 
-      <!-- 核心功能组件 -->
-      <template v-else>
-        <ReaderToolbar
-          :show="showToolbar"
-          :zen-mode="settingsStore.config.zenMode"
-          :book-name="readerStore.currentBook?.name"
-          :chapter-title="readerStore.currentChapter?.title"
-          :current-chapter-index="readerStore.currentChapterIndex"
-          :total-chapters="readerStore.totalChapters"
-          :has-prev-chapter="readerStore.hasPrevChapter"
-          :has-next-chapter="readerStore.hasNextChapter"
-          :is-night-mode="isNightMode"
-          :is-fullscreen="isFullscreen"
-          :is-eye-care-enabled="eyeCare.config.value.enabled"
-          :content-issue="readerStore.loadError"
-          :show-decoder-action="decoderAddonEnabled"
-          :is-decoder-enabled="decoderAddonEnabled && decoderStore.isEnabled"
-          :is-decoding="decoderAddonEnabled && decoderStore.isDecoding"
-          @back="goBack"
-          @toggle-catalog="openCatalog"
-          @toggle-fullscreen="toggleFullscreen"
-          @toggle-day-night="toggleDayNight"
-          @toggle-settings="openSettings"
-          @toggle-eye-care="
-            eyeCare.config.value.enabled ? eyeCare.disable() : eyeCare.enable()
-          "
-          @toggle-zen-mode="toggleZenMode"
-          @refresh="handleRefresh"
-          @prev-chapter="handlePrevChapter"
-          @next-chapter="handleNextChapter"
-          @open-source-picker="openSourcePicker"
-          @open-book-info="openBookInfo"
-          @toggle-decoder="handleToggleDecoder"
-          @open-decoder-settings="openDecoderSettings"
-        />
-
-        <ReaderContent
-          ref="contentRef"
-          :reading-mode="settingsStore.config.readingMode"
-          :content-style="contentStyle"
-          :loaded-chapters="readerStore.loadedChapters"
-          :is-loading-more="readerStore.isLoadingMore"
-          :current-chapter="readerStore.currentChapter"
-          :current-chapter-index="readerStore.currentChapterIndex"
-          :total-chapters="readerStore.totalChapters"
-          :swipe-page="swipePage"
-          :swipe-total-pages="swipeTotalPages"
-          :swipe-layout="swipeLayout"
-          :page-transition="settingsStore.config.pageAnimation"
-          :show-toolbar="showToolbar"
-          :is-fullscreen="isFullscreen"
-          :formatted-time="formattedTime"
-          :paragraph-spacing="settingsStore.config.paragraphSpacing"
-          :formatted-content="readerStore.formattedContent"
-          :is-parsing="readerStore.isParsing"
-          :has-next-chapter="readerStore.hasNextChapter"
-          :load-error="readerStore.loadError"
-          :decoder-enabled="decoderAddonEnabled && decoderStore.isEnabled"
-          :decoder-entities="decoderAddonEnabled ? decoderStore.currentEntities : []"
-          @load-next-chapter="readerStore.appendNextChapter"
-          @retry-load="readerStore.retryLoadNext"
-          @entity-click="handleEntityClick"
-        />
-
-        <ReaderModals
-          v-model:show-catalog="showCatalog"
-          v-model:show-settings="showSettings"
-          v-model:show-source-picker="showSourcePicker"
-          v-model:show-book-info="showBookInfo"
-          v-model:show-keyboard-help="showKeyboardHelp"
-          :book="readerStore.currentBook"
-          :chapters="readerStore.catalog"
-          :current-ind="readerStore.currentChapterIndex"
-          :catalog-loading="readerStore.isLoading"
-          :keyboard-shortcuts="KEYBOARD_SHORTCUTS"
-          @select-chapter="handleSelectChapter"
-          @refresh="handleRefresh"
-        />
-
-        <BreakReminder
-          v-if="eyeCare.showBreakReminder.value"
-          :reading-time="eyeCare.formatReadingTime()"
-          @dismiss="eyeCare.dismissBreakReminder()"
-        />
-
-        <!-- 解密状态指示器 -->
-        <DecoderStatusIndicator
-          v-if="decoderAddonEnabled && decoderStore.isEnabled"
-          :is-decoding="decoderStore.isDecoding"
-          :error="decoderStore.decodeError"
-          :entities-count="decoderStore.validEntitiesCount"
-          :has-decoded="
-            decoderStore.currentEntities.length > 0 ||
-            decoderStore.decodeError !== null
-          "
-          @retry="decodeCurrentChapter"
-        />
-
-        <!-- 解密设置面板 -->
-        <DecoderSettingsSheet
-          v-if="decoderAddonEnabled"
-          v-model:open="showDecoderSettings"
-          :book-url="activeBookUrl"
-        />
-
-        <!-- 解密卡片 -->
-        <Teleport to="body">
-          <DecoderCard
-            v-if="decoderAddonEnabled && decoderStore.selectedEntity"
-            :entity="decoderStore.selectedEntity"
-            :position="decoderStore.cardPosition"
-            :visible="decoderStore.showCard"
-            @close="decoderStore.closeCard"
-            @confirm="handleConfirmEntity"
-            @correct="handleCorrectEntity"
-          />
-        </Teleport>
-      </template>
+      <ReaderExperience
+        v-else
+        :state="readerExperienceState"
+        :actions="readerExperienceActions"
+      />
     </ReaderGesture>
   </div>
 </template>

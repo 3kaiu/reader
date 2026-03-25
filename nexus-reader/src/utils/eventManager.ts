@@ -8,7 +8,7 @@
 import { logger } from './logger'
 
 export interface EventData {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export type EventHandler<T = EventData> = (data: T) => void | Promise<void>
@@ -54,8 +54,11 @@ async function emit<T extends EventData = EventData>(event: string, data: T): Pr
       if (result instanceof Promise) {
         pending.push(result)
       }
-    } catch (error: any) {
-      logger.error('Event handler error', { event, error: error.message })
+    } catch (error: unknown) {
+      logger.error('Event handler error', {
+        event,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 

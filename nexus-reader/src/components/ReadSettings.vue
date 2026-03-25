@@ -3,6 +3,9 @@
  * 阅读设置组件 - shadcn 风格
  */
 import { useReadSettingsView } from '@/composables/useReadSettingsView'
+import ReadSettingsBehaviorSection from '@/components/read-settings/ReadSettingsBehaviorSection.vue'
+import ReadSettingsThemeSection from '@/components/read-settings/ReadSettingsThemeSection.vue'
+import ReadSettingsTypographySection from '@/components/read-settings/ReadSettingsTypographySection.vue'
 import {
   Sheet,
   SheetContent,
@@ -10,8 +13,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
-import { Settings, RotateCcw, Minus, Plus } from 'lucide-vue-next'
+import { Settings, RotateCcw } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   open?: boolean
@@ -47,9 +49,6 @@ const {
   updateLineHeight,
   updateParagraphSpacing,
   updatePageWidth,
-  selectReadingMode,
-  selectPageAnimation,
-  toggleClickToNextPage,
   toggleAutoNightMode,
 } = useReadSettingsView()
 </script>
@@ -71,359 +70,43 @@ const {
       </SheetHeader>
 
       <div class="space-y-8">
-        <!-- 阅读主题 -->
-        <section>
-          <h3 class="text-sm font-medium mb-3">阅读主题</h3>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              v-for="theme in themes"
-              :key="theme.key"
-              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center text-xs font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.theme === theme.key 
-                ? 'border-primary scale-105 shadow-md' 
-                : 'border-border'"
-              :style="{ 
-                backgroundColor: theme.color,
-                color: theme.textColor || '#333'
-              }"
-              @click="selectTheme(theme.key)"
-              :aria-label="`切换到${theme.label}主题`"
-              :aria-pressed="settingsStore.config.theme === theme.key"
-            >
-              {{ theme.label }}
-            </button>
-            <!-- 自定义主题按钮 -->
-            <button
-              class="w-14 h-14 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center text-xs font-medium relative overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.theme === 'custom' 
-                ? 'border-primary scale-105 shadow-md' 
-                : 'border-border'"
-              :style="{ 
-                backgroundColor: customThemeBackground,
-                color: customThemeText
-              }"
-              @click="selectTheme('custom')"
-              aria-label="切换到自定义主题"
-              :aria-pressed="settingsStore.config.theme === 'custom'"
-            >
-              自定
-            </button>
-          </div>
-          
-          <!-- 自定义颜色选择器 (仅在选择自定义主题时显示) -->
-          <div v-if="isCustomTheme" class="mt-4 p-4 rounded-xl bg-muted/50 space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-sm">背景色</span>
-              <div class="flex items-center gap-2">
-                <input 
-                  type="color" 
-                  :value="customThemeBackground"
-                  class="w-10 h-10 rounded-lg cursor-pointer border-0"
-                  @input="updateCustomBackground(($event.target as HTMLInputElement).value)"
-                />
-                <span class="text-xs text-muted-foreground font-mono">
-                  {{ customThemeBackground }}
-                </span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm">文字色</span>
-              <div class="flex items-center gap-2">
-                <input 
-                  type="color" 
-                  :value="customThemeText"
-                  class="w-10 h-10 rounded-lg cursor-pointer border-0"
-                  @input="updateCustomText(($event.target as HTMLInputElement).value)"
-                />
-                <span class="text-xs text-muted-foreground font-mono">
-                  {{ customThemeText }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
+        <ReadSettingsThemeSection
+          :current-theme="settingsStore.config.theme"
+          :themes="themes"
+          :is-custom-theme="isCustomTheme"
+          :custom-theme-background="customThemeBackground"
+          :custom-theme-text="customThemeText"
+          @select-theme="selectTheme"
+          @update-custom-background="updateCustomBackground"
+          @update-custom-text="updateCustomText"
+        />
 
-        <!-- 字体设置 -->
-        <section>
-          <h3 class="text-sm font-medium mb-3">正文字体</h3>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              v-for="font in fonts"
-              :key="font.key"
-              class="px-4 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.fontFamily === font.key 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectFontFamily(font.key)"
-              :aria-label="`切换到${font.label}字体`"
-              :aria-pressed="settingsStore.config.fontFamily === font.key"
-            >
-              {{ font.label }}
-            </button>
-          </div>
-        </section>
+        <ReadSettingsTypographySection
+          :config="settingsStore.config"
+          :fonts="fonts"
+          :chinese-options="chineseOptions"
+          :font-weights="fontWeights"
+          :font-size-value="fontSizeValue"
+          :line-height-value="lineHeightValue"
+          :paragraph-spacing-value="paragraphSpacingValue"
+          :page-width-value="pageWidthValue"
+          @select-font-family="selectFontFamily"
+          @select-chinese-convert="selectChineseConvert"
+          @update-font-size="updateFontSize"
+          @decrease-font-size="settingsStore.decreaseFontSize()"
+          @increase-font-size="settingsStore.increaseFontSize()"
+          @select-font-weight="selectFontWeight"
+          @update-line-height="updateLineHeight"
+          @decrease-line-height="settingsStore.decreaseLineHeight()"
+          @increase-line-height="settingsStore.increaseLineHeight()"
+          @update-paragraph-spacing="updateParagraphSpacing"
+          @update-page-width="updatePageWidth"
+        />
 
-        <!-- 简繁转换 -->
-        <section>
-          <h3 class="text-sm font-medium mb-3">简繁转换</h3>
-          <div class="flex gap-2">
-            <button
-              v-for="opt in chineseOptions"
-              :key="opt.key"
-              class="px-4 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.chineseConvert === opt.key 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectChineseConvert(opt.key)"
-              :aria-label="`${opt.label}简繁转换`"
-              :aria-pressed="settingsStore.config.chineseConvert === opt.key"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
-        </section>
-
-        <!-- 字号 -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium">字号</h3>
-            <span class="text-sm text-muted-foreground">{{ settingsStore.config.fontSize }}px</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              class="h-9 w-9"
-              @click="settingsStore.decreaseFontSize()"
-            >
-              <Minus class="h-4 w-4" />
-            </Button>
-            <Slider
-              :model-value="fontSizeValue"
-              :min="12"
-              :max="32"
-              :step="1"
-              class="flex-1"
-              @update:model-value="updateFontSize"
-            />
-            <Button 
-              variant="outline" 
-              size="icon"
-              class="h-9 w-9"
-              @click="settingsStore.increaseFontSize()"
-            >
-              <Plus class="h-4 w-4" />
-            </Button>
-          </div>
-        </section>
-
-        <!-- 字重 -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium">字重</h3>
-            <span class="text-sm text-muted-foreground">{{ settingsStore.config.fontWeight }}</span>
-          </div>
-          <div class="flex gap-2">
-            <button
-              v-for="weight in fontWeights"
-              :key="weight"
-              class="flex-1 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.fontWeight === weight 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              :style="{ fontWeight: weight }"
-              @click="selectFontWeight(weight)"
-              :aria-label="`字重${weight}`"
-              :aria-pressed="settingsStore.config.fontWeight === weight"
-            >
-              {{ weight }}
-            </button>
-          </div>
-        </section>
-
-        <!-- 行高 -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium">行高</h3>
-            <span class="text-sm text-muted-foreground">{{ settingsStore.config.lineHeight.toFixed(1) }}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="icon"
-              class="h-9 w-9"
-              @click="settingsStore.decreaseLineHeight()"
-            >
-              <Minus class="h-4 w-4" />
-            </Button>
-            <Slider
-              :model-value="lineHeightValue"
-              :min="1.2"
-              :max="3"
-              :step="0.1"
-              class="flex-1"
-              @update:model-value="updateLineHeight"
-            />
-            <Button 
-              variant="outline" 
-              size="icon"
-              class="h-9 w-9"
-              @click="settingsStore.increaseLineHeight()"
-            >
-              <Plus class="h-4 w-4" />
-            </Button>
-          </div>
-        </section>
-
-        <!-- 段落间距 -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium">段落间距</h3>
-            <span class="text-sm text-muted-foreground">{{ settingsStore.config.paragraphSpacing.toFixed(1) }}em</span>
-          </div>
-          <Slider
-            :model-value="paragraphSpacingValue"
-            :min="0.5"
-            :max="3"
-            :step="0.1"
-            class="flex-1 w-full"
-            @update:model-value="updateParagraphSpacing"
-          />
-        </section>
-
-        <!-- 页面宽度 -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium">页面宽度</h3>
-            <span class="text-sm text-muted-foreground">{{ settingsStore.config.pageWidth }}px</span>
-          </div>
-          <Slider
-            :model-value="pageWidthValue"
-            :min="400"
-            :max="1200"
-            :step="50"
-            class="flex-1 w-full"
-            @update:model-value="updatePageWidth"
-          />
-        </section>
-
-        <!-- 阅读方式 -->
-        <section>
-          <h3 class="text-sm font-medium mb-3">阅读方式</h3>
-          <div class="flex gap-2">
-            <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.readingMode === 'scroll' 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectReadingMode('scroll')"
-              aria-label="上下滚动模式"
-              :aria-pressed="settingsStore.config.readingMode === 'scroll'"
-            >
-              上下滚动
-            </button>
-            <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.readingMode === 'swipe' 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectReadingMode('swipe')"
-              aria-label="左右翻页模式"
-              :aria-pressed="settingsStore.config.readingMode === 'swipe'"
-            >
-              左右翻页
-            </button>
-          </div>
-        </section>
-
-        <!-- 翻页动画 (仅左右翻页模式) -->
-        <section v-if="settingsStore.config.readingMode === 'swipe'">
-          <h3 class="text-sm font-medium mb-3">翻页动画</h3>
-          <div class="flex gap-2">
-            <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.pageAnimation === 'slide' 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectPageAnimation('slide')"
-              aria-label="滑动动画"
-              :aria-pressed="settingsStore.config.pageAnimation === 'slide'"
-            >
-              滑动
-            </button>
-            <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.pageAnimation === 'fade' 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectPageAnimation('fade')"
-              aria-label="淡入淡出动画"
-              :aria-pressed="settingsStore.config.pageAnimation === 'fade'"
-            >
-              淡入淡出
-            </button>
-            <button
-              class="flex-1 py-3 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.pageAnimation === 'none' 
-                ? 'border-primary bg-primary/10 text-primary' 
-                : 'border-border hover:border-primary/50'"
-              @click="selectPageAnimation('none')"
-              aria-label="无动画"
-              :aria-pressed="settingsStore.config.pageAnimation === 'none'"
-            >
-              无动画
-            </button>
-          </div>
-        </section>
-
-        <!-- 点击翻页 -->
-        <section>
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-medium">全屏点击翻页</h3>
-            <button
-              class="w-12 h-6 rounded-full transition-all relative focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.clickToNextPage 
-                ? 'bg-primary' 
-                : 'bg-muted'"
-              @click="toggleClickToNextPage"
-              :aria-label="settingsStore.config.clickToNextPage ? '关闭点击翻页' : '开启点击翻页'"
-              :aria-checked="settingsStore.config.clickToNextPage"
-              role="switch"
-            >
-              <span 
-                class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-                :class="settingsStore.config.clickToNextPage ? 'left-6' : 'left-0.5'"
-              />
-            </button>
-          </div>
-        </section>
-
-        <!-- 自动夜间模式 -->
-        <section>
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-medium">自动夜间模式</h3>
-              <p class="text-xs text-muted-foreground mt-0.5">
-                {{ settingsStore.config.nightModeStartHour }}:00 - {{ settingsStore.config.nightModeEndHour }}:00 自动切换
-              </p>
-            </div>
-            <button
-              class="w-12 h-6 rounded-full transition-all relative focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              :class="settingsStore.config.autoNightMode 
-                ? 'bg-primary' 
-                : 'bg-muted'"
-              @click="toggleAutoNightMode"
-              :aria-label="settingsStore.config.autoNightMode ? '关闭自动夜间模式' : '开启自动夜间模式'"
-              :aria-checked="settingsStore.config.autoNightMode"
-              role="switch"
-            >
-              <span 
-                class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-                :class="settingsStore.config.autoNightMode ? 'left-6' : 'left-0.5'"
-              />
-            </button>
-          </div>
-        </section>
+        <ReadSettingsBehaviorSection
+          :config="settingsStore.config"
+          @toggle-auto-night-mode="toggleAutoNightMode"
+        />
       </div>
     </SheetContent>
   </Sheet>

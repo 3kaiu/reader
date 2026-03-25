@@ -1,4 +1,5 @@
 import { proxyRequestWithEnv } from '../shared/proxy.ts'
+import type { ExecutionContextLike } from '../shared/types.ts'
 import {
   handleAuthVerify,
   handleDecodeRequest,
@@ -25,7 +26,7 @@ function isUserServiceRoute(pathname: string): boolean {
 export async function dispatchEdgeGatewayRoute(
   request: Request,
   env: EnhancedWorkerEnv,
-  ctx: any
+  ctx: ExecutionContextLike
 ): Promise<Response | undefined> {
   const url = new URL(request.url)
 
@@ -49,7 +50,7 @@ export async function dispatchEdgeGatewayRoute(
   }
 
   if (url.pathname.startsWith('/api/') && !isUserServiceRoute(url.pathname)) {
-    return proxyRequestWithEnv(request, env as any, ctx)
+    return proxyRequestWithEnv(request, env, ctx)
   }
 
   return undefined

@@ -11,73 +11,54 @@
  * Implementations live in `cloudflare-workers/worker/*`.
  */
 
-import { handleCorsPreflightRequest, getCorsHeaders } from './shared/cors.ts'
+import { handleCorsPreflightRequest } from './shared/cors.ts'
 import { createLogger } from './shared/logger.ts'
 import { dispatchWithOptionalEdgeOptimization } from './src/entry-adapter.ts'
 
+import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from './shared/types.ts'
 import type { EnhancedWorkerEnv } from './worker/types.ts'
-import { requireBinding } from './worker/env.ts'
+import { createStableDispatcher } from './entry/dispatch.ts'
+import { getErrorMessage } from './entry/errors.ts'
+import { processQueueBatch } from './entry/queue.ts'
+import { validateWorkerEnv } from './entry/validation.ts'
 import { jsonError } from './worker/http.ts'
-import { QueueProcessor } from './worker/systems.ts'
-import { dispatchEdgeGatewayRoute } from './worker/edge-gateway.ts'
-import { createUserServiceContainer, dispatchUserServiceRoute } from './worker/user-services.ts'
+import { createUserServiceContainer } from './worker/user-services.ts'
 
 export default {
-  async fetch(request: Request, env: EnhancedWorkerEnv, ctx: any): Promise<Response> {
+  async fetch(request: Request, env: EnhancedWorkerEnv, ctx: ExecutionContextLike): Promise<Response> {
     const logger = createLogger(env)
 
     try {
-      requireBinding(env, 'AUTH_SECRET')
-      requireBinding(env, 'ANALYTICS_ENGINE')
-      requireBinding(env, 'ANALYTICS_DB')
-      requireBinding(env, 'USER_PREFERENCES_DB')
-      requireBinding(env, 'USER_CONTENT_R2')
-      requireBinding(env, 'BACKUP_R2')
-      requireBinding(env, 'PROGRESS_KV', { requiredInProd: true })
-    } catch (e: any) {
-      logger.error('Worker env validation failed:', e?.message || e)
-      return jsonError(request, 'MISCONFIGURED', 'Misconfigured worker', 500, e?.message || String(e))
+      validateWorkerEnv(env)
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error)
+      logger.error('Worker env validation failed:', error)
+      return jsonError(request, 'MISCONFIGURED', 'Misconfigured worker', 500, errorMessage)
     }
 
     const userServices = createUserServiceContainer(env)
 
     if (request.method === 'OPTIONS') return handleCorsPreflightRequest(request)
 
-    const dispatchStable = async (incomingRequest: Request): Promise<Response> => {
-      const origin = incomingRequest.headers.get('Origin') || ''
-
-      const gatewayResponse = await dispatchEdgeGatewayRoute(incomingRequest, env, ctx)
-      if (gatewayResponse) {
-        return gatewayResponse
-      }
-
-      const userServiceResponse = await dispatchUserServiceRoute(incomingRequest, env, userServices)
-      if (userServiceResponse) {
-        return userServiceResponse
-      }
-
-      return new Response('Not Found', { status: 404, headers: getCorsHeaders(origin) })
-    }
+    const dispatchStable = createStableDispatcher(env, ctx, userServices)
 
     try {
       // Experimental optimizer is opt-in and always falls back to stable dispatch.
       return await dispatchWithOptionalEdgeOptimization(request, env, dispatchStable, logger)
-    } catch (err: any) {
-      logger.error('Request processing error:', err)
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error)
+      logger.error('Request processing error:', error)
       return jsonError(
         request,
         'INTERNAL_ERROR',
         'Internal Server Error',
         500,
-        env.ENVIRONMENT === 'development' ? err?.message : undefined
+        env.ENVIRONMENT === 'development' ? errorMessage : undefined
       )
     }
   },
 
-  async queue(batch: any, env: EnhancedWorkerEnv): Promise<void> {
-    const queueProcessor = new QueueProcessor(env)
-    for (const message of batch.messages) {
-      await queueProcessor.processQueueMessage(message.body)
-    }
+  async queue(batch: QueueBatchLike<WorkerQueueMessage>, env: EnhancedWorkerEnv): Promise<void> {
+    await processQueueBatch(batch, env)
   }
 }

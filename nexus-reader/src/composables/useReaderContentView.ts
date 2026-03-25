@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { DecodedEntity } from '@/types/decoder'
 import { applyDecoderHighlight } from '@/utils/readerContent'
 
@@ -7,8 +7,6 @@ export function useReaderContentView(options: {
   decoderEntities?: DecodedEntity[]
   onEntityClick: (entity: DecodedEntity, event: MouseEvent) => void
 }) {
-  const swipeContentRef = ref<HTMLElement | null>(null)
-
   const entityMap = computed(() => {
     const entities = options.decoderEntities || []
     return new Map(entities.map(entity => [entity.id, entity]))
@@ -44,7 +42,6 @@ export function useReaderContentView(options: {
   }
 
   return {
-    swipeContentRef,
     handleContentClick,
     getHighlightedContent,
   }

@@ -8,6 +8,12 @@ import './styles/main.css'
 import { useSettingsStore } from '@/stores/settings'
 import { logger } from '@/utils/logger'
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    _routeStartTime?: number
+  }
+}
+
 // 创建 Pinia 实例
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
@@ -42,7 +48,7 @@ app.mount('#root')
 // 监控路由变化性能
 router.beforeEach((to, _from, next) => {
   const startTime = performance.now()
-  ;(to.meta as any)._routeStartTime = startTime
+  to.meta._routeStartTime = startTime
   next()
 })
 

@@ -4,23 +4,27 @@
 import { ref, readonly } from 'vue'
 import { useMessage } from './useMessage'
 import { errorHandler } from '@/utils/error-handler'
-import { processError } from '@/utils/errors'
+import { processError, type ErrorContext } from '@/utils/errors'
+
+type HandlerContext = ErrorContext | string | undefined
+
+interface CapturedErrorRecord {
+  id: string
+  error: unknown
+  context?: HandlerContext
+  timestamp: number
+}
 
 export function useErrorHandler() {
   const { error: showError, warning: showWarning } = useMessage()
-  const errors = ref<Array<{
-    id: string
-    error: any
-    context?: any
-    timestamp: number
-  }>>([])
+  const errors = ref<CapturedErrorRecord[]>([])
 
-  const formatErrorMessage = (error: any, fallbackMessage?: string) => {
+  const formatErrorMessage = (error: unknown, fallbackMessage?: string) => {
     const info = processError(error)
     return info.userMessage || fallbackMessage || info.message || '操作失败，请重试'
   }
 
-  const handleError = (error: any, context?: any, showToast = true) => {
+  const handleError = (error: unknown, context?: HandlerContext, showToast = true) => {
     const timestamp = Date.now()
     const errorId = `${timestamp}-${errors.value.length}`
     const normalizedError =
@@ -29,7 +33,7 @@ export function useErrorHandler() {
         : new Error(typeof error === 'string' && error.trim() ? error : 'Unknown error')
     const userMessage = formatErrorMessage(error)
 
-    const errorInfo = {
+    const errorInfo: CapturedErrorRecord = {
       id: errorId,
       error,
       context,

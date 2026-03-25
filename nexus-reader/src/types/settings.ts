@@ -16,8 +16,6 @@ export type FontFamily =
   | 'lxgw'
 
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
-export type ReadingMode = 'scroll' | 'swipe'
-export type PageAnimation = 'slide' | 'fade' | 'none'
 export type ClientRouteKind = 'direct' | 'edge'
 
 export type ThemeColors = {
@@ -35,9 +33,6 @@ export type ReaderConfig = {
   lineHeight: number
   paragraphSpacing: number
   pageWidth: number
-  readingMode: ReadingMode
-  pageAnimation: PageAnimation
-  clickToNextPage: boolean
   autoNightMode: boolean
   nightModeStartHour: number
   nightModeEndHour: number

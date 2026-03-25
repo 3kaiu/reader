@@ -2,6 +2,11 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useVirtualList } from '@vueuse/core'
 import { useMessage } from '@/composables/useMessage'
 import type { Chapter } from '@/types/book'
+import type {
+  ChapterListDownloadProgress,
+  ChapterListVirtualItem,
+  FilteredChapterItem,
+} from '@/components/book/chapter-list/types'
 
 type ChapterListViewProps = {
   open: boolean
@@ -11,16 +16,7 @@ type ChapterListViewProps = {
   bookName?: string
   isCached?: (index: number) => boolean
   isDownloading?: boolean
-  downloadProgress?: { current: number; total: number }
-}
-
-type FilteredChapterItem = Chapter & {
-  originalIndex: number
-}
-
-type VirtualChapterItem = {
-  index: number
-  data: FilteredChapterItem
+  downloadProgress?: ChapterListDownloadProgress
 }
 
 export function useChapterListView(options: {
@@ -84,7 +80,7 @@ export function useChapterListView(options: {
     overscan: 10,
   })
 
-  function handleSelect(item: VirtualChapterItem) {
+  function handleSelect(item: ChapterListVirtualItem) {
     options.onSelect(item.data.originalIndex)
     options.onClose()
   }

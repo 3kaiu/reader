@@ -6,6 +6,12 @@
 
 import { vi, beforeAll, afterAll } from 'vitest';
 
+type ConsoleSnapshot = Partial<Record<keyof Console, Console[keyof Console]>>;
+
+declare global {
+  var __originalConsole: ConsoleSnapshot | undefined;
+}
+
 // Global mocks and polyfills
 beforeAll(() => {
   // Mock global objects that might not be available in Node.js environment
@@ -101,15 +107,12 @@ beforeAll(() => {
   console.debug = vi.fn();
 
   // Restore console for important messages
-  // @ts-ignore
   globalThis.__originalConsole = originalConsole;
 });
 
 afterAll(() => {
   // Restore original console
-  // @ts-ignore
   if (globalThis.__originalConsole) {
-    // @ts-ignore
     Object.assign(console, globalThis.__originalConsole);
   }
 });

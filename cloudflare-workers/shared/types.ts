@@ -24,9 +24,32 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
+export interface AnalyticsQueueMessage {
+  type: 'analytics_event';
+  eventType: string;
+  data: JsonObject;
+  timestamp: string;
+}
+
+export interface BackupRequestQueueMessage {
+  type: 'backup_request';
+  userId: string;
+  timestamp: string;
+}
+
+export type WorkerQueueMessage = AnalyticsQueueMessage | BackupRequestQueueMessage;
+
 export interface ExecutionContextLike {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException?(): void;
+}
+
+export interface QueueMessageLike<TBody = unknown> {
+  body: TBody;
+}
+
+export interface QueueBatchLike<TBody = unknown> {
+  messages: Array<QueueMessageLike<TBody>>;
 }
 
 export interface KVGetOptionsLike {

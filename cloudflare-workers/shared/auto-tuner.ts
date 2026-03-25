@@ -3,87 +3,37 @@
  * 基于运行时数据自动调整系统参数，持续优化性能
  */
 
+import { calculateCurrentMetrics, analyzePerformance, getStatusRecommendations, getTotalRequests } from './auto-tuner/analysis.ts';
+import { createDefaultAutoTunerConfig, createDefaultParameters } from './auto-tuner/defaults.ts';
+import { applyParameterToSystem } from './auto-tuner/system.ts';
+import type {
+  AutoTunerConfig,
+  OperationMetric,
+  TunableParameter,
+  TuningDecision,
+  TuningHistoryEntry,
+  TuningStatus,
+} from './auto-tuner/types.ts';
 import { getPerformanceMonitor } from './performance-monitor.ts';
-import { SmartCache, SMART_CACHE_CONFIGS } from './smart-cache.ts';
 
-interface OperationMetric {
-  totalRequests: number;
-  avgDuration: number;
-  errorRate: number;
-  qps: number;
-}
-
-type MutableDecodeCacheConfig = {
-  ttl: number;
-  hitRateThreshold: number;
-};
-
-export interface AutoTunerConfig {
-  // 调优周期 (毫秒)
-  tuningInterval: number;
-
-  // 最小样本数 (调优前需要的最少数据点)
-  minSamples: number;
-
-  // 性能阈值
-  performanceThresholds: {
-    targetResponseTime: number;    // 目标响应时间 (ms)
-    targetCacheHitRate: number;    // 目标缓存命中率
-    targetErrorRate: number;       // 目标错误率
-    maxCpuUsage: number;          // 最大CPU使用率
-    maxMemoryUsage: number;       // 最大内存使用率
-  };
-
-  // 调优策略
-  tuningStrategy: {
-    aggressive: boolean;          // 是否激进调优
-    stepSize: number;             // 参数调整步长
-    maxAdjustment: number;        // 最大调整幅度
-    cooldownPeriod: number;       // 调优冷却期
-  };
-}
-
-export interface TunableParameter {
-  name: string;
-  currentValue: number;
-  minValue: number;
-  maxValue: number;
-  step: number;
-  description: string;
-  impact: 'performance' | 'memory' | 'accuracy' | 'cost';
-}
+export type {
+  AutoTunerConfig,
+  TunableParameter,
+  TuningDecision,
+  TuningHistoryEntry,
+  TuningStatus,
+} from './auto-tuner/types.ts';
 
 export class AutoTuner {
   private config: AutoTunerConfig;
   private parameters: Map<string, TunableParameter> = new Map();
   private tuningTimer: number | null = null;
   private lastTuningTime = 0;
-  private tuningHistory: Array<{
-    timestamp: number;
-    parameter: string;
-    oldValue: number;
-    newValue: number;
-    reason: string;
-    impact: number;
-  }> = [];
+  private tuningHistory: TuningHistoryEntry[] = [];
 
   constructor(config: Partial<AutoTunerConfig> = {}) {
     this.config = {
-      tuningInterval: 300000, // 5分钟
-      minSamples: 100,
-      performanceThresholds: {
-        targetResponseTime: 500,
-        targetCacheHitRate: 0.8,
-        targetErrorRate: 0.02,
-        maxCpuUsage: 0.7,
-        maxMemoryUsage: 0.8
-      },
-      tuningStrategy: {
-        aggressive: false,
-        stepSize: 0.1,
-        maxAdjustment: 0.5,
-        cooldownPeriod: 60000 // 1分钟
-      },
+      ...createDefaultAutoTunerConfig(),
       ...config
     };
 
@@ -91,79 +41,10 @@ export class AutoTuner {
   }
 
   private initializeParameters(): void {
-    // 缓存相关参数
-    this.registerParameter({
-      name: 'cache.ttl',
-      currentValue: SMART_CACHE_CONFIGS.DECODE_RESULTS.ttl,
-      minValue: 300,    // 5分钟
-      maxValue: 86400,  // 24小时
-      step: 300,        // 5分钟步长
-      description: '缓存TTL时间',
-      impact: 'performance'
-    });
-
-    this.registerParameter({
-      name: 'cache.hitRateThreshold',
-      currentValue: SMART_CACHE_CONFIGS.DECODE_RESULTS.hitRateThreshold,
-      minValue: 0.5,
-      maxValue: 0.95,
-      step: 0.05,
-      description: '缓存命中率阈值',
-      impact: 'performance'
-    });
-
-    // AI相关参数
-    this.registerParameter({
-      name: 'ai.maxCallsPerMinute',
-      currentValue: 30,
-      minValue: 10,
-      maxValue: 100,
-      step: 5,
-      description: '每分钟最大AI调用次数',
-      impact: 'cost'
-    });
-
-    this.registerParameter({
-      name: 'ai.confidenceThreshold',
-      currentValue: 0.7,
-      minValue: 0.3,
-      maxValue: 0.95,
-      step: 0.05,
-      description: 'AI结果置信度阈值',
-      impact: 'accuracy'
-    });
-
-    // 词典相关参数
-    this.registerParameter({
-      name: 'dict.maxGlobalEntries',
-      currentValue: 5000,
-      minValue: 1000,
-      maxValue: 10000,
-      step: 500,
-      description: '全局词典最大条目数',
-      impact: 'memory'
-    });
-
-    this.registerParameter({
-      name: 'dict.maxBookEntries',
-      currentValue: 500,
-      minValue: 100,
-      maxValue: 2000,
-      step: 50,
-      description: '书籍词典最大条目数',
-      impact: 'memory'
-    });
-
-    // 并发相关参数
-    this.registerParameter({
-      name: 'concurrency.maxConcurrentRequests',
-      currentValue: 10,
-      minValue: 3,
-      maxValue: 50,
-      step: 2,
-      description: '最大并发请求数',
-      impact: 'performance'
-    });
+    this.parameters.clear();
+    for (const parameter of createDefaultParameters()) {
+      this.registerParameter(parameter);
+    }
   }
 
   private registerParameter(param: TunableParameter): void {
@@ -203,19 +84,16 @@ export class AutoTuner {
     const metrics = monitor.getAggregatedMetrics(300000); // 最近5分钟数据
 
     // 检查是否有足够的数据
-    const totalRequests = Object.values(metrics as Record<string, OperationMetric>).reduce(
-      (sum, metric) => sum + metric.totalRequests,
-      0
-    );
+    const totalRequests = getTotalRequests(metrics as Record<string, OperationMetric>);
     if (totalRequests < this.config.minSamples) {
       return;
     }
 
     // 计算当前性能指标
-    const currentMetrics = this.calculateCurrentMetrics(metrics);
+    const currentMetrics = calculateCurrentMetrics(metrics as Record<string, OperationMetric>);
 
     // 确定需要调优的参数
-    const tuningDecisions = this.analyzePerformance(currentMetrics);
+    const tuningDecisions = analyzePerformance(currentMetrics, this.config);
 
     // 应用调优
     for (const decision of tuningDecisions) {
@@ -225,114 +103,7 @@ export class AutoTuner {
     this.lastTuningTime = now;
   }
 
-  private calculateCurrentMetrics(metrics: any): any {
-    const operations = Object.values(metrics as Record<string, OperationMetric>) as OperationMetric[];
-    if (operations.length === 0) return null;
-
-    // 加权平均计算
-    const weights = operations.map(op => op.totalRequests);
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
-    if (totalWeight === 0) return null;
-
-    return {
-      avgResponseTime: operations.reduce((sum: number, op, i: number) =>
-        sum + (op.avgDuration * weights[i]), 0) / totalWeight,
-
-      avgErrorRate: operations.reduce((sum: number, op, i: number) =>
-        sum + (op.errorRate * weights[i]), 0) / totalWeight,
-
-      totalRequests: totalWeight,
-
-      cacheHitRate: 0.75, // 从缓存服务获取
-
-      qps: operations.reduce((sum: number, op, i: number) =>
-        sum + (op.qps * weights[i]), 0) / totalWeight
-    };
-  }
-
-  private analyzePerformance(currentMetrics: any): Array<{
-    parameter: string;
-    direction: 'increase' | 'decrease';
-    reason: string;
-    confidence: number;
-  }> {
-    const decisions: Array<{
-      parameter: string;
-      direction: 'increase' | 'decrease';
-      reason: string;
-      confidence: number;
-    }> = [];
-
-    // 响应时间分析
-    if (currentMetrics.avgResponseTime > this.config.performanceThresholds.targetResponseTime * 1.5) {
-      decisions.push({
-        parameter: 'cache.ttl',
-        direction: 'increase',
-        reason: '响应时间过长，增加缓存时间',
-        confidence: 0.8
-      });
-
-      decisions.push({
-        parameter: 'concurrency.maxConcurrentRequests',
-        direction: 'increase',
-        reason: '响应时间过长，增加并发处理',
-        confidence: 0.7
-      });
-    }
-
-    // 缓存命中率分析
-    if (currentMetrics.cacheHitRate < this.config.performanceThresholds.targetCacheHitRate * 0.8) {
-      decisions.push({
-        parameter: 'cache.hitRateThreshold',
-        direction: 'decrease',
-        reason: '缓存命中率过低，放宽命中阈值',
-        confidence: 0.9
-      });
-    }
-
-    // 错误率分析
-    if (currentMetrics.avgErrorRate > this.config.performanceThresholds.targetErrorRate * 2) {
-      decisions.push({
-        parameter: 'ai.maxCallsPerMinute',
-        direction: 'decrease',
-        reason: '错误率过高，减少AI调用频率',
-        confidence: 0.8
-      });
-
-      decisions.push({
-        parameter: 'ai.confidenceThreshold',
-        direction: 'increase',
-        reason: '错误率过高，提高AI置信度阈值',
-        confidence: 0.7
-      });
-    }
-
-    // QPS分析
-    if (currentMetrics.qps > 100) { // 高负载
-      decisions.push({
-        parameter: 'dict.maxGlobalEntries',
-        direction: 'decrease',
-        reason: '高负载情况下减少内存使用',
-        confidence: 0.6
-      });
-
-      decisions.push({
-        parameter: 'dict.maxBookEntries',
-        direction: 'decrease',
-        reason: '高负载情况下减少内存使用',
-        confidence: 0.6
-      });
-    }
-
-    return decisions.filter(d => d.confidence > 0.6);
-  }
-
-  private async applyTuning(decision: {
-    parameter: string;
-    direction: 'increase' | 'decrease';
-    reason: string;
-    confidence: number;
-  }): Promise<void> {
+  private async applyTuning(decision: TuningDecision): Promise<void> {
     const param = this.parameters.get(decision.parameter);
     if (!param) return;
 
@@ -371,67 +142,14 @@ export class AutoTuner {
       });
 
       // 应用参数到实际系统
-      await this.applyParameterToSystem(decision.parameter, newValue);
+      await applyParameterToSystem(decision.parameter, newValue);
 
       console.log(`Auto-tuned ${decision.parameter}: ${oldValue} -> ${newValue} (${decision.reason})`);
     }
   }
 
-  private async applyParameterToSystem(parameter: string, value: number): Promise<void> {
-    // 这里实现参数应用逻辑
-    const decodeCacheConfig = SMART_CACHE_CONFIGS.DECODE_RESULTS as MutableDecodeCacheConfig;
-
-    switch (parameter) {
-      case 'cache.ttl':
-        // 更新缓存配置
-        decodeCacheConfig.ttl = value;
-        break;
-
-      case 'cache.hitRateThreshold':
-        decodeCacheConfig.hitRateThreshold = value;
-        break;
-
-      case 'ai.maxCallsPerMinute':
-        // 更新AI服务限制
-        // 这需要在AIService中实现动态配置
-        break;
-
-      case 'dict.maxGlobalEntries':
-        // 更新词典大小限制
-        // 这需要在DictionaryService中实现动态配置
-        break;
-
-      default:
-        console.warn(`Unknown parameter: ${parameter}`);
-    }
-  }
-
   // 获取调优状态
-  getTuningStatus(): {
-    isActive: boolean;
-    lastTuningTime: number;
-    tuningHistory: any[];
-    currentParameters: Record<string, number>;
-    recommendations: string[];
-  } {
-    const recommendations: string[] = [];
-
-    // 基于历史数据生成建议
-    const recentTuning = this.tuningHistory.slice(-5);
-    if (recentTuning.length > 0) {
-      const mostTunedParam = recentTuning.reduce((acc, curr) => {
-        acc[curr.parameter] = (acc[curr.parameter] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const topParam = Object.entries(mostTunedParam)
-        .sort(([, a], [, b]) => b - a)[0];
-
-      if (topParam && topParam[1] > 2) {
-        recommendations.push(`频繁调整参数 ${topParam[0]}，考虑手动优化该参数`);
-      }
-    }
-
+  getTuningStatus(): TuningStatus {
     return {
       isActive: this.tuningTimer !== null,
       lastTuningTime: this.lastTuningTime,
@@ -439,7 +157,7 @@ export class AutoTuner {
       currentParameters: Object.fromEntries(
         Array.from(this.parameters.entries()).map(([key, param]) => [key, param.currentValue])
       ),
-      recommendations
+      recommendations: getStatusRecommendations(this.tuningHistory)
     };
   }
 

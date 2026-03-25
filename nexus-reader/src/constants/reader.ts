@@ -4,8 +4,8 @@
 
 // 快捷键列表
 export const KEYBOARD_SHORTCUTS = [
-  { key: '←/↑', desc: '上一页/章' },
-  { key: '→/↓/空格', desc: '下一页/章' },
+  { key: '←/↑', desc: '上一章' },
+  { key: '→/↓/空格', desc: '下一章' },
   { key: 'F', desc: '全屏' },
   { key: 'C', desc: '目录' },
   { key: 'S', desc: '设置' },

@@ -4,20 +4,18 @@
  * 包含上一章/下一章切换按钮和进度文字
  */
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import {
+  createReaderNavigationBindings,
+  type ReaderNavigationEmits,
+  type ReaderNavigationProps,
+} from './reader-navigation'
 
-interface Props {
-  currentChapterIndex: number
-  totalChapters: number
-  hasPrevChapter: boolean
-  hasNextChapter: boolean
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  prev: []
-  next: []
-}>()
+const props = defineProps<ReaderNavigationProps>()
+const emit = defineEmits<ReaderNavigationEmits>()
+const {
+  progressText,
+  progressPercent,
+} = createReaderNavigationBindings(props)
 </script>
 
 <template>
@@ -36,10 +34,10 @@ const emit = defineEmits<{
     <!-- 进度信息 -->
     <div class="flex-1 text-center">
       <div class="text-sm font-medium">
-        {{ currentChapterIndex + 1 }} / {{ totalChapters }}
+        {{ progressText }}
       </div>
       <div class="text-[10px] opacity-50 mt-0.5">
-        {{ Math.round((currentChapterIndex + 1) / (totalChapters || 1) * 100) }}%
+        {{ progressPercent }}%
       </div>
     </div>
     

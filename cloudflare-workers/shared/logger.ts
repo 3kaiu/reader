@@ -14,10 +14,10 @@ export interface LoggerEnv {
 }
 
 export interface Logger {
-  debug: (message: string, ...args: any[]) => void;
-  info: (message: string, ...args: any[]) => void;
-  warn: (message: string, ...args: any[]) => void;
-  error: (message: string, ...args: any[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
+  info: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+  error: (message: string, ...args: unknown[]) => void;
 }
 
 /**
@@ -28,23 +28,23 @@ export function createLogger(env: LoggerEnv): Logger {
   const isProd = env.ENVIRONMENT === 'production';
 
   return {
-    debug: (message: string, ...args: any[]) => {
+    debug: (message: string, ...args: unknown[]) => {
       if (isDebug) {
         console.log(`[DEBUG] ${message}`, ...args);
       }
     },
 
-    info: (message: string, ...args: any[]) => {
+    info: (message: string, ...args: unknown[]) => {
       if (!isProd || isDebug) {
         console.log(`[INFO] ${message}`, ...args);
       }
     },
 
-    warn: (message: string, ...args: any[]) => {
+    warn: (message: string, ...args: unknown[]) => {
       console.warn(`[WARN] ${message}`, ...args);
     },
 
-    error: (message: string, ...args: any[]) => {
+    error: (message: string, ...args: unknown[]) => {
       console.error(`[ERROR] ${message}`, ...args);
     },
   };
@@ -57,7 +57,7 @@ export const noopLogger: Logger = {
   debug: () => {},
   info: () => {},
   warn: () => {},
-  error: (message: string, ...args: any[]) => {
+  error: (message: string, ...args: unknown[]) => {
     // Only errors are logged in production
     console.error(`[ERROR] ${message}`, ...args);
   },

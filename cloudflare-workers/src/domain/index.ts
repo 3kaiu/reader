@@ -8,6 +8,10 @@
  * - 事件驱动，支持Queues
  */
 
+import type { ExecutionContextLike } from '../../shared/types.ts';
+
+type DomainMetadata = Record<string, unknown>;
+
 // ===== 领域基础类 =====
 
 /**
@@ -45,7 +49,7 @@ export interface DomainEvent {
   eventType: string;
   timestamp: number;
   aggregateId: string;
-  eventData: Record<string, any>;
+  eventData: DomainMetadata;
 }
 
 /**
@@ -56,18 +60,18 @@ export interface DomainContext {
   sessionId?: string;
   correlationId: string;
   timestamp: number;
-  metadata: Record<string, any>;
+  metadata: DomainMetadata;
   requestId?: string;
 }
 
 /**
  * 领域结果（轻量级版本）
  */
-export interface DomainResult<T = any> {
+export interface DomainResult<T = unknown> {
   success: boolean;
   data?: T;
   events: DomainEvent[];
-  metadata: Record<string, any>;
+  metadata: DomainMetadata;
   executionTimeMs: number;
 }
 
@@ -104,7 +108,7 @@ export interface DurableStorage {
   get<T>(key: string): Promise<T | undefined>;
   put<T>(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
-  list(): Promise<Map<string, any>>;
+  list(): Promise<Map<string, unknown>>;
 }
 
 // ===== 业务规则验证器 =====
@@ -127,8 +131,8 @@ export interface DomainService {
 /**
  * 请求处理服务
  */
-export interface RequestHandler {
-  handle(request: Request, env: any, ctx: any): Promise<Response>;
+export interface RequestHandler<TEnv = unknown, TContext = ExecutionContextLike> {
+  handle(request: Request, env: TEnv, ctx: TContext): Promise<Response>;
 }
 
 /**
@@ -178,7 +182,7 @@ export interface EdgeResponse {
   status: number;
   headers: Record<string, string>;
   body?: string | ArrayBuffer | ReadableStream;
-  metadata?: Record<string, any>;
+  metadata?: DomainMetadata;
 }
 
 export interface EdgeRequestContext {
@@ -206,7 +210,7 @@ export function generateRequestId(): string {
 export function createDomainContext(
   request: Request,
   userId?: string,
-  metadata: Record<string, any> = {}
+  metadata: DomainMetadata = {}
 ): DomainContext {
   return {
     userId,
@@ -238,10 +242,15 @@ export function createRequestContext(request: Request): EdgeRequestContext {
  * 格式化响应
  */
 export function formatResponse(result: DomainResult, status: number = 200): EdgeResponse {
+  const requestId =
+    typeof result.metadata.requestId === 'string' ? result.metadata.requestId : 'unknown';
+  const errorMessage =
+    typeof result.metadata.error === 'string' ? result.metadata.error : 'Unknown error';
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Execution-Time': result.executionTimeMs.toString(),
-    'X-Request-Id': result.metadata.requestId || 'unknown',
+    'X-Request-Id': requestId,
   };
 
   if (result.success) {
@@ -260,7 +269,7 @@ export function formatResponse(result: DomainResult, status: number = 200): Edge
       headers,
       body: JSON.stringify({
         success: false,
-        error: result.metadata.error || 'Unknown error',
+        error: errorMessage,
         metadata: result.metadata,
       }),
     };
