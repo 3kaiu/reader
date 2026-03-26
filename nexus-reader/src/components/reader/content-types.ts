@@ -1,7 +1,2 @@
-export interface ReaderLoadedChapter {
-  index: number;
-  title: string;
-  formattedContent?: string;
-}
-
-export type ReaderContentStyle = Record<string, string | number>;
+export type { ReaderLoadedChapter } from './content-chapter-types'
+export type { ReaderContentStyle } from './content-style-types'

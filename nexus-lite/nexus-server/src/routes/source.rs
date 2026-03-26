@@ -3,17 +3,21 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use nexus_core::NxsSource;
-use serde::{Deserialize, Serialize};
+use nexus_core::{NxsSource, SourcePolicy};
+use serde::Serialize;
 
 use crate::app::AppState;
+use crate::source_access::{is_source_publicly_available, load_source_availability};
 
 /// Source with enabled status
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceWithStatus {
     #[serde(flatten)]
     pub source: NxsSource,
     pub enabled: bool,
+    pub policy: SourcePolicy,
+    pub public_access_enabled: bool,
 }
 
 /// List all sources
@@ -22,12 +26,22 @@ pub async fn list_sources(State(state): State<AppState>) -> Json<Vec<SourceWithS
     let mut sources_with_status = Vec::new();
 
     for source in sources {
-        let enabled = state
-            .store
-            .get_source_status(source.id.clone())
+        let availability = load_source_availability(&state, &source.id)
             .await
+            .ok();
+        let enabled = availability
+            .as_ref()
+            .map(|it| it.enabled)
             .unwrap_or(true);
-        sources_with_status.push(SourceWithStatus { source, enabled });
+        let policy = availability
+            .map(|it| it.policy)
+            .unwrap_or_default();
+        sources_with_status.push(SourceWithStatus {
+            public_access_enabled: is_source_publicly_available(enabled, &policy),
+            source,
+            enabled,
+            policy,
+        });
     }
 
     Json(sources_with_status)
@@ -44,9 +58,19 @@ pub async fn get_source(
         .get(&id)
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let enabled = state.store.get_source_status(id).await.unwrap_or(true);
+    let availability = load_source_availability(&state, &id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(SourceWithStatus { source, enabled }))
+    Ok(Json(SourceWithStatus {
+        public_access_enabled: is_source_publicly_available(
+            availability.enabled,
+            &availability.policy,
+        ),
+        source,
+        enabled: availability.enabled,
+        policy: availability.policy,
+    }))
 }
 
 /// Add a new source
@@ -113,7 +137,7 @@ pub async fn source_health(State(state): State<AppState>) -> Json<Vec<SourceHeal
 }
 
 /// Request body for updating source status
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct UpdateStatusRequest {
     pub enabled: bool,
 }
@@ -134,12 +158,48 @@ pub async fn update_source_status(
     // Update status in database
     state
         .store
-        .set_source_status(id, body.enabled)
+        .set_source_status(id.clone(), body.enabled)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let policy = state
+        .store
+        .get_source_policy(id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(SourceWithStatus {
+        public_access_enabled: is_source_publicly_available(body.enabled, &policy),
         source,
         enabled: body.enabled,
+        policy,
+    }))
+}
+
+/// Update source governance policy
+pub async fn update_source_policy(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(policy): Json<SourcePolicy>,
+) -> Result<Json<SourceWithStatus>, (StatusCode, String)> {
+    let source = state
+        .engine_registry
+        .source_store()
+        .get(&id)
+        .ok_or((StatusCode::NOT_FOUND, format!("Source not found: {}", id)))?;
+
+    state
+        .store
+        .set_source_policy(id.clone(), policy.clone())
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let enabled = state.store.get_source_status(id).await.unwrap_or(true);
+
+    Ok(Json(SourceWithStatus {
+        public_access_enabled: is_source_publicly_available(enabled, &policy),
+        source,
+        enabled,
+        policy,
     }))
 }

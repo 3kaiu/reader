@@ -1,33 +1,13 @@
 <script setup lang="ts">
-import ReaderContent from "@/components/reader/ReaderContent.vue";
-import ReaderAssistLayers from "@/components/reader/ReaderAssistLayers.vue";
-import ReaderModals from "@/components/reader/ReaderModals.vue";
-import ReaderToolbar from "@/components/reader/ReaderToolbar.vue";
-import {
-  createReaderExperienceComponentBindings,
-  type ReaderExperienceProps,
-} from "./reader-experience";
+import ReaderExperienceLayout from './ReaderExperienceLayout.vue'
+import { createReaderExperienceComponentBindings } from './reader-experience-bindings'
+import type { ReaderExperienceProps } from './reader-experience-prop-types'
 
-const props = defineProps<ReaderExperienceProps>();
+const props = defineProps<ReaderExperienceProps>()
 
-const {
-  toolbarBindings,
-  contentBindings,
-  modalBindings,
-  assistBindings,
-  contentRef,
-} = createReaderExperienceComponentBindings(props);
+const { layoutProps } = createReaderExperienceComponentBindings(props)
 </script>
 
 <template>
-  <ReaderToolbar v-bind="toolbarBindings" />
-
-  <ReaderContent
-    :ref="contentRef"
-    v-bind="contentBindings"
-  />
-
-  <ReaderModals v-bind="modalBindings" />
-
-  <ReaderAssistLayers v-bind="assistBindings" />
+  <ReaderExperienceLayout v-bind="layoutProps" />
 </template>

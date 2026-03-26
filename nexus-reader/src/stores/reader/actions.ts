@@ -18,6 +18,7 @@ export function createReaderStoreActions(
     reloadCurrentChapter,
   } = createReaderChapterOperations(state, view, {
     fetchChapterContent: helpers.fetchChapterContent,
+    prefetchChapterContent: helpers.prefetchChapterContent,
     setCurrentChapterContent: helpers.setCurrentChapterContent,
     updateLoadedChapter: helpers.updateLoadedChapter,
   })

@@ -4,39 +4,22 @@
  * 仅保留滚动阅读模式
  */
 import './reader-content.css'
-import ReaderFullscreenTime from './ReaderFullscreenTime.vue'
-import ReaderScrollContent from './ReaderScrollContent.vue'
-import {
-  createReaderContentBindings,
-  type ReaderContentEmits,
-  type ReaderContentProps,
-} from './reader-content'
-import type {
-  DecodedEntity,
-} from './content-types'
+import ReaderContentViewport from './ReaderContentViewport.vue'
+import { createReaderContentBindings } from './reader-content-bindings'
+import type { ReaderContentEmits } from './reader-content-emit-types'
+import type { ReaderContentProps } from './reader-content-prop-types'
 
 const props = defineProps<ReaderContentProps>()
 const emit = defineEmits<ReaderContentEmits>()
-const {
-  scrollContentProps,
-  formattedTime,
-  isFullscreen,
-} = createReaderContentBindings(props, {
+const { viewportProps } = createReaderContentBindings(props, {
   onEntityClick: (entity, event) => emit('entityClick', entity, event),
 })
 </script>
 
 <template>
-  <div class="reader-content-host reader-container">
-    <ReaderScrollContent
-      v-bind="scrollContentProps"
-      @load-next-chapter="emit('loadNextChapter')"
-      @retry-load="emit('retryLoad')"
-    />
-
-    <ReaderFullscreenTime
-      v-if="isFullscreen"
-      :formatted-time="formattedTime"
-    />
-  </div>
+  <ReaderContentViewport
+    v-bind="viewportProps"
+    @load-next-chapter="emit('loadNextChapter')"
+    @retry-load="emit('retryLoad')"
+  />
 </template>

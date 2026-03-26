@@ -58,6 +58,11 @@ impl ApiError {
         Self::new("CONFLICT", message)
     }
 
+    /// Forbidden
+    pub fn forbidden(message: impl Into<String>) -> Self {
+        Self::new("FORBIDDEN", message)
+    }
+
     /// Unauthorized
     #[allow(dead_code)]
     pub fn unauthorized() -> Self {
@@ -105,6 +110,10 @@ pub fn conflict(message: impl Into<String>) -> ApiErrorResponse {
 
 pub fn bad_request(message: impl Into<String>) -> ApiErrorResponse {
     ApiErrorResponse::new(StatusCode::BAD_REQUEST, ApiError::bad_request(message))
+}
+
+pub fn forbidden(message: impl Into<String>) -> ApiErrorResponse {
+    ApiErrorResponse::new(StatusCode::FORBIDDEN, ApiError::forbidden(message))
 }
 
 #[cfg(test)]

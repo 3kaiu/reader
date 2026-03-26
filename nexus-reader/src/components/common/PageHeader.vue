@@ -102,7 +102,7 @@ function handleBack() {
         v-for="(action, index) in actions"
         :key="index"
         :variant="action.variant || 'outline'"
-        :size="action.size || 'sm'"
+        :size="action.size === 'md' ? 'sm' : action.size || 'sm'"
         @click="action.onClick"
       >
         <component :is="action.icon" v-if="action.icon" class="h-4 w-4 mr-2" />

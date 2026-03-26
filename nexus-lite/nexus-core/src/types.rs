@@ -2,6 +2,56 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+// ============== Source Governance Models ==============
+
+/// License/compliance review state for a content source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceLicenseStatus {
+    #[default]
+    Unknown,
+    Licensed,
+    PublicDomain,
+    Restricted,
+    Blocked,
+}
+
+/// Access path used by an approved source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceAccessMode {
+    #[default]
+    Unknown,
+    Api,
+    Feed,
+    PublicArchive,
+    ManualImport,
+}
+
+/// Business policy attached to a source definition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePolicy {
+    #[serde(default)]
+    pub license_status: SourceLicenseStatus,
+    #[serde(default)]
+    pub access_mode: SourceAccessMode,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_verified_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+impl SourcePolicy {
+    /// Only explicitly approved sources may enter public search/reading flows.
+    pub fn allows_public_access(&self) -> bool {
+        matches!(
+            self.license_status,
+            SourceLicenseStatus::Licensed | SourceLicenseStatus::PublicDomain
+        )
+    }
+}
+
 // ============== Book Data Models ==============
 
 /// Book search result item
@@ -264,4 +314,38 @@ pub struct VoiceModelMetadata {
     pub sample_duration: f32,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SourceAccessMode, SourceLicenseStatus, SourcePolicy};
+
+    #[test]
+    fn source_policy_defaults_to_unreviewed() {
+        let policy = SourcePolicy::default();
+
+        assert_eq!(policy.license_status, SourceLicenseStatus::Unknown);
+        assert_eq!(policy.access_mode, SourceAccessMode::Unknown);
+        assert!(!policy.allows_public_access());
+    }
+
+    #[test]
+    fn source_policy_only_allows_reviewed_public_sources() {
+        let licensed = SourcePolicy {
+            license_status: SourceLicenseStatus::Licensed,
+            ..SourcePolicy::default()
+        };
+        let public_domain = SourcePolicy {
+            license_status: SourceLicenseStatus::PublicDomain,
+            ..SourcePolicy::default()
+        };
+        let blocked = SourcePolicy {
+            license_status: SourceLicenseStatus::Blocked,
+            ..SourcePolicy::default()
+        };
+
+        assert!(licensed.allows_public_access());
+        assert!(public_domain.allows_public_access());
+        assert!(!blocked.allows_public_access());
+    }
 }

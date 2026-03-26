@@ -77,9 +77,9 @@ const {
                 <User class="h-4 w-4" />
                 <span>{{ displayBook.author }}</span>
               </div>
-              <div class="flex items-center gap-2" v-if="displayBook.kind">
+              <div class="flex items-center gap-2" v-if="displayBook.type">
                 <Tag class="h-4 w-4" />
-                <span>{{ displayBook.kind }}</span>
+                <span>{{ displayBook.type }}</span>
               </div>
               <div class="flex items-center gap-2" v-if="displayBook.latestChapterTitle">
                 <RefreshCw class="h-4 w-4" />

@@ -24,8 +24,8 @@ const emit = defineEmits<{
       :selected="isSelected"
       :cache-percent="book.cachePercent"
       :is-fully-cached="book.isFullyCached"
-      @click="emit('open', $event)"
-      @delete="emit('delete', $event)"
+      @click="emit('open', book)"
+      @delete="emit('delete', book)"
     />
     <div
       v-if="book.sourceCount > 1 && !isManageMode"

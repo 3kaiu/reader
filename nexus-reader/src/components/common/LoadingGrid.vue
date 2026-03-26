@@ -2,7 +2,7 @@
 /**
  * 通用加载状态网格组件
  */
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   items?: number
   itemHeight?: string
 }>(), {

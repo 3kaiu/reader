@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import type { SearchResult } from "@/types/search";
+import type {
+  SearchDisplayResult,
+  SearchResultActionPayload,
+  SearchSourceOption,
+  SearchResult,
+} from "@/types/search";
+import { getSearchAggregateKey } from "@/utils/searchStore";
 import SearchQueryBar from "./SearchQueryBar.vue";
+import SearchErrorPanel from "./SearchErrorPanel.vue";
 import SearchResultsEmptyState from "./SearchResultsEmptyState.vue";
 import SearchResultsHeader from "./SearchResultsHeader.vue";
 import SearchResultsLoadingGrid from "./SearchResultsLoadingGrid.vue";
@@ -12,13 +19,18 @@ defineProps<{
   loading: boolean;
   resultCount: number;
   showSourceFilters: boolean;
-  availableSources: string[];
+  availableSources: SearchSourceOption[];
   selectedSources: Set<string>;
-  filteredResults: SearchResult[];
+  searchErrors: Array<{
+    sourceId: string;
+    sourceName: string;
+    error: string;
+  }>;
+  filteredResults: SearchDisplayResult[];
   searchResultCount: number;
   hasSearched: boolean;
   openingBook: string | null;
-  hasBookOnShelf: (bookUrl: string) => boolean;
+  hasBookOnShelf: (book: SearchResult) => boolean;
 }>();
 
 const emit = defineEmits<{
@@ -27,8 +39,8 @@ const emit = defineEmits<{
   (e: "stopSearch"): void;
   (e: "toggleSource", source: string): void;
   (e: "clearSourceFilter"): void;
-  (e: "addToShelf", book: SearchResult): void;
-  (e: "openBook", book: SearchResult): void;
+  (e: "addToShelf", payload: SearchResultActionPayload): void;
+  (e: "openBook", payload: SearchResultActionPayload): void;
   (e: "resetSearch"): void;
   (e: "goBack"): void;
 }>();
@@ -54,6 +66,7 @@ const emit = defineEmits<{
     <SearchResultsHeader
       :loading="loading"
       :result-count="resultCount"
+      :error-count="searchErrors.length"
       @stop-search="emit('stopSearch')"
     />
 
@@ -61,20 +74,23 @@ const emit = defineEmits<{
       v-if="showSourceFilters"
       :available-sources="availableSources"
       :selected-sources="selectedSources"
+      :disabled="loading"
       @toggle-source="emit('toggleSource', $event)"
       @clear="emit('clearSourceFilter')"
     />
+
+    <SearchErrorPanel :errors="searchErrors" />
 
     <div
       v-if="filteredResults.length > 0"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20"
     >
       <SearchResultCard
-        v-for="(book, index) in filteredResults"
-        :key="book.bookUrl + index"
+        v-for="book in filteredResults"
+        :key="getSearchAggregateKey(book)"
         :book="book"
         :opening-book="openingBook"
-        :is-on-shelf="hasBookOnShelf(book.bookUrl)"
+        :has-book-on-shelf="hasBookOnShelf"
         @open="emit('openBook', $event)"
         @add-to-shelf="emit('addToShelf', $event)"
       />

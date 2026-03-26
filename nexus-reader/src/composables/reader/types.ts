@@ -17,5 +17,7 @@ export type {
 } from './experience-state-types'
 export type {
   ReaderPageActions,
+} from './page-action-types'
+export type {
   ReaderPageState,
-} from './page-types'
+} from './page-state-types'

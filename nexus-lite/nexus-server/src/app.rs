@@ -115,6 +115,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
             "/api/sources/{id}/status",
             put(routes::source::update_source_status),
         )
+        .route(
+            "/api/sources/{id}/policy",
+            put(routes::source::update_source_policy),
+        )
         .route("/api/sources/health", get(routes::source::source_health))
         // Search
         .route("/api/search", post(routes::search::search))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ComponentPublicInstance } from 'vue'
 import type { BookshelfBook } from "@/utils/bookshelf";
 import type { BookshelfVirtualizer } from "./types";
 import BookshelfBookGrid from "./BookshelfBookGrid.vue";
@@ -7,7 +8,7 @@ defineProps<{
   showProgress: boolean;
   isManageMode: boolean;
   selectedBooks: Set<string>;
-  bindVirtualContainerRef: (element: Element | null) => void;
+  bindVirtualContainerRef: (element: Element | ComponentPublicInstance | null) => void;
   virtualizer: BookshelfVirtualizer;
   getVirtualRowItems: (rowIndex: number) => BookshelfBook[];
 }>();

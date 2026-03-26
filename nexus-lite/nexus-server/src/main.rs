@@ -8,6 +8,7 @@ mod metrics;
 mod middleware;
 mod orchestrator;
 mod routes;
+mod source_access;
 mod validation;
 mod ws;
 

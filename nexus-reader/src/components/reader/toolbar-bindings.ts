@@ -1,33 +1,15 @@
-import { computed, toRef } from 'vue'
-import type { ReaderToolbarProps } from './toolbar-types'
+import type { ReaderToolbarBindingResult } from './toolbar-binding-types'
+import { createReaderToolbarPanelBindings } from './toolbar-panel-bindings'
+import type { ReaderToolbarProps } from './toolbar-prop-types'
+import {
+  createReaderToolbarZenButtonBindings,
+} from './toolbar-zen-button-bindings'
 
-export function createReaderToolbarBindings(props: ReaderToolbarProps) {
-  const topBarProps = computed(() => ({
-    show: props.show,
-    zenMode: props.zenMode,
-    bookName: props.bookName,
-    chapterTitle: props.chapterTitle,
-    isFullscreen: props.isFullscreen,
-  }))
-
-  const bottomBarProps = computed(() => ({
-    show: props.show,
-    zenMode: props.zenMode,
-    currentChapterIndex: props.currentChapterIndex,
-    totalChapters: props.totalChapters,
-    hasPrevChapter: props.hasPrevChapter,
-    hasNextChapter: props.hasNextChapter,
-    isNightMode: props.isNightMode,
-    isEyeCareEnabled: props.isEyeCareEnabled,
-    contentIssue: props.contentIssue,
-    showDecoderAction: props.showDecoderAction,
-    isDecoderEnabled: props.isDecoderEnabled,
-    isDecoding: props.isDecoding,
-  }))
-
+export function createReaderToolbarBindings(
+  props: ReaderToolbarProps,
+): ReaderToolbarBindingResult {
   return {
-    topBarProps,
-    bottomBarProps,
-    zenMode: toRef(props, 'zenMode'),
+    panelsProps: createReaderToolbarPanelBindings(props),
+    zenButtonProps: createReaderToolbarZenButtonBindings(props),
   }
 }

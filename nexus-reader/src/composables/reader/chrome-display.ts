@@ -1,9 +1,9 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
 import type {
   ReaderChromeDisplayActions,
-  ReaderChromeLayerActions,
-  ReaderChromeTimerActions,
-} from './chrome-display-types'
+} from './chrome-display-action-types'
+import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import type { ReaderChromeTimerActions } from './chrome-timer-action-types'
 import { createReaderChromePanelDisplayActions } from './chrome-panel-display'
 import { createReaderChromeSystemDisplayActions } from './chrome-system-display'
 import { createReaderChromeToolbarDisplayActions } from './chrome-toolbar-display'

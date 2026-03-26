@@ -3,11 +3,13 @@ import type { ApiResponse } from '@/api/http/types'
 import { useOpenReader } from '@/composables/useOpenReader'
 import { useLibraryStore } from '@/stores/library'
 import { useSearchStore } from '@/stores/search'
-import type { SearchResult } from '@/types/search'
+import type { Book } from '@/types/book'
+import type { SearchResult, SearchResultActionPayload } from '@/types/search'
+import { getSearchResultIdentity } from '@/utils/searchStore'
 
 export function useSearchActions(options: {
   searchKeyword: Ref<string>
-  bookUrls: Ref<Set<string>>
+  books: Ref<Book[]>
   libraryStore: ReturnType<typeof useLibraryStore>
   searchStore: ReturnType<typeof useSearchStore>
   warning: (message: string) => void
@@ -19,8 +21,12 @@ export function useSearchActions(options: {
   const { openReader } = useOpenReader()
   const openingBook = ref<string | null>(null)
 
-  function hasBookOnShelf(bookUrl: string) {
-    return options.bookUrls.value.has(bookUrl)
+  function hasBookOnShelf(book: SearchResult) {
+    return options.books.value.some(
+      shelfBook =>
+        shelfBook.sourceId === book.sourceId &&
+        shelfBook.bookUrl === book.bookUrl,
+    )
   }
 
   function scrollSearchResultToTop() {
@@ -33,6 +39,18 @@ export function useSearchActions(options: {
 
   function stopSearch() {
     options.searchStore.stopSearch()
+  }
+
+  function normalizeActionPayload(
+    payload: SearchResult | SearchResultActionPayload,
+  ): SearchResultActionPayload {
+    if ('book' in payload) {
+      return payload
+    }
+
+    return {
+      book: payload,
+    }
   }
 
   async function search(keyword?: string) {
@@ -59,8 +77,14 @@ export function useSearchActions(options: {
     }
   }
 
-  async function addToShelf(book: SearchResult) {
-    if (hasBookOnShelf(book.bookUrl)) {
+  async function addToShelf(payload: SearchResult | SearchResultActionPayload) {
+    const { book, rememberPreference } = normalizeActionPayload(payload)
+
+    if (hasBookOnShelf(book)) {
+      if (rememberPreference) {
+        options.searchStore.rememberPreferredSource(book)
+      }
+
       return
     }
 
@@ -74,11 +98,19 @@ export function useSearchActions(options: {
       })
 
       if (result.status === 'added') {
+        if (rememberPreference) {
+          options.searchStore.rememberPreferredSource(book)
+        }
+
         options.success(`《${book.name}》已添加到书架`)
         return
       }
 
       if (result.status === 'existing') {
+        if (rememberPreference) {
+          options.searchStore.rememberPreferredSource(book)
+        }
+
         options.success(`《${book.name}》已在书架`)
         return
       }
@@ -89,18 +121,46 @@ export function useSearchActions(options: {
     }
   }
 
-  async function openBook(book: SearchResult) {
-    if (openingBook.value === book.bookUrl) {
+  async function ensureBookOnShelfInBackground(book: SearchResult) {
+    if (hasBookOnShelf(book)) {
       return
     }
 
-    openingBook.value = book.bookUrl
+    try {
+      await options.libraryStore.ensureBook({
+        sourceId: book.sourceId,
+        bookUrl: book.bookUrl,
+        name: book.name,
+        author: book.author,
+        coverUrl: book.coverUrl,
+      })
+    } catch {
+      // Best effort only. Reading should not be blocked by shelf persistence.
+    }
+  }
+
+  async function openBook(payload: SearchResult | SearchResultActionPayload) {
+    const { book, rememberPreference } = normalizeActionPayload(payload)
+    const bookIdentity = getSearchResultIdentity(book)
+
+    if (openingBook.value === bookIdentity) {
+      return
+    }
+
+    openingBook.value = bookIdentity
 
     try {
-      const result = await openReader(book, { ensureOnShelf: true })
-      if (!result.navigated) {
-        options.showError(result.ensureResult?.errorMsg || '加入书架失败')
+      if (rememberPreference) {
+        options.searchStore.rememberPreferredSource(book)
       }
+
+      const result = await openReader(book)
+      if (!result.navigated) {
+        options.showError('打开书籍失败')
+        return
+      }
+
+      void ensureBookOnShelfInBackground(book)
     } catch (cause) {
       options.handlePromiseError(cause, '打开书籍失败')
     } finally {

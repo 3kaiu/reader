@@ -3,7 +3,6 @@
  * 通用页面工具栏组件
  * 包含：标题、统计信息、批量管理按钮
  */
-import { computed } from 'vue'
 import { CheckSquare } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import type { IconComponent } from '@/types/components'
@@ -15,7 +14,7 @@ interface StatItem {
   color?: string
 }
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   title: string
   icon?: IconComponent
   stats?: StatItem[]

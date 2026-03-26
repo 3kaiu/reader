@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Upload, FileJson, CheckCircle2, XCircle } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   open?: boolean
 }>(), {
   open: false

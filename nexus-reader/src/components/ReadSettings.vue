@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Settings, RotateCcw } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   open?: boolean
 }>(), {
   open: false

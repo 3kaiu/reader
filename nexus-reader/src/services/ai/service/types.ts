@@ -7,7 +7,11 @@ declare global {
     }
   }
 
-  interface GPUAdapter {}
+  interface GPUAdapter {
+    // Minimal placeholder to satisfy `@typescript-eslint/no-empty-interface`.
+    // Real WebGPU adapter has many more fields; we only need it for typing.
+    name?: string
+  }
 }
 
 export interface WebLLMInterface {

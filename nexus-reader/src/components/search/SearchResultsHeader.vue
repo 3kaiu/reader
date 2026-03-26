@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 defineProps<{
   loading: boolean;
   resultCount: number;
+  errorCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -25,6 +26,13 @@ const emit = defineEmits<{
       </Badge>
       <Badge v-else-if="resultCount > 0" variant="secondary">
         {{ resultCount }} 本
+      </Badge>
+      <Badge
+        v-if="(errorCount || 0) > 0"
+        variant="outline"
+        class="border-amber-500/30 text-amber-700 dark:text-amber-300"
+      >
+        {{ errorCount }} 个失败源
       </Badge>
     </div>
     <div class="flex items-center gap-2">

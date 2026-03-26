@@ -1,27 +1,4 @@
-export interface ReaderChromeTimerActions {
-  clearHideTimer: () => void
-  startHideTimer: () => void
-}
-
-export interface ReaderChromeLayerActions {
-  closeActiveLayer: () => boolean
-}
-
-export interface ReaderChromeDisplayActions {
-  toggleToolbar: () => void
-  toggleZenMode: () => void
-  toggleCatalog: () => void
-  openCatalog: () => void
-  toggleSettings: () => void
-  openSettings: () => void
-  toggleKeyboardHelp: () => void
-  openSourcePicker: () => void
-  openBookInfo: () => void
-  openDecoderSettings: () => void
-  goBack: () => void
-  handleEscape: () => void
-}
-
-export interface ReaderChromeActionsResult extends ReaderChromeDisplayActions {
-  clearHideTimer: () => void
-}
+export type { ReaderChromeTimerActions } from './chrome-timer-action-types'
+export type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+export type { ReaderChromeDisplayActions } from './chrome-display-action-types'
+export type { ReaderChromeActionsResult } from './chrome-actions-result-types'

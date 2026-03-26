@@ -10,7 +10,29 @@ export interface SearchResult {
   latestChapterTitle?: string
 }
 
+export interface SearchDisplayResult extends SearchResult {
+  sourceCount: number
+  matchedSources: SearchSourceOption[]
+  sourceVariants: SearchResult[]
+}
+
+export interface SearchResultActionPayload {
+  book: SearchResult
+  rememberPreference?: boolean
+}
+
+export interface SearchError {
+  sourceId: string
+  error: string
+}
+
+export interface SearchSourceOption {
+  id: string
+  name: string
+}
+
 export interface SearchResponse {
   results: SearchResult[]
   total: number
+  errors?: SearchError[]
 }

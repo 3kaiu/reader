@@ -1,47 +1,32 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeLayerActions } from './chrome-display-types'
+import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import {
+  createReaderChromeDecoderLayerCloseAction,
+} from './chrome-decoder-layer-close'
+import {
+  createReaderChromePanelLayerCloseAction,
+} from './chrome-panel-layer-close'
+import {
+  createReaderChromeToolbarLayerCloseAction,
+} from './chrome-toolbar-layer-close'
 
 export function createReaderChromeLayerActions(
   context: ReaderChromeActionContext,
 ): ReaderChromeLayerActions {
+  const closeDecoderLayer = createReaderChromeDecoderLayerCloseAction(context)
+  const closePanelLayer = createReaderChromePanelLayerCloseAction(context)
+  const closeToolbarLayer = createReaderChromeToolbarLayerCloseAction(context)
+
   const closeActiveLayer = () => {
-    if (context.options.decoderAddonEnabled && context.options.decoderStore.showCard) {
-      context.options.decoderStore.closeCard()
+    if (closeDecoderLayer()) {
       return true
     }
 
-    if (context.state.showDecoderSettings.value) {
-      context.state.showDecoderSettings.value = false
+    if (closePanelLayer()) {
       return true
     }
 
-    if (context.state.showKeyboardHelp.value) {
-      context.state.showKeyboardHelp.value = false
-      return true
-    }
-
-    if (context.state.showBookInfo.value) {
-      context.state.showBookInfo.value = false
-      return true
-    }
-
-    if (context.state.showSourcePicker.value) {
-      context.state.showSourcePicker.value = false
-      return true
-    }
-
-    if (context.state.showSettings.value) {
-      context.state.showSettings.value = false
-      return true
-    }
-
-    if (context.state.showCatalog.value) {
-      context.state.showCatalog.value = false
-      return true
-    }
-
-    if (context.state.showToolbar.value) {
-      context.state.showToolbar.value = false
+    if (closeToolbarLayer()) {
       return true
     }
 

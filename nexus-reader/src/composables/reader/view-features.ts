@@ -1,30 +1,24 @@
-import { useReaderActions } from '@/composables/useReaderActions'
-import { useReaderChrome } from '@/composables/useReaderChrome'
-import { useReaderDecoder } from '@/composables/useReaderDecoder'
-import { useReaderSession } from '@/composables/useReaderSession'
 import { setupReaderViewFeatureEffects } from './view-feature-effects'
-import { createReaderActionFeatureOptions } from './view-feature-action-options'
-import { createReaderChromeFeatureOptions } from './view-feature-chrome-options'
-import { createReaderDecoderFeatureOptions } from './view-feature-decoder-options'
-import { createReaderSessionFeatureOptions } from './view-feature-session-options'
+import { createReaderViewActionFeature } from './view-action-feature'
+import { createReaderViewChromeFeature } from './view-chrome-feature'
+import { createReaderViewDecoderFeature } from './view-decoder-feature'
 import type {
   ReaderViewLayout,
   ReaderViewServices,
 } from './view-dependencies'
+import { createReaderViewSessionFeature } from './view-session-feature'
+import type { ReaderViewFeatures } from './view-feature-types'
+
+export type { ReaderViewFeatures } from './view-feature-types'
 
 export function createReaderViewFeatures(
   services: ReaderViewServices,
   layout: ReaderViewLayout,
-) {
-  const session = useReaderSession(createReaderSessionFeatureOptions(services))
-
-  const chrome = useReaderChrome(createReaderChromeFeatureOptions(services))
-
-  const actions = useReaderActions(createReaderActionFeatureOptions(services))
-
-  const decoder = useReaderDecoder(
-    createReaderDecoderFeatureOptions(services, session, layout),
-  )
+): ReaderViewFeatures {
+  const session = createReaderViewSessionFeature(services, layout)
+  const chrome = createReaderViewChromeFeature(services, layout)
+  const actions = createReaderViewActionFeature(services, layout)
+  const decoder = createReaderViewDecoderFeature(services, layout, session)
 
   setupReaderViewFeatureEffects(services)
 
@@ -35,5 +29,3 @@ export function createReaderViewFeatures(
     decoder,
   }
 }
-
-export type ReaderViewFeatures = ReturnType<typeof createReaderViewFeatures>

@@ -1,22 +1,30 @@
-import type { ReaderExperienceActions } from './experience-action-types'
+import type {
+  ReaderExperienceDecoderActions,
+} from './experience-decoder-action-types'
+import type {
+  ReaderExperienceReadingActions,
+} from './experience-reading-action-types'
+import type {
+  ReaderExperienceViewActions,
+} from './experience-view-action-types'
 
 export type ReaderExperienceModelHandlerOptions = {
-  goBack: () => void
-  openCatalog: () => void
-  toggleFullscreen: () => void
-  toggleDayNight: () => void
-  openSettings: () => void
-  toggleZenMode: () => void
-  openSourcePicker: () => void
-  openBookInfo: () => void
-  openDecoderSettings: () => void
-  handleRefresh: () => void | Promise<void>
-  handlePrevChapter: () => void | Promise<void>
-  handleNextChapter: () => void | Promise<void>
-  handleSelectChapter: (index: number) => void | Promise<void>
-  handleToggleDecoder: (enabled: boolean) => void | Promise<void>
-  decodeCurrentChapter: () => void | Promise<void>
-  handleEntityClick: ReaderExperienceActions['handleEntityClick']
-  handleConfirmEntity: ReaderExperienceActions['handleConfirmEntity']
-  handleCorrectEntity: ReaderExperienceActions['handleCorrectEntity']
+  goBack: ReaderExperienceViewActions['goBack']
+  openCatalog: ReaderExperienceViewActions['openCatalog']
+  toggleFullscreen: ReaderExperienceViewActions['toggleFullscreen']
+  toggleDayNight: ReaderExperienceViewActions['toggleDayNight']
+  openSettings: ReaderExperienceViewActions['openSettings']
+  toggleZenMode: ReaderExperienceViewActions['toggleZenMode']
+  openSourcePicker: ReaderExperienceViewActions['openSourcePicker']
+  openBookInfo: ReaderExperienceViewActions['openBookInfo']
+  openDecoderSettings: ReaderExperienceViewActions['openDecoderSettings']
+  handleRefresh: ReaderExperienceReadingActions['handleRefresh']
+  handlePrevChapter: ReaderExperienceReadingActions['handlePrevChapter']
+  handleNextChapter: ReaderExperienceReadingActions['handleNextChapter']
+  handleSelectChapter: ReaderExperienceReadingActions['handleSelectChapter']
+  handleToggleDecoder: ReaderExperienceDecoderActions['handleToggleDecoder']
+  decodeCurrentChapter: ReaderExperienceDecoderActions['decodeCurrentChapter']
+  handleEntityClick: ReaderExperienceDecoderActions['handleEntityClick']
+  handleConfirmEntity: ReaderExperienceDecoderActions['handleConfirmEntity']
+  handleCorrectEntity: ReaderExperienceDecoderActions['handleCorrectEntity']
 }

@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { X } from "lucide-vue-next";
+import type { SearchSourceOption } from "@/types/search";
 
-defineProps<{
-  availableSources: string[];
-  selectedSources: Set<string>;
-}>();
+withDefaults(
+  defineProps<{
+    availableSources: SearchSourceOption[];
+    selectedSources: Set<string>;
+    disabled?: boolean;
+  }>(),
+  {
+    disabled: false,
+  }
+);
 
 const emit = defineEmits<{
   (e: "toggle-source", source: string): void;
@@ -18,20 +25,28 @@ const emit = defineEmits<{
   >
     <button
       v-for="source in availableSources"
-      :key="source"
+      :key="source.id"
       class="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
       :class="
-        selectedSources.has(source)
-          ? 'bg-primary text-primary-foreground border-primary'
-          : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+        [
+          selectedSources.has(source.id)
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground',
+          disabled ? 'opacity-60 cursor-not-allowed' : '',
+        ]
       "
-      @click="emit('toggle-source', source)"
+      :disabled="disabled"
+      :aria-disabled="disabled"
+      :title="disabled ? '搜索中，结束后可切换书源' : undefined"
+      @click="emit('toggle-source', source.id)"
     >
-      {{ source }}
+      {{ source.name }}
     </button>
     <button
       v-if="selectedSources.size > 0"
       class="px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+      :class="disabled ? 'opacity-60 cursor-not-allowed' : ''"
+      :disabled="disabled"
       @click="emit('clear')"
     >
       <X class="w-3 h-3" />

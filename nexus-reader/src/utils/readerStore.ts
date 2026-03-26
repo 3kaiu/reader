@@ -18,6 +18,32 @@ export type ReaderBook = Book & {
   tags?: string[]
 }
 
+function sanitizeCacheSegment(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_')
+  return normalized.replace(/^_+|_+$/g, '') || 'source'
+}
+
+function hashCacheKey(value: string): string {
+  let hash = 2166136261
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return (hash >>> 0).toString(36)
+}
+
+export function buildReaderContentBookId(
+  book: Pick<ReaderBook, 'id' | 'sourceId' | 'bookUrl'>
+): string {
+  if (book.id) {
+    return `shelf_${sanitizeCacheSegment(book.id)}`
+  }
+
+  return `source_${sanitizeCacheSegment(book.sourceId)}_${hashCacheKey(book.bookUrl)}`
+}
+
 function escapeHtml(input: string): string {
   return input
     .replace(/&/g, '&amp;')

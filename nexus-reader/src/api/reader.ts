@@ -3,6 +3,13 @@ import type { Book, Chapter, ChapterContent } from "@/types/book"
 
 export type { Book, Chapter, ChapterContent } from "@/types/book"
 
+type ReaderContentRequest = {
+  bookUrl?: string
+  bookId?: string
+  index?: number
+  chunkSize?: number
+}
+
 function safeDecodeUrl(url: string): string {
   if (!url || typeof url !== "string") {
     return url
@@ -87,13 +94,18 @@ export const readerApi = {
     const decodedUrl = validateSourceAndUrl(source, url)
     return $get<Chapter[]>("/chapters", { params: { source: source.trim(), url: decodedUrl } })
   },
-  getContent: (source: string, url: string, bookUrl?: string) => {
+  getContent: (source: string, url: string, request?: ReaderContentRequest) => {
     const decodedUrl = validateSourceAndUrl(source, url)
     return $get<ChapterContent>("/content", {
       params: {
         source: source.trim(),
         url: decodedUrl,
-        ...(bookUrl ? { bookUrl } : {}),
+        ...(request?.bookUrl ? { bookUrl: request.bookUrl } : {}),
+        ...(request?.bookId ? { book_id: request.bookId } : {}),
+        ...(typeof request?.index === "number" ? { index: request.index } : {}),
+        ...(typeof request?.chunkSize === "number"
+          ? { chunk_size: request.chunkSize }
+          : {}),
       },
     })
   },

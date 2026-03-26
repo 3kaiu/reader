@@ -5,7 +5,7 @@
 import { Button } from '@/components/ui/button'
 import type { IconComponent } from '@/types/components'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   icon?: IconComponent
   title: string
   description?: string

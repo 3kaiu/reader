@@ -6,6 +6,7 @@ export function createReaderChapterOperations(
   view: ReaderStoreView,
   helpers: {
     fetchChapterContent: (chapter: Chapter) => Promise<string>
+    prefetchChapterContent: (chapter: Chapter | undefined) => void
     setCurrentChapterContent: (
       chapter: Chapter,
       chapterContent: string,
@@ -32,6 +33,9 @@ export function createReaderChapterOperations(
       const next = state.catalog.value[state.currentChapterIndex.value + 1]
       const chapterContent = await helpers.fetchChapterContent(next)
       helpers.updateLoadedChapter(next, chapterContent, false)
+      helpers.prefetchChapterContent(
+        state.catalog.value[state.currentChapterIndex.value + 2],
+      )
       return true
     } catch (err) {
       state.loadError.value = err instanceof Error ? err.message : '加载下一章失败'

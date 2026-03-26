@@ -1,65 +1,28 @@
 <script setup lang="ts">
-import { ArrowLeft, List } from 'lucide-vue-next'
-import ReaderFullscreenIcon from './ReaderFullscreenIcon.vue'
+import ReaderToolbarTopBarContent from './ReaderToolbarTopBarContent.vue'
+import {
+  createReaderToolbarTopBarBindings,
+} from './toolbar-top-bar-content-bindings'
+import type { ReaderToolbarTopBarEmits } from './toolbar-top-bar-emit-types'
+import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
-defineProps<{
-  show: boolean
-  zenMode: boolean
-  bookName?: string
-  chapterTitle?: string
-  isFullscreen: boolean
-}>()
+const props = defineProps<ReaderToolbarTopBarProps>()
 
-const emit = defineEmits<{
-  back: []
-  toggleCatalog: []
-  toggleFullscreen: []
-}>()
+const emit = defineEmits<ReaderToolbarTopBarEmits>()
+const {
+  contentBindings,
+  isVisible,
+} = createReaderToolbarTopBarBindings(props, emit)
 </script>
 
 <template>
   <Transition name="slide-down">
     <header
-      v-show="show && !zenMode"
+      v-show="isVisible"
       class="fixed top-0 inset-x-0 z-40"
       @click.stop
     >
-      <div
-        class="reader-toolbar-glass mx-3 mt-3 px-5 py-3 rounded-2xl shadow-premium border border-white/10"
-      >
-        <div class="flex items-center justify-between">
-          <button
-            class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-            @click="emit('back')"
-          >
-            <ArrowLeft class="w-5 h-5" />
-          </button>
-
-          <div class="flex-1 text-center px-3">
-            <h1 class="font-semibold text-sm truncate">
-              {{ bookName }}
-            </h1>
-            <p class="text-xs opacity-60 truncate mt-0.5">
-              {{ chapterTitle }}
-            </p>
-          </div>
-
-          <div class="flex items-center gap-1">
-            <button
-              class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              @click="emit('toggleCatalog')"
-            >
-              <List class="w-5 h-5" />
-            </button>
-            <button
-              class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              @click="emit('toggleFullscreen')"
-            >
-              <ReaderFullscreenIcon :is-fullscreen="isFullscreen" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <ReaderToolbarTopBarContent v-bind="contentBindings" />
     </header>
   </Transition>
 </template>

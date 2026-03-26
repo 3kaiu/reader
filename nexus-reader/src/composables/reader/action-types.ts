@@ -1,4 +1,4 @@
-import type { ReaderToast } from './types'
+import type { ReaderToast } from './shared-types'
 import type { useReaderStore } from '@/stores/reader'
 import type { useSettingsStore } from '@/stores/settings'
 

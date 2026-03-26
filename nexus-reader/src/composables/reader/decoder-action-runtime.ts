@@ -1,8 +1,11 @@
-import type { ReaderDecoderActionOptions } from './decoder-action-types'
+import type { ReaderDecoderActionOptions } from './decoder-action-option-types'
+import type {
+  ReaderDecoderActionRuntime,
+} from './decoder-action-runtime-types'
 
 export function createReaderDecoderActionRuntime(
   options: ReaderDecoderActionOptions,
-) {
+): ReaderDecoderActionRuntime {
   function getActiveBookUrl() {
     return options.activeBookUrl.value
   }
@@ -17,7 +20,3 @@ export function createReaderDecoderActionRuntime(
     getCurrentBookType,
   }
 }
-
-export type ReaderDecoderActionRuntime = ReturnType<
-  typeof createReaderDecoderActionRuntime
->

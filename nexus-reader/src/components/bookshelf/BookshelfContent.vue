@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Library, Sparkles } from "lucide-vue-next";
+import type { ComponentPublicInstance } from 'vue'
 import type { BookGroup } from "@/types/group";
 import type { BookshelfBook } from "@/utils/bookshelf";
 import type { BookshelfVirtualizer } from "./types";
@@ -20,7 +21,9 @@ defineProps<{
   isManageMode: boolean;
   selectedBooks: Set<string>;
   shouldUseVirtualScroll: boolean;
-  bindVirtualContainerRef: (element: Element | null) => void;
+  bindVirtualContainerRef: (
+    element: Element | ComponentPublicInstance | null,
+  ) => void;
   virtualizer: BookshelfVirtualizer;
   getVirtualRowItems: (rowIndex: number) => BookshelfBook[];
 }>();

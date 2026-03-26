@@ -3,6 +3,7 @@ import { readerApi } from '@/api/reader'
 import type { Chapter } from '@/types/book'
 import { isSameReaderRouteTarget } from '@/utils/readerRoute'
 import {
+  buildReaderContentBookId,
   createLoadedChapter,
   formatReaderContent,
   mergeLoadedChapters,
@@ -12,6 +13,8 @@ import {
 import type { ReaderStoreState, ReaderTarget } from '../types'
 
 export function createReaderActionHelpers(state: ReaderStoreState) {
+  const inflightChapterContentRequests = new Map<string, Promise<string>>()
+
   const cacheChapterContent = (chapterUrl: string, chapterContent: string) => {
     state.chapterContentCache.value = {
       ...state.chapterContentCache.value,
@@ -21,6 +24,11 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
   const getCachedChapterContent = (chapterUrl: string) =>
     state.chapterContentCache.value[chapterUrl]
+
+  const getChapterRequestCacheKey = (
+    chapter: Chapter,
+    book: ReaderBook | null = state.currentBook.value,
+  ) => `${book?.bookUrl || ''}::${chapter.url}`
 
   const fetchBookInfo = async (
     sourceId: string,
@@ -102,23 +110,66 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       return cached
     }
 
-    if (!state.currentBook.value) {
+    const currentBook = state.currentBook.value
+    if (!currentBook) {
       throw new Error('缺少书籍信息')
     }
 
-    const res = await readerApi.getContent(
-      state.currentBook.value.sourceId,
-      chapter.url,
-      state.currentBook.value.bookUrl,
-    )
-
-    if (!res.isSuccess) {
-      throw new Error(res.errorMsg || '获取正文失败')
+    const requestCacheKey = getChapterRequestCacheKey(chapter, currentBook)
+    const inflightRequest = inflightChapterContentRequests.get(requestCacheKey)
+    if (inflightRequest) {
+      return await inflightRequest
     }
 
-    const chapterContent = res.data?.content || ''
-    cacheChapterContent(chapter.url, chapterContent)
-    return chapterContent
+    const request = (async () => {
+      const res = await readerApi.getContent(
+        currentBook.sourceId,
+        chapter.url,
+        {
+          bookUrl: currentBook.bookUrl,
+          bookId: buildReaderContentBookId(currentBook),
+          index: chapter.index,
+        },
+      )
+
+      if (!res.isSuccess) {
+        throw new Error(res.errorMsg || '获取正文失败')
+      }
+
+      const chapterContent = res.data?.content || ''
+      if (
+        state.currentBook.value?.sourceId === currentBook.sourceId &&
+        state.currentBook.value?.bookUrl === currentBook.bookUrl
+      ) {
+        cacheChapterContent(chapter.url, chapterContent)
+      }
+      return chapterContent
+    })()
+
+    inflightChapterContentRequests.set(requestCacheKey, request)
+
+    try {
+      return await request
+    } finally {
+      inflightChapterContentRequests.delete(requestCacheKey)
+    }
+  }
+
+  const prefetchChapterContent = (chapter: Chapter | undefined) => {
+    if (!chapter || !state.currentBook.value) {
+      return
+    }
+
+    if (typeof getCachedChapterContent(chapter.url) === 'string') {
+      return
+    }
+
+    const requestCacheKey = getChapterRequestCacheKey(chapter)
+    if (inflightChapterContentRequests.has(requestCacheKey)) {
+      return
+    }
+
+    void fetchChapterContent(chapter).catch(() => undefined)
   }
 
   const loadChapterAt = async (
@@ -136,6 +187,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     state.currentChapterIndex.value = index
     setCurrentChapterContent(target, chapterContent)
     updateLoadedChapter(target, chapterContent, options.replaceLoaded ?? true)
+    prefetchChapterContent(chapters[index + 1])
     state.loadError.value = null
   }
 
@@ -147,6 +199,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     setCurrentChapterContent,
     updateLoadedChapter,
     fetchChapterContent,
+    prefetchChapterContent,
     loadChapterAt,
   }
 }

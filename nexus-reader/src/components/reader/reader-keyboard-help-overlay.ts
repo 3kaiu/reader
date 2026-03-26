@@ -1,33 +1,7 @@
-import { computed } from 'vue'
-import type { ReaderKeyboardShortcut } from '@/composables/reader/types'
-
-export interface ReaderKeyboardHelpOverlayProps {
-  open: boolean
-  shortcuts: ReaderKeyboardShortcut[]
-}
-
-export type ReaderKeyboardHelpOverlayEmits = {
-  'update:open': [value: boolean]
-}
-
-type ReaderKeyboardHelpOverlayEmitFn =
-  <EventName extends keyof ReaderKeyboardHelpOverlayEmits>(
-    event: EventName,
-    ...args: ReaderKeyboardHelpOverlayEmits[EventName]
-  ) => void
-
-export function createReaderKeyboardHelpOverlayBindings(
-  props: ReaderKeyboardHelpOverlayProps,
-  emit: ReaderKeyboardHelpOverlayEmitFn,
-) {
-  const shortcutItems = computed(() => props.shortcuts)
-
-  function close() {
-    emit('update:open', false)
-  }
-
-  return {
-    shortcutItems,
-    close,
-  }
-}
+export { createReaderKeyboardHelpOverlayBindings } from './reader-keyboard-help-overlay-bindings'
+export type {
+  ReaderKeyboardHelpOverlayEmits,
+} from './reader-keyboard-help-overlay-emit-types'
+export type {
+  ReaderKeyboardHelpOverlayProps,
+} from './reader-keyboard-help-overlay-prop-types'

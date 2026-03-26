@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use crate::app::AppState;
 use crate::error::{bad_request, internal_error, not_found, ApiErrorResponse};
+use crate::source_access::ensure_source_public_access;
 use crate::validation::validate_url;
 
 #[derive(Deserialize)]
@@ -27,6 +28,7 @@ pub async fn book_info(
 ) -> Result<Json<BookInfo>, ApiErrorResponse> {
     // Validate URL to prevent SSRF
     validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
+    ensure_source_public_access(&state, &query.source).await?;
 
     let engine = state
         .engine_registry
@@ -47,6 +49,7 @@ pub async fn chapters(
 ) -> Result<Json<Vec<Chapter>>, ApiErrorResponse> {
     // Validate URL to prevent SSRF
     validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
+    ensure_source_public_access(&state, &query.source).await?;
 
     let engine = state
         .engine_registry
@@ -67,6 +70,7 @@ pub async fn content(
 ) -> Result<Json<ChapterContent>, ApiErrorResponse> {
     // Validate URL to prevent SSRF
     validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
+    ensure_source_public_access(&state, &query.source).await?;
 
     // 1. Try Cache if book_id and index provided
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
@@ -140,6 +144,8 @@ pub async fn batch_content(
     State(state): State<AppState>,
     Json(query): Json<BatchBookQuery>,
 ) -> Result<Json<BatchContentResponse>, ApiErrorResponse> {
+    ensure_source_public_access(&state, &query.source).await?;
+
     let engine = state
         .engine_registry
         .get_engine(&query.source)

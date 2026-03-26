@@ -46,7 +46,7 @@ const emit = defineEmits<{
         :max="max"
         :step="step"
         class="flex-1 w-full"
-        @update:model-value="emit('update:model-value', $event)"
+        @update:model-value="emit('update:model-value', $event ?? [])"
       />
       <Button
         v-if="showStepper"

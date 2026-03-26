@@ -9,7 +9,7 @@
 
 use nexus_core::{
     AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, HealthTracker,
-    ReplaceRule, VoiceModelMetadata,
+    ReplaceRule, SourcePolicy, VoiceModelMetadata,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sled::{Db, Tree};
@@ -33,6 +33,7 @@ pub struct SledStore {
     voice_meta: Tree,
     voice_config: Tree,
     source_status: Tree, // Source enabled/disabled status
+    source_policy: Tree, // Source governance metadata
 
     // Health tracker (in-memory, not persisted)
     health: Arc<HealthTracker>,
@@ -86,6 +87,11 @@ impl SledStore {
                 })?,
             source_status: db
                 .open_tree("source_status")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
+            source_policy: db
+                .open_tree("source_policy")
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
@@ -598,6 +604,32 @@ impl SledStore {
         })?
     }
 
+    /// Get source governance policy (default: unreviewed)
+    pub async fn get_source_policy(&self, source_id: String) -> Result<SourcePolicy, EngineError> {
+        let policy_tree = self.source_policy.clone();
+        tokio::task::spawn_blocking(move || {
+            Ok(Self::get_sync::<SourcePolicy>(&policy_tree, &source_id)?.unwrap_or_default())
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    /// Set source governance policy
+    pub async fn set_source_policy(
+        &self,
+        source_id: String,
+        policy: SourcePolicy,
+    ) -> Result<(), EngineError> {
+        let policy_tree = self.source_policy.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&policy_tree, &source_id, &policy))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
     /// Flush all pending writes to disk
     pub async fn flush(&self) -> Result<(), EngineError> {
         let db = self.db.clone();
@@ -617,6 +649,7 @@ impl SledStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nexus_core::{SourceAccessMode, SourceLicenseStatus};
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -693,5 +726,36 @@ mod tests {
         assert_eq!(books[0].name.as_ref(), "Book 3");
         assert_eq!(books[1].name.as_ref(), "Book 2");
         assert_eq!(books[2].name.as_ref(), "Book 1");
+    }
+
+    #[tokio::test]
+    async fn test_source_policy_defaults_and_roundtrip() {
+        let dir = tempdir().unwrap();
+        let store = SledStore::new(dir.path()).unwrap();
+
+        let default_policy = store
+            .get_source_policy("missing-source".to_string())
+            .await
+            .unwrap();
+        assert_eq!(default_policy.license_status, SourceLicenseStatus::Unknown);
+
+        let saved_policy = SourcePolicy {
+            license_status: SourceLicenseStatus::Licensed,
+            access_mode: SourceAccessMode::Api,
+            last_verified_at: Some(1_710_000_000),
+            notes: Some("approved partner feed".to_string()),
+        };
+
+        store
+            .set_source_policy("source-1".to_string(), saved_policy.clone())
+            .await
+            .unwrap();
+
+        let loaded_policy = store
+            .get_source_policy("source-1".to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(loaded_policy, saved_policy);
     }
 }

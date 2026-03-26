@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props */
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { DECODER_CATEGORY_OPTIONS } from '@/constants/decoderDictionary'

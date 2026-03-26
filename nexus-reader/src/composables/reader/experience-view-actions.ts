@@ -1,0 +1,46 @@
+import type {
+  ReaderContentInstance,
+} from './shared-types'
+import type {
+  ReaderExperienceViewActions,
+} from './experience-view-action-types'
+import type {
+  ReaderExperienceModelHandlerOptions,
+} from './experience-model-handler-types'
+import type {
+  ReaderExperienceModelServiceOptions,
+} from './experience-model-service-types'
+
+type ReaderExperienceViewActionOptions =
+  Pick<ReaderExperienceModelServiceOptions, 'contentRef'> &
+  Pick<
+    ReaderExperienceModelHandlerOptions,
+    | 'goBack'
+    | 'openCatalog'
+    | 'toggleFullscreen'
+    | 'toggleDayNight'
+    | 'openSettings'
+    | 'toggleZenMode'
+    | 'openSourcePicker'
+    | 'openBookInfo'
+    | 'openDecoderSettings'
+  >
+
+export function createReaderExperienceViewActions(
+  options: ReaderExperienceViewActionOptions,
+): ReaderExperienceViewActions {
+  return {
+    bindContentRef(instance) {
+      options.contentRef.value = instance as ReaderContentInstance
+    },
+    goBack: options.goBack,
+    openCatalog: options.openCatalog,
+    toggleFullscreen: options.toggleFullscreen,
+    toggleDayNight: options.toggleDayNight,
+    openSettings: options.openSettings,
+    toggleZenMode: options.toggleZenMode,
+    openSourcePicker: options.openSourcePicker,
+    openBookInfo: options.openBookInfo,
+    openDecoderSettings: options.openDecoderSettings,
+  }
+}

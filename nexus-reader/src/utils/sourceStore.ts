@@ -1,4 +1,4 @@
-import type { BookSource } from '@/types/source'
+import type { BookSource, SourceLicenseStatus } from '@/types/source'
 import { toPrettyJson } from '@/utils/json'
 
 export type SourceDefinition = Partial<BookSource> & Record<string, unknown>
@@ -6,6 +6,58 @@ export type SourceDefinition = Partial<BookSource> & Record<string, unknown>
 export type SourceListEntry = BookSource & {
   url: string
   enabled: boolean
+  publicAccessEnabled: boolean
+}
+
+const LICENSE_PRIORITY: Record<SourceLicenseStatus, number> = {
+  licensed: 4,
+  public_domain: 4,
+  unknown: 2,
+  restricted: 1,
+  blocked: 0,
+}
+
+export function getSourceBusinessPriority(source: Partial<BookSource>): number {
+  const enabled = source.enabled !== false
+  const publicAccessEnabled = source.publicAccessEnabled === true
+  const licenseStatus = source.policy?.licenseStatus ?? 'unknown'
+  const healthScore = source.health?.score ?? 0.5
+  const avgLatencyMs = source.health?.avgLatencyMs ?? 0
+  const successCount = source.health?.successCount ?? 0
+  const failureCount = source.health?.failureCount ?? 0
+
+  let score = 0
+
+  score += enabled ? 400 : -200
+  score += publicAccessEnabled ? 500 : 0
+  score += LICENSE_PRIORITY[licenseStatus] * 40
+  score += Math.round(healthScore * 100)
+  score += Math.min(successCount, 20)
+  score -= Math.min(failureCount * 5, 60)
+
+  if (avgLatencyMs > 0) {
+    score += Math.max(0, 30 - Math.round(avgLatencyMs / 200))
+  }
+
+  return score
+}
+
+export function compareSourcesByBusinessPriority(
+  left: Partial<BookSource>,
+  right: Partial<BookSource>,
+): number {
+  const priorityDiff =
+    getSourceBusinessPriority(right) - getSourceBusinessPriority(left)
+
+  if (priorityDiff !== 0) {
+    return priorityDiff
+  }
+
+  return (left.name || '').localeCompare(right.name || '', 'zh-CN')
+}
+
+export function sortSourcesByBusinessPriority<T extends BookSource>(sources: T[]): T[] {
+  return [...sources].sort(compareSourcesByBusinessPriority)
 }
 
 export function normalizeSource(source: BookSource): SourceListEntry {
@@ -13,6 +65,7 @@ export function normalizeSource(source: BookSource): SourceListEntry {
     ...source,
     url: source.url || '',
     enabled: source.enabled !== false,
+    publicAccessEnabled: source.publicAccessEnabled === true,
   }
 }
 

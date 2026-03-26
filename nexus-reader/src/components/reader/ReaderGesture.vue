@@ -2,10 +2,9 @@
 /**
  * 👆 ReaderGesture - 阅读器交互手势组件
  */
-const emit = defineEmits<{
-  'toggle-toolbar': []
-  'toggle-zen-mode': []
-}>()
+import type { ReaderGestureEmits } from './reader-gesture-emit-types'
+
+const emit = defineEmits<ReaderGestureEmits>()
 </script>
 
 <template>

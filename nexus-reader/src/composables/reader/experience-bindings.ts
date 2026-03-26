@@ -1,37 +1,28 @@
-import type {
-  ReaderExperienceActions,
-} from './experience-action-types'
-import type { ReaderExperienceState } from './experience-state-types'
 import {
-  createReaderExperienceAssistActions,
-  createReaderExperienceAssistState,
-  createReaderEyeCareToggleHandler,
-} from './experience-assist'
-import { createReaderExperienceContentProps } from './experience-content'
-import { createReaderExperienceModalProps } from './experience-modal'
-import { createReaderExperienceToolbarProps } from './experience-toolbar'
+  createReaderExperienceBindingAssistResult,
+} from './experience-binding-assist'
+import type {
+  ReaderExperienceBindingProps,
+} from './experience-binding-prop-types'
+import type {
+  ReaderExperienceBindingResult,
+} from './experience-binding-result-types'
+import {
+  createReaderExperienceBindingPropsResult,
+} from './experience-binding-props'
 
-export type ReaderExperienceProps = {
-  state: ReaderExperienceState
-  actions: ReaderExperienceActions
-}
+export type {
+  ReaderExperienceBindingProps,
+} from './experience-binding-prop-types'
+export type {
+  ReaderExperienceBindingResult,
+} from './experience-binding-result-types'
 
 export function createReaderExperienceBindings(
-  props: ReaderExperienceProps,
-) {
-  const toolbarProps = createReaderExperienceToolbarProps(props.state)
-  const contentProps = createReaderExperienceContentProps(props.state)
-  const modalProps = createReaderExperienceModalProps(props.state)
-  const assistState = createReaderExperienceAssistState(props.state)
-  const assistActions = createReaderExperienceAssistActions(props.actions)
-  const handleToggleEyeCare = createReaderEyeCareToggleHandler(props.state)
-
+  props: ReaderExperienceBindingProps,
+): ReaderExperienceBindingResult {
   return {
-    toolbarProps,
-    contentProps,
-    modalProps,
-    assistState,
-    assistActions,
-    handleToggleEyeCare,
+    ...createReaderExperienceBindingPropsResult(props.state),
+    ...createReaderExperienceBindingAssistResult(props),
   }
 }

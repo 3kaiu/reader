@@ -3,10 +3,8 @@ import BreakReminder from '@/components/BreakReminder.vue'
 import DecoderCard from '@/components/decoder/DecoderCard.vue'
 import DecoderSettingsSheet from '@/components/decoder/DecoderSettingsSheet.vue'
 import DecoderStatusIndicator from '@/components/decoder/DecoderStatusIndicator.vue'
-import {
-  createReaderAssistLayersBindings,
-  type ReaderAssistLayersProps,
-} from './reader-assist-layers'
+import { createReaderAssistLayersBindings } from './reader-assist-layers-bindings'
+import type { ReaderAssistLayersProps } from './reader-assist-layers-prop-types'
 
 const props = defineProps<ReaderAssistLayersProps>()
 const {

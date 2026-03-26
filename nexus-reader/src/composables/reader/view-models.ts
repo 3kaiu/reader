@@ -1,37 +1,28 @@
 import {
-  createReaderExperienceModel,
-} from '@/composables/reader/experience-model'
-import { createReaderPageModel } from '@/composables/reader/page-model'
-import {
-  createReaderExperienceModelOptions,
-  createReaderPageModelOptions,
-} from './view-model-options'
-import type {
-  ReaderViewFeatures,
-} from './view-features'
+  createReaderViewExperienceModel,
+} from './view-model-experience'
+import { createReaderViewPageModel } from './view-model-page'
 import type {
   ReaderViewLayout,
   ReaderViewServices,
 } from './view-dependencies'
+import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewModelResult } from './view-model-result-types'
 
 export function createReaderViewModels(
   services: ReaderViewServices,
   layout: ReaderViewLayout,
   features: ReaderViewFeatures,
-) {
+): ReaderViewModelResult {
   const { readerExperienceState, readerExperienceActions } =
-    createReaderExperienceModel(
-      createReaderExperienceModelOptions(services, layout, features),
-    )
+    createReaderViewExperienceModel(services, layout, features)
 
-  const { readerPageState, readerPageActions } = createReaderPageModel({
-    ...createReaderPageModelOptions(
-      services,
-      layout,
-      features,
-      readerExperienceActions,
-    ),
-  })
+  const { readerPageState, readerPageActions } = createReaderViewPageModel(
+    services,
+    layout,
+    features,
+    readerExperienceActions,
+  )
 
   return {
     readerPageState,

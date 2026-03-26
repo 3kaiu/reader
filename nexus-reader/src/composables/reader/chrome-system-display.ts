@@ -1,24 +1,24 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
 import type {
   ReaderChromeDisplayActions,
-  ReaderChromeLayerActions,
-} from './chrome-display-types'
+} from './chrome-display-action-types'
+import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import {
+  createReaderChromeEscapeDisplayAction,
+} from './chrome-escape-display'
+import {
+  createReaderChromeGoBackDisplayAction,
+} from './chrome-go-back-display'
 
 export function createReaderChromeSystemDisplayActions(
   context: ReaderChromeActionContext,
   layers: ReaderChromeLayerActions,
 ): Pick<ReaderChromeDisplayActions, 'goBack' | 'handleEscape'> {
-  const goBack = () => {
-    void context.options.router.push('/')
-  }
-
-  const handleEscape = () => {
-    if (layers.closeActiveLayer()) {
-      return
-    }
-
-    goBack()
-  }
+  const { goBack } = createReaderChromeGoBackDisplayAction(context)
+  const { handleEscape } = createReaderChromeEscapeDisplayAction(
+    layers,
+    goBack,
+  )
 
   return {
     goBack,

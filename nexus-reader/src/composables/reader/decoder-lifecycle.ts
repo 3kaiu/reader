@@ -1,11 +1,12 @@
 import { watch } from 'vue'
-import type { ReaderDecoderActionOptions } from './decoder-action-types'
+import type { ReaderDecoderActionOptions } from './decoder-action-option-types'
+import type {
+  ReaderDecoderLifecycleActions,
+} from './decoder-lifecycle-action-types'
 
 export function setupReaderDecoderLifecycle(
   options: Pick<ReaderDecoderActionOptions, 'enabled' | 'readerStore' | 'decoderStore'>,
-  actions: {
-    decodeCurrentChapter: () => Promise<void>
-  },
+  actions: ReaderDecoderLifecycleActions,
 ) {
   watch(
     () => options.readerStore.currentChapterIndex,

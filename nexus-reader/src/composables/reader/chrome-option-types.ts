@@ -1,5 +1,5 @@
 import type { Router } from 'vue-router'
-import type { ReaderToast } from './types'
+import type { ReaderToast } from './shared-types'
 import type { useDecoderStore } from '@/stores/decoder'
 import type { useSettingsStore } from '@/stores/settings'
 

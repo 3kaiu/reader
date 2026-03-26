@@ -33,7 +33,7 @@ function getConfidenceBg(confidence: number): string {
 
 export function useDecoderCardView(options: {
   entity: DecodedEntity
-  position?: { x: number; y: number }
+  position?: { x: number; y: number } | null
   onConfirm: (entity: DecodedEntity) => void
   onCorrect: (entity: DecodedEntity, newReal: string) => void
 }) {

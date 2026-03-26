@@ -1,8 +1,8 @@
 import { createReaderExperienceActions } from './experience-actions'
 import { createReaderExperienceState } from './experience-state'
-import type { ReaderExperienceModelOptions } from './experience-model-types'
+import type { ReaderExperienceModelOptions } from './experience-model-option-types'
 
-export type { ReaderExperienceModelOptions } from './experience-model-types'
+export type { ReaderExperienceModelOptions } from './experience-model-option-types'
 
 export function createReaderExperienceModel(
   options: ReaderExperienceModelOptions,

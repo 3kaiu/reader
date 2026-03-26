@@ -31,4 +31,5 @@ export interface Chapter {
 
 export interface ChapterContent {
   content: string
+  chunks?: string[]
 }

@@ -2,7 +2,7 @@
 /**
  * 首页/书架 - Neo-Modern Redesign
  */
-import { computed } from "vue";
+import { computed, type ComponentPublicInstance } from "vue";
 import { useBookshelfView } from "@/composables/useBookshelfView";
 import { useBookshelfVirtualGrid } from "@/composables/useBookshelfVirtualGrid";
 import MoveBookDialog from "@/components/book/MoveBookDialog.vue";
@@ -46,8 +46,10 @@ const {
   getVirtualRowItems,
 } = useBookshelfVirtualGrid(computed(() => otherBooks.value));
 
-function bindVirtualContainerRef(element: Element | null) {
-  virtualContainerRef.value = element as HTMLElement | null;
+function bindVirtualContainerRef(
+  element: Element | ComponentPublicInstance | null,
+) {
+  virtualContainerRef.value = element instanceof HTMLElement ? element : null;
 }
 </script>
 

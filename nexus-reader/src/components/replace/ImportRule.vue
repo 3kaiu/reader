@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Upload } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   open?: boolean
 }>(), {
   open: false

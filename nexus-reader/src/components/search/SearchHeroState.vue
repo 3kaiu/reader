@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { Button } from "@/components/ui/button";
+import type { SearchSourceOption } from "@/types/search";
 import SearchQueryBar from "./SearchQueryBar.vue";
+import SearchSourceFilters from "./SearchSourceFilters.vue";
 
 defineProps<{
   searchKeyword: string;
   searchHistory: string[];
   loading: boolean;
+  availableSources: SearchSourceOption[];
+  selectedSources: Set<string>;
 }>();
 
 const emit = defineEmits<{
@@ -14,6 +18,8 @@ const emit = defineEmits<{
   (e: "clearHistory"): void;
   (e: "goBack"): void;
   (e: "stopSearch"): void;
+  (e: "toggleSource", sourceId: string): void;
+  (e: "clearSourceFilter"): void;
 }>();
 </script>
 
@@ -40,6 +46,15 @@ const emit = defineEmits<{
           @stop="emit('stopSearch')"
         />
       </div>
+
+      <SearchSourceFilters
+        v-if="availableSources.length > 1"
+        :available-sources="availableSources"
+        :selected-sources="selectedSources"
+        :disabled="loading"
+        @toggle-source="emit('toggleSource', $event)"
+        @clear="emit('clearSourceFilter')"
+      />
 
       <div
         v-if="searchHistory.length > 0"

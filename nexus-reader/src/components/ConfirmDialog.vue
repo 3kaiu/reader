@@ -13,42 +13,57 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
+import { computed } from 'vue'
 import { useConfirm } from '@/composables/useConfirm'
 
-const { isOpen, options, handleConfirm, handleCancel } = useConfirm()
+const { confirmDialog, handleConfirm } = useConfirm()
+
+const resolvedOptions = computed(() => {
+  return (
+    confirmDialog.value.options ?? {
+      message: '',
+      title: undefined,
+      description: undefined,
+      confirmText: undefined,
+      cancelText: undefined,
+      type: 'info',
+      variant: 'default',
+    }
+  )
+})
 
 // Use pointerdown to set confirm flag BEFORE dialog auto-closes
 function onConfirmPointerDown() {
   // Set flag immediately on pointer down, before click fires
-  handleConfirm()
+  handleConfirm(true)
 }
 
 // Handle overlay/escape close - treat as cancel
 function onOpenChange(val: boolean) {
   if (!val) {
-    handleCancel()
+    handleConfirm(false)
   }
 }
 </script>
 
 <template>
-  <AlertDialog :open="isOpen" @update:open="onOpenChange">
+  <AlertDialog :open="confirmDialog.visible" @update:open="onOpenChange">
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>{{ options.title || '确认操作' }}</AlertDialogTitle>
+        <AlertDialogTitle>{{ resolvedOptions.title || '确认操作' }}</AlertDialogTitle>
         <AlertDialogDescription>
-          {{ options.description || '您确定要执行此操作吗？' }}
+          {{ resolvedOptions.description || '您确定要执行此操作吗？' }}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>
-          {{ options.cancelText || '取消' }}
+          {{ resolvedOptions.cancelText || '取消' }}
         </AlertDialogCancel>
         <AlertDialogAction
-          :variant="options.variant || 'default'"
+          :variant="(resolvedOptions.variant ?? 'default') as any"
           @pointerdown="onConfirmPointerDown"
         >
-          {{ options.confirmText || '确定' }}
+          {{ resolvedOptions.confirmText || '确定' }}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

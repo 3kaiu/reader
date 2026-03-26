@@ -6,7 +6,7 @@ import type { useSettingsStore } from '@/stores/settings'
 import type {
   ReaderContentInstance,
   ReaderContentStyle,
-} from './types'
+} from './shared-types'
 
 export type ReaderExperienceModelServiceOptions = {
   contentRef: Ref<ReaderContentInstance>

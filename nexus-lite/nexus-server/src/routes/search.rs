@@ -2,7 +2,6 @@
 
 use axum::{
     extract::State,
-    http::StatusCode,
     response::sse::{Event, KeepAlive, Sse},
     Json,
 };
@@ -14,6 +13,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 use crate::app::AppState;
+use crate::error::ApiErrorResponse;
+use crate::source_access::filter_public_sources;
 
 #[derive(Deserialize)]
 pub struct SearchRequest {
@@ -54,7 +55,7 @@ pub enum SearchEvent {
 pub async fn search(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
-) -> Result<Json<SearchResponse>, (StatusCode, String)> {
+) -> Result<Json<SearchResponse>, ApiErrorResponse> {
     info!("Searching for '{}' in {:?}", req.keyword, req.sources);
 
     // Get sources to search
@@ -66,6 +67,7 @@ pub async fn search(
             .filter_map(|id| state.engine_registry.source_store().get(id))
             .collect()
     };
+    let sources = filter_public_sources(&state, sources).await?;
 
     if sources.is_empty() {
         return Ok(Json(SearchResponse {
@@ -112,7 +114,7 @@ pub async fn search(
 pub async fn search_stream(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiErrorResponse> {
     info!("SSE Search for '{}' in {:?}", req.keyword, req.sources);
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(100);
@@ -126,6 +128,7 @@ pub async fn search_stream(
             .filter_map(|id| state.engine_registry.source_store().get(id))
             .collect()
     };
+    let sources = filter_public_sources(&state, sources).await?;
 
     // Spawn search task
     tokio::spawn(async move {
@@ -176,5 +179,5 @@ pub async fn search_stream(
         }
     });
 
-    Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default())
+    Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props */
 import { computed } from 'vue'
 import { Switch } from '@/components/ui/switch'
 import type { AiMappingDraft } from '@/utils/aiAnalysisTransfer'

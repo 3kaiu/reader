@@ -183,6 +183,9 @@ if (!globalThis.btoa) {
       return Buffer.from(str, 'binary').toString('base64')
     } catch (error: unknown) {
       // Fallback for invalid characters
+      // `\x00` control character range triggers `no-control-regex` in this lint setup.
+      // We only use it for test polyfill sanitization.
+      // eslint-disable-next-line no-control-regex
       const cleanStr = str.replace(/[^\x00-\xFF]/g, '?')
       return Buffer.from(cleanStr, 'binary').toString('base64')
     }

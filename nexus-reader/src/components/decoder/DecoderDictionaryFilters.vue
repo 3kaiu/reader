@@ -4,15 +4,16 @@ import {
   DECODER_CATEGORY_OPTIONS,
   DECODER_LEVEL_OPTIONS,
 } from '@/constants/decoderDictionary'
+import type { DictionaryLevel, EntityCategory } from '@/types/decoder'
 
 defineProps<{
-  filterCategory: string
-  filterLevel: string
+  filterCategory: EntityCategory | 'all'
+  filterLevel: DictionaryLevel | 'all'
 }>()
 
 const emit = defineEmits<{
-  'update:filterCategory': [value: string]
-  'update:filterLevel': [value: string]
+  'update:filterCategory': [value: EntityCategory | 'all']
+  'update:filterLevel': [value: DictionaryLevel | 'all']
 }>()
 </script>
 
@@ -26,7 +27,7 @@ const emit = defineEmits<{
     <select
       :value="filterCategory"
       class="px-3 py-1.5 text-sm bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-      @change="emit('update:filterCategory', ($event.target as HTMLSelectElement).value)"
+      @change="emit('update:filterCategory', ($event.target as HTMLSelectElement).value as EntityCategory | 'all')"
     >
       <option value="all">全部类别</option>
       <option
@@ -41,7 +42,7 @@ const emit = defineEmits<{
     <select
       :value="filterLevel"
       class="px-3 py-1.5 text-sm bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-      @change="emit('update:filterLevel', ($event.target as HTMLSelectElement).value)"
+      @change="emit('update:filterLevel', ($event.target as HTMLSelectElement).value as DictionaryLevel | 'all')"
     >
       <option value="all">全部层级</option>
       <option

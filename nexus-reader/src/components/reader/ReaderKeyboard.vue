@@ -4,8 +4,8 @@
  */
 import {
   registerReaderKeyboardShortcuts,
-  type ReaderKeyboardEmits,
-} from './reader-keyboard'
+} from './reader-keyboard-shortcuts'
+import type { ReaderKeyboardEmits } from './reader-keyboard-emit-types'
 
 const emit = defineEmits<ReaderKeyboardEmits>()
 

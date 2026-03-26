@@ -15,7 +15,7 @@ interface Props {
   /** 解码后的实体 */
   entity: DecodedEntity
   /** 卡片位置 */
-  position?: { x: number; y: number }
+  position?: { x: number; y: number } | null
   /** 是否显示 */
   visible?: boolean
 }

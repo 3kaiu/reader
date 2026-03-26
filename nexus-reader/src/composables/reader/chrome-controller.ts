@@ -1,12 +1,11 @@
 import { createReaderChromeActions } from './chrome-actions'
 import { createReaderChromeState } from './chrome-state'
-import type { ReaderChromeActionsResult } from './chrome-display-types'
+import type { ReaderChromeController } from './chrome-controller-types'
 import type { ReaderChromeActionOptions } from './chrome-option-types'
-import type { ReaderChromeState } from './chrome-state'
 
 export function createReaderChromeController(
   options: ReaderChromeActionOptions,
-) {
+): ReaderChromeController {
   const state = createReaderChromeState()
   const actions = createReaderChromeActions(state, options)
 
@@ -14,9 +13,4 @@ export function createReaderChromeController(
     state,
     actions,
   }
-}
-
-export type ReaderChromeController = {
-  state: ReaderChromeState
-  actions: ReaderChromeActionsResult
 }

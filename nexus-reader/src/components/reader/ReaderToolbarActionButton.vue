@@ -1,24 +1,30 @@
 <script setup lang="ts">
-defineProps<{
-  label: string
-  activeClass?: string
-  isActive?: boolean
-  showIndicator?: boolean
-  indicatorClass?: string
-}>()
+import {
+  createReaderToolbarActionButtonViewBindings,
+} from './reader-toolbar-action-button-view-bindings'
+import type {
+  ReaderToolbarActionButtonEmits,
+} from './reader-toolbar-action-button-emit-types'
+import type {
+  ReaderToolbarActionButtonProps,
+} from './reader-toolbar-action-button-prop-types'
 
-const emit = defineEmits<{
-  click: []
-  contextmenu: [event: MouseEvent]
-}>()
+const props = defineProps<ReaderToolbarActionButtonProps>()
+
+const emit = defineEmits<ReaderToolbarActionButtonEmits>()
+const {
+  buttonClass,
+  onClick,
+  onContextmenu,
+} = createReaderToolbarActionButtonViewBindings(props, emit)
 </script>
 
 <template>
   <button
     class="reader-toolbar-item group relative"
-    :class="isActive ? activeClass : ''"
-    @click="emit('click')"
-    @contextmenu.prevent="emit('contextmenu', $event)"
+    :class="buttonClass"
+    @click="onClick"
+    @contextmenu.prevent="onContextmenu"
   >
     <div
       class="reader-toolbar-item-icon group-hover:scale-110 group-active:scale-95 transition-transform"

@@ -2,11 +2,9 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-vue-next'
-import type {
-  ReaderToolbarBottomAction,
-  ReaderToolbarBottomActionsEmitFn,
-  ReaderToolbarBottomActionsProps,
-} from './toolbar-bottom-action-types'
+import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
+import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
+import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
 
 export function createReaderToolbarBottomDecoderAction(
   props: ReaderToolbarBottomActionsProps,

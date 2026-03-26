@@ -7,13 +7,15 @@ import {
 import {
   createReaderDecoderActionRuntime,
 } from './decoder-action-runtime'
-import type { ReaderDecoderActionOptions } from './decoder-action-types'
+import type { ReaderDecoderActionOptions } from './decoder-action-option-types'
+import type { ReaderDecoderActionsResult } from './decoder-action-result-types'
 
-export type { ReaderDecoderActionOptions } from './decoder-action-types'
+export type { ReaderDecoderActionOptions } from './decoder-action-option-types'
+export type { ReaderDecoderActionsResult } from './decoder-action-result-types'
 
 export function createReaderDecoderActions(
   options: ReaderDecoderActionOptions,
-) {
+): ReaderDecoderActionsResult {
   const runtime = createReaderDecoderActionRuntime(options)
   const { decodeCurrentChapter, handleToggleDecoder } =
     createReaderDecoderDecodeActions(runtime)

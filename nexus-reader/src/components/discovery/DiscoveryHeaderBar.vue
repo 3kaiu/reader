@@ -68,9 +68,7 @@ const emit = defineEmits<{
             :key="option.value"
             @click="emit('changePeriod', option.value)"
             class="flex items-center justify-between py-2.5 px-3 cursor-pointer"
-            :class="{
-              'bg-primary/10 text-primary font-bold': option.active,
-            }"
+          :class="option.active ? 'bg-primary/10 text-primary font-bold' : ''"
           >
             <span class="text-sm">{{ option.label }}</span>
             <Sparkles v-if="option.active" class="h-3 w-3" />

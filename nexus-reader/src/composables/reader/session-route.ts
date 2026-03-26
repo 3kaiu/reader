@@ -1,12 +1,13 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { parseReaderRouteQuery } from '@/utils/readerRoute'
-import type { ReaderSessionOptions } from './session-types'
-import type { ReaderContentInstance } from './types'
+import type { ReaderSessionOptions } from './session-option-types'
+import type { ReaderContentInstance } from './shared-types'
+import type { ReaderSessionRouteState } from './session-route-state-types'
 
 export function createReaderSessionRouteState(
   options: ReaderSessionOptions,
-) {
+): ReaderSessionRouteState {
   const route = useRoute()
   const contentRef = ref<ReaderContentInstance>(null)
   const routeTarget = computed(() => parseReaderRouteQuery(route.query))

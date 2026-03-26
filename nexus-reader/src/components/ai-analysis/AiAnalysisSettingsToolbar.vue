@@ -6,15 +6,16 @@ import {
 import {
   AI_MAPPING_FILTER_OPTIONS,
 } from '@/constants/aiAnalysis'
+import type { AiMappingFilterType } from '@/utils/aiAnalysisStore'
 
 defineProps<{
   total: number
   enabled: number
-  filterType: string
+  filterType: AiMappingFilterType
 }>()
 
 const emit = defineEmits<{
-  'update:filterType': [value: string]
+  'update:filterType': [value: AiMappingFilterType]
 }>()
 </script>
 
@@ -50,7 +51,7 @@ const emit = defineEmits<{
       <select
         :value="filterType"
         class="pl-9 pr-4 h-9 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-        @change="emit('update:filterType', ($event.target as HTMLSelectElement).value)"
+        @change="emit('update:filterType', ($event.target as HTMLSelectElement).value as AiMappingFilterType)"
       >
         <option
           v-for="option in AI_MAPPING_FILTER_OPTIONS"

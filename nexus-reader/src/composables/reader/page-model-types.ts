@@ -1,17 +1,9 @@
-import type { Ref } from 'vue'
-import type { ReaderExperienceActions } from './experience-action-types'
-import type { ReaderThemeStyle } from './shared-types'
-
-export type ReaderPageModelOptions = {
-  readerThemeStyle: Readonly<Ref<ReaderThemeStyle>>
-  currentTheme: Readonly<Ref<string>>
-  isLoading: Readonly<Ref<boolean>>
-  error: Readonly<Ref<string | null | undefined>>
-  toggleToolbar: () => void
-  toggleCatalog: () => void
-  toggleSettings: () => void
-  toggleKeyboardHelp: () => void
-  handleEscape: () => void
-  openSourcePicker: () => void
-  readerExperienceActions: ReaderExperienceActions
-}
+export type { ReaderPageModelOptions } from './page-model-option-types'
+export type { ReaderPageExperienceActions } from './page-model-experience-options'
+export type {
+  ReaderPageModelExperienceOptions,
+} from './page-model-experience-options'
+export type { ReaderPageModelStateOptions } from './page-model-state-options'
+export type {
+  ReaderPageModelChromeOptions,
+} from './page-model-chrome-options'

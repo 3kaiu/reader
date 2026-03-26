@@ -4,40 +4,27 @@
  * 包含顶部标题栏和底部功能导航栏
  */
 import './reader-toolbar.css'
-import ReaderToolbarBottomBar from './ReaderToolbarBottomBar.vue'
-import ReaderToolbarTopBar from './ReaderToolbarTopBar.vue'
+import ReaderToolbarPanels from './ReaderToolbarPanels.vue'
 import ReaderToolbarZenButton from './ReaderToolbarZenButton.vue'
 import { createReaderToolbarBindings } from './toolbar-bindings'
-import type {
-  ReaderToolbarEmits,
-  ReaderToolbarProps,
-} from './toolbar-types'
+import type { ReaderToolbarEmits } from './toolbar-emit-types'
+import type { ReaderToolbarProps } from './toolbar-prop-types'
 
 const props = defineProps<ReaderToolbarProps>()
 const emit = defineEmits<ReaderToolbarEmits>()
 const {
-  topBarProps,
-  bottomBarProps,
-  zenMode,
+  panelsProps,
+  zenButtonProps,
 } = createReaderToolbarBindings(props)
 </script>
 
 <template>
   <div>
-    <ReaderToolbarTopBar
-      v-bind="topBarProps"
+    <ReaderToolbarPanels
+      v-bind="panelsProps"
       @back="emit('back')"
       @toggle-catalog="emit('toggleCatalog')"
       @toggle-fullscreen="emit('toggleFullscreen')"
-    />
-
-    <ReaderToolbarZenButton
-      :zen-mode="zenMode"
-      @exit="emit('toggleZenMode')"
-    />
-
-    <ReaderToolbarBottomBar
-      v-bind="bottomBarProps"
       @toggle-day-night="emit('toggleDayNight')"
       @toggle-settings="emit('toggleSettings')"
       @toggle-eye-care="emit('toggleEyeCare')"
@@ -49,6 +36,11 @@ const {
       @open-book-info="emit('openBookInfo')"
       @toggle-decoder="emit('toggleDecoder', $event)"
       @open-decoder-settings="emit('openDecoderSettings')"
+    />
+
+    <ReaderToolbarZenButton
+      v-bind="zenButtonProps"
+      @exit="emit('toggleZenMode')"
     />
   </div>
 </template>

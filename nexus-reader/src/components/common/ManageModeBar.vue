@@ -46,6 +46,7 @@ const isAllSelected = computed(() => props.selectedCount === props.totalCount &&
     leave-to-class="translate-y-20 opacity-0 scale-90"
   >
     <div
+      v-if="true"
       class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[95vw]"
     >
       <div
@@ -72,7 +73,7 @@ const isAllSelected = computed(() => props.selectedCount === props.totalCount &&
         <div class="w-px h-6 bg-border mx-1"></div>
 
         <!-- 自定义操作按钮 -->
-        <template v-for="(action, index) in actions" :key="index">
+        <template v-for="(action, _index) in actions" :key="_index">
           <button
             class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             :class="

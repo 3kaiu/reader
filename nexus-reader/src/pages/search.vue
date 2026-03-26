@@ -9,6 +9,7 @@ import SearchResultsPanel from '@/components/search/SearchResultsPanel.vue'
 const {
   searchKeyword,
   searchResult,
+  searchErrors,
   loading,
   hasSearched,
   showHeroState,
@@ -41,10 +42,14 @@ const {
       v-model:search-keyword="searchKeyword"
       :search-history="searchHistory"
       :loading="loading"
+      :available-sources="availableSources"
+      :selected-sources="selectedSources"
       @search="search"
       @clear-history="clearHistory"
       @go-back="goBack"
       @stop-search="stopSearch"
+      @toggle-source="toggleSource"
+      @clear-source-filter="clearSourceFilter"
     />
 
     <SearchResultsPanel
@@ -55,6 +60,7 @@ const {
       :show-source-filters="showSourceFilters"
       :available-sources="availableSources"
       :selected-sources="selectedSources"
+      :search-errors="searchErrors"
       :filtered-results="filteredResults"
       :search-result-count="searchResult.length"
       :has-searched="hasSearched"

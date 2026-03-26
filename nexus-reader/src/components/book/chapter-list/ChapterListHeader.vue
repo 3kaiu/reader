@@ -7,6 +7,7 @@ import ChapterListHeaderCurrentReading from './ChapterListHeaderCurrentReading.v
 import ChapterListHeaderDownloadProgress from './ChapterListHeaderDownloadProgress.vue'
 import ChapterListHeaderInfo from './ChapterListHeaderInfo.vue'
 import ChapterListHeaderSearch from './ChapterListHeaderSearch.vue'
+import type { ChapterListDownloadProgress } from './types'
 import {
   SheetClose,
   SheetHeader,
