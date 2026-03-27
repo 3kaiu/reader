@@ -363,7 +363,6 @@ impl EngineError {
             Self::Network { .. }
                 | Self::Timeout
                 | Self::RateLimited { .. }
-                | Self::CloudflareChallenge
                 | Self::ConnectionRefused { .. }
                 | Self::TlsHandshakeFailed { .. }
                 | Self::ScriptTimeout

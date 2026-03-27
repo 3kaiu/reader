@@ -75,6 +75,14 @@ impl FallbackChain {
         result
     }
 
+    /// Whether the underlying anti-crawl strategy supports executing
+    /// custom `content.script` blocks during fetch.
+    ///
+    /// Note: current implementations may always return `false`.
+    pub fn supports_script(&self) -> bool {
+        self.strategy.supports_script()
+    }
+
     /// Get circuit breaker state for a source
     pub fn circuit_state(&self, source_id: &str) -> Option<crate::circuit_breaker::CircuitState> {
         self.breakers.get(source_id).map(|b| b.state())

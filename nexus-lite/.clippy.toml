@@ -1,0 +1,31 @@
+# Clippy 配置
+# 代码检查规则配置
+
+# 警告级别
+warn-level = "warn"
+
+# 复杂度阈值
+cognitive-complexity-threshold = 30
+type-complexity-threshold = 250
+
+# 允许的 lint
+allow = [
+    # 允许的 lint 规则
+]
+
+# 禁止的 lint
+deny = [
+    "warnings",
+    "clippy::all",
+    "clippy::pedantic",
+    "clippy::nursery",
+]
+
+# 警告的 lint
+warn = [
+    "clippy::missing_docs_in_private_items",
+    "clippy::missing_errors_doc",
+    "clippy::missing_panics_doc",
+    "clippy::missing_safety_doc",
+    "clippy::unwrap_used",
+]

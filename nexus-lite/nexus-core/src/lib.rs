@@ -1,22 +1,6 @@
-// ===== Compiler Warning Suppression =====
-// Note: Some warnings are suppressed for intentional reasons:
-// - dead_code: Public API items not yet used by other crates
-// - unused_variables: Variables reserved for future use
-// - unused_imports: Imports for public API exports
-// - unused_mut: Mutable variables for future features
-// - ambiguous_glob_reexports: Intentional re-exports for convenience
-// - static_mut_refs: Static mutable refs for singleton patterns (with proper synchronization)
-// - unused_must_use: Result values intentionally ignored in certain contexts
-
-// Temporarily suppress warnings during development
-// TODO: Gradually remove these as the library stabilizes
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_mut)]
-#![allow(ambiguous_glob_reexports)]
-#![allow(static_mut_refs)]
-#![allow(unused_must_use)]
+// ===== 核心模块 (Core Modules) =====
+// 简化后的核心模块，优先使用这些接口
+pub mod core;
 
 // ===== 业务主线模块 (Lean Business Modules) =====
 // 新业务优先使用这 4 个模块，避免继续扩张平台化抽象。
@@ -24,6 +8,8 @@ pub mod business_modules;
 
 // ===== 兼容层：DDD 与平台化模块 =====
 // 这些模块保留用于兼容现有调用，不再作为新增功能默认入口。
+// 新代码请优先使用 `core` 模块。
+#[deprecated(since = "0.2.0", note = "Use `core` module instead")]
 pub mod domain;
 
 // ===== 应用层 (Application Layer) =====
@@ -46,7 +32,7 @@ pub mod cross_cutting;
 pub mod algorithm_optimizer; // 算法性能优化器
 pub mod cache; // 统一缓存系统
 pub mod optimizer; // 统一性能优化系统
-pub mod workflow_optimizer; // 工作流程优化器
+pub mod workflow_optimizer; // 工流程优化器
 
 // ===== 核心业务模块 =====
 // 保留的核心业务逻辑

@@ -136,7 +136,8 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         if let Some(error) = body.error {
             warn!("CF Bypass: Service error: {}", error);
-            return Err(EngineError::Network { message: error });
+            // Service explicitly failed to bypass (or got blocked).
+            return Err(EngineError::CloudflareChallengeFailed);
         }
 
         // Normalize status 0 to 200 if CF bypass succeeded
@@ -150,9 +151,7 @@ impl AntiCrawlStrategy for CfBypassStrategy {
         // If we got blocked (403/429) and CF bypass didn't succeed, return error
         if (status == 403 || status == 429) && !body.cf_bypassed {
             warn!("CF Bypass: Target blocked with status {}", status);
-            return Err(EngineError::Network {
-                message: format!("HTTP {} for {}", status, ctx.url),
-            });
+            return Err(EngineError::CloudflareChallenge);
         }
 
         info!(

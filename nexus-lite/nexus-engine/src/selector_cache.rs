@@ -121,6 +121,19 @@ impl FallbackSelector {
         self.extract(html)
     }
 
+    /// Select the first matched element from the root document.
+    ///
+    /// Callers can implement their own cleaning/paragraph logic on top of
+    /// this element to support more advanced extraction strategies.
+    pub fn select_first<'a>(&self, html: &'a Html) -> Option<ElementRef<'a>> {
+        for selector in self.selectors.iter() {
+            if let Some(element) = html.select(selector).next() {
+                return Some(element);
+            }
+        }
+        None
+    }
+
     /// Select from a parent element and extract
     pub fn select_from_and_extract(&self, el: &ElementRef) -> Option<String> {
         for selector in self.selectors.iter() {

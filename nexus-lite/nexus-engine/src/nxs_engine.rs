@@ -8,12 +8,16 @@
 
 use nexus_core::types::Chapter;
 use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
-use scraper::Html;
+use scraper::{Html, Selector};
 use std::sync::Arc;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 use crate::anti_crawl::FallbackChain;
 use crate::content::apply_replace_rules;
+use crate::content_extract::{
+    extract_structured_text_from_root, readability_like_extract, ContentExtractConfig,
+    post_clean_content,
+};
 use crate::selector_cache::{extract_attr, FallbackSelector};
 use crate::uri::{encode_query, resolve_url};
 
@@ -41,6 +45,8 @@ struct CompiledNxs {
 
     // Content
     content_body: Arc<FallbackSelector>,
+    content_filter: Vec<Selector>,
+    content_visible_only: bool,
 }
 
 impl CompiledNxs {
@@ -84,6 +90,17 @@ impl CompiledNxs {
 
             // Content
             content_body: compile(&source.content.body)?,
+            content_filter: source
+                .content
+                .filter
+                .iter()
+                .map(|rule| {
+                    Selector::parse(rule).map_err(|_| EngineError::InvalidSelector {
+                        selector: rule.to_string(),
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            content_visible_only: source.content.visible_only,
         })
     }
 }
@@ -391,40 +408,104 @@ impl NxsEngine {
         chapter_url: &str,
         rules: &[ReplaceRule],
     ) -> Result<String, EngineError> {
+        if self.source.content.script.is_some() && !self.anti_crawl.supports_script() {
+            warn!(
+                "content.script is configured for source {}, but anti-crawl strategy does not support script execution; falling back to static HTML extraction",
+                self.source.id
+            );
+        }
+
         let html = self
             .fetch(chapter_url, None, None, self.source.content.script.clone())
             .await?;
         let doc = Html::parse_document(&html);
 
-        let content = self
-            .compiled
-            .content_body
-            .select_and_extract(&doc)
-            .or_else(|| {
-                if self.source.content.script.is_some() {
-                    Some(html)
-                } else {
-                    None
+        let looks_like_content = |s: &str| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                return false;
+            }
+            // Heuristic thresholds: allow small texts, but reject mostly-empty.
+            if trimmed.chars().count() < 80 {
+                return false;
+            }
+            let paragraphs = trimmed
+                .split("\n\n")
+                .filter(|p| !p.trim().is_empty())
+                .count();
+            paragraphs >= 1
+        };
+
+        let extract_cfg = ContentExtractConfig {
+            filter_selectors: &self.compiled.content_filter,
+            visible_only: self.compiled.content_visible_only,
+        };
+
+        // 1) Try selector-based extraction first.
+        let extracted = if self.compiled.content_body.attr == "text" {
+            self.compiled
+                .content_body
+                .select_first(&doc)
+                .map(|root| extract_structured_text_from_root(root, &extract_cfg))
+        } else {
+            self.compiled.content_body.select_and_extract(&doc)
+        };
+
+        let mut extracted = match extracted {
+            Some(v) => v,
+            None => String::new(),
+        };
+
+        // 2) Apply replacement rules (system + source).
+        //    Apply before readability fallback check so rules can clean noise.
+        if !extracted.is_empty() && looks_like_content(&extracted) {
+            info!("Applying {} system rules to content", rules.len());
+            extracted = apply_replace_rules(extracted, rules, &self.source.id);
+
+            info!(
+                "Applying {} source rules to content",
+                self.source.content.replace.len()
+            );
+            extracted = apply_replace_rules(
+                extracted,
+                &self.source.content.replace,
+                &self.source.id,
+            );
+
+            info!("Content length after rules: {}", extracted.len());
+            if looks_like_content(&extracted) {
+                return Ok(post_clean_content(extracted));
+            }
+        }
+
+        // 3) Readability-like fallback (static heuristic).
+        if self.compiled.content_body.attr == "text" {
+            if let Some(readability_text) = readability_like_extract(&doc, &extract_cfg) {
+                let mut cleaned = readability_text;
+
+                info!("Applying {} system rules to content (readability fallback)", rules.len());
+                cleaned = apply_replace_rules(cleaned, rules, &self.source.id);
+
+                info!(
+                    "Applying {} source rules to content (readability fallback)",
+                    self.source.content.replace.len()
+                );
+                cleaned = apply_replace_rules(
+                    cleaned,
+                    &self.source.content.replace,
+                    &self.source.id,
+                );
+
+                info!("Content length after rules: {}", cleaned.len());
+                if looks_like_content(&cleaned) {
+                    return Ok(post_clean_content(cleaned));
                 }
-            })
-            .ok_or(EngineError::RuleMismatch {
-                rule: "content.body".to_string(),
-            })?;
+            }
+        }
 
-        // Apply system rules
-        info!("Applying {} system rules to content", rules.len());
-        let content = apply_replace_rules(content, rules, &self.source.id);
-
-        // Apply source-specific rules
-        info!(
-            "Applying {} source rules to content",
-            self.source.content.replace.len()
-        );
-        let content = apply_replace_rules(content, &self.source.content.replace, &self.source.id);
-
-        info!("Content length after rules: {}", content.len());
-
-        Ok(content)
+        Err(EngineError::RuleMismatch {
+            rule: "content.body".to_string(),
+        })
     }
 
     /// Helper to encode query based on source configuration
