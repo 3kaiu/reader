@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use nexus_engine::extraction_metrics;
 use nexus_core::{NxsSource, SourcePolicy};
 use serde::Serialize;
 
@@ -136,6 +137,11 @@ pub async fn source_health(State(state): State<AppState>) -> Json<Vec<SourceHeal
     Json(info)
 }
 
+/// Extraction quality stats for all sources
+pub async fn source_extraction_metrics() -> Json<Vec<extraction_metrics::SourceExtractionStats>> {
+    Json(extraction_metrics::snapshot())
+}
+
 /// Request body for updating source status
 #[derive(serde::Deserialize)]
 pub struct UpdateStatusRequest {
@@ -202,4 +208,41 @@ pub async fn update_source_policy(
         enabled,
         policy,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::{to_bytes, Body},
+        http::{Request, StatusCode},
+        routing::get,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn source_extraction_route_returns_json_array() {
+        extraction_metrics::record_success("route_test_source", false);
+
+        let app = Router::new().route("/api/sources/extraction", get(source_extraction_metrics));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/sources/extraction")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response body should be readable");
+        let payload: serde_json::Value =
+            serde_json::from_slice(&bytes).expect("response must be valid json");
+        assert!(payload.is_array());
+    }
 }

@@ -8,7 +8,7 @@ use tracing::debug;
 
 /// Fetch chain with circuit breaker for fault tolerance
 pub struct FallbackChain {
-    strategy: Arc<dyn AntiCrawlStrategy>,
+    strategies: Vec<Arc<dyn AntiCrawlStrategy>>,
     /// Per-source circuit breakers
     breakers: DashMap<String, CircuitBreaker>,
     breaker_config: CircuitBreakerConfig,
@@ -18,7 +18,22 @@ impl FallbackChain {
     /// Create with CF bypass strategy
     pub fn new(strategy: Arc<dyn AntiCrawlStrategy>) -> Self {
         Self {
-            strategy,
+            strategies: vec![strategy],
+            breakers: DashMap::new(),
+            breaker_config: CircuitBreakerConfig::default(),
+        }
+    }
+
+    /// Create with primary + fallback strategies (in order).
+    pub fn with_fallbacks(
+        primary: Arc<dyn AntiCrawlStrategy>,
+        fallbacks: Vec<Arc<dyn AntiCrawlStrategy>>,
+    ) -> Self {
+        let mut strategies = Vec::with_capacity(1 + fallbacks.len());
+        strategies.push(primary);
+        strategies.extend(fallbacks);
+        Self {
+            strategies,
             breakers: DashMap::new(),
             breaker_config: CircuitBreakerConfig::default(),
         }
@@ -30,7 +45,7 @@ impl FallbackChain {
         breaker_config: CircuitBreakerConfig,
     ) -> Self {
         Self {
-            strategy,
+            strategies: vec![strategy],
             breakers: DashMap::new(),
             breaker_config,
         }
@@ -61,8 +76,39 @@ impl FallbackChain {
         }
         drop(breaker);
 
-        // Execute fetch
-        let result = self.strategy.execute(ctx).await;
+        // Execute fetch with strategy chain
+        let mut last_err: Option<EngineError> = None;
+        let mut result = Err(EngineError::AllStrategiesFailed);
+        for (idx, strategy) in self.strategies.iter().enumerate() {
+            match strategy.execute(ctx).await {
+                Ok(response) => {
+                    if idx > 0 {
+                        debug!(
+                            "Fallback strategy {} succeeded for source {} after {} prior failures",
+                            strategy.name(),
+                            ctx.source_id,
+                            idx
+                        );
+                    }
+                    result = Ok(response);
+                    last_err = None;
+                    break;
+                }
+                Err(err) => {
+                    debug!(
+                        "Strategy {} failed for source {}: {}",
+                        strategy.name(),
+                        ctx.source_id,
+                        err
+                    );
+                    last_err = Some(err);
+                }
+            }
+        }
+
+        if result.is_err() {
+            result = Err(last_err.unwrap_or(EngineError::AllStrategiesFailed));
+        }
 
         // Update circuit breaker
         let breaker = self.get_breaker(&ctx.source_id);
@@ -80,7 +126,7 @@ impl FallbackChain {
     ///
     /// Note: current implementations may always return `false`.
     pub fn supports_script(&self) -> bool {
-        self.strategy.supports_script()
+        self.strategies.iter().any(|s| s.supports_script())
     }
 
     /// Get circuit breaker state for a source

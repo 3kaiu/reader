@@ -25,7 +25,7 @@ impl Default for DedupConfig {
     fn default() -> Self {
         Self {
             threshold: 0.9,       // 90% similarity
-            min_length: 10,       // At least 10 characters
+            min_length: 3,        // Keep CJK short paragraph dedup effective
             max_length_diff_ratio: 0.2, // Max 20% length difference
             use_jaro_winkler: false,
         }

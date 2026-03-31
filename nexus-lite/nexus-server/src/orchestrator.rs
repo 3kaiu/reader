@@ -17,19 +17,25 @@ pub enum SearchResult {
     Done,
 }
 
-/// Maximum concurrent search tasks
-const MAX_CONCURRENT_SEARCHES: usize = 10;
-
 /// Orchestrator for handling concurrent searches across multiple sources
 #[derive(Clone)]
 pub struct SearchOrchestrator {
     registry: Arc<EngineRegistry>,
     health: Arc<HealthTracker>,
+    max_concurrent_searches: usize,
 }
 
 impl SearchOrchestrator {
-    pub fn new(registry: Arc<EngineRegistry>, health: Arc<HealthTracker>) -> Self {
-        Self { registry, health }
+    pub fn new(
+        registry: Arc<EngineRegistry>,
+        health: Arc<HealthTracker>,
+        max_concurrent_searches: usize,
+    ) -> Self {
+        Self {
+            registry,
+            health,
+            max_concurrent_searches: max_concurrent_searches.max(1),
+        }
     }
 
     /// Get health tracker reference
@@ -169,9 +175,9 @@ impl SearchOrchestrator {
             }));
 
             // Process stream with limited concurrency
-            // Only MAX_CONCURRENT_SEARCHES futures run at a time
+            // Only configured max concurrent futures run at a time
             search_stream
-                .buffer_unordered(MAX_CONCURRENT_SEARCHES)
+                .buffer_unordered(orchestrator.max_concurrent_searches)
                 .collect::<Vec<_>>()
                 .await;
 

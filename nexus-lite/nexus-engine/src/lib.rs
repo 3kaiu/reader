@@ -21,6 +21,7 @@ pub mod content;
 pub mod content_extract;
 pub mod domain_pool;
 pub mod dynamic_noise;
+pub mod extraction_metrics;
 pub mod fetcher;
 pub mod incremental_parser;
 pub mod kuchiki_wrapper;
@@ -40,7 +41,7 @@ pub mod text_cleaner;
 pub mod text_dedup;
 
 // Public exports - 保持向后兼容
-pub use anti_crawl::{CfBypassStrategy, FallbackChain, CloudScraperStrategy};
+pub use anti_crawl::{CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 pub use domain_pool::{DomainPooledClient, PoolStats};
 pub use nxs_engine::NxsEngine;

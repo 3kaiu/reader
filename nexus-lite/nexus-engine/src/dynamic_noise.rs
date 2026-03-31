@@ -5,7 +5,40 @@
 
 use regex::Regex;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
+
+static LINK_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|cn|net|org)[^\s]*").unwrap()
+});
+static CHAPTER_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"第[一二三四五六七八九十百千0-9]+[章节回]").unwrap());
+static COMMON_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    vec![
+        // URL patterns
+        Regex::new(r"https?://[^\s]+").unwrap(),
+        Regex::new(r"www\.[^\s]+").unwrap(),
+        Regex::new(r"[a-zA-Z0-9-]+\.(com|cn|net|org|io)[^\s]*").unwrap(),
+        // Email patterns
+        Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
+        // Phone number patterns
+        Regex::new(r"1[3-9]\d{9}").unwrap(),
+        Regex::new(r"\d{3,4}[- ]?\d{7,8}").unwrap(),
+        // Date patterns (often in footers)
+        Regex::new(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日号]?").unwrap(),
+        // Common button/link text patterns
+        Regex::new(r"^(点击|请点击|立即|马上)[^\n]{0,10}$").unwrap(),
+        Regex::new(r"^(返回|返回首页|返回顶部)[^\n]{0,10}$").unwrap(),
+        // Advertisement patterns
+        Regex::new(r"(广告|赞助|合作|推广)[^\n]{0,20}").unwrap(),
+        // Copyright patterns
+        Regex::new(r"(版权|Copyright|©)[^\n]{0,30}").unwrap(),
+        // Technical patterns
+        Regex::new(r"(加载中|正在加载|Loading)[^\n]{0,10}").unwrap(),
+        // Repetitive patterns (often navigation)
+        Regex::new(r"(第[一二三四五六七八九十百千]+[章节页回]).{0,5}").unwrap(),
+    ]
+});
+static HEADER_FOOTER_MARKERS: [&str; 6] = ["页脚", "页眉", "底部", "顶部", "copyright", "版权"];
 
 /// Dynamic noise detector with statistical pattern learning
 pub struct DynamicNoiseDetector {
@@ -14,10 +47,10 @@ pub struct DynamicNoiseDetector {
     high_link_density_threshold: f64,
 
     // Pattern-based detection
-    common_patterns: Vec<Regex>,
+    common_patterns: &'static [Regex],
 
     // Position-based detection
-    header_footer_markers: Vec<String>,
+    header_footer_markers: &'static [&'static str],
 
     // Learned patterns (from user feedback or statistics)
     learned_patterns: Arc<RwLock<HashMap<String, f64>>>,
@@ -31,16 +64,9 @@ impl DynamicNoiseDetector {
     pub fn new() -> Self {
         Self {
             short_para_threshold: 60,
-            high_link_density_threshold: 0.3,
-            common_patterns: Self::build_common_patterns(),
-            header_footer_markers: vec![
-                "页脚".to_string(),
-                "页眉".to_string(),
-                "底部".to_string(),
-                "顶部".to_string(),
-                "copyright".to_string(),
-                "版权".to_string(),
-            ],
+            high_link_density_threshold: 0.15,
+            common_patterns: &COMMON_PATTERNS,
+            header_footer_markers: &HEADER_FOOTER_MARKERS,
             learned_patterns: Arc::new(RwLock::new(HashMap::new())),
             enable_learning: true,
         }
@@ -55,54 +81,11 @@ impl DynamicNoiseDetector {
         Self {
             short_para_threshold,
             high_link_density_threshold,
-            common_patterns: Self::build_common_patterns(),
-            header_footer_markers: vec![
-                "页脚".to_string(),
-                "页眉".to_string(),
-                "底部".to_string(),
-                "顶部".to_string(),
-                "copyright".to_string(),
-                "版权".to_string(),
-            ],
+            common_patterns: &COMMON_PATTERNS,
+            header_footer_markers: &HEADER_FOOTER_MARKERS,
             learned_patterns: Arc::new(RwLock::new(HashMap::new())),
             enable_learning,
         }
-    }
-
-    /// Build common noise patterns using regex
-    fn build_common_patterns() -> Vec<Regex> {
-        vec![
-            // URL patterns
-            Regex::new(r"https?://[^\s]+").unwrap(),
-            Regex::new(r"www\.[^\s]+").unwrap(),
-            Regex::new(r"[a-zA-Z0-9-]+\.(com|cn|net|org|io)[^\s]*").unwrap(),
-
-            // Email patterns
-            Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
-
-            // Phone number patterns
-            Regex::new(r"1[3-9]\d{9}").unwrap(),
-            Regex::new(r"\d{3,4}[- ]?\d{7,8}").unwrap(),
-
-            // Date patterns (often in footers)
-            Regex::new(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日号]?").unwrap(),
-
-            // Common button/link text patterns
-            Regex::new(r"^(点击|请点击|立即|马上)[^\n]{0,10}$").unwrap(),
-            Regex::new(r"^(返回|返回首页|返回顶部)[^\n]{0,10}$").unwrap(),
-
-            // Advertisement patterns
-            Regex::new(r"(广告|赞助|合作|推广)[^\n]{0,20}").unwrap(),
-
-            // Copyright patterns
-            Regex::new(r"(版权|Copyright|©)[^\n]{0,30}").unwrap(),
-
-            // Technical patterns
-            Regex::new(r"(加载中|正在加载|Loading)[^\n]{0,10}").unwrap(),
-
-            // Repetitive patterns (often navigation)
-            Regex::new(r"(第[一二三四五六七八九十百千]+[章节页回]).{0,5}").unwrap(),
-        ]
     }
 
     /// Check if a paragraph is noise based on multiple criteria
@@ -122,7 +105,7 @@ impl DynamicNoiseDetector {
         }
 
         // 2. Link density check
-        let link_ratio = self.count_links(para) as f64 / para_len.max(1) as f64;
+        let link_ratio = self.count_link_chars(para) as f64 / para_len.max(1) as f64;
         if link_ratio > self.high_link_density_threshold {
             score += 3.0;
             reasons.push(NoiseReason::HighLinkDensity(link_ratio));
@@ -138,10 +121,10 @@ impl DynamicNoiseDetector {
 
         // 4. Position-based detection
         if context.is_first_or_last_para {
-            for marker in &self.header_footer_markers {
+            for marker in self.header_footer_markers {
                 if para.contains(marker) {
                     score += 2.0;
-                    reasons.push(NoiseReason::HeaderFooterMarker(marker.clone()));
+                    reasons.push(NoiseReason::HeaderFooterMarker((*marker).to_string()));
                     break;
                 }
             }
@@ -184,11 +167,12 @@ impl DynamicNoiseDetector {
         }
     }
 
-    /// Count links in a paragraph
-    fn count_links(&self, para: &str) -> usize {
-        let link_pattern = Regex::new(r"https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|cn|net|org)[^\s]*")
-            .unwrap();
-        link_pattern.find_iter(para).count()
+    /// Count link characters in a paragraph (for link density by length)
+    fn count_link_chars(&self, para: &str) -> usize {
+        LINK_PATTERN
+            .find_iter(para)
+            .map(|m| m.as_str().chars().count())
+            .sum()
     }
 
     /// Calculate statistical features of a paragraph
@@ -216,8 +200,7 @@ impl DynamicNoiseDetector {
     /// Check if content is repetitive (often navigation or TOC)
     fn is_repetitive(&self, para: &str) -> bool {
         // Check for repeated patterns like "第1章 第2章 第3章"
-        let chapter_pattern = Regex::new(r"第[一二三四五六七八九十百千0-9]+[章节回]").unwrap();
-        let matches: Vec<_> = chapter_pattern.find_iter(para).collect();
+        let matches: Vec<_> = CHAPTER_PATTERN.find_iter(para).collect();
 
         if matches.len() > 3 {
             return true;
@@ -275,8 +258,13 @@ pub struct ExtractionContext {
 
 impl ExtractionContext {
     pub fn new(total_paragraphs: usize, current_index: usize) -> Self {
+        let is_first_or_last_para = if total_paragraphs == 0 {
+            false
+        } else {
+            current_index == 0 || current_index + 1 >= total_paragraphs
+        };
         Self {
-            is_first_or_last_para: current_index == 0 || current_index == total_paragraphs - 1,
+            is_first_or_last_para,
             total_paragraphs,
             current_index,
         }
@@ -372,5 +360,12 @@ mod tests {
 
         assert!(result.is_noise);
         assert!(result.reasons.iter().any(|r| matches!(r, NoiseReason::LearnedPattern(_))));
+    }
+
+    #[test]
+    fn test_extraction_context_zero_total_safe() {
+        let context = ExtractionContext::new(0, 0);
+        assert!(!context.is_first_or_last_para);
+        assert_eq!(context.total_paragraphs, 0);
     }
 }

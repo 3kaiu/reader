@@ -45,6 +45,7 @@ impl CloudScraperStrategy {
 
         // Body indicators
         if body.contains("Checking your browser") 
+            || body.contains("Just a moment")
             || body.contains("Please Wait...") 
             || body.contains("cf-browser-verify")
             || body.contains("cf_chl_opt")

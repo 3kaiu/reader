@@ -2,7 +2,7 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 use nexus_core::{types::Chapter, BookInfo, ChapterContent};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -74,7 +74,11 @@ pub async fn content(
 
     // 1. Try Cache if book_id and index provided
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
-        if let Some(cached_content) = state._chapter_cache.get(book_id, index).await {
+        if let Some(cached_content) = state
+            ._chapter_cache
+            .get(&query.source, book_id, &query.url, index)
+            .await
+        {
             let chunks = query
                 .chunk_size
                 .map(|sz| nexus_engine::content::chunk_content(&cached_content, sz));
@@ -107,7 +111,7 @@ pub async fn content(
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
         let _ = state
             ._chapter_cache
-            .set(book_id, index, content_arc.clone())
+            .set(&query.source, book_id, &query.url, index, content_arc.clone())
             .await;
     }
 
@@ -144,6 +148,15 @@ pub async fn batch_content(
     State(state): State<AppState>,
     Json(query): Json<BatchBookQuery>,
 ) -> Result<Json<BatchContentResponse>, ApiErrorResponse> {
+    let max_batch_urls = state.config.limits.max_batch_content_urls.max(1);
+    if query.urls.len() > max_batch_urls {
+        return Err(bad_request(format!(
+            "Too many urls in one request: {} (max {})",
+            query.urls.len(),
+            max_batch_urls
+        )));
+    }
+
     ensure_source_public_access(&state, &query.source).await?;
 
     let engine = state
@@ -157,24 +170,28 @@ pub async fn batch_content(
         .await
         .map_err(|e| internal_error(e.to_string()))?;
 
-    let mut futures = Vec::new();
+    let concurrency = state
+        .config
+        .limits
+        .max_concurrent_fetches_per_source
+        .max(1);
 
-    for url in query.urls {
+    let mut indexed_results = stream::iter(query.urls.into_iter().enumerate().map(|(idx, url)| {
         let engine = engine.clone();
         let rules = rules.clone();
         let url_clone = url.clone();
 
-        futures.push(async move {
+        async move {
             // Validate URL
             if let Err(e) = validate_url(&url_clone) {
-                return BatchContentResult {
+                return (idx, BatchContentResult {
                     url: url_clone,
                     content: None,
                     error: Some(e.to_string()),
-                };
+                });
             }
 
-            match engine.content(&url_clone, rules.as_ref()).await {
+            let result = match engine.content(&url_clone, rules.as_ref()).await {
                 Ok(content) => BatchContentResult {
                     url: url_clone,
                     content: Some(content),
@@ -185,11 +202,18 @@ pub async fn batch_content(
                     content: None,
                     error: Some(e.to_string()),
                 },
-            }
-        });
-    }
-
-    let results = join_all(futures).await;
+            };
+            (idx, result)
+        }
+    }))
+    .buffer_unordered(concurrency)
+    .collect::<Vec<(usize, BatchContentResult)>>()
+    .await;
+    indexed_results.sort_by_key(|(idx, _)| *idx);
+    let results = indexed_results
+        .into_iter()
+        .map(|(_, result)| result)
+        .collect::<Vec<_>>();
 
     Ok(Json(BatchContentResponse { results }))
 }

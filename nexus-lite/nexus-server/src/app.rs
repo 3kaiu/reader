@@ -6,7 +6,8 @@ use axum::{
 };
 use nexus_core::EngineConfig;
 use nexus_core::{EventBus, SystemControlEvent, SystemEvent};
-use nexus_engine::anti_crawl::{CfBypassStrategy, FallbackChain};
+use nexus_engine::anti_crawl::{CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain};
+use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::HttpFetcher;
 use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::sync::Arc;
@@ -40,6 +41,8 @@ pub struct AppState {
 
 /// Create the application router
 pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
+    extraction_metrics::configure_max_tracked_sources(config.limits.max_extraction_metrics_sources);
+
     // Initialize stores
     let source_store = Arc::new(SourceStore::new(&config.storage.sources_dir));
     source_store.load_all().await?;
@@ -73,7 +76,14 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
 
     // CF Bypass Strategy (direct Cloudflare bypass via cf-bypass-service)
     let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone())?);
-    let anti_crawl = Arc::new(FallbackChain::new(cf_strategy));
+    let mut fallback_strategies: Vec<Arc<dyn nexus_core::AntiCrawlStrategy>> = Vec::new();
+    if let Ok(cloudscraper) = CloudScraperStrategy::new() {
+        fallback_strategies.push(Arc::new(cloudscraper));
+    }
+    if let Ok(direct) = DirectHttpStrategy::new(config.limits.http_timeout_seconds) {
+        fallback_strategies.push(Arc::new(direct));
+    }
+    let anti_crawl = Arc::new(FallbackChain::with_fallbacks(cf_strategy, fallback_strategies));
 
     // Initialize Engine Registry
     let engine_registry = Arc::new(EngineRegistry::new(
@@ -84,6 +94,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let orchestrator = Arc::new(SearchOrchestrator::new(
         engine_registry.clone(),
         store.health_tracker().clone(),
+        config.limits.max_concurrent_searches,
     ));
 
     // Initialize Event Bus
@@ -120,6 +131,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
             put(routes::source::update_source_policy),
         )
         .route("/api/sources/health", get(routes::source::source_health))
+        .route(
+            "/api/sources/extraction",
+            get(routes::source::source_extraction_metrics),
+        )
         // Search
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))

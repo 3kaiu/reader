@@ -9,15 +9,19 @@
 use nexus_core::types::Chapter;
 use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
 use scraper::{Html, Selector};
+use std::collections::HashSet;
 use std::sync::Arc;
-use tracing::{info, instrument, warn};
+use std::time::Duration;
+use tracing::{debug, info, instrument, warn};
 
 use crate::anti_crawl::FallbackChain;
 use crate::content::apply_replace_rules;
 use crate::content_extract::{
     extract_structured_text_from_root, readability_like_extract, ContentExtractConfig,
-    post_clean_content,
+    post_clean_content_enhanced,
 };
+use crate::extraction_metrics;
+use crate::font_decryptor::FontDecryptor;
 use crate::selector_cache::{extract_attr, FallbackSelector};
 use crate::uri::{encode_query, resolve_url};
 
@@ -133,6 +137,16 @@ impl NxsEngine {
     /// Get source name
     pub fn name(&self) -> &str {
         &self.source.name
+    }
+
+    fn content_stats(text: &str) -> (usize, usize) {
+        let trimmed = text.trim();
+        let chars = trimmed.chars().count();
+        let paragraphs = trimmed
+            .split("\n\n")
+            .filter(|p| !p.trim().is_empty())
+            .count();
+        (chars, paragraphs)
     }
 
     /// Fetch content via CF bypass service
@@ -408,104 +422,272 @@ impl NxsEngine {
         chapter_url: &str,
         rules: &[ReplaceRule],
     ) -> Result<String, EngineError> {
-        if self.source.content.script.is_some() && !self.anti_crawl.supports_script() {
+        let initial_url = self.abs_url(chapter_url);
+        let pagination = self.source.content.pagination.clone();
+        let validation = self
+            .source
+            .content
+            .validation
+            .clone()
+            .unwrap_or_default();
+
+        if self.source.content.script.is_some() {
+            if !self.source.content.script_enabled {
+                warn!(
+                    "content.script is configured for source {}, but script_enabled=false; skipping script execution",
+                    self.source.id
+                );
+            } else if !self.anti_crawl.supports_script() {
+                warn!(
+                    "content.script is configured for source {}, using built-in restricted post-processor",
+                    self.source.id
+                );
+            }
+        }
+
+        if let Some(pagination) = pagination {
+            let next_selector =
+                Selector::parse(&pagination.next_selector).map_err(|_| EngineError::InvalidSelector {
+                    selector: pagination.next_selector.clone(),
+                })?;
+            let mut visited = HashSet::new();
+            let mut current_url = initial_url;
+            let mut merged = Vec::new();
+
+            for idx in 0..pagination.max_pages.max(1) {
+                if !visited.insert(current_url.clone()) {
+                    break;
+                }
+
+                let html = self.fetch(&current_url, None, None, None).await?;
+                let extracted = self.extract_content_from_html(&html, rules, idx == 0)?;
+                if let Some(stop_text) = &pagination.stop_text {
+                    if extracted.contains(stop_text) {
+                        merged.push(extracted);
+                        break;
+                    }
+                }
+                merged.push(extracted);
+
+                let next = {
+                    let doc = Html::parse_document(&html);
+                    doc.select(&next_selector)
+                        .next()
+                        .and_then(|el| el.value().attr("href"))
+                        .map(|s| self.abs_url(s))
+                };
+
+                let Some(next_url) = next else { break };
+                if visited.contains(&next_url) {
+                    break;
+                }
+
+                current_url = next_url;
+                if pagination.delay_ms > 0 {
+                    tokio::time::sleep(Duration::from_millis(pagination.delay_ms)).await;
+                }
+            }
+
+            let separator = pagination.separator;
+            let combined = merged.join(&separator);
+            if self.looks_like_content(&combined, &validation) {
+                return Ok(combined);
+            }
+
+            return Err(EngineError::RuleMismatch {
+                rule: "content.pagination".to_string(),
+            });
+        }
+
+        let html = self.fetch(&initial_url, None, None, None).await?;
+        self.extract_content_from_html(&html, rules, true)
+    }
+
+    fn looks_like_content(
+        &self,
+        text: &str,
+        validation: &nexus_core::nxs::ContentValidationConfig,
+    ) -> bool {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return false;
+        }
+
+        let (chars, paragraphs) = Self::content_stats(trimmed);
+
+        if chars < validation.min_chars {
+            if validation.allow_short_chapter {
+                return chars >= 20 && paragraphs >= 1;
+            }
+            return false;
+        }
+
+        paragraphs >= validation.min_paragraphs
+    }
+
+    fn apply_content_script(&self, mut content: String) -> Result<String, EngineError> {
+        let Some(script) = self.source.content.script.as_ref() else {
+            return Ok(content);
+        };
+        if !self.source.content.script_enabled {
+            return Ok(content);
+        }
+        if script.trim().is_empty() {
+            return Ok(content);
+        }
+        if script.len() > 16 * 1024 {
+            return Err(EngineError::ScriptMemoryExceeded);
+        }
+
+        for line in script.lines() {
+            let cmd = line.trim();
+            if cmd.is_empty() || cmd.starts_with('#') || cmd.starts_with("//") {
+                continue;
+            }
+
+            if cmd.eq_ignore_ascii_case("trim") {
+                content = content.trim().to_string();
+                continue;
+            }
+            if cmd.eq_ignore_ascii_case("collapse_blank_lines") {
+                while content.contains("\n\n\n") {
+                    content = content.replace("\n\n\n", "\n\n");
+                }
+                continue;
+            }
+
+            if let Some(payload) = cmd.strip_prefix("replace::") {
+                let mut parts = payload.splitn(2, "::");
+                let pattern = parts.next().unwrap_or_default();
+                let replacement = parts.next().unwrap_or_default();
+                let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
+                    message: format!("invalid replace regex: {}", e),
+                })?;
+                content = re.replace_all(&content, replacement).to_string();
+                continue;
+            }
+
+            if let Some(pattern) = cmd.strip_prefix("remove::") {
+                let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
+                    message: format!("invalid remove regex: {}", e),
+                })?;
+                content = re.replace_all(&content, "").to_string();
+                continue;
+            }
+
+            warn!("Unsupported script command for source {}: {}", self.source.id, cmd);
+        }
+
+        Ok(content)
+    }
+
+    fn apply_font_decrypt(&self, content: String) -> String {
+        let Some(cfg) = self.source.content.font_decrypt.as_ref() else {
+            return content;
+        };
+
+        if let Some(mapping) = cfg.mapping.as_ref() {
+            let decryptor = FontDecryptor::new();
+            return decryptor.decrypt(&content, mapping);
+        }
+
+        if cfg.auto_decrypt {
             warn!(
-                "content.script is configured for source {}, but anti-crawl strategy does not support script execution; falling back to static HTML extraction",
+                "font_decrypt.auto_decrypt is enabled for source {}, but no mapping is provided",
                 self.source.id
             );
         }
 
-        let html = self
-            .fetch(chapter_url, None, None, self.source.content.script.clone())
-            .await?;
-        let doc = Html::parse_document(&html);
+        content
+    }
 
-        let looks_like_content = |s: &str| {
-            let trimmed = s.trim();
-            if trimmed.is_empty() {
-                return false;
-            }
-            // Heuristic thresholds: allow small texts, but reject mostly-empty.
-            if trimmed.chars().count() < 80 {
-                return false;
-            }
-            let paragraphs = trimmed
-                .split("\n\n")
-                .filter(|p| !p.trim().is_empty())
-                .count();
-            paragraphs >= 1
-        };
-
+    fn extract_content_from_html(
+        &self,
+        html: &str,
+        rules: &[ReplaceRule],
+        strict_validate: bool,
+    ) -> Result<String, EngineError> {
+        let doc = Html::parse_document(html);
         let extract_cfg = ContentExtractConfig {
             filter_selectors: &self.compiled.content_filter,
             visible_only: self.compiled.content_visible_only,
         };
+        let validation = self
+            .source
+            .content
+            .validation
+            .clone()
+            .unwrap_or_default();
 
-        // 1) Try selector-based extraction first.
-        let extracted = if self.compiled.content_body.attr == "text" {
+        // 1) Selector extraction first
+        let mut used_fallback = false;
+        let mut extracted = if self.compiled.content_body.attr == "text" {
             self.compiled
                 .content_body
                 .select_first(&doc)
                 .map(|root| extract_structured_text_from_root(root, &extract_cfg))
         } else {
             self.compiled.content_body.select_and_extract(&doc)
-        };
+        }
+        .unwrap_or_default();
 
-        let mut extracted = match extracted {
-            Some(v) => v,
-            None => String::new(),
-        };
-
-        // 2) Apply replacement rules (system + source).
-        //    Apply before readability fallback check so rules can clean noise.
-        if !extracted.is_empty() && looks_like_content(&extracted) {
-            info!("Applying {} system rules to content", rules.len());
-            extracted = apply_replace_rules(extracted, rules, &self.source.id);
-
-            info!(
-                "Applying {} source rules to content",
-                self.source.content.replace.len()
-            );
-            extracted = apply_replace_rules(
-                extracted,
-                &self.source.content.replace,
-                &self.source.id,
-            );
-
-            info!("Content length after rules: {}", extracted.len());
-            if looks_like_content(&extracted) {
-                return Ok(post_clean_content(extracted));
+        // 2) Fallback extraction
+        if extracted.trim().is_empty() && self.compiled.content_body.attr == "text" {
+            if let Some(fallback) = readability_like_extract(&doc, &extract_cfg) {
+                used_fallback = true;
+                extracted = fallback;
             }
         }
 
-        // 3) Readability-like fallback (static heuristic).
-        if self.compiled.content_body.attr == "text" {
-            if let Some(readability_text) = readability_like_extract(&doc, &extract_cfg) {
-                let mut cleaned = readability_text;
-
-                info!("Applying {} system rules to content (readability fallback)", rules.len());
-                cleaned = apply_replace_rules(cleaned, rules, &self.source.id);
-
-                info!(
-                    "Applying {} source rules to content (readability fallback)",
-                    self.source.content.replace.len()
-                );
-                cleaned = apply_replace_rules(
-                    cleaned,
-                    &self.source.content.replace,
-                    &self.source.id,
-                );
-
-                info!("Content length after rules: {}", cleaned.len());
-                if looks_like_content(&cleaned) {
-                    return Ok(post_clean_content(cleaned));
-                }
-            }
+        if used_fallback {
+            debug!(
+                "content extraction fallback triggered for source {}",
+                self.source.id
+            );
         }
 
-        Err(EngineError::RuleMismatch {
-            rule: "content.body".to_string(),
-        })
+        if extracted.trim().is_empty() {
+            extraction_metrics::record_rule_mismatch_failure(&self.source.id);
+            return Err(EngineError::RuleMismatch {
+                rule: "content.body".to_string(),
+            });
+        }
+
+        // 3) Global + source replacement rules
+        extracted = apply_replace_rules(extracted, rules, &self.source.id);
+        extracted = apply_replace_rules(extracted, &self.source.content.replace, &self.source.id);
+
+        // 4) Optional restricted script post-processing
+        extracted = self.apply_content_script(extracted)?;
+
+        // 5) Optional font decryption
+        extracted = self.apply_font_decrypt(extracted);
+
+        // 6) Enhanced content cleaning
+        let cleaned = post_clean_content_enhanced(extracted, self.source.content.clean.as_ref());
+        if strict_validate && !self.looks_like_content(&cleaned, &validation) {
+            let (chars, paragraphs) = Self::content_stats(&cleaned);
+            warn!(
+                "content validation failed for source {} (chars={}, paragraphs={}, min_chars={}, min_paragraphs={}, allow_short={})",
+                self.source.id,
+                chars,
+                paragraphs,
+                validation.min_chars,
+                validation.min_paragraphs,
+                validation.allow_short_chapter
+            );
+            extraction_metrics::record_validation_failure(&self.source.id);
+            return Err(EngineError::RuleMismatch {
+                rule: "content.validation".to_string(),
+            });
+        }
+        if cleaned.trim().is_empty() {
+            extraction_metrics::record_empty_content_failure(&self.source.id);
+            return Err(EngineError::EmptyContent);
+        }
+
+        extraction_metrics::record_success(&self.source.id, used_fallback);
+        Ok(cleaned)
     }
 
     /// Helper to encode query based on source configuration

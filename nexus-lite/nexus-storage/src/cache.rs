@@ -3,6 +3,7 @@ use metrics::{counter, histogram};
 use moka::future::Cache;
 use nexus_core::EngineError;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -56,8 +57,18 @@ impl ChapterCache {
     }
 
     /// Generate cache key
-    fn cache_key(&self, book_id: &str, chapter_index: usize) -> String {
-        format!("{}_{}", book_id, chapter_index)
+    fn cache_key(
+        &self,
+        source_id: &str,
+        book_id: &str,
+        chapter_url: &str,
+        chapter_index: usize,
+    ) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        source_id.hash(&mut hasher);
+        chapter_url.trim().hash(&mut hasher);
+        let url_hash = hasher.finish();
+        format!("{}_{}_{}_{:x}", source_id, book_id, chapter_index, url_hash)
     }
 
     /// Get disk cache file path
@@ -66,8 +77,14 @@ impl ChapterCache {
     }
 
     /// Get cached content (L1 memory -> L2 disk via Mmap)
-    pub async fn get(&self, book_id: &str, chapter_index: usize) -> Option<Arc<str>> {
-        let key = self.cache_key(book_id, chapter_index);
+    pub async fn get(
+        &self,
+        source_id: &str,
+        book_id: &str,
+        chapter_url: &str,
+        chapter_index: usize,
+    ) -> Option<Arc<str>> {
+        let key = self.cache_key(source_id, book_id, chapter_url, chapter_index);
         let start = std::time::Instant::now();
 
         // L1: Try memory first
@@ -115,11 +132,13 @@ impl ChapterCache {
     /// Store content in cache (both L1 and L2)
     pub async fn set(
         &self,
+        source_id: &str,
         book_id: &str,
+        chapter_url: &str,
         chapter_index: usize,
         content: Arc<str>,
     ) -> Result<(), EngineError> {
-        let key = self.cache_key(book_id, chapter_index);
+        let key = self.cache_key(source_id, book_id, chapter_url, chapter_index);
 
         // L1: Memory
         self.memory.insert(key.clone(), content.clone()).await;
@@ -165,8 +184,14 @@ impl ChapterCache {
     }
 
     /// Check if chapter is cached (any level)
-    pub async fn has(&self, book_id: &str, chapter_index: usize) -> bool {
-        let key = self.cache_key(book_id, chapter_index);
+    pub async fn has(
+        &self,
+        source_id: &str,
+        book_id: &str,
+        chapter_url: &str,
+        chapter_index: usize,
+    ) -> bool {
+        let key = self.cache_key(source_id, book_id, chapter_url, chapter_index);
         if self.memory.contains_key(&key) {
             return true;
         }
@@ -175,15 +200,15 @@ impl ChapterCache {
 
     /// Clear cache for a book
     pub async fn clear_book(&self, book_id: &str) -> Result<(), EngineError> {
-        let pattern = format!("{}_", book_id);
+        let pattern = format!("_{}_", book_id);
         let _ = self
             .memory
-            .invalidate_entries_if(move |k, _| k.starts_with(&pattern));
+            .invalidate_entries_if(move |k, _| k.contains(&pattern));
 
         if let Ok(mut entries) = tokio::fs::read_dir(&self.disk_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(&format!("{}_", book_id)) {
+                if name.contains(&format!("_{}_", book_id)) {
                     if let Ok(meta) = entry.metadata().await {
                         self.disk_size.fetch_sub(meta.len(), Ordering::Relaxed);
                     }

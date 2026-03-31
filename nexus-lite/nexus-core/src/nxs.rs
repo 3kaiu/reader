@@ -180,9 +180,24 @@ pub struct ContentRule {
     #[serde(default)]
     pub visible_only: bool,
 
-    /// Optional JavaScript script to run in the browser for extraction/cleaning
+    /// Optional restricted post-processing script (line-based mini DSL).
+    ///
+    /// Supported commands:
+    /// - `trim`
+    /// - `collapse_blank_lines`
+    /// - `replace::<regex>::<replacement>`
+    /// - `remove::<regex>`
+    ///
+    /// Notes:
+    /// - This is NOT JavaScript execution.
+    /// - Commands outside this allow-list are ignored with warning logs.
+    /// - Effective only when `script_enabled = true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub script: Option<String>,
+
+    /// Explicitly enable script-based post-processing (default: false for safety)
+    #[serde(default)]
+    pub script_enabled: bool,
 
     /// Content replacement rules for this source
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -201,6 +216,10 @@ pub struct ContentRule {
     /// Font decryption configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_decrypt: Option<FontDecryptConfig>,
+
+    /// Content validation thresholds
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation: Option<ContentValidationConfig>,
 }
 
 /// Text cleaning configuration
@@ -289,6 +308,22 @@ pub struct FontDecryptConfig {
     pub mapping: Option<std::collections::HashMap<char, char>>,
 }
 
+/// Content validation configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentValidationConfig {
+    /// Minimum character count for valid chapter content
+    #[serde(default = "default_min_chars")]
+    pub min_chars: usize,
+
+    /// Minimum non-empty paragraph count for valid chapter content
+    #[serde(default = "default_min_paragraphs")]
+    pub min_paragraphs: usize,
+
+    /// Allow short chapters (poems/announcements) when enabled
+    #[serde(default)]
+    pub allow_short_chapter: bool,
+}
+
 // Default value functions
 fn default_true() -> bool { true }
 fn default_similarity_threshold() -> f64 { 0.9 }
@@ -298,6 +333,8 @@ fn default_max_pages() -> usize { 10 }
 fn default_delay_ms() -> u64 { 500 }
 fn default_separator() -> String { "\n\n".to_string() }
 fn default_font_url_attr() -> String { "href".to_string() }
+fn default_min_chars() -> usize { 80 }
+fn default_min_paragraphs() -> usize { 1 }
 
 impl Default for CleanConfig {
     fn default() -> Self {
@@ -308,6 +345,16 @@ impl Default for CleanConfig {
             normalize_whitespace: true,
             dedup: None,
             encoding: None,
+        }
+    }
+}
+
+impl Default for ContentValidationConfig {
+    fn default() -> Self {
+        Self {
+            min_chars: default_min_chars(),
+            min_paragraphs: default_min_paragraphs(),
+            allow_short_chapter: false,
         }
     }
 }

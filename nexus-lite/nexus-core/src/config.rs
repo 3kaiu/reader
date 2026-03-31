@@ -104,6 +104,14 @@ pub struct ResourceLimits {
     /// HTTP request timeout in seconds
     #[serde(default = "default_http_timeout")]
     pub http_timeout_seconds: u64,
+
+    /// Maximum URLs accepted by `/api/batch/content` in a single request
+    #[serde(default = "default_max_batch_content_urls")]
+    pub max_batch_content_urls: usize,
+
+    /// Maximum number of source IDs tracked in extraction quality counters
+    #[serde(default = "default_max_extraction_metrics_sources")]
+    pub max_extraction_metrics_sources: usize,
 }
 
 fn default_concurrent_searches() -> usize {
@@ -121,6 +129,12 @@ fn default_chapter_cache() -> usize {
 fn default_http_timeout() -> u64 {
     30
 }
+fn default_max_batch_content_urls() -> usize {
+    128
+}
+fn default_max_extraction_metrics_sources() -> usize {
+    10_000
+}
 
 impl Default for ResourceLimits {
     fn default() -> Self {
@@ -130,6 +144,8 @@ impl Default for ResourceLimits {
             parser_cache_size: default_parser_cache(),
             chapter_cache_mb: default_chapter_cache(),
             http_timeout_seconds: default_http_timeout(),
+            max_batch_content_urls: default_max_batch_content_urls(),
+            max_extraction_metrics_sources: default_max_extraction_metrics_sources(),
         }
     }
 }

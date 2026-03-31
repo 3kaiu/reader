@@ -11,6 +11,7 @@ pub mod source;
 pub mod voice;
 
 use axum::{extract::State, Json};
+use nexus_engine::extraction_metrics;
 use serde::Serialize;
 
 use crate::app::AppState;
@@ -29,6 +30,7 @@ pub struct DependencyStatus {
     pub source_count: usize,
     pub database: bool,
     pub cf_bypass_configured: bool,
+    pub extraction: extraction_metrics::ExtractionSummary,
 }
 
 /// Generic API response wrapper
@@ -64,6 +66,7 @@ pub async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     let source_count = state.engine_registry.source_count();
     let database = state.store.get_all().await.is_ok();
     let cf_bypass_configured = state.config.cf_bypass.enabled;
+    let extraction = extraction_metrics::summary(5);
 
     Json(HealthResponse {
         status: "ok",
@@ -72,6 +75,7 @@ pub async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
             source_count,
             database,
             cf_bypass_configured,
+            extraction,
         },
     })
 }

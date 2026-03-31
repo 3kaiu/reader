@@ -45,6 +45,11 @@ pub struct CfBypassStrategy {
     client: Client,
 }
 
+/// Direct HTTP strategy used as a fallback when external bypass service is unavailable.
+pub struct DirectHttpStrategy {
+    client: Client,
+}
+
 impl CfBypassStrategy {
     pub fn new(config: CloudflareBypassConfig) -> Result<Self, EngineError> {
         let client = Client::builder()
@@ -64,6 +69,18 @@ impl CfBypassStrategy {
 
     fn fetch_url(&self) -> String {
         format!("{}/fetch", self.config.service_url.trim_end_matches('/'))
+    }
+}
+
+impl DirectHttpStrategy {
+    pub fn new(timeout_seconds: u64) -> Result<Self, EngineError> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(timeout_seconds))
+            .build()
+            .map_err(|e| EngineError::InvalidConfig {
+                message: format!("Failed to build direct HTTP client: {}", e),
+            })?;
+        Ok(Self { client })
     }
 }
 
@@ -168,6 +185,65 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             status,
             headers: body.headers,
             body: body.html,
+            url: ctx.url.clone(),
+        })
+    }
+}
+
+#[async_trait]
+impl AntiCrawlStrategy for DirectHttpStrategy {
+    fn name(&self) -> &str {
+        "DirectHTTP"
+    }
+
+    fn level(&self) -> u8 {
+        1
+    }
+
+    fn should_apply(&self, _response: &FetchResponse) -> bool {
+        true
+    }
+
+    fn supports_script(&self) -> bool {
+        false
+    }
+
+    async fn execute(&self, ctx: &mut FetchContext) -> Result<FetchResponse, EngineError> {
+        let method = ctx.method.to_ascii_uppercase();
+        let mut req = match method.as_str() {
+            "POST" => self
+                .client
+                .post(&ctx.url)
+                .body(ctx.body.clone().unwrap_or_default()),
+            _ => self.client.get(&ctx.url),
+        };
+
+        for (k, v) in &ctx.headers {
+            req = req.header(k, v);
+        }
+
+        let resp = req.send().await.map_err(|e| EngineError::Network {
+            message: format!("Direct request failed: {}", e),
+        })?;
+        let status = resp.status().as_u16();
+        let mut headers = HashMap::new();
+        for (k, v) in resp.headers() {
+            if let Ok(s) = v.to_str() {
+                headers.insert(k.to_string(), s.to_string());
+            }
+        }
+        let body = resp.text().await.map_err(|e| EngineError::Network {
+            message: format!("Failed to read response body: {}", e),
+        })?;
+
+        if status == 403 || status == 429 {
+            return Err(EngineError::CloudflareChallenge);
+        }
+
+        Ok(FetchResponse {
+            status,
+            headers,
+            body,
             url: ctx.url.clone(),
         })
     }

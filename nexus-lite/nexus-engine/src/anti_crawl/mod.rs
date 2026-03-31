@@ -10,6 +10,6 @@ mod cloudscraper;
 mod cf_cookie;
 
 pub use chain::FallbackChain;
-pub use strategies::CfBypassStrategy;
+pub use strategies::{CfBypassStrategy, DirectHttpStrategy};
 pub use cloudscraper::CloudScraperStrategy;
 pub use cf_cookie::{CfCookie, CfCookieManager, CfCookieError};

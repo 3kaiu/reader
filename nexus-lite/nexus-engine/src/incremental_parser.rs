@@ -241,7 +241,7 @@ impl StreamingParser {
     where
         F: FnMut(&str),
     {
-        while self.buffer.len() > self.chunk_size {
+        while self.buffer.len() >= self.chunk_size {
             let chunk = &self.buffer[..self.chunk_size];
             processor(chunk);
             self.buffer = self.buffer[self.chunk_size..].to_string();

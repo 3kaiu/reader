@@ -516,6 +516,10 @@ mod tests {
             punct_count: 50.0,
             digit_count: 10.0,
             chinese_char_count: 800.0,
+            visual_quality_score: 1.0,
+            is_visually_hidden: 0.0,
+            is_visually_sidebar: 0.0,
+            is_visually_header_footer: 0.0,
         };
 
         let score = scorer.score(&features);
@@ -548,6 +552,10 @@ mod tests {
             punct_count: 50.0,
             digit_count: 10.0,
             chinese_char_count: 800.0,
+            visual_quality_score: 1.0,
+            is_visually_hidden: 0.0,
+            is_visually_sidebar: 0.0,
+            is_visually_header_footer: 0.0,
         };
 
         let heuristic_score = 500.0;

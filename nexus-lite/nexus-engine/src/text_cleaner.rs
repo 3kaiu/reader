@@ -23,27 +23,18 @@ const ZERO_WIDTH_RANGES: &[(u32, u32)] = &[
     (0xE0100, 0xE01EF), // Variation selectors supplement
 ];
 
-/// Pre-compiled regex for zero-width characters
-static ZERO_WIDTH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    let pattern = ZERO_WIDTH_RANGES
-        .iter()
-        .map(|(start, end)| {
-            if start == end {
-                format!("\\u{:04X}", start)
-            } else {
-                format!("\\u{:04X}-\\u{:04X}", start, end)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("|");
-    
-    Regex::new(&format!("[{}]", pattern)).unwrap()
-});
-
 /// Pre-compiled regex for control characters (excluding newlines)
 static CONTROL_CHARS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]").unwrap()
 });
+
+#[inline]
+fn is_zero_width_or_invisible(ch: char) -> bool {
+    let cp = ch as u32;
+    ZERO_WIDTH_RANGES
+        .iter()
+        .any(|(start, end)| cp >= *start && cp <= *end)
+}
 
 /// Text cleaner configuration
 #[derive(Debug, Clone)]
@@ -116,7 +107,9 @@ impl TextCleaner {
 
     /// Remove zero-width and invisible characters
     pub fn remove_zero_width(&self, text: &str) -> String {
-        ZERO_WIDTH_REGEX.replace_all(text, "").to_string()
+        text.chars()
+            .filter(|ch| !is_zero_width_or_invisible(*ch))
+            .collect()
     }
 
     /// Remove control characters (keeping newlines)

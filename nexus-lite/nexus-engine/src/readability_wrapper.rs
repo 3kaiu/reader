@@ -106,7 +106,7 @@ impl ExtractedContent {
         let text = self.get_text().unwrap_or_default();
         
         // Check minimum length
-        if text.chars().count() < 100 {
+        if text.chars().count() < 30 {
             return false;
         }
 
@@ -117,8 +117,13 @@ impl ExtractedContent {
 
         let chinese_ratio = chinese_count as f64 / text.chars().count() as f64;
 
-        // Novel content should have significant Chinese characters
-        chinese_ratio > 0.3
+        // Novel content should have meaningful Chinese characters.
+        // For shorter chapters/announcements allow a lower ratio.
+        if text.chars().count() < 200 {
+            chinese_ratio > 0.15
+        } else {
+            chinese_ratio > 0.3
+        }
     }
 
     /// Clean and normalize content for novel reading
@@ -206,7 +211,7 @@ impl CustomExtractionRules for NovelExtractionRules {
                     let text = el.text().collect::<Vec<_>>().join("\n");
                     let score = self.score_content(&text);
 
-                    if score > best_score && score > 0.5 {
+                    if score > best_score && score > 0.15 {
                         best_score = score;
                         best_content = Some(text);
                     }
@@ -230,19 +235,20 @@ impl CustomExtractionRules for NovelExtractionRules {
 
 impl NovelExtractionRules {
     fn score_content(&self, text: &str) -> f64 {
-        let chars = text.chars().count();
-        if chars < 50 {
+        let visible_chars: Vec<char> = text.chars().filter(|c| !c.is_whitespace()).collect();
+        let chars = visible_chars.len();
+        if chars < 20 {
             return 0.0;
         }
 
         // Chinese character ratio
-        let chinese_count = text.chars().filter(|c| {
-            (*c as u32) >= 0x4E00 && (*c as u32) <= 0x9FFF
+        let chinese_count = visible_chars.iter().filter(|c| {
+            (**c as u32) >= 0x4E00 && (**c as u32) <= 0x9FFF
         }).count();
         let chinese_ratio = chinese_count as f64 / chars as f64;
 
         // Punctuation ratio
-        let punct_count = text.chars().filter(|c| {
+        let punct_count = visible_chars.iter().filter(|c| {
             matches!(
                 *c,
                 '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':'
