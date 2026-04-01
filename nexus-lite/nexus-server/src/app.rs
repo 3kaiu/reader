@@ -8,6 +8,7 @@ use nexus_core::EngineConfig;
 use nexus_core::{EventBus, SystemControlEvent, SystemEvent};
 use nexus_engine::anti_crawl::{CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain};
 use nexus_engine::extraction_metrics;
+use nexus_engine::skill_telemetry;
 use nexus_engine::fetcher::HttpFetcher;
 use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::sync::Arc;
@@ -39,8 +40,7 @@ pub struct AppState {
     pub event_bus: Arc<EventBus>,
 }
 
-/// Create the application router
-pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
+pub async fn build_app_state(config: &EngineConfig) -> anyhow::Result<AppState> {
     extraction_metrics::configure_max_tracked_sources(config.limits.max_extraction_metrics_sources);
 
     // Initialize stores
@@ -49,6 +49,16 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     info!("Loaded {} book sources", source_store.count());
 
     let store = Arc::new(SledStore::new(&config.storage.db_path)?);
+    skill_telemetry::configure(config.limits.max_extraction_metrics_sources.saturating_mul(3));
+    {
+        let store_for_hook = store.clone();
+        skill_telemetry::set_persist_hook(Some(Arc::new(move |event| {
+            let store = store_for_hook.clone();
+            tokio::spawn(async move {
+                let _ = store.save_skill_decision(event.to_log_entry()).await;
+            });
+        })));
+    }
     let content_rules = Arc::new(ContentRuleResolver::new(
         store.clone(),
         config.features.enable_ai_content_rules,
@@ -113,6 +123,13 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         event_bus,
     };
 
+    Ok(state)
+}
+
+/// Create the application router
+pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
+    let state = build_app_state(config).await?;
+
     // Build API router
     let api_router = Router::new()
         // Health check
@@ -120,6 +137,22 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         // Sources
         .route("/api/sources", get(routes::source::list_sources))
         .route("/api/sources", post(routes::source::add_source))
+        .route(
+            "/api/source-packages",
+            get(routes::source::list_source_packages),
+        )
+        .route(
+            "/api/source-packages/import",
+            post(routes::source::import_source_package),
+        )
+        .route(
+            "/api/source-packages/{id}",
+            get(routes::source::get_source_package),
+        )
+        .route(
+            "/api/source-packages/{id}",
+            delete(routes::source::delete_source_package),
+        )
         .route("/api/sources/{id}", get(routes::source::get_source))
         .route("/api/sources/{id}", delete(routes::source::delete_source))
         .route(
@@ -135,6 +168,28 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
             "/api/sources/extraction",
             get(routes::source::source_extraction_metrics),
         )
+        .route(
+            "/api/sources/extraction/summary",
+            get(routes::source::source_extraction_summary),
+        )
+        .route(
+            "/api/sources/diagnosis",
+            get(routes::source::source_diagnosis_overview),
+        )
+        .route(
+            "/api/sources/skills/decisions",
+            get(routes::source::source_skill_decisions),
+        )
+        .route(
+            "/api/sources/skills/decisions/history",
+            get(routes::source::source_skill_decisions_history),
+        )
+        .route(
+            "/api/sources/{id}/diagnosis",
+            get(routes::source::source_diagnosis),
+        )
+        // Source Builder Skill (decoupled source package generation)
+        .merge(routes::source_builder::router())
         // Search
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))
