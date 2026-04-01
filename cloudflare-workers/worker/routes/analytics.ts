@@ -1,4 +1,10 @@
 import { verifyAuth } from '../../shared/auth.ts'
+import {
+  clearAgentConfigOverride,
+  getEffectiveAgentConfig,
+  listAgentConfigAuditPage,
+  saveAgentConfigPatch,
+} from '../../shared/agent-config.ts'
 import { getCorsHeaders } from '../../shared/cors.ts'
 import { jsonError } from '../http.ts'
 import type { EnhancedWorkerEnv } from '../types.ts'
@@ -7,6 +13,7 @@ import {
   corsHeaders,
   getAnalyticsRows,
   getClientMetrics,
+  getErrorMessage,
   isRecord,
   percentile,
 } from './shared.ts'
@@ -200,6 +207,186 @@ export async function handleClientMetrics(request: Request, env: EnhancedWorkerE
   }
 
   return new Response(JSON.stringify({ success: true, ingested: bounded.length }), {
+    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+  })
+}
+
+export async function handleAgentRouterStats(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  let strategyCounts: Record<string, number> = {}
+  let skillCounts: Record<string, number> = {}
+  let strategyConfidence: Record<string, { avg: number; samples: number }> = {}
+
+  try {
+    const strategyRes: unknown = await env.ANALYTICS_ENGINE.query(`
+      SELECT
+        blob2 as strategy,
+        sum(double2) as cnt,
+        avg(double1) as confidence
+      FROM analytics_metrics
+      WHERE index1 = 'agent_router'
+        AND blob1 = 'agent'
+        AND timestamp > now() - interval '24 hours'
+      GROUP BY blob2
+    `)
+    const rows = getAnalyticsRows(strategyRes)
+    for (const row of rows) {
+      const strategy = String(row.strategy ?? 'unknown')
+      const count = Number(row.cnt ?? 0)
+      const avg = Number(row.confidence ?? 0)
+      strategyCounts[strategy] = (strategyCounts[strategy] || 0) + count
+      strategyConfidence[strategy] = {
+        avg: Number(avg.toFixed(4)),
+        samples: count,
+      }
+    }
+  } catch {
+    strategyCounts = {}
+    strategyConfidence = {}
+  }
+
+  try {
+    const skillRes: unknown = await env.ANALYTICS_ENGINE.query(`
+      SELECT
+        blob3 as skill,
+        sum(double2) as cnt
+      FROM analytics_metrics
+      WHERE index1 = 'agent_router'
+        AND blob1 = 'agent'
+        AND timestamp > now() - interval '24 hours'
+      GROUP BY blob3
+      ORDER BY cnt DESC
+      LIMIT 50
+    `)
+    const rows = getAnalyticsRows(skillRes)
+    for (const row of rows) {
+      const skill = String(row.skill ?? 'unknown')
+      const count = Number(row.cnt ?? 0)
+      skillCounts[skill] = (skillCounts[skill] || 0) + count
+    }
+  } catch {
+    skillCounts = {}
+  }
+
+  const total = Object.values(strategyCounts).reduce((a, b) => a + b, 0) || 0
+  const strategySharePct: Record<string, number> = {}
+  for (const [strategy, count] of Object.entries(strategyCounts)) {
+    strategySharePct[strategy] = total ? Number(((count / total) * 100).toFixed(2)) : 0
+  }
+
+  const aiLike =
+    (strategyCounts.ai || 0) +
+    (strategyCounts['ai-low-confidence'] || 0) +
+    (strategyCounts['ai-timeout'] || 0) +
+    (strategyCounts['ai-failed'] || 0)
+  const fallbackLike =
+    (strategyCounts.rule || 0) +
+    (strategyCounts['ai-low-confidence'] || 0) +
+    (strategyCounts['ai-timeout'] || 0) +
+    (strategyCounts['ai-failed'] || 0)
+
+  return new Response(JSON.stringify({
+    window: '24h',
+    totalSelections: total,
+    strategyCounts,
+    strategySharePct,
+    strategyConfidence,
+    skillCounts,
+    summary: {
+      aiAttemptRatePct: total ? Number(((aiLike / total) * 100).toFixed(2)) : 0,
+      fallbackRatePct: total ? Number(((fallbackLike / total) * 100).toFixed(2)) : 0,
+      aiTimeoutRatePct: total ? Number((((strategyCounts['ai-timeout'] || 0) / total) * 100).toFixed(2)) : 0,
+    },
+  }), {
+    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+  })
+}
+
+export async function handleAgentRouterConfig(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  if (request.method === 'GET') {
+    const effective = await getEffectiveAgentConfig(env)
+    return new Response(JSON.stringify({
+      window: 'runtime',
+      source: effective.source,
+      overrideUpdatedAt: effective.overrideUpdatedAt ?? null,
+      overrideUpdatedBy: effective.overrideUpdatedBy ?? null,
+      config: effective.config,
+    }), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (request.method === 'PATCH') {
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+    }
+
+    try {
+      const saved = await saveAgentConfigPatch(env, body, payload.id)
+      return new Response(JSON.stringify({
+        success: true,
+        updatedAt: saved.updatedAt,
+        updatedBy: saved.updatedBy ?? null,
+        config: saved.config,
+      }), {
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    } catch (error: unknown) {
+      return jsonError(request, 'BAD_REQUEST', 'Invalid agent config patch', 400, getErrorMessage(error))
+    }
+  }
+
+  if (request.method === 'DELETE') {
+    try {
+      const config = await clearAgentConfigOverride(env)
+      return new Response(JSON.stringify({
+        success: true,
+        cleared: true,
+        config,
+      }), {
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    } catch (error: unknown) {
+      return jsonError(request, 'BAD_REQUEST', 'Failed to clear agent config override', 400, getErrorMessage(error))
+    }
+  }
+
+  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+}
+
+export async function handleAgentRouterConfigAudit(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  const url = new URL(request.url)
+  const limitRaw = url.searchParams.get('limit')
+  const cursor = url.searchParams.get('cursor')
+  const limit = limitRaw ? Number(limitRaw) : 20
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(100, limit)) : 20
+  const { records, nextCursor } = await listAgentConfigAuditPage(env, {
+    limit: boundedLimit,
+    cursor,
+  })
+
+  return new Response(JSON.stringify({
+    window: 'recent',
+    count: records.length,
+    nextCursor,
+    records,
+  }), {
     headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
   })
 }

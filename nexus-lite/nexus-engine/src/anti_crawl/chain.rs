@@ -3,6 +3,7 @@
 use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 use dashmap::DashMap;
 use nexus_core::{AntiCrawlStrategy, EngineError, FetchContext, FetchResponse};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;
 
@@ -15,6 +16,79 @@ pub struct FallbackChain {
 }
 
 impl FallbackChain {
+    fn normalize_name(name: &str) -> String {
+        name.trim().to_ascii_lowercase()
+    }
+
+    fn resolve_strategy_chain(&self, order: &[String]) -> Vec<Arc<dyn AntiCrawlStrategy>> {
+        let mut resolved = Vec::new();
+        let mut used = HashSet::new();
+
+        for preferred in order {
+            let key = Self::normalize_name(preferred);
+            if key.is_empty() || !used.insert(key.clone()) {
+                continue;
+            }
+            if let Some(strategy) = self
+                .strategies
+                .iter()
+                .find(|it| Self::normalize_name(it.name()) == key)
+            {
+                resolved.push(Arc::clone(strategy));
+            }
+        }
+
+        for strategy in &self.strategies {
+            let key = Self::normalize_name(strategy.name());
+            if used.insert(key) {
+                resolved.push(Arc::clone(strategy));
+            }
+        }
+
+        resolved
+    }
+
+    async fn execute_with_chain(
+        &self,
+        ctx: &mut FetchContext,
+        chain: Vec<Arc<dyn AntiCrawlStrategy>>,
+    ) -> Result<FetchResponse, EngineError> {
+        let mut last_err: Option<EngineError> = None;
+        let mut result = Err(EngineError::AllStrategiesFailed);
+        for (idx, strategy) in chain.iter().enumerate() {
+            match strategy.execute(ctx).await {
+                Ok(response) => {
+                    if idx > 0 {
+                        debug!(
+                            "Fallback strategy {} succeeded for source {} after {} prior failures",
+                            strategy.name(),
+                            ctx.source_id,
+                            idx
+                        );
+                    }
+                    result = Ok(response);
+                    last_err = None;
+                    break;
+                }
+                Err(err) => {
+                    debug!(
+                        "Strategy {} failed for source {}: {}",
+                        strategy.name(),
+                        ctx.source_id,
+                        err
+                    );
+                    last_err = Some(err);
+                }
+            }
+        }
+
+        if result.is_err() {
+            result = Err(last_err.unwrap_or(EngineError::AllStrategiesFailed));
+        }
+
+        result
+    }
+
     /// Create with CF bypass strategy
     pub fn new(strategy: Arc<dyn AntiCrawlStrategy>) -> Self {
         Self {
@@ -77,38 +151,41 @@ impl FallbackChain {
         drop(breaker);
 
         // Execute fetch with strategy chain
-        let mut last_err: Option<EngineError> = None;
-        let mut result = Err(EngineError::AllStrategiesFailed);
-        for (idx, strategy) in self.strategies.iter().enumerate() {
-            match strategy.execute(ctx).await {
-                Ok(response) => {
-                    if idx > 0 {
-                        debug!(
-                            "Fallback strategy {} succeeded for source {} after {} prior failures",
-                            strategy.name(),
-                            ctx.source_id,
-                            idx
-                        );
-                    }
-                    result = Ok(response);
-                    last_err = None;
-                    break;
-                }
-                Err(err) => {
-                    debug!(
-                        "Strategy {} failed for source {}: {}",
-                        strategy.name(),
-                        ctx.source_id,
-                        err
-                    );
-                    last_err = Some(err);
-                }
-            }
+        let result = self
+            .execute_with_chain(ctx, self.resolve_strategy_chain(&[]))
+            .await;
+
+        // Update circuit breaker
+        let breaker = self.get_breaker(&ctx.source_id);
+        match &result {
+            Ok(_) => breaker.record_success(),
+            Err(e) if e.is_retryable() => breaker.record_failure(),
+            _ => {}
         }
 
-        if result.is_err() {
-            result = Err(last_err.unwrap_or(EngineError::AllStrategiesFailed));
+        result
+    }
+
+    /// Execute with preferred strategy order by strategy name.
+    /// Unknown strategy names are ignored, and remaining registered strategies
+    /// are appended to preserve fallback behavior.
+    pub async fn execute_with_strategy_order(
+        &self,
+        ctx: &mut FetchContext,
+        order: &[String],
+    ) -> Result<FetchResponse, EngineError> {
+        let breaker = self.get_breaker(&ctx.source_id);
+        if !breaker.should_allow() {
+            debug!("Circuit OPEN for source {}, rejecting", ctx.source_id);
+            return Err(EngineError::CircuitOpen {
+                message: ctx.source_id.clone(),
+            });
         }
+        drop(breaker);
+
+        let result = self
+            .execute_with_chain(ctx, self.resolve_strategy_chain(order))
+            .await;
 
         // Update circuit breaker
         let breaker = self.get_breaker(&ctx.source_id);

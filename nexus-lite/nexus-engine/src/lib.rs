@@ -18,27 +18,34 @@ pub mod domain;
 pub mod anti_crawl;
 pub mod circuit_breaker;
 pub mod content;
-pub mod content_extract;
-pub mod domain_pool;
-pub mod dynamic_noise;
+mod content_extract;
+mod domain_pool;
+mod dynamic_noise;
 pub mod extraction_metrics;
 pub mod fetcher;
-pub mod incremental_parser;
-pub mod kuchiki_wrapper;
+#[cfg(test)]
+mod incremental_parser;
+#[cfg(test)]
+mod kuchiki_wrapper;
+#[cfg(test)]
 pub mod library_integration_test;
-pub mod lol_html_parser;
-pub mod ml_scorer;
+#[cfg(test)]
+mod lol_html_parser;
+mod ml_scorer;
 pub mod nxs_engine;
-pub mod purifier;
-pub mod readability_wrapper;
-pub mod selector_cache;
-pub mod uri;
-pub mod visual_features;
+mod purifier;
+pub mod quality_gate;
+pub mod skill_telemetry;
+pub mod skills;
+mod readability_wrapper;
+mod selector_cache;
+mod uri;
+mod visual_features;
 
 // ===== 内容清洗模块 (Content Cleaning) =====
-pub mod font_decryptor;
-pub mod text_cleaner;
-pub mod text_dedup;
+mod font_decryptor;
+mod text_cleaner;
+mod text_dedup;
 
 // Public exports - 保持向后兼容
 pub use anti_crawl::{CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain};

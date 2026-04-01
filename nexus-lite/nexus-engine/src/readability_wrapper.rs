@@ -4,7 +4,8 @@
 //! Provides Mozilla's Readability.js algorithm for extracting main content.
 
 use readability_rust::{Readability, ReadabilityOptions};
-use scraper::{Html, Selector};
+use scraper::Html;
+#[cfg(test)]
 use std::sync::Arc;
 
 /// Enhanced content extractor using Readability algorithm
@@ -19,36 +20,8 @@ impl ReadabilityExtractor {
         }
     }
 
-    pub fn with_options(options: ReadabilityOptions) -> Self {
-        Self { options }
-    }
-
     /// Extract main content using Readability algorithm
     pub fn extract(&self, html: &str) -> Option<ExtractedContent> {
-        let mut parser = Readability::new(html, Some(self.options.clone())).ok()?;
-        let article = parser.parse()?;
-
-        Some(ExtractedContent {
-            title: article.title,
-            content: article.content,
-            text_content: article.text_content,
-            length: article.length,
-            excerpt: article.excerpt,
-            byline: article.byline,
-            dir: article.dir,
-            site_name: article.site_name,
-            published_time: article.published_time,
-        })
-    }
-
-    /// Extract content with custom configuration
-    pub fn extract_with_config(
-        &self,
-        html: &str,
-        _min_content_length: usize,
-        _min_score: f64,
-    ) -> Option<ExtractedContent> {
-        // Use default options - readability-rust doesn't expose these fields
         let mut parser = Readability::new(html, Some(self.options.clone())).ok()?;
         let article = parser.parse()?;
 
@@ -74,6 +47,7 @@ impl Default for ReadabilityExtractor {
 
 /// Extracted content from Readability
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ExtractedContent {
     pub title: Option<String>,
     pub content: Option<String>,
@@ -147,11 +121,13 @@ impl ExtractedContent {
 }
 
 /// Hybrid extractor combining Readability and custom rules
+#[cfg(test)]
 pub struct HybridExtractor {
     readability: ReadabilityExtractor,
     custom_rules: Arc<dyn CustomExtractionRules + Send + Sync>,
 }
 
+#[cfg(test)]
 impl HybridExtractor {
     pub fn new(custom_rules: Arc<dyn CustomExtractionRules + Send + Sync>) -> Self {
         Self {
@@ -175,13 +151,16 @@ impl HybridExtractor {
 }
 
 /// Custom extraction rules trait
+#[cfg(test)]
 pub trait CustomExtractionRules {
     fn extract(&self, html: &str) -> Option<ExtractedContent>;
 }
 
 /// Default custom extraction rules for novel sites
+#[cfg(test)]
 pub struct NovelExtractionRules;
 
+#[cfg(test)]
 impl CustomExtractionRules for NovelExtractionRules {
     fn extract(&self, html: &str) -> Option<ExtractedContent> {
         let doc = Html::parse_document(html);
@@ -233,6 +212,7 @@ impl CustomExtractionRules for NovelExtractionRules {
     }
 }
 
+#[cfg(test)]
 impl NovelExtractionRules {
     fn score_content(&self, text: &str) -> f64 {
         let visible_chars: Vec<char> = text.chars().filter(|c| !c.is_whitespace()).collect();

@@ -3,11 +3,10 @@
 //! Feature extraction and scoring model for content quality assessment.
 //! Uses simple linear regression without external ML dependencies.
 
-use scraper::{ElementRef, Html, Selector};
-use std::collections::HashSet;
+use scraper::{ElementRef, Selector};
 
 // Import visual features
-use crate::visual_features::{VisualFeatureExtractor, VisualFeatures};
+use crate::visual_features::VisualFeatureExtractor;
 
 /// Feature extractor for content elements
 pub struct FeatureExtractor {
@@ -274,7 +273,6 @@ pub struct ContentFeatures {
 pub struct LinearScorer {
     weights: Vec<f64>,
     bias: f64,
-    feature_names: Vec<String>,
 }
 
 impl LinearScorer {
@@ -311,39 +309,9 @@ impl LinearScorer {
             -100.0, // is_visually_header_footer
         ];
 
-        let feature_names = vec![
-            "text_length".to_string(),
-            "link_count".to_string(),
-            "para_count".to_string(),
-            "heading_count".to_string(),
-            "img_count".to_string(),
-            "nav_count".to_string(),
-            "button_count".to_string(),
-            "link_density".to_string(),
-            "punct_density".to_string(),
-            "digit_density".to_string(),
-            "chinese_density".to_string(),
-            "avg_para_len".to_string(),
-            "content_keywords".to_string(),
-            "noise_keywords".to_string(),
-            "depth".to_string(),
-            "child_count".to_string(),
-            "sibling_count".to_string(),
-            "has_content_class".to_string(),
-            "has_noise_class".to_string(),
-            "punct_count".to_string(),
-            "digit_count".to_string(),
-            "chinese_char_count".to_string(),
-            "visual_quality_score".to_string(),
-            "is_visually_hidden".to_string(),
-            "is_visually_sidebar".to_string(),
-            "is_visually_header_footer".to_string(),
-        ];
-
         Self {
             weights,
             bias: 0.0,
-            feature_names,
         }
     }
 
@@ -385,30 +353,6 @@ impl LinearScorer {
 
         score
     }
-
-    /// Get feature importance (absolute weight values)
-    pub fn get_feature_importance(&self) -> Vec<(String, f64)> {
-        let mut importance: Vec<_> = self.feature_names
-            .iter()
-            .zip(self.weights.iter())
-            .map(|(name, weight)| (name.clone(), weight.abs()))
-            .collect();
-
-        importance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        importance
-    }
-
-    /// Update weights (for online learning)
-    pub fn update_weights(&mut self, new_weights: Vec<f64>) {
-        if new_weights.len() == self.weights.len() {
-            self.weights = new_weights;
-        }
-    }
-
-    /// Get current weights
-    pub fn get_weights(&self) -> Vec<f64> {
-        self.weights.clone()
-    }
 }
 
 impl Default for LinearScorer {
@@ -430,14 +374,6 @@ impl EnsembleScorer {
             linear_scorer: LinearScorer::new(),
             heuristic_weight: 0.4,
             ml_weight: 0.6,
-        }
-    }
-
-    pub fn with_weights(heuristic_weight: f64, ml_weight: f64) -> Self {
-        Self {
-            linear_scorer: LinearScorer::new(),
-            heuristic_weight,
-            ml_weight,
         }
     }
 

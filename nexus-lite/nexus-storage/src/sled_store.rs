@@ -8,8 +8,9 @@
 //! synchronous disk I/O from the async runtime.
 
 use nexus_core::{
-    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, HealthTracker,
-    ReplaceRule, SourcePolicy, VoiceModelMetadata,
+    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError,
+    FetchSessionProfile, HealthTracker, RawHtmlCacheEntry, ReplaceRule, SkillDecisionLogEntry,
+    SourcePolicy, SourceRulePackage, VoiceModelMetadata,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sled::{Db, Tree};
@@ -30,10 +31,14 @@ pub struct SledStore {
     rules: Tree,
     ai_mappings: Tree,
     ai_history: Tree,
+    skill_decisions: Tree,
     voice_meta: Tree,
     voice_config: Tree,
     source_status: Tree, // Source enabled/disabled status
     source_policy: Tree, // Source governance metadata
+    source_packages: Tree, // Full source rule packages for import/export/docs
+    fetch_sessions: Tree, // Human-assisted fetch sessions
+    raw_html_cache: Tree, // Cached HTML responses for sessionized fetch
 
     // Health tracker (in-memory, not persisted)
     health: Arc<HealthTracker>,
@@ -75,6 +80,11 @@ impl SledStore {
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
+            skill_decisions: db
+                .open_tree("skill_decisions")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             voice_meta: db
                 .open_tree("voice_meta")
                 .map_err(|e| EngineError::Database {
@@ -92,6 +102,21 @@ impl SledStore {
                 })?,
             source_policy: db
                 .open_tree("source_policy")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
+            source_packages: db
+                .open_tree("source_packages")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
+            fetch_sessions: db
+                .open_tree("fetch_sessions")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
+            raw_html_cache: db
+                .open_tree("raw_html_cache")
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
@@ -491,6 +516,67 @@ impl SledStore {
         })?
     }
 
+    // ========== Skill Decision History (Async) ==========
+
+    pub async fn get_skill_decision_history(
+        &self,
+        limit: u32,
+        source_id: Option<String>,
+        skill_name: Option<String>,
+        since_ms: Option<i64>,
+    ) -> Result<Vec<SkillDecisionLogEntry>, EngineError> {
+        let decisions_tree = self.skill_decisions.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut items = Self::scan_all_sync::<SkillDecisionLogEntry>(&decisions_tree)?;
+            if let Some(source_id) = source_id {
+                items.retain(|it| it.source_id == source_id);
+            }
+            if let Some(skill_name) = skill_name {
+                let normalized = skill_name.to_ascii_lowercase();
+                items.retain(|it| it.decision.skill_name.to_ascii_lowercase() == normalized);
+            }
+            if let Some(since_ms) = since_ms {
+                items.retain(|it| it.occurred_at_ms >= since_ms);
+            }
+            items.sort_by(|a, b| b.occurred_at_ms.cmp(&a.occurred_at_ms));
+            items.truncate(limit.max(1) as usize);
+            Ok(items)
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    pub async fn save_skill_decision(
+        &self,
+        decision: SkillDecisionLogEntry,
+    ) -> Result<(), EngineError> {
+        let decisions_tree = self.skill_decisions.clone();
+        tokio::task::spawn_blocking(move || {
+            let key = format!("{:020}:{}", decision.occurred_at_ms.max(0), decision.id);
+            Self::put_sync(&decisions_tree, &key, &decision)
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    pub async fn clear_skill_decision_history(&self) -> Result<(), EngineError> {
+        let decisions_tree = self.skill_decisions.clone();
+        tokio::task::spawn_blocking(move || {
+            decisions_tree.clear().map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
     // ========== Voice Metadata (Async) ==========
 
     pub async fn get_voice_metadata(&self) -> Result<Vec<VoiceModelMetadata>, EngineError> {
@@ -616,6 +702,46 @@ impl SledStore {
         })?
     }
 
+    pub async fn save_source_package(&self, package: SourceRulePackage) -> Result<(), EngineError> {
+        let package_tree = self.source_packages.clone();
+        let key = package.source.id.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&package_tree, &key, &package))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn get_source_package(
+        &self,
+        source_id: String,
+    ) -> Result<Option<SourceRulePackage>, EngineError> {
+        let package_tree = self.source_packages.clone();
+        tokio::task::spawn_blocking(move || Self::get_sync(&package_tree, &source_id))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn list_source_packages(&self) -> Result<Vec<SourceRulePackage>, EngineError> {
+        let package_tree = self.source_packages.clone();
+        tokio::task::spawn_blocking(move || Self::scan_all_sync(&package_tree))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn delete_source_package(&self, source_id: String) -> Result<(), EngineError> {
+        let package_tree = self.source_packages.clone();
+        tokio::task::spawn_blocking(move || Self::delete_sync(&package_tree, &source_id))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
     /// Set source governance policy
     pub async fn set_source_policy(
         &self,
@@ -643,6 +769,50 @@ impl SledStore {
         .map_err(|e| EngineError::Internal {
             message: format!("Storage execution failed: {}", e),
         })?
+    }
+
+    pub async fn save_fetch_session(&self, session: FetchSessionProfile) -> Result<(), EngineError> {
+        let tree = self.fetch_sessions.clone();
+        let key = session.session_key.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&tree, &key, &session))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn get_fetch_session(
+        &self,
+        session_key: String,
+    ) -> Result<Option<FetchSessionProfile>, EngineError> {
+        let tree = self.fetch_sessions.clone();
+        tokio::task::spawn_blocking(move || Self::get_sync(&tree, &session_key))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn save_raw_html_cache(&self, entry: RawHtmlCacheEntry) -> Result<(), EngineError> {
+        let tree = self.raw_html_cache.clone();
+        let key = entry.cache_key.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&tree, &key, &entry))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn get_raw_html_cache(
+        &self,
+        cache_key: String,
+    ) -> Result<Option<RawHtmlCacheEntry>, EngineError> {
+        let tree = self.raw_html_cache.clone();
+        tokio::task::spawn_blocking(move || Self::get_sync(&tree, &cache_key))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
     }
 }
 

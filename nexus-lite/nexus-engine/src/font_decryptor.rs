@@ -6,7 +6,7 @@
 //! - Decrypt obfuscated text
 
 use std::collections::HashMap;
-use ttf_parser::{Face, GlyphId};
+use ttf_parser::Face;
 use thiserror::Error;
 
 /// Font decryption error
@@ -54,7 +54,7 @@ impl FontDecryptor {
             for subtable in cmap.subtables {
                 // Parse character to glyph mapping
                 subtable.codepoints(|codepoint| {
-                    if let Some(glyph_id) = subtable.glyph_index(codepoint) {
+                    if subtable.glyph_index(codepoint).is_some() {
                         // Try to get the actual character from the glyph
                         // This is a simplified approach - real font encryption
                         // requires more sophisticated analysis
@@ -74,7 +74,7 @@ impl FontDecryptor {
     }
 
     /// Parse font from URL (async version for HTTP download)
-    pub async fn parse_font_from_url(&self, url: &str) -> Result<CharMapping, FontDecryptError> {
+    pub async fn parse_font_from_url(&self, _url: &str) -> Result<CharMapping, FontDecryptError> {
         // This would require HTTP client integration
         // For now, return an error suggesting to download first
         Err(FontDecryptError::DownloadError(
@@ -161,6 +161,7 @@ pub struct ObfuscationAnalysis {
 
 /// Simple font mapping for common Chinese novel sites
 /// These are pre-built mappings for known obfuscation patterns
+#[cfg(test)]
 pub mod common_mappings {
     use super::CharMapping;
 

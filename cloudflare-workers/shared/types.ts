@@ -170,6 +170,14 @@ export interface WorkerEnv {
   EDGE_EXPERIMENTAL_ROUTES?: string;
   EDGE_EXPERIMENTAL_EXCLUDE_ROUTES?: string;
   EDGE_EXPERIMENTAL_ROLLOUT?: string;
+  AGENT_ENABLED?: string;
+  AGENT_SHADOW_MODE?: string;
+  AGENT_AI_ENABLED?: string;
+  AGENT_AI_MAX_LATENCY_MS?: string;
+  AGENT_MIN_CONFIDENCE?: string;
+  AGENT_ROLLOUT?: string;
+  AGENT_INCLUDE_ROUTES?: string;
+  AGENT_EXCLUDE_ROUTES?: string;
 
   // Storage bindings (matched with wrangler.toml)
   ANALYTICS_DB: D1DatabaseLike;

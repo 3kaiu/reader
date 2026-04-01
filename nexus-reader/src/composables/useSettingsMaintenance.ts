@@ -79,6 +79,10 @@ export function useSettingsMaintenance() {
     await Promise.allSettled([
       refreshStorageUsage(),
       settingsStore.refreshClientRouting(),
+      settingsStore.refreshAgentRouting(),
+      settingsStore.refreshAgentConfig(),
+      settingsStore.refreshAgentConfigAudit(20),
+      settingsStore.refreshSourcePackages(),
     ])
   }
 
@@ -86,6 +90,11 @@ export function useSettingsMaintenance() {
     await clearAppCache()
     addonsStore.refresh()
     settingsStore.clearClientRouting()
+    settingsStore.clearAgentRouting()
+    settingsStore.clearAgentConfig()
+    settingsStore.clearAgentConfigAudit()
+    settingsStore.clearSourcePackages()
+    settingsStore.clearSourcePackageDetail()
     await refreshStorageUsage()
   }
 

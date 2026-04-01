@@ -7,6 +7,8 @@
 //! - 缓存条目 (CacheEntry): 缓存数据项
 //! - 存储策略 (StorageStrategy): 数据存储策略
 
+#![allow(deprecated)]
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -589,8 +589,8 @@ pub enum UserQuery {
 pub struct UserDomain {
     user_repository: Box<dyn UserRepository>,
     session_repository: Box<dyn UserSessionRepository>,
-    authentication_service: Box<dyn AuthenticationService>,
-    authorization_service: Box<dyn AuthorizationService>,
+    _authentication_service: Box<dyn AuthenticationService>,
+    _authorization_service: Box<dyn AuthorizationService>,
     business_rules: Vec<Box<dyn BusinessRuleValidator<User>>>,
 }
 
@@ -599,8 +599,8 @@ impl UserDomain {
         Ok(Self {
             user_repository: Box::new(InMemoryUserRepository::new()),
             session_repository: Box::new(InMemoryUserSessionRepository::new()),
-            authentication_service: Box::new(BasicAuthenticationService::new()),
-            authorization_service: Box::new(RBACAuthorizationService::new()),
+            _authentication_service: Box::new(BasicAuthenticationService::new()),
+            _authorization_service: Box::new(RBACAuthorizationService::new()),
             business_rules: vec![
                 Box::new(UserEmailValidRule),
                 Box::new(UsernameNotEmptyRule),
@@ -1183,8 +1183,8 @@ impl UserRepository for InMemoryUserRepository {
         let users = self.users.read().unwrap();
         let filtered: Vec<User> = users
             .values()
-            .filter(|u| status.as_ref().map_or(true, |s| matches!(&u.status, s)))
-            .filter(|u| role.as_ref().map_or(true, |r| matches!(&u.role, r)))
+            .filter(|u| status.as_ref().is_none_or(|s| &u.status == s))
+            .filter(|u| role.as_ref().is_none_or(|r| &u.role == r))
             .take(limit as usize)
             .cloned()
             .collect();
@@ -1278,8 +1278,8 @@ impl BasicAuthenticationService {
 impl AuthenticationService for BasicAuthenticationService {
     async fn authenticate(
         &self,
-        username_or_email: &str,
-        password_hash: &str,
+        _username_or_email: &str,
+        _password_hash: &str,
     ) -> Result<User, DomainError> {
         // 简化实现 - 在实际应用中应该查询数据库
         Err(DomainError::Unauthorized(
@@ -1287,14 +1287,14 @@ impl AuthenticationService for BasicAuthenticationService {
         ))
     }
 
-    async fn validate_session(&self, session_id: &str) -> Result<User, DomainError> {
+    async fn validate_session(&self, _session_id: &str) -> Result<User, DomainError> {
         // 简化实现
         Err(DomainError::Unauthorized(
             "Session validation not implemented".to_string(),
         ))
     }
 
-    async fn invalidate_session(&self, session_id: &str) -> Result<(), DomainError> {
+    async fn invalidate_session(&self, _session_id: &str) -> Result<(), DomainError> {
         // 简化实现
         Ok(())
     }

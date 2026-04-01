@@ -8,6 +8,7 @@ pub mod group;
 pub mod replace_rules;
 pub mod search;
 pub mod source;
+pub mod source_builder;
 pub mod voice;
 
 use axum::{extract::State, Json};
@@ -15,6 +16,7 @@ use nexus_engine::extraction_metrics;
 use serde::Serialize;
 
 use crate::app::AppState;
+pub use crate::api_response::ApiResponse;
 
 /// Health check response with dependency status
 #[derive(Serialize)]
@@ -31,34 +33,6 @@ pub struct DependencyStatus {
     pub database: bool,
     pub cf_bypass_configured: bool,
     pub extraction: extraction_metrics::ExtractionSummary,
-}
-
-/// Generic API response wrapper
-#[derive(Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<T>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T) -> Self {
-        Self {
-            success: true,
-            data: Some(data),
-            error: None,
-        }
-    }
-
-    pub fn error(message: &str) -> Self {
-        Self {
-            success: false,
-            data: None,
-            error: Some(message.to_string()),
-        }
-    }
 }
 
 /// Enhanced health check handler with dependency status

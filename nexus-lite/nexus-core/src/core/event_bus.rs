@@ -3,7 +3,6 @@
 //! 这是简化后的核心事件总线，提供事件发布和订阅功能。
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 

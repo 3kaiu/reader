@@ -1,6 +1,8 @@
 //! Unified error types for NexusLite with standardized error codes
 //! Implements cross-language error protocol compatible with CF Bypass and Nexus Reader
 
+#![allow(deprecated)]
+
 use serde::{Deserialize, Serialize};
 
 /// Standardized error codes across all Nexus components
@@ -476,7 +478,7 @@ impl From<crate::domain::DomainError> for EngineError {
             crate::domain::DomainError::Conflict(msg) => Self::Internal {
                 message: format!("Conflict: {}", msg),
             },
-            crate::domain::DomainError::Unauthorized(msg) => Self::Unauthorized,
+            crate::domain::DomainError::Unauthorized(_msg) => Self::Unauthorized,
             crate::domain::DomainError::ExternalService(msg) => Self::Network { message: msg },
         }
     }

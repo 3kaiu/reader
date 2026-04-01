@@ -7,6 +7,8 @@
 //! - 反爬虫策略 (AntiCrawlStrategy): 反检测策略
 //! - 连接池 (ConnectionPool): 网络连接管理
 
+#![allow(deprecated)]
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

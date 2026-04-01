@@ -7,6 +7,7 @@ import { createSettingsClientRoutingActions } from "./actions/client-routing";
 import { createSettingsConfigActions } from "./actions/config";
 import { createSettingsStoreActionContext } from "./actions/helpers";
 import { createSettingsPersistenceActions } from "./actions/persistence";
+import { createSettingsSourcePackageActions } from "./actions/source-packages";
 import { createSettingsUiActions } from "./actions/ui";
 
 export function createSettingsStoreActions(
@@ -17,12 +18,14 @@ export function createSettingsStoreActions(
   const configActions = createSettingsConfigActions(context);
   const uiActions = createSettingsUiActions(context);
   const clientRoutingActions = createSettingsClientRoutingActions(context);
+  const sourcePackageActions = createSettingsSourcePackageActions(context);
   const persistenceActions = createSettingsPersistenceActions(context);
 
   return {
     ...configActions,
     ...uiActions,
     ...clientRoutingActions,
+    ...sourcePackageActions,
     ...persistenceActions,
   };
 }

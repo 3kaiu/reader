@@ -9,6 +9,8 @@
 //! - 事务管理：管理用例执行的事务边界
 //! - 安全控制：处理应用级别的安全和权限
 
+#![allow(deprecated)]
+
 /// 应用层通用接口和类型
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -17,7 +19,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::domain::*;
+use crate::{
+    DomainCommand, DomainEvent, DomainLayer, DomainQuery, ReadingCommand, ReadingQuery,
+    SearchCommand, SearchDomainQuery, SystemCommand, SystemQuery, UserCommand, UserQuery,
+};
 
 /// 应用服务特质
 #[async_trait]

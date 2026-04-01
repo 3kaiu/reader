@@ -13,6 +13,7 @@ import type { EnhancedWorkerEnv } from './types.ts'
 const USER_SERVICE_PREFIXES = [
   '/api/health',
   '/api/analytics/',
+  '/api/agent/',
   '/api/preferences',
   '/api/content/upload',
   '/api/backup',

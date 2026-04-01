@@ -14,6 +14,14 @@ ENABLE_EDGE_EXPERIMENTAL = "false"
 EDGE_EXPERIMENTAL_ROUTES = "/api/search,/api/book,/api/chapters,/api/content"
 EDGE_EXPERIMENTAL_EXCLUDE_ROUTES = "/api/health,/api/analytics,/api/metrics"
 EDGE_EXPERIMENTAL_ROLLOUT = "0"
+AGENT_ENABLED = "false"
+AGENT_SHADOW_MODE = "false"
+AGENT_AI_ENABLED = "true"
+AGENT_AI_MAX_LATENCY_MS = "300"
+AGENT_MIN_CONFIDENCE = "0.65"
+AGENT_ROLLOUT = "0"
+AGENT_INCLUDE_ROUTES = "/decode/*,/api/search,/api/book,/api/chapters,/api/content"
+AGENT_EXCLUDE_ROUTES = "/api/health,/api/analytics/*,/api/metrics/client"
 # OAuth GitHub Configuration (loaded from .dev.vars in production)
 # OAUTH_GITHUB_CLIENT_ID = "your_client_id"
 # OAUTH_GITHUB_CLIENT_SECRET = "your_client_secret"
@@ -72,6 +80,10 @@ max_batch_timeout = 30
 [[analytics_engine_datasets]]
 binding = "ANALYTICS_ENGINE"
 dataset = "nexus_usage_analytics"
+
+# ===== Workers AI =====
+[ai]
+binding = "AI"
 
 # ===== 环境配置 =====
 [env.production]

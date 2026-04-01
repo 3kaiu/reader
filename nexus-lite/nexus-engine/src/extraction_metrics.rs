@@ -14,11 +14,17 @@ struct Counters {
     validation_failures: u64,
     rule_mismatch_failures: u64,
     empty_content_failures: u64,
+    low_quality_failures: u64,
+    quality_score_total: f64,
+    quality_samples: u64,
 }
 
 impl Counters {
     fn total_failures(&self) -> u64 {
-        self.validation_failures + self.rule_mismatch_failures + self.empty_content_failures
+        self.validation_failures
+            + self.rule_mismatch_failures
+            + self.empty_content_failures
+            + self.low_quality_failures
     }
 
     fn total_events(&self) -> u64 {
@@ -35,9 +41,12 @@ pub struct SourceExtractionStats {
     pub validation_failures: u64,
     pub rule_mismatch_failures: u64,
     pub empty_content_failures: u64,
+    pub low_quality_failures: u64,
     pub total_failures: u64,
     pub fallback_hit_rate: f64,
     pub success_rate: f64,
+    pub avg_quality_score: f64,
+    pub quality_success_rate: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -55,6 +64,8 @@ pub struct ExtractionSummary {
     pub total_failures: u64,
     pub overall_success_rate: f64,
     pub overall_fallback_hit_rate: f64,
+    pub overall_avg_quality_score: f64,
+    pub overall_quality_success_rate: f64,
     pub top_failing_sources: Vec<FailingSourceSummary>,
 }
 
@@ -136,6 +147,62 @@ pub fn record_empty_content_failure(source_id: &str) {
     });
 }
 
+pub fn record_low_quality_failure(source_id: &str) {
+    with_source(source_id, |c| {
+        c.low_quality_failures += 1;
+    });
+}
+
+pub fn record_quality_score(source_id: &str, score: f64) {
+    with_source(source_id, |c| {
+        c.quality_samples += 1;
+        c.quality_score_total += score.clamp(0.0, 1.0);
+    });
+}
+
+pub fn stats_for(source_id: &str) -> Option<SourceExtractionStats> {
+    EXTRACTION_COUNTERS.get(source_id).map(|entry| {
+        let c = entry.value().clone();
+        let total_failures = c.total_failures();
+        let total = c.success + total_failures;
+        let avg_quality_score = if c.quality_samples > 0 {
+            c.quality_score_total / c.quality_samples as f64
+        } else {
+            0.0
+        };
+        let quality_success_rate = if total > 0 {
+            c.success as f64 / total as f64
+        } else {
+            0.0
+        };
+        let fallback_hit_rate = if c.success > 0 {
+            c.fallback_hits as f64 / c.success as f64
+        } else {
+            0.0
+        };
+        let success_rate = if total > 0 {
+            c.success as f64 / total as f64
+        } else {
+            0.0
+        };
+
+        SourceExtractionStats {
+            source_id: source_id.to_string(),
+            success: c.success,
+            fallback_hits: c.fallback_hits,
+            validation_failures: c.validation_failures,
+            rule_mismatch_failures: c.rule_mismatch_failures,
+            empty_content_failures: c.empty_content_failures,
+            low_quality_failures: c.low_quality_failures,
+            total_failures,
+            fallback_hit_rate,
+            success_rate,
+            avg_quality_score,
+            quality_success_rate,
+        }
+    })
+}
+
 pub fn snapshot() -> Vec<SourceExtractionStats> {
     let mut items = EXTRACTION_COUNTERS
         .iter()
@@ -144,6 +211,16 @@ pub fn snapshot() -> Vec<SourceExtractionStats> {
             let c = entry.value().clone();
             let total_failures = c.total_failures();
             let total = c.success + total_failures;
+            let avg_quality_score = if c.quality_samples > 0 {
+                c.quality_score_total / c.quality_samples as f64
+            } else {
+                0.0
+            };
+            let quality_success_rate = if total > 0 {
+                c.success as f64 / total as f64
+            } else {
+                0.0
+            };
             let fallback_hit_rate = if c.success > 0 {
                 c.fallback_hits as f64 / c.success as f64
             } else {
@@ -162,9 +239,12 @@ pub fn snapshot() -> Vec<SourceExtractionStats> {
                 validation_failures: c.validation_failures,
                 rule_mismatch_failures: c.rule_mismatch_failures,
                 empty_content_failures: c.empty_content_failures,
+                low_quality_failures: c.low_quality_failures,
                 total_failures,
                 fallback_hit_rate,
                 success_rate,
+                avg_quality_score,
+                quality_success_rate,
             }
         })
         .collect::<Vec<_>>();
@@ -185,6 +265,16 @@ pub fn summary(top_n: usize) -> ExtractionSummary {
     };
     let overall_fallback_hit_rate = if total_success > 0 {
         stats.iter().map(|s| s.fallback_hits).sum::<u64>() as f64 / total_success as f64
+    } else {
+        0.0
+    };
+    let overall_avg_quality_score = if tracked_sources > 0 {
+        stats.iter().map(|s| s.avg_quality_score).sum::<f64>() / tracked_sources as f64
+    } else {
+        0.0
+    };
+    let overall_quality_success_rate = if total_events > 0 {
+        total_success as f64 / total_events as f64
     } else {
         0.0
     };
@@ -210,6 +300,8 @@ pub fn summary(top_n: usize) -> ExtractionSummary {
         total_failures,
         overall_success_rate,
         overall_fallback_hit_rate,
+        overall_avg_quality_score,
+        overall_quality_success_rate,
         top_failing_sources: failing,
     }
 }
@@ -239,6 +331,9 @@ mod tests {
         record_validation_failure(source_id);
         record_rule_mismatch_failure(source_id);
         record_empty_content_failure(source_id);
+        record_low_quality_failure(source_id);
+        record_quality_score(source_id, 0.8);
+        record_quality_score(source_id, 0.6);
 
         let stats = snapshot()
             .into_iter()
@@ -250,9 +345,11 @@ mod tests {
         assert_eq!(stats.validation_failures, 1);
         assert_eq!(stats.rule_mismatch_failures, 1);
         assert_eq!(stats.empty_content_failures, 1);
-        assert_eq!(stats.total_failures, 3);
+        assert_eq!(stats.low_quality_failures, 1);
+        assert_eq!(stats.total_failures, 4);
         assert!((stats.fallback_hit_rate - 0.5).abs() < f64::EPSILON);
-        assert!((stats.success_rate - 0.4).abs() < f64::EPSILON);
+        assert!((stats.success_rate - (2.0 / 6.0)).abs() < f64::EPSILON);
+        assert!((stats.avg_quality_score - 0.7).abs() < f64::EPSILON);
     }
 
     #[test]

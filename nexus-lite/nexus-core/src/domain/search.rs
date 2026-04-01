@@ -552,7 +552,7 @@ impl SearchDomain {
     async fn get_recommendations(
         &self,
         user_id: String,
-        algorithm: Option<RecommendationAlgorithm>,
+        _algorithm: Option<RecommendationAlgorithm>,
         limit: Option<u32>,
     ) -> Result<DomainResult, DomainError> {
         let context = RecommendationContext {

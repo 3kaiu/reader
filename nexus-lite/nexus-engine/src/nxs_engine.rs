@@ -6,7 +6,7 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::types::Chapter;
+use nexus_core::types::{Chapter, FetchJob};
 use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
 use scraper::{Html, Selector};
 use std::collections::HashSet;
@@ -23,7 +23,10 @@ use crate::content_extract::{
 use crate::extraction_metrics;
 use crate::font_decryptor::FontDecryptor;
 use crate::selector_cache::{extract_attr, FallbackSelector};
+use crate::skill_telemetry;
+use crate::skills::{ContentJudgeSkill, StrategyPlannerSkill};
 use crate::uri::{encode_query, resolve_url};
+use uuid::Uuid;
 
 /// Compiled selectors for a NXS source (uses global cache)
 struct CompiledNxs {
@@ -114,6 +117,8 @@ pub struct NxsEngine {
     source: NxsSource,
     compiled: CompiledNxs,
     anti_crawl: Arc<FallbackChain>,
+    strategy_planner_skill: StrategyPlannerSkill,
+    content_judge_skill: ContentJudgeSkill,
 }
 
 impl NxsEngine {
@@ -126,6 +131,8 @@ impl NxsEngine {
             source,
             compiled,
             anti_crawl,
+            strategy_planner_skill: StrategyPlannerSkill::default(),
+            content_judge_skill: ContentJudgeSkill::default(),
         })
     }
 
@@ -159,11 +166,24 @@ impl NxsEngine {
     ) -> Result<String, EngineError> {
         use nexus_core::FetchContext;
 
+        let job = FetchJob {
+            source_id: self.source.id.clone(),
+            target_url: url.to_string(),
+            chapter_id: None,
+            trace_id: Uuid::new_v4().to_string(),
+            request_meta: std::collections::HashMap::new(),
+        };
+        let source_stats = extraction_metrics::stats_for(&self.source.id);
+        let (profile, planner_decision) = self
+            .strategy_planner_skill
+            .plan(&job, source_stats.as_ref());
+
         let mut ctx = FetchContext::new(url, &self.source.id);
         if let Some(m) = method {
             ctx.method = m.to_string();
         }
         ctx.body = body;
+        ctx.timeout_secs = ((profile.timeout_ms.max(1) + 999) / 1000).max(1);
 
         if let Some(headers) = &self.source.headers {
             ctx.headers.extend(headers.clone());
@@ -177,7 +197,46 @@ impl NxsEngine {
             );
         }
 
-        let response = self.anti_crawl.execute(&mut ctx).await?;
+        debug!(
+            "strategy planner decision source={} mode={} confidence={:.2} chain={:?}",
+            self.source.id,
+            planner_decision.mode,
+            planner_decision.confidence,
+            profile.strategy_chain
+        );
+        skill_telemetry::record(
+            &self.source.id,
+            Some(&job.trace_id),
+            planner_decision.clone(),
+        );
+
+        let mut last_error = None;
+        let max_attempts = profile.retry_budget.saturating_add(1);
+        let mut response = None;
+        for attempt in 0..max_attempts {
+            match self
+                .anti_crawl
+                .execute_with_strategy_order(&mut ctx, &profile.strategy_chain)
+                .await
+            {
+                Ok(resp) => {
+                    response = Some(resp);
+                    break;
+                }
+                Err(err) => {
+                    let can_retry = attempt + 1 < max_attempts && err.is_retryable();
+                    if can_retry {
+                        let delay_ms = 150_u64 * (attempt as u64 + 1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    }
+                    last_error = Some(err);
+                }
+            }
+        }
+        let response = match response {
+            Some(resp) => resp,
+            None => return Err(last_error.unwrap_or(EngineError::AllStrategiesFailed)),
+        };
 
         if !response.is_success() {
             return Err(EngineError::Network {
@@ -665,6 +724,37 @@ impl NxsEngine {
 
         // 6) Enhanced content cleaning
         let cleaned = post_clean_content_enhanced(extracted, self.source.content.clean.as_ref());
+        let strategy_path = vec!["engine-cleaned".to_string()];
+        let judge = self
+            .content_judge_skill
+            .judge(&self.source.id, &strategy_path, &cleaned);
+        extraction_metrics::record_quality_score(&self.source.id, judge.quality.score);
+
+        if !judge.passed {
+            warn!(
+                "content quality gate failed for source {} (score={:.3}, label={:?}, chars={}, paragraphs={}, noise={:.3}, dup={:.3})",
+                self.source.id,
+                judge.quality.score,
+                judge.quality.label,
+                judge.quality.char_count,
+                judge.quality.paragraph_count,
+                judge.quality.noise_ratio,
+                judge.quality.duplicate_ratio
+            );
+            debug!(
+                "content judge decision source={} decision={} confidence={:.2}",
+                self.source.id,
+                judge.decision.decision_id,
+                judge.decision.confidence
+            );
+            skill_telemetry::record(&self.source.id, None, judge.decision.clone());
+            extraction_metrics::record_low_quality_failure(&self.source.id);
+            return Err(EngineError::RuleMismatch {
+                rule: "content.quality_gate".to_string(),
+            });
+        }
+        skill_telemetry::record(&self.source.id, None, judge.decision.clone());
+
         if strict_validate && !self.looks_like_content(&cleaned, &validation) {
             let (chars, paragraphs) = Self::content_stats(&cleaned);
             warn!(

@@ -167,16 +167,11 @@ impl VisualFeatures {
 }
 
 /// Extract visual features from an HTML element
-pub struct VisualFeatureExtractor {
-    // Cache for parsed style values
-    style_cache: HashMap<String, HashMap<String, String>>,
-}
+pub struct VisualFeatureExtractor;
 
 impl VisualFeatureExtractor {
     pub fn new() -> Self {
-        Self {
-            style_cache: HashMap::new(),
-        }
+        Self
     }
 
     /// Extract visual features from an element

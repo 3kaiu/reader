@@ -3,7 +3,7 @@
 //! Comprehensive testing and validation of integrated open-source libraries.
 //! Tests readability-rust, lol-html, kuchiki integration.
 
-use crate::kuchiki_wrapper::{KuchikiContentExtractor, KuchikiTreeOps};
+use crate::kuchiki_wrapper::KuchikiContentExtractor;
 use crate::lol_html_parser::{OptimizedStreamingParser, StreamingContentExtractor};
 use crate::readability_wrapper::{HybridExtractor, NovelExtractionRules, ReadabilityExtractor};
 
@@ -97,7 +97,7 @@ impl LibraryIntegrationTester {
             </html>
         "#;
 
-        let mut extractor = StreamingContentExtractor::new(vec![
+        let extractor = StreamingContentExtractor::new(vec![
             ".content".to_string(),
         ]);
         

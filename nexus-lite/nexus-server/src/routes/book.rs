@@ -3,7 +3,8 @@ use axum::{
     Json,
 };
 use futures::stream::{self, StreamExt};
-use nexus_core::{types::Chapter, BookInfo, ChapterContent};
+use nexus_core::{types::Chapter, BookInfo, ChapterContent, ChapterContentMeta};
+use nexus_engine::quality_gate::evaluate_content_quality;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -21,19 +22,48 @@ pub struct BookQuery {
     pub index: Option<usize>,
 }
 
+async fn resolve_engine_for_url(
+    state: &AppState,
+    source_id: &str,
+    url: &str,
+) -> Result<Arc<nexus_engine::NxsEngine>, ApiErrorResponse> {
+    validate_url(url).map_err(|e| bad_request(e.to_string()))?;
+    resolve_engine_for_source(state, source_id).await
+}
+
+async fn resolve_engine_for_source(
+    state: &AppState,
+    source_id: &str,
+) -> Result<Arc<nexus_engine::NxsEngine>, ApiErrorResponse> {
+    ensure_source_public_access(state, source_id).await?;
+    state
+        .engine_registry
+        .get_engine(source_id)
+        .ok_or_else(|| not_found("Source"))
+}
+
+fn build_chapter_content(
+    content: Arc<str>,
+    chunk_size: Option<usize>,
+    strategy: &'static str,
+) -> ChapterContent {
+    let chunks = chunk_size.map(|sz| nexus_engine::content::chunk_content(&content, sz));
+    ChapterContent {
+        content: content.clone(),
+        chunks,
+        meta: Some(ChapterContentMeta {
+            quality: evaluate_content_quality(content.as_ref()),
+            strategy_path: vec![strategy.to_string()],
+        }),
+    }
+}
+
 /// Get book information
 pub async fn book_info(
     State(state): State<AppState>,
     Query(query): Query<BookQuery>,
 ) -> Result<Json<BookInfo>, ApiErrorResponse> {
-    // Validate URL to prevent SSRF
-    validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
-    ensure_source_public_access(&state, &query.source).await?;
-
-    let engine = state
-        .engine_registry
-        .get_engine(&query.source)
-        .ok_or_else(|| not_found("Source"))?;
+    let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
 
     engine
         .book_info(&query.url)
@@ -47,14 +77,7 @@ pub async fn chapters(
     State(state): State<AppState>,
     Query(query): Query<BookQuery>,
 ) -> Result<Json<Vec<Chapter>>, ApiErrorResponse> {
-    // Validate URL to prevent SSRF
-    validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
-    ensure_source_public_access(&state, &query.source).await?;
-
-    let engine = state
-        .engine_registry
-        .get_engine(&query.source)
-        .ok_or_else(|| not_found("Source"))?;
+    let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
 
     engine
         .chapters(&query.url)
@@ -68,9 +91,7 @@ pub async fn content(
     State(state): State<AppState>,
     Query(query): Query<BookQuery>,
 ) -> Result<Json<ChapterContent>, ApiErrorResponse> {
-    // Validate URL to prevent SSRF
-    validate_url(&query.url).map_err(|e| bad_request(e.to_string()))?;
-    ensure_source_public_access(&state, &query.source).await?;
+    let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
 
     // 1. Try Cache if book_id and index provided
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
@@ -79,20 +100,13 @@ pub async fn content(
             .get(&query.source, book_id, &query.url, index)
             .await
         {
-            let chunks = query
-                .chunk_size
-                .map(|sz| nexus_engine::content::chunk_content(&cached_content, sz));
-            return Ok(Json(ChapterContent {
-                content: cached_content,
-                chunks,
-            }));
+            return Ok(Json(build_chapter_content(
+                cached_content.clone(),
+                query.chunk_size,
+                "cache",
+            )));
         }
     }
-
-    let engine = state
-        .engine_registry
-        .get_engine(&query.source)
-        .ok_or_else(|| not_found("Source"))?;
 
     let rules = state
         .content_rules
@@ -115,14 +129,11 @@ pub async fn content(
             .await;
     }
 
-    let chunks = query
-        .chunk_size
-        .map(|sz| nexus_engine::content::chunk_content(&content_arc, sz));
-
-    Ok(Json(ChapterContent {
-        content: content_arc,
-        chunks,
-    }))
+    Ok(Json(build_chapter_content(
+        content_arc,
+        query.chunk_size,
+        "engine",
+    )))
 }
 
 #[derive(Deserialize)]
@@ -157,12 +168,7 @@ pub async fn batch_content(
         )));
     }
 
-    ensure_source_public_access(&state, &query.source).await?;
-
-    let engine = state
-        .engine_registry
-        .get_engine(&query.source)
-        .ok_or_else(|| not_found("Source"))?;
+    let engine = resolve_engine_for_source(&state, &query.source).await?;
 
     let rules = state
         .content_rules

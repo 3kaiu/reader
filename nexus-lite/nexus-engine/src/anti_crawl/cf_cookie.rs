@@ -110,7 +110,7 @@ impl CfCookieManager {
     /// Internal: fetch cookies with browser
     fn fetch_with_browser(
         url: &str, 
-        timeout: Duration,
+        _timeout: Duration,
         wait_timeout: Duration,
     ) -> Result<Vec<CfCookie>, CfCookieError> {
         debug!("Launching headless Chrome for {}", url);

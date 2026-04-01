@@ -17,6 +17,7 @@ import { dispatchWithOptionalEdgeOptimization } from './src/entry-adapter.ts'
 
 import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from './shared/types.ts'
 import type { EnhancedWorkerEnv } from './worker/types.ts'
+import { createAgentAwareDispatcher } from './entry/agent/dispatcher.ts'
 import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'
 import { processQueueBatch } from './entry/queue.ts'
@@ -41,10 +42,22 @@ export default {
     if (request.method === 'OPTIONS') return handleCorsPreflightRequest(request)
 
     const dispatchStable = createStableDispatcher(env, ctx, userServices)
+    const dispatchAgentAware = createAgentAwareDispatcher(
+      env,
+      ctx,
+      userServices,
+      dispatchStable,
+      logger
+    )
 
     try {
       // Experimental optimizer is opt-in and always falls back to stable dispatch.
-      return await dispatchWithOptionalEdgeOptimization(request, env, dispatchStable, logger)
+      return await dispatchWithOptionalEdgeOptimization(
+        request,
+        env,
+        dispatchAgentAware,
+        logger
+      )
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)
       logger.error('Request processing error:', error)

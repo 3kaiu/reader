@@ -1283,8 +1283,12 @@ impl SystemAlertRepository for InMemorySystemAlertRepository {
         let alerts = self.alerts.read().unwrap();
         let filtered: Vec<SystemAlert> = alerts
             .values()
-            .filter(|a| status.as_ref().map_or(true, |s| matches!(&a.status, s)))
-            .filter(|a| severity.as_ref().map_or(true, |s| matches!(&a.severity, s)))
+            .filter(|a| status.as_ref().is_none_or(|s| &a.status == s))
+            .filter(|a| {
+                severity.as_ref().is_none_or(|s| {
+                    std::mem::discriminant(&a.severity) == std::mem::discriminant(s)
+                })
+            })
             .take(limit as usize)
             .cloned()
             .collect();

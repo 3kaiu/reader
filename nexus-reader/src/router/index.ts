@@ -59,6 +59,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '设置' },
   },
   {
+    path: '/source-builder-debug',
+    name: 'source-builder-debug',
+    component: () => import(/* webpackPrefetch: true */ '@/pages/source-builder-debug.vue'),
+    meta: { title: 'Source Builder Debug' },
+  },
+  {
     path: '/ai-analysis-settings',
     name: 'ai-analysis-settings',
     // AI 分析助手页面 - 按需加载（包含AI依赖）

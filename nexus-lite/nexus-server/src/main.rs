@@ -1,6 +1,7 @@
 //! NexusLite HTTP API Server
 
 mod app;
+mod api_response;
 mod content_rules;
 mod engine_registry;
 mod error;

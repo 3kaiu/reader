@@ -117,7 +117,7 @@ impl AntiCrawlStrategy for CloudScraperStrategy {
                 }
             });
 
-            response.map_err(|e| EngineError::CloudflareChallenge)
+            response.map_err(|_| EngineError::CloudflareChallenge)
         });
 
         let response = result.await

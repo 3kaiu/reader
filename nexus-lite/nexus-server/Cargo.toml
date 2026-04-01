@@ -10,6 +10,10 @@ description = "HTTP API server for NexusLite"
 name = "nexus-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "nexus-source-builder"
+path = "src/source_builder_main.rs"
+
 [dependencies]
 nexus-core = { path = "../nexus-core" }
 nexus-engine = { path = "../nexus-engine" }
@@ -38,6 +42,9 @@ tokio-stream = "0.1"
 
 # URL parsing
 url = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+scraper = "0.24"
+shell-words = "1.1"
 
 # Rate limiting
 tower_governor = "0.8"

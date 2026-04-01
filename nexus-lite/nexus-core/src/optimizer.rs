@@ -11,7 +11,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 use tokio::sync::RwLock;
 
@@ -150,7 +150,7 @@ pub enum OptimizerError {
 
 /// 统一性能优化器
 pub struct UnifiedOptimizer {
-    config: Arc<RwLock<OptimizerConfig>>,
+    _config: Arc<RwLock<OptimizerConfig>>,
     engines: HashMap<OptimizationCategory, Box<dyn OptimizationEngine>>,
     metrics_history: Arc<RwLock<Vec<PerformanceMetrics>>>,
     suggestions_cache: Arc<RwLock<HashMap<String, OptimizationSuggestion>>>,
@@ -163,7 +163,7 @@ impl UnifiedOptimizer {
     /// 创建统一优化器
     pub fn new(config: OptimizerConfig) -> Self {
         Self {
-            config: Arc::new(RwLock::new(config)),
+            _config: Arc::new(RwLock::new(config)),
             engines: HashMap::new(),
             metrics_history: Arc::new(RwLock::new(Vec::new())),
             suggestions_cache: Arc::new(RwLock::new(HashMap::new())),
@@ -644,17 +644,15 @@ impl OptimizerManager {
 }
 
 /// 全局优化器管理器实例
-static mut OPTIMIZER_MANAGER: Option<OptimizerManager> = None;
+static OPTIMIZER_MANAGER: OnceLock<OptimizerManager> = OnceLock::new();
 
 /// 初始化全局优化器管理器
 pub fn init_optimizer_manager(config: OptimizerConfig) -> Result<(), OptimizerError> {
-    unsafe {
-        OPTIMIZER_MANAGER = Some(OptimizerManager::new(config));
-    }
+    let _ = OPTIMIZER_MANAGER.set(OptimizerManager::new(config));
     Ok(())
 }
 
 /// 获取全局优化器管理器
 pub fn get_optimizer_manager() -> Option<&'static OptimizerManager> {
-    unsafe { OPTIMIZER_MANAGER.as_ref() }
+    OPTIMIZER_MANAGER.get()
 }

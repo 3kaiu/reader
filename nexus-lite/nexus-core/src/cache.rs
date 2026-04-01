@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::RwLock;
 
@@ -464,14 +464,14 @@ impl MemoryCache {
 
 /// 磁盘缓存实现（简化版）
 pub struct DiskCache {
-    capacity: u64,
+    _capacity: u64,
     current_size: u64,
 }
 
 impl DiskCache {
     pub async fn new(capacity: u64) -> Result<Self, CacheError> {
         Ok(Self {
-            capacity,
+            _capacity: capacity,
             current_size: 0,
         })
     }
@@ -593,17 +593,16 @@ impl CacheManager {
 }
 
 /// 全局缓存管理器实例
-static mut CACHE_MANAGER: Option<CacheManager> = None;
+static CACHE_MANAGER: OnceLock<CacheManager> = OnceLock::new();
 
 /// 初始化全局缓存管理器
 pub async fn init_cache_manager(config: CacheConfig) -> Result<(), CacheError> {
-    unsafe {
-        CACHE_MANAGER = Some(CacheManager::new(config).await?);
-    }
+    let manager = CacheManager::new(config).await?;
+    let _ = CACHE_MANAGER.set(manager);
     Ok(())
 }
 
 /// 获取全局缓存管理器
 pub fn get_cache_manager() -> Option<&'static CacheManager> {
-    unsafe { CACHE_MANAGER.as_ref() }
+    CACHE_MANAGER.get()
 }

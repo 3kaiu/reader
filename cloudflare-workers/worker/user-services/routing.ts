@@ -1,6 +1,9 @@
 import {
   handleClientMetrics,
   handleClientRoutingAnalytics,
+  handleAgentRouterStats,
+  handleAgentRouterConfig,
+  handleAgentRouterConfigAudit,
   handleContentUpload,
   handleHealthCheck,
   handlePopularContent,
@@ -40,6 +43,12 @@ export async function dispatchUserServiceRoute(
       )
     case '/api/metrics/client':
       return handleClientMetrics(request, env)
+    case '/api/agent/router-stats':
+      return handleAgentRouterStats(request, env)
+    case '/api/agent/config':
+      return handleAgentRouterConfig(request, env)
+    case '/api/agent/config/audit':
+      return handleAgentRouterConfigAudit(request, env)
     default:
       return undefined
   }

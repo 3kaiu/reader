@@ -68,17 +68,25 @@ pub mod types; // 类型定义
 pub use application::*;
 pub use business_modules::*;
 pub use cross_cutting::*;
-pub use domain::*;
-pub use infrastructure::*;
 pub use presentation::*;
 
 // ===== 核心导出 =====
+// Keep domain essentials explicitly exported for compatibility while avoiding
+// broad glob exports that collide with canonical runtime types.
+#[allow(deprecated)]
+pub use domain::{
+    AggregateRoot, BusinessRuleValidator, DomainCommand, DomainContext, DomainError, DomainEvent,
+    DomainLayer, DomainQuery, DomainResult, Entity, ValueObject,
+    reading::{ReadingCommand, ReadingQuery},
+    search::{SearchCommand, SearchDomainQuery},
+    system::{SystemCommand, SystemQuery},
+    user::{UserCommand, UserQuery},
+};
 pub use book_engine::*;
 pub use config::*;
 pub use error::EngineError;
 pub use event_bus::{EngineEvent, EventBus, StorageEvent, SystemControlEvent, SystemEvent};
 pub use health_tracker::*;
-pub use interfaces::*;
 pub use nxs::NxsSource;
-pub use traits::*;
+pub use traits::AntiCrawlStrategy;
 pub use types::*;

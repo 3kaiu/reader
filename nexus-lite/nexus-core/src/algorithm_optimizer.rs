@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 /// 算法优化配置
@@ -43,9 +43,9 @@ pub struct AlgorithmOptimizer {
 
 #[derive(Debug, Clone)]
 struct CachedResult {
-    data: Vec<u8>,
-    hash: u64,
-    timestamp: std::time::Instant,
+    _data: Vec<u8>,
+    _hash: u64,
+    _timestamp: std::time::Instant,
 }
 
 /// 数据压缩算法
@@ -659,7 +659,7 @@ impl AlgorithmOptimizer {
             }
         };
 
-        self.record_metrics("compress", data.len(), start.elapsed().as_nanos(), 0, 0, 0);
+        let _ = start; // sync path intentionally skips async metric recording
         compressed
     }
 
@@ -758,16 +758,14 @@ impl AlgorithmOptimizerManager {
 }
 
 /// 全局算法优化器实例
-static mut ALGORITHM_OPTIMIZER_MANAGER: Option<AlgorithmOptimizerManager> = None;
+static ALGORITHM_OPTIMIZER_MANAGER: OnceLock<AlgorithmOptimizerManager> = OnceLock::new();
 
 /// 初始化全局算法优化器
 pub fn init_algorithm_optimizer(config: AlgorithmConfig) {
-    unsafe {
-        ALGORITHM_OPTIMIZER_MANAGER = Some(AlgorithmOptimizerManager::new(config));
-    }
+    let _ = ALGORITHM_OPTIMIZER_MANAGER.set(AlgorithmOptimizerManager::new(config));
 }
 
 /// 获取全局算法优化器
 pub fn get_algorithm_optimizer() -> Option<&'static AlgorithmOptimizerManager> {
-    unsafe { ALGORITHM_OPTIMIZER_MANAGER.as_ref() }
+    ALGORITHM_OPTIMIZER_MANAGER.get()
 }

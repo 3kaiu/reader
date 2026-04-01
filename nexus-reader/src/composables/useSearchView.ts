@@ -37,7 +37,7 @@ export function useSearchView() {
   } = storeToRefs(searchStore)
   const sourceCatalogOptions = computed<SearchSourceOption[]>(() =>
     sources.value
-      .filter(source => source.enabled !== false && source.publicAccessEnabled === true)
+      .filter(source => source.enabled !== false)
       .map(source => ({
         id: source.id,
         name: source.name,

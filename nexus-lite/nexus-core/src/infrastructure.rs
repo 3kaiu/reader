@@ -9,6 +9,8 @@
 //! - 技术细节隔离：封装具体的技术实现
 //! - 可替换性：不同的基础设施实现可以相互替换
 
+#![allow(deprecated)]
+
 /// 基础设施层通用接口和类型
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -453,12 +455,12 @@ pub struct ExternalApiResponse {
 // ===== 适配器实现类（简化的占位符实现） =====
 
 pub struct DatabaseBookRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseBookRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -497,12 +499,12 @@ impl crate::domain::reading::BookRepository for DatabaseBookRepository {
 // ===== 阅读领域桩实现 =====
 
 pub struct DatabaseChapterRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseChapterRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -529,12 +531,12 @@ impl crate::domain::reading::ChapterRepository for DatabaseChapterRepository {
 }
 
 pub struct DatabaseReadingProgressRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseReadingProgressRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -569,12 +571,12 @@ impl crate::domain::reading::ReadingProgressRepository for DatabaseReadingProgre
 }
 
 pub struct DatabaseReadingSessionRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseReadingSessionRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -616,12 +618,12 @@ impl crate::domain::reading::ReadingSessionRepository for DatabaseReadingSession
 // ===== 搜索领域桩实现 =====
 
 pub struct ElasticsearchSearchEngine {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl ElasticsearchSearchEngine {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -653,12 +655,12 @@ impl crate::domain::search::SearchEngine for ElasticsearchSearchEngine {
 }
 
 pub struct AiRecommendationService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl AiRecommendationService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -689,12 +691,12 @@ impl crate::domain::search::RecommendationService for AiRecommendationService {
 }
 
 pub struct DatabaseSearchHistoryRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseSearchHistoryRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -733,12 +735,12 @@ impl crate::domain::search::SearchHistoryRepository for DatabaseSearchHistoryRep
 }
 
 pub struct DatabaseSearchAnalyticsService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseSearchAnalyticsService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -781,12 +783,12 @@ impl crate::domain::search::SearchAnalyticsService for DatabaseSearchAnalyticsSe
 // ===== 用户领域桩实现 =====
 
 pub struct DatabaseUserRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseUserRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -828,12 +830,12 @@ impl crate::domain::user::UserRepository for DatabaseUserRepository {
 }
 
 pub struct DatabaseUserSessionRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseUserSessionRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -873,12 +875,12 @@ impl crate::domain::user::UserSessionRepository for DatabaseUserSessionRepositor
 }
 
 pub struct JwtAuthenticationService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl JwtAuthenticationService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -910,12 +912,12 @@ impl crate::domain::user::AuthenticationService for JwtAuthenticationService {
 }
 
 pub struct RbacAuthorizationService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl RbacAuthorizationService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -939,12 +941,12 @@ impl crate::domain::user::AuthorizationService for RbacAuthorizationService {
 // ===== 系统领域桩实现 =====
 
 pub struct DatabaseSystemConfigRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseSystemConfigRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -984,12 +986,12 @@ impl crate::domain::system::SystemConfigRepository for DatabaseSystemConfigRepos
 }
 
 pub struct DatabaseSystemMetricRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseSystemMetricRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1018,12 +1020,12 @@ impl crate::domain::system::SystemMetricRepository for DatabaseSystemMetricRepos
 }
 
 pub struct DatabaseSystemAlertRepository {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseSystemAlertRepository {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1059,12 +1061,12 @@ impl crate::domain::system::SystemAlertRepository for DatabaseSystemAlertReposit
 }
 
 pub struct AiOptimizationService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl AiOptimizationService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1097,12 +1099,12 @@ impl crate::domain::system::SystemOptimizationService for AiOptimizationService 
 }
 
 pub struct ComprehensiveMonitoringService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl ComprehensiveMonitoringService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1150,12 +1152,12 @@ impl crate::domain::system::SystemMonitoringService for ComprehensiveMonitoringS
 // ===== 应用服务桩实现 =====
 
 pub struct DatabaseTransactionManager {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl DatabaseTransactionManager {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1184,12 +1186,12 @@ impl crate::application::TransactionManager for DatabaseTransactionManager {
 }
 
 pub struct RedisCacheManager {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl RedisCacheManager {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1218,12 +1220,12 @@ impl crate::application::CacheManager for RedisCacheManager {
 }
 
 pub struct KafkaEventPublisher {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl KafkaEventPublisher {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 
@@ -1244,12 +1246,12 @@ impl crate::application::EventPublisher for KafkaEventPublisher {
 }
 
 pub struct JwtSecurityService {
-    context: InfrastructureContext,
+    _context: InfrastructureContext,
 }
 
 impl JwtSecurityService {
     pub async fn new(context: InfrastructureContext) -> Result<Self, InfrastructureError> {
-        Ok(Self { context })
+        Ok(Self { _context: context })
     }
 }
 

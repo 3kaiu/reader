@@ -2,6 +2,7 @@
   "frontend": {
     "edgeOnlyPrefixes": [
       "/api/analytics",
+      "/api/agent",
       "/api/preferences",
       "/api/content/upload",
       "/api/backup",
@@ -29,6 +30,7 @@
     "userServicePrefixes": [
       "/api/health",
       "/api/analytics/",
+      "/api/agent/",
       "/api/preferences",
       "/api/content/upload",
       "/api/backup",

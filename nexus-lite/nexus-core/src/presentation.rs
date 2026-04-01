@@ -9,6 +9,8 @@
 //! - 关注点分离：分离界面逻辑和业务逻辑
 //! - 用户体验：提供良好的用户交互体验
 
+#![allow(deprecated)]
+
 /// 展示层通用接口和类型
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -228,16 +230,16 @@ impl ApiRouter {
             .and(warp::header::headers_cloned())
             .and(warp::body::json().or(warp::any().map(|| None)).unify())
             .and_then(
-                move |path,
-                      method: warp::http::Method,
-                      query: HashMap<String, String>,
+                move |_path,
+                      _method: warp::http::Method,
+                      _query: HashMap<String, String>,
                       headers: warp::http::HeaderMap,
-                      body: Option<serde_json::Value>| {
-                    let service_bus = service_bus.clone();
+                      _body: Option<serde_json::Value>| {
+                    let _service_bus = service_bus.clone();
 
                     async move {
                         // 创建展示上下文
-                        let context = PresentationContext {
+                        let _context = PresentationContext {
                             user_id: None,    // 从认证中间件获取
                             session_id: None, // 从会话中间件获取
                             request_id: uuid::Uuid::new_v4().to_string(),
@@ -292,12 +294,14 @@ pub struct HttpApiRequest {
 
 /// 认证中间件
 pub struct AuthenticationMiddleware {
-    service_bus: Arc<ApplicationServiceBus>,
+    _service_bus: Arc<ApplicationServiceBus>,
 }
 
 impl AuthenticationMiddleware {
     pub fn new(service_bus: Arc<ApplicationServiceBus>) -> Self {
-        Self { service_bus }
+        Self {
+            _service_bus: service_bus,
+        }
     }
 }
 
@@ -311,7 +315,7 @@ impl RequestMiddleware for AuthenticationMiddleware {
         // 从Authorization头提取token
         if let Some(token) = request.headers.get("authorization") {
             if token.starts_with("Bearer ") {
-                let token = &token[7..];
+                let _token = &token[7..];
                 // 验证token并设置user_id
                 // 这里是简化的实现
                 context.user_id = Some("user123".to_string());
@@ -323,13 +327,13 @@ impl RequestMiddleware for AuthenticationMiddleware {
 
 /// 速率限制中间件
 pub struct RateLimitMiddleware {
-    requests_per_minute: u32,
+    _requests_per_minute: u32,
 }
 
 impl RateLimitMiddleware {
     pub fn new(requests_per_minute: u32) -> Self {
         Self {
-            requests_per_minute,
+            _requests_per_minute: requests_per_minute,
         }
     }
 }
@@ -479,7 +483,7 @@ impl DtoMapper for ReadingDtoMapper {
     async fn map_to_command(
         &self,
         request: &serde_json::Value,
-        context: &PresentationContext,
+        _context: &PresentationContext,
     ) -> Result<ApplicationCommand, PresentationError> {
         // 将请求DTO映射为阅读领域命令
         // 这里是简化的实现

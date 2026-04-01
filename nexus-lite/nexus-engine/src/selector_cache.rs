@@ -1,6 +1,5 @@
 use dashmap::DashMap;
 use scraper::{ElementRef, Html, Selector};
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 /// Global selector cache - shared across all engine instances
@@ -212,34 +211,5 @@ pub fn extract_attr(element: ElementRef, attr: &str) -> Option<String> {
         "html" => Some(element.html().trim().to_string()),
         "inner_html" => Some(element.inner_html().trim().to_string()),
         _ => element.value().attr(attr).map(|s| s.to_string()),
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct SelectorCache {
-    cache: HashMap<String, FallbackSelector>,
-}
-
-impl SelectorCache {
-    pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-        }
-    }
-
-    pub fn get_or_compile(&mut self, rule: &str) -> Result<&FallbackSelector, String> {
-        // Use entry API for safe get-or-insert pattern
-        use std::collections::hash_map::Entry;
-
-        if let Entry::Vacant(entry) = self.cache.entry(rule.to_string()) {
-            let selector = FallbackSelector::compile(rule)?;
-            entry.insert(selector);
-        }
-        // Safe: entry above guarantees key exists
-        Ok(self.cache.get(rule).expect("selector just inserted"))
-    }
-
-    pub fn get(&self, key: &str) -> Option<&FallbackSelector> {
-        self.cache.get(key)
     }
 }

@@ -72,22 +72,6 @@ impl DynamicNoiseDetector {
         }
     }
 
-    /// Create a custom noise detector with specific thresholds
-    pub fn with_config(
-        short_para_threshold: usize,
-        high_link_density_threshold: f64,
-        enable_learning: bool,
-    ) -> Self {
-        Self {
-            short_para_threshold,
-            high_link_density_threshold,
-            common_patterns: &COMMON_PATTERNS,
-            header_footer_markers: &HEADER_FOOTER_MARKERS,
-            learned_patterns: Arc::new(RwLock::new(HashMap::new())),
-            enable_learning,
-        }
-    }
-
     /// Check if a paragraph is noise based on multiple criteria
     pub fn is_noise(
         &self,
@@ -193,7 +177,6 @@ impl DynamicNoiseDetector {
         ParagraphStatistics {
             digit_ratio: digit_count as f64 / total_chars as f64,
             punctuation_ratio: punct_count as f64 / total_chars as f64,
-            total_chars,
         }
     }
 
@@ -220,24 +203,11 @@ impl DynamicNoiseDetector {
     }
 
     /// Learn a new noise pattern from user feedback or statistics
+    #[cfg(test)]
     pub fn learn_pattern(&self, pattern: String, weight: f64) {
         if self.enable_learning {
             let mut learned = self.learned_patterns.write().unwrap();
             learned.insert(pattern, weight);
-        }
-    }
-
-    /// Get all learned patterns
-    pub fn get_learned_patterns(&self) -> Vec<(String, f64)> {
-        let learned = self.learned_patterns.read().unwrap();
-        learned.iter().map(|(k, v)| (k.clone(), *v)).collect()
-    }
-
-    /// Clear all learned patterns
-    pub fn clear_learned_patterns(&self) {
-        if self.enable_learning {
-            let mut learned = self.learned_patterns.write().unwrap();
-            learned.clear();
         }
     }
 }
@@ -252,8 +222,6 @@ impl Default for DynamicNoiseDetector {
 #[derive(Debug, Clone)]
 pub struct ExtractionContext {
     pub is_first_or_last_para: bool,
-    pub total_paragraphs: usize,
-    pub current_index: usize,
 }
 
 impl ExtractionContext {
@@ -263,11 +231,7 @@ impl ExtractionContext {
         } else {
             current_index == 0 || current_index + 1 >= total_paragraphs
         };
-        Self {
-            is_first_or_last_para,
-            total_paragraphs,
-            current_index,
-        }
+        Self { is_first_or_last_para }
     }
 }
 
@@ -276,11 +240,13 @@ impl ExtractionContext {
 pub struct NoiseDetectionResult {
     pub is_noise: bool,
     pub score: f64,
+    #[cfg_attr(not(test), allow(dead_code))]
     pub reasons: Vec<NoiseReason>,
 }
 
 /// Reasons for classifying content as noise
 #[derive(Debug, Clone)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub enum NoiseReason {
     TooShort(usize),
     HighLinkDensity(f64),
@@ -297,7 +263,6 @@ pub enum NoiseReason {
 pub struct ParagraphStatistics {
     pub digit_ratio: f64,
     pub punctuation_ratio: f64,
-    pub total_chars: usize,
 }
 
 #[cfg(test)]

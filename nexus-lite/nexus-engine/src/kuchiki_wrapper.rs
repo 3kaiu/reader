@@ -4,7 +4,7 @@
 //! Provides efficient DOM tree operations for content extraction.
 
 use kuchiki::traits::TendrilSink;
-use kuchiki::{Attribute, ExpandedName, NodeRef, NodeData, ElementData};
+use kuchiki::{NodeData, NodeRef};
 
 /// Enhanced HTML tree operations using kuchiki
 pub struct KuchikiTreeOps {
@@ -142,7 +142,7 @@ impl KuchikiTreeOps {
     /// Convert tree back to HTML
     pub fn to_html(&self) -> String {
         let mut html = Vec::new();
-        self.root.serialize(&mut html);
+        let _ = self.root.serialize(&mut html);
         String::from_utf8_lossy(&html).to_string()
     }
 }

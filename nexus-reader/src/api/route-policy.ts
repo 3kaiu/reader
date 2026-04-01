@@ -1,5 +1,6 @@
 const EDGE_ONLY_RULES = [
   "/api/analytics",
+  "/api/agent",
   "/api/preferences",
   "/api/content/upload",
   "/api/backup",
@@ -12,6 +13,8 @@ const EDGE_ONLY_RULES = [
 const DIRECT_RULES = [
   "/api/search",
   "/api/sources",
+  "/api/source-packages",
+  "/api/source-builder",
   "/api/book",
   "/api/chapters",
   "/api/content",

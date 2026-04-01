@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 /// 工作流程配置
@@ -495,16 +495,6 @@ impl WorkflowOptimizer {
 
         Ok(workflow)
     }
-
-    fn are_dependencies_satisfied(
-        &self,
-        step: &WorkflowStep,
-        completed_steps: &HashMap<String, serde_json::Value>,
-    ) -> bool {
-        step.dependencies
-            .iter()
-            .all(|dep| completed_steps.contains_key(dep))
-    }
 }
 
 /// 默认工作流执行器
@@ -596,16 +586,14 @@ impl WorkflowOptimizerManager {
 }
 
 /// 全局工作流程优化器实例
-static mut WORKFLOW_OPTIMIZER_MANAGER: Option<WorkflowOptimizerManager> = None;
+static WORKFLOW_OPTIMIZER_MANAGER: OnceLock<WorkflowOptimizerManager> = OnceLock::new();
 
 /// 初始化全局工作流程优化器
 pub fn init_workflow_optimizer(config: WorkflowConfig) {
-    unsafe {
-        WORKFLOW_OPTIMIZER_MANAGER = Some(WorkflowOptimizerManager::new(config));
-    }
+    let _ = WORKFLOW_OPTIMIZER_MANAGER.set(WorkflowOptimizerManager::new(config));
 }
 
 /// 获取全局工作流程优化器
 pub fn get_workflow_optimizer() -> Option<&'static WorkflowOptimizerManager> {
-    unsafe { WORKFLOW_OPTIMIZER_MANAGER.as_ref() }
+    WORKFLOW_OPTIMIZER_MANAGER.get()
 }

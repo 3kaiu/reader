@@ -422,12 +422,14 @@ impl Interceptor for LoggingInterceptor {
 
 /// 验证拦截器
 pub struct ValidationInterceptor {
-    validator: Arc<dyn RequestValidator>,
+    _validator: Arc<dyn RequestValidator>,
 }
 
 impl ValidationInterceptor {
     pub fn new(validator: Arc<dyn RequestValidator>) -> Self {
-        Self { validator }
+        Self {
+            _validator: validator,
+        }
     }
 }
 
@@ -435,7 +437,7 @@ impl ValidationInterceptor {
 impl Interceptor for ValidationInterceptor {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError> {
         // 验证输入参数
-        if let Some(params) = context.parameters.get("request_body") {
+        if let Some(_params) = context.parameters.get("request_body") {
             // 这里可以添加具体的验证逻辑
             // 例如：JSON Schema验证、业务规则验证等
         }
@@ -517,7 +519,7 @@ impl Interceptor for AuditInterceptor {
     async fn after(
         &self,
         context: &mut InterceptorContext,
-        result: &mut InterceptorResult,
+        _result: &mut InterceptorResult,
     ) -> Result<(), InterceptorError> {
         // 更新审计记录的状态
         if let Some(audit_id) = context.metadata.get("audit_id").and_then(|v| v.as_str()) {
@@ -532,7 +534,7 @@ impl Interceptor for AuditInterceptor {
     async fn on_error(
         &self,
         context: &mut InterceptorContext,
-        error: &mut InterceptorError,
+        _error: &mut InterceptorError,
     ) -> Result<(), InterceptorError> {
         // 更新审计记录为失败状态
         if let Some(audit_id) = context.metadata.get("audit_id").and_then(|v| v.as_str()) {

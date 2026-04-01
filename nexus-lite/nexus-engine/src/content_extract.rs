@@ -15,7 +15,7 @@ use std::sync::LazyLock;
 // Import dynamic noise detection and ML scoring
 use crate::dynamic_noise::{DynamicNoiseDetector, ExtractionContext};
 use crate::ml_scorer::{EnsembleScorer, FeatureExtractor};
-use crate::readability_wrapper::{HybridExtractor, NovelExtractionRules, ReadabilityExtractor};
+use crate::readability_wrapper::ReadabilityExtractor;
 
 // Import enhanced content cleaning modules
 use crate::text_cleaner::{TextCleaner, CleanConfig as TextCleanConfig};

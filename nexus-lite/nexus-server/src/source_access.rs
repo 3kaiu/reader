@@ -58,6 +58,7 @@ pub async fn ensure_source_public_access(
     )))
 }
 
+#[allow(dead_code)]
 pub async fn filter_public_sources(
     state: &AppState,
     sources: Vec<NxsSource>,
