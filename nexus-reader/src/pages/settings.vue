@@ -19,10 +19,8 @@ const {
   sourcePackagesLoading,
   sourcePackageImporting,
   sourcePackageDetailLoading,
-  sourceBuildRunning,
   sourcePackages,
   sourcePackageDetailSummary,
-  sourceBuildPreviewSummary,
   handleExportData,
   handleClearCache,
   updateAddonFeature,
@@ -35,9 +33,6 @@ const {
   loadMoreAgentAudit,
   refreshSourcePackages,
   importSourcePackage,
-  buildFromSamples,
-  importPreviewPackage,
-  clearBuildPreview,
   selectSourcePackage,
   deleteSourcePackage,
   navigateTo,
@@ -66,10 +61,8 @@ const {
       :source-packages-loading="sourcePackagesLoading"
       :source-package-importing="sourcePackageImporting"
       :source-package-detail-loading="sourcePackageDetailLoading"
-      :source-build-running="sourceBuildRunning"
       :source-packages="sourcePackages"
       :source-package-detail-summary="sourcePackageDetailSummary"
-      :source-build-preview-summary="sourceBuildPreviewSummary"
       @back="goBack"
       @export-data="handleExportData"
       @clear-cache="handleClearCache"
@@ -85,9 +78,6 @@ const {
       @load-more-agent-audit="loadMoreAgentAudit"
       @refresh-source-packages="refreshSourcePackages"
       @import-source-package="importSourcePackage"
-      @build-from-samples="buildFromSamples"
-      @import-preview-package="importPreviewPackage"
-      @clear-build-preview="clearBuildPreview"
       @select-source-package="selectSourcePackage"
       @delete-source-package="deleteSourcePackage"
       @navigate="navigateTo"

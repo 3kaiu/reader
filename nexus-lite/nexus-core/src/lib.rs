@@ -64,13 +64,14 @@ pub mod types; // 类型定义
 // - ml_models → optimizer.rs
 // - config_optimizer → optimizer.rs
 
-// ===== 新架构导出 =====
-pub use application::*;
-pub use business_modules::*;
-pub use cross_cutting::*;
-pub use presentation::*;
+// ===== 新架构说明 =====
+// `application` / `business_modules` / `cross_cutting` / `presentation`
+// 保留为命名模块入口，避免继续通过顶层 glob 导出扩大公共表面。
+// 新代码应优先通过显式模块路径或 `core` 模块访问能力。
 
 // ===== 核心导出 =====
+pub use business_modules::parse_cache;
+
 // Keep domain essentials explicitly exported for compatibility while avoiding
 // broad glob exports that collide with canonical runtime types.
 #[allow(deprecated)]

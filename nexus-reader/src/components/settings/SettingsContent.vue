@@ -98,17 +98,6 @@ type SourcePackageDetailSummary = {
   riskItems: string[];
 };
 
-type SourceBuildPreviewSummary = {
-  hasPreview: boolean;
-  sourceLabel: string;
-  packageId: string;
-  validationLabel: string;
-  diagnosticsItems: string[];
-  warningItems: string[];
-  riskItems: string[];
-  packageJson: string;
-};
-
 defineProps<{
   addonFeatures: Record<string, boolean>;
   storageUsage: BrowserStorageEstimate | null;
@@ -126,10 +115,8 @@ defineProps<{
   sourcePackagesLoading: boolean;
   sourcePackageImporting: boolean;
   sourcePackageDetailLoading: boolean;
-  sourceBuildRunning: boolean;
   sourcePackages: SourcePackageSummary[];
   sourcePackageDetailSummary: SourcePackageDetailSummary;
-  sourceBuildPreviewSummary: SourceBuildPreviewSummary;
 }>();
 
 const emit = defineEmits<{
@@ -146,15 +133,6 @@ const emit = defineEmits<{
   loadMoreAgentAudit: [];
   refreshSourcePackages: [];
   importSourcePackage: [packageJson: string];
-  buildFromSamples: [payload: {
-    bookCurl: string;
-    chapterCurl: string;
-    sourceId?: string;
-    sourceName?: string;
-    tags?: string[];
-  }];
-  importPreviewPackage: [];
-  clearBuildPreview: [];
   selectSourcePackage: [sourceId: string];
   deleteSourcePackage: [sourceId: string];
   navigate: [path: string];
@@ -204,17 +182,13 @@ const emit = defineEmits<{
       :source-packages-loading="sourcePackagesLoading"
       :source-package-importing="sourcePackageImporting"
       :source-package-detail-loading="sourcePackageDetailLoading"
-      :source-build-running="sourceBuildRunning"
       :source-packages="sourcePackages"
       :source-package-detail-summary="sourcePackageDetailSummary"
-      :source-build-preview-summary="sourceBuildPreviewSummary"
       @refresh-source-packages="emit('refreshSourcePackages')"
       @import-source-package="emit('importSourcePackage', $event)"
-      @build-from-samples="emit('buildFromSamples', $event)"
-      @import-preview-package="emit('importPreviewPackage')"
-      @clear-build-preview="emit('clearBuildPreview')"
       @select-source-package="emit('selectSourcePackage', $event)"
       @delete-source-package="emit('deleteSourcePackage', $event)"
+      @navigate="emit('navigate', $event)"
     />
 
     <SettingsAboutSection />

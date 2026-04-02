@@ -1,6 +1,7 @@
 //! NexusLite HTTP API Server
 
 mod app;
+mod app_state;
 mod api_response;
 mod content_rules;
 mod engine_registry;
@@ -9,6 +10,7 @@ mod metrics;
 mod middleware;
 mod orchestrator;
 mod routes;
+mod source_builder_state;
 mod source_access;
 mod validation;
 mod ws;

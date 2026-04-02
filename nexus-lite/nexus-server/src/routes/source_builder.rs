@@ -1,3 +1,4 @@
+use axum::extract::FromRef;
 use axum::routing::post;
 use axum::{extract::{Path, State}, Json, Router};
 use nexus_core::types::Chapter;
@@ -26,8 +27,8 @@ use std::time::Duration;
 use url::Url;
 use uuid::Uuid;
 
-use crate::app::AppState;
-use crate::routes::ApiResponse;
+use crate::api_response::ApiResponse;
+use crate::source_builder_state::SourceBuilderState;
 use crate::validation::validate_url;
 
 const CONTENT_SELECTOR_CANDIDATES: &[&str] = &[
@@ -192,7 +193,11 @@ struct ExternalFetchResponse {
     error: Option<String>,
 }
 
-pub fn router() -> Router<AppState> {
+pub fn router<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+    SourceBuilderState: FromRef<S>,
+{
     Router::new()
         .route("/api/source-builder/build", post(build_source_package))
         .route(
@@ -2491,7 +2496,7 @@ fn extract_search_detail_diagnostics(
 }
 
 async fn run_validation(
-    state: &AppState,
+    state: &SourceBuilderState,
     package: &SourceRulePackage,
     req_samples: Option<ValidationSamples>,
 ) -> SourceRuleValidationReport {
@@ -2831,7 +2836,7 @@ async fn replay_curl_request(parsed: &ParsedCurl) -> Result<CurlReplay, String> 
 }
 
 async fn load_fetch_session(
-    state: &AppState,
+    state: &SourceBuilderState,
     session_key: &str,
 ) -> Result<FetchSessionProfile, String> {
     let Some(mut session) = state
@@ -2936,7 +2941,7 @@ async fn fetch_via_external_service(
 async fn execute_fetch(
     parsed: &ParsedCurl,
     fetch_profile: Option<&SourceFetchProfile>,
-    state: &AppState,
+    state: &SourceBuilderState,
     cache_ttl_seconds: u64,
 ) -> Result<CurlReplay, String> {
     let session_key = fetch_profile.and_then(|profile| profile.session_key.as_deref());
@@ -3061,7 +3066,7 @@ fn build_temp_engine(
 }
 
 async fn validate_same_site_generalization(
-    state: &AppState,
+    state: &SourceBuilderState,
     package: &SourceRulePackage,
     book_url: &Url,
     book_html: &str,
@@ -3293,7 +3298,7 @@ pub async fn build_source_package(Json(req): Json<SourceBuildRequest>) -> Json<A
 }
 
 pub async fn build_source_package_from_samples(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<SourceBuildFromSamplesRequest>,
 ) -> Json<ApiResponse<SourceBuildFromSamplesResponse>> {
     let parsed_book = match parse_curl_command(&req.book_curl) {
@@ -3563,7 +3568,7 @@ pub async fn build_source_package_from_samples(
 }
 
 pub async fn import_fetch_session(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<FetchSessionImportRequest>,
 ) -> Json<ApiResponse<FetchSessionImportResponse>> {
     let session = FetchSessionProfile {
@@ -3588,7 +3593,7 @@ pub async fn import_fetch_session(
 }
 
 pub async fn get_fetch_session(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Path(id): Path<String>,
 ) -> Json<ApiResponse<FetchSessionProfile>> {
     match state.store.get_fetch_session(id).await {
@@ -3599,7 +3604,7 @@ pub async fn get_fetch_session(
 }
 
 pub async fn fetch_html_with_session(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<FetchHtmlRequest>,
 ) -> Json<ApiResponse<FetchHtmlResponse>> {
     let parsed = ParsedCurl {
@@ -3735,7 +3740,7 @@ pub struct ValidatePackageResponse {
 
 /// Validate source package by structural checks + engine compile check.
 pub async fn validate_source_package(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<ValidatePackageRequest>,
 ) -> Json<ApiResponse<ValidatePackageResponse>> {
     let report = run_validation(&state, &req.package, req.samples).await;
@@ -3774,7 +3779,7 @@ pub async fn validate_source_package(
 }
 
 pub async fn refine_source_package(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<SourceRuleRefineRequest>,
 ) -> Json<ApiResponse<SourceRuleRefineResponse>> {
     let original_package = req.package;
@@ -3849,7 +3854,7 @@ pub struct EngineRunByPackageResponse {
 
 /// Run engine operations against an explicit source package (no registry coupling).
 pub async fn run_engine_by_package(
-    State(state): State<AppState>,
+    State(state): State<SourceBuilderState>,
     Json(req): Json<EngineRunByPackageRequest>,
 ) -> Json<ApiResponse<EngineRunByPackageResponse>> {
     let session = match req
@@ -3997,7 +4002,16 @@ mod tests {
         routing::post,
         Router,
     };
+    use nexus_storage::SledStore;
+    use std::sync::Arc;
     use tower::ServiceExt;
+
+    async fn build_test_state(
+        config: &nexus_core::EngineConfig,
+    ) -> anyhow::Result<SourceBuilderState> {
+        let store = Arc::new(SledStore::new(&config.storage.db_path)?);
+        Ok(SourceBuilderState { store })
+    }
 
     #[tokio::test]
     async fn build_source_package_returns_package() {
@@ -4383,7 +4397,7 @@ mod tests {
         nexus_storage::init_storage(&config)
             .await
             .expect("storage should init");
-        let state = crate::app::build_app_state(&config)
+        let state = build_test_state(&config)
             .await
             .expect("app state should build");
 

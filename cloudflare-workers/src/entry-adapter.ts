@@ -4,7 +4,16 @@ import type { EnhancedWorkerEnv } from '../worker/types.ts'
 type StableDispatcher = (request: Request) => Promise<Response>
 type LoggerLike = Pick<Logger, 'warn'>
 
-const DEFAULT_ROUTES = ['/api/search', '/api/book', '/api/chapters', '/api/content']
+const DEFAULT_ROUTES = [
+  '/api/search',
+  '/api/book',
+  '/api/chapters',
+  '/api/content',
+  '/api/source-builder/*',
+  '/api/source-packages/*',
+  '/api/engine/run-by-package',
+  '/api/fetch/*',
+]
 
 function isTrueFlag(value?: string): boolean {
   if (!value) return false

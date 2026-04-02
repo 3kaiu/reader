@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Database, FileJson, RefreshCw, Trash2, WandSparkles } from "lucide-vue-next";
+import { Database, FileJson, RefreshCw, SquareArrowOutUpRight, Trash2 } from "lucide-vue-next";
 
 type SourcePackageSummary = {
   sourceId: string;
@@ -26,49 +26,23 @@ type SourcePackageDetailSummary = {
   riskItems: string[];
 };
 
-type SourceBuildPreviewSummary = {
-  hasPreview: boolean;
-  sourceLabel: string;
-  packageId: string;
-  validationLabel: string;
-  diagnosticsItems: string[];
-  warningItems: string[];
-  riskItems: string[];
-  packageJson: string;
-};
-
 const props = defineProps<{
   sourcePackagesLoading: boolean;
   sourcePackageImporting: boolean;
   sourcePackageDetailLoading: boolean;
-  sourceBuildRunning: boolean;
   sourcePackages: SourcePackageSummary[];
   sourcePackageDetailSummary: SourcePackageDetailSummary;
-  sourceBuildPreviewSummary: SourceBuildPreviewSummary;
 }>();
 
 const emit = defineEmits<{
   refreshSourcePackages: [];
   importSourcePackage: [packageJson: string];
-  buildFromSamples: [payload: {
-    bookCurl: string;
-    chapterCurl: string;
-    sourceId?: string;
-    sourceName?: string;
-    tags?: string[];
-  }];
-  importPreviewPackage: [];
-  clearBuildPreview: [];
   selectSourcePackage: [sourceId: string];
   deleteSourcePackage: [sourceId: string];
+  navigate: [path: string];
 }>();
 
 const importJson = ref("");
-const bookCurl = ref("");
-const chapterCurl = ref("");
-const sourceId = ref("");
-const sourceName = ref("");
-const tagsText = ref("");
 const selectedSourceId = ref("");
 
 const sortedPackages = computed(() =>
@@ -81,22 +55,6 @@ function submitImport() {
   }
   emit("importSourcePackage", importJson.value);
   importJson.value = "";
-}
-
-function submitBuild() {
-  if (!bookCurl.value.trim() || !chapterCurl.value.trim()) {
-    return;
-  }
-  emit("buildFromSamples", {
-    bookCurl: bookCurl.value,
-    chapterCurl: chapterCurl.value,
-    sourceId: sourceId.value.trim() || undefined,
-    sourceName: sourceName.value.trim() || undefined,
-    tags: tagsText.value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-  });
 }
 
 function selectPackage(sourceId: string) {
@@ -123,107 +81,20 @@ function selectPackage(sourceId: string) {
 
     <div class="rounded-2xl border border-border/50 bg-card overflow-hidden">
       <div class="p-5 border-b border-border/50">
-        <div class="flex items-center gap-2 mb-2">
-          <WandSparkles class="w-4 h-4 text-primary" />
-          <p class="text-sm font-medium">样本 Curl 建站</p>
-        </div>
-        <p class="text-xs text-muted-foreground mb-3">
-          输入书籍详情页 curl 和章节正文页 curl，调用后端 builder 生成站级规则包。
-        </p>
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <textarea
-            v-model="bookCurl"
-            class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
-            placeholder="book curl..."
-          />
-          <textarea
-            v-model="chapterCurl"
-            class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
-            placeholder="chapter curl..."
-          />
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          <input
-            v-model="sourceId"
-            class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
-            placeholder="sourceId，可选"
-          />
-          <input
-            v-model="sourceName"
-            class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
-            placeholder="sourceName，可选"
-          />
-          <input
-            v-model="tagsText"
-            class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
-            placeholder="tags，逗号分隔"
-          />
-        </div>
-        <div class="flex justify-end mt-3">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium">Source Builder Debug</p>
+            <p class="text-xs text-muted-foreground mt-1">
+              样本 curl 建站、session 导入、规则验证与 refine 已迁移到独立工作台。
+            </p>
+          </div>
           <button
-            class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-            :disabled="sourceBuildRunning || !bookCurl.trim() || !chapterCurl.trim()"
-            @click="submitBuild"
+            class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            @click="emit('navigate', '/source-builder-debug')"
           >
-            {{ sourceBuildRunning ? "构建中..." : "生成规则包预览" }}
+            <SquareArrowOutUpRight class="w-4 h-4 inline-block mr-1" />
+            打开工作台
           </button>
-        </div>
-
-        <div
-          v-if="sourceBuildPreviewSummary.hasPreview"
-          class="mt-4 rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3"
-        >
-          <div>
-            <p class="text-sm font-medium">{{ sourceBuildPreviewSummary.sourceLabel }}</p>
-            <p class="text-xs text-muted-foreground mt-1">
-              packageId: {{ sourceBuildPreviewSummary.packageId }}
-            </p>
-            <p class="text-xs text-muted-foreground mt-1">
-              校验: {{ sourceBuildPreviewSummary.validationLabel }}
-            </p>
-          </div>
-
-          <div>
-            <p class="text-xs text-muted-foreground mb-2">诊断</p>
-            <ul class="space-y-1 text-xs break-all">
-              <li v-for="item in sourceBuildPreviewSummary.diagnosticsItems" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-
-          <div v-if="sourceBuildPreviewSummary.warningItems.length > 0">
-            <p class="text-xs text-muted-foreground mb-2">Warnings</p>
-            <ul class="space-y-1 text-xs">
-              <li v-for="item in sourceBuildPreviewSummary.warningItems" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-
-          <div v-if="sourceBuildPreviewSummary.riskItems.length > 0">
-            <p class="text-xs text-muted-foreground mb-2">风险</p>
-            <ul class="space-y-1 text-xs">
-              <li v-for="item in sourceBuildPreviewSummary.riskItems" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-
-          <textarea
-            :value="sourceBuildPreviewSummary.packageJson"
-            readonly
-            class="w-full min-h-40 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
-          />
-
-          <div class="flex justify-end gap-2">
-            <button
-              class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm"
-              @click="emit('clearBuildPreview')"
-            >
-              清空预览
-            </button>
-            <button
-              class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              @click="emit('importPreviewPackage')"
-            >
-              一键导入预览包
-            </button>
-          </div>
         </div>
       </div>
 

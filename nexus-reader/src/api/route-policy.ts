@@ -15,6 +15,8 @@ const DIRECT_RULES = [
   "/api/sources",
   "/api/source-packages",
   "/api/source-builder",
+  "/api/engine",
+  "/api/fetch",
   "/api/book",
   "/api/chapters",
   "/api/content",

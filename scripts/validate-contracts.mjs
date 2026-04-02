@@ -94,6 +94,8 @@ const files = {
   entryAdapter: path.join(rootDir, 'cloudflare-workers', 'src', 'entry-adapter.ts'),
   wrangler: path.join(rootDir, 'cloudflare-workers', 'wrangler.toml'),
   backendApp: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'app.rs'),
+  backendSourceBuilder: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'source_builder_main.rs'),
+  backendSourceBuilderRoutes: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'routes', 'source_builder.rs'),
   frontendDecoderTypes: path.join(rootDir, 'nexus-reader', 'src', 'types', 'decoder.ts'),
   workerDecoderTypes: path.join(rootDir, 'cloudflare-workers', 'shared', 'types.ts'),
 }
@@ -144,7 +146,13 @@ compareExact(
   errors
 )
 
-const backendRoutes = extractRustRoutes(read(files.backendApp))
+const backendRoutes = [
+  ...new Set([
+    ...extractRustRoutes(read(files.backendApp)),
+    ...extractRustRoutes(read(files.backendSourceBuilder)),
+    ...extractRustRoutes(read(files.backendSourceBuilderRoutes)),
+  ]),
+]
 compareContains('backend app routes', backendRoutes, contract.backend.requiredRoutes, errors)
 
 const frontendDecoderTypesSource = read(files.frontendDecoderTypes)

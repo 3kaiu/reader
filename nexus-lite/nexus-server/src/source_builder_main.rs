@@ -1,21 +1,17 @@
 //! NexusLite Source Builder API Server
 
-mod app;
 mod api_response;
-mod content_rules;
-mod engine_registry;
-mod error;
-mod metrics;
-mod middleware;
-mod orchestrator;
-mod routes;
-mod source_access;
+mod source_builder_state;
 mod validation;
-mod ws;
+
+#[path = "routes/source_builder.rs"]
+mod source_builder_routes;
 
 use axum::{routing::get, Json, Router};
 use nexus_core::EngineConfig;
+use nexus_storage::SledStore;
 use serde::Serialize;
+use std::sync::Arc;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -82,6 +78,13 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     Ok(config)
 }
 
+async fn build_source_builder_state(
+    config: &EngineConfig,
+) -> anyhow::Result<source_builder_state::SourceBuilderState> {
+    let store = Arc::new(SledStore::new(&config.storage.db_path)?);
+    Ok(source_builder_state::SourceBuilderState { store })
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
@@ -95,18 +98,18 @@ async fn main() -> anyhow::Result<()> {
 
     let config = load_config().await?;
     nexus_storage::init_storage(&config).await?;
-    let state = app::build_app_state(&config).await?;
+    let state = build_source_builder_state(&config).await?;
 
-    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let host = config.server.host.clone();
     let port = std::env::var("SOURCE_BUILDER_PORT")
         .ok()
         .and_then(|it| it.parse::<u16>().ok())
-        .unwrap_or(9091);
+        .unwrap_or(config.server.port);
     let addr = format!("{host}:{port}");
 
     let app = Router::new()
         .route("/api/health", get(health))
-        .merge(routes::source_builder::router())
+        .merge(source_builder_routes::router())
         .with_state(state)
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive());
