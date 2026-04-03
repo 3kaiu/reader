@@ -72,6 +72,33 @@ pub struct SourceRuleValidationReport {
     pub last_validated_at_ms: Option<i64>,
 }
 
+impl SourceRuleValidationReport {
+    /// Draft report used by source-builder flows before runtime validation.
+    pub fn draft(score: f64) -> Self {
+        Self {
+            score,
+            ..Self::default()
+        }
+    }
+}
+
+impl Default for SourceRuleValidationReport {
+    fn default() -> Self {
+        Self {
+            valid: false,
+            compile_ok: false,
+            warnings: Vec::new(),
+            errors: Vec::new(),
+            score: 0.0,
+            steps: Vec::new(),
+            importable: false,
+            manual_review_required: false,
+            health: SourceHealthReport::default(),
+            last_validated_at_ms: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceValidationStepReport {
@@ -488,6 +515,82 @@ pub struct SourceBuildDiagnostics {
     pub content_candidate_summaries: Vec<String>,
     #[serde(default)]
     pub jina_search_used: bool,
+}
+
+impl SourceBuildDiagnostics {
+    #[allow(clippy::too_many_arguments)]
+    pub fn basic(
+        host: String,
+        book_sample_url: String,
+        chapter_sample_url: String,
+        search_strategy: String,
+        fetch_mode: String,
+        fetch_provider: String,
+        fetch_service_url: Option<String>,
+        book_final_url: String,
+        chapter_final_url: String,
+        generalization_score: f64,
+    ) -> Self {
+        Self {
+            host,
+            book_sample_url,
+            chapter_sample_url,
+            search_strategy,
+            fetch_mode,
+            fetch_provider,
+            fetch_service_url,
+            book_fetch_status: 0,
+            chapter_fetch_status: 0,
+            book_final_url,
+            chapter_final_url,
+            generalization_score,
+            ..Self::default()
+        }
+    }
+}
+
+impl Default for SourceBuildDiagnostics {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            book_sample_url: String::new(),
+            chapter_sample_url: String::new(),
+            search_strategy: String::new(),
+            fetch_mode: String::new(),
+            fetch_provider: String::new(),
+            fetch_service_url: None,
+            book_fetch_status: 0,
+            chapter_fetch_status: 0,
+            book_final_url: String::new(),
+            chapter_final_url: String::new(),
+            generalization_score: 0.0,
+            same_site_validation_score: None,
+            same_site_candidate_count: 0,
+            same_site_validated_url: None,
+            same_site_validation_warnings: Vec::new(),
+            search_inference_score: None,
+            search_detail_validated_url: None,
+            search_detail_resolved_name: None,
+            search_detail_passed: None,
+            search_detail_failure_code: None,
+            search_detail_summary: None,
+            search_detail_warnings: Vec::new(),
+            selector_stability_warnings: Vec::new(),
+            noise_patterns_detected: Vec::new(),
+            risk_flags: Vec::new(),
+            suggested_fixes: Vec::new(),
+            failure_categories: Vec::new(),
+            preferred_probe_input: None,
+            raw_probe_score: None,
+            jina_probe_score: None,
+            trafilatura_probe_score: None,
+            ai_readability_gain: None,
+            trafilatura_readability_gain: None,
+            recommended_content_extractor: None,
+            content_candidate_summaries: Vec::new(),
+            jina_search_used: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

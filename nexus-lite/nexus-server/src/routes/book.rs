@@ -53,14 +53,15 @@ fn build_chapter_content(
     stage_reports: Vec<PipelineStageReport>,
 ) -> ChapterContent {
     let chunks = chunk_size.map(|sz| nexus_engine::content::chunk_content(&content, sz));
+    let mut meta = ChapterContentMeta::new(
+        evaluate_content_quality(content.as_ref()),
+        vec![strategy.to_string()],
+    );
+    meta.stage_reports = stage_reports;
     ChapterContent {
         content: content.clone(),
         chunks,
-        meta: Some(ChapterContentMeta {
-            quality: evaluate_content_quality(content.as_ref()),
-            strategy_path: vec![strategy.to_string()],
-            stage_reports,
-        }),
+        meta: Some(meta),
     }
 }
 

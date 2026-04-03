@@ -92,6 +92,16 @@ pub struct ChapterContentMeta {
     pub stage_reports: Vec<PipelineStageReport>,
 }
 
+impl ChapterContentMeta {
+    pub fn new(quality: ExtractionQuality, strategy_path: Vec<String>) -> Self {
+        Self {
+            quality,
+            strategy_path,
+            stage_reports: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PipelineStageReport {

@@ -806,18 +806,7 @@ pub(crate) fn build_source_from_samples(
         generated_at_ms: now_ms(),
         generator: "source-builder-skill".to_string(),
         source,
-        validation: SourceRuleValidationReport {
-            valid: true,
-            compile_ok: false,
-            warnings: Vec::new(),
-            errors: Vec::new(),
-            score: generalization_score,
-            steps: Vec::new(),
-            importable: false,
-            manual_review_required: false,
-            health: SourceHealthReport::default(),
-            last_validated_at_ms: None,
-        },
+        validation: SourceRuleValidationReport::draft(generalization_score),
         tags: req.tags.clone(),
         metadata,
         documentation: Some(documentation),
@@ -843,9 +832,6 @@ pub(crate) fn build_source_from_samples(
     package.validation.score = generalization_score;
 
     let diagnostics = SourceBuildDiagnostics {
-        host: book_url.host_str().unwrap_or("unknown-source").to_string(),
-        book_sample_url: book_url.as_str().to_string(),
-        chapter_sample_url: chapter_url.as_str().to_string(),
         search_strategy: if native_search_supported {
             "native_verified".to_string()
         } else if site_entry_probe.is_some() {
@@ -855,31 +841,7 @@ pub(crate) fn build_source_from_samples(
         } else {
             "external_discovery_only".to_string()
         },
-        fetch_mode: req
-            .fetch_mode
-            .clone()
-            .unwrap_or_else(|| "replay".to_string()),
-        fetch_provider: req
-            .fetch_provider
-            .clone()
-            .unwrap_or_else(|| "curl_replay".to_string()),
-        fetch_service_url: req.fetch_service_url.clone(),
-        book_fetch_status: 0,
-        chapter_fetch_status: 0,
-        book_final_url: book_url.as_str().to_string(),
-        chapter_final_url: chapter_url.as_str().to_string(),
-        generalization_score,
-        same_site_validation_score: None,
-        same_site_candidate_count: 0,
-        same_site_validated_url: None,
-        same_site_validation_warnings: Vec::new(),
         search_inference_score,
-        search_detail_validated_url: None,
-        search_detail_resolved_name: None,
-        search_detail_passed: None,
-        search_detail_failure_code: None,
-        search_detail_summary: None,
-        search_detail_warnings: Vec::new(),
         selector_stability_warnings: risk_flags
             .iter()
             .filter(|flag| flag.contains("selector"))
@@ -887,17 +849,23 @@ pub(crate) fn build_source_from_samples(
             .collect(),
         noise_patterns_detected: noise_patterns,
         risk_flags,
-        suggested_fixes: Vec::new(),
-        failure_categories: Vec::new(),
-        preferred_probe_input: None,
-        raw_probe_score: None,
-        jina_probe_score: None,
-        trafilatura_probe_score: None,
-        ai_readability_gain: None,
-        trafilatura_readability_gain: None,
-        recommended_content_extractor: None,
-        content_candidate_summaries: Vec::new(),
         jina_search_used: !native_search_supported,
+        ..SourceBuildDiagnostics::basic(
+            book_url.host_str().unwrap_or("unknown-source").to_string(),
+            book_url.as_str().to_string(),
+            chapter_url.as_str().to_string(),
+            String::new(),
+            req.fetch_mode
+                .clone()
+                .unwrap_or_else(|| "replay".to_string()),
+            req.fetch_provider
+                .clone()
+                .unwrap_or_else(|| "curl_replay".to_string()),
+            req.fetch_service_url.clone(),
+            book_url.as_str().to_string(),
+            chapter_url.as_str().to_string(),
+            generalization_score,
+        )
     };
 
     (package, diagnostics)

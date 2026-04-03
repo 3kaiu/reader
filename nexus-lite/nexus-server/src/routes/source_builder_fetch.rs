@@ -628,8 +628,6 @@ pub async fn fetch_html_with_session(
             ttl_remaining_ms: Some(ttl_remaining_ms),
             session_state: "active".to_string(),
             fetch_debug: SourceFetchDebugInfo {
-                mode: fetch_profile.mode.clone(),
-                provider: fetch_profile.provider.clone(),
                 service_url: fetch_profile.service_url.clone(),
                 engine: fetch_profile.engine.clone(),
                 request_url: Some(parsed.url),
@@ -640,6 +638,10 @@ pub async fn fetch_html_with_session(
                 session_state: Some("active".to_string()),
                 jina_used: fetch_profile.provider.eq_ignore_ascii_case("jina_reader"),
                 respond_with: fetch_profile.engine.clone(),
+                ..SourceFetchDebugInfo::new(
+                    fetch_profile.mode.clone(),
+                    fetch_profile.provider.clone(),
+                )
             },
         }));
     }
@@ -663,8 +665,6 @@ pub async fn fetch_html_with_session(
             "none".to_string()
         },
         fetch_debug: SourceFetchDebugInfo {
-            mode: fetch_profile.mode.clone(),
-            provider: fetch_profile.provider.clone(),
             service_url: fetch_profile.service_url.clone(),
             engine: fetch_profile.engine.clone(),
             request_url: Some(replay.request_url),
@@ -679,6 +679,7 @@ pub async fn fetch_html_with_session(
             }),
             jina_used: fetch_profile.provider.eq_ignore_ascii_case("jina_reader"),
             respond_with: fetch_profile.engine.clone(),
+            ..SourceFetchDebugInfo::new(fetch_profile.mode.clone(), fetch_profile.provider.clone())
         },
     }))
 }

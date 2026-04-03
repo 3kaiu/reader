@@ -121,17 +121,15 @@ fn make_package(
 }
 
 fn make_item(name: &str, source_id: &str) -> BookItem {
-    BookItem {
-        name: Arc::<str>::from(name),
-        author: Some(Arc::<str>::from("tester")),
-        cover_url: None,
-        book_url: Arc::<str>::from(format!("https://{source_id}.example.com/book")),
-        intro: Some(Arc::<str>::from("intro")),
-        source_id: Arc::<str>::from(source_id),
-        source_name: Arc::<str>::from(source_id),
-        latest_chapter: None,
-        search_explain: None,
-    }
+    let mut item = BookItem::new(
+        Arc::<str>::from(name),
+        Arc::<str>::from(format!("https://{source_id}.example.com/book")),
+        Arc::<str>::from(source_id),
+        Arc::<str>::from(source_id),
+    );
+    item.author = Some(Arc::<str>::from("tester"));
+    item.intro = Some(Arc::<str>::from("intro"));
+    item
 }
 
 #[test]

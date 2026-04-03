@@ -161,15 +161,12 @@ pub(crate) fn validate_package_shape(pkg: &SourceRulePackage) -> SourceRuleValid
     let score = if errors.is_empty() { 0.72 } else { 0.25 };
     SourceRuleValidationReport {
         valid: errors.is_empty(),
-        compile_ok: false,
         warnings,
         errors,
         score,
-        steps: Vec::new(),
-        importable: false,
-        manual_review_required: false,
         health: compute_health_report(Vec::new(), now_ms()),
         last_validated_at_ms: Some(now_ms()),
+        ..SourceRuleValidationReport::default()
     }
 }
 

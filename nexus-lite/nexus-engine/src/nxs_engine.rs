@@ -343,29 +343,24 @@ impl NxsEngine {
                     }
                 }
 
-                Some(BookItem {
-                    name: name.into(),
-                    book_url: book_url.into(),
-                    author: self
-                        .compiled
-                        .search_author
-                        .select_from_and_extract(el)
-                        .map(|s| s.into()),
-                    cover_url: self
-                        .compiled
-                        .search_cover
-                        .select_from_and_extract(el)
-                        .map(|u| self.abs_url(&u).into()),
-                    intro: self
-                        .compiled
-                        .search_intro
-                        .select_from_and_extract(el)
-                        .map(|s| s.into()),
-                    source_id: source_id.clone(),
-                    source_name: source_name.clone(),
-                    latest_chapter: None,
-                    search_explain: None,
-                })
+                let mut item =
+                    BookItem::new(name, book_url, source_id.clone(), source_name.clone());
+                item.author = self
+                    .compiled
+                    .search_author
+                    .select_from_and_extract(el)
+                    .map(|s| s.into());
+                item.cover_url = self
+                    .compiled
+                    .search_cover
+                    .select_from_and_extract(el)
+                    .map(|u| self.abs_url(&u).into());
+                item.intro = self
+                    .compiled
+                    .search_intro
+                    .select_from_and_extract(el)
+                    .map(|s| s.into());
+                Some(item)
             })
             .collect();
 

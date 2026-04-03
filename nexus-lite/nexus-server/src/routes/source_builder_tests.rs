@@ -417,28 +417,8 @@ fn extract_same_site_chapter_candidates_returns_siblings() {
 #[test]
 fn select_search_result_for_validation_prefers_sample_match() {
     let items = vec![
-        nexus_core::BookItem {
-            name: "A".into(),
-            author: None,
-            cover_url: None,
-            book_url: "https://example.com/book/999.html".into(),
-            intro: None,
-            source_id: "example".into(),
-            source_name: "Example".into(),
-            latest_chapter: None,
-            search_explain: None,
-        },
-        nexus_core::BookItem {
-            name: "B".into(),
-            author: None,
-            cover_url: None,
-            book_url: "https://example.com/book/123.html".into(),
-            intro: None,
-            source_id: "example".into(),
-            source_name: "Example".into(),
-            latest_chapter: None,
-            search_explain: None,
-        },
+        nexus_core::BookItem::new("A", "https://example.com/book/999.html", "example", "Example"),
+        nexus_core::BookItem::new("B", "https://example.com/book/123.html", "example", "Example"),
     ];
 
     let selected =

@@ -43,6 +43,28 @@ pub struct BookItem {
     pub search_explain: Option<SearchExplain>,
 }
 
+impl BookItem {
+    /// Minimal constructor with stable defaults for evolving optional fields.
+    pub fn new(
+        name: impl Into<Arc<str>>,
+        book_url: impl Into<Arc<str>>,
+        source_id: impl Into<Arc<str>>,
+        source_name: impl Into<Arc<str>>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            author: None,
+            cover_url: None,
+            book_url: book_url.into(),
+            intro: None,
+            source_id: source_id.into(),
+            source_name: source_name.into(),
+            latest_chapter: None,
+            search_explain: None,
+        }
+    }
+}
+
 /// Book detailed information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

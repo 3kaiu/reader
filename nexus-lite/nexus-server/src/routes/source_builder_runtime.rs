@@ -368,8 +368,6 @@ pub async fn validate_source_package(
             .fetch_profile
             .as_ref()
             .map(|profile| SourceFetchDebugInfo {
-                mode: profile.mode.clone(),
-                provider: profile.provider.clone(),
                 service_url: profile.service_url.clone(),
                 engine: profile.engine.clone(),
                 request_url: req.package.metadata.get("request.book.url").cloned(),
@@ -388,6 +386,7 @@ pub async fn validate_source_package(
                 session_state: profile.session_key.as_ref().map(|_| "active".to_string()),
                 jina_used: profile.provider.eq_ignore_ascii_case("jina_reader"),
                 respond_with: profile.engine.clone(),
+                ..SourceFetchDebugInfo::new(profile.mode.clone(), profile.provider.clone())
             }),
     }))
 }
@@ -527,8 +526,6 @@ pub async fn run_engine_by_package(
             .fetch_profile
             .as_ref()
             .map(|profile| SourceFetchDebugInfo {
-                mode: profile.mode.clone(),
-                provider: profile.provider.clone(),
                 service_url: profile.service_url.clone(),
                 engine: profile.engine.clone(),
                 request_url: debug_target_url.clone().or(debug_query.clone()),
@@ -539,6 +536,7 @@ pub async fn run_engine_by_package(
                 session_state: profile.session_key.as_ref().map(|_| "active".to_string()),
                 jina_used: profile.provider.eq_ignore_ascii_case("jina_reader"),
                 respond_with: profile.engine.clone(),
+                ..SourceFetchDebugInfo::new(profile.mode.clone(), profile.provider.clone())
             }),
     }))
 }

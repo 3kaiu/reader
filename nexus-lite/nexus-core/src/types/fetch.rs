@@ -124,6 +124,25 @@ pub struct SourceFetchDebugInfo {
     pub respond_with: Option<String>,
 }
 
+impl SourceFetchDebugInfo {
+    pub fn new(mode: impl Into<String>, provider: impl Into<String>) -> Self {
+        Self {
+            mode: mode.into(),
+            provider: provider.into(),
+            service_url: None,
+            engine: None,
+            request_url: None,
+            final_url: None,
+            http_status: None,
+            session_key: None,
+            cache_hit: false,
+            session_state: None,
+            jina_used: false,
+            respond_with: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchSessionProfile {
