@@ -1,4 +1,8 @@
-use super::*;
+use std::collections::HashMap;
+
+use nexus_core::{BookItem, SearchExplain, SearchExplainStrategy, SourceRulePackage};
+
+use super::keyword_looks_like_url;
 
 pub(super) fn package_search_rank(package: &SourceRulePackage) -> i64 {
     let health_score = (package.validation.health.overall_score * 1000.0).round() as i64;

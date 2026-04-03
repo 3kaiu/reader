@@ -1,7 +1,4 @@
-use super::package::{
-    build_documentation, build_search_profile, classify_noise_patterns,
-    compute_generalization_score, infer_detail_url_template, infer_noise_replace_rules,
-};
+use super::package::compute_generalization_score;
 use super::*;
 use axum::{
     body::{to_bytes, Body},
