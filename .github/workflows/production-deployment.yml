@@ -153,13 +153,37 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🔒 Security Vulnerabilities Found (${{ steps.audit.outputs.vulnerabilities }})`,
-              body: `## Security Alert\n\nFound ${{ steps.audit.outputs.vulnerabilities }} security vulnerabilities in dependencies.\n\nPlease review and update dependencies.\n\n**Run:** \`bun update\` or \`bun audit\` to address.`,
-              labels: ['security', 'dependencies']
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const issueTitle = '🔒 Security Vulnerabilities Found'
+            const body = `## Security Alert\n\nFound ${{ steps.audit.outputs.vulnerabilities }} security vulnerabilities in dependencies.\n\nPlease review and update dependencies.\n\n**Run:** \`bun update\` or \`bun audit\` to address.\n\nDetected on commit: \`${context.sha}\``
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: 'security,dependencies',
+              per_page: 100
             })
+
+            const existing = openIssues.find(issue => issue.title.startsWith(issueTitle))
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `### Security audit still failing\n\n${body}`
+              })
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: `${issueTitle} (${{ steps.audit.outputs.vulnerabilities }})`,
+                body,
+                labels: ['security', 'dependencies']
+              })
+            }
 
   # ===== 构建和测试前端 =====
   build-frontend:
