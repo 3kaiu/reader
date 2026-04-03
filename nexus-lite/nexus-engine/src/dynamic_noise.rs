@@ -7,36 +7,39 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, RwLock};
 
-static LINK_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|cn|net|org)[^\s]*").unwrap()
+static LINK_PATTERN: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    Regex::new(r"https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|cn|net|org)[^\s]*").ok()
 });
-static CHAPTER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"第[一二三四五六七八九十百千0-9]+[章节回]").unwrap());
+static CHAPTER_PATTERN: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r"第[一二三四五六七八九十百千0-9]+[章节回]").ok());
 static COMMON_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
-    vec![
+    [
         // URL patterns
-        Regex::new(r"https?://[^\s]+").unwrap(),
-        Regex::new(r"www\.[^\s]+").unwrap(),
-        Regex::new(r"[a-zA-Z0-9-]+\.(com|cn|net|org|io)[^\s]*").unwrap(),
+        r"https?://[^\s]+",
+        r"www\.[^\s]+",
+        r"[a-zA-Z0-9-]+\.(com|cn|net|org|io)[^\s]*",
         // Email patterns
-        Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
+        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
         // Phone number patterns
-        Regex::new(r"1[3-9]\d{9}").unwrap(),
-        Regex::new(r"\d{3,4}[- ]?\d{7,8}").unwrap(),
+        r"1[3-9]\d{9}",
+        r"\d{3,4}[- ]?\d{7,8}",
         // Date patterns (often in footers)
-        Regex::new(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日号]?").unwrap(),
+        r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日号]?",
         // Common button/link text patterns
-        Regex::new(r"^(点击|请点击|立即|马上)[^\n]{0,10}$").unwrap(),
-        Regex::new(r"^(返回|返回首页|返回顶部)[^\n]{0,10}$").unwrap(),
+        r"^(点击|请点击|立即|马上)[^\n]{0,10}$",
+        r"^(返回|返回首页|返回顶部)[^\n]{0,10}$",
         // Advertisement patterns
-        Regex::new(r"(广告|赞助|合作|推广)[^\n]{0,20}").unwrap(),
+        r"(广告|赞助|合作|推广)[^\n]{0,20}",
         // Copyright patterns
-        Regex::new(r"(版权|Copyright|©)[^\n]{0,30}").unwrap(),
+        r"(版权|Copyright|©)[^\n]{0,30}",
         // Technical patterns
-        Regex::new(r"(加载中|正在加载|Loading)[^\n]{0,10}").unwrap(),
+        r"(加载中|正在加载|Loading)[^\n]{0,10}",
         // Repetitive patterns (often navigation)
-        Regex::new(r"(第[一二三四五六七八九十百千]+[章节页回]).{0,5}").unwrap(),
+        r"(第[一二三四五六七八九十百千]+[章节页回]).{0,5}",
     ]
+    .into_iter()
+    .filter_map(|pattern| Regex::new(pattern).ok())
+    .collect()
 });
 static HEADER_FOOTER_MARKERS: [&str; 6] = ["页脚", "页眉", "底部", "顶部", "copyright", "版权"];
 
@@ -112,11 +115,12 @@ impl DynamicNoiseDetector {
 
         // 5. Learned patterns
         if self.enable_learning {
-            let learned = self.learned_patterns.read().unwrap();
-            for (pattern, weight) in learned.iter() {
-                if para.contains(pattern) {
-                    score += weight;
-                    reasons.push(NoiseReason::LearnedPattern(pattern.clone()));
+            if let Ok(learned) = self.learned_patterns.read() {
+                for (pattern, weight) in learned.iter() {
+                    if para.contains(pattern) {
+                        score += weight;
+                        reasons.push(NoiseReason::LearnedPattern(pattern.clone()));
+                    }
                 }
             }
         }
@@ -149,10 +153,9 @@ impl DynamicNoiseDetector {
 
     /// Count link characters in a paragraph (for link density by length)
     fn count_link_chars(&self, para: &str) -> usize {
-        LINK_PATTERN
-            .find_iter(para)
-            .map(|m| m.as_str().chars().count())
-            .sum()
+        LINK_PATTERN.as_ref().map_or(0, |re| {
+            re.find_iter(para).map(|m| m.as_str().chars().count()).sum()
+        })
     }
 
     /// Calculate statistical features of a paragraph
@@ -194,9 +197,11 @@ impl DynamicNoiseDetector {
     /// Check if content is repetitive (often navigation or TOC)
     fn is_repetitive(&self, para: &str) -> bool {
         // Check for repeated patterns like "第1章 第2章 第3章"
-        let matches: Vec<_> = CHAPTER_PATTERN.find_iter(para).collect();
+        let matches_count = CHAPTER_PATTERN
+            .as_ref()
+            .map_or(0, |re| re.find_iter(para).count());
 
-        if matches.len() > 3 {
+        if matches_count > 3 {
             return true;
         }
 
@@ -217,8 +222,9 @@ impl DynamicNoiseDetector {
     #[cfg(test)]
     pub fn learn_pattern(&self, pattern: String, weight: f64) {
         if self.enable_learning {
-            let mut learned = self.learned_patterns.write().unwrap();
-            learned.insert(pattern, weight);
+            if let Ok(mut learned) = self.learned_patterns.write() {
+                learned.insert(pattern, weight);
+            }
         }
     }
 }
