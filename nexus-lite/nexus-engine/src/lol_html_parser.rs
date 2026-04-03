@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_optimized_streaming_parser() {
-        let mut parser = OptimizedStreamingParser::new(100, vec![".content".to_string()]);
+        let mut parser = OptimizedStreamingParser::new(10, vec![".content".to_string()]);
 
         parser.feed("<div class=\"content\"><p>Test</p></div>");
         let results = parser.process_chunks();

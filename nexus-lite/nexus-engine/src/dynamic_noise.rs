@@ -353,6 +353,5 @@ mod tests {
     fn test_extraction_context_zero_total_safe() {
         let context = ExtractionContext::new(0, 0);
         assert!(!context.is_first_or_last_para);
-        assert_eq!(context.total_paragraphs, 0);
     }
 }

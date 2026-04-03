@@ -6,6 +6,8 @@
 use readability_rust::{Readability, ReadabilityOptions};
 use scraper::Html;
 #[cfg(test)]
+use scraper::Selector;
+#[cfg(test)]
 use std::sync::Arc;
 
 /// Enhanced content extractor using Readability algorithm

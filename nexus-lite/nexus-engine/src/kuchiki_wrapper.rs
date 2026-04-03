@@ -20,17 +20,10 @@ impl KuchikiTreeOps {
 
     /// Find content nodes by CSS selector
     pub fn find_by_selector(&self, selector: &str) -> Vec<NodeRef> {
-        let mut nodes = Vec::new();
-
-        for node in self.root.descendants() {
-            if let Some(element) = node.as_element() {
-                if &*element.name.local == selector || &*element.name.ns == selector {
-                    nodes.push(node);
-                }
-            }
-        }
-
-        nodes
+        let Ok(selected) = self.root.select(selector) else {
+            return Vec::new();
+        };
+        selected.map(|node| node.as_node().clone()).collect()
     }
 
     /// Find nodes with specific attributes
@@ -279,7 +272,8 @@ mod tests {
         let mut tree_ops = KuchikiTreeOps::parse(html).unwrap();
         tree_ops.remove_boilerplate();
 
-        let stats = tree_ops.get_stats();
-        assert!(stats.element_count < 5); // nav and footer should be removed
+        assert!(tree_ops.find_by_selector("nav").is_empty());
+        assert!(tree_ops.find_by_selector("footer").is_empty());
+        assert!(!tree_ops.find_by_selector(".content").is_empty());
     }
 }
