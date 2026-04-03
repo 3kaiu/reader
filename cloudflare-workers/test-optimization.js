@@ -9,10 +9,21 @@ const https = require("https");
 const http = require("http");
 
 class OptimizationTester {
-  constructor(workerUrl) {
+  constructor(workerUrl, options = {}) {
     this.workerUrl = workerUrl.replace(/\/$/, "");
+    this.workerEndpoint = new URL(this.workerUrl);
+    this.basePath =
+      this.workerEndpoint.pathname && this.workerEndpoint.pathname !== "/"
+        ? this.workerEndpoint.pathname.replace(/\/$/, "")
+        : "";
     this.testDuration = 60000; // 1分钟测试
     this.concurrency = 10; // 并发请求数
+    if (typeof options.duration === "number" && options.duration > 0) {
+      this.testDuration = options.duration;
+    }
+    if (typeof options.concurrency === "number" && options.concurrency > 0) {
+      this.concurrency = options.concurrency;
+    }
     this.results = {
       totalRequests: 0,
       successfulRequests: 0,
@@ -60,8 +71,10 @@ class OptimizationTester {
     try {
       const response = await this.httpRequest(
         {
-          hostname: new URL(this.workerUrl).hostname,
-          path: "/decode",
+          protocol: this.workerEndpoint.protocol,
+          hostname: this.workerEndpoint.hostname,
+          port: this.workerEndpoint.port || undefined,
+          path: `${this.basePath}/decode`,
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -124,7 +137,8 @@ class OptimizationTester {
 
   httpRequest(options, data = null) {
     return new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
+      const transport = options.protocol === "http:" ? http : https;
+      const req = transport.request(options, (res) => {
         let body = "";
         res.on("data", (chunk) => (body += chunk));
         res.on("end", () => {
@@ -250,17 +264,64 @@ class OptimizationTester {
 // 主函数
 async function main() {
   const args = process.argv.slice(2);
+  let workerUrl = process.env.WORKER_URL || "";
+  let duration = 60000;
+  let concurrency = 10;
 
-  if (args.length === 0) {
-    console.log("用法: node test-optimization.js <worker-url>");
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (!arg) continue;
+
+    if (!arg.startsWith("--") && !workerUrl) {
+      workerUrl = arg;
+      continue;
+    }
+
+    if (arg === "--url" && args[i + 1]) {
+      workerUrl = args[++i];
+      continue;
+    }
+
+    if (arg === "--duration" && args[i + 1]) {
+      duration = Number(args[++i]) || duration;
+      continue;
+    }
+
+    if (arg === "--concurrency" && args[i + 1]) {
+      concurrency = Number(args[++i]) || concurrency;
+      continue;
+    }
+  }
+
+  if (!workerUrl) {
+    console.error("缺少 worker URL。");
     console.log(
-      "示例: node test-optimization.js https://my-worker.workers.dev"
+      "用法: node test-optimization.js <worker-url> [--duration 60000] [--concurrency 10]"
     );
+    console.log(
+      "示例: node test-optimization.js https://my-worker.workers.dev --duration 10000 --concurrency 2"
+    );
+    console.log("也可通过环境变量传入: WORKER_URL=https://xxx npm test");
     process.exit(1);
   }
 
-  const workerUrl = args[0];
-  const tester = new OptimizationTester(workerUrl);
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(workerUrl);
+  } catch (error) {
+    console.error(`worker URL 无效: ${workerUrl}`);
+    process.exit(1);
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    console.error(`worker URL 协议不支持: ${parsedUrl.protocol}`);
+    process.exit(1);
+  }
+
+  const tester = new OptimizationTester(parsedUrl.toString(), {
+    duration,
+    concurrency,
+  });
 
   try {
     await tester.runTest();
