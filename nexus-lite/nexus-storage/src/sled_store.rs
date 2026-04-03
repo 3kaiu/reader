@@ -8,14 +8,15 @@
 //! synchronous disk I/O from the async runtime.
 
 use nexus_core::{
-    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError,
-    FetchSessionProfile, HealthTracker, RawHtmlCacheEntry, ReplaceRule, SkillDecisionLogEntry,
-    SourcePolicy, SourceRulePackage, VoiceModelMetadata,
+    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, FetchSessionProfile,
+    HealthTracker, PersistedExtractionMetrics, PersistedSourceHealth, RawHtmlCacheEntry,
+    ReplaceRule, SkillDecisionLogEntry, SourcePolicy, SourceRulePackage, VoiceModelMetadata,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sled::{Db, Tree};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info};
 
 /// sled-based storage for all application data
@@ -34,11 +35,13 @@ pub struct SledStore {
     skill_decisions: Tree,
     voice_meta: Tree,
     voice_config: Tree,
-    source_status: Tree, // Source enabled/disabled status
-    source_policy: Tree, // Source governance metadata
-    source_packages: Tree, // Full source rule packages for import/export/docs
-    fetch_sessions: Tree, // Human-assisted fetch sessions
-    raw_html_cache: Tree, // Cached HTML responses for sessionized fetch
+    source_status: Tree,            // Source enabled/disabled status
+    source_policy: Tree,            // Source governance metadata
+    source_packages: Tree,          // Full source rule packages for import/export/docs
+    health_state: Tree,             // Persisted source health snapshot
+    extraction_metrics_state: Tree, // Persisted extraction metrics snapshot
+    fetch_sessions: Tree,           // Human-assisted fetch sessions
+    raw_html_cache: Tree,           // Cached HTML responses for sessionized fetch
 
     // Health tracker (in-memory, not persisted)
     health: Arc<HealthTracker>,
@@ -80,11 +83,11 @@ impl SledStore {
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
-            skill_decisions: db
-                .open_tree("skill_decisions")
-                .map_err(|e| EngineError::Database {
+            skill_decisions: db.open_tree("skill_decisions").map_err(|e| {
+                EngineError::Database {
                     message: e.to_string(),
-                })?,
+                }
+            })?,
             voice_meta: db
                 .open_tree("voice_meta")
                 .map_err(|e| EngineError::Database {
@@ -105,11 +108,21 @@ impl SledStore {
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
-            source_packages: db
-                .open_tree("source_packages")
+            source_packages: db.open_tree("source_packages").map_err(|e| {
+                EngineError::Database {
+                    message: e.to_string(),
+                }
+            })?,
+            health_state: db
+                .open_tree("health_state")
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
+            extraction_metrics_state: db.open_tree("extraction_metrics_state").map_err(|e| {
+                EngineError::Database {
+                    message: e.to_string(),
+                }
+            })?,
             fetch_sessions: db
                 .open_tree("fetch_sessions")
                 .map_err(|e| EngineError::Database {
@@ -130,6 +143,72 @@ impl SledStore {
         &self.health
     }
 
+    pub async fn load_health_snapshot(&self) -> Result<Vec<PersistedSourceHealth>, EngineError> {
+        let tree = self.health_state.clone();
+        tokio::task::spawn_blocking(move || {
+            Self::get_sync::<Vec<PersistedSourceHealth>>(&tree, "snapshot")
+                .map(|value| value.unwrap_or_default())
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    pub async fn load_health_snapshot_updated_at_ms(&self) -> Result<Option<i64>, EngineError> {
+        let tree = self.health_state.clone();
+        tokio::task::spawn_blocking(move || Self::get_sync::<i64>(&tree, "updatedAtMs"))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
+    pub async fn save_health_snapshot(
+        &self,
+        items: Vec<PersistedSourceHealth>,
+    ) -> Result<(), EngineError> {
+        let tree = self.health_state.clone();
+        tokio::task::spawn_blocking(move || {
+            let now_ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|it| it.as_millis() as i64)
+                .unwrap_or(0);
+            Self::put_sync(&tree, "snapshot", &items)?;
+            Self::put_sync(&tree, "updatedAtMs", &now_ms)
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    pub async fn load_extraction_metrics_snapshot(
+        &self,
+    ) -> Result<Vec<PersistedExtractionMetrics>, EngineError> {
+        let tree = self.extraction_metrics_state.clone();
+        tokio::task::spawn_blocking(move || {
+            Self::get_sync::<Vec<PersistedExtractionMetrics>>(&tree, "snapshot")
+                .map(|value| value.unwrap_or_default())
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    pub async fn save_extraction_metrics_snapshot(
+        &self,
+        items: Vec<PersistedExtractionMetrics>,
+    ) -> Result<(), EngineError> {
+        let tree = self.extraction_metrics_state.clone();
+        tokio::task::spawn_blocking(move || Self::put_sync(&tree, "snapshot", &items))
+            .await
+            .map_err(|e| EngineError::Internal {
+                message: format!("Storage execution failed: {}", e),
+            })?
+    }
+
     // ========== Generic KV Helpers (Internal Sync) ==========
 
     fn get_sync<T: DeserializeOwned>(tree: &Tree, key: &str) -> Result<Option<T>, EngineError> {
@@ -139,7 +218,7 @@ impl SledStore {
             Some(bytes) => {
                 let value: T = serde_json::from_slice(&bytes)?;
                 Ok(Some(value))
-            }
+            },
             None => Ok(None),
         }
     }
@@ -618,7 +697,7 @@ impl SledStore {
                     let bytes_ref: &[u8] = &bytes;
                     let s = String::from_utf8_lossy(bytes_ref);
                     Ok(Some(s.into_owned()))
-                }
+                },
                 None => Ok(None),
             }
         })
@@ -658,7 +737,7 @@ impl SledStore {
                 Some(bytes) => {
                     // Store as "1" for enabled, "0" for disabled
                     Ok(bytes[0] == b'1')
-                }
+                },
                 None => Ok(true), // Default to enabled
             }
         })
@@ -771,7 +850,10 @@ impl SledStore {
         })?
     }
 
-    pub async fn save_fetch_session(&self, session: FetchSessionProfile) -> Result<(), EngineError> {
+    pub async fn save_fetch_session(
+        &self,
+        session: FetchSessionProfile,
+    ) -> Result<(), EngineError> {
         let tree = self.fetch_sessions.clone();
         let key = session.session_key.clone();
         tokio::task::spawn_blocking(move || Self::put_sync(&tree, &key, &session))

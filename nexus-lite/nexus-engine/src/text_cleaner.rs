@@ -11,22 +11,21 @@ use unicode_normalization::UnicodeNormalization;
 
 /// Zero-width and invisible character ranges
 const ZERO_WIDTH_RANGES: &[(u32, u32)] = &[
-    (0x200B, 0x200F), // Zero width characters + direction marks
-    (0x2060, 0x2064), // Word joiner, invisible operators
-    (0xFEFF, 0xFEFF), // Zero width no-break space (BOM)
-    (0x00AD, 0x00AD), // Soft hyphen
-    (0x034F, 0x034F), // Combining grapheme joiner
-    (0x180B, 0x180D), // Mongolian free variation selectors
-    (0x180E, 0x180E), // Mongolian vowel separator
-    (0x200C, 0x200D), // Zero width non-joiner/joiner
-    (0xFE00, 0xFE0F), // Variation selectors
+    (0x200B, 0x200F),   // Zero width characters + direction marks
+    (0x2060, 0x2064),   // Word joiner, invisible operators
+    (0xFEFF, 0xFEFF),   // Zero width no-break space (BOM)
+    (0x00AD, 0x00AD),   // Soft hyphen
+    (0x034F, 0x034F),   // Combining grapheme joiner
+    (0x180B, 0x180D),   // Mongolian free variation selectors
+    (0x180E, 0x180E),   // Mongolian vowel separator
+    (0x200C, 0x200D),   // Zero width non-joiner/joiner
+    (0xFE00, 0xFE0F),   // Variation selectors
     (0xE0100, 0xE01EF), // Variation selectors supplement
 ];
 
 /// Pre-compiled regex for control characters (excluding newlines)
-static CONTROL_CHARS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]").unwrap()
-});
+static CONTROL_CHARS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]").unwrap());
 
 #[inline]
 fn is_zero_width_or_invisible(ch: char) -> bool {
@@ -127,10 +126,7 @@ impl TextCleaner {
         text.lines()
             .map(|line| {
                 // Collapse multiple spaces into single space
-                let trimmed: String = line
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ");
+                let trimmed: String = line.split_whitespace().collect::<Vec<_>>().join(" ");
                 trimmed
             })
             .filter(|line| !line.is_empty())

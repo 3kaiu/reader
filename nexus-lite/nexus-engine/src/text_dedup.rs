@@ -6,7 +6,7 @@
 //! - Paragraph deduplication for novel content
 
 use std::collections::HashSet;
-use strsim::{levenshtein, jaro_winkler};
+use strsim::{jaro_winkler, levenshtein};
 
 /// Deduplication configuration
 #[derive(Debug, Clone)]
@@ -24,8 +24,8 @@ pub struct DedupConfig {
 impl Default for DedupConfig {
     fn default() -> Self {
         Self {
-            threshold: 0.9,       // 90% similarity
-            min_length: 3,        // Keep CJK short paragraph dedup effective
+            threshold: 0.9,             // 90% similarity
+            min_length: 3,              // Keep CJK short paragraph dedup effective
             max_length_diff_ratio: 0.2, // Max 20% length difference
             use_jaro_winkler: false,
         }
@@ -166,22 +166,22 @@ impl TextDeduplicator {
             .map(|p| {
                 // Remove common noise patterns
                 let mut cleaned = p.clone();
-                
+
                 // Remove URL patterns
                 cleaned = regex::Regex::new(r"https?://[^\s]+")
                     .map(|re| re.replace_all(&cleaned, "").to_string())
                     .unwrap_or(cleaned);
-                
+
                 // Remove advertisement patterns
                 cleaned = regex::Regex::new(r"(?i)(广告|赞助|合作|推广)")
                     .map(|re| re.replace_all(&cleaned, "").to_string())
                     .unwrap_or(cleaned);
-                
+
                 // Remove "本章未完" patterns
                 cleaned = regex::Regex::new(r"本章未完.*")
                     .map(|re| re.replace_all(&cleaned, "").to_string())
                     .unwrap_or(cleaned);
-                
+
                 cleaned.trim().to_string()
             })
             .filter(|p| !p.is_empty())

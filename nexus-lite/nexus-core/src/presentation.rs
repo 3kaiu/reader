@@ -488,15 +488,13 @@ impl DtoMapper for ReadingDtoMapper {
         // 将请求DTO映射为阅读领域命令
         // 这里是简化的实现
         if let Some(book_id) = request.get("book_id").and_then(|v| v.as_str()) {
-            Ok(ApplicationCommand::Reading(
-                crate::domain::ReadingCommand::CreateBook {
-                    book_id: book_id.to_string(),
-                    title: "Default Title".to_string(),
-                    author: "Default Author".to_string(),
-                    source_url: "http://example.com".to_string(),
-                    source_engine: "default".to_string(),
-                },
-            ))
+            Ok(ApplicationCommand::Reading(crate::domain::ReadingCommand::CreateBook {
+                book_id: book_id.to_string(),
+                title: "Default Title".to_string(),
+                author: "Default Author".to_string(),
+                source_url: "http://example.com".to_string(),
+                source_engine: "default".to_string(),
+            }))
         } else {
             Err(PresentationError::BadRequest("Missing book_id".to_string()))
         }
@@ -509,11 +507,9 @@ impl DtoMapper for ReadingDtoMapper {
     ) -> Result<ApplicationQuery, PresentationError> {
         // 将请求DTO映射为阅读领域查询
         if let Some(book_id) = request.get("book_id").and_then(|v| v.as_str()) {
-            Ok(ApplicationQuery::Reading(
-                crate::domain::ReadingQuery::GetBook {
-                    book_id: book_id.to_string(),
-                },
-            ))
+            Ok(ApplicationQuery::Reading(crate::domain::ReadingQuery::GetBook {
+                book_id: book_id.to_string(),
+            }))
         } else {
             Err(PresentationError::BadRequest("Missing book_id".to_string()))
         }
@@ -536,9 +532,7 @@ pub async fn init_presentation_layer(
 
     // 添加中间件
     router.add_middleware(Box::new(LoggingMiddleware::new()));
-    router.add_middleware(Box::new(AuthenticationMiddleware::new(
-        router.service_bus(),
-    )));
+    router.add_middleware(Box::new(AuthenticationMiddleware::new(router.service_bus())));
     router.add_middleware(Box::new(RateLimitMiddleware::new(1000))); // 每分钟1000个请求
 
     // 添加路由处理器

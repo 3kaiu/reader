@@ -212,17 +212,10 @@ fn get_date(period: &str, rec: &QidianData, sign: &QidianData, is_start: bool) -
 
 fn load_json<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, (StatusCode, String)> {
     let content = std::fs::read_to_string(path).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to read data file: {}", e),
-        )
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read data file: {}", e))
     })?;
-    serde_json::from_str(&content).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to parse data: {}", e),
-        )
-    })
+    serde_json::from_str(&content)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse data: {}", e)))
 }
 
 fn map_item(item: &QidianItem) -> DiscoveryItem {

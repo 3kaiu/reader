@@ -6,15 +6,14 @@
 use crate::extraction_metrics::SourceExtractionStats;
 use crate::quality_gate::{evaluate_content_quality, passes_quality_gate, QualityGateConfig};
 use dashmap::DashMap;
-use nexus_core::types::{
-    ExtractionQuality, FetchJob, SkillDecisionEnvelope, SourceRuntimeProfile,
-};
+use nexus_core::types::{ExtractionQuality, FetchJob, SkillDecisionEnvelope, SourceRuntimeProfile};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::LazyLock;
 use uuid::Uuid;
 
-static RUNTIME_PROFILES: LazyLock<DashMap<String, SourceRuntimeProfile>> = LazyLock::new(DashMap::new);
+static RUNTIME_PROFILES: LazyLock<DashMap<String, SourceRuntimeProfile>> =
+    LazyLock::new(DashMap::new);
 
 fn stable_hash(input: &str) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -108,7 +107,9 @@ impl StrategyPlannerSkill {
                 0.0
             };
 
-            if stats.low_quality_failures >= stats.rule_mismatch_failures && stats.low_quality_failures >= 3 {
+            if stats.low_quality_failures >= stats.rule_mismatch_failures
+                && stats.low_quality_failures >= 3
+            {
                 profile.strategy_chain = vec![
                     "DirectHTTP".to_string(),
                     "CloudScraper".to_string(),
@@ -179,7 +180,12 @@ pub struct ContentJudgeSkill {
 }
 
 impl ContentJudgeSkill {
-    pub fn judge(&self, source_id: &str, strategy_path: &[String], text: &str) -> ContentJudgeOutcome {
+    pub fn judge(
+        &self,
+        source_id: &str,
+        strategy_path: &[String],
+        text: &str,
+    ) -> ContentJudgeOutcome {
         let quality = evaluate_content_quality(text);
         let passed = passes_quality_gate(&quality, &self.gate);
 
@@ -239,8 +245,12 @@ impl FailureDiagnosisSkill {
 
         let recommendation = match primary_failure.as_str() {
             "rule_mismatch" => "review source selectors and prefer DOM-rich strategy path",
-            "validation" => "relax strict validation for this source and inspect paragraph boundaries",
-            "empty_content" => "increase retry budget and inspect anti-crawl responses for truncated bodies",
+            "validation" => {
+                "relax strict validation for this source and inspect paragraph boundaries"
+            },
+            "empty_content" => {
+                "increase retry budget and inspect anti-crawl responses for truncated bodies"
+            },
             "low_quality" => "tune cleaner/noise filters and compare extraction fallback outputs",
             _ => "source is stable; keep strategy and monitor trend changes",
         }

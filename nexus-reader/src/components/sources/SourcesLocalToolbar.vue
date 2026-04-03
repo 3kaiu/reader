@@ -6,6 +6,8 @@ defineProps<{
   activeGroup: string;
   filteredCount: number;
   enabledCount: number;
+  unhealthyCount: number;
+  openCircuitCount: number;
   totalCount: number;
   isManageMode: boolean;
 }>();
@@ -27,7 +29,17 @@ const emit = defineEmits<{
         color: '#22c55e',
       },
       {
-        label: '/',
+        label: '异常',
+        value: unhealthyCount,
+        color: '#f59e0b',
+      },
+      {
+        label: '熔断',
+        value: openCircuitCount,
+        color: '#ef4444',
+      },
+      {
+        label: '停用',
         value: totalCount - enabledCount,
       },
     ]"

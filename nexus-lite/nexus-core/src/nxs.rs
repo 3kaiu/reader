@@ -204,15 +204,14 @@ pub struct ContentRule {
     pub replace: Vec<ReplaceRule>,
 
     // === Enhanced Cleaning Configuration ===
-    
     /// Text cleaning configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clean: Option<CleanConfig>,
-    
+
     /// Pagination configuration for multi-page chapters
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pagination: Option<PaginationConfig>,
-    
+
     /// Font decryption configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_decrypt: Option<FontDecryptConfig>,
@@ -228,23 +227,23 @@ pub struct CleanConfig {
     /// Remove zero-width characters (default: true)
     #[serde(default = "default_true")]
     pub remove_zero_width: bool,
-    
+
     /// Remove control characters (default: true)
     #[serde(default = "default_true")]
     pub remove_control_chars: bool,
-    
+
     /// Apply Unicode normalization (default: true)
     #[serde(default = "default_true")]
     pub unicode_normalize: bool,
-    
+
     /// Normalize whitespace (default: true)
     #[serde(default = "default_true")]
     pub normalize_whitespace: bool,
-    
+
     /// Deduplication configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dedup: Option<DedupConfig>,
-    
+
     /// Content encoding (e.g., "gbk", "gb2312")
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encoding: Option<String>,
@@ -256,11 +255,11 @@ pub struct DedupConfig {
     /// Similarity threshold (0.0-1.0), default: 0.9
     #[serde(default = "default_similarity_threshold")]
     pub threshold: f64,
-    
+
     /// Minimum length to consider for deduplication, default: 10
     #[serde(default = "default_min_length")]
     pub min_length: usize,
-    
+
     /// Maximum length difference ratio (0.0-1.0), default: 0.2
     #[serde(default = "default_max_length_diff_ratio")]
     pub max_length_diff_ratio: f64,
@@ -271,19 +270,19 @@ pub struct DedupConfig {
 pub struct PaginationConfig {
     /// Selector for "next page" link/button
     pub next_selector: String,
-    
+
     /// Maximum pages to aggregate, default: 10
     #[serde(default = "default_max_pages")]
     pub max_pages: usize,
-    
+
     /// Delay between page requests (ms), default: 500
     #[serde(default = "default_delay_ms")]
     pub delay_ms: u64,
-    
+
     /// Content separator between pages, default: "\n\n"
     #[serde(default = "default_separator")]
     pub separator: String,
-    
+
     /// Stop when content contains this text (e.g., "下一章")
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_text: Option<String>,
@@ -294,15 +293,15 @@ pub struct PaginationConfig {
 pub struct FontDecryptConfig {
     /// Selector for font file URL (e.g., "link[href$='.woff']")
     pub font_url_selector: String,
-    
+
     /// Attribute containing font URL, default: "href"
     #[serde(default = "default_font_url_attr")]
     pub font_url_attr: String,
-    
+
     /// Whether to auto-decrypt, default: true
     #[serde(default = "default_true")]
     pub auto_decrypt: bool,
-    
+
     /// Pre-defined character mapping (encrypted -> decrypted)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mapping: Option<std::collections::HashMap<char, char>>,
@@ -325,16 +324,36 @@ pub struct ContentValidationConfig {
 }
 
 // Default value functions
-fn default_true() -> bool { true }
-fn default_similarity_threshold() -> f64 { 0.9 }
-fn default_min_length() -> usize { 10 }
-fn default_max_length_diff_ratio() -> f64 { 0.2 }
-fn default_max_pages() -> usize { 10 }
-fn default_delay_ms() -> u64 { 500 }
-fn default_separator() -> String { "\n\n".to_string() }
-fn default_font_url_attr() -> String { "href".to_string() }
-fn default_min_chars() -> usize { 80 }
-fn default_min_paragraphs() -> usize { 1 }
+fn default_true() -> bool {
+    true
+}
+fn default_similarity_threshold() -> f64 {
+    0.9
+}
+fn default_min_length() -> usize {
+    10
+}
+fn default_max_length_diff_ratio() -> f64 {
+    0.2
+}
+fn default_max_pages() -> usize {
+    10
+}
+fn default_delay_ms() -> u64 {
+    500
+}
+fn default_separator() -> String {
+    "\n\n".to_string()
+}
+fn default_font_url_attr() -> String {
+    "href".to_string()
+}
+fn default_min_chars() -> usize {
+    80
+}
+fn default_min_paragraphs() -> usize {
+    1
+}
 
 impl Default for CleanConfig {
     fn default() -> Self {

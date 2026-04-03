@@ -68,9 +68,14 @@ impl ExtractedContent {
                 // Strip HTML tags from content using scraper
                 let doc = Html::parse_document(html);
                 let selector = scraper::Selector::parse("*").ok();
-                selector.map(|s| {
-                    doc.select(&s).map(|el| el.text().collect::<String>()).collect::<Vec<_>>().join("\n")
-                }).unwrap_or_default()
+                selector
+                    .map(|s| {
+                        doc.select(&s)
+                            .map(|el| el.text().collect::<String>())
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    })
+                    .unwrap_or_default()
             })
         })
     }
@@ -78,16 +83,17 @@ impl ExtractedContent {
     /// Check if content is valid for novel extraction
     pub fn is_valid_novel_content(&self) -> bool {
         let text = self.get_text().unwrap_or_default();
-        
+
         // Check minimum length
         if text.chars().count() < 30 {
             return false;
         }
 
         // Check for Chinese characters (novel content)
-        let chinese_count = text.chars().filter(|c| {
-            (*c as u32) >= 0x4E00 && (*c as u32) <= 0x9FFF
-        }).count();
+        let chinese_count = text
+            .chars()
+            .filter(|c| (*c as u32) >= 0x4E00 && (*c as u32) <= 0x9FFF)
+            .count();
 
         let chinese_ratio = chinese_count as f64 / text.chars().count() as f64;
 
@@ -222,18 +228,22 @@ impl NovelExtractionRules {
         }
 
         // Chinese character ratio
-        let chinese_count = visible_chars.iter().filter(|c| {
-            (**c as u32) >= 0x4E00 && (**c as u32) <= 0x9FFF
-        }).count();
+        let chinese_count = visible_chars
+            .iter()
+            .filter(|c| (**c as u32) >= 0x4E00 && (**c as u32) <= 0x9FFF)
+            .count();
         let chinese_ratio = chinese_count as f64 / chars as f64;
 
         // Punctuation ratio
-        let punct_count = visible_chars.iter().filter(|c| {
-            matches!(
-                *c,
-                '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':'
-            )
-        }).count();
+        let punct_count = visible_chars
+            .iter()
+            .filter(|c| {
+                matches!(
+                    *c,
+                    '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':'
+                )
+            })
+            .count();
         let punct_ratio = punct_count as f64 / chars as f64;
 
         // Paragraph count

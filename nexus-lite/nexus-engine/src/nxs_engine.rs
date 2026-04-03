@@ -6,8 +6,8 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::types::{Chapter, FetchJob};
-use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule};
+use nexus_core::types::{Chapter, FetchJob, PipelineStageReport};
+use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule, SourceRuntimeProfile};
 use scraper::{Html, Selector};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -17,8 +17,8 @@ use tracing::{debug, info, instrument, warn};
 use crate::anti_crawl::FallbackChain;
 use crate::content::apply_replace_rules;
 use crate::content_extract::{
-    extract_structured_text_from_root, readability_like_extract, ContentExtractConfig,
-    post_clean_content_enhanced,
+    extract_structured_text_from_root, post_clean_content_enhanced, readability_like_extract,
+    ContentExtractConfig,
 };
 use crate::extraction_metrics;
 use crate::font_decryptor::FontDecryptor;
@@ -54,6 +54,23 @@ struct CompiledNxs {
     content_body: Arc<FallbackSelector>,
     content_filter: Vec<Selector>,
     content_visible_only: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ContentPipelineRun {
+    pub content: String,
+    pub stage_reports: Vec<PipelineStageReport>,
+}
+
+fn stage_report(stage: &str, ok: bool) -> PipelineStageReport {
+    PipelineStageReport {
+        stage: stage.to_string(),
+        ok,
+        strategy: None,
+        failure_code: None,
+        warnings: Vec::new(),
+        metrics: std::collections::HashMap::new(),
+    }
 }
 
 impl CompiledNxs {
@@ -146,6 +163,18 @@ impl NxsEngine {
         &self.source.name
     }
 
+    pub fn runtime_profile(&self) -> SourceRuntimeProfile {
+        crate::skills::runtime_profile_for(&self.source.id)
+    }
+
+    pub fn circuit_state(&self) -> Option<crate::circuit_breaker::CircuitState> {
+        self.anti_crawl.circuit_state(&self.source.id)
+    }
+
+    pub fn reset_circuit(&self) {
+        self.anti_crawl.reset_circuit(&self.source.id);
+    }
+
     fn content_stats(text: &str) -> (usize, usize) {
         let trimmed = text.trim();
         let chars = trimmed.chars().count();
@@ -204,11 +233,7 @@ impl NxsEngine {
             planner_decision.confidence,
             profile.strategy_chain
         );
-        skill_telemetry::record(
-            &self.source.id,
-            Some(&job.trace_id),
-            planner_decision.clone(),
-        );
+        skill_telemetry::record(&self.source.id, Some(&job.trace_id), planner_decision.clone());
 
         let mut last_error = None;
         let max_attempts = profile.retry_budget.saturating_add(1);
@@ -222,7 +247,7 @@ impl NxsEngine {
                 Ok(resp) => {
                     response = Some(resp);
                     break;
-                }
+                },
                 Err(err) => {
                     let can_retry = attempt + 1 < max_attempts && err.is_retryable();
                     if can_retry {
@@ -230,7 +255,7 @@ impl NxsEngine {
                         tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                     }
                     last_error = Some(err);
-                }
+                },
             }
         }
         let response = match response {
@@ -339,6 +364,7 @@ impl NxsEngine {
                     source_id: source_id.clone(),
                     source_name: source_name.clone(),
                     latest_chapter: None,
+                    search_explain: None,
                 })
             })
             .collect();
@@ -481,14 +507,20 @@ impl NxsEngine {
         chapter_url: &str,
         rules: &[ReplaceRule],
     ) -> Result<String, EngineError> {
+        self.content_with_report(chapter_url, rules)
+            .await
+            .map(|run| run.content)
+    }
+
+    #[instrument(skip(self, rules), fields(source = %self.source.id))]
+    pub async fn content_with_report(
+        &self,
+        chapter_url: &str,
+        rules: &[ReplaceRule],
+    ) -> Result<ContentPipelineRun, EngineError> {
         let initial_url = self.abs_url(chapter_url);
         let pagination = self.source.content.pagination.clone();
-        let validation = self
-            .source
-            .content
-            .validation
-            .clone()
-            .unwrap_or_default();
+        let validation = self.source.content.validation.clone().unwrap_or_default();
 
         if self.source.content.script.is_some() {
             if !self.source.content.script_enabled {
@@ -505,13 +537,15 @@ impl NxsEngine {
         }
 
         if let Some(pagination) = pagination {
-            let next_selector =
-                Selector::parse(&pagination.next_selector).map_err(|_| EngineError::InvalidSelector {
+            let next_selector = Selector::parse(&pagination.next_selector).map_err(|_| {
+                EngineError::InvalidSelector {
                     selector: pagination.next_selector.clone(),
-                })?;
+                }
+            })?;
             let mut visited = HashSet::new();
             let mut current_url = initial_url;
             let mut merged = Vec::new();
+            let mut all_stage_reports = Vec::new();
 
             for idx in 0..pagination.max_pages.max(1) {
                 if !visited.insert(current_url.clone()) {
@@ -519,14 +553,27 @@ impl NxsEngine {
                 }
 
                 let html = self.fetch(&current_url, None, None, None).await?;
-                let extracted = self.extract_content_from_html(&html, rules, idx == 0)?;
+                let mut fetch_stage = stage_report("fetch", true);
+                fetch_stage.strategy = Some("anti_crawl_chain".to_string());
+                fetch_stage
+                    .metrics
+                    .insert("pageIndex".to_string(), idx.to_string());
+                fetch_stage
+                    .metrics
+                    .insert("url".to_string(), current_url.clone());
+                let mut page_run =
+                    self.execute_content_pipeline_from_html(&html, rules, idx == 0)?;
+                page_run.stage_reports.insert(0, fetch_stage);
+                let extracted = page_run.content.clone();
                 if let Some(stop_text) = &pagination.stop_text {
                     if extracted.contains(stop_text) {
                         merged.push(extracted);
+                        all_stage_reports.extend(page_run.stage_reports);
                         break;
                     }
                 }
                 merged.push(extracted);
+                all_stage_reports.extend(page_run.stage_reports);
 
                 let next = {
                     let doc = Html::parse_document(&html);
@@ -549,8 +596,19 @@ impl NxsEngine {
 
             let separator = pagination.separator;
             let combined = merged.join(&separator);
+            let mut validation_stage = stage_report("validation", true);
+            validation_stage
+                .metrics
+                .insert("chars".to_string(), combined.chars().count().to_string());
+            validation_stage
+                .metrics
+                .insert("paragraphs".to_string(), Self::content_stats(&combined).1.to_string());
             if self.looks_like_content(&combined, &validation) {
-                return Ok(combined);
+                all_stage_reports.push(validation_stage);
+                return Ok(ContentPipelineRun {
+                    content: combined,
+                    stage_reports: all_stage_reports,
+                });
             }
 
             return Err(EngineError::RuleMismatch {
@@ -559,7 +617,12 @@ impl NxsEngine {
         }
 
         let html = self.fetch(&initial_url, None, None, None).await?;
-        self.extract_content_from_html(&html, rules, true)
+        let mut fetch_stage = stage_report("fetch", true);
+        fetch_stage.strategy = Some("anti_crawl_chain".to_string());
+        fetch_stage.metrics.insert("url".to_string(), initial_url);
+        let mut run = self.execute_content_pipeline_from_html(&html, rules, true)?;
+        run.stage_reports.insert(0, fetch_stage);
+        Ok(run)
     }
 
     fn looks_like_content(
@@ -660,23 +723,19 @@ impl NxsEngine {
         content
     }
 
-    fn extract_content_from_html(
+    fn execute_content_pipeline_from_html(
         &self,
         html: &str,
         rules: &[ReplaceRule],
         strict_validate: bool,
-    ) -> Result<String, EngineError> {
+    ) -> Result<ContentPipelineRun, EngineError> {
         let doc = Html::parse_document(html);
         let extract_cfg = ContentExtractConfig {
             filter_selectors: &self.compiled.content_filter,
             visible_only: self.compiled.content_visible_only,
         };
-        let validation = self
-            .source
-            .content
-            .validation
-            .clone()
-            .unwrap_or_default();
+        let validation = self.source.content.validation.clone().unwrap_or_default();
+        let mut stage_reports = Vec::new();
 
         // 1) Selector extraction first
         let mut used_fallback = false;
@@ -699,11 +758,18 @@ impl NxsEngine {
         }
 
         if used_fallback {
-            debug!(
-                "content extraction fallback triggered for source {}",
-                self.source.id
-            );
+            debug!("content extraction fallback triggered for source {}", self.source.id);
         }
+        let mut extract_stage = stage_report("rule_extract", true);
+        extract_stage.strategy = Some(if used_fallback {
+            "readability_fallback".to_string()
+        } else {
+            "selector_extract".to_string()
+        });
+        extract_stage
+            .metrics
+            .insert("chars".to_string(), extracted.chars().count().to_string());
+        stage_reports.push(extract_stage);
 
         if extracted.trim().is_empty() {
             extraction_metrics::record_rule_mismatch_failure(&self.source.id);
@@ -715,20 +781,68 @@ impl NxsEngine {
         // 3) Global + source replacement rules
         extracted = apply_replace_rules(extracted, rules, &self.source.id);
         extracted = apply_replace_rules(extracted, &self.source.content.replace, &self.source.id);
+        let mut replace_stage = stage_report("replace", true);
+        replace_stage
+            .metrics
+            .insert("chars".to_string(), extracted.chars().count().to_string());
+        stage_reports.push(replace_stage);
 
         // 4) Optional restricted script post-processing
         extracted = self.apply_content_script(extracted)?;
+        let mut script_stage = stage_report("script", true);
+        script_stage.strategy = self
+            .source
+            .content
+            .script
+            .as_ref()
+            .map(|_| "restricted_script".to_string());
+        script_stage
+            .metrics
+            .insert("enabled".to_string(), self.source.content.script_enabled.to_string());
+        stage_reports.push(script_stage);
 
         // 5) Optional font decryption
         extracted = self.apply_font_decrypt(extracted);
+        let mut font_stage = stage_report("font_decrypt", true);
+        font_stage.strategy = self.source.content.font_decrypt.as_ref().map(|cfg| {
+            if cfg.mapping.is_some() {
+                "known_mapping".to_string()
+            } else if cfg.auto_decrypt {
+                "auto_decrypt_hint".to_string()
+            } else {
+                "disabled".to_string()
+            }
+        });
+        stage_reports.push(font_stage);
 
         // 6) Enhanced content cleaning
         let cleaned = post_clean_content_enhanced(extracted, self.source.content.clean.as_ref());
-        let strategy_path = vec!["engine-cleaned".to_string()];
+        let mut clean_stage = stage_report("clean", true);
+        clean_stage.strategy = Some("engine_cleaned".to_string());
+        clean_stage
+            .metrics
+            .insert("chars".to_string(), cleaned.chars().count().to_string());
+        clean_stage
+            .metrics
+            .insert("paragraphs".to_string(), Self::content_stats(&cleaned).1.to_string());
+        stage_reports.push(clean_stage);
+        let strategy_path = stage_reports
+            .iter()
+            .filter_map(|stage| stage.strategy.clone())
+            .collect::<Vec<_>>();
         let judge = self
             .content_judge_skill
             .judge(&self.source.id, &strategy_path, &cleaned);
         extraction_metrics::record_quality_score(&self.source.id, judge.quality.score);
+        let mut quality_stage = stage_report("quality_gate", true);
+        quality_stage.strategy = Some(judge.decision.decision_id.clone());
+        quality_stage
+            .metrics
+            .insert("score".to_string(), format!("{:.3}", judge.quality.score));
+        quality_stage
+            .metrics
+            .insert("label".to_string(), format!("{:?}", judge.quality.label));
+        stage_reports.push(quality_stage);
 
         if !judge.passed {
             warn!(
@@ -743,9 +857,7 @@ impl NxsEngine {
             );
             debug!(
                 "content judge decision source={} decision={} confidence={:.2}",
-                self.source.id,
-                judge.decision.decision_id,
-                judge.decision.confidence
+                self.source.id, judge.decision.decision_id, judge.decision.confidence
             );
             skill_telemetry::record(&self.source.id, None, judge.decision.clone());
             extraction_metrics::record_low_quality_failure(&self.source.id);
@@ -771,13 +883,24 @@ impl NxsEngine {
                 rule: "content.validation".to_string(),
             });
         }
+        let mut validation_stage = stage_report("validation", true);
+        validation_stage
+            .metrics
+            .insert("chars".to_string(), judge.quality.char_count.to_string());
+        validation_stage
+            .metrics
+            .insert("paragraphs".to_string(), judge.quality.paragraph_count.to_string());
+        stage_reports.push(validation_stage);
         if cleaned.trim().is_empty() {
             extraction_metrics::record_empty_content_failure(&self.source.id);
             return Err(EngineError::EmptyContent);
         }
 
         extraction_metrics::record_success(&self.source.id, used_fallback);
-        Ok(cleaned)
+        Ok(ContentPipelineRun {
+            content: cleaned,
+            stage_reports,
+        })
     }
 
     /// Helper to encode query based on source configuration

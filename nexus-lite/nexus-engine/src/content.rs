@@ -26,7 +26,7 @@ pub fn get_or_compile_regex(pattern: &str) -> Option<Arc<Regex>> {
             let arc_re = Arc::new(re);
             REGEX_CACHE.insert(pattern.to_string(), arc_re.clone());
             Some(arc_re)
-        }
+        },
         Err(_) => None,
     }
 }

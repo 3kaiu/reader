@@ -297,10 +297,7 @@ impl ChapterCache {
         }
         self.disk_size
             .store(total_size - removed_size, Ordering::Relaxed);
-        info!(
-            "Disk cache cleanup: removed {}MB",
-            removed_size / 1024 / 1024
-        );
+        info!("Disk cache cleanup: removed {}MB", removed_size / 1024 / 1024);
         Ok(())
     }
 

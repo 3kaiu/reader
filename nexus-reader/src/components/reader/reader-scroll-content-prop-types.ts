@@ -9,6 +9,7 @@ export interface ReaderScrollContentProps {
   hasNextChapter: boolean
   paragraphSpacing: number
   loadError?: string | null
+  loadErrorDetails?: string | null
   highlightContent: (content: string | undefined) => string
   handleContentClick: (event: MouseEvent) => void
 }

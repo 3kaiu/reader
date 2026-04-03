@@ -356,7 +356,7 @@ impl SearchDomain {
             SearchCommand::ExecuteSearch { query } => self.execute_search(query).await,
             SearchCommand::RecordSearchResult { search_result } => {
                 self.record_search_result(search_result).await
-            }
+            },
             SearchCommand::GenerateRecommendations {
                 user_id,
                 context,
@@ -364,10 +364,10 @@ impl SearchDomain {
             } => self.generate_recommendations(user_id, context, limit).await,
             SearchCommand::UpdateRecommendationMetrics { engine_id, metrics } => {
                 self.update_recommendation_metrics(engine_id, metrics).await
-            }
+            },
             SearchCommand::AddToSearchHistory { history } => {
                 self.add_to_search_history(history).await
-            }
+            },
         }
     }
 
@@ -379,7 +379,7 @@ impl SearchDomain {
             SearchDomainQuery::SearchBooks { query } => self.search_books(query).await,
             SearchDomainQuery::GetSearchHistory { user_id, limit } => {
                 self.get_search_history(user_id, limit).await
-            }
+            },
             SearchDomainQuery::GetRecommendations {
                 user_id,
                 algorithm,
@@ -391,7 +391,7 @@ impl SearchDomain {
             } => self.get_search_analytics(user_id, time_range).await,
             SearchDomainQuery::GetPopularSearches { limit } => {
                 self.get_popular_searches(limit).await
-            }
+            },
         }
     }
 
@@ -487,10 +487,7 @@ impl SearchDomain {
             })],
             metadata: HashMap::from([
                 ("algorithm".to_string(), serde_json::json!("hybrid")),
-                (
-                    "execution_time_ms".to_string(),
-                    serde_json::json!(execution_time),
-                ),
+                ("execution_time_ms".to_string(), serde_json::json!(execution_time)),
             ]),
         })
     }
@@ -936,9 +933,7 @@ impl BusinessRuleValidator<SearchQuery> for SearchPageSizeValidRule {
         _context: &DomainContext,
     ) -> Result<(), DomainError> {
         if entity.page_size == 0 || entity.page_size > 100 {
-            return Err(DomainError::Validation(
-                "Page size must be between 1 and 100".to_string(),
-            ));
+            return Err(DomainError::Validation("Page size must be between 1 and 100".to_string()));
         }
         Ok(())
     }

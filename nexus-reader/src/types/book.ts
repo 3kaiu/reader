@@ -32,4 +32,24 @@ export interface Chapter {
 export interface ChapterContent {
   content: string
   chunks?: string[]
+  meta?: {
+    quality?: {
+      score: number
+      label: string
+      charCount: number
+      paragraphCount: number
+      noiseRatio: number
+      duplicateRatio: number
+      reasons: string[]
+    }
+    strategyPath?: string[]
+    stageReports?: Array<{
+      stage: string
+      ok: boolean
+      strategy?: string
+      failureCode?: string
+      warnings?: string[]
+      metrics?: Record<string, string>
+    }>
+  }
 }

@@ -28,6 +28,7 @@ export function createReaderChapterOperations(
 
     state.isLoadingMore.value = true
     state.loadError.value = null
+    state.loadErrorDetails.value = null
 
     try {
       const next = state.catalog.value[state.currentChapterIndex.value + 1]
@@ -47,6 +48,7 @@ export function createReaderChapterOperations(
 
   const retryLoadNext = async () => {
     state.loadError.value = null
+    state.loadErrorDetails.value = null
     return await appendNextChapter()
   }
 

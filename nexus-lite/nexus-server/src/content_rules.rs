@@ -97,14 +97,14 @@ async fn load_merged_rules(
                 merged_rule_count = merged_rules.len(),
                 "Loaded content cleaning rules snapshot"
             );
-        }
+        },
         Err(error) => {
             warn!(
                 error = %error,
                 replace_rule_count,
                 "Failed to load AI mapping rules for content cleaning; continuing with replace rules only"
             );
-        }
+        },
     }
 
     Ok(merged_rules)

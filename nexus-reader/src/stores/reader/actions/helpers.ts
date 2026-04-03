@@ -1,6 +1,7 @@
 import type { ApiResponse } from '@/api/http/types'
 import { readerApi } from '@/api/reader'
 import type { Chapter } from '@/types/book'
+import { isNexusError } from '@/utils/errors'
 import { isSameReaderRouteTarget } from '@/utils/readerRoute'
 import {
   buildReaderContentBookId,
@@ -29,6 +30,30 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     chapter: Chapter,
     book: ReaderBook | null = state.currentBook.value,
   ) => `${book?.bookUrl || ''}::${chapter.url}`
+
+  const summarizeStageFailure = (details?: string): string | null => {
+    if (!details) {
+      return null
+    }
+
+    try {
+      const parsed = JSON.parse(details) as {
+        failureCode?: string
+        stageReports?: Array<{ stage?: string; failureCode?: string }>
+      }
+      const stage = parsed.stageReports?.find(item => typeof item?.stage === 'string')
+      const parts = [
+        stage?.stage ? `阶段: ${stage.stage}` : null,
+        stage?.failureCode || parsed.failureCode
+          ? `代码: ${stage?.failureCode || parsed.failureCode}`
+          : null,
+      ].filter(Boolean)
+
+      return parts.length > 0 ? parts.join(' · ') : null
+    } catch {
+      return null
+    }
+  }
 
   const fetchBookInfo = async (
     sourceId: string,
@@ -137,6 +162,8 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       }
 
       const chapterContent = res.data?.content || ''
+      state.contentStageReports.value = res.data?.meta?.stageReports ?? []
+      state.loadErrorDetails.value = null
       if (
         state.currentBook.value?.sourceId === currentBook.sourceId &&
         state.currentBook.value?.bookUrl === currentBook.bookUrl
@@ -144,7 +171,19 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
         cacheChapterContent(chapter.url, chapterContent)
       }
       return chapterContent
-    })()
+    })().catch(error => {
+      if (isNexusError(error)) {
+        const stageSummary = summarizeStageFailure(error.details)
+        state.loadErrorDetails.value = stageSummary
+        const message = stageSummary
+          ? `${error.message} (${stageSummary})`
+          : error.message
+        throw new Error(message)
+      }
+
+      state.loadErrorDetails.value = null
+      throw error
+    })
 
     inflightChapterContentRequests.set(requestCacheKey, request)
 
@@ -189,6 +228,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     updateLoadedChapter(target, chapterContent, options.replaceLoaded ?? true)
     prefetchChapterContent(chapters[index + 1])
     state.loadError.value = null
+    state.loadErrorDetails.value = null
   }
 
   return {

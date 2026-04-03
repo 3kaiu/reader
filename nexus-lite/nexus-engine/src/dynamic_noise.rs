@@ -73,11 +73,7 @@ impl DynamicNoiseDetector {
     }
 
     /// Check if a paragraph is noise based on multiple criteria
-    pub fn is_noise(
-        &self,
-        para: &str,
-        context: &ExtractionContext,
-    ) -> NoiseDetectionResult {
+    pub fn is_noise(&self, para: &str, context: &ExtractionContext) -> NoiseDetectionResult {
         let mut reasons = Vec::new();
         let mut score = 0.0;
 
@@ -167,12 +163,27 @@ impl DynamicNoiseDetector {
         }
 
         let digit_count = para.chars().filter(|c| c.is_ascii_digit()).count();
-        let punct_count = para.chars().filter(|c| {
-            matches!(
-                *c,
-                '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':' | '—' | '-'
-            )
-        }).count();
+        let punct_count = para
+            .chars()
+            .filter(|c| {
+                matches!(
+                    *c,
+                    '。' | '！'
+                        | '？'
+                        | '；'
+                        | '，'
+                        | '、'
+                        | '!'
+                        | '?'
+                        | ';'
+                        | ','
+                        | '.'
+                        | ':'
+                        | '—'
+                        | '-'
+                )
+            })
+            .count();
 
         ParagraphStatistics {
             digit_ratio: digit_count as f64 / total_chars as f64,
@@ -231,7 +242,9 @@ impl ExtractionContext {
         } else {
             current_index == 0 || current_index + 1 >= total_paragraphs
         };
-        Self { is_first_or_last_para }
+        Self {
+            is_first_or_last_para,
+        }
     }
 }
 
@@ -278,7 +291,10 @@ mod tests {
         let result = detector.is_noise(short_para, &context);
 
         assert!(result.is_noise);
-        assert!(result.reasons.iter().any(|r| matches!(r, NoiseReason::TooShort(_))));
+        assert!(result
+            .reasons
+            .iter()
+            .any(|r| matches!(r, NoiseReason::TooShort(_))));
     }
 
     #[test]
@@ -290,7 +306,10 @@ mod tests {
         let result = detector.is_noise(link_heavy, &context);
 
         assert!(result.is_noise);
-        assert!(result.reasons.iter().any(|r| matches!(r, NoiseReason::HighLinkDensity(_))));
+        assert!(result
+            .reasons
+            .iter()
+            .any(|r| matches!(r, NoiseReason::HighLinkDensity(_))));
     }
 
     #[test]
@@ -324,7 +343,10 @@ mod tests {
         let result = detector.is_noise("这是一个特殊噪音词段落", &context);
 
         assert!(result.is_noise);
-        assert!(result.reasons.iter().any(|r| matches!(r, NoiseReason::LearnedPattern(_))));
+        assert!(result
+            .reasons
+            .iter()
+            .any(|r| matches!(r, NoiseReason::LearnedPattern(_))));
     }
 
     #[test]

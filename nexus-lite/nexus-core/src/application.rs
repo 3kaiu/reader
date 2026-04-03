@@ -357,11 +357,7 @@ impl ApplicationServiceBus {
         let cache_ttl = self.determine_cache_ttl(&query);
         if let Some(ttl) = cache_ttl {
             self.cache_manager
-                .set(
-                    &cache_key,
-                    serde_json::to_value(&app_result).unwrap(),
-                    Some(ttl),
-                )
+                .set(&cache_key, serde_json::to_value(&app_result).unwrap(), Some(ttl))
                 .await?;
         }
 

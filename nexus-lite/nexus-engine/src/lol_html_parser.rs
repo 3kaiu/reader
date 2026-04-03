@@ -50,7 +50,12 @@ impl StreamingContentExtractor {
     }
 
     /// Check if element is a content element
-    fn is_content_element_static(tag_name: &str, class: &str, id: &str, selectors: &[String]) -> bool {
+    fn is_content_element_static(
+        tag_name: &str,
+        class: &str,
+        id: &str,
+        selectors: &[String],
+    ) -> bool {
         // Check against configured selectors
         for selector in selectors {
             if selector.starts_with('.') {
@@ -72,10 +77,7 @@ impl StreamingContentExtractor {
         }
 
         // Default content tags
-        matches!(
-            tag_name,
-            "article" | "main" | "section" | "content" | "chapter"
-        )
+        matches!(tag_name, "article" | "main" | "section" | "content" | "chapter")
     }
 
     /// Extract content with custom selectors
@@ -165,20 +167,15 @@ impl MemoryEfficientParser {
     }
 
     /// Process HTML with memory constraints
-    pub fn process_with_limit(
-        &mut self,
-        html: &str,
-        selectors: &[&str],
-    ) -> Result<String, String> {
+    pub fn process_with_limit(&mut self, html: &str, selectors: &[&str]) -> Result<String, String> {
         if !self.can_process(html.len()) {
             return Err("Memory limit exceeded".to_string());
         }
 
         self.current_memory_mb += html.len() / (1024 * 1024);
 
-        let extractor = StreamingContentExtractor::new(
-            selectors.iter().map(|s| s.to_string()).collect(),
-        );
+        let extractor =
+            StreamingContentExtractor::new(selectors.iter().map(|s| s.to_string()).collect());
 
         let result = extractor.parse_stream(html)?;
 
@@ -218,10 +215,7 @@ mod tests {
 
     #[test]
     fn test_optimized_streaming_parser() {
-        let mut parser = OptimizedStreamingParser::new(
-            100,
-            vec![".content".to_string()],
-        );
+        let mut parser = OptimizedStreamingParser::new(100, vec![".content".to_string()]);
 
         parser.feed("<div class=\"content\"><p>Test</p></div>");
         let results = parser.process_chunks();

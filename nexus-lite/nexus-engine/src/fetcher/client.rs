@@ -102,10 +102,9 @@ impl HttpFetcher {
 
         if let Some(h) = headers {
             for (key, value) in h {
-                if let (Ok(name), Ok(val)) = (
-                    HeaderName::try_from(key.as_str()),
-                    HeaderValue::from_str(&value),
-                ) {
+                if let (Ok(name), Ok(val)) =
+                    (HeaderName::try_from(key.as_str()), HeaderValue::from_str(&value))
+                {
                     header_map.insert(name, val);
                 }
             }

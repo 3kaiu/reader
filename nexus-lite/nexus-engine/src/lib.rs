@@ -35,10 +35,10 @@ mod ml_scorer;
 pub mod nxs_engine;
 mod purifier;
 pub mod quality_gate;
-pub mod skill_telemetry;
-pub mod skills;
 mod readability_wrapper;
 mod selector_cache;
+pub mod skill_telemetry;
+pub mod skills;
 mod uri;
 mod visual_features;
 
@@ -55,9 +55,11 @@ pub use nxs_engine::NxsEngine;
 pub use selector_cache::FallbackSelector;
 
 // 内容清洗导出
-pub use font_decryptor::{FontDecryptor, CharMapping, FontDecryptError};
-pub use text_cleaner::{TextCleaner, CleanConfig as TextCleanConfig, clean_text, remove_zero_width_chars};
-pub use text_dedup::{TextDeduplicator, DedupConfig, deduplicate_paragraphs, similarity};
+pub use font_decryptor::{CharMapping, FontDecryptError, FontDecryptor};
+pub use text_cleaner::{
+    clean_text, remove_zero_width_chars, CleanConfig as TextCleanConfig, TextCleaner,
+};
+pub use text_dedup::{deduplicate_paragraphs, similarity, DedupConfig, TextDeduplicator};
 
 // 新架构导出
 pub use domain::*;

@@ -36,6 +36,9 @@ const {
       >
         <p class="text-sm">⚠️ 自动加载失败</p>
         <p class="text-xs opacity-70 mt-1">{{ loadError }}</p>
+        <p v-if="loadErrorDetails" class="text-[11px] opacity-60 mt-1 break-words">
+          {{ loadErrorDetails }}
+        </p>
       </div>
       <div class="flex gap-3 justify-center">
         <button

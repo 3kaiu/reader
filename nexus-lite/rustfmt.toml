@@ -1,93 +1,17 @@
-# Rustfmt 配置
-# 代码格式化规则配置
-
-# 最大代码行宽
+# Stable rustfmt configuration
 max_width = 100
-
-# 函数参数换行阈值
 fn_call_width = 80
-
-# 结构体字段换行阈值
 struct_lit_width = 18
-
-# 结构体变体换行阈值
 struct_variant_width = 35
-
-# 数组换行阈值
 array_width = 60
-
-# 链式换行阈值
 chain_width = 60
-
-# 注释最大宽度
-comment_width = 80
-
-# 字符串字面量换行阈值
-string_literal_width = 80
-
-# 使用制表符缩进
-hard_tabs = false
-
-# 每个缩进级别使用多少空格
-tab_spaces = 4
-
-# 使用字段初始化简写
-use_field_init_shorthand = true
-
-# 使用 try 块简写
-use_try_shorthand = true
-
-# 强制使用小写十六进制字面量
-force_explicit_abi = true
-
-# 强制使用小写十六进制字面量
-hex_case = "Lower"
-
-# 导入分组
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
-imports_indent = "Block"
-reorder_imports = true
-
-# 格式化字符串字面量
-format_strings = true
-
-# 格式化代码注释
-format_code_in_doc_comments = true
-normalize_comments = true
-normalize_doc_attributes = true
-
-# 格式化宏
-format_macro_matchers = true
-format_macro_bodies = true
-
-# 合并派生
-merge_derives = true
-
-# 使用空格而不是制表符
-newline_style = "Unix"
-
-# 控制花括号
-control_brace_style = "SameLineWhere"
-brace_style = "SameLineWhere"
-empty_item_single_line = true
-fn_single_line = false
-where_single_line = false
-
-# 控制缩进
-indent_style = "Block"
-indent_width = 4
-spaces_around_ranges = false
-
-# 控制换行
-match_block_trailing_comma = true
-match_arm_blocks = false
-force_multiline_blocks = false
-fn_args_layout = "Tall"
-fn_args_density = "Compressed"
-fn_call_style = "Auto"
-struct_lit_single_line = true
-struct_lit_width = 18
-struct_variant_width = 35
-array_width = 60
 attr_fn_like_width = 70
+hard_tabs = false
+tab_spaces = 4
+use_field_init_shorthand = true
+use_try_shorthand = true
+force_explicit_abi = true
+reorder_imports = true
+merge_derives = true
+newline_style = "Unix"
+match_block_trailing_comma = true

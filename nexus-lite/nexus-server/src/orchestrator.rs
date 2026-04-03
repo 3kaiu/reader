@@ -1,6 +1,6 @@
 use crate::engine_registry::EngineRegistry;
 use futures::{stream, StreamExt};
-use nexus_core::{BookItem, HealthTracker};
+use nexus_core::{BookItem, EngineError, HealthFailureKind, HealthTracker};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -26,6 +26,25 @@ pub struct SearchOrchestrator {
 }
 
 impl SearchOrchestrator {
+    fn classify_failure(error: &EngineError) -> HealthFailureKind {
+        match error {
+            EngineError::Timeout => HealthFailureKind::Timeout,
+            EngineError::Network { .. }
+            | EngineError::DnsError { .. }
+            | EngineError::ConnectionRefused { .. }
+            | EngineError::TlsHandshakeFailed { .. }
+            | EngineError::RateLimited { .. }
+            | EngineError::CloudflareChallenge
+            | EngineError::CloudflareChallengeFailed
+            | EngineError::IpBanned
+            | EngineError::AllStrategiesFailed => HealthFailureKind::Network,
+            EngineError::CircuitOpen { .. } => HealthFailureKind::CircuitOpen,
+            EngineError::RuleMismatch { .. } => HealthFailureKind::RuleMismatch,
+            EngineError::EmptyContent => HealthFailureKind::EmptyContent,
+            _ => HealthFailureKind::Unknown,
+        }
+    }
+
     pub fn new(
         registry: Arc<EngineRegistry>,
         health: Arc<HealthTracker>,
@@ -85,7 +104,7 @@ impl SearchOrchestrator {
                                 })
                                 .await;
                             return;
-                        }
+                        },
                     };
 
                     debug!("Starting search for source: {}", engine.id());
@@ -119,7 +138,7 @@ impl SearchOrchestrator {
                                     }
                                 }
                                 break;
-                            }
+                            },
                             Ok(Err(e)) => {
                                 let can_retry = e.is_retryable() && attempt < max_attempts;
                                 if can_retry {
@@ -132,7 +151,8 @@ impl SearchOrchestrator {
                                     continue;
                                 }
 
-                                health_clone.record_failure(&source_id);
+                                health_clone
+                                    .record_failure_kind(&source_id, Self::classify_failure(&e));
                                 warn!(
                                     "Source {} error (attempt {}/{}): {}",
                                     source_id, attempt, max_attempts, e
@@ -144,7 +164,7 @@ impl SearchOrchestrator {
                                     })
                                     .await;
                                 break;
-                            }
+                            },
                             Err(_) => {
                                 let can_retry = attempt < max_attempts;
                                 if can_retry {
@@ -156,7 +176,8 @@ impl SearchOrchestrator {
                                     continue;
                                 }
 
-                                health_clone.record_failure(&source_id);
+                                health_clone
+                                    .record_failure_kind(&source_id, HealthFailureKind::Timeout);
                                 warn!(
                                     "Source {} timeout (attempt {}/{}), giving up",
                                     source_id, attempt, max_attempts
@@ -168,7 +189,7 @@ impl SearchOrchestrator {
                                     })
                                     .await;
                                 break;
-                            }
+                            },
                         }
                     } // retry loop
                 }

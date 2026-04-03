@@ -43,7 +43,12 @@ pub async fn ensure_source_public_access(
     state: &AppState,
     source_id: &str,
 ) -> Result<SourceAvailability, ApiErrorResponse> {
-    if state.engine_registry.source_store().get(source_id).is_none() {
+    if state
+        .engine_registry
+        .source_store()
+        .get(source_id)
+        .is_none()
+    {
         return Err(not_found("Source"));
     }
 
@@ -52,10 +57,7 @@ pub async fn ensure_source_public_access(
         return Ok(availability);
     }
 
-    Err(forbidden(format!(
-        "Source {} is not approved for public reading",
-        source_id
-    )))
+    Err(forbidden(format!("Source {} is not approved for public reading", source_id)))
 }
 
 #[allow(dead_code)]

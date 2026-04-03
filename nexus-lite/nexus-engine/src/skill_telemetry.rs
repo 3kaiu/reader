@@ -29,7 +29,8 @@ impl Default for RecorderConfig {
     }
 }
 
-static CONFIG: LazyLock<Mutex<RecorderConfig>> = LazyLock::new(|| Mutex::new(RecorderConfig::default()));
+static CONFIG: LazyLock<Mutex<RecorderConfig>> =
+    LazyLock::new(|| Mutex::new(RecorderConfig::default()));
 static EVENTS: LazyLock<Mutex<VecDeque<SkillDecisionEvent>>> =
     LazyLock::new(|| Mutex::new(VecDeque::new()));
 type PersistHook = Arc<dyn Fn(SkillDecisionEvent) + Send + Sync + 'static>;
@@ -43,7 +44,9 @@ fn now_ms() -> i64 {
 }
 
 pub fn configure(max_events: usize) {
-    let mut cfg = CONFIG.lock().expect("skill telemetry config mutex poisoned");
+    let mut cfg = CONFIG
+        .lock()
+        .expect("skill telemetry config mutex poisoned");
     cfg.max_events = max_events.max(100);
 }
 
@@ -55,8 +58,13 @@ pub fn set_persist_hook(hook: Option<PersistHook>) {
 }
 
 pub fn record(source_id: &str, trace_id: Option<&str>, decision: SkillDecisionEnvelope) {
-    let cfg = CONFIG.lock().expect("skill telemetry config mutex poisoned").clone();
-    let mut events = EVENTS.lock().expect("skill telemetry events mutex poisoned");
+    let cfg = CONFIG
+        .lock()
+        .expect("skill telemetry config mutex poisoned")
+        .clone();
+    let mut events = EVENTS
+        .lock()
+        .expect("skill telemetry events mutex poisoned");
     events.push_back(SkillDecisionEvent {
         occurred_at_ms: now_ms(),
         source_id: source_id.to_string(),
@@ -79,8 +87,14 @@ pub fn record(source_id: &str, trace_id: Option<&str>, decision: SkillDecisionEn
     }
 }
 
-pub fn snapshot(limit: usize, source_id: Option<&str>, skill_name: Option<&str>) -> Vec<SkillDecisionEvent> {
-    let events = EVENTS.lock().expect("skill telemetry events mutex poisoned");
+pub fn snapshot(
+    limit: usize,
+    source_id: Option<&str>,
+    skill_name: Option<&str>,
+) -> Vec<SkillDecisionEvent> {
+    let events = EVENTS
+        .lock()
+        .expect("skill telemetry events mutex poisoned");
     let source_filter = source_id.map(str::to_string);
     let skill_filter = skill_name.map(|s| s.to_ascii_lowercase());
 
@@ -121,7 +135,9 @@ impl SkillDecisionEvent {
 
 #[cfg(test)]
 pub fn reset_for_tests() {
-    let mut events = EVENTS.lock().expect("skill telemetry events mutex poisoned");
+    let mut events = EVENTS
+        .lock()
+        .expect("skill telemetry events mutex poisoned");
     events.clear();
 }
 

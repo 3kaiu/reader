@@ -1,8 +1,8 @@
 //! NexusLite HTTP API Server
 
+mod api_response;
 mod app;
 mod app_state;
-mod api_response;
 mod content_rules;
 mod engine_registry;
 mod error;
@@ -10,8 +10,8 @@ mod metrics;
 mod middleware;
 mod orchestrator;
 mod routes;
-mod source_builder_state;
 mod source_access;
+mod source_builder_state;
 mod validation;
 mod ws;
 
@@ -20,10 +20,7 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn is_true_flag(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes" | "on"
-    )
+    matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
 }
 
 #[tokio::main]

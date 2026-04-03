@@ -87,14 +87,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 Err(e) => {
                     let _ = tx.send(Message::Text(format!("Invalid request: {}", e).into()));
                     continue;
-                }
+                },
             };
 
-            info!(
-                "WS Search: keyword={}, sources={}",
-                req.keyword,
-                req.sources.len()
-            );
+            info!("WS Search: keyword={}, sources={}", req.keyword, req.sources.len());
 
             // Resolve sources
             let source_ids = if req.sources.is_empty() {

@@ -12,6 +12,7 @@ import {
 import { LazyImage } from "@/components/ui";
 import type {
   SearchDisplayResult,
+  SearchExplain,
   SearchResult,
   SearchResultActionPayload,
 } from "@/types/search";
@@ -54,6 +55,40 @@ function openVariant(variant: SearchResult) {
     book: variant,
     rememberPreference: true,
   });
+}
+
+function getStrategyLabel(explain?: SearchExplain): string | null {
+  if (!explain) {
+    return null;
+  }
+
+  if (explain.strategy === "direct_detail") {
+    return "直链解析";
+  }
+
+  if (explain.strategy === "external_discovery") {
+    return explain.provider === "jina_search" ? "Jina 发现" : "外部发现";
+  }
+
+  return "原生搜索";
+}
+
+function getRankingHint(explain?: SearchExplain): string | null {
+  if (!explain) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  if (typeof explain.packageRank === "number" && explain.packageRank > 0) {
+    parts.push(`源优先级 ${explain.packageRank}`);
+  }
+
+  if (typeof explain.matchScore === "number" && explain.matchScore > 0) {
+    parts.push(`匹配 ${explain.matchScore}`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : explain.note || null;
 }
 </script>
 
@@ -98,6 +133,21 @@ function openVariant(variant: SearchResult) {
         >
           +{{ book.sourceCount - 1 }} 源
         </Badge>
+      </div>
+
+      <div
+        v-if="getStrategyLabel(primaryBook.searchExplain)"
+        class="mb-2 flex flex-wrap items-center gap-1.5"
+      >
+        <Badge variant="secondary" class="h-5 rounded-full px-1.5 text-[10px] leading-none">
+          {{ getStrategyLabel(primaryBook.searchExplain) }}
+        </Badge>
+        <span
+          v-if="getRankingHint(primaryBook.searchExplain)"
+          class="text-[10px] text-muted-foreground/60 truncate"
+        >
+          {{ getRankingHint(primaryBook.searchExplain) }}
+        </span>
       </div>
 
       <div class="flex-1 relative mb-2">
@@ -227,10 +277,23 @@ function openVariant(variant: SearchResult) {
                 >
                   已在书架
                 </Badge>
+                <Badge
+                  v-if="getStrategyLabel(variant.searchExplain)"
+                  variant="outline"
+                  class="h-5 px-1.5 text-[10px]"
+                >
+                  {{ getStrategyLabel(variant.searchExplain) }}
+                </Badge>
               </div>
 
               <p
-                v-if="variant.latestChapterTitle"
+                v-if="getRankingHint(variant.searchExplain)"
+                class="mt-1 text-xs text-muted-foreground truncate"
+              >
+                {{ getRankingHint(variant.searchExplain) }}
+              </p>
+              <p
+                v-else-if="variant.latestChapterTitle"
                 class="mt-1 text-xs text-muted-foreground truncate"
               >
                 {{ variant.latestChapterTitle }}

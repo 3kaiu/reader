@@ -3,10 +3,14 @@ use axum::{
     Json,
 };
 use futures::stream::{self, StreamExt};
-use nexus_core::{types::Chapter, BookInfo, ChapterContent, ChapterContentMeta};
+use nexus_core::{
+    types::{Chapter, PipelineStageReport},
+    BookInfo, ChapterContent, ChapterContentMeta, EngineError, HealthFailureKind,
+};
 use nexus_engine::quality_gate::evaluate_content_quality;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::app::AppState;
 use crate::error::{bad_request, internal_error, not_found, ApiErrorResponse};
@@ -46,6 +50,7 @@ fn build_chapter_content(
     content: Arc<str>,
     chunk_size: Option<usize>,
     strategy: &'static str,
+    stage_reports: Vec<PipelineStageReport>,
 ) -> ChapterContent {
     let chunks = chunk_size.map(|sz| nexus_engine::content::chunk_content(&content, sz));
     ChapterContent {
@@ -54,7 +59,90 @@ fn build_chapter_content(
         meta: Some(ChapterContentMeta {
             quality: evaluate_content_quality(content.as_ref()),
             strategy_path: vec![strategy.to_string()],
+            stage_reports,
         }),
+    }
+}
+
+fn build_content_failure_report(error: &EngineError) -> PipelineStageReport {
+    let mut report = PipelineStageReport {
+        stage: "unknown".to_string(),
+        ok: false,
+        strategy: None,
+        failure_code: Some(error.legacy_error_code().to_string()),
+        warnings: Vec::new(),
+        metrics: std::collections::HashMap::new(),
+    };
+
+    match error {
+        EngineError::Timeout
+        | EngineError::Network { .. }
+        | EngineError::DnsError { .. }
+        | EngineError::ConnectionRefused { .. }
+        | EngineError::TlsHandshakeFailed { .. }
+        | EngineError::CloudflareChallenge
+        | EngineError::CloudflareChallengeFailed
+        | EngineError::RateLimited { .. }
+        | EngineError::IpBanned
+        | EngineError::AllStrategiesFailed
+        | EngineError::CircuitOpen { .. } => {
+            report.stage = "fetch".to_string();
+            report.strategy = Some("anti_crawl_chain".to_string());
+        },
+        EngineError::RuleMismatch { rule } => {
+            report.stage = match rule.as_str() {
+                "content.body" => "rule_extract",
+                "content.quality_gate" => "quality_gate",
+                "content.validation" | "content.pagination" => "validation",
+                _ => "rule_extract",
+            }
+            .to_string();
+            report.metrics.insert("rule".to_string(), rule.clone());
+        },
+        EngineError::ScriptError { .. }
+        | EngineError::ScriptTimeout
+        | EngineError::ScriptMemoryExceeded => {
+            report.stage = "script".to_string();
+        },
+        EngineError::EmptyContent => {
+            report.stage = "validation".to_string();
+        },
+        _ => {},
+    }
+
+    report
+}
+
+fn content_error_response(error: EngineError) -> ApiErrorResponse {
+    let stage_report = build_content_failure_report(&error);
+    let details = serde_json::json!({
+        "failureCode": error.legacy_error_code(),
+        "stageReports": [stage_report],
+    });
+
+    internal_error(error.to_string()).with_details(details.to_string())
+}
+
+fn classify_content_failure(error: &EngineError) -> HealthFailureKind {
+    match error {
+        EngineError::Timeout => HealthFailureKind::Timeout,
+        EngineError::Network { .. }
+        | EngineError::DnsError { .. }
+        | EngineError::ConnectionRefused { .. }
+        | EngineError::TlsHandshakeFailed { .. }
+        | EngineError::RateLimited { .. }
+        | EngineError::CloudflareChallenge
+        | EngineError::CloudflareChallengeFailed
+        | EngineError::IpBanned
+        | EngineError::AllStrategiesFailed => HealthFailureKind::Network,
+        EngineError::CircuitOpen { .. } => HealthFailureKind::CircuitOpen,
+        EngineError::RuleMismatch { rule } => match rule.as_str() {
+            "content.quality_gate" => HealthFailureKind::LowQuality,
+            "content.validation" => HealthFailureKind::LowQuality,
+            _ => HealthFailureKind::RuleMismatch,
+        },
+        EngineError::EmptyContent => HealthFailureKind::EmptyContent,
+        _ => HealthFailureKind::Unknown,
     }
 }
 
@@ -92,6 +180,7 @@ pub async fn content(
     Query(query): Query<BookQuery>,
 ) -> Result<Json<ChapterContent>, ApiErrorResponse> {
     let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
+    let request_started_at = Instant::now();
 
     // 1. Try Cache if book_id and index provided
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
@@ -104,6 +193,7 @@ pub async fn content(
                 cached_content.clone(),
                 query.chunk_size,
                 "cache",
+                Vec::new(),
             )));
         }
     }
@@ -114,12 +204,23 @@ pub async fn content(
         .await
         .map_err(|e| internal_error(e.to_string()))?;
 
-    let content = engine
-        .content(&query.url, rules.as_ref())
+    let content_run = engine
+        .content_with_report(&query.url, rules.as_ref())
         .await
-        .map_err(|e| internal_error(e.to_string()))?;
+        .map_err(|error| {
+            state
+                .orchestrator
+                .health_tracker()
+                .record_failure_kind(&query.source, classify_content_failure(&error));
+            content_error_response(error)
+        })?;
 
-    let content_arc: Arc<str> = Arc::from(content.as_str());
+    state
+        .orchestrator
+        .health_tracker()
+        .record_success(&query.source, request_started_at.elapsed());
+
+    let content_arc: Arc<str> = Arc::from(content_run.content.as_str());
 
     // 2. Store in cache if possible
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
@@ -133,6 +234,7 @@ pub async fn content(
         content_arc,
         query.chunk_size,
         "engine",
+        content_run.stage_reports,
     )))
 }
 
@@ -176,11 +278,7 @@ pub async fn batch_content(
         .await
         .map_err(|e| internal_error(e.to_string()))?;
 
-    let concurrency = state
-        .config
-        .limits
-        .max_concurrent_fetches_per_source
-        .max(1);
+    let concurrency = state.config.limits.max_concurrent_fetches_per_source.max(1);
 
     let mut indexed_results = stream::iter(query.urls.into_iter().enumerate().map(|(idx, url)| {
         let engine = engine.clone();
@@ -190,11 +288,14 @@ pub async fn batch_content(
         async move {
             // Validate URL
             if let Err(e) = validate_url(&url_clone) {
-                return (idx, BatchContentResult {
-                    url: url_clone,
-                    content: None,
-                    error: Some(e.to_string()),
-                });
+                return (
+                    idx,
+                    BatchContentResult {
+                        url: url_clone,
+                        content: None,
+                        error: Some(e.to_string()),
+                    },
+                );
             }
 
             let result = match engine.content(&url_clone, rules.as_ref()).await {

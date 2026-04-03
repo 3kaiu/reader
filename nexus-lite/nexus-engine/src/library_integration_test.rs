@@ -42,7 +42,7 @@ impl LibraryIntegrationTester {
     /// Test readability-rust integration
     fn test_readability_rust(&mut self) {
         let start = std::time::Instant::now();
-        
+
         let html = r#"
             <html>
                 <head><title>第一章 开始</title></head>
@@ -59,9 +59,9 @@ impl LibraryIntegrationTester {
 
         let extractor = ReadabilityExtractor::new();
         let result = extractor.extract(html);
-        
+
         let duration = start.elapsed().as_millis() as u64;
-        
+
         let test_result = IntegrationTestResult {
             library_name: "readability-rust".to_string(),
             test_name: "Basic content extraction".to_string(),
@@ -85,7 +85,7 @@ impl LibraryIntegrationTester {
     /// Test lol-html streaming parser
     fn test_lol_html(&mut self) {
         let start = std::time::Instant::now();
-        
+
         let html = r#"
             <html>
                 <body>
@@ -97,14 +97,12 @@ impl LibraryIntegrationTester {
             </html>
         "#;
 
-        let extractor = StreamingContentExtractor::new(vec![
-            ".content".to_string(),
-        ]);
-        
+        let extractor = StreamingContentExtractor::new(vec![".content".to_string()]);
+
         let result = extractor.parse_stream(html);
-        
+
         let duration = start.elapsed().as_millis() as u64;
-        
+
         let test_result = IntegrationTestResult {
             library_name: "lol-html".to_string(),
             test_name: "Streaming content extraction".to_string(),
@@ -123,7 +121,7 @@ impl LibraryIntegrationTester {
     /// Test kuchiki tree operations
     fn test_kuchiki(&mut self) {
         let start = std::time::Instant::now();
-        
+
         let html = r#"
             <html>
                 <body>
@@ -139,9 +137,9 @@ impl LibraryIntegrationTester {
 
         let mut extractor = KuchikiContentExtractor::new(html).unwrap();
         let content = extractor.extract_clean();
-        
+
         let duration = start.elapsed().as_millis() as u64;
-        
+
         let test_result = IntegrationTestResult {
             library_name: "kuchiki".to_string(),
             test_name: "Tree-based content extraction".to_string(),
@@ -160,7 +158,7 @@ impl LibraryIntegrationTester {
     /// Test hybrid extractor
     fn test_hybrid_extractor(&mut self) {
         let start = std::time::Instant::now();
-        
+
         let html = r#"
             <html>
                 <body>
@@ -175,9 +173,9 @@ impl LibraryIntegrationTester {
         let custom_rules = std::sync::Arc::new(NovelExtractionRules);
         let extractor = HybridExtractor::new(custom_rules);
         let result = extractor.extract(html);
-        
+
         let duration = start.elapsed().as_millis() as u64;
-        
+
         let test_result = IntegrationTestResult {
             library_name: "Hybrid Extractor".to_string(),
             test_name: "Readability + Custom rules".to_string(),
@@ -196,19 +194,16 @@ impl LibraryIntegrationTester {
     /// Test streaming parser with large content
     fn test_streaming_parser(&mut self) {
         let start = std::time::Instant::now();
-        
+
         let large_html = "<div class=\"content\"><p>".repeat(1000) + "测试内容</p></div>";
-        
-        let mut parser = OptimizedStreamingParser::new(
-            500,
-            vec![".content".to_string()],
-        );
-        
+
+        let mut parser = OptimizedStreamingParser::new(500, vec![".content".to_string()]);
+
         parser.feed(&large_html);
         let results = parser.process_chunks();
-        
+
         let duration = start.elapsed().as_millis() as u64;
-        
+
         let test_result = IntegrationTestResult {
             library_name: "OptimizedStreamingParser".to_string(),
             test_name: "Large document streaming".to_string(),
@@ -232,7 +227,11 @@ impl LibraryIntegrationTester {
             passed,
             failed,
             total_duration_ms: total_duration,
-            success_rate: if total > 0 { passed as f64 / total as f64 } else { 0.0 },
+            success_rate: if total > 0 {
+                passed as f64 / total as f64
+            } else {
+                0.0
+            },
         }
     }
 
@@ -284,7 +283,8 @@ impl PerformanceComparison {
             ("hybrid", self.hybrid_duration),
         ];
 
-        durations.iter()
+        durations
+            .iter()
             .min_by_key(|(_, d)| *d)
             .map(|(name, _)| *name)
             .unwrap_or("unknown")
@@ -298,7 +298,8 @@ impl PerformanceComparison {
             ("hybrid", self.hybrid_duration),
         ];
 
-        durations.iter()
+        durations
+            .iter()
             .max_by_key(|(_, d)| *d)
             .map(|(name, _)| *name)
             .unwrap_or("unknown")
@@ -331,7 +332,8 @@ impl ContentQualityComparison {
             ("hybrid", self.hybrid_quality),
         ];
 
-        qualities.iter()
+        qualities
+            .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(name, _)| *name)
             .unwrap_or("unknown")
@@ -346,9 +348,9 @@ mod tests {
     fn test_integration_tester() {
         let mut tester = LibraryIntegrationTester::new();
         let results = tester.run_all_tests();
-        
+
         assert!(!results.is_empty());
-        
+
         let summary = tester.get_summary();
         assert_eq!(summary.total_tests, 5);
         assert!(summary.success_rate > 0.0);

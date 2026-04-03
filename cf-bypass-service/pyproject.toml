@@ -9,6 +9,7 @@ dependencies = [
     "cloudscraper>=1.2.70",
     "fastapi>=0.104.0",
     "pydantic>=2.5.0",
+    "trafilatura>=1.12.2",
     "uvicorn>=0.24.0",
     "js2py>=0.74",
     "urllib3>=2.0.0",

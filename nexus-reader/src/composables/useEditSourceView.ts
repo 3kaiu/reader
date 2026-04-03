@@ -1,16 +1,24 @@
 import { computed, ref, watch } from 'vue'
 import { useMessage } from '@/composables/useMessage'
 import { useSourceStore } from '@/stores/source'
+import { buildSourceGovernanceSuggestions } from '@/utils/sourceGovernanceSuggestions'
 import type {
   BookSource,
   SourceAccessMode,
   SourceLicenseStatus,
   SourcePolicy,
+  SourceRuntimeProfile,
 } from '@/types/source'
 
 type EditSourceViewProps = {
   open?: boolean
   source?: BookSource | null
+}
+
+type SourceDiagnosticSuggestion = {
+  id: string
+  title: string
+  detail: string
 }
 
 const LICENSE_OPTIONS: Array<{
@@ -69,16 +77,27 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
 
   const loading = ref(false)
   const saving = ref(false)
+  const diagnosticsLoading = ref(false)
+  const resettingRuntime = ref(false)
   const jsonText = ref('')
   const licenseStatus = ref<SourceLicenseStatus>('unknown')
   const accessMode = ref<SourceAccessMode>('unknown')
   const lastVerifiedAt = ref('')
   const notes = ref('')
+  const runtimeProfile = ref<SourceRuntimeProfile | null>(null)
+  const circuitState = ref('unknown')
+  const runtimeError = ref('')
 
   const canEditPolicy = computed(() => Boolean(options.props.source?.id))
   const publicAccessEnabled = computed(
     () => options.props.source?.publicAccessEnabled === true,
   )
+  const diagnosticSuggestions = computed<SourceDiagnosticSuggestion[]>(() => {
+    return buildSourceGovernanceSuggestions(
+      options.props.source?.health,
+      circuitState.value,
+    )
+  })
 
   function hydratePolicyForm(source: BookSource) {
     licenseStatus.value = source.policy?.licenseStatus ?? 'unknown'
@@ -92,6 +111,9 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
     source => {
       if (!source) {
         jsonText.value = ''
+        runtimeProfile.value = null
+        circuitState.value = 'unknown'
+        runtimeError.value = ''
         hydratePolicyForm({
           id: '',
           name: '',
@@ -113,9 +135,24 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
       }
 
       loading.value = true
+      diagnosticsLoading.value = true
       try {
-        const result = await sourceStore.getSourceDetailText(options.props.source)
+        const [result, runtimeProfileResponse, circuitStateResponse] = await Promise.all([
+          sourceStore.getSourceDetailText(options.props.source),
+          sourceStore.getSourceRuntimeProfile(options.props.source.id),
+          sourceStore.getSourceCircuitState(options.props.source.id),
+        ])
         jsonText.value = result.text
+        runtimeProfile.value = runtimeProfileResponse.isSuccess
+          ? runtimeProfileResponse.data?.profile || null
+          : null
+        circuitState.value = circuitStateResponse.isSuccess
+          ? circuitStateResponse.data?.state || 'unknown'
+          : 'unknown'
+        runtimeError.value =
+          !runtimeProfileResponse.isSuccess || !circuitStateResponse.isSuccess
+            ? '部分运行时诊断信息加载失败'
+            : ''
 
         if (result.isStale && result.errorMsg) {
           message.warning(result.errorMsg)
@@ -124,6 +161,7 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
         message.warning('无法加载最新书源定义，已显示当前列表中的数据')
       } finally {
         loading.value = false
+        diagnosticsLoading.value = false
       }
     },
   )
@@ -162,12 +200,52 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
     }
   }
 
+  async function resetRuntimeState(mode: 'full' | 'circuit_only' = 'full'): Promise<boolean> {
+    if (!options.props.source?.id) {
+      message.warning('缺少书源标识，无法重置运行时状态')
+      return false
+    }
+
+    resettingRuntime.value = true
+    try {
+      const response = await sourceStore.resetSourceRuntimeState(options.props.source.id, mode)
+      if (!response.isSuccess) {
+        message.error(response.errorMsg || '重置运行时状态失败')
+        return false
+      }
+
+      circuitState.value = 'closed'
+      if (mode === 'full') {
+        runtimeProfile.value = null
+        runtimeError.value = ''
+      }
+      await sourceStore.loadSources(true)
+      message.success(
+        mode === 'circuit_only'
+          ? '已重置熔断状态'
+          : '已重置书源健康分、熔断状态与提取指标'
+      )
+      return true
+    } catch {
+      message.error('重置运行时状态失败')
+      return false
+    } finally {
+      resettingRuntime.value = false
+    }
+  }
+
   return {
     loading,
     saving,
+    diagnosticsLoading,
+    resettingRuntime,
     jsonText,
     canEditPolicy,
     publicAccessEnabled,
+    runtimeProfile,
+    circuitState,
+    runtimeError,
+    diagnosticSuggestions,
     licenseStatus,
     accessMode,
     lastVerifiedAt,
@@ -175,5 +253,6 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
     licenseOptions: LICENSE_OPTIONS,
     accessModeOptions: ACCESS_MODE_OPTIONS,
     savePolicy,
+    resetRuntimeState,
   }
 }

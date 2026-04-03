@@ -70,11 +70,7 @@ pub async fn add(
 
     if let Some(engine) = state.engine_registry.get_engine(&req.source_id) {
         // Log info
-        tracing::info!(
-            "Fetching book info for: {} (source: {})",
-            item.book_url,
-            item.source_id
-        );
+        tracing::info!("Fetching book info for: {} (source: {})", item.book_url, item.source_id);
 
         match engine.book_info(&item.book_url).await {
             Ok(info) => {
@@ -84,11 +80,11 @@ pub async fn add(
                     item.cover_url = Some(cover);
                 }
                 // We could also store intro/update_time if BookshelfItem supported it
-            }
+            },
             Err(e) => {
                 tracing::warn!("Failed to fetch book info during add: {}", e);
                 // Continue with partial info
-            }
+            },
         }
     }
 

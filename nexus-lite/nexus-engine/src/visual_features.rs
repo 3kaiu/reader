@@ -462,7 +462,10 @@ mod tests {
             </div>"#,
         );
 
-        let el = html.select(&scraper::Selector::parse("div").unwrap()).next().unwrap();
+        let el = html
+            .select(&scraper::Selector::parse("div").unwrap())
+            .next()
+            .unwrap();
         let features = extractor.extract(&el);
 
         assert_eq!(features.font_size, Some(16.0));
@@ -479,7 +482,10 @@ mod tests {
             </div>"#,
         );
 
-        let el = html.select(&scraper::Selector::parse("div").unwrap()).next().unwrap();
+        let el = html
+            .select(&scraper::Selector::parse("div").unwrap())
+            .next()
+            .unwrap();
         let features = extractor.extract(&el);
 
         assert!(features.is_hidden());
@@ -494,7 +500,10 @@ mod tests {
             </div>"#,
         );
 
-        let el = html.select(&scraper::Selector::parse("div").unwrap()).next().unwrap();
+        let el = html
+            .select(&scraper::Selector::parse("div").unwrap())
+            .next()
+            .unwrap();
         let features = extractor.extract(&el);
 
         let score = features.quality_score();
@@ -510,7 +519,10 @@ mod tests {
             </div>"#,
         );
 
-        let el = html.select(&scraper::Selector::parse("div").unwrap()).next().unwrap();
+        let el = html
+            .select(&scraper::Selector::parse("div").unwrap())
+            .next()
+            .unwrap();
         let features = extractor.extract(&el);
 
         assert!(features.is_sidebar());

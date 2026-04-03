@@ -69,7 +69,32 @@ export type SourcePackageSummary = {
   generatedAtMs: number
   enabled: boolean
   valid: boolean
+  overallHealthScore: number
+  recommended: boolean
+  searchStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  bookStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  tocStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  contentStatus: 'pass' | 'warn' | 'fail' | 'unknown'
   tags: string[]
+}
+
+export type SourceHealthStatus = 'pass' | 'warn' | 'fail' | 'unknown'
+
+export type SourceHealthSegment = {
+  status: SourceHealthStatus
+  qualityScore?: number | null
+  failureCode?: string | null
+  warnings: string[]
+  lastValidatedAtMs?: number | null
+}
+
+export type SourceHealthReport = {
+  overallScore: number
+  recommended: boolean
+  search: SourceHealthSegment
+  book: SourceHealthSegment
+  toc: SourceHealthSegment
+  content: SourceHealthSegment
 }
 
 export type SourceDocumentation = {
@@ -172,6 +197,8 @@ export type SourceRuleValidationReport = {
   steps: SourceValidationStepReport[]
   importable: boolean
   manualReviewRequired: boolean
+  health: SourceHealthReport
+  lastValidatedAtMs?: number | null
 }
 
 export type SourceValidationStepReport = {
@@ -245,6 +272,15 @@ export type SourceBuildDiagnostics = {
   riskFlags: string[]
   suggestedFixes: string[]
   failureCategories: string[]
+  preferredProbeInput?: string | null
+  rawProbeScore?: number | null
+  jinaProbeScore?: number | null
+  trafilaturaProbeScore?: number | null
+  aiReadabilityGain?: number | null
+  trafilaturaReadabilityGain?: number | null
+  recommendedContentExtractor?: string | null
+  contentCandidateSummaries: string[]
+  jinaSearchUsed: boolean
 }
 
 export type SourceFetchDebugInfo = {
@@ -258,6 +294,8 @@ export type SourceFetchDebugInfo = {
   sessionKey?: string | null
   cacheHit: boolean
   sessionState?: string | null
+  jinaUsed: boolean
+  respondWith?: string | null
 }
 
 export type FetchSessionProfile = {
@@ -500,6 +538,10 @@ export const syncApi = {
     sessionKey?: string
     forceRefresh?: boolean
     cacheTtlSeconds?: number
+    fetchMode?: string
+    fetchProvider?: string
+    fetchServiceUrl?: string
+    fetchEngine?: string
   }) => {
     return await $post<FetchHtmlResponse>('/fetch/html', payload, {
       silent: true,

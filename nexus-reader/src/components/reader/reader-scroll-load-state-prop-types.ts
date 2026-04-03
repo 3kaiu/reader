@@ -4,4 +4,5 @@ export interface ReaderScrollLoadStateProps {
   isLoadingMore: boolean
   hasNextChapter: boolean
   loadError?: string | null
+  loadErrorDetails?: string | null
 }

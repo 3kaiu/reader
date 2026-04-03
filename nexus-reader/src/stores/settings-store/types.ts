@@ -97,6 +97,9 @@ export type SourcePackageDetailSummary = {
   sourceLabel: string;
   generatedAtLabel: string;
   validationLabel: string;
+  healthLabel: string;
+  healthScoreLabel: string;
+  segmentItems: string[];
   warningItems: string[];
   errorItems: string[];
   capabilityItems: string[];
@@ -110,6 +113,9 @@ export type SourceBuildPreviewSummary = {
   sourceLabel: string;
   packageId: string;
   validationLabel: string;
+  healthLabel: string;
+  healthScoreLabel: string;
+  segmentItems: string[];
   diagnosticsItems: string[];
   warningItems: string[];
   riskItems: string[];

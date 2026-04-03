@@ -61,7 +61,42 @@ function getHealthLabel(source: SourceListItem): string {
 
   const score = Math.round(source.health.score * 100);
   const latency = source.health.avgLatencyMs;
-  return `健康度 ${score} · ${latency}ms`;
+  const parts = [`健康度 ${score}`, `${latency}ms`];
+
+  if (typeof source.health.healthPoints === "number") {
+    parts.push(`积分=${source.health.healthPoints}`);
+  }
+
+  if (source.health.circuitState && source.health.circuitState !== "closed") {
+    parts.push(`熔断=${source.health.circuitState}`);
+  }
+  if (source.health.primaryFailure && source.health.primaryFailure !== "none") {
+    parts.push(`失败=${source.health.primaryFailure}`);
+  }
+  if (
+    typeof source.health.consecutiveFailures === "number" &&
+    source.health.consecutiveFailures > 0
+  ) {
+    parts.push(`连败=${source.health.consecutiveFailures}`);
+  }
+  if (Array.isArray(source.health.strategyChain) && source.health.strategyChain.length > 0) {
+    parts.push(`链路=${source.health.strategyChain[0]}`);
+  }
+  if (
+    source.health.restoredFromSnapshot &&
+    typeof source.health.snapshotUpdatedAtMs === "number" &&
+    source.health.snapshotUpdatedAtMs > 0
+  ) {
+    parts.push(`快照=${new Date(source.health.snapshotUpdatedAtMs).toLocaleString()}`);
+  }
+  if (
+    typeof source.health.healthEventsSinceSnapshot === "number" &&
+    source.health.healthEventsSinceSnapshot > 0
+  ) {
+    parts.push(`新增=${source.health.healthEventsSinceSnapshot}`);
+  }
+
+  return parts.join(" · ");
 }
 </script>
 
@@ -121,6 +156,13 @@ function getHealthLabel(source: SourceListItem): string {
             class="px-1.5 py-0 text-[10px]"
           >
             可公开接入
+          </Badge>
+          <Badge
+            v-if="props.source.health?.lowConfidence"
+            variant="outline"
+            class="px-1.5 py-0 text-[10px] border-amber-500/30 text-amber-700 dark:text-amber-300"
+          >
+            低置信度
           </Badge>
         </div>
         <p class="mt-2 text-[10px] text-muted-foreground/70 truncate">

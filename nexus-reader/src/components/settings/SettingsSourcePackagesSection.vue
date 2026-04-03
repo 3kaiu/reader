@@ -10,6 +10,12 @@ type SourcePackageSummary = {
   generatedAtMs: number;
   enabled: boolean;
   valid: boolean;
+  overallHealthScore: number;
+  recommended: boolean;
+  searchStatus: "pass" | "warn" | "fail" | "unknown";
+  bookStatus: "pass" | "warn" | "fail" | "unknown";
+  tocStatus: "pass" | "warn" | "fail" | "unknown";
+  contentStatus: "pass" | "warn" | "fail" | "unknown";
   tags: string[];
 };
 
@@ -18,6 +24,9 @@ type SourcePackageDetailSummary = {
   sourceLabel: string;
   generatedAtLabel: string;
   validationLabel: string;
+  healthLabel: string;
+  healthScoreLabel: string;
+  segmentItems: string[];
   warningItems: string[];
   errorItems: string[];
   capabilityItems: string[];
@@ -60,6 +69,13 @@ function submitImport() {
 function selectPackage(sourceId: string) {
   selectedSourceId.value = sourceId;
   emit("selectSourcePackage", sourceId);
+}
+
+function healthClass(status: "pass" | "warn" | "fail" | "unknown") {
+  if (status === "pass") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+  if (status === "warn") return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  if (status === "fail") return "bg-red-500/15 text-red-700 dark:text-red-300";
+  return "bg-muted text-muted-foreground";
 }
 </script>
 
@@ -146,14 +162,20 @@ function selectPackage(sourceId: string) {
                 </div>
                 <span
                   class="shrink-0 rounded-full px-2 py-1 text-[11px]"
-                  :class="item.valid ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'"
+                  :class="item.recommended ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'"
                 >
-                  {{ item.valid ? "可用" : "待修正" }}
+                  {{ item.recommended ? "推荐" : "待复核" }}
                 </span>
               </div>
               <p class="text-xs text-muted-foreground mt-2">
-                {{ new Date(item.generatedAtMs).toLocaleString() }}
+                {{ new Date(item.generatedAtMs).toLocaleString() }} · 健康 {{ Math.round(item.overallHealthScore * 100) }}
               </p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.searchStatus)">搜索</span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.bookStatus)">详情</span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.tocStatus)">目录</span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.contentStatus)">正文</span>
+              </div>
               <div class="flex items-center justify-between mt-3">
                 <div class="flex flex-wrap gap-2">
                   <span
@@ -198,6 +220,16 @@ function selectPackage(sourceId: string) {
               <p class="text-xs text-muted-foreground mt-1">
                 校验: {{ sourcePackageDetailSummary.validationLabel }}
               </p>
+              <p class="text-xs text-muted-foreground mt-1">
+                健康: {{ sourcePackageDetailSummary.healthLabel }} · {{ sourcePackageDetailSummary.healthScoreLabel }}
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p class="text-xs text-muted-foreground mb-2">健康分段</p>
+              <ul class="space-y-1 text-xs break-all">
+                <li v-for="item in sourcePackageDetailSummary.segmentItems" :key="item">{{ item }}</li>
+              </ul>
             </div>
 
             <div class="rounded-xl border border-border/50 bg-muted/20 p-4">

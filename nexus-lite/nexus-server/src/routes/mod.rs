@@ -9,14 +9,16 @@ pub mod replace_rules;
 pub mod search;
 pub mod source;
 pub mod source_builder;
+pub mod source_diagnosis;
+pub mod source_runtime;
 pub mod voice;
 
 use axum::{extract::State, Json};
 use nexus_engine::extraction_metrics;
 use serde::Serialize;
 
-use crate::app::AppState;
 pub use crate::api_response::ApiResponse;
+use crate::app::AppState;
 
 /// Health check response with dependency status
 #[derive(Serialize)]

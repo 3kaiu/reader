@@ -31,7 +31,7 @@ pub async fn save_mapping_rule(
         Ok(_) => {
             state.content_rules.invalidate().await;
             Json(ApiResponse::success(()))
-        }
+        },
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }
 }
@@ -45,7 +45,7 @@ pub async fn delete_mapping_rule(
         Ok(_) => {
             state.content_rules.invalidate().await;
             Json(ApiResponse::success(()))
-        }
+        },
         Err(e) => Json(ApiResponse::error(&e.to_string())),
     }
 }

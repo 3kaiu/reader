@@ -683,15 +683,8 @@ impl AlgorithmOptimizer {
         )
         .await;
 
-        self.record_metrics(
-            "parallel_process",
-            result.len(),
-            start.elapsed().as_nanos(),
-            0,
-            0,
-            0,
-        )
-        .await;
+        self.record_metrics("parallel_process", result.len(), start.elapsed().as_nanos(), 0, 0, 0)
+            .await;
         Ok(result)
     }
 

@@ -7,7 +7,8 @@ import { filterSourcesByGroup } from '@/utils/sourceStore'
 
 export function useSourcesPageView() {
   const sourceStore = useSourceStore()
-  const { sources, loading, enabledCount, groups } = storeToRefs(sourceStore)
+  const { sources, loading, enabledCount, unhealthyCount, openCircuitCount, groups } =
+    storeToRefs(sourceStore)
 
   const searchKeyword = ref('')
   const activeGroup = ref('全部')
@@ -36,6 +37,8 @@ export function useSourcesPageView() {
   const stats = computed(() => ({
     total: sources.value.length,
     enabled: enabledCount.value,
+    unhealthy: unhealthyCount.value,
+    openCircuit: openCircuitCount.value,
     filtered: filteredSources.value.length,
     selected: selectedCount.value,
   }))
@@ -52,6 +55,8 @@ export function useSourcesPageView() {
     sources,
     loading,
     enabledCount,
+    unhealthyCount,
+    openCircuitCount,
     groups,
     searchKeyword,
     activeGroup,

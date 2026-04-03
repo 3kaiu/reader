@@ -16,7 +16,9 @@ export function createReaderStoreState(): ReaderStoreState {
     isParsing: ref(false),
     error: ref<string | null>(null),
     loadError: ref<string | null>(null),
+    loadErrorDetails: ref<string | null>(null),
     progressMap: ref(loadPersistedReaderProgress()),
     chapterContentCache: ref({}),
+    contentStageReports: ref([]),
   }
 }

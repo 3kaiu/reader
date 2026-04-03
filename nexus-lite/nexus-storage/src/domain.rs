@@ -436,16 +436,16 @@ impl StorageDomain {
             StorageCommand::CreateDataObject { object } => self.create_data_object(object).await,
             StorageCommand::UpdateDataObject { object_id, data } => {
                 self.update_data_object(object_id, data).await
-            }
+            },
             StorageCommand::DeleteDataObject { object_id } => {
                 self.delete_data_object(object_id).await
-            }
+            },
             StorageCommand::CreateStorageBucket { bucket } => {
                 self.create_storage_bucket(bucket).await
-            }
+            },
             StorageCommand::UpdateBucketLifecycle { bucket_id, rules } => {
                 self.update_bucket_lifecycle(bucket_id, rules).await
-            }
+            },
             StorageCommand::SetCacheEntry { entry } => self.set_cache_entry(entry).await,
             StorageCommand::DeleteCacheEntry { key } => self.delete_cache_entry(key).await,
             StorageCommand::ClearExpiredCache => self.clear_expired_cache().await,
@@ -466,16 +466,16 @@ impl StorageDomain {
             } => self.list_objects_in_bucket(bucket, prefix, limit).await,
             StorageQuery::GetStorageBucket { bucket_id } => {
                 self.get_storage_bucket(bucket_id).await
-            }
+            },
             StorageQuery::ListBuckets { limit } => self.list_buckets(limit).await,
             StorageQuery::GetCacheEntry { key } => self.get_cache_entry(key).await,
             StorageQuery::ListCacheEntries { tag, limit } => {
                 self.list_cache_entries(tag, limit).await
-            }
+            },
             StorageQuery::GetStorageStatistics => self.get_storage_statistics().await,
             StorageQuery::GetBucketStatistics { bucket_id } => {
                 self.get_bucket_statistics(bucket_id).await
-            }
+            },
             StorageQuery::GetCacheStatistics => self.get_cache_statistics().await,
         }
     }
@@ -1135,9 +1135,7 @@ impl BusinessRuleValidator<DataObject> for DataObjectKeyValidRule {
         _context: &DomainContext,
     ) -> Result<(), DomainError> {
         if entity.key.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Data object key cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Data object key cannot be empty".to_string()));
         }
         if entity.key.len() > 1024 {
             return Err(DomainError::Validation(

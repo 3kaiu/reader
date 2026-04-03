@@ -11,10 +11,7 @@ use tokio::sync::broadcast;
 #[serde(tag = "event_type", content = "data")]
 pub enum EngineEvent {
     /// 抓取任务创建
-    FetchTaskCreated {
-        task_id: String,
-        url: String,
-    },
+    FetchTaskCreated { task_id: String, url: String },
     /// 抓取任务完成
     FetchTaskCompleted {
         task_id: String,
@@ -22,18 +19,11 @@ pub enum EngineEvent {
         duration_ms: u64,
     },
     /// 缓存命中
-    CacheHit {
-        key: String,
-    },
+    CacheHit { key: String },
     /// 缓存未命中
-    CacheMiss {
-        key: String,
-    },
+    CacheMiss { key: String },
     /// 书籍搜索
-    BookSearch {
-        query: String,
-        results_count: usize,
-    },
+    BookSearch { query: String, results_count: usize },
 }
 
 /// 事件总线
@@ -82,26 +72,15 @@ impl Default for EventBus {
 #[serde(tag = "event_type", content = "data")]
 pub enum SystemEvent {
     /// 引擎注册
-    EngineRegistered {
-        engine_name: String,
-    },
+    EngineRegistered { engine_name: String },
     /// 引擎注销
-    EngineUnregistered {
-        engine_name: String,
-    },
+    EngineUnregistered { engine_name: String },
     /// 配置更新
-    ConfigUpdated {
-        key: String,
-        value: String,
-    },
+    ConfigUpdated { key: String, value: String },
     /// 系统启动
-    SystemStarted {
-        timestamp: i64,
-    },
+    SystemStarted { timestamp: i64 },
     /// 系统关闭
-    SystemShutdown {
-        timestamp: i64,
-    },
+    SystemShutdown { timestamp: i64 },
 }
 
 /// 全局事件总线实例

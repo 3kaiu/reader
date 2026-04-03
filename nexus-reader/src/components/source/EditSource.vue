@@ -27,9 +27,15 @@ const emit = defineEmits<{
 const {
   loading,
   saving,
+  diagnosticsLoading,
+  resettingRuntime,
   jsonText,
   canEditPolicy,
   publicAccessEnabled,
+  runtimeProfile,
+  circuitState,
+  runtimeError,
+  diagnosticSuggestions,
   licenseStatus,
   accessMode,
   lastVerifiedAt,
@@ -37,6 +43,7 @@ const {
   licenseOptions,
   accessModeOptions,
   savePolicy,
+  resetRuntimeState,
 } = useEditSourceView({ props })
 
 async function handleSavePolicy() {
@@ -55,6 +62,158 @@ async function handleSavePolicy() {
       </SheetHeader>
 
       <div class="space-y-5 pb-5">
+        <div class="rounded-xl border bg-muted/20 p-4 space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-medium text-foreground">运行时画像</p>
+              <p class="text-xs text-muted-foreground mt-1">
+                当前引擎对该源实际使用的抓取链路与治理参数。
+              </p>
+            </div>
+            <Badge :variant="circuitState === 'open' ? 'destructive' : circuitState === 'closed' ? 'secondary' : 'outline'">
+              熔断状态: {{ circuitState }}
+            </Badge>
+          </div>
+
+          <p v-if="runtimeError" class="text-xs text-amber-600">
+            {{ runtimeError }}
+          </p>
+
+          <div v-if="diagnosticsLoading" class="text-xs text-muted-foreground">
+            运行时诊断加载中...
+          </div>
+
+          <template v-else>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="rounded-lg border bg-background px-3 py-2">
+                <p class="text-[11px] text-muted-foreground">超时预算</p>
+                <p class="text-sm font-medium mt-1">
+                  {{ runtimeProfile?.timeoutMs ?? 0 }} ms
+                </p>
+              </div>
+              <div class="rounded-lg border bg-background px-3 py-2">
+                <p class="text-[11px] text-muted-foreground">重试预算</p>
+                <p class="text-sm font-medium mt-1">
+                  {{ runtimeProfile?.retryBudget ?? 0 }}
+                </p>
+              </div>
+              <div class="rounded-lg border bg-background px-3 py-2">
+                <p class="text-[11px] text-muted-foreground">并发上限</p>
+                <p class="text-sm font-medium mt-1">
+                  {{ runtimeProfile?.concurrencyLimit ?? 0 }}
+                </p>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label>策略链</Label>
+              <div
+                v-if="runtimeProfile?.strategyChain?.length"
+                class="flex flex-wrap gap-2"
+              >
+                <Badge
+                  v-for="strategy in runtimeProfile.strategyChain"
+                  :key="strategy"
+                  variant="outline"
+                >
+                  {{ strategy }}
+                </Badge>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                当前没有可用的运行时策略链信息
+              </p>
+            </div>
+
+            <div
+              v-if="source?.health"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
+              <div class="rounded-lg border bg-background px-3 py-2">
+                <p class="text-[11px] text-muted-foreground">健康摘要</p>
+                <p class="text-sm font-medium mt-1">
+                  分数 {{ Math.round((source.health.score || 0) * 100) }}
+                  <span v-if="typeof source.health.healthPoints === 'number'">
+                    · 积分 {{ source.health.healthPoints }}
+                  </span>
+                </p>
+                <p class="text-[11px] text-muted-foreground mt-1">
+                  成功 {{ source.health.successCount }} / 失败 {{ source.health.failureCount }}
+                </p>
+                <p
+                  v-if="source.health.restoredFromSnapshot && source.health.snapshotUpdatedAtMs"
+                  class="text-[11px] text-muted-foreground mt-1"
+                >
+                  快照恢复: {{ new Date(source.health.snapshotUpdatedAtMs).toLocaleString() }}
+                </p>
+                <p
+                  v-if="typeof source.health.healthEventsSinceSnapshot === 'number'"
+                  class="text-[11px] text-muted-foreground mt-1"
+                >
+                  快照后新增事件: 健康 {{ source.health.healthEventsSinceSnapshot || 0 }}
+                  <span v-if="typeof source.health.extractionEventsSinceSnapshot === 'number'">
+                    · 提取 {{ source.health.extractionEventsSinceSnapshot || 0 }}
+                  </span>
+                </p>
+              </div>
+              <div class="rounded-lg border bg-background px-3 py-2">
+                <p class="text-[11px] text-muted-foreground">失败画像</p>
+                <p class="text-sm font-medium mt-1">
+                  {{ source.health.primaryFailure || 'none' }}
+                </p>
+                <p class="text-[11px] text-muted-foreground mt-1">
+                  连败 {{ source.health.consecutiveFailures || 0 }} · 延迟 {{ source.health.avgLatencyMs || 0 }} ms
+                </p>
+                <p
+                  v-if="source.health.lowConfidence"
+                  class="text-[11px] text-amber-600 mt-1"
+                >
+                  当前治理诊断置信度偏低，建议继续积累运行样本后再做最终判断。
+                </p>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label>诊断建议</Label>
+              <div
+                v-if="diagnosticSuggestions.length > 0"
+                class="space-y-2"
+              >
+                <div
+                  v-for="item in diagnosticSuggestions"
+                  :key="item.id"
+                  class="rounded-lg border bg-background px-3 py-2"
+                >
+                  <p class="text-sm font-medium">{{ item.title }}</p>
+                  <p class="text-[11px] text-muted-foreground mt-1">
+                    {{ item.detail }}
+                  </p>
+                </div>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                当前没有明显的治理异常，建议继续观察真实抓取样本。
+              </p>
+            </div>
+
+            <div class="flex justify-end">
+              <Button
+                variant="outline"
+                :disabled="resettingRuntime || loading || !source?.id"
+                @click="resetRuntimeState('circuit_only')"
+              >
+                {{ resettingRuntime ? '重置中...' : '仅重置熔断' }}
+              </Button>
+              <Button
+                variant="outline"
+                class="ml-2"
+                :disabled="resettingRuntime || loading || !source?.id"
+                @click="resetRuntimeState('full')"
+              >
+                {{ resettingRuntime ? '重置中...' : '全量重置治理状态' }}
+              </Button>
+            </div>
+          </template>
+        </div>
+
         <div class="rounded-xl border bg-muted/20 p-4 space-y-4">
           <div class="flex items-center justify-between gap-3">
             <div>

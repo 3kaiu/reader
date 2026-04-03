@@ -107,6 +107,18 @@ export function useSearchView() {
       }
     }
 
+    const leftPackageRank = left.searchExplain?.packageRank ?? 0
+    const rightPackageRank = right.searchExplain?.packageRank ?? 0
+    if (leftPackageRank !== rightPackageRank) {
+      return rightPackageRank - leftPackageRank
+    }
+
+    const leftMatchScore = left.searchExplain?.matchScore ?? 0
+    const rightMatchScore = right.searchExplain?.matchScore ?? 0
+    if (leftMatchScore !== rightMatchScore) {
+      return rightMatchScore - leftMatchScore
+    }
+
     const leftSource = sourceById.value.get(left.sourceId)
     const rightSource = sourceById.value.get(right.sourceId)
 

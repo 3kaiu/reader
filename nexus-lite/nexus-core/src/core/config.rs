@@ -127,28 +127,27 @@ impl ConfigLoader {
     pub fn load_from_file(path: &str) -> Result<GlobalConfig, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
-        
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse config: {}", e))
+
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
     }
 
     /// 从环境变量加载配置
     pub fn load_from_env() -> Result<GlobalConfig, String> {
         let mut config = GlobalConfig::default();
-        
+
         // 从环境变量读取配置
         if let Ok(log_level) = std::env::var("NEXUS_LOG_LEVEL") {
             config.log_level = log_level;
         }
-        
+
         if let Ok(enable_metrics) = std::env::var("NEXUS_ENABLE_METRICS") {
             config.enable_metrics = enable_metrics.parse().unwrap_or(true);
         }
-        
+
         if let Ok(enable_tracing) = std::env::var("NEXUS_ENABLE_TRACING") {
             config.enable_tracing = enable_tracing.parse().unwrap_or(false);
         }
-        
+
         Ok(config)
     }
 
@@ -156,8 +155,7 @@ impl ConfigLoader {
     pub fn save_to_file(config: &GlobalConfig, path: &str) -> Result<(), String> {
         let content = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
-        std::fs::write(path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))
+
+        std::fs::write(path, content).map_err(|e| format!("Failed to write config file: {}", e))
     }
 }

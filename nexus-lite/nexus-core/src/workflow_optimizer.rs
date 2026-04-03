@@ -396,11 +396,11 @@ impl WorkflowOptimizer {
                 Ok(completed_workflow) => {
                     // 工作流程成功完成
                     println!("Workflow {} completed successfully", completed_workflow.id);
-                }
+                },
                 Err(error) => {
                     // 工作流程失败
                     println!("Workflow {} failed: {:?}", workflow_id, error);
-                }
+                },
             }
         });
 
@@ -463,7 +463,7 @@ impl WorkflowOptimizer {
                 Ok(output) => {
                     context.step_results.insert(step.id.clone(), output);
                     completed_steps += 1;
-                }
+                },
                 Err(error) => {
                     workflow.status = WorkflowStatus::Failed;
                     workflow.completed_at = Some(chrono::Utc::now());
@@ -475,7 +475,7 @@ impl WorkflowOptimizer {
                         errors: vec![error.to_string()],
                     });
                     return Ok(workflow);
-                }
+                },
             }
         }
 

@@ -21,7 +21,7 @@ impl KuchikiTreeOps {
     /// Find content nodes by CSS selector
     pub fn find_by_selector(&self, selector: &str) -> Vec<NodeRef> {
         let mut nodes = Vec::new();
-        
+
         for node in self.root.descendants() {
             if let Some(element) = node.as_element() {
                 if &*element.name.local == selector || &*element.name.ns == selector {
@@ -29,14 +29,14 @@ impl KuchikiTreeOps {
                 }
             }
         }
-        
+
         nodes
     }
 
     /// Find nodes with specific attributes
     pub fn find_by_attribute(&self, attr_name: &str, attr_value: Option<&str>) -> Vec<NodeRef> {
         let mut nodes = Vec::new();
-        
+
         for node in self.root.descendants() {
             if let Some(element) = node.as_element() {
                 let matches = if let Some(value) = element.attributes.borrow().get(attr_name) {
@@ -49,20 +49,20 @@ impl KuchikiTreeOps {
                 }
             }
         }
-        
+
         nodes
     }
 
     /// Extract text content from a subtree
     pub fn extract_text(&self, node: &NodeRef) -> String {
         let mut text = String::new();
-        
+
         for child in node.descendants() {
             if let NodeData::Text(t) = child.data() {
                 text.push_str(&t.borrow());
             }
         }
-        
+
         text
     }
 
@@ -70,28 +70,26 @@ impl KuchikiTreeOps {
     pub fn find_largest_text_node(&self) -> Option<NodeRef> {
         let mut best_node = None;
         let mut best_length = 0;
-        
+
         for node in self.root.descendants() {
             if let NodeData::Element(_) = node.data() {
                 let text = self.extract_text(&node);
                 let length = text.chars().count();
-                
+
                 if length > best_length && length > 100 {
                     best_length = length;
                     best_node = Some(node);
                 }
             }
         }
-        
+
         best_node
     }
 
     /// Remove nodes by selector
     pub fn remove_by_selector(&mut self, selector: &str) {
-        let nodes_to_remove: Vec<_> = self.find_by_selector(selector)
-            .into_iter()
-            .collect();
-        
+        let nodes_to_remove: Vec<_> = self.find_by_selector(selector).into_iter().collect();
+
         for node in nodes_to_remove {
             node.detach();
         }
@@ -114,7 +112,7 @@ impl KuchikiTreeOps {
             "#sidebar",
             "#ad",
         ];
-        
+
         for selector in boilerplate_selectors {
             self.remove_by_selector(selector);
         }
@@ -123,19 +121,19 @@ impl KuchikiTreeOps {
     /// Get tree statistics
     pub fn get_stats(&self) -> TreeStats {
         let mut stats = TreeStats::default();
-        
+
         for node in self.root.descendants() {
             match node.data() {
                 NodeData::Element(_) => stats.element_count += 1,
                 NodeData::Text(_) => stats.text_node_count += 1,
                 NodeData::Comment(_) => stats.comment_count += 1,
-                NodeData::Document(_) => {}
-                NodeData::DocumentFragment => {}
+                NodeData::Document(_) => {},
+                NodeData::DocumentFragment => {},
                 NodeData::Doctype(_) => stats.doctype_count += 1,
                 NodeData::ProcessingInstruction(_) => stats.pi_count += 1,
             }
         }
-        
+
         stats
     }
 
@@ -280,7 +278,7 @@ mod tests {
 
         let mut tree_ops = KuchikiTreeOps::parse(html).unwrap();
         tree_ops.remove_boilerplate();
-        
+
         let stats = tree_ops.get_stats();
         assert!(stats.element_count < 5); // nav and footer should be removed
     }

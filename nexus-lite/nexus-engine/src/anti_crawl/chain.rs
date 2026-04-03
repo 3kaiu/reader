@@ -69,7 +69,7 @@ impl FallbackChain {
                     result = Ok(response);
                     last_err = None;
                     break;
-                }
+                },
                 Err(err) => {
                     debug!(
                         "Strategy {} failed for source {}: {}",
@@ -78,7 +78,7 @@ impl FallbackChain {
                         err
                     );
                     last_err = Some(err);
-                }
+                },
             }
         }
 
@@ -160,7 +160,7 @@ impl FallbackChain {
         match &result {
             Ok(_) => breaker.record_success(),
             Err(e) if e.is_retryable() => breaker.record_failure(),
-            _ => {}
+            _ => {},
         }
 
         result
@@ -192,7 +192,7 @@ impl FallbackChain {
         match &result {
             Ok(_) => breaker.record_success(),
             Err(e) if e.is_retryable() => breaker.record_failure(),
-            _ => {}
+            _ => {},
         }
 
         result

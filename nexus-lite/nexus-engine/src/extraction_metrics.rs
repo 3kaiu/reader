@@ -3,6 +3,7 @@
 //! These counters are process-local and intended for operational visibility.
 
 use dashmap::DashMap;
+use nexus_core::PersistedExtractionMetrics;
 use serde::Serialize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
@@ -29,6 +30,35 @@ impl Counters {
 
     fn total_events(&self) -> u64 {
         self.success + self.total_failures()
+    }
+
+    fn to_persisted(&self, source_id: &str) -> PersistedExtractionMetrics {
+        PersistedExtractionMetrics {
+            source_id: source_id.to_string(),
+            success: self.success,
+            fallback_hits: self.fallback_hits,
+            validation_failures: self.validation_failures,
+            rule_mismatch_failures: self.rule_mismatch_failures,
+            empty_content_failures: self.empty_content_failures,
+            low_quality_failures: self.low_quality_failures,
+            quality_score_total: self.quality_score_total,
+            quality_samples: self.quality_samples,
+        }
+    }
+}
+
+impl From<PersistedExtractionMetrics> for Counters {
+    fn from(value: PersistedExtractionMetrics) -> Self {
+        Self {
+            success: value.success,
+            fallback_hits: value.fallback_hits,
+            validation_failures: value.validation_failures,
+            rule_mismatch_failures: value.rule_mismatch_failures,
+            empty_content_failures: value.empty_content_failures,
+            low_quality_failures: value.low_quality_failures,
+            quality_score_total: value.quality_score_total,
+            quality_samples: value.quality_samples,
+        }
     }
 }
 
@@ -252,6 +282,22 @@ pub fn snapshot() -> Vec<SourceExtractionStats> {
     items
 }
 
+pub fn snapshot_persisted() -> Vec<PersistedExtractionMetrics> {
+    let mut items = EXTRACTION_COUNTERS
+        .iter()
+        .map(|entry| entry.value().to_persisted(entry.key()))
+        .collect::<Vec<_>>();
+    items.sort_by(|a, b| a.source_id.cmp(&b.source_id));
+    items
+}
+
+pub fn restore_from_snapshot(items: Vec<PersistedExtractionMetrics>) {
+    EXTRACTION_COUNTERS.clear();
+    for item in items {
+        EXTRACTION_COUNTERS.insert(item.source_id.clone(), Counters::from(item));
+    }
+}
+
 pub fn summary(top_n: usize) -> ExtractionSummary {
     let stats = snapshot();
     let tracked_sources = stats.len();
@@ -304,6 +350,10 @@ pub fn summary(top_n: usize) -> ExtractionSummary {
         overall_quality_success_rate,
         top_failing_sources: failing,
     }
+}
+
+pub fn reset_source(source_id: &str) {
+    EXTRACTION_COUNTERS.remove(source_id);
 }
 
 #[cfg(test)]

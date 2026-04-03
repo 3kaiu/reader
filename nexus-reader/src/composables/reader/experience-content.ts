@@ -27,6 +27,7 @@ export function createReaderExperienceContentProps(
     isParsing: state.readerStore.isParsing,
     hasNextChapter: state.readerStore.hasNextChapter,
     loadError: state.readerStore.loadError,
+    loadErrorDetails: state.readerStore.loadErrorDetails,
     decoderEnabled:
       state.decoderAddonEnabled && state.decoderStore.isEnabled,
     decoderEntities: state.decoderAddonEnabled

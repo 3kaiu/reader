@@ -18,8 +18,8 @@ use crate::ml_scorer::{EnsembleScorer, FeatureExtractor};
 use crate::readability_wrapper::ReadabilityExtractor;
 
 // Import enhanced content cleaning modules
-use crate::text_cleaner::{TextCleaner, CleanConfig as TextCleanConfig};
-use crate::text_dedup::{TextDeduplicator, DedupConfig};
+use crate::text_cleaner::{CleanConfig as TextCleanConfig, TextCleaner};
+use crate::text_dedup::{DedupConfig, TextDeduplicator};
 
 #[derive(Debug, Clone)]
 pub struct ContentExtractConfig<'a> {
@@ -99,17 +99,7 @@ fn matches_any_filter(el: &ElementRef<'_>, selectors: &[Selector]) -> bool {
 fn is_block_tag(name: &str) -> bool {
     matches!(
         name,
-        "p"
-            | "li"
-            | "blockquote"
-            | "dd"
-            | "h1"
-            | "h2"
-            | "h3"
-            | "h4"
-            | "h5"
-            | "h6"
-            | "pre"
+        "p" | "li" | "blockquote" | "dd" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "pre"
     )
 }
 
@@ -119,7 +109,10 @@ fn collect_leaf_text<'a>(
     hidden_ancestor: bool,
     out: &mut Vec<String>,
 ) {
-    if hidden_ancestor || matches_any_filter(&el, config.filter_selectors) || is_hidden_element(&el, config) {
+    if hidden_ancestor
+        || matches_any_filter(&el, config.filter_selectors)
+        || is_hidden_element(&el, config)
+    {
         return;
     }
 
@@ -235,7 +228,10 @@ pub fn extract_structured_text_from_root<'a>(
         paragraphs: &mut Vec<String>,
         hidden_ancestor: bool,
     ) {
-        if hidden_ancestor || matches_any_filter(&el, config.filter_selectors) || is_hidden_element(&el, config) {
+        if hidden_ancestor
+            || matches_any_filter(&el, config.filter_selectors)
+            || is_hidden_element(&el, config)
+        {
             return;
         }
 
@@ -258,12 +254,7 @@ pub fn extract_structured_text_from_root<'a>(
         }
 
         for child in el.child_elements() {
-            dfs(
-                child,
-                config,
-                paragraphs,
-                hidden_ancestor || is_hidden_element(&child, config),
-            );
+            dfs(child, config, paragraphs, hidden_ancestor || is_hidden_element(&child, config));
         }
     }
 
@@ -356,11 +347,8 @@ fn apply_enhanced_cleaning(text: &str, config: &nexus_core::nxs::CleanConfig) ->
             use_jaro_winkler: false,
         });
 
-        let paragraphs: Vec<String> = result
-            .lines()
-            .map(|s| s.to_string())
-            .collect();
-        
+        let paragraphs: Vec<String> = result.lines().map(|s| s.to_string()).collect();
+
         let deduped = deduplicator.deduplicate(&paragraphs);
         result = deduped.join("\n");
     }
@@ -489,7 +477,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "首页",
         "书页",
         "书签",
-
         // 营销类
         "广告",
         "会员",
@@ -501,7 +488,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "付费章节",
         "VIP章节",
         "会员章节",
-
         // 操作类
         "点击",
         "下载",
@@ -513,7 +499,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "举报内容",
         "投诉",
         "反馈",
-
         // 提示类
         "温馨提示",
         "精彩继续",
@@ -524,7 +509,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "请继续阅读",
         "请点击",
         "点击继续",
-
         // 推广类
         "推荐阅读",
         "热门推荐",
@@ -533,7 +517,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "同类推荐",
         "好书推荐",
         "精选推荐",
-
         // 社交类
         "点赞",
         "收藏本站",
@@ -542,21 +525,18 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "手机阅读",
         "APP下载",
         "扫码阅读",
-
         // 版权类
         "版权声明",
         "免责声明",
         "侵权举报",
         "联系方式",
         "联系我们",
-
         // 技术类
         "正在加载",
         "加载中",
         "刷新页面",
         "刷新",
         "重新加载",
-
         // 常见小说网站噪音
         "本章完",
         "本章结束",
@@ -566,14 +546,12 @@ fn remove_noise_paragraphs(text: &str) -> String {
         "完本",
         "完结",
         "已完结",
-
         // 广告相关
         "赞助商",
         "赞助商链接",
         "广告位",
         "广告合作",
         "商务合作",
-
         // 域名/推广
         "www.",
         "http://",
@@ -582,7 +560,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         ".cn",
         ".net",
         ".org",
-
         // 常见按钮文本
         "确定",
         "取消",
@@ -642,10 +619,24 @@ fn remove_noise_paragraphs(text: &str) -> String {
 
     fn punctuation_count(s: &str) -> usize {
         s.chars()
-            .filter(|c| matches!(
-                c,
-                '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':' | '—' | '-'
-            ))
+            .filter(|c| {
+                matches!(
+                    c,
+                    '。' | '！'
+                        | '？'
+                        | '；'
+                        | '，'
+                        | '、'
+                        | '!'
+                        | '?'
+                        | ';'
+                        | ','
+                        | '.'
+                        | ':'
+                        | '—'
+                        | '-'
+                )
+            })
             .count()
     }
 
@@ -743,7 +734,8 @@ fn remove_noise_paragraphs(text: &str) -> String {
             let (llen, lp, lnoise, _) = features[left];
             let (rlen, rp, rnoise, _) = features[right];
 
-            let neighbors_are_long = is_long_content(llen, lp, lnoise) && is_long_content(rlen, rp, rnoise);
+            let neighbors_are_long =
+                is_long_content(llen, lp, lnoise) && is_long_content(rlen, rp, rnoise);
 
             // If both neighbors are very likely real content: keep but trim a leading noise prefix.
             if neighbors_are_long {
@@ -784,7 +776,7 @@ pub fn readability_like_extract(doc: &Html, config: &ContentExtractConfig<'_>) -
     // First, try Mozilla's Readability algorithm
     let html = doc.html();
     let readability_extractor = ReadabilityExtractor::new();
-    
+
     if let Some(extracted) = readability_extractor.extract(&html) {
         if extracted.is_valid_novel_content() {
             if let Some(cleaned) = extracted.clean_for_reading() {
@@ -798,7 +790,10 @@ pub fn readability_like_extract(doc: &Html, config: &ContentExtractConfig<'_>) -
 }
 
 /// Heuristic-based Readability extraction (original implementation)
-fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<'_>) -> Option<String> {
+fn readability_like_extract_heuristic(
+    doc: &Html,
+    config: &ContentExtractConfig<'_>,
+) -> Option<String> {
     // Candidate containers: prefer "section-like" blocks over single paragraphs.
     // Including `p` tends to pick a random paragraph rather than the whole chapter body.
     static CANDIDATE_SELECTOR_RAW: &str = "article, main, section, div";
@@ -896,23 +891,16 @@ fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<
             let id = el.value().attr("id").unwrap_or("").to_ascii_lowercase();
             let haystack = format!("{class} {id}");
             let has = [
-                "article",
-                "content",
-                "reader",
-                "chapter",
-                "post",
-                "entry",
-                "main",
-                "text",
-                "novel",
-                "book",
-                "story",
-                "body",
-                "detail",
+                "article", "content", "reader", "chapter", "post", "entry", "main", "text",
+                "novel", "book", "story", "body", "detail",
             ]
             .iter()
             .any(|k| haystack.contains(k));
-            if has { 300.0 } else { 0.0 }
+            if has {
+                300.0
+            } else {
+                0.0
+            }
         };
 
         // Prefer containers that look like they have multiple paragraphs/lines,
@@ -920,8 +908,7 @@ fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<
         let para_bonus = (para_count.min(50) as f64) * 20.0;
 
         // Base score calculation
-        let score = (text_len as f64)
-            + (punct_count as f64) * 50.0
+        let score = (text_len as f64) + (punct_count as f64) * 50.0
             - (link_count as f64) * 150.0
             - link_density * 700.0
             + para_bonus
@@ -942,9 +929,8 @@ fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<
         let nav_penalty = (nav_count as f64) * 200.0;
 
         // Penalize too many images/forms/buttons (common in galleries/search UIs).
-        let ui_penalty = (img_count as f64) * 20.0
-            + (form_count as f64) * 300.0
-            + (button_count as f64) * 70.0;
+        let ui_penalty =
+            (img_count as f64) * 20.0 + (form_count as f64) * 300.0 + (button_count as f64) * 70.0;
 
         // Penalize repeated paging-like and marketing keywords inside the candidate.
         let noise_keywords = [
@@ -1010,13 +996,15 @@ fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<
         let noise_penalty = (noise_hits.min(6) as f64) * 150.0;
 
         // Headings help a bit, but too many headings in a small container is often TOC.
-        let heading_penalty = if para_count > 0 && heading_count as f64 > (para_count as f64) * 0.6 {
+        let heading_penalty = if para_count > 0 && heading_count as f64 > (para_count as f64) * 0.6
+        {
             300.0
         } else {
             0.0
         };
 
-        let score = score + avg_para_bonus - nav_penalty - ui_penalty - noise_penalty - heading_penalty;
+        let score =
+            score + avg_para_bonus - nav_penalty - ui_penalty - noise_penalty - heading_penalty;
 
         // Small tie-breaker: prefer article/main/section.
         let tag_bonus = match el.value().name() {
@@ -1038,14 +1026,8 @@ fn readability_like_extract_heuristic(doc: &Html, config: &ContentExtractConfig<
     }
 
     let best_html = best_html?;
-    let wrapped = format!(
-        "<div id=\"__nxs_extract_root\">{}</div>",
-        best_html
-    );
+    let wrapped = format!("<div id=\"__nxs_extract_root\">{}</div>", best_html);
     let frag = Html::parse_fragment(&wrapped);
     let root = frag.select(&WRAPPER_SELECTOR).next()?;
-    Some(extract_structured_text_from_root(
-        root,
-        config,
-    ))
+    Some(extract_structured_text_from_root(root, config))
 }

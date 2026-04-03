@@ -21,6 +21,7 @@ export function createReaderScrollLoadStateViewBindings(
     },
     loadActionsBindings: computed(() => ({
       loadError: props.loadError,
+      loadErrorDetails: props.loadErrorDetails,
       onLoadNextChapter: () => emit('loadNextChapter'),
       onRetryLoad: () => emit('retryLoad'),
     })),

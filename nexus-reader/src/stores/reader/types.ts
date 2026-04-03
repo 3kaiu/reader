@@ -5,6 +5,15 @@ import type {
   ReaderLoadedChapter as LoadedChapter,
 } from '@/utils/readerStore'
 
+export interface ReaderStageReport {
+  stage: string
+  ok: boolean
+  strategy?: string
+  failureCode?: string
+  warnings?: string[]
+  metrics?: Record<string, string>
+}
+
 export interface ReaderStoreState {
   currentBook: Ref<ReaderBook | null>
   currentChapter: Ref<Chapter | null>
@@ -18,8 +27,10 @@ export interface ReaderStoreState {
   isParsing: Ref<boolean>
   error: Ref<string | null>
   loadError: Ref<string | null>
+  loadErrorDetails: Ref<string | null>
   progressMap: Ref<Record<string, number>>
   chapterContentCache: Ref<Record<string, string>>
+  contentStageReports: Ref<ReaderStageReport[]>
 }
 
 export interface ReaderStoreView {

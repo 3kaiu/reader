@@ -3,7 +3,7 @@
  * 书源管理页面 - 统一风格版
  * 特性：导入、启停、删除、只读查看定义
  */
-import { Download, Upload } from "lucide-vue-next";
+import { Download, FileJson, Save, Upload } from "lucide-vue-next";
 import ImportSource from "@/components/source/ImportSource.vue";
 import EditSource from "@/components/source/EditSource.vue";
 import {
@@ -37,6 +37,9 @@ const {
   deleteSource,
   batchDelete,
   exportSources,
+  exportRuntimeSnapshot,
+  importRuntimeSnapshot,
+  saveRuntimeSnapshot,
   deleteGroupSources,
   loadSources,
   goBack,
@@ -59,6 +62,27 @@ const {
               label: '导出',
               icon: Download,
               onClick: exportSources,
+              variant: 'outline',
+              hideLabelOnMobile: true,
+            },
+            {
+              label: '保存快照',
+              icon: Save,
+              onClick: saveRuntimeSnapshot,
+              variant: 'outline',
+              hideLabelOnMobile: true,
+            },
+            {
+              label: '导出治理快照',
+              icon: FileJson,
+              onClick: exportRuntimeSnapshot,
+              variant: 'outline',
+              hideLabelOnMobile: true,
+            },
+            {
+              label: '导入治理快照',
+              icon: Upload,
+              onClick: importRuntimeSnapshot,
               variant: 'outline',
               hideLabelOnMobile: true,
             },

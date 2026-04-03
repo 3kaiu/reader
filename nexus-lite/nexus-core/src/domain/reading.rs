@@ -440,13 +440,13 @@ impl ReadingDomain {
             } => {
                 self.create_book(book_id, title, author, source_url, source_engine)
                     .await
-            }
+            },
             ReadingCommand::UpdateBook { book_id, metadata } => {
                 self.update_book(book_id, metadata).await
-            }
+            },
             ReadingCommand::MarkBookCompleted { book_id } => {
                 self.mark_book_completed(book_id).await
-            }
+            },
             ReadingCommand::StartReadingSession {
                 user_id,
                 book_id,
@@ -454,7 +454,7 @@ impl ReadingDomain {
             } => {
                 self.start_reading_session(user_id, book_id, device_info)
                     .await
-            }
+            },
             ReadingCommand::UpdateReadingProgress {
                 user_id,
                 book_id,
@@ -463,7 +463,7 @@ impl ReadingDomain {
             } => {
                 self.update_reading_progress(user_id, book_id, chapter_id, progress)
                     .await
-            }
+            },
             ReadingCommand::AddBookmark {
                 user_id,
                 book_id,
@@ -473,10 +473,10 @@ impl ReadingDomain {
             } => {
                 self.add_bookmark(user_id, book_id, chapter_id, position, note)
                     .await
-            }
+            },
             ReadingCommand::EndReadingSession { session_id } => {
                 self.end_reading_session(session_id).await
-            }
+            },
         }
     }
 
@@ -485,16 +485,16 @@ impl ReadingDomain {
             ReadingQuery::GetBook { book_id } => self.get_book(book_id).await,
             ReadingQuery::GetBooksByAuthor { author, limit } => {
                 self.get_books_by_author(author, limit).await
-            }
+            },
             ReadingQuery::GetReadingProgress { user_id, book_id } => {
                 self.get_reading_progress(user_id, book_id).await
-            }
+            },
             ReadingQuery::GetUserBookmarks { user_id, book_id } => {
                 self.get_user_bookmarks(user_id, book_id).await
-            }
+            },
             ReadingQuery::GetReadingHistory { user_id, limit } => {
                 self.get_reading_history(user_id, limit).await
-            }
+            },
             ReadingQuery::GetReadingStatistics {
                 user_id,
                 time_range,
@@ -1078,9 +1078,7 @@ impl BusinessRuleValidator<Book> for BookTitleNotEmptyRule {
 
     async fn validate(&self, entity: &Book, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.title.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Book title cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Book title cannot be empty".to_string()));
         }
         Ok(())
     }
@@ -1100,9 +1098,7 @@ impl BusinessRuleValidator<Book> for BookAuthorNotEmptyRule {
 
     async fn validate(&self, entity: &Book, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.author.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Book author cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Book author cannot be empty".to_string()));
         }
         Ok(())
     }

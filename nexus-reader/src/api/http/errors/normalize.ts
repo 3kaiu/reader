@@ -43,12 +43,37 @@ export function getHeaderValue(
   return typeof directValue === 'string' ? directValue : undefined
 }
 
+function parseBackendErrorPayload(response?: ErrorResponseLike): {
+  code?: string
+  message?: string
+  details?: string
+} | null {
+  const data = response?._data
+  if (!isRecord(data)) {
+    return null
+  }
+
+  return {
+    code: typeof data.code === 'string' ? data.code : undefined,
+    message:
+      typeof data.message === 'string'
+        ? data.message
+        : typeof data.error === 'string'
+          ? data.error
+          : undefined,
+    details: typeof data.details === 'string' ? data.details : undefined,
+  }
+}
+
 export function convertToNexusError(error: unknown, url: string, method: string): NexusError {
   if (error instanceof NexusError) {
     return error
   }
 
   const normalizedError = normalizeHttpError(error)
+  const backendPayload = parseBackendErrorPayload(normalizedError.response)
+  const backendMessage = backendPayload?.message
+  const backendDetails = backendPayload?.details
   const errorMessage = normalizedError.message || '未知错误'
   const errorString = normalizedError.toString?.() || String(error ?? '')
 
@@ -70,43 +95,53 @@ export function convertToNexusError(error: unknown, url: string, method: string)
   }
 
   if (normalizedError.status === 401) {
-    return new NexusError(ErrorCode.UNAUTHORIZED, '登录已过期，请重新登录', undefined, {
+    return new NexusError(ErrorCode.UNAUTHORIZED, '登录已过期，请重新登录', backendDetails, {
       url,
       method,
       status: normalizedError.status,
+      backendCode: backendPayload?.code,
     })
   }
 
   if (normalizedError.status === 403) {
-    return new NexusError(ErrorCode.FORBIDDEN, '没有权限访问此资源', undefined, {
+    return new NexusError(ErrorCode.FORBIDDEN, '没有权限访问此资源', backendDetails, {
       url,
       method,
       status: normalizedError.status,
+      backendCode: backendPayload?.code,
     })
   }
 
   if (normalizedError.status === 429) {
-    return new NexusError(ErrorCode.RATE_LIMITED, '请求过于频繁，请稍后重试', undefined, {
+    return new NexusError(ErrorCode.RATE_LIMITED, '请求过于频繁，请稍后重试', backendDetails, {
       url,
       method,
       status: normalizedError.status,
       retryAfter: getHeaderValue(normalizedError.response?.headers, 'retry-after'),
+      backendCode: backendPayload?.code,
     })
   }
 
   if ((normalizedError.status || 0) >= 500) {
-    return new NexusError(ErrorCode.INTERNAL_ERROR, '服务器内部错误，请稍后重试', undefined, {
-      url,
-      method,
-      status: normalizedError.status,
-    })
+    const userMessage = translateErrorMessage(backendMessage || errorMessage || '服务器内部错误')
+    return new NexusError(
+      ErrorCode.INTERNAL_ERROR,
+      userMessage,
+      backendDetails || backendMessage || errorMessage,
+      {
+        url,
+        method,
+        status: normalizedError.status,
+        backendCode: backendPayload?.code,
+      }
+    )
   }
 
   return new NexusError(
     ErrorCode.UNKNOWN_ERROR,
-    translateErrorMessage(errorMessage || '未知错误'),
-    errorMessage,
-    { url, method, originalError: errorString }
+    translateErrorMessage(backendMessage || errorMessage || '未知错误'),
+    backendDetails || backendMessage || errorMessage,
+    { url, method, originalError: errorString, backendCode: backendPayload?.code }
   )
 }
 

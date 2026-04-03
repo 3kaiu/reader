@@ -53,7 +53,9 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
     state.isParsing.value = false
     state.error.value = null
     state.loadError.value = null
+    state.loadErrorDetails.value = null
     state.chapterContentCache.value = {}
+    state.contentStageReports.value = []
   }
 
   const disposeReader = () => {

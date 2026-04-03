@@ -27,9 +27,7 @@ impl Default for QualityGateConfig {
 }
 
 fn count_paragraphs(text: &str) -> usize {
-    text.split("\n\n")
-        .filter(|p| !p.trim().is_empty())
-        .count()
+    text.split("\n\n").filter(|p| !p.trim().is_empty()).count()
 }
 
 fn duplicate_ratio(text: &str) -> f64 {
@@ -52,7 +50,10 @@ fn noise_ratio(text: &str) -> f64 {
     let chars = text.chars().count().max(1);
     let mut matched = 0usize;
     for pattern in NOISE_PATTERNS.iter() {
-        matched += pattern.find_iter(text).map(|m| m.as_str().chars().count()).sum::<usize>();
+        matched += pattern
+            .find_iter(text)
+            .map(|m| m.as_str().chars().count())
+            .sum::<usize>();
     }
     (matched as f64 / chars as f64).min(1.0)
 }
@@ -112,4 +113,3 @@ pub fn evaluate_content_quality(text: &str) -> ExtractionQuality {
 pub fn passes_quality_gate(quality: &ExtractionQuality, config: &QualityGateConfig) -> bool {
     quality.score >= config.min_score && quality.label != QualityLabel::Invalid
 }
-

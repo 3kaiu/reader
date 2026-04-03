@@ -12,6 +12,7 @@ export function createReaderScrollContentLoadStateBindings(
     | 'isLoadingMore'
     | 'hasNextChapter'
     | 'loadError'
+    | 'loadErrorDetails'
   >,
 ) {
   return computed<ReaderScrollLoadStateProps>(() => ({
@@ -20,5 +21,6 @@ export function createReaderScrollContentLoadStateBindings(
     isLoadingMore: props.isLoadingMore,
     hasNextChapter: props.hasNextChapter,
     loadError: props.loadError,
+    loadErrorDetails: props.loadErrorDetails,
   }))
 }

@@ -12,6 +12,7 @@ export interface ReaderContentProps {
   formattedTime: string
   paragraphSpacing: number
   loadError?: string | null
+  loadErrorDetails?: string | null
   decoderEnabled?: boolean
   decoderEntities?: DecodedEntity[]
 }

@@ -33,10 +33,7 @@ async fn health() -> Json<SourceBuilderHealthResponse> {
 }
 
 fn is_true_flag(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes" | "on"
-    )
+    matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
 }
 
 async fn load_config() -> anyhow::Result<EngineConfig> {
@@ -88,11 +85,9 @@ async fn build_source_builder_state(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "nexus_source_builder=debug,nexus_engine=debug,tower_http=debug".into()
-            }),
-        )
+        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            "nexus_source_builder=debug,nexus_engine=debug,tower_http=debug".into()
+        }))
         .with(tracing_subscriber::fmt::layer())
         .init();
 

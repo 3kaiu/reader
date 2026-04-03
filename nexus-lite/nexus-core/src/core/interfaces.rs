@@ -71,12 +71,7 @@ pub trait Cache<K, V>: Send + Sync {
     async fn get(&self, key: &K) -> Result<Option<V>, EngineError>;
 
     /// 设置缓存值
-    async fn set(
-        &self,
-        key: K,
-        value: V,
-        ttl: Option<Duration>,
-    ) -> Result<(), EngineError>;
+    async fn set(&self, key: K, value: V, ttl: Option<Duration>) -> Result<(), EngineError>;
 
     /// 删除缓存值
     async fn delete(&self, key: &K) -> Result<(), EngineError>;

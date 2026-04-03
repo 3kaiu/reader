@@ -188,7 +188,7 @@ impl SystemConfig {
                     if value.is_null() {
                         return Err(DomainError::Validation(rule.error_message.clone()));
                     }
-                }
+                },
                 ValidationRuleType::MinLength => {
                     if let Some(min_len) = rule.parameters.get("minLength").and_then(|v| v.as_u64())
                     {
@@ -198,7 +198,7 @@ impl SystemConfig {
                             }
                         }
                     }
-                }
+                },
                 ValidationRuleType::MaxLength => {
                     if let Some(max_len) = rule.parameters.get("maxLength").and_then(|v| v.as_u64())
                     {
@@ -208,7 +208,7 @@ impl SystemConfig {
                             }
                         }
                     }
-                }
+                },
                 ValidationRuleType::MinValue => {
                     if let Some(min_val) = rule.parameters.get("minValue").and_then(|v| v.as_f64())
                     {
@@ -218,7 +218,7 @@ impl SystemConfig {
                             }
                         }
                     }
-                }
+                },
                 ValidationRuleType::MaxValue => {
                     if let Some(max_val) = rule.parameters.get("maxValue").and_then(|v| v.as_f64())
                     {
@@ -228,7 +228,7 @@ impl SystemConfig {
                             }
                         }
                     }
-                }
+                },
                 ValidationRuleType::Enum => {
                     if let Some(allowed_values) =
                         rule.parameters.get("values").and_then(|v| v.as_array())
@@ -238,8 +238,8 @@ impl SystemConfig {
                             return Err(DomainError::Validation(rule.error_message.clone()));
                         }
                     }
-                }
-                _ => {} // 其他规则暂时跳过
+                },
+                _ => {}, // 其他规则暂时跳过
             }
         }
         Ok(())
@@ -567,7 +567,7 @@ impl SystemDomain {
                     description,
                 )
                 .await
-            }
+            },
             SystemCommand::UpdateSystemConfig {
                 config_id,
                 new_value,
@@ -575,10 +575,10 @@ impl SystemDomain {
             } => {
                 self.update_system_config(config_id, new_value, modified_by)
                     .await
-            }
+            },
             SystemCommand::DeleteSystemConfig { config_id } => {
                 self.delete_system_config(config_id).await
-            }
+            },
             SystemCommand::RecordSystemMetric {
                 metric_name,
                 metric_value,
@@ -596,7 +596,7 @@ impl SystemDomain {
                     source,
                 )
                 .await
-            }
+            },
             SystemCommand::CreateSystemAlert {
                 alert_type,
                 severity,
@@ -618,24 +618,24 @@ impl SystemDomain {
                     current_value,
                 )
                 .await
-            }
+            },
             SystemCommand::AcknowledgeSystemAlert {
                 alert_id,
                 acknowledged_by,
             } => {
                 self.acknowledge_system_alert(alert_id, acknowledged_by)
                     .await
-            }
+            },
             SystemCommand::ResolveSystemAlert { alert_id } => {
                 self.resolve_system_alert(alert_id).await
-            }
+            },
             SystemCommand::RunSystemOptimization {
                 optimization_type,
                 target,
             } => {
                 self.run_system_optimization(optimization_type, target)
                     .await
-            }
+            },
             SystemCommand::ScheduleSystemMaintenance {
                 maintenance_type,
                 scheduled_time,
@@ -643,7 +643,7 @@ impl SystemDomain {
             } => {
                 self.schedule_system_maintenance(maintenance_type, scheduled_time, description)
                     .await
-            }
+            },
         }
     }
 
@@ -661,7 +661,7 @@ impl SystemDomain {
             } => {
                 self.get_system_metrics(metric_name, time_range, limit)
                     .await
-            }
+            },
             SystemQuery::GetSystemAlerts {
                 status,
                 severity,
@@ -669,13 +669,13 @@ impl SystemDomain {
             } => self.get_system_alerts(status, severity, limit).await,
             SystemQuery::GetSystemHealth { include_details } => {
                 self.get_system_health(include_details).await
-            }
+            },
             SystemQuery::GetSystemPerformance { time_range } => {
                 self.get_system_performance(time_range).await
-            }
+            },
             SystemQuery::GetSystemOptimizationHistory { limit } => {
                 self.get_system_optimization_history(limit).await
-            }
+            },
         }
     }
 
@@ -901,10 +901,7 @@ impl SystemDomain {
                 },
             )],
             metadata: HashMap::from([
-                (
-                    "optimization_type".to_string(),
-                    serde_json::json!(optimization_type),
-                ),
+                ("optimization_type".to_string(), serde_json::json!(optimization_type)),
                 ("target".to_string(), serde_json::json!(target)),
             ]),
         })
@@ -1225,9 +1222,9 @@ impl SystemMetricRepository for InMemorySystemMetricRepository {
                     .map_or(true, |name| m.metric_name == *name)
             })
             .filter(|m| {
-                time_range.as_ref().map_or(true, |(start, end)| {
-                    m.timestamp >= *start && m.timestamp <= *end
-                })
+                time_range
+                    .as_ref()
+                    .map_or(true, |(start, end)| m.timestamp >= *start && m.timestamp <= *end)
             })
             .take(limit as usize)
             .cloned()
@@ -1442,9 +1439,7 @@ impl BusinessRuleValidator<SystemConfig> for ConfigKeyNotEmptyRule {
         _context: &DomainContext,
     ) -> Result<(), DomainError> {
         if entity.config_key.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Config key cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Config key cannot be empty".to_string()));
         }
         Ok(())
     }
@@ -1475,22 +1470,22 @@ impl BusinessRuleValidator<SystemConfig> for ConfigValueValidRule {
                         "Config value must be a number".to_string(),
                     ));
                 }
-            }
+            },
             ConfigType::Boolean => {
                 if !entity.config_value.is_boolean() {
                     return Err(DomainError::Validation(
                         "Config value must be a boolean".to_string(),
                     ));
                 }
-            }
+            },
             ConfigType::String => {
                 if !entity.config_value.is_string() {
                     return Err(DomainError::Validation(
                         "Config value must be a string".to_string(),
                     ));
                 }
-            }
-            _ => {} // 其他类型暂时跳过验证
+            },
+            _ => {}, // 其他类型暂时跳过验证
         }
         Ok(())
     }

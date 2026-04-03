@@ -74,17 +74,17 @@ pub use business_modules::parse_cache;
 
 // Keep domain essentials explicitly exported for compatibility while avoiding
 // broad glob exports that collide with canonical runtime types.
+pub use book_engine::*;
+pub use config::*;
 #[allow(deprecated)]
 pub use domain::{
-    AggregateRoot, BusinessRuleValidator, DomainCommand, DomainContext, DomainError, DomainEvent,
-    DomainLayer, DomainQuery, DomainResult, Entity, ValueObject,
     reading::{ReadingCommand, ReadingQuery},
     search::{SearchCommand, SearchDomainQuery},
     system::{SystemCommand, SystemQuery},
     user::{UserCommand, UserQuery},
+    AggregateRoot, BusinessRuleValidator, DomainCommand, DomainContext, DomainError, DomainEvent,
+    DomainLayer, DomainQuery, DomainResult, Entity, ValueObject,
 };
-pub use book_engine::*;
-pub use config::*;
 pub use error::EngineError;
 pub use event_bus::{EngineEvent, EventBus, StorageEvent, SystemControlEvent, SystemEvent};
 pub use health_tracker::*;

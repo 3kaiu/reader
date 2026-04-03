@@ -80,6 +80,11 @@ impl ApiErrorResponse {
     pub fn new(status: StatusCode, error: ApiError) -> Self {
         Self { status, error }
     }
+
+    pub fn with_details(mut self, details: impl Into<String>) -> Self {
+        self.error.details = Some(details.into());
+        self
+    }
 }
 
 impl IntoResponse for ApiErrorResponse {
@@ -98,10 +103,7 @@ pub fn not_found(resource: &str) -> ApiErrorResponse {
 }
 
 pub fn internal_error(message: impl Into<String>) -> ApiErrorResponse {
-    ApiErrorResponse::new(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        ApiError::internal(message),
-    )
+    ApiErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, ApiError::internal(message))
 }
 
 pub fn conflict(message: impl Into<String>) -> ApiErrorResponse {

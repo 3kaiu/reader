@@ -133,9 +133,7 @@ impl MultiLevelCache {
     pub async fn new(config: CacheConfig) -> Result<Self, CacheError> {
         let memory_cache = Arc::new(RwLock::new(MemoryCache::new(config.memory_capacity).await?));
         let disk_cache = if config.disk_capacity > 0 {
-            Some(Arc::new(RwLock::new(
-                DiskCache::new(config.disk_capacity).await?,
-            )))
+            Some(Arc::new(RwLock::new(DiskCache::new(config.disk_capacity).await?)))
         } else {
             None
         };
@@ -212,10 +210,7 @@ where
 
         // 写入磁盘缓存（如果有且优先级足够高）
         if let Some(disk) = &self.disk_cache {
-            if matches!(
-                options.priority,
-                CachePriority::High | CachePriority::Critical
-            ) {
+            if matches!(options.priority, CachePriority::High | CachePriority::Critical) {
                 let _ = disk
                     .write()
                     .await
@@ -343,7 +338,7 @@ impl MemoryCache {
                     // 更新访问统计
                     // 注意：这里无法修改，因为是不可变借用
                     Ok(Some(value))
-                }
+                },
                 Err(e) => Err(CacheError::Deserialization(e.to_string())),
             }
         } else {

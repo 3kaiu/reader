@@ -28,12 +28,15 @@ export function createReaderSessionActions(
     state.catalog.value = []
     state.loadedChapters.value = []
     state.chapterContentCache.value = {}
+    state.contentStageReports.value = []
+    state.loadErrorDetails.value = null
   }
 
   const openBook = async (book: ReaderBook) => {
     state.isLoading.value = true
     state.error.value = null
     state.loadError.value = null
+    state.loadErrorDetails.value = null
 
     try {
       state.currentBook.value = {

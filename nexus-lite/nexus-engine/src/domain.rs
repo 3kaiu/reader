@@ -443,11 +443,11 @@ impl EngineDomain {
             EngineCommand::ExecuteFetchTask { task_id } => self.execute_fetch_task(task_id).await,
             EngineCommand::CancelFetchTask { task_id, reason } => {
                 self.cancel_fetch_task(task_id, reason).await
-            }
+            },
             EngineCommand::RetryFetchTask { task_id } => self.retry_fetch_task(task_id).await,
             EngineCommand::CreateContentParser { parser } => {
                 self.create_content_parser(parser).await
-            }
+            },
             EngineCommand::UpdateContentParser {
                 parser_id,
                 selectors,
@@ -455,13 +455,13 @@ impl EngineDomain {
             } => {
                 self.update_content_parser(parser_id, selectors, regex_patterns)
                     .await
-            }
+            },
             EngineCommand::ConfigureConnectionPool { domain, config } => {
                 self.configure_connection_pool(domain, config).await
-            }
+            },
             EngineCommand::HealthCheckConnectionPool { domain } => {
                 self.health_check_connection_pool(domain).await
-            }
+            },
         }
     }
 
@@ -476,7 +476,7 @@ impl EngineDomain {
             EngineQuery::GetContentParser { parser_id } => self.get_content_parser(parser_id).await,
             EngineQuery::ListContentParsers { parser_type } => {
                 self.list_content_parsers(parser_type).await
-            }
+            },
             EngineQuery::GetConnectionPool { domain } => self.get_connection_pool(domain).await,
             EngineQuery::ListConnectionPools { status } => self.list_connection_pools(status).await,
             EngineQuery::GetEngineMetrics => self.get_engine_metrics().await,
@@ -1073,9 +1073,7 @@ impl BusinessRuleValidator<FetchTask> for FetchTaskUrlValidRule {
         _context: &DomainContext,
     ) -> Result<(), DomainError> {
         if entity.url.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Fetch task URL cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Fetch task URL cannot be empty".to_string()));
         }
         if !entity.url.starts_with("http://") && !entity.url.starts_with("https://") {
             return Err(DomainError::Validation(

@@ -135,14 +135,14 @@ impl AspectWeaver {
                         .await?;
                 }
                 Ok(value)
-            }
+            },
             Err(mut error) => {
                 // 异常拦截
                 for interceptor in &self.interceptors {
                     interceptor.on_error(&mut context, &mut error).await?;
                 }
                 Err(error)
-            }
+            },
         }
     }
 }
@@ -161,10 +161,9 @@ impl PerformanceMonitoringInterceptor {
 #[async_trait]
 impl Interceptor for PerformanceMonitoringInterceptor {
     async fn before(&self, context: &mut InterceptorContext) -> Result<(), InterceptorError> {
-        context.metadata.insert(
-            "start_time".to_string(),
-            serde_json::json!(Utc::now().timestamp_millis()),
-        );
+        context
+            .metadata
+            .insert("start_time".to_string(), serde_json::json!(Utc::now().timestamp_millis()));
         Ok(())
     }
 
@@ -245,15 +244,10 @@ impl Interceptor for SecurityInterceptor {
                     "Permission denied: {}",
                     permission
                 ))),
-                Err(e) => Err(InterceptorError::Custom(format!(
-                    "Security check failed: {:?}",
-                    e
-                ))),
+                Err(e) => Err(InterceptorError::Custom(format!("Security check failed: {:?}", e))),
             }
         } else {
-            Err(InterceptorError::SecurityViolation(
-                "User not authenticated".to_string(),
-            ))
+            Err(InterceptorError::SecurityViolation("User not authenticated".to_string()))
         }
     }
 
@@ -293,10 +287,7 @@ impl CachingInterceptor {
 
     fn generate_cache_key(&self, context: &InterceptorContext) -> String {
         let params_hash = serde_json::to_string(&context.parameters).unwrap_or_default();
-        format!(
-            "{}:{}:{}",
-            self.cache_key_prefix, context.method_name, params_hash
-        )
+        format!("{}:{}:{}", self.cache_key_prefix, context.method_name, params_hash)
     }
 }
 
@@ -362,19 +353,19 @@ impl Interceptor for LoggingInterceptor {
         match self.log_level {
             Level::TRACE => {
                 tracing::trace!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
-            }
+            },
             Level::DEBUG => {
                 tracing::debug!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
-            }
+            },
             Level::INFO => {
                 tracing::info!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
-            }
+            },
             Level::WARN => {
                 tracing::warn!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
-            }
+            },
             Level::ERROR => {
                 tracing::error!(target = %context.target_type, method = %context.method_name, parameters = ?context.parameters, "Method execution started")
-            }
+            },
         }
         Ok(())
     }
@@ -387,19 +378,19 @@ impl Interceptor for LoggingInterceptor {
         match self.log_level {
             Level::TRACE => {
                 tracing::trace!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
-            }
+            },
             Level::DEBUG => {
                 tracing::debug!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
-            }
+            },
             Level::INFO => {
                 tracing::info!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
-            }
+            },
             Level::WARN => {
                 tracing::warn!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
-            }
+            },
             Level::ERROR => {
                 tracing::error!(target = %context.target_type, method = %context.method_name, execution_time_ms = result.execution_time_ms, "Method execution completed")
-            }
+            },
         }
         Ok(())
     }
@@ -504,10 +495,9 @@ impl Interceptor for AuditInterceptor {
             success: None, // 会在after中设置
         };
 
-        context.metadata.insert(
-            "audit_id".to_string(),
-            serde_json::json!(audit_entry.id.clone()),
-        );
+        context
+            .metadata
+            .insert("audit_id".to_string(), serde_json::json!(audit_entry.id.clone()));
         self.audit_service
             .record_audit_entry(audit_entry)
             .await

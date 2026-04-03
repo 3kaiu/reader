@@ -30,7 +30,8 @@ impl FeatureExtractor {
             heading_selector: Selector::parse("h1, h2, h3, h4, h5, h6").unwrap(),
             img_selector: Selector::parse("img").unwrap(),
             nav_selector: Selector::parse("nav, aside, footer, header").unwrap(),
-            button_selector: Selector::parse("button, input[type='button'], input[type='submit']").unwrap(),
+            button_selector: Selector::parse("button, input[type='button'], input[type='submit']")
+                .unwrap(),
             visual_extractor: VisualFeatureExtractor::new(),
         }
     }
@@ -148,12 +149,26 @@ impl FeatureExtractor {
     }
 
     fn count_punctuation(&self, text: &str) -> usize {
-        text.chars().filter(|c| {
-            matches!(
-                *c,
-                '。' | '！' | '？' | '；' | '，' | '、' | '!' | '?' | ';' | ',' | '.' | ':' | '—' | '-'
-            )
-        }).count()
+        text.chars()
+            .filter(|c| {
+                matches!(
+                    *c,
+                    '。' | '！'
+                        | '？'
+                        | '；'
+                        | '，'
+                        | '、'
+                        | '!'
+                        | '?'
+                        | ';'
+                        | ','
+                        | '.'
+                        | ':'
+                        | '—'
+                        | '-'
+                )
+            })
+            .count()
     }
 
     fn count_digits(&self, text: &str) -> usize {
@@ -161,7 +176,9 @@ impl FeatureExtractor {
     }
 
     fn count_chinese_chars(&self, text: &str) -> usize {
-        text.chars().filter(|c| (*c as u32) >= 0x4E00 && (*c as u32) <= 0x9FFF).count()
+        text.chars()
+            .filter(|c| (*c as u32) >= 0x4E00 && (*c as u32) <= 0x9FFF)
+            .count()
     }
 
     fn count_content_keywords(&self, el: &ElementRef) -> usize {
@@ -170,8 +187,8 @@ impl FeatureExtractor {
         let haystack = format!("{} {}", class, id);
 
         let keywords = [
-            "article", "content", "reader", "chapter", "post", "entry",
-            "main", "text", "novel", "book", "story", "body", "detail",
+            "article", "content", "reader", "chapter", "post", "entry", "main", "text", "novel",
+            "book", "story", "body", "detail",
         ];
 
         keywords.iter().filter(|k| haystack.contains(**k)).count()
@@ -181,9 +198,28 @@ impl FeatureExtractor {
         let lower = text.to_ascii_lowercase();
 
         let keywords = [
-            "下一章", "上一章", "下一页", "上一页", "目录", "广告", "会员",
-            "点击", "下载", "推荐", "热门", "相关", "点赞", "收藏", "分享",
-            "版权", "免责", "加载", "刷新", "本章完", "完本", "完结",
+            "下一章",
+            "上一章",
+            "下一页",
+            "上一页",
+            "目录",
+            "广告",
+            "会员",
+            "点击",
+            "下载",
+            "推荐",
+            "热门",
+            "相关",
+            "点赞",
+            "收藏",
+            "分享",
+            "版权",
+            "免责",
+            "加载",
+            "刷新",
+            "本章完",
+            "完本",
+            "完结",
         ];
 
         keywords.iter().filter(|k| lower.contains(**k)).count()
@@ -204,8 +240,10 @@ impl FeatureExtractor {
         let id = el.value().attr("id").unwrap_or("").to_ascii_lowercase();
         let haystack = format!("{} {}", class, id);
 
-        haystack.contains("content") || haystack.contains("article") ||
-        haystack.contains("reader") || haystack.contains("chapter")
+        haystack.contains("content")
+            || haystack.contains("article")
+            || haystack.contains("reader")
+            || haystack.contains("chapter")
     }
 
     fn has_noise_class(&self, el: &ElementRef) -> bool {
@@ -213,9 +251,12 @@ impl FeatureExtractor {
         let id = el.value().attr("id").unwrap_or("").to_ascii_lowercase();
         let haystack = format!("{} {}", class, id);
 
-        haystack.contains("nav") || haystack.contains("footer") ||
-        haystack.contains("header") || haystack.contains("sidebar") ||
-        haystack.contains("ad") || haystack.contains("advertisement")
+        haystack.contains("nav")
+            || haystack.contains("footer")
+            || haystack.contains("header")
+            || haystack.contains("sidebar")
+            || haystack.contains("ad")
+            || haystack.contains("advertisement")
     }
 }
 
@@ -281,38 +322,35 @@ impl LinearScorer {
         // Pre-trained weights based on heuristic analysis
         // These weights can be fine-tuned with real data
         let weights = vec![
-            1.0,   // text_length
+            1.0,    // text_length
             -150.0, // link_count
-            20.0,  // para_count
-            -50.0, // heading_count
-            -20.0, // img_count
+            20.0,   // para_count
+            -50.0,  // heading_count
+            -20.0,  // img_count
             -200.0, // nav_count
-            -70.0, // button_count
+            -70.0,  // button_count
             -700.0, // link_density
-            50.0,  // punct_density
+            50.0,   // punct_density
             -100.0, // digit_density
-            30.0,  // chinese_density
-            200.0, // avg_para_len
-            300.0, // content_keywords
+            30.0,   // chinese_density
+            200.0,  // avg_para_len
+            300.0,  // content_keywords
             -150.0, // noise_keywords
-            -10.0, // depth
-            5.0,   // child_count
-            -5.0,  // sibling_count
-            300.0, // has_content_class
+            -10.0,  // depth
+            5.0,    // child_count
+            -5.0,   // sibling_count
+            300.0,  // has_content_class
             -200.0, // has_noise_class
-            50.0,  // punct_count
+            50.0,   // punct_count
             -100.0, // digit_count
-            30.0,  // chinese_char_count
-            1.5,   // visual_quality_score
+            30.0,   // chinese_char_count
+            1.5,    // visual_quality_score
             -300.0, // is_visually_hidden
             -150.0, // is_visually_sidebar
             -100.0, // is_visually_header_footer
         ];
 
-        Self {
-            weights,
-            bias: 0.0,
-        }
+        Self { weights, bias: 0.0 }
     }
 
     /// Score content features using linear regression
@@ -378,19 +416,15 @@ impl EnsembleScorer {
     }
 
     /// Score using ensemble of heuristic and ML-based scoring
-    pub fn score_ensemble(
-        &self,
-        features: &ContentFeatures,
-        heuristic_score: f64,
-    ) -> f64 {
+    pub fn score_ensemble(&self, features: &ContentFeatures, heuristic_score: f64) -> f64 {
         let ml_score = self.linear_scorer.score(features);
 
         // Normalize scores to [0, 1] range
         let normalized_heuristic = self.sigmoid(heuristic_score / 1000.0);
         let normalized_ml = self.sigmoid(ml_score / 1000.0);
 
-        let ensemble_score = self.heuristic_weight * normalized_heuristic
-            + self.ml_weight * normalized_ml;
+        let ensemble_score =
+            self.heuristic_weight * normalized_heuristic + self.ml_weight * normalized_ml;
 
         ensemble_score * 1000.0
     }
@@ -418,7 +452,10 @@ mod tests {
             "<div class=\"content\">\n                <p>这是一段测试文本，包含标点符号。</p>\n                <a href=\"#\">链接</a>\n                <img src=\"test.png\" alt=\"图片\" />\n            </div>",
         );
 
-        let el = html.select(&Selector::parse("div").unwrap()).next().unwrap();
+        let el = html
+            .select(&Selector::parse("div").unwrap())
+            .next()
+            .unwrap();
         let features = extractor.extract_features(&el);
 
         assert!(features.text_length > 0.0);

@@ -40,11 +40,11 @@ impl EngineRegistry {
                 self.cache.insert(source_id.to_string(), engine.clone());
                 info!("Cached engine for source: {}", source_id);
                 Some(engine)
-            }
+            },
             Err(e) => {
                 warn!("Failed to compile engine for source {}: {}", source_id, e);
                 None
-            }
+            },
         }
     }
 

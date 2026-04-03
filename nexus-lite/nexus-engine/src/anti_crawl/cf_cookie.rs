@@ -1,13 +1,13 @@
 //! Cloudflare Cookie Fetcher
-//! 
+//!
 //! Uses headless Chrome to bypass CF challenges and extract cf_clearance cookie.
 //! The cookie can then be reused for subsequent requests.
 
 use headless_chrome::{Browser, LaunchOptions};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use parking_lot::RwLock;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 /// CF clearance cookie with metadata
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ impl CfCookie {
         // CF clearance cookies typically valid for 15-30 minutes
         age < Duration::from_secs(15 * 60)
     }
-    
+
     /// Convert to reqwest cookie format
     pub fn to_cookie_string(&self) -> String {
         format!("{}={}", self.name, self.value)
@@ -57,31 +57,33 @@ impl CfCookieManager {
             wait_timeout: Duration::from_secs(15),
         }
     }
-    
+
     /// Get valid cookies for a domain, fetching if needed
     pub async fn get_cookies(&self, url: &str) -> Result<Vec<CfCookie>, CfCookieError> {
         let domain = extract_domain(url)?;
-        
+
         // Check cache first
         {
             let caches = self.caches.read();
             if let Some(cache) = caches.get(&domain) {
-                let valid_cookies: Vec<CfCookie> = cache.cookies.values()
+                let valid_cookies: Vec<CfCookie> = cache
+                    .cookies
+                    .values()
                     .filter(|c| c.is_valid())
                     .cloned()
                     .collect();
-                    
+
                 if !valid_cookies.is_empty() {
                     info!("Using cached CF cookies for {}", domain);
                     return Ok(valid_cookies);
                 }
             }
         }
-        
+
         // Need to fetch new cookies
         info!("Fetching fresh CF cookies for {}", domain);
         let cookies = self.fetch_cookies_headless(url).await?;
-        
+
         // Update cache
         {
             let mut caches = self.caches.write();
@@ -91,30 +93,30 @@ impl CfCookieManager {
             }
             cache.last_fetch = Some(Instant::now());
         }
-        
+
         Ok(cookies)
     }
-    
+
     /// Fetch cookies using headless Chrome
     async fn fetch_cookies_headless(&self, url: &str) -> Result<Vec<CfCookie>, CfCookieError> {
         // Run in blocking task since headless_chrome is not async
         let url = url.to_string();
         let timeout = self.browser_timeout;
         let wait_timeout = self.wait_timeout;
-        
-        tokio::task::spawn_blocking(move || {
-            Self::fetch_with_browser(&url, timeout, wait_timeout)
-        }).await.map_err(|e| CfCookieError::BrowserError(e.to_string()))?
+
+        tokio::task::spawn_blocking(move || Self::fetch_with_browser(&url, timeout, wait_timeout))
+            .await
+            .map_err(|e| CfCookieError::BrowserError(e.to_string()))?
     }
-    
+
     /// Internal: fetch cookies with browser
     fn fetch_with_browser(
-        url: &str, 
+        url: &str,
         _timeout: Duration,
         wait_timeout: Duration,
     ) -> Result<Vec<CfCookie>, CfCookieError> {
         debug!("Launching headless Chrome for {}", url);
-        
+
         // Launch browser with stealth options
         let browser = Browser::new(LaunchOptions {
             headless: true,
@@ -122,29 +124,33 @@ impl CfCookieManager {
             window_size: Some((1920, 1080)),
             user_data_dir: None,
             ..Default::default()
-        }).map_err(|e| CfCookieError::BrowserLaunch(e.to_string()))?;
-        
-        let tab = browser.new_tab().map_err(|e| CfCookieError::BrowserError(e.to_string()))?;
-        
+        })
+        .map_err(|e| CfCookieError::BrowserLaunch(e.to_string()))?;
+
+        let tab = browser
+            .new_tab()
+            .map_err(|e| CfCookieError::BrowserError(e.to_string()))?;
+
         // Navigate to URL
         debug!("Navigating to {}", url);
-        tab.navigate_to(url).map_err(|e| CfCookieError::Navigation(e.to_string()))?;
-        
+        tab.navigate_to(url)
+            .map_err(|e| CfCookieError::Navigation(e.to_string()))?;
+
         // Wait for CF challenge to complete
         let start = Instant::now();
         let mut cf_challenge_detected = false;
-        
+
         while start.elapsed() < wait_timeout {
             // Check if we're still on CF challenge page
             let url = tab.get_url();
-            
+
             if url.contains("challenge") || url.contains("cdn-cgi") {
                 cf_challenge_detected = true;
                 debug!("CF challenge detected, waiting...");
                 std::thread::sleep(Duration::from_millis(500));
                 continue;
             }
-            
+
             // Check page content for CF indicators
             if let Ok(content) = tab.get_content() {
                 if content.contains("Just a moment") || content.contains("Checking your browser") {
@@ -153,61 +159,66 @@ impl CfCookieManager {
                     std::thread::sleep(Duration::from_millis(500));
                     continue;
                 }
-                
+
                 // If we got actual content, CF challenge is complete
                 if cf_challenge_detected || !content.contains("cf-") {
                     debug!("CF challenge appears complete");
                     break;
                 }
             }
-            
+
             std::thread::sleep(Duration::from_millis(200));
         }
-        
+
         // Give a bit more time for cookies to be set
         std::thread::sleep(Duration::from_millis(500));
-        
+
         // Get cookies
-        let cookies = tab.get_cookies().map_err(|e| CfCookieError::BrowserError(e.to_string()))?;
-        
+        let cookies = tab
+            .get_cookies()
+            .map_err(|e| CfCookieError::BrowserError(e.to_string()))?;
+
         debug!("Found {} cookies", cookies.len());
-        
+
         // Filter CF-related cookies
-        let cf_cookies: Vec<CfCookie> = cookies.into_iter()
+        let cf_cookies: Vec<CfCookie> = cookies
+            .into_iter()
             .filter(|c| {
-                c.name.starts_with("cf_") || 
-                c.name == "__cf_bm" ||
-                c.name.contains("cloudflare")
+                c.name.starts_with("cf_") || c.name == "__cf_bm" || c.name.contains("cloudflare")
             })
             .map(|c| CfCookie {
                 name: c.name,
                 value: c.value,
                 domain: c.domain,
-                path: if c.path.is_empty() { "/".to_string() } else { c.path },
+                path: if c.path.is_empty() {
+                    "/".to_string()
+                } else {
+                    c.path
+                },
                 expires: Some(c.expires),
                 fetched_at: Instant::now(),
             })
             .collect();
-        
+
         if cf_cookies.is_empty() {
             warn!("No CF cookies found after navigation");
         } else {
             info!("Extracted {} CF cookies", cf_cookies.len());
         }
-        
+
         // Close browser
         drop(tab);
         drop(browser);
-        
+
         Ok(cf_cookies)
     }
-    
+
     /// Clear cached cookies for a domain
     pub fn clear_cache(&self, domain: &str) {
         let mut caches = self.caches.write();
         caches.remove(domain);
     }
-    
+
     /// Clear all cached cookies
     pub fn clear_all(&self) {
         let mut caches = self.caches.write();
@@ -224,7 +235,8 @@ impl Default for CfCookieManager {
 /// Extract domain from URL
 fn extract_domain(url: &str) -> Result<String, CfCookieError> {
     let parsed = url::Url::parse(url).map_err(|e| CfCookieError::InvalidUrl(e.to_string()))?;
-    let domain = parsed.host_str()
+    let domain = parsed
+        .host_str()
         .ok_or_else(|| CfCookieError::InvalidUrl("No host in URL".to_string()))?;
     Ok(domain.to_string())
 }
@@ -233,16 +245,16 @@ fn extract_domain(url: &str) -> Result<String, CfCookieError> {
 pub enum CfCookieError {
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
-    
+
     #[error("Failed to launch browser: {0}")]
     BrowserLaunch(String),
-    
+
     #[error("Browser error: {0}")]
     BrowserError(String),
-    
+
     #[error("Navigation error: {0}")]
     Navigation(String),
-    
+
     #[error("No CF cookies found")]
     NoCookies,
 }
@@ -250,7 +262,7 @@ pub enum CfCookieError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_cookie_validity() {
         let cookie = CfCookie {
@@ -261,10 +273,10 @@ mod tests {
             expires: None,
             fetched_at: Instant::now(),
         };
-        
+
         assert!(cookie.is_valid());
     }
-    
+
     #[test]
     fn test_cookie_string() {
         let cookie = CfCookie {
@@ -275,7 +287,7 @@ mod tests {
             expires: None,
             fetched_at: Instant::now(),
         };
-        
+
         assert_eq!(cookie.to_cookie_string(), "cf_clearance=abc123");
     }
 }

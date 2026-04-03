@@ -65,17 +65,9 @@ where
         Ok(None)
     }
 
-    async fn set(
-        &self,
-        key: K,
-        value: V,
-        ttl: Option<Duration>,
-    ) -> Result<(), EngineError> {
+    async fn set(&self, key: K, value: V, ttl: Option<Duration>) -> Result<(), EngineError> {
         let expires_at = ttl.map(|d| tokio::time::Instant::now() + d);
-        let entry = CacheEntry {
-            value,
-            expires_at,
-        };
+        let entry = CacheEntry { value, expires_at };
         let mut data = self.data.write().await;
         data.insert(key, entry);
         Ok(())

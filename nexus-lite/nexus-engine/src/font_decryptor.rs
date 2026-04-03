@@ -6,21 +6,21 @@
 //! - Decrypt obfuscated text
 
 use std::collections::HashMap;
-use ttf_parser::Face;
 use thiserror::Error;
+use ttf_parser::Face;
 
 /// Font decryption error
 #[derive(Debug, Error)]
 pub enum FontDecryptError {
     #[error("Failed to parse font: {0}")]
     ParseError(String),
-    
+
     #[error("Failed to download font: {0}")]
     DownloadError(String),
-    
+
     #[error("No CMAP table found")]
     NoCmapTable,
-    
+
     #[error("Invalid character mapping")]
     InvalidMapping,
 }
@@ -44,8 +44,7 @@ impl FontDecryptor {
 
     /// Parse font data and extract character mapping
     pub fn parse_font(&self, data: &[u8]) -> Result<CharMapping, FontDecryptError> {
-        let face = Face::parse(data, 0)
-            .map_err(|e| FontDecryptError::ParseError(e.to_string()))?;
+        let face = Face::parse(data, 0).map_err(|e| FontDecryptError::ParseError(e.to_string()))?;
 
         let mut mapping = CharMapping::new();
 
@@ -78,7 +77,7 @@ impl FontDecryptor {
         // This would require HTTP client integration
         // For now, return an error suggesting to download first
         Err(FontDecryptError::DownloadError(
-            "Use parse_font with downloaded data".to_string()
+            "Use parse_font with downloaded data".to_string(),
         ))
     }
 
@@ -105,9 +104,11 @@ impl FontDecryptor {
     }
 
     /// Analyze font for common obfuscation patterns
-    pub fn analyze_obfuscation(&self, data: &[u8]) -> Result<ObfuscationAnalysis, FontDecryptError> {
-        let face = Face::parse(data, 0)
-            .map_err(|e| FontDecryptError::ParseError(e.to_string()))?;
+    pub fn analyze_obfuscation(
+        &self,
+        data: &[u8],
+    ) -> Result<ObfuscationAnalysis, FontDecryptError> {
+        let face = Face::parse(data, 0).map_err(|e| FontDecryptError::ParseError(e.to_string()))?;
 
         let mut analysis = ObfuscationAnalysis::default();
 
@@ -127,7 +128,7 @@ impl FontDecryptor {
 
             analysis.total_chars = char_count;
             analysis.mapped_chars = mapped_count;
-            
+
             // If mapping ratio is unusual, likely obfuscated
             if char_count > 0 {
                 let ratio = mapped_count as f64 / char_count as f64;
@@ -167,29 +168,23 @@ pub mod common_mappings {
 
     /// Build a simple substitution mapping
     /// This is useful when you know the substitution pattern
-    pub fn build_substitution_mapping(
-        encrypted: &str,
-        decrypted: &str,
-    ) -> CharMapping {
-        encrypted
-            .chars()
-            .zip(decrypted.chars())
-            .collect()
+    pub fn build_substitution_mapping(encrypted: &str, decrypted: &str) -> CharMapping {
+        encrypted.chars().zip(decrypted.chars()).collect()
     }
 
     /// Example: Common obfuscation pattern where characters are shifted
     pub fn build_shift_mapping(shift: i32) -> CharMapping {
         let mut mapping = CharMapping::new();
-        
+
         // Common Chinese characters used in novels
         let common_chars = "的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题导程展五果料象员革位入情文物教被利什合化其";
-        
+
         for c in common_chars.chars() {
             if let Some(shifted) = char::from_u32((c as u32).wrapping_add(shift as u32)) {
                 mapping.insert(shifted, c);
             }
         }
-        
+
         mapping
     }
 }
@@ -203,7 +198,7 @@ mod tests {
         let decryptor = FontDecryptor::new();
         let pairs = vec![('a', 'b'), ('c', 'd')];
         let mapping = decryptor.build_mapping_from_pairs(&pairs);
-        
+
         assert_eq!(mapping.get(&'a'), Some(&'b'));
         assert_eq!(mapping.get(&'c'), Some(&'d'));
     }
@@ -214,7 +209,7 @@ mod tests {
         let mut mapping = CharMapping::new();
         mapping.insert('a', 'b');
         mapping.insert('c', 'd');
-        
+
         let encrypted = "ac";
         let decrypted = decryptor.decrypt(encrypted, &mapping);
         assert_eq!(decrypted, "bd");
@@ -222,11 +217,8 @@ mod tests {
 
     #[test]
     fn test_build_substitution_mapping() {
-        let mapping = common_mappings::build_substitution_mapping(
-            "abcdef",
-            "123456"
-        );
-        
+        let mapping = common_mappings::build_substitution_mapping("abcdef", "123456");
+
         assert_eq!(mapping.get(&'a'), Some(&'1'));
         assert_eq!(mapping.get(&'f'), Some(&'6'));
     }

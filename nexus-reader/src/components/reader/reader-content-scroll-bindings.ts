@@ -20,6 +20,7 @@ export function createReaderContentScrollBindings(
     hasNextChapter: props.hasNextChapter,
     paragraphSpacing: props.paragraphSpacing,
     loadError: props.loadError,
+    loadErrorDetails: props.loadErrorDetails,
     highlightContent: options.highlightContent,
     handleContentClick: options.handleContentClick,
   }))

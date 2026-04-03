@@ -1,6 +1,14 @@
 import type { ApiResponse } from '@/api/http/types'
 import { sourceApi } from '@/api/source'
-import type { BookSource } from '@/types/source'
+import type {
+  BookSource,
+  RuntimeSnapshotExportResponse,
+  RuntimeSnapshotImportResponse,
+  RuntimeSnapshotSaveResponse,
+  SourceCircuitStateResponse,
+  SourceRuntimeResetResponse,
+  SourceRuntimeProfileResponse,
+} from '@/types/source'
 import { toPrettyJson } from '@/utils/json'
 import {
   filterSourcesByKeyword,
@@ -37,6 +45,39 @@ export function createSourceQueryActions(state: SourceStoreState) {
     return sourceApi.getBookSource(id)
   }
 
+  async function saveRuntimeSnapshot(): Promise<ApiResponse<RuntimeSnapshotSaveResponse>> {
+    return sourceApi.saveRuntimeSnapshot()
+  }
+
+  async function exportRuntimeSnapshot(): Promise<ApiResponse<RuntimeSnapshotExportResponse>> {
+    return sourceApi.exportRuntimeSnapshot()
+  }
+
+  async function importRuntimeSnapshot(
+    payload: RuntimeSnapshotExportResponse,
+  ): Promise<ApiResponse<RuntimeSnapshotImportResponse>> {
+    return sourceApi.importRuntimeSnapshot(payload)
+  }
+
+  async function getSourceRuntimeProfile(
+    id: string,
+  ): Promise<ApiResponse<SourceRuntimeProfileResponse>> {
+    return sourceApi.getSourceRuntimeProfile(id)
+  }
+
+  async function getSourceCircuitState(
+    id: string,
+  ): Promise<ApiResponse<SourceCircuitStateResponse>> {
+    return sourceApi.getSourceCircuitState(id)
+  }
+
+  async function resetSourceRuntimeState(
+    id: string,
+    mode: 'full' | 'circuit_only' = 'full',
+  ): Promise<ApiResponse<SourceRuntimeResetResponse>> {
+    return sourceApi.resetSourceRuntimeState(id, mode)
+  }
+
   async function getSourceDetailText(source: BookSource): Promise<SourceDetailTextResult> {
     const fallbackText = toSourceDetailText(source)
     if (!source.id) {
@@ -70,6 +111,12 @@ export function createSourceQueryActions(state: SourceStoreState) {
     getSourcesByIds,
     getExportSources,
     getSourceDetail,
+    saveRuntimeSnapshot,
+    exportRuntimeSnapshot,
+    importRuntimeSnapshot,
+    getSourceRuntimeProfile,
+    getSourceCircuitState,
+    resetSourceRuntimeState,
     getSourceDetailText,
   }
 }

@@ -11,6 +11,8 @@ import SourcesLocalToolbar from "./SourcesLocalToolbar.vue";
 type SourceStats = {
   total: number;
   enabled: number;
+  unhealthy: number;
+  openCircuit: number;
   filtered: number;
   selected: number;
 };
@@ -45,6 +47,8 @@ const emit = defineEmits<{
       :active-group="activeGroup"
       :filtered-count="stats.filtered"
       :enabled-count="stats.enabled"
+      :unhealthy-count="stats.unhealthy"
+      :open-circuit-count="stats.openCircuit"
       :total-count="stats.total"
       :is-manage-mode="isManageMode"
       @toggle-manage="emit('toggleManageMode')"

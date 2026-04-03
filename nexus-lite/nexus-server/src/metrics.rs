@@ -24,10 +24,7 @@ pub fn init_metrics(port: u16) -> anyhow::Result<()> {
         .with_http_listener(addr)
         .install()?;
 
-    info!(
-        "Prometheus metrics server on http://0.0.0.0:{}/metrics",
-        port
-    );
+    info!("Prometheus metrics server on http://0.0.0.0:{}/metrics", port);
     Ok(())
 }
 

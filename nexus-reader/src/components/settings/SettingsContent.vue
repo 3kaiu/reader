@@ -82,6 +82,12 @@ type SourcePackageSummary = {
   generatedAtMs: number;
   enabled: boolean;
   valid: boolean;
+  overallHealthScore: number;
+  recommended: boolean;
+  searchStatus: "pass" | "warn" | "fail" | "unknown";
+  bookStatus: "pass" | "warn" | "fail" | "unknown";
+  tocStatus: "pass" | "warn" | "fail" | "unknown";
+  contentStatus: "pass" | "warn" | "fail" | "unknown";
   tags: string[];
 };
 
@@ -90,6 +96,9 @@ type SourcePackageDetailSummary = {
   sourceLabel: string;
   generatedAtLabel: string;
   validationLabel: string;
+  healthLabel: string;
+  healthScoreLabel: string;
+  segmentItems: string[];
   warningItems: string[];
   errorItems: string[];
   capabilityItems: string[];

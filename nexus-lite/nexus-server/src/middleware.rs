@@ -34,17 +34,17 @@ pub async fn api_key_auth(
         Some(key) if key == expected_key => {
             // Valid API key, proceed
             Ok(next.run(request).await)
-        }
+        },
         Some(_) => {
             // Invalid API key
             tracing::warn!("Invalid API key provided");
             Err(StatusCode::UNAUTHORIZED)
-        }
+        },
         None => {
             // No API key provided
             tracing::warn!("Missing API key");
             Err(StatusCode::UNAUTHORIZED)
-        }
+        },
     }
 }
 

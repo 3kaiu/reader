@@ -1,3 +1,13 @@
+export type SearchExplainStrategy = 'native_search' | 'direct_detail' | 'external_discovery'
+
+export interface SearchExplain {
+  strategy: SearchExplainStrategy
+  provider: string
+  matchScore?: number
+  packageRank?: number
+  note?: string
+}
+
 export interface SearchResult {
   bookUrl: string
   name: string
@@ -8,6 +18,7 @@ export interface SearchResult {
   sourceName: string
   latestChapter?: string
   latestChapterTitle?: string
+  searchExplain?: SearchExplain
 }
 
 export interface SearchDisplayResult extends SearchResult {

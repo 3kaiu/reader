@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
 /// CloudScraper Strategy - Unified CF bypass for all challenge types
-/// 
+///
 /// Note: CloudScraper is not Send+Sync, so we use spawn_blocking for async execution
 pub struct CloudScraperStrategy;
 
@@ -44,9 +44,9 @@ impl CloudScraperStrategy {
         }
 
         // Body indicators
-        if body.contains("Checking your browser") 
+        if body.contains("Checking your browser")
             || body.contains("Just a moment")
-            || body.contains("Please Wait...") 
+            || body.contains("Please Wait...")
             || body.contains("cf-browser-verify")
             || body.contains("cf_chl_opt")
             || body.contains("turnstile")
@@ -92,27 +92,28 @@ impl AntiCrawlStrategy for CloudScraperStrategy {
         // Use spawn_blocking to handle non-Send CloudScraper
         let result = tokio::task::spawn_blocking(move || {
             // Create CloudScraper on-demand (not Send+Sync)
-            let scraper = cloudscraper_rs::CloudScraper::new()
-                .map_err(|e| EngineError::InvalidConfig { 
-                    message: format!("CloudScraper creation failed: {}", e) 
+            let scraper =
+                cloudscraper_rs::CloudScraper::new().map_err(|e| EngineError::InvalidConfig {
+                    message: format!("CloudScraper creation failed: {}", e),
                 })?;
 
             // Parse URL
-            let parsed_url = url.parse::<url::Url>()
-                .map_err(|e| EngineError::Network {
-                    message: format!("Invalid URL: {}", e),
-                })?;
+            let parsed_url = url.parse::<url::Url>().map_err(|e| EngineError::Network {
+                message: format!("Invalid URL: {}", e),
+            })?;
 
             // Build runtime for blocking execution
             let rt = tokio::runtime::Handle::current();
-            
+
             let response = rt.block_on(async {
                 match method.to_uppercase().as_str() {
                     "GET" => scraper.get(&url).await,
                     "POST" => {
                         let body_bytes = body.unwrap_or_default().into_bytes();
-                        scraper.request(Method::POST, parsed_url, Some(body_bytes)).await
-                    }
+                        scraper
+                            .request(Method::POST, parsed_url, Some(body_bytes))
+                            .await
+                    },
                     _ => scraper.get(&url).await,
                 }
             });
@@ -120,14 +121,16 @@ impl AntiCrawlStrategy for CloudScraperStrategy {
             response.map_err(|_| EngineError::CloudflareChallenge)
         });
 
-        let response = result.await
-            .map_err(|e| EngineError::Internal { message: e.to_string() })??;
+        let response = result.await.map_err(|e| EngineError::Internal {
+            message: e.to_string(),
+        })??;
 
         let status = response.status();
-        
+
         // Get response body (blocking)
         let rt = tokio::runtime::Handle::current();
-        let body = rt.block_on(response.text())
+        let body = rt
+            .block_on(response.text())
             .map_err(|e| EngineError::Network {
                 message: format!("Failed to read response body: {}", e),
             })?;
@@ -165,12 +168,24 @@ mod tests {
         // Test status code detection
         assert!(CloudScraperStrategy::is_cf_protected(403, "", &Default::default()));
         assert!(CloudScraperStrategy::is_cf_protected(429, "", &Default::default()));
-        
+
         // Test body detection
-        assert!(CloudScraperStrategy::is_cf_protected(200, "Just a moment...", &Default::default()));
-        assert!(CloudScraperStrategy::is_cf_protected(200, "Checking your browser", &Default::default()));
-        
+        assert!(CloudScraperStrategy::is_cf_protected(
+            200,
+            "Just a moment...",
+            &Default::default()
+        ));
+        assert!(CloudScraperStrategy::is_cf_protected(
+            200,
+            "Checking your browser",
+            &Default::default()
+        ));
+
         // Test normal response
-        assert!(!CloudScraperStrategy::is_cf_protected(200, "Normal content", &Default::default()));
+        assert!(!CloudScraperStrategy::is_cf_protected(
+            200,
+            "Normal content",
+            &Default::default()
+        ));
     }
 }

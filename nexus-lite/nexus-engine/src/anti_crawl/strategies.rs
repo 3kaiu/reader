@@ -59,10 +59,7 @@ impl CfBypassStrategy {
                 message: format!("Failed to build HTTP client: {}", e),
             })?;
 
-        debug!(
-            "CfBypassStrategy initialized: service_url={}",
-            config.service_url
-        );
+        debug!("CfBypassStrategy initialized: service_url={}", config.service_url);
 
         Ok(Self { config, client })
     }

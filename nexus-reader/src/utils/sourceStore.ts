@@ -22,9 +22,13 @@ export function getSourceBusinessPriority(source: Partial<BookSource>): number {
   const publicAccessEnabled = source.publicAccessEnabled === true
   const licenseStatus = source.policy?.licenseStatus ?? 'unknown'
   const healthScore = source.health?.score ?? 0.5
+  const healthPoints = source.health?.healthPoints ?? 50
   const avgLatencyMs = source.health?.avgLatencyMs ?? 0
   const successCount = source.health?.successCount ?? 0
   const failureCount = source.health?.failureCount ?? 0
+  const consecutiveFailures = source.health?.consecutiveFailures ?? 0
+  const circuitState = source.health?.circuitState ?? 'closed'
+  const primaryFailure = source.health?.primaryFailure ?? 'none'
 
   let score = 0
 
@@ -32,11 +36,27 @@ export function getSourceBusinessPriority(source: Partial<BookSource>): number {
   score += publicAccessEnabled ? 500 : 0
   score += LICENSE_PRIORITY[licenseStatus] * 40
   score += Math.round(healthScore * 100)
+  score += Math.round(healthPoints / 2)
   score += Math.min(successCount, 20)
   score -= Math.min(failureCount * 5, 60)
+  score -= Math.min(consecutiveFailures * 12, 96)
 
   if (avgLatencyMs > 0) {
     score += Math.max(0, 30 - Math.round(avgLatencyMs / 200))
+  }
+
+  if (circuitState === 'open') {
+    score -= 240
+  } else if (circuitState === 'halfopen' || circuitState === 'half_open') {
+    score -= 90
+  }
+
+  if (primaryFailure === 'circuit_open') {
+    score -= 60
+  } else if (primaryFailure === 'empty_content' || primaryFailure === 'low_quality') {
+    score -= 35
+  } else if (primaryFailure === 'timeout' || primaryFailure === 'network') {
+    score -= 25
   }
 
   return score

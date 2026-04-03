@@ -1,6 +1,15 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { ApiResponse } from '@/api/http/types'
-import type { BookSource, SourcePolicy } from '@/types/source'
+import type {
+  BookSource,
+  RuntimeSnapshotExportResponse,
+  RuntimeSnapshotImportResponse,
+  RuntimeSnapshotSaveResponse,
+  SourceCircuitStateResponse,
+  SourcePolicy,
+  SourceRuntimeResetResponse,
+  SourceRuntimeProfileResponse,
+} from '@/types/source'
 import type {
   SourceDefinition,
   SourceListEntry,
@@ -42,6 +51,8 @@ export interface SourceStoreState {
 
 export interface SourceStoreView {
   enabledCount: ComputedRef<number>
+  unhealthyCount: ComputedRef<number>
+  openCircuitCount: ComputedRef<number>
   groups: ComputedRef<ReturnType<typeof import('@/utils/sourceStore').buildSourceGroups>>
 }
 
@@ -54,6 +65,17 @@ export interface SourceStoreActions {
   getSourcesByIds(ids: Iterable<string>): SourceListItem[]
   getExportSources(ids?: Iterable<string>, fallback?: SourceListItem[]): SourceListItem[]
   getSourceDetail(id: string): Promise<ApiResponse<BookSource>>
+  saveRuntimeSnapshot(): Promise<ApiResponse<RuntimeSnapshotSaveResponse>>
+  exportRuntimeSnapshot(): Promise<ApiResponse<RuntimeSnapshotExportResponse>>
+  importRuntimeSnapshot(
+    payload: RuntimeSnapshotExportResponse
+  ): Promise<ApiResponse<RuntimeSnapshotImportResponse>>
+  getSourceRuntimeProfile(id: string): Promise<ApiResponse<SourceRuntimeProfileResponse>>
+  getSourceCircuitState(id: string): Promise<ApiResponse<SourceCircuitStateResponse>>
+  resetSourceRuntimeState(
+    id: string,
+    mode?: 'full' | 'circuit_only'
+  ): Promise<ApiResponse<SourceRuntimeResetResponse>>
   getSourceDetailText(source: BookSource): Promise<SourceDetailTextResult>
   importSources(sourcesToImport: SourceDefinition[]): Promise<ImportSourcesResult>
   importSourceText(text: string): Promise<ImportSourceTextResult>

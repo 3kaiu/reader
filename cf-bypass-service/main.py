@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from contextlib import asynccontextmanager
+import trafilatura
 
 from core.engine_factory import factory as engine_factory
 from config import phase2_config
@@ -64,6 +65,23 @@ class FetchResponse(BaseModel):
     error: Optional[str] = None
     engine_used: str = ""
     cached: bool = False
+
+class ExtractRequest(BaseModel):
+    html: str
+    url: Optional[HttpUrl] = None
+    favor_precision: bool = True
+    favor_recall: bool = False
+    include_comments: bool = False
+    include_tables: bool = False
+
+class ExtractResponse(BaseModel):
+    text: str
+    title: Optional[str] = None
+    excerpt: Optional[str] = None
+    char_count: int = 0
+    paragraph_count: int = 0
+    extractor: str = "trafilatura"
+    warnings: List[str] = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -175,6 +193,60 @@ async def fetch_batch(request: BatchFetchRequest, x_api_key: str = Header(None))
             cached=res.cached
         ))
     return results
+
+@app.post("/extract", response_model=ExtractResponse)
+async def extract_content(request: ExtractRequest, x_api_key: str = Header(None)):
+    validate_api_key(x_api_key)
+
+    html = request.html or ""
+    warnings: List[str] = []
+    if not html.strip():
+        warnings.append("empty_html")
+        return ExtractResponse(warnings=warnings)
+
+    try:
+        document = trafilatura.extract(
+            html,
+            url=str(request.url) if request.url else None,
+            favor_precision=request.favor_precision,
+            favor_recall=request.favor_recall,
+            include_comments=request.include_comments,
+            include_tables=request.include_tables,
+        ) or ""
+    except Exception as exc:
+        logger.warning("trafilatura extract failed: %s", exc)
+        warnings.append("extract_failed")
+        return ExtractResponse(warnings=warnings)
+
+    title: Optional[str] = None
+    excerpt: Optional[str] = None
+    try:
+        metadata = trafilatura.extract_metadata(html)
+        if metadata:
+            title = metadata.title or None
+            excerpt = metadata.description or None
+    except Exception as exc:
+        logger.debug("trafilatura metadata extract failed: %s", exc)
+        warnings.append("metadata_failed")
+
+    normalized = "\n".join(
+        line.strip()
+        for line in document.splitlines()
+        if line.strip()
+    )
+    paragraph_count = sum(1 for line in normalized.splitlines() if line.strip())
+
+    if not normalized:
+        warnings.append("empty_result")
+
+    return ExtractResponse(
+        text=normalized,
+        title=title,
+        excerpt=excerpt,
+        char_count=len(normalized),
+        paragraph_count=paragraph_count,
+        warnings=warnings,
+    )
 
 # Basic Config Endpoint
 @app.get("/config")

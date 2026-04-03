@@ -1,7 +1,7 @@
+use crate::nxs::NxsSource;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::nxs::NxsSource;
 
 // ============== Source Governance Models ==============
 
@@ -56,6 +56,28 @@ impl SourcePolicy {
 // ============== Book Data Models ==============
 
 /// Book search result item
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchExplainStrategy {
+    NativeSearch,
+    DirectDetail,
+    ExternalDiscovery,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchExplain {
+    pub strategy: SearchExplainStrategy,
+    pub provider: Arc<str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_score: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_rank: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<Arc<str>>,
+}
+
+/// Book search result item
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BookItem {
@@ -71,6 +93,8 @@ pub struct BookItem {
     pub source_name: Arc<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_chapter: Option<Arc<str>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_explain: Option<SearchExplain>,
 }
 
 /// Book detailed information
@@ -220,6 +244,20 @@ impl Default for SourceRuntimeProfile {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedExtractionMetrics {
+    pub source_id: String,
+    pub success: u64,
+    pub fallback_hits: u64,
+    pub validation_failures: u64,
+    pub rule_mismatch_failures: u64,
+    pub empty_content_failures: u64,
+    pub low_quality_failures: u64,
+    pub quality_score_total: f64,
+    pub quality_samples: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum QualityLabel {
@@ -293,6 +331,10 @@ pub struct SourceRuleValidationReport {
     pub importable: bool,
     #[serde(default)]
     pub manual_review_required: bool,
+    #[serde(default)]
+    pub health: SourceHealthReport,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_validated_at_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -315,6 +357,48 @@ pub struct SourceValidationStepReport {
     pub suggested_actions: Vec<String>,
     #[serde(default)]
     pub manual_review_recommended: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceHealthStatus {
+    Pass,
+    Warn,
+    Fail,
+    #[default]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceHealthSegment {
+    #[serde(default)]
+    pub status: SourceHealthStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure_code: Option<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_validated_at_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceHealthReport {
+    #[serde(default)]
+    pub overall_score: f64,
+    #[serde(default)]
+    pub recommended: bool,
+    #[serde(default)]
+    pub search: SourceHealthSegment,
+    #[serde(default)]
+    pub book: SourceHealthSegment,
+    #[serde(default)]
+    pub toc: SourceHealthSegment,
+    #[serde(default)]
+    pub content: SourceHealthSegment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -651,6 +735,24 @@ pub struct SourceBuildDiagnostics {
     pub suggested_fixes: Vec<String>,
     #[serde(default)]
     pub failure_categories: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preferred_probe_input: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw_probe_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jina_probe_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trafilatura_probe_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_readability_gain: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trafilatura_readability_gain: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_content_extractor: Option<String>,
+    #[serde(default)]
+    pub content_candidate_summaries: Vec<String>,
+    #[serde(default)]
+    pub jina_search_used: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -733,6 +835,10 @@ pub struct SourceFetchDebugInfo {
     pub cache_hit: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_state: Option<String>,
+    #[serde(default)]
+    pub jina_used: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub respond_with: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -812,6 +918,14 @@ pub struct FetchHtmlRequest {
     pub force_refresh: bool,
     #[serde(default = "default_fetch_cache_ttl_seconds")]
     pub cache_ttl_seconds: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_service_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_engine: Option<String>,
 }
 
 fn default_fetch_method() -> String {
@@ -858,6 +972,23 @@ pub struct ChapterContentMeta {
     pub quality: ExtractionQuality,
     #[serde(default)]
     pub strategy_path: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stage_reports: Vec<PipelineStageReport>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStageReport {
+    pub stage: String,
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strategy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure_code: Option<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(default)]
+    pub metrics: HashMap<String, String>,
 }
 
 /// Bookshelf item

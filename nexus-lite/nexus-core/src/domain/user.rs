@@ -619,7 +619,7 @@ impl UserDomain {
             } => {
                 self.create_user(user_id, username, email, password_hash)
                     .await
-            }
+            },
             UserCommand::UpdateUserProfile {
                 user_id,
                 display_name,
@@ -628,7 +628,7 @@ impl UserDomain {
             } => {
                 self.update_user_profile(user_id, display_name, avatar_url, profile)
                     .await
-            }
+            },
             UserCommand::UpdateUserPreferences {
                 user_id,
                 preferences,
@@ -639,10 +639,10 @@ impl UserDomain {
             } => self.change_user_password(user_id, new_password_hash).await,
             UserCommand::ChangeUserStatus { user_id, status } => {
                 self.change_user_status(user_id, status).await
-            }
+            },
             UserCommand::UpgradeUserRole { user_id, role } => {
                 self.upgrade_user_role(user_id, role).await
-            }
+            },
             UserCommand::CreateUserSession {
                 user_id,
                 device_info,
@@ -651,7 +651,7 @@ impl UserDomain {
             } => {
                 self.create_user_session(user_id, device_info, ip_address, user_agent)
                     .await
-            }
+            },
             UserCommand::EndUserSession { session_id } => self.end_user_session(session_id).await,
             UserCommand::AuthenticateUser {
                 username_or_email,
@@ -659,7 +659,7 @@ impl UserDomain {
             } => {
                 self.authenticate_user(username_or_email, password_hash)
                     .await
-            }
+            },
         }
     }
 
@@ -781,9 +781,7 @@ impl UserDomain {
         user.increment_version();
 
         user.uncommitted_events
-            .push(DomainEvent::User(UserEvent::UserPasswordChanged {
-                user_id: user_id.0,
-            }));
+            .push(DomainEvent::User(UserEvent::UserPasswordChanged { user_id: user_id.0 }));
 
         self.user_repository.save(&user).await?;
 
@@ -1282,16 +1280,12 @@ impl AuthenticationService for BasicAuthenticationService {
         _password_hash: &str,
     ) -> Result<User, DomainError> {
         // 简化实现 - 在实际应用中应该查询数据库
-        Err(DomainError::Unauthorized(
-            "Authentication not implemented".to_string(),
-        ))
+        Err(DomainError::Unauthorized("Authentication not implemented".to_string()))
     }
 
     async fn validate_session(&self, _session_id: &str) -> Result<User, DomainError> {
         // 简化实现
-        Err(DomainError::Unauthorized(
-            "Session validation not implemented".to_string(),
-        ))
+        Err(DomainError::Unauthorized("Session validation not implemented".to_string()))
     }
 
     async fn invalidate_session(&self, _session_id: &str) -> Result<(), DomainError> {
@@ -1368,9 +1362,7 @@ impl BusinessRuleValidator<User> for UsernameNotEmptyRule {
 
     async fn validate(&self, entity: &User, _context: &DomainContext) -> Result<(), DomainError> {
         if entity.username.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Username cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation("Username cannot be empty".to_string()));
         }
         Ok(())
     }
@@ -1401,9 +1393,7 @@ impl BusinessRuleValidator<User> for UsernameUniqueRule {
     async fn validate(&self, entity: &User, _context: &DomainContext) -> Result<(), DomainError> {
         let existing = self.existing_usernames.read().unwrap();
         if existing.contains_key(&entity.username) {
-            return Err(DomainError::Validation(
-                "Username already exists".to_string(),
-            ));
+            return Err(DomainError::Validation("Username already exists".to_string()));
         }
 
         // 添加到已知用户名中

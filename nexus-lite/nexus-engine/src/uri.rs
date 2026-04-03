@@ -57,7 +57,7 @@ pub fn encode_query(query: &str, encoding: Option<&str>) -> String {
                 .map(|&b| format!("%{:02X}", b))
                 .collect::<Vec<_>>()
                 .join("")
-        }
+        },
         _ => urlencoding::encode(query).into_owned(),
     }
 }
@@ -69,10 +69,7 @@ mod tests {
     #[test]
     fn test_resolve_absolute_url() {
         let base = "https://example.com";
-        assert_eq!(
-            resolve_url("https://other.com/page", base),
-            "https://other.com/page"
-        );
+        assert_eq!(resolve_url("https://other.com/page", base), "https://other.com/page");
     }
 
     #[test]

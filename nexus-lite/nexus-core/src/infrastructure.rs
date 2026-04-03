@@ -891,17 +891,13 @@ impl crate::domain::user::AuthenticationService for JwtAuthenticationService {
         _username_or_email: &str,
         _password_hash: &str,
     ) -> Result<crate::domain::user::User, crate::domain::DomainError> {
-        Err(crate::domain::DomainError::Unauthorized(
-            "stub: not implemented".to_string(),
-        ))
+        Err(crate::domain::DomainError::Unauthorized("stub: not implemented".to_string()))
     }
     async fn validate_session(
         &self,
         _session_id: &str,
     ) -> Result<crate::domain::user::User, crate::domain::DomainError> {
-        Err(crate::domain::DomainError::Unauthorized(
-            "stub: not implemented".to_string(),
-        ))
+        Err(crate::domain::DomainError::Unauthorized("stub: not implemented".to_string()))
     }
     async fn invalidate_session(
         &self,

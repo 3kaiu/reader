@@ -207,7 +207,7 @@ pub fn extract_attr(element: ElementRef, attr: &str) -> Option<String> {
             } else {
                 Some(result)
             }
-        }
+        },
         "html" => Some(element.html().trim().to_string()),
         "inner_html" => Some(element.inner_html().trim().to_string()),
         _ => element.value().attr(attr).map(|s| s.to_string()),

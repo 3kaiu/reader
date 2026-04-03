@@ -328,10 +328,10 @@ impl EngineError {
             // Critical errors that require immediate attention
             Self::CircuitOpen { .. } | Self::AllStrategiesFailed | Self::StorageQuotaExceeded => {
                 ErrorSeverity::Critical
-            }
+            },
             Self::IpBanned | Self::CloudflareChallengeFailed | Self::InsufficientResources => {
                 ErrorSeverity::High
-            }
+            },
 
             // High impact errors
             Self::RateLimited { .. }
@@ -340,18 +340,18 @@ impl EngineError {
             | Self::ModelTimeout => ErrorSeverity::High,
             Self::Database { .. } | Self::FileIo { .. } | Self::Internal { .. } => {
                 ErrorSeverity::High
-            }
+            },
 
             // Medium impact errors
             Self::Timeout | Self::ConnectionRefused { .. } | Self::TlsHandshakeFailed { .. } => {
                 ErrorSeverity::Medium
-            }
+            },
             Self::CloudflareChallenge | Self::ScriptTimeout | Self::ScriptMemoryExceeded => {
                 ErrorSeverity::Medium
-            }
+            },
             Self::InvalidConfig { .. } | Self::ConfigValidationFailed { .. } => {
                 ErrorSeverity::Medium
-            }
+            },
 
             // Low impact errors
             _ => ErrorSeverity::Low,

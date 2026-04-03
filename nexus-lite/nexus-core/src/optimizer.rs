@@ -504,7 +504,7 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         prerequisites: vec![],
                     });
                 }
-            }
+            },
             OptimizationCategory::CPU => {
                 if metrics.cpu_usage_percent > 80.0 {
                     suggestions.push(OptimizationSuggestion {
@@ -522,7 +522,7 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         prerequisites: vec![],
                     });
                 }
-            }
+            },
             OptimizationCategory::Cache => {
                 if metrics.cache_hit_rate < 0.8 {
                     suggestions.push(OptimizationSuggestion {
@@ -537,8 +537,8 @@ impl OptimizationEngine for DefaultOptimizationEngine {
                         prerequisites: vec![],
                     });
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
 
         Ok(suggestions)
@@ -591,10 +591,7 @@ impl OptimizerManager {
         );
         optimizer.register_engine(
             OptimizationCategory::CPU,
-            Box::new(DefaultOptimizationEngine::new(
-                OptimizationCategory::CPU,
-                "cpu_optimizer",
-            )),
+            Box::new(DefaultOptimizationEngine::new(OptimizationCategory::CPU, "cpu_optimizer")),
         );
         optimizer.register_engine(
             OptimizationCategory::Cache,
@@ -605,10 +602,7 @@ impl OptimizerManager {
         );
         optimizer.register_engine(
             OptimizationCategory::IO,
-            Box::new(DefaultOptimizationEngine::new(
-                OptimizationCategory::IO,
-                "io_optimizer",
-            )),
+            Box::new(DefaultOptimizationEngine::new(OptimizationCategory::IO, "io_optimizer")),
         );
         optimizer.register_engine(
             OptimizationCategory::Network,

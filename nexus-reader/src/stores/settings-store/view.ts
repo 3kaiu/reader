@@ -9,10 +9,56 @@ import {
   persistConfig,
 } from "@/utils/settingsStore";
 import type { ThemeColors } from "@/types/settings";
+import type { SourceHealthSegment, SourceHealthStatus } from "@/api/sync";
 import type {
   SettingsStoreState,
   SettingsStoreView,
 } from "./types";
+
+function formatHealthStatus(status: SourceHealthStatus | undefined) {
+  switch (status) {
+    case "pass":
+      return "通过";
+    case "warn":
+      return "告警";
+    case "fail":
+      return "失败";
+    default:
+      return "未知";
+  }
+}
+
+function buildSegmentItems(health?: {
+  search: SourceHealthSegment
+  book: SourceHealthSegment
+  toc: SourceHealthSegment
+  content: SourceHealthSegment
+} | null) {
+  if (!health) {
+    return []
+  }
+
+  const segments: Array<[string, SourceHealthSegment]> = [
+    ["搜索", health.search],
+    ["详情", health.book],
+    ["目录", health.toc],
+    ["正文", health.content],
+  ]
+
+  return segments.map(([label, segment]) => {
+    const parts = [label, formatHealthStatus(segment.status)]
+    if (segment.qualityScore != null) {
+      parts.push(`质量=${Math.round(segment.qualityScore * 100)}`)
+    }
+    if (segment.failureCode) {
+      parts.push(`code=${segment.failureCode}`)
+    }
+    if (segment.warnings.length > 0) {
+      parts.push(`warn=${segment.warnings.length}`)
+    }
+    return parts.join(" · ")
+  })
+}
 
 export function createSettingsStoreView(
   state: SettingsStoreState,
@@ -184,6 +230,12 @@ export function createSettingsStoreView(
       validationLabel: detail?.validation
         ? `${detail.validation.valid ? "通过" : "失败"} / ${Math.round((detail.validation.score ?? 0) * 100)}`
         : "--",
+      healthLabel: detail?.validation?.health?.recommended ? "推荐" : "需复核",
+      healthScoreLabel:
+        detail?.validation?.health != null
+          ? `${Math.round((detail.validation.health.overallScore ?? 0) * 100)}`
+          : "--",
+      segmentItems: buildSegmentItems(detail?.validation?.health),
       warningItems: detail?.validation?.warnings ?? [],
       errorItems: detail?.validation?.errors ?? [],
       capabilityItems,
@@ -207,6 +259,10 @@ export function createSettingsStoreView(
       validationLabel: validation
         ? `${validation.valid ? "通过" : "失败"} / ${Math.round((validation.score ?? 0) * 100)}`
         : "--",
+      healthLabel: validation?.health?.recommended ? "推荐" : "需复核",
+      healthScoreLabel:
+        validation?.health != null ? `${Math.round((validation.health.overallScore ?? 0) * 100)}` : "--",
+      segmentItems: buildSegmentItems(validation?.health),
       diagnosticsItems: diagnostics
         ? [
             `host: ${diagnostics.host}`,
@@ -214,6 +270,18 @@ export function createSettingsStoreView(
             `chapter sample: ${diagnostics.chapterSampleUrl}`,
             `search strategy: ${diagnostics.searchStrategy}`,
             `generalization: ${Math.round((diagnostics.generalizationScore ?? 0) * 100)}`,
+            ...(diagnostics.preferredProbeInput
+              ? [`preferred probe: ${diagnostics.preferredProbeInput}`]
+              : []),
+            ...(diagnostics.rawProbeScore != null
+              ? [`raw probe: ${Math.round(diagnostics.rawProbeScore * 100)}`]
+              : []),
+            ...(diagnostics.jinaProbeScore != null
+              ? [`jina probe: ${Math.round(diagnostics.jinaProbeScore * 100)}`]
+              : []),
+            ...(diagnostics.aiReadabilityGain != null
+              ? [`ai gain: ${Math.round(diagnostics.aiReadabilityGain * 100)}`]
+              : []),
           ]
         : [],
       warningItems: validation?.warnings ?? [],
