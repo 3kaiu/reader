@@ -15,6 +15,15 @@ use uuid::Uuid;
 
 use crate::domain::*;
 
+fn to_domain_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, DomainError> {
+    serde_json::to_value(value).map_err(|err| {
+        DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
 /// 系统配置实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfig {
@@ -705,7 +714,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&config).unwrap()),
+            data: Some(to_domain_value(&config, "system config")?),
             events: config.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -729,7 +738,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&config).unwrap()),
+            data: Some(to_domain_value(&config, "system config")?),
             events: config.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -777,7 +786,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&metric).unwrap()),
+            data: Some(to_domain_value(&metric, "system metric")?),
             events: vec![DomainEvent::System(SystemEvent::SystemMetricRecorded {
                 metric_name,
                 value: metric_value,
@@ -822,7 +831,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&alert).unwrap()),
+            data: Some(to_domain_value(&alert, "system alert")?),
             events: vec![DomainEvent::System(SystemEvent::SystemAlertTriggered {
                 alert_id: alert.id.0,
                 alert_type: format!("{:?}", alert_type),
@@ -850,7 +859,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&alert).unwrap()),
+            data: Some(to_domain_value(&alert, "system alert")?),
             events: vec![DomainEvent::System(SystemEvent::SystemAlertAcknowledged {
                 alert_id: alert_id.0,
                 acknowledged_by,
@@ -872,7 +881,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&alert).unwrap()),
+            data: Some(to_domain_value(&alert, "system alert")?),
             events: vec![DomainEvent::System(SystemEvent::SystemAlertResolved {
                 alert_id: alert_id.0,
             })],
@@ -892,7 +901,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(result).unwrap()),
+            data: Some(to_domain_value(&result, "optimization result")?),
             events: vec![DomainEvent::System(
                 SystemEvent::SystemOptimizationApplied {
                     optimization_type: optimization_type.clone(),
@@ -942,7 +951,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&config).unwrap()),
+            data: Some(to_domain_value(&config, "system config")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1012,7 +1021,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(health).unwrap()),
+            data: Some(to_domain_value(&health, "system health")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1029,7 +1038,7 @@ impl SystemDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(performance).unwrap()),
+            data: Some(to_domain_value(&performance, "system performance")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })

@@ -16,6 +16,15 @@ use uuid::Uuid;
 
 use crate::domain::*;
 
+fn to_domain_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, DomainError> {
+    serde_json::to_value(value).map_err(|err| {
+        DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
 /// 书籍实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Book {
@@ -523,7 +532,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&book).unwrap()),
+            data: Some(to_domain_value(&book, "book")?),
             events: book.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -546,7 +555,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&book).unwrap()),
+            data: Some(to_domain_value(&book, "book")?),
             events: book.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -565,7 +574,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&book).unwrap()),
+            data: Some(to_domain_value(&book, "book")?),
             events: book.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -598,7 +607,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_domain_value(&session, "reading session")?),
             events: vec![DomainEvent::Reading(ReadingEvent::ReadingSessionStarted {
                 session_id: session_id.0,
                 user_id: session.user_id,
@@ -621,7 +630,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&progress).unwrap()),
+            data: Some(to_domain_value(&progress, "reading progress")?),
             events: vec![DomainEvent::Reading(ReadingEvent::ChapterRead {
                 user_id,
                 book_id,
@@ -652,7 +661,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&bookmark).unwrap()),
+            data: Some(to_domain_value(&bookmark, "bookmark")?),
             events: vec![DomainEvent::Reading(ReadingEvent::BookmarkAdded {
                 user_id,
                 book_id,
@@ -671,15 +680,15 @@ impl ReadingDomain {
             .await?
             .ok_or_else(|| DomainError::NotFound(format!("Session {} not found", session_id.0)))?;
 
-        session.end_time = Some(Utc::now());
-        session.total_reading_time =
-            (session.end_time.unwrap() - session.start_time).num_seconds() as u64;
+        let end_time = Utc::now();
+        session.end_time = Some(end_time);
+        session.total_reading_time = (end_time - session.start_time).num_seconds().max(0) as u64;
 
         self.reading_session_repository.save(&session).await?;
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_domain_value(&session, "reading session")?),
             events: vec![DomainEvent::Reading(ReadingEvent::ReadingSessionEnded {
                 session_id: session_id.0,
                 total_time: session.total_reading_time,
@@ -699,7 +708,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&book).unwrap()),
+            data: Some(to_domain_value(&book, "book")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -736,7 +745,9 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: progress.map(|p| serde_json::to_value(p).unwrap()),
+            data: progress
+                .map(|p| to_domain_value(&p, "reading progress"))
+                .transpose()?,
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -796,7 +807,7 @@ impl ReadingDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_domain_value(&stats, "reading statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
