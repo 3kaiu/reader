@@ -13,6 +13,224 @@ struct ProbePreference {
     content_candidate_summaries: Vec<String>,
 }
 
+fn insert_metadata_value(
+    metadata: &mut HashMap<String, String>,
+    key: &str,
+    value: impl Into<String>,
+) {
+    metadata.insert(key.to_string(), value.into());
+}
+
+fn append_request_replay_metadata(
+    metadata: &mut HashMap<String, String>,
+    label: &str,
+    replay: &CurlReplay,
+) {
+    insert_metadata_value(
+        metadata,
+        &format!("request.{label}.headerCount"),
+        replay.request_headers.len().to_string(),
+    );
+    insert_metadata_value(
+        metadata,
+        &format!("request.{label}.cookieCount"),
+        replay.request_cookies.len().to_string(),
+    );
+    insert_metadata_value(metadata, &format!("request.{label}.url"), replay.request_url.clone());
+    insert_metadata_value(metadata, &format!("request.{label}.status"), replay.status.to_string());
+    insert_metadata_value(metadata, &format!("request.{label}.finalUrl"), replay.final_url.clone());
+}
+
+fn append_search_sample_metadata(
+    metadata: &mut HashMap<String, String>,
+    search_sample: Option<&SearchSample>,
+) {
+    let Some(search_sample) = search_sample else {
+        return;
+    };
+    insert_metadata_value(metadata, "request.search.url", search_sample.request_url.clone());
+    insert_metadata_value(metadata, "request.search.finalUrl", search_sample.final_url.clone());
+    insert_metadata_value(metadata, "request.search.status", search_sample.status.to_string());
+    if let Some(body_template) = search_sample.body_template.as_ref() {
+        insert_metadata_value(metadata, "request.search.bodyTemplate", body_template.clone());
+    }
+}
+
+fn append_site_entry_metadata(
+    metadata: &mut HashMap<String, String>,
+    site_entry_probe: Option<&(CurlReplay, Option<SearchEntryProbeInsights>)>,
+) {
+    let Some((site_entry_replay, site_entry_probe)) = site_entry_probe else {
+        return;
+    };
+    insert_metadata_value(metadata, "request.siteEntry.url", site_entry_replay.request_url.clone());
+    insert_metadata_value(
+        metadata,
+        "request.siteEntry.finalUrl",
+        site_entry_replay.final_url.clone(),
+    );
+    insert_metadata_value(
+        metadata,
+        "request.siteEntry.status",
+        site_entry_replay.status.to_string(),
+    );
+    insert_metadata_value(
+        metadata,
+        "probe.searchEntryDetected",
+        (!site_entry_probe.is_none()).to_string(),
+    );
+}
+
+fn append_probe_preference_metadata(
+    metadata: &mut HashMap<String, String>,
+    probe_preference: &ProbePreference,
+    trafilatura_chapter_extract: Option<&fetch::ExternalExtractResponse>,
+) {
+    insert_metadata_value(
+        metadata,
+        "builder.preferredProbeInput",
+        probe_preference.preferred_input.clone(),
+    );
+    insert_metadata_value(
+        metadata,
+        "builder.rawProbeScore",
+        format!("{:.3}", probe_preference.raw_score),
+    );
+    if let Some(score) = probe_preference.jina_score {
+        insert_metadata_value(metadata, "builder.jinaProbeScore", format!("{:.3}", score));
+    }
+    if let Some(gain) = probe_preference.ai_readability_gain {
+        insert_metadata_value(metadata, "builder.aiReadabilityGain", format!("{:.3}", gain));
+    }
+    if let Some(score) = probe_preference.trafilatura_score {
+        insert_metadata_value(metadata, "builder.trafilaturaProbeScore", format!("{:.3}", score));
+    }
+    if let Some(gain) = probe_preference.trafilatura_readability_gain {
+        insert_metadata_value(
+            metadata,
+            "builder.trafilaturaReadabilityGain",
+            format!("{:.3}", gain),
+        );
+    }
+    insert_metadata_value(
+        metadata,
+        "builder.recommendedContentExtractor",
+        probe_preference.recommended_content_extractor.clone(),
+    );
+    insert_metadata_value(
+        metadata,
+        "builder.contentCandidateSummaries",
+        probe_preference.content_candidate_summaries.join(" || "),
+    );
+
+    let Some(extract) = trafilatura_chapter_extract else {
+        return;
+    };
+    insert_metadata_value(metadata, "builder.trafilaturaCharCount", extract.char_count.to_string());
+    insert_metadata_value(
+        metadata,
+        "builder.trafilaturaParagraphCount",
+        extract.paragraph_count.to_string(),
+    );
+    if let Some(title) = extract
+        .title
+        .as_ref()
+        .filter(|title| !title.trim().is_empty())
+    {
+        insert_metadata_value(metadata, "builder.trafilaturaTitle", title.clone());
+    }
+    if let Some(excerpt) = extract
+        .excerpt
+        .as_ref()
+        .filter(|excerpt| !excerpt.trim().is_empty())
+    {
+        insert_metadata_value(metadata, "builder.trafilaturaExcerpt", excerpt.clone());
+    }
+    if !extract.warnings.is_empty() {
+        insert_metadata_value(metadata, "builder.trafilaturaWarnings", extract.warnings.join(","));
+    }
+}
+
+fn build_final_diagnostics(
+    mut diagnostics: SourceBuildDiagnostics,
+    package: &SourceRulePackage,
+    book_replay: &CurlReplay,
+    chapter_replay: &CurlReplay,
+    same_site_validation: &SameSiteValidationInsights,
+    probe_preference: ProbePreference,
+) -> SourceBuildDiagnostics {
+    let failure_categories = package
+        .validation
+        .steps
+        .iter()
+        .filter_map(|step| step.failure_code.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let suggested_fixes = package
+        .validation
+        .steps
+        .iter()
+        .filter(|step| !step.ok || step.manual_review_recommended)
+        .flat_map(|step| {
+            if step.suggested_actions.is_empty() {
+                vec![format!("fix {} step: {}", step.step, step.summary)]
+            } else {
+                step.suggested_actions
+                    .iter()
+                    .map(|item| format!("{}: {}", step.step, item))
+                    .collect::<Vec<_>>()
+            }
+        })
+        .collect();
+    let (
+        search_detail_validated_url,
+        search_detail_resolved_name,
+        search_detail_passed,
+        search_detail_failure_code,
+        search_detail_summary,
+        search_detail_warnings,
+    ) = extract_search_detail_diagnostics(&package.validation.steps);
+
+    diagnostics.book_fetch_status = book_replay.status;
+    diagnostics.chapter_fetch_status = chapter_replay.status;
+    diagnostics.book_final_url = book_replay.final_url.clone();
+    diagnostics.chapter_final_url = chapter_replay.final_url.clone();
+    diagnostics.same_site_validation_score = Some(same_site_validation.score);
+    diagnostics.same_site_candidate_count = same_site_validation.candidate_count;
+    diagnostics.same_site_validated_url = same_site_validation.validated_url.clone();
+    diagnostics.same_site_validation_warnings = same_site_validation.warnings.clone();
+    diagnostics.search_detail_validated_url = search_detail_validated_url;
+    diagnostics.search_detail_resolved_name = search_detail_resolved_name;
+    diagnostics.search_detail_passed = search_detail_passed;
+    diagnostics.search_detail_failure_code = search_detail_failure_code;
+    diagnostics.search_detail_summary = search_detail_summary;
+    diagnostics.search_detail_warnings = search_detail_warnings;
+    diagnostics.suggested_fixes = suggested_fixes;
+    diagnostics.failure_categories = failure_categories;
+    diagnostics.preferred_probe_input = Some(probe_preference.preferred_input.clone());
+    diagnostics.raw_probe_score = Some(probe_preference.raw_score);
+    diagnostics.jina_probe_score = probe_preference.jina_score;
+    diagnostics.trafilatura_probe_score = probe_preference.trafilatura_score;
+    diagnostics.ai_readability_gain = probe_preference.ai_readability_gain;
+    diagnostics.trafilatura_readability_gain = probe_preference.trafilatura_readability_gain;
+    diagnostics.recommended_content_extractor =
+        Some(probe_preference.recommended_content_extractor.clone());
+    diagnostics.content_candidate_summaries = probe_preference.content_candidate_summaries;
+    diagnostics.jina_search_used = package
+        .search_profile
+        .as_ref()
+        .map(|profile| {
+            profile
+                .strategies
+                .iter()
+                .any(|strategy| strategy.enabled && strategy.provider == "jina_search")
+        })
+        .unwrap_or(false);
+
+    diagnostics
+}
+
 fn extract_search_detail_diagnostics(
     steps: &[SourceValidationStepReport],
 ) -> (
@@ -367,94 +585,32 @@ pub async fn build_source_package_from_samples(
         site_entry_probe_ref,
     );
 
-    package.metadata.insert(
-        "request.book.headerCount".to_string(),
-        book_replay.request_headers.len().to_string(),
-    );
-    package.metadata.insert(
-        "request.chapter.headerCount".to_string(),
-        chapter_replay.request_headers.len().to_string(),
-    );
-    package.metadata.insert(
-        "request.book.cookieCount".to_string(),
-        book_replay.request_cookies.len().to_string(),
-    );
-    package.metadata.insert(
-        "request.chapter.cookieCount".to_string(),
-        chapter_replay.request_cookies.len().to_string(),
-    );
+    append_request_replay_metadata(&mut package.metadata, "book", &book_replay);
+    append_request_replay_metadata(&mut package.metadata, "chapter", &chapter_replay);
     if let Some(keyword) = req.search_keyword.as_ref() {
-        package
-            .metadata
-            .insert("sample.searchKeyword".to_string(), keyword.clone());
+        insert_metadata_value(&mut package.metadata, "sample.searchKeyword", keyword.clone());
     }
     package.fetch_profile = Some(fetch_profile.clone());
     if let Some(hints) = merge_hints(req.structured_hints.clone(), req.free_text_hints.as_deref()) {
         let applied = apply_hints_to_package(&mut package, &hints);
         if !applied.is_empty() {
-            package
-                .metadata
-                .insert("builder.appliedHints".to_string(), applied.join(" | "));
+            insert_metadata_value(
+                &mut package.metadata,
+                "builder.appliedHints",
+                applied.join(" | "),
+            );
         }
     }
-    package
-        .metadata
-        .insert("request.book.url".to_string(), book_replay.request_url);
-    package
-        .metadata
-        .insert("request.chapter.url".to_string(), chapter_replay.request_url);
-    package
-        .metadata
-        .insert("request.book.status".to_string(), book_replay.status.to_string());
-    package
-        .metadata
-        .insert("request.chapter.status".to_string(), chapter_replay.status.to_string());
-    package
-        .metadata
-        .insert("request.book.finalUrl".to_string(), book_replay.final_url.clone());
-    package
-        .metadata
-        .insert("request.chapter.finalUrl".to_string(), chapter_replay.final_url.clone());
     if fetch_profile.provider.eq_ignore_ascii_case("jina_reader") {
-        package
-            .metadata
-            .insert("builder.fetchProvider".to_string(), "jina_reader".to_string());
-        package.metadata.insert(
-            "builder.fetchRespondWith".to_string(),
+        insert_metadata_value(&mut package.metadata, "builder.fetchProvider", "jina_reader");
+        insert_metadata_value(
+            &mut package.metadata,
+            "builder.fetchRespondWith",
             preferred_jina_respond_with(Some(&fetch_profile)),
         );
     }
-    if let Some(search_sample) = search_sample.as_ref() {
-        package
-            .metadata
-            .insert("request.search.url".to_string(), search_sample.request_url.clone());
-        package
-            .metadata
-            .insert("request.search.finalUrl".to_string(), search_sample.final_url.clone());
-        package
-            .metadata
-            .insert("request.search.status".to_string(), search_sample.status.to_string());
-        if let Some(body_template) = search_sample.body_template.as_ref() {
-            package
-                .metadata
-                .insert("request.search.bodyTemplate".to_string(), body_template.clone());
-        }
-    }
-    if let Some((site_entry_replay, site_entry_probe)) = site_entry_probe.as_ref() {
-        package
-            .metadata
-            .insert("request.siteEntry.url".to_string(), site_entry_replay.request_url.clone());
-        package
-            .metadata
-            .insert("request.siteEntry.finalUrl".to_string(), site_entry_replay.final_url.clone());
-        package
-            .metadata
-            .insert("request.siteEntry.status".to_string(), site_entry_replay.status.to_string());
-        package.metadata.insert(
-            "probe.searchEntryDetected".to_string(),
-            (!site_entry_probe.is_none()).to_string(),
-        );
-    }
+    append_search_sample_metadata(&mut package.metadata, search_sample.as_ref());
+    append_site_entry_metadata(&mut package.metadata, site_entry_probe.as_ref());
 
     let samples = ValidationSamples {
         search_query: req.search_keyword.clone(),
@@ -471,18 +627,18 @@ pub async fn build_source_package_from_samples(
         &final_chapter_url,
     )
     .await;
-    package.metadata.insert(
-        "probe.sameSiteCandidateCount".to_string(),
+    insert_metadata_value(
+        &mut package.metadata,
+        "probe.sameSiteCandidateCount",
         same_site_validation.candidate_count.to_string(),
     );
     if let Some(url) = same_site_validation.validated_url.as_ref() {
-        package
-            .metadata
-            .insert("probe.sameSiteValidatedUrl".to_string(), url.clone());
+        insert_metadata_value(&mut package.metadata, "probe.sameSiteValidatedUrl", url.clone());
     }
     if same_site_validation.score > 0.0 {
-        package.metadata.insert(
-            "probe.sameSiteValidationScore".to_string(),
+        insert_metadata_value(
+            &mut package.metadata,
+            "probe.sameSiteValidationScore",
             format!("{:.3}", same_site_validation.score),
         );
     }
@@ -496,150 +652,25 @@ pub async fn build_source_package_from_samples(
             .map(|extract| extract.text.as_str())
             .filter(|text| !text.trim().is_empty()),
     );
-    package.metadata.insert(
-        "builder.preferredProbeInput".to_string(),
-        probe_preference.preferred_input.clone(),
+    append_probe_preference_metadata(
+        &mut package.metadata,
+        &probe_preference,
+        trafilatura_chapter_extract.as_ref(),
     );
-    package.metadata.insert(
-        "builder.rawProbeScore".to_string(),
-        format!("{:.3}", probe_preference.raw_score),
-    );
-    if let Some(score) = probe_preference.jina_score {
-        package
-            .metadata
-            .insert("builder.jinaProbeScore".to_string(), format!("{:.3}", score));
-    }
-    if let Some(gain) = probe_preference.ai_readability_gain {
-        package
-            .metadata
-            .insert("builder.aiReadabilityGain".to_string(), format!("{:.3}", gain));
-    }
-    if let Some(score) = probe_preference.trafilatura_score {
-        package
-            .metadata
-            .insert("builder.trafilaturaProbeScore".to_string(), format!("{:.3}", score));
-    }
-    if let Some(gain) = probe_preference.trafilatura_readability_gain {
-        package
-            .metadata
-            .insert("builder.trafilaturaReadabilityGain".to_string(), format!("{:.3}", gain));
-    }
-    package.metadata.insert(
-        "builder.recommendedContentExtractor".to_string(),
-        probe_preference.recommended_content_extractor.clone(),
-    );
-    package.metadata.insert(
-        "builder.contentCandidateSummaries".to_string(),
-        probe_preference.content_candidate_summaries.join(" || "),
-    );
-    if let Some(extract) = trafilatura_chapter_extract.as_ref() {
-        package
-            .metadata
-            .insert("builder.trafilaturaCharCount".to_string(), extract.char_count.to_string());
-        package.metadata.insert(
-            "builder.trafilaturaParagraphCount".to_string(),
-            extract.paragraph_count.to_string(),
-        );
-        if let Some(title) = extract
-            .title
-            .as_ref()
-            .filter(|title| !title.trim().is_empty())
-        {
-            package
-                .metadata
-                .insert("builder.trafilaturaTitle".to_string(), title.clone());
-        }
-        if let Some(excerpt) = extract
-            .excerpt
-            .as_ref()
-            .filter(|excerpt| !excerpt.trim().is_empty())
-        {
-            package
-                .metadata
-                .insert("builder.trafilaturaExcerpt".to_string(), excerpt.clone());
-        }
-        if !extract.warnings.is_empty() {
-            package
-                .metadata
-                .insert("builder.trafilaturaWarnings".to_string(), extract.warnings.join(","));
-        }
-    }
 
     let package_json = if req.emit_package_json {
         serde_json::to_string_pretty(&package).ok()
     } else {
         None
     };
-
-    let failure_categories = package
-        .validation
-        .steps
-        .iter()
-        .filter_map(|step| step.failure_code.clone())
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    let suggested_fixes = package
-        .validation
-        .steps
-        .iter()
-        .filter(|step| !step.ok || step.manual_review_recommended)
-        .flat_map(|step| {
-            if step.suggested_actions.is_empty() {
-                vec![format!("fix {} step: {}", step.step, step.summary)]
-            } else {
-                step.suggested_actions
-                    .iter()
-                    .map(|item| format!("{}: {}", step.step, item))
-                    .collect::<Vec<_>>()
-            }
-        })
-        .collect();
-    let (
-        search_detail_validated_url,
-        search_detail_resolved_name,
-        search_detail_passed,
-        search_detail_failure_code,
-        search_detail_summary,
-        search_detail_warnings,
-    ) = extract_search_detail_diagnostics(&package.validation.steps);
-    let diagnostics = SourceBuildDiagnostics {
-        book_fetch_status: book_replay.status,
-        chapter_fetch_status: chapter_replay.status,
-        book_final_url: book_replay.final_url.clone(),
-        chapter_final_url: chapter_replay.final_url.clone(),
-        same_site_validation_score: Some(same_site_validation.score),
-        same_site_candidate_count: same_site_validation.candidate_count,
-        same_site_validated_url: same_site_validation.validated_url.clone(),
-        same_site_validation_warnings: same_site_validation.warnings.clone(),
-        search_detail_validated_url,
-        search_detail_resolved_name,
-        search_detail_passed,
-        search_detail_failure_code,
-        search_detail_summary,
-        search_detail_warnings,
-        suggested_fixes,
-        failure_categories,
-        preferred_probe_input: Some(probe_preference.preferred_input),
-        raw_probe_score: Some(probe_preference.raw_score),
-        jina_probe_score: probe_preference.jina_score,
-        trafilatura_probe_score: probe_preference.trafilatura_score,
-        ai_readability_gain: probe_preference.ai_readability_gain,
-        trafilatura_readability_gain: probe_preference.trafilatura_readability_gain,
-        recommended_content_extractor: Some(probe_preference.recommended_content_extractor),
-        content_candidate_summaries: probe_preference.content_candidate_summaries,
-        jina_search_used: package
-            .search_profile
-            .as_ref()
-            .map(|profile| {
-                profile
-                    .strategies
-                    .iter()
-                    .any(|strategy| strategy.enabled && strategy.provider == "jina_search")
-            })
-            .unwrap_or(false),
-        ..diagnostics
-    };
+    let diagnostics = build_final_diagnostics(
+        diagnostics,
+        &package,
+        &book_replay,
+        &chapter_replay,
+        &same_site_validation,
+        probe_preference,
+    );
 
     Json(ApiResponse::success(SourceBuildFromSamplesResponse {
         package,

@@ -5,6 +5,7 @@ import type {
   SourceFetchDebugInfo,
   SourceHealthSegment,
 } from '@/api/sync'
+import { buildSourceBuilderDiagnosticsItems } from '@/composables/source-builder/sourceBuilderDiagnosticsSummary'
 
 type UseSourceBuilderSummariesOptions = {
   currentPackage: ComputedRef<NxsSourcePackageDetail | null>
@@ -21,111 +22,7 @@ export function useSourceBuilderSummaries(
     if (!diagnostics) {
       return options.sourceBuildPreviewDiagnosticsItems.value
     }
-    return [
-      `host: ${diagnostics.host}`,
-      `book sample: ${diagnostics.bookSampleUrl}`,
-      `chapter sample: ${diagnostics.chapterSampleUrl}`,
-      `search strategy: ${diagnostics.searchStrategy}`,
-      ...(options.currentPackage.value?.metadata?.['builder.searchRuleSource']
-        ? [`search rule source: ${options.currentPackage.value.metadata['builder.searchRuleSource']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['builder.nativeSearchSupported']
-        ? [`native search verified: ${options.currentPackage.value.metadata['builder.nativeSearchSupported']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchEntryDetected']
-        ? [`search entry detected: ${options.currentPackage.value.metadata['probe.searchEntryDetected']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchEntryAction']
-        ? [`search entry action: ${options.currentPackage.value.metadata['probe.searchEntryAction']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchEntryMethod']
-        ? [`search entry method: ${options.currentPackage.value.metadata['probe.searchEntryMethod']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchEntryKeywordParam']
-        ? [`search entry param: ${options.currentPackage.value.metadata['probe.searchEntryKeywordParam']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchEntryFormSelector']
-        ? [`search entry form: ${options.currentPackage.value.metadata['probe.searchEntryFormSelector']}`]
-        : []),
-      `fetch mode: ${diagnostics.fetchMode}`,
-      `fetch provider: ${diagnostics.fetchProvider}`,
-      ...(diagnostics.fetchServiceUrl ? [`fetch service: ${diagnostics.fetchServiceUrl}`] : []),
-      `book fetch: ${diagnostics.bookFetchStatus} -> ${diagnostics.bookFinalUrl}`,
-      `chapter fetch: ${diagnostics.chapterFetchStatus} -> ${diagnostics.chapterFinalUrl}`,
-      ...(diagnostics.failureCategories.length > 0
-        ? [`failure categories: ${diagnostics.failureCategories.join(', ')}`]
-        : []),
-      ...(diagnostics.preferredProbeInput
-        ? [`preferred probe: ${diagnostics.preferredProbeInput}`]
-        : []),
-      ...(diagnostics.rawProbeScore != null
-        ? [`raw probe score: ${Math.round(diagnostics.rawProbeScore * 100)}`]
-        : []),
-      ...(diagnostics.jinaProbeScore != null
-        ? [`jina probe score: ${Math.round(diagnostics.jinaProbeScore * 100)}`]
-        : []),
-      ...(diagnostics.trafilaturaProbeScore != null
-        ? [`trafilatura probe score: ${Math.round(diagnostics.trafilaturaProbeScore * 100)}`]
-        : []),
-      ...(diagnostics.aiReadabilityGain != null
-        ? [`ai readability gain: ${Math.round(diagnostics.aiReadabilityGain * 100)}`]
-        : []),
-      ...(diagnostics.trafilaturaReadabilityGain != null
-        ? [`trafilatura readability gain: ${Math.round(diagnostics.trafilaturaReadabilityGain * 100)}`]
-        : []),
-      ...(diagnostics.recommendedContentExtractor
-        ? [`recommended extractor: ${diagnostics.recommendedContentExtractor}`]
-        : []),
-      ...((diagnostics.contentCandidateSummaries ?? []).map(item => `candidate: ${item}`)),
-      ...(diagnostics.jinaSearchUsed ? ['external discovery fallback: jina_search'] : []),
-      `generalization: ${Math.round((diagnostics.generalizationScore ?? 0) * 100)}`,
-      `same-site candidates: ${diagnostics.sameSiteCandidateCount ?? 0}`,
-      ...(diagnostics.sameSiteValidationScore != null
-        ? [`same-site validation: ${Math.round(diagnostics.sameSiteValidationScore * 100)}`]
-        : []),
-      ...(diagnostics.sameSiteValidatedUrl
-        ? [`same-site validated url: ${diagnostics.sameSiteValidatedUrl}`]
-        : []),
-      ...(diagnostics.searchInferenceScore != null
-        ? [`search inference: ${Math.round(diagnostics.searchInferenceScore * 100)}`]
-        : []),
-      ...(diagnostics.searchDetailPassed != null
-        ? [`search detail: ${diagnostics.searchDetailPassed ? 'pass' : 'fail'}`]
-        : []),
-      ...(diagnostics.searchDetailFailureCode
-        ? [`search detail code: ${diagnostics.searchDetailFailureCode}`]
-        : []),
-      ...(diagnostics.searchDetailSummary
-        ? [`search detail summary: ${diagnostics.searchDetailSummary}`]
-        : []),
-      ...(diagnostics.searchDetailValidatedUrl
-        ? [`search detail url: ${diagnostics.searchDetailValidatedUrl}`]
-        : []),
-      ...(diagnostics.searchDetailResolvedName
-        ? [`search detail name: ${diagnostics.searchDetailResolvedName}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchItemNameSelector']
-        ? [`search item.name: ${options.currentPackage.value.metadata['probe.searchItemNameSelector']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchItemUrlSelector']
-        ? [`search item.url: ${options.currentPackage.value.metadata['probe.searchItemUrlSelector']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchResultFilter']
-        ? [`search result filter: ${options.currentPackage.value.metadata['probe.searchResultFilter']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchNextPageSelector']
-        ? [`search next page: ${options.currentPackage.value.metadata['probe.searchNextPageSelector']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchItemAuthorSelector']
-        ? [`search item.author: ${options.currentPackage.value.metadata['probe.searchItemAuthorSelector']}`]
-        : []),
-      ...(options.currentPackage.value?.metadata?.['probe.searchItemIntroSelector']
-        ? [`search item.intro: ${options.currentPackage.value.metadata['probe.searchItemIntroSelector']}`]
-        : []),
-      ...diagnostics.searchDetailWarnings.map(item => `search-detail warn: ${item}`),
-      ...diagnostics.sameSiteValidationWarnings.map(item => `same-site warn: ${item}`),
-      ...diagnostics.suggestedFixes.map(item => `fix: ${item}`),
-    ]
+    return buildSourceBuilderDiagnosticsItems(diagnostics, options.currentPackage.value)
   })
 
   const currentPreviewSummary = computed(() => {

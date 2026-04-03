@@ -1,30 +1,20 @@
-import { computed, onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useMessage } from '@/composables/useMessage'
 import { useSettingsStore } from '@/stores/settings'
+import { useSourceBuilderDebugFormState } from '@/composables/source-builder/useSourceBuilderDebugFormState'
+import { useSourceBuilderPreviewState } from '@/composables/source-builder/useSourceBuilderPreviewState'
 import {
   useSourceBuilderDebugSnapshots,
 } from '@/composables/source-builder/useSourceBuilderDebugSnapshots'
+import { useSourceBuilderDebugPageActions } from '@/composables/source-builder/useSourceBuilderDebugPageActions'
 import { useSourceBuilderFetchSession } from '@/composables/source-builder/useSourceBuilderFetchSession'
 import { useSourceBuilderRunOperations } from '@/composables/source-builder/useSourceBuilderRunOperations'
 import { useSourceBuilderSummaries } from '@/composables/source-builder/useSourceBuilderSummaries'
 import { useSourceBuilderValidationRefine } from '@/composables/source-builder/useSourceBuilderValidationRefine'
 import { useSourceBuilderRuntimeGovernance } from '@/composables/source-builder/useSourceBuilderRuntimeGovernance'
 import { useSourceBuilderDebugViewEffects } from '@/composables/source-builder/useSourceBuilderDebugViewEffects'
-import {
-  buildSourceBuilderFromSamples,
-  clearSourceBuilderPreview,
-  importSourceBuilderPreviewPackage,
-  refreshSourceBuilderPackages,
-  selectSourceBuilderPackage,
-} from '@/composables/source-builder/sourceBuilderDebugViewActions'
-import type { SourceBuilderDebugSnapshot } from '@/composables/source-builder/types'
-import {
-  type NxsSourcePackageDetail,
-  type SourceBuildDiagnostics,
-  type SourceFetchDebugInfo,
-} from '@/api/sync'
 
 export function useSourceBuilderDebugView() {
   const router = useRouter()
@@ -41,23 +31,37 @@ export function useSourceBuilderDebugView() {
     sourceBuildPreviewSummary,
   } = storeToRefs(settingsStore)
 
-  const bookCurl = ref('')
-  const chapterCurl = ref('')
-  const searchCurl = ref('')
-  const siteEntryCurl = ref('')
-  const searchKeyword = ref('')
-  const sourceId = ref('')
-  const sourceName = ref('')
-  const tagsText = ref('')
-  const fetchMode = ref('external')
-  const fetchProvider = ref('jina_reader')
-  const fetchServiceUrl = ref('')
-  const fetchEngine = ref('markdown')
-  const lastFetchDebug = ref<SourceFetchDebugInfo | null>(null)
-  const previewPackage = ref<NxsSourcePackageDetail | null>(null)
-  const previewPackageJson = ref('')
-  const previewDiagnostics = ref<SourceBuildDiagnostics | null>(null)
-  const restoredDebugSnapshot = ref<SourceBuilderDebugSnapshot | null>(null)
+  const {
+    bookCurl,
+    chapterCurl,
+    searchCurl,
+    siteEntryCurl,
+    searchKeyword,
+    sourceId,
+    sourceName,
+    tagsText,
+    fetchMode,
+    fetchProvider,
+    fetchServiceUrl,
+    fetchEngine,
+  } = useSourceBuilderDebugFormState()
+  const {
+    lastFetchDebug,
+    previewPackage,
+    previewPackageJson,
+    previewDiagnostics,
+    restoredDebugSnapshot,
+    currentPackage,
+    currentPackageJson,
+    applyDebugSnapshot,
+  } = useSourceBuilderPreviewState({
+    sourcePackageDetail,
+    sourceBuildPreviewSummary,
+    bookCurl,
+    chapterCurl,
+    searchCurl,
+    searchKeyword,
+  })
   const {
     debugSnapshots,
     debugSnapshotSummary,
@@ -66,32 +70,8 @@ export function useSourceBuilderDebugView() {
     restoreDebugSnapshot,
     clearDebugSnapshots,
   } = useSourceBuilderDebugSnapshots({
-    onRestore(snapshot: SourceBuilderDebugSnapshot) {
-      if (snapshot.bookCurl != null) {
-        bookCurl.value = snapshot.bookCurl
-      }
-      if (snapshot.chapterCurl != null) {
-        chapterCurl.value = snapshot.chapterCurl
-      }
-      if (snapshot.searchCurl != null) {
-        searchCurl.value = snapshot.searchCurl
-      }
-      if (snapshot.searchKeyword != null) {
-        searchKeyword.value = snapshot.searchKeyword
-      }
-      previewPackage.value = snapshot.packageData ?? null
-      previewPackageJson.value = snapshot.packageJson ?? ''
-      previewDiagnostics.value = snapshot.diagnostics ?? null
-      restoredDebugSnapshot.value = snapshot
-    },
+    onRestore: applyDebugSnapshot,
   })
-
-  const currentPackage = computed(
-    () => previewPackage.value || sourcePackageDetail.value || null
-  )
-  const currentPackageJson = computed(
-    () => previewPackageJson.value || sourceBuildPreviewSummary.value.packageJson || ''
-  )
   const {
     runtimeGovernanceLoading,
     runtimeGovernanceActionLoading,
@@ -251,16 +231,18 @@ export function useSourceBuilderDebugView() {
     sourceBuildPreviewDiagnosticsItems: previewDiagnosticsItems,
     lastFetchDebug,
   })
-
-  async function refreshPackages() {
-    await refreshSourceBuilderPackages({
-      refreshRuntimeGovernance,
-      refreshSourcePackages: settingsStore.refreshSourcePackages,
-    })
-  }
-
-  async function buildFromSamples() {
-    await buildSourceBuilderFromSamples({
+  const {
+    refreshPackages,
+    buildFromSamples,
+    importPreviewPackage,
+    selectPackage,
+    clearPreview,
+    goBack,
+  } = useSourceBuilderDebugPageActions({
+    router,
+    refreshSourcePackages: settingsStore.refreshSourcePackages,
+    refreshRuntimeGovernance,
+    buildFromSamplesOptions: {
       settingsStore,
       bookCurl,
       chapterCurl,
@@ -287,29 +269,18 @@ export function useSourceBuilderDebugView() {
       pushDebugSnapshot,
       success,
       warning,
-    })
-  }
-
-  async function importPreviewPackage() {
-    await importSourceBuilderPreviewPackage({
+    },
+    importPreviewOptions: {
       currentPackage,
       currentPackageJson,
       importSourcePackage: settingsStore.importSourcePackage,
-      refreshPackages,
       success,
       warning,
-    })
-  }
-
-  async function selectPackage(sourceId: string) {
-    await selectSourceBuilderPackage({
-      sourceId,
+    },
+    selectPackageOptions: {
       loadSourcePackageDetail: settingsStore.loadSourcePackageDetail,
-    })
-  }
-
-  function clearPreview() {
-    clearSourceBuilderPreview({
+    },
+    clearPreviewOptions: {
       clearSourceBuildPreview: settingsStore.clearSourceBuildPreview,
       previewPackage,
       previewPackageJson,
@@ -321,12 +292,8 @@ export function useSourceBuilderDebugView() {
       clearFetchState,
       clearRunState,
       clearValidationRefineState,
-    })
-  }
-
-  function goBack() {
-    void router.push('/settings')
-  }
+    },
+  })
 
   onMounted(async () => {
     loadDebugSnapshots()
