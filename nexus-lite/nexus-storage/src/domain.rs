@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use nexus_core::{DomainError, Entity, ValueObject};
@@ -20,6 +21,33 @@ use nexus_core::{DomainError, Entity, ValueObject};
 use nexus_core::domain::StorageEvent as CoreStorageEvent;
 use nexus_core::EngineError as StorageError;
 use nexus_core::{AggregateRoot, BusinessRuleValidator, DomainContext, DomainEvent, DomainResult};
+
+fn to_storage_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, StorageError> {
+    serde_json::to_value(value).map_err(|err| StorageError::Internal {
+        message: format!("Failed to serialize {}: {}", entity_name, err),
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, StorageError> {
+    lock.read().map_err(|_| StorageError::Internal {
+        message: format!("{} lock poisoned during read", lock_name),
+    })
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, StorageError> {
+    lock.write().map_err(|_| StorageError::Internal {
+        message: format!("{} lock poisoned during write", lock_name),
+    })
+}
 
 /// 数据对象实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -490,7 +518,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&object).unwrap()),
+            data: Some(to_storage_value(&object, "data object")?),
             events: vec![DomainEvent::Storage(CoreStorageEvent::DataObjectCreated {
                 object_id: object.id.0.clone(),
                 bucket: object.bucket.clone(),
@@ -521,7 +549,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&object).unwrap()),
+            data: Some(to_storage_value(&object, "data object")?),
             events: vec![DomainEvent::Storage(CoreStorageEvent::DataObjectUpdated {
                 object_id: object.id.0,
                 bucket: object.bucket,
@@ -565,7 +593,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&bucket).unwrap()),
+            data: Some(to_storage_value(&bucket, "storage bucket")?),
             events: vec![DomainEvent::Storage(CoreStorageEvent::BucketCreated {
                 bucket_id: bucket.id.0,
                 name: bucket.name,
@@ -594,7 +622,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&bucket).unwrap()),
+            data: Some(to_storage_value(&bucket, "storage bucket")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -605,7 +633,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&entry).unwrap()),
+            data: Some(to_storage_value(&entry, "cache entry")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -648,7 +676,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(result).unwrap()),
+            data: Some(to_storage_value(&result, "strategy result")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -666,7 +694,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&object).unwrap()),
+            data: Some(to_storage_value(&object, "data object")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -703,7 +731,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&bucket).unwrap()),
+            data: Some(to_storage_value(&bucket, "storage bucket")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -766,7 +794,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_storage_value(&stats, "storage statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -780,7 +808,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_storage_value(&stats, "bucket statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -791,7 +819,7 @@ impl StorageDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_storage_value(&stats, "cache statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -873,13 +901,13 @@ impl InMemoryDataObjectRepository {
 #[async_trait]
 impl DataObjectRepository for InMemoryDataObjectRepository {
     async fn save(&self, object: &DataObject) -> Result<(), StorageError> {
-        let mut objects = self.objects.write().unwrap();
+        let mut objects = write_lock(&self.objects, "data objects")?;
         objects.insert(object.id.clone(), object.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &DataObjectId) -> Result<Option<DataObject>, StorageError> {
-        let objects = self.objects.read().unwrap();
+        let objects = read_lock(&self.objects, "data objects")?;
         Ok(objects.get(id).cloned())
     }
 
@@ -889,7 +917,7 @@ impl DataObjectRepository for InMemoryDataObjectRepository {
         prefix: Option<String>,
         limit: u32,
     ) -> Result<Vec<DataObject>, StorageError> {
-        let objects = self.objects.read().unwrap();
+        let objects = read_lock(&self.objects, "data objects")?;
         let filtered: Vec<DataObject> = objects
             .values()
             .filter(|o| o.bucket == bucket)
@@ -901,7 +929,7 @@ impl DataObjectRepository for InMemoryDataObjectRepository {
     }
 
     async fn delete(&self, id: &DataObjectId) -> Result<(), StorageError> {
-        let mut objects = self.objects.write().unwrap();
+        let mut objects = write_lock(&self.objects, "data objects")?;
         objects.remove(id);
         Ok(())
     }
@@ -922,7 +950,7 @@ impl InMemoryStorageBucketRepository {
 #[async_trait]
 impl StorageBucketRepository for InMemoryStorageBucketRepository {
     async fn save(&self, bucket: &StorageBucket) -> Result<(), StorageError> {
-        let mut buckets = self.buckets.write().unwrap();
+        let mut buckets = write_lock(&self.buckets, "storage buckets")?;
         buckets.insert(bucket.id.clone(), bucket.clone());
         Ok(())
     }
@@ -931,24 +959,24 @@ impl StorageBucketRepository for InMemoryStorageBucketRepository {
         &self,
         id: &StorageBucketId,
     ) -> Result<Option<StorageBucket>, StorageError> {
-        let buckets = self.buckets.read().unwrap();
+        let buckets = read_lock(&self.buckets, "storage buckets")?;
         Ok(buckets.get(id).cloned())
     }
 
     async fn find_by_name(&self, name: &str) -> Result<Option<StorageBucket>, StorageError> {
-        let buckets = self.buckets.read().unwrap();
+        let buckets = read_lock(&self.buckets, "storage buckets")?;
         let bucket = buckets.values().find(|b| b.name == name).cloned();
         Ok(bucket)
     }
 
     async fn find_all(&self, limit: u32) -> Result<Vec<StorageBucket>, StorageError> {
-        let buckets = self.buckets.read().unwrap();
+        let buckets = read_lock(&self.buckets, "storage buckets")?;
         let all: Vec<StorageBucket> = buckets.values().take(limit as usize).cloned().collect();
         Ok(all)
     }
 
     async fn delete(&self, id: &StorageBucketId) -> Result<(), StorageError> {
-        let mut buckets = self.buckets.write().unwrap();
+        let mut buckets = write_lock(&self.buckets, "storage buckets")?;
         buckets.remove(id);
         Ok(())
     }
@@ -969,13 +997,13 @@ impl InMemoryCacheRepository {
 #[async_trait]
 impl CacheRepository for InMemoryCacheRepository {
     async fn save(&self, entry: &CacheEntry) -> Result<(), StorageError> {
-        let mut entries = self.entries.write().unwrap();
+        let mut entries = write_lock(&self.entries, "cache entries")?;
         entries.insert(entry.key.clone(), entry.clone());
         Ok(())
     }
 
     async fn find_by_key(&self, key: &str) -> Result<Option<CacheEntry>, StorageError> {
-        let entries = self.entries.read().unwrap();
+        let entries = read_lock(&self.entries, "cache entries")?;
         Ok(entries.get(key).cloned())
     }
 
@@ -984,7 +1012,7 @@ impl CacheRepository for InMemoryCacheRepository {
         tag: Option<String>,
         limit: u32,
     ) -> Result<Vec<CacheEntry>, StorageError> {
-        let entries = self.entries.read().unwrap();
+        let entries = read_lock(&self.entries, "cache entries")?;
         let filtered: Vec<CacheEntry> = if let Some(tag) = tag {
             entries
                 .values()
@@ -999,13 +1027,13 @@ impl CacheRepository for InMemoryCacheRepository {
     }
 
     async fn delete(&self, key: &str) -> Result<(), StorageError> {
-        let mut entries = self.entries.write().unwrap();
+        let mut entries = write_lock(&self.entries, "cache entries")?;
         entries.remove(key);
         Ok(())
     }
 
     async fn clear_expired(&self) -> Result<u64, StorageError> {
-        let mut entries = self.entries.write().unwrap();
+        let mut entries = write_lock(&self.entries, "cache entries")?;
         let mut cleared_count = 0u64;
 
         entries.retain(|_, entry| {

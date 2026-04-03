@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use nexus_core::domain::EngineEvent as CoreEngineEvent;
@@ -20,6 +21,33 @@ use nexus_core::{
     AggregateRoot, BusinessRuleValidator, DomainContext, DomainEvent, DomainResult, Entity,
 };
 use nexus_core::{DomainError, EngineError};
+
+fn to_engine_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, EngineError> {
+    serde_json::to_value(value).map_err(|err| EngineError::Internal {
+        message: format!("Failed to serialize {}: {}", entity_name, err),
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, EngineError> {
+    lock.read().map_err(|_| EngineError::Internal {
+        message: format!("{} lock poisoned during read", lock_name),
+    })
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, EngineError> {
+    lock.write().map_err(|_| EngineError::Internal {
+        message: format!("{} lock poisoned during write", lock_name),
+    })
+}
 
 /// 抓取任务实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -494,7 +522,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&task).unwrap()),
+            data: Some(to_engine_value(&task, "fetch task")?),
             events: vec![DomainEvent::Engine(CoreEngineEvent::FetchTaskCreated {
                 task_id: task.id.0.clone(),
                 url: task.url.clone(),
@@ -519,7 +547,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&task).unwrap()),
+            data: Some(to_engine_value(&task, "fetch task")?),
             events: vec![DomainEvent::Engine(CoreEngineEvent::FetchTaskStarted {
                 task_id: task.id.0,
                 domain: task.domain,
@@ -548,7 +576,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&task).unwrap()),
+            data: Some(to_engine_value(&task, "fetch task")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -572,7 +600,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&task).unwrap()),
+            data: Some(to_engine_value(&task, "fetch task")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -586,7 +614,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&parser).unwrap()),
+            data: Some(to_engine_value(&parser, "content parser")?),
             events: vec![DomainEvent::Engine(CoreEngineEvent::ContentParserUpdated {
                 parser_id: parser.id.0,
                 rule_count: parser.selectors.len() + parser.regex_patterns.len(),
@@ -617,7 +645,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&parser).unwrap()),
+            data: Some(to_engine_value(&parser, "content parser")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -653,7 +681,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&pool).unwrap()),
+            data: Some(to_engine_value(&pool, "connection pool")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -679,7 +707,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&pool).unwrap()),
+            data: Some(to_engine_value(&pool, "connection pool")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -697,7 +725,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&task).unwrap()),
+            data: Some(to_engine_value(&task, "fetch task")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -734,7 +762,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&parser).unwrap()),
+            data: Some(to_engine_value(&parser, "content parser")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -766,7 +794,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&pool).unwrap()),
+            data: Some(to_engine_value(&pool, "connection pool")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -791,7 +819,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(metrics).unwrap()),
+            data: Some(to_engine_value(&metrics, "engine metrics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -802,7 +830,7 @@ impl EngineDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_engine_value(&stats, "domain statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -879,13 +907,13 @@ impl InMemoryFetchTaskRepository {
 #[async_trait]
 impl FetchTaskRepository for InMemoryFetchTaskRepository {
     async fn save(&self, task: &FetchTask) -> Result<(), EngineError> {
-        let mut tasks = self.tasks.write().unwrap();
+        let mut tasks = write_lock(&self.tasks, "fetch tasks")?;
         tasks.insert(task.id.clone(), task.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &FetchTaskId) -> Result<Option<FetchTask>, EngineError> {
-        let tasks = self.tasks.read().unwrap();
+        let tasks = read_lock(&self.tasks, "fetch tasks")?;
         Ok(tasks.get(id).cloned())
     }
 
@@ -895,7 +923,7 @@ impl FetchTaskRepository for InMemoryFetchTaskRepository {
         domain: Option<String>,
         limit: u32,
     ) -> Result<Vec<FetchTask>, EngineError> {
-        let tasks = self.tasks.read().unwrap();
+        let tasks = read_lock(&self.tasks, "fetch tasks")?;
         let filtered: Vec<FetchTask> = tasks
             .values()
             .filter(|t| status.as_ref().map_or(true, |_s| matches!(&t.status, _s)))
@@ -907,7 +935,7 @@ impl FetchTaskRepository for InMemoryFetchTaskRepository {
     }
 
     async fn delete(&self, id: &FetchTaskId) -> Result<(), EngineError> {
-        let mut tasks = self.tasks.write().unwrap();
+        let mut tasks = write_lock(&self.tasks, "fetch tasks")?;
         tasks.remove(id);
         Ok(())
     }
@@ -928,13 +956,13 @@ impl InMemoryContentParserRepository {
 #[async_trait]
 impl ContentParserRepository for InMemoryContentParserRepository {
     async fn save(&self, parser: &ContentParser) -> Result<(), EngineError> {
-        let mut parsers = self.parsers.write().unwrap();
+        let mut parsers = write_lock(&self.parsers, "content parsers")?;
         parsers.insert(parser.id.clone(), parser.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &ContentParserId) -> Result<Option<ContentParser>, EngineError> {
-        let parsers = self.parsers.read().unwrap();
+        let parsers = read_lock(&self.parsers, "content parsers")?;
         Ok(parsers.get(id).cloned())
     }
 
@@ -942,7 +970,7 @@ impl ContentParserRepository for InMemoryContentParserRepository {
         &self,
         parser_type: Option<ParserType>,
     ) -> Result<Vec<ContentParser>, EngineError> {
-        let parsers = self.parsers.read().unwrap();
+        let parsers = read_lock(&self.parsers, "content parsers")?;
         let filtered: Vec<ContentParser> = if let Some(_pt) = parser_type {
             parsers
                 .values()
@@ -956,7 +984,7 @@ impl ContentParserRepository for InMemoryContentParserRepository {
     }
 
     async fn delete(&self, id: &ContentParserId) -> Result<(), EngineError> {
-        let mut parsers = self.parsers.write().unwrap();
+        let mut parsers = write_lock(&self.parsers, "content parsers")?;
         parsers.remove(id);
         Ok(())
     }
@@ -977,7 +1005,7 @@ impl InMemoryConnectionPoolRepository {
 #[async_trait]
 impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
     async fn save(&self, pool: &ConnectionPool) -> Result<(), EngineError> {
-        let mut pools = self.pools.write().unwrap();
+        let mut pools = write_lock(&self.pools, "connection pools")?;
         pools.insert(pool.id.clone(), pool.clone());
         Ok(())
     }
@@ -986,12 +1014,12 @@ impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
         &self,
         id: &ConnectionPoolId,
     ) -> Result<Option<ConnectionPool>, EngineError> {
-        let pools = self.pools.read().unwrap();
+        let pools = read_lock(&self.pools, "connection pools")?;
         Ok(pools.get(id).cloned())
     }
 
     async fn find_by_domain(&self, domain: &str) -> Result<Option<ConnectionPool>, EngineError> {
-        let pools = self.pools.read().unwrap();
+        let pools = read_lock(&self.pools, "connection pools")?;
         let pool = pools.values().find(|p| p.domain == domain).cloned();
         Ok(pool)
     }
@@ -1000,7 +1028,7 @@ impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
         &self,
         status: Option<PoolStatus>,
     ) -> Result<Vec<ConnectionPool>, EngineError> {
-        let pools = self.pools.read().unwrap();
+        let pools = read_lock(&self.pools, "connection pools")?;
         let filtered: Vec<ConnectionPool> = if let Some(_status) = status {
             pools
                 .values()
