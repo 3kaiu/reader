@@ -20,6 +20,14 @@ runs:
   steps:
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Run cargo fmt check
+      if: ${{ inputs.run-fmt == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: cargo fmt --all --check
 
     - name: Run cargo check
       if: ${{ inputs.run-check == 'true' }}
@@ -27,8 +35,22 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: cargo check --workspace
 
+    - name: Run cargo clippy
+      if: ${{ inputs.run-clippy == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: cargo clippy --workspace --all-targets
+
     - name: Run cargo test
       if: ${{ inputs.run-tests == 'true' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: cargo test --workspace --quiet
+  run-fmt:
+    description: Whether to run cargo fmt --all --check.
+    required: false
+    default: "false"
+  run-clippy:
+    description: Whether to run cargo clippy --workspace --all-targets -- -D warnings.
+    required: false
+    default: "false"

@@ -65,7 +65,9 @@ jobs:
       - name: Run cargo check
         uses: ./.github/actions/nexus-lite-quality
         with:
+          run-fmt: "true"
           run-check: "true"
+          run-clippy: "true"
 
   workers-quality:
     name: Workers Quality
