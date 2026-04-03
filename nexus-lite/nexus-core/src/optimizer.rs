@@ -10,6 +10,7 @@
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
@@ -272,7 +273,7 @@ impl UnifiedOptimizer {
             b.priority.cmp(&a.priority).then(
                 b.estimated_improvement_percent
                     .partial_cmp(&a.estimated_improvement_percent)
-                    .unwrap(),
+                    .unwrap_or(Ordering::Equal),
             )
         });
 

@@ -356,8 +356,14 @@ impl ApplicationServiceBus {
         // 缓存结果
         let cache_ttl = self.determine_cache_ttl(&query);
         if let Some(ttl) = cache_ttl {
+            let cached_value = serde_json::to_value(&app_result).map_err(|e| {
+                ApplicationError::Infrastructure(format!(
+                    "Failed to serialize query cache result: {}",
+                    e
+                ))
+            })?;
             self.cache_manager
-                .set(&cache_key, serde_json::to_value(&app_result).unwrap(), Some(ttl))
+                .set(&cache_key, cached_value, Some(ttl))
                 .await?;
         }
 

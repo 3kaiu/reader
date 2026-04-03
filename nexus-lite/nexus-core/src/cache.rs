@@ -365,7 +365,10 @@ impl MemoryCache {
 
         let expires_at = options
             .ttl
-            .map(|ttl| chrono::Utc::now() + chrono::Duration::from_std(ttl).unwrap());
+            .map(|ttl| chrono::Duration::from_std(ttl))
+            .transpose()
+            .map_err(|e| CacheError::Storage(format!("Invalid TTL duration: {}", e)))?
+            .map(|ttl| chrono::Utc::now() + ttl);
 
         let entry = CacheEntry {
             key: key_str.clone(),

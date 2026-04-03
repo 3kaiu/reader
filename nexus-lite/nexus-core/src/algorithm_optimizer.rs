@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 use std::sync::{Arc, OnceLock};
+use std::{cmp::Ordering, future::Future};
 use tokio::sync::RwLock;
 
 /// 算法优化配置
@@ -224,8 +225,14 @@ impl AdaptiveSorter {
         // 收集结果
         let mut sorted_chunks = Vec::new();
         for (handle, ptr) in handles {
-            let sorted = handle.await.unwrap();
-            sorted_chunks.push((ptr, sorted));
+            match handle.await {
+                Ok(sorted) => sorted_chunks.push((ptr, sorted)),
+                Err(_) => {
+                    // 如果任一并行任务失败，回退到稳定的单线程排序
+                    data.sort();
+                    return;
+                },
+            }
         }
 
         // 归并排序结果
@@ -333,7 +340,7 @@ impl AdaptiveSearcher {
         }
 
         // 按相似度排序
-        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
         results
     }
 
@@ -463,7 +470,7 @@ impl ParallelProcessor {
     where
         T: Send + 'static,
         F: Fn(T) -> Fut + Send + Sync + Clone + 'static,
-        Fut: std::future::Future + Send + 'static,
+        Fut: Future + Send + 'static,
         Fut::Output: Send + 'static,
     {
         let len = data.len();
@@ -486,8 +493,10 @@ impl ParallelProcessor {
             let semaphore = Arc::clone(&semaphore);
 
             let handle = tokio::spawn(async move {
-                let _permit = semaphore.acquire().await.unwrap();
-                processor(item).await
+                match semaphore.acquire_owned().await {
+                    Ok(_permit) => Some(processor(item).await),
+                    Err(_) => None,
+                }
             });
 
             handles.push(handle);
@@ -496,7 +505,9 @@ impl ParallelProcessor {
         // 收集结果
         let mut results = Vec::new();
         for handle in handles {
-            results.push(handle.await.unwrap());
+            if let Ok(Some(result)) = handle.await {
+                results.push(result);
+            }
         }
 
         results
