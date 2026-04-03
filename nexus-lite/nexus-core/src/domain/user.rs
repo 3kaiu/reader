@@ -11,9 +11,36 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use crate::domain::*;
+
+fn to_domain_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, DomainError> {
+    serde_json::to_value(value).map_err(|err| {
+        DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, DomainError> {
+    lock.read()
+        .map_err(|_| DomainError::BusinessLogic(format!("{} lock poisoned during read", lock_name)))
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, DomainError> {
+    lock.write().map_err(|_| {
+        DomainError::BusinessLogic(format!("{} lock poisoned during write", lock_name))
+    })
+}
 
 /// 用户实体 - 聚合根
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -709,7 +736,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -735,7 +762,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -758,7 +785,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -787,7 +814,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -810,7 +837,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -833,7 +860,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: user.uncommitted_events.clone(),
             metadata: HashMap::new(),
         })
@@ -877,7 +904,7 @@ impl UserDomain {
         let uid = user_id.0.clone();
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_domain_value(&session, "user session")?),
             events: vec![
                 DomainEvent::User(UserEvent::UserSessionCreated {
                     session_id: session_id.0,
@@ -903,7 +930,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_domain_value(&session, "user session")?),
             events: vec![DomainEvent::User(UserEvent::UserSessionExpired {
                 session_id: session_id.0,
                 user_id: session.user_id.0,
@@ -955,7 +982,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -972,7 +999,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -987,7 +1014,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user).unwrap()),
+            data: Some(to_domain_value(&user, "user")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1003,7 +1030,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user.profile).unwrap()),
+            data: Some(to_domain_value(&user.profile, "user profile")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1019,7 +1046,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&user.preferences).unwrap()),
+            data: Some(to_domain_value(&user.preferences, "user preferences")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1054,7 +1081,7 @@ impl UserDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(stats).unwrap()),
+            data: Some(to_domain_value(&stats, "user statistics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -1149,24 +1176,24 @@ impl InMemoryUserRepository {
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn save(&self, user: &User) -> Result<(), DomainError> {
-        let mut users = self.users.write().unwrap();
+        let mut users = write_lock(&self.users, "users")?;
         users.insert(user.id.clone(), user.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &UserId) -> Result<Option<User>, DomainError> {
-        let users = self.users.read().unwrap();
+        let users = read_lock(&self.users, "users")?;
         Ok(users.get(id).cloned())
     }
 
     async fn find_by_username(&self, username: &str) -> Result<Option<User>, DomainError> {
-        let users = self.users.read().unwrap();
+        let users = read_lock(&self.users, "users")?;
         let user = users.values().find(|u| u.username == username).cloned();
         Ok(user)
     }
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError> {
-        let users = self.users.read().unwrap();
+        let users = read_lock(&self.users, "users")?;
         let user = users.values().find(|u| u.email == email).cloned();
         Ok(user)
     }
@@ -1178,7 +1205,7 @@ impl UserRepository for InMemoryUserRepository {
         limit: u32,
         _offset: u32,
     ) -> Result<Vec<User>, DomainError> {
-        let users = self.users.read().unwrap();
+        let users = read_lock(&self.users, "users")?;
         let filtered: Vec<User> = users
             .values()
             .filter(|u| status.as_ref().is_none_or(|s| &u.status == s))
@@ -1205,13 +1232,13 @@ impl InMemoryUserSessionRepository {
 #[async_trait]
 impl UserSessionRepository for InMemoryUserSessionRepository {
     async fn save(&self, session: &UserSession) -> Result<(), DomainError> {
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = write_lock(&self.sessions, "user sessions")?;
         sessions.insert(session.id.clone(), session.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &UserSessionId) -> Result<Option<UserSession>, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "user sessions")?;
         Ok(sessions.get(id).cloned())
     }
 
@@ -1221,7 +1248,7 @@ impl UserSessionRepository for InMemoryUserSessionRepository {
         active_only: bool,
         limit: u32,
     ) -> Result<Vec<UserSession>, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "user sessions")?;
         let filtered: Vec<UserSession> = sessions
             .values()
             .filter(|s| &s.user_id == user_id)
@@ -1233,7 +1260,7 @@ impl UserSessionRepository for InMemoryUserSessionRepository {
     }
 
     async fn get_user_statistics(&self, user_id: &UserId) -> Result<UserStatistics, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "user sessions")?;
         let user_sessions: Vec<&UserSession> = sessions
             .values()
             .filter(|s| &s.user_id == user_id)
@@ -1391,14 +1418,14 @@ impl BusinessRuleValidator<User> for UsernameUniqueRule {
     }
 
     async fn validate(&self, entity: &User, _context: &DomainContext) -> Result<(), DomainError> {
-        let existing = self.existing_usernames.read().unwrap();
+        let existing = read_lock(&self.existing_usernames, "existing usernames")?;
         if existing.contains_key(&entity.username) {
             return Err(DomainError::Validation("Username already exists".to_string()));
         }
 
         // 添加到已知用户名中
         drop(existing);
-        let mut existing = self.existing_usernames.write().unwrap();
+        let mut existing = write_lock(&self.existing_usernames, "existing usernames")?;
         existing.insert(entity.username.clone(), true);
 
         Ok(())

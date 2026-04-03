@@ -11,9 +11,36 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use crate::domain::*;
+
+fn to_domain_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, DomainError> {
+    serde_json::to_value(value).map_err(|err| {
+        DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, DomainError> {
+    lock.read()
+        .map_err(|_| DomainError::BusinessLogic(format!("{} lock poisoned during read", lock_name)))
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, DomainError> {
+    lock.write().map_err(|_| {
+        DomainError::BusinessLogic(format!("{} lock poisoned during write", lock_name))
+    })
+}
 
 /// 搜索查询值对象
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -432,7 +459,7 @@ impl SearchDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&result).unwrap()),
+            data: Some(to_domain_value(&result, "search result")?),
             events: vec![DomainEvent::Search(SearchEvent::SearchExecuted {
                 user_id: query.user_id,
                 query_keywords: query.keywords,
@@ -578,7 +605,7 @@ impl SearchDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(analytics).unwrap()),
+            data: Some(to_domain_value(&analytics, "search analytics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -785,13 +812,13 @@ impl InMemorySearchHistoryRepository {
 #[async_trait]
 impl SearchHistoryRepository for InMemorySearchHistoryRepository {
     async fn save(&self, history: &SearchHistory) -> Result<(), DomainError> {
-        let mut store = self.history.write().unwrap();
+        let mut store = write_lock(&self.history, "search history")?;
         store.insert(history.id.clone(), history.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &SearchHistoryId) -> Result<Option<SearchHistory>, DomainError> {
-        let store = self.history.read().unwrap();
+        let store = read_lock(&self.history, "search history")?;
         Ok(store.get(id).cloned())
     }
 
@@ -800,7 +827,7 @@ impl SearchHistoryRepository for InMemorySearchHistoryRepository {
         user_id: &str,
         limit: u32,
     ) -> Result<Vec<SearchHistory>, DomainError> {
-        let store = self.history.read().unwrap();
+        let store = read_lock(&self.history, "search history")?;
         let filtered: Vec<SearchHistory> = store
             .values()
             .filter(|h| h.user_id == user_id)
@@ -815,7 +842,7 @@ impl SearchHistoryRepository for InMemorySearchHistoryRepository {
         user_id: &str,
         _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
     ) -> Result<SearchStatistics, DomainError> {
-        let store = self.history.read().unwrap();
+        let store = read_lock(&self.history, "search history")?;
         let user_history: Vec<&SearchHistory> =
             store.values().filter(|h| h.user_id == user_id).collect();
 
