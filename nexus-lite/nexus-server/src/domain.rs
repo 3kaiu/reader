@@ -8,12 +8,40 @@
 //! - 响应构建 (ResponseBuilder): API响应构建
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use crate::error::ServerError;
+
+fn to_server_value<T: Serialize>(
+    value: &T,
+    entity_name: &str,
+) -> Result<serde_json::Value, ServerError> {
+    serde_json::to_value(value).map_err(|err| {
+        ServerError::Validation(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, ServerError> {
+    lock.read().map_err(|_| {
+        ServerError::Validation(format!("{} lock poisoned during read", lock_name))
+    })
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, ServerError> {
+    lock.write().map_err(|_| {
+        ServerError::Validation(format!("{} lock poisoned during write", lock_name))
+    })
+}
 
 /// API路由实体
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,7 +319,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&route).unwrap()),
+            data: Some(to_server_value(&route, "api route")?),
             events: vec![DomainEvent::Server(ServerEvent::ApiRequestReceived {
                 request_id: Uuid::new_v4().to_string(),
                 method: format!("{:?}", route.method),
@@ -319,7 +347,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_server_value(&session, "websocket session")?),
             events: vec![DomainEvent::Server(ServerEvent::WebSocketConnected {
                 session_id: session.id.0.clone(),
                 user_id: session.user_id.clone(),
@@ -339,7 +367,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_server_value(&session, "websocket session")?),
             events: vec![DomainEvent::Server(ServerEvent::WebSocketDisconnected {
                 session_id: session.id.0,
                 reason,
@@ -386,7 +414,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&route).unwrap()),
+            data: Some(to_server_value(&route, "api route")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -410,7 +438,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(&session).unwrap()),
+            data: Some(to_server_value(&session, "websocket session")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -421,7 +449,7 @@ impl ServerDomain {
 
         Ok(DomainResult {
             success: true,
-            data: Some(serde_json::to_value(metrics).unwrap()),
+            data: Some(to_server_value(&metrics, "server metrics")?),
             events: Vec::new(),
             metadata: HashMap::new(),
         })
@@ -483,29 +511,29 @@ impl InMemoryApiRouteRepository {
 #[async_trait]
 impl ApiRouteRepository for InMemoryApiRouteRepository {
     async fn save(&self, route: &ApiRoute) -> Result<(), ServerError> {
-        let mut routes = self.routes.write().unwrap();
+        let mut routes = write_lock(&self.routes, "api routes")?;
         routes.insert(route.id.clone(), route.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &ApiRouteId) -> Result<Option<ApiRoute>, ServerError> {
-        let routes = self.routes.read().unwrap();
+        let routes = read_lock(&self.routes, "api routes")?;
         Ok(routes.get(id).cloned())
     }
 
     async fn find_by_path(&self, method: &HttpMethod, path: &str) -> Result<Option<ApiRoute>, ServerError> {
-        let routes = self.routes.read().unwrap();
+        let routes = read_lock(&self.routes, "api routes")?;
         let route = routes.values().find(|r| r.method == *method && r.path == path).cloned();
         Ok(route)
     }
 
     async fn find_all(&self) -> Result<Vec<ApiRoute>, ServerError> {
-        let routes = self.routes.read().unwrap();
+        let routes = read_lock(&self.routes, "api routes")?;
         Ok(routes.values().cloned().collect())
     }
 
     async fn delete(&self, id: &ApiRouteId) -> Result<(), ServerError> {
-        let mut routes = self.routes.write().unwrap();
+        let mut routes = write_lock(&self.routes, "api routes")?;
         routes.remove(id);
         Ok(())
     }
@@ -526,18 +554,18 @@ impl InMemoryWebSocketSessionRepository {
 #[async_trait]
 impl WebSocketSessionRepository for InMemoryWebSocketSessionRepository {
     async fn save(&self, session: &WebSocketSession) -> Result<(), ServerError> {
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = write_lock(&self.sessions, "websocket sessions")?;
         sessions.insert(session.id.clone(), session.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &WebSocketSessionId) -> Result<Option<WebSocketSession>, ServerError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "websocket sessions")?;
         Ok(sessions.get(id).cloned())
     }
 
     async fn find_by_user(&self, user_id: &str) -> Result<Vec<WebSocketSession>, ServerError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "websocket sessions")?;
         let filtered: Vec<WebSocketSession> = sessions.values()
             .filter(|s| s.user_id.as_ref() == Some(&user_id.to_string()))
             .cloned()
@@ -546,7 +574,7 @@ impl WebSocketSessionRepository for InMemoryWebSocketSessionRepository {
     }
 
     async fn find_by_status(&self, status: Option<WebSocketStatus>) -> Result<Vec<WebSocketSession>, ServerError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "websocket sessions")?;
         let filtered: Vec<WebSocketSession> = if let Some(status) = status {
             sessions.values()
                 .filter(|s| matches!(&s.status, status))
@@ -559,7 +587,7 @@ impl WebSocketSessionRepository for InMemoryWebSocketSessionRepository {
     }
 
     async fn delete(&self, id: &WebSocketSessionId) -> Result<(), ServerError> {
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = write_lock(&self.sessions, "websocket sessions")?;
         sessions.remove(id);
         Ok(())
     }
