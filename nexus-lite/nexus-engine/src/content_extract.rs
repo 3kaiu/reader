@@ -10,7 +10,6 @@
 //! - Font decryption support
 
 use scraper::{ElementRef, Html, Selector};
-use std::sync::LazyLock;
 
 // Import dynamic noise detection and ML scoring
 use crate::dynamic_noise::{DynamicNoiseDetector, ExtractionContext};
@@ -453,7 +452,9 @@ fn ends_with_sentence(text: &str) -> bool {
     // Western sentence endings
     let western_endings = ['.', '!', '?', ';'];
 
-    let last_char = trimmed.chars().last().unwrap();
+    let Some(last_char) = trimmed.chars().last() else {
+        return false;
+    };
 
     chinese_endings.contains(&last_char) || western_endings.contains(&last_char)
 }
@@ -809,30 +810,18 @@ fn readability_like_extract_heuristic(
     static FORM_SELECTOR_RAW: &str = "form";
     static BUTTON_LIKE_SELECTOR_RAW: &str = "button";
 
-    static CANDIDATE_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(CANDIDATE_SELECTOR_RAW).expect("valid selector"));
-    static LINK_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(LINK_SELECTOR_RAW).expect("valid selector"));
-    static PARA_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(PARA_SELECTOR_RAW).expect("valid selector"));
-    static HEADING_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(HEADING_SELECTOR_RAW).expect("valid selector"));
-    static WRAPPER_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(WRAPPER_SELECTOR_RAW).expect("valid selector"));
-    static NAV_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(NAV_SELECTOR_RAW).expect("valid selector"));
-    static ASIDE_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(ASIDE_SELECTOR_RAW).expect("valid selector"));
-    static FOOTER_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(FOOTER_SELECTOR_RAW).expect("valid selector"));
-    static HEADER_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(HEADER_SELECTOR_RAW).expect("valid selector"));
-    static IMG_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(IMG_SELECTOR_RAW).expect("valid selector"));
-    static FORM_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(FORM_SELECTOR_RAW).expect("valid selector"));
-    static BUTTON_LIKE_SELECTOR: LazyLock<Selector> =
-        LazyLock::new(|| Selector::parse(BUTTON_LIKE_SELECTOR_RAW).expect("valid selector"));
+    let candidate_selector = Selector::parse(CANDIDATE_SELECTOR_RAW).ok()?;
+    let link_selector = Selector::parse(LINK_SELECTOR_RAW).ok()?;
+    let para_selector = Selector::parse(PARA_SELECTOR_RAW).ok()?;
+    let heading_selector = Selector::parse(HEADING_SELECTOR_RAW).ok()?;
+    let wrapper_selector = Selector::parse(WRAPPER_SELECTOR_RAW).ok()?;
+    let nav_selector = Selector::parse(NAV_SELECTOR_RAW).ok()?;
+    let aside_selector = Selector::parse(ASIDE_SELECTOR_RAW).ok()?;
+    let footer_selector = Selector::parse(FOOTER_SELECTOR_RAW).ok()?;
+    let header_selector = Selector::parse(HEADER_SELECTOR_RAW).ok()?;
+    let img_selector = Selector::parse(IMG_SELECTOR_RAW).ok()?;
+    let form_selector = Selector::parse(FORM_SELECTOR_RAW).ok()?;
+    let button_like_selector = Selector::parse(BUTTON_LIKE_SELECTOR_RAW).ok()?;
 
     // Initialize ML scorer and feature extractor
     let feature_extractor = FeatureExtractor::new();
@@ -843,7 +832,7 @@ fn readability_like_extract_heuristic(
     let mut best_html: Option<String> = None;
 
     let mut checked = 0usize;
-    for el in doc.select(&CANDIDATE_SELECTOR) {
+    for el in doc.select(&candidate_selector) {
         checked += 1;
         if checked > 200 {
             break;
@@ -860,16 +849,16 @@ fn readability_like_extract_heuristic(
             continue;
         }
 
-        let link_count = el.select(&LINK_SELECTOR).count();
-        let para_count = el.select(&PARA_SELECTOR).count();
-        let heading_count = el.select(&HEADING_SELECTOR).count();
-        let nav_count = el.select(&NAV_SELECTOR).count()
-            + el.select(&ASIDE_SELECTOR).count()
-            + el.select(&FOOTER_SELECTOR).count()
-            + el.select(&HEADER_SELECTOR).count();
-        let img_count = el.select(&IMG_SELECTOR).count();
-        let form_count = el.select(&FORM_SELECTOR).count();
-        let button_count = el.select(&BUTTON_LIKE_SELECTOR).count();
+        let link_count = el.select(&link_selector).count();
+        let para_count = el.select(&para_selector).count();
+        let heading_count = el.select(&heading_selector).count();
+        let nav_count = el.select(&nav_selector).count()
+            + el.select(&aside_selector).count()
+            + el.select(&footer_selector).count()
+            + el.select(&header_selector).count();
+        let img_count = el.select(&img_selector).count();
+        let form_count = el.select(&form_selector).count();
+        let button_count = el.select(&button_like_selector).count();
         let punct_count = raw_text_norm
             .chars()
             .filter(|c| {
@@ -1028,6 +1017,6 @@ fn readability_like_extract_heuristic(
     let best_html = best_html?;
     let wrapped = format!("<div id=\"__nxs_extract_root\">{}</div>", best_html);
     let frag = Html::parse_fragment(&wrapped);
-    let root = frag.select(&WRAPPER_SELECTOR).next()?;
+    let root = frag.select(&wrapper_selector).next()?;
     Some(extract_structured_text_from_root(root, config))
 }
