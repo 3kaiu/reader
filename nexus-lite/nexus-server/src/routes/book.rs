@@ -54,6 +54,7 @@ fn build_chapter_content(
         meta: Some(ChapterContentMeta {
             quality: evaluate_content_quality(content.as_ref()),
             strategy_path: vec![strategy.to_string()],
+            stage_reports: Vec::new(),
         }),
     }
 }

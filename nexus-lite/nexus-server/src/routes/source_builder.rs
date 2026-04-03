@@ -8,7 +8,7 @@ use nexus_core::{
     FetchHtmlRequest, FetchHtmlResponse, FetchSessionImportRequest, FetchSessionImportResponse,
     FetchSessionProfile, RawHtmlCacheEntry, SourceFetchProfile, SourceImportPolicy, SourceRuleHints, SourceRulePackage,
     SourceRuleChange, SourceRuleRefineRequest, SourceRuleRefineResponse,
-    SourceRuleValidationReport, SourceSearchMode, SourceSearchProfile,
+    SourceRuleValidationReport, SourceHealthReport, SourceSearchMode, SourceSearchProfile,
     SourceValidationStepReport, SearchPaginationRule, SearchStrategyRule,
 };
 use nexus_engine::anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain};
@@ -1764,6 +1764,8 @@ fn build_source_from_samples(
             steps: Vec::new(),
             importable: false,
             manual_review_required: false,
+            health: SourceHealthReport::default(),
+            last_validated_at_ms: None,
         },
         tags: req.tags.clone(),
         metadata,
@@ -1832,6 +1834,15 @@ fn build_source_from_samples(
         risk_flags,
         suggested_fixes: Vec::new(),
         failure_categories: Vec::new(),
+        preferred_probe_input: None,
+        raw_probe_score: None,
+        jina_probe_score: None,
+        trafilatura_probe_score: None,
+        ai_readability_gain: None,
+        trafilatura_readability_gain: None,
+        recommended_content_extractor: None,
+        content_candidate_summaries: Vec::new(),
+        jina_search_used: false,
     };
 
     (package, diagnostics)
@@ -1865,6 +1876,8 @@ fn validate_package_shape(pkg: &SourceRulePackage) -> SourceRuleValidationReport
         steps: Vec::new(),
         importable: false,
         manual_review_required: false,
+        health: SourceHealthReport::default(),
+        last_validated_at_ms: None,
     }
 }
 
@@ -3276,6 +3289,8 @@ pub async fn build_source_package(Json(req): Json<SourceBuildRequest>) -> Json<A
             steps: Vec::new(),
             importable: false,
             manual_review_required: false,
+            health: SourceHealthReport::default(),
+            last_validated_at_ms: None,
         },
         tags: req.tags.clone(),
         metadata,
@@ -3663,6 +3678,8 @@ pub async fn fetch_html_with_session(
                 session_key: req.session_key,
                 cache_hit: true,
                 session_state: Some("active".to_string()),
+                jina_used: false,
+                respond_with: None,
             },
         }));
     }
@@ -3699,6 +3716,8 @@ pub async fn fetch_html_with_session(
             } else {
                 "none".to_string()
             }),
+            jina_used: false,
+            respond_with: None,
         },
     }))
 }
@@ -3769,6 +3788,8 @@ pub async fn validate_source_package(
                 .session_key
                 .as_ref()
                 .map(|_| "active".to_string()),
+            jina_used: false,
+            respond_with: None,
         }),
     }))
 }
@@ -3984,6 +4005,8 @@ pub async fn run_engine_by_package(
                 .session_key
                 .as_ref()
                 .map(|_| "active".to_string()),
+            jina_used: false,
+            respond_with: None,
         }),
     }))
 }
@@ -4235,6 +4258,7 @@ mod tests {
                 source_id: "example".into(),
                 source_name: "Example".into(),
                 latest_chapter: None,
+                search_explain: None,
             },
             nexus_core::BookItem {
                 name: "B".into(),
@@ -4245,6 +4269,7 @@ mod tests {
                 source_id: "example".into(),
                 source_name: "Example".into(),
                 latest_chapter: None,
+                search_explain: None,
             },
         ];
 
@@ -4361,6 +4386,8 @@ mod tests {
                 steps: vec![],
                 importable: false,
                 manual_review_required: false,
+                health: SourceHealthReport::default(),
+                last_validated_at_ms: None,
             },
             tags: vec![],
             metadata: HashMap::new(),

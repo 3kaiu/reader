@@ -339,6 +339,7 @@ impl NxsEngine {
                     source_id: source_id.clone(),
                     source_name: source_name.clone(),
                     latest_chapter: None,
+                    search_explain: None,
                 })
             })
             .collect();
