@@ -110,20 +110,6 @@ updates:
       - "docker"
       - "infrastructure"
 
-# 安全更新配置
-  - package-ecosystem: "npm"
-    directory: "/nexus-reader"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 20
-    reviewers:
-      - "your-username"
-    assignees:
-      - "your-username"
-    commit-message:
-      prefix: "security"
-      include: "scope"
-    labels:
-      - "security"
-      - "dependencies"
-      - "frontend"
+# 说明：
+# Dependabot 的安全更新由 GitHub Dependabot alerts 驱动，不需要在同一目录重复配置
+# 第二个 /nexus-reader npm daily 配置会导致重复 PR/噪音，这里移除。
