@@ -30,7 +30,7 @@ scraper = "0.25"
 readability-rust = "0.1"
 lol_html = "1.1"
 kuchiki = "0.8"
-ego-tree = "0.6"
+ego-tree = "0.10"
 
 # JSON Path
 jsonpath-rust = "1.0"
