@@ -185,6 +185,41 @@ jobs:
               })
             }
 
+      - name: Auto-close resolved vulnerability issues
+        if: steps.audit.outputs.vulnerabilities == '0'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const issueTitle = '🔒 Security Vulnerabilities Found'
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: 'security,dependencies',
+              per_page: 100
+            })
+
+            const targets = openIssues.filter(issue => issue.title.startsWith(issueTitle))
+
+            for (const issue of targets) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `### ✅ Security audit passed\n\nNo dependency vulnerabilities detected in commit \`${context.sha}\`. Closing this issue automatically.`
+              })
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                state: 'closed'
+              })
+            }
+
   # ===== 构建和测试前端 =====
   build-frontend:
     runs-on: ubuntu-latest
