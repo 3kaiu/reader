@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -21,6 +22,23 @@ fn to_domain_value<T: Serialize>(
 ) -> Result<serde_json::Value, DomainError> {
     serde_json::to_value(value).map_err(|err| {
         DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, DomainError> {
+    lock.read()
+        .map_err(|_| DomainError::BusinessLogic(format!("{} lock poisoned during read", lock_name)))
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, DomainError> {
+    lock.write().map_err(|_| {
+        DomainError::BusinessLogic(format!("{} lock poisoned during write", lock_name))
     })
 }
 
@@ -1150,18 +1168,18 @@ impl InMemorySystemConfigRepository {
 #[async_trait]
 impl SystemConfigRepository for InMemorySystemConfigRepository {
     async fn save(&self, config: &SystemConfig) -> Result<(), DomainError> {
-        let mut configs = self.configs.write().unwrap();
+        let mut configs = write_lock(&self.configs, "system configs")?;
         configs.insert(config.id.clone(), config.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &SystemConfigId) -> Result<Option<SystemConfig>, DomainError> {
-        let configs = self.configs.read().unwrap();
+        let configs = read_lock(&self.configs, "system configs")?;
         Ok(configs.get(id).cloned())
     }
 
     async fn find_by_key(&self, key: &str) -> Result<Option<SystemConfig>, DomainError> {
-        let configs = self.configs.read().unwrap();
+        let configs = read_lock(&self.configs, "system configs")?;
         let config = configs.values().find(|c| c.config_key == key).cloned();
         Ok(config)
     }
@@ -1171,7 +1189,7 @@ impl SystemConfigRepository for InMemorySystemConfigRepository {
         filter_by_tag: Option<String>,
         limit: u32,
     ) -> Result<Vec<SystemConfig>, DomainError> {
-        let configs = self.configs.read().unwrap();
+        let configs = read_lock(&self.configs, "system configs")?;
         let filtered: Vec<SystemConfig> = configs
             .values()
             .filter(|c| {
@@ -1186,7 +1204,7 @@ impl SystemConfigRepository for InMemorySystemConfigRepository {
     }
 
     async fn delete(&self, id: &SystemConfigId) -> Result<(), DomainError> {
-        let mut configs = self.configs.write().unwrap();
+        let mut configs = write_lock(&self.configs, "system configs")?;
         configs.remove(id);
         Ok(())
     }
@@ -1207,7 +1225,7 @@ impl InMemorySystemMetricRepository {
 #[async_trait]
 impl SystemMetricRepository for InMemorySystemMetricRepository {
     async fn save(&self, metric: &SystemMetric) -> Result<(), DomainError> {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = write_lock(&self.metrics, "system metrics")?;
         metrics.push(metric.clone());
         // 保留最近1000个指标
         if metrics.len() > 1000 {
@@ -1222,7 +1240,7 @@ impl SystemMetricRepository for InMemorySystemMetricRepository {
         time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
         limit: u32,
     ) -> Result<Vec<SystemMetric>, DomainError> {
-        let metrics = self.metrics.read().unwrap();
+        let metrics = read_lock(&self.metrics, "system metrics")?;
         let filtered: Vec<SystemMetric> = metrics
             .iter()
             .filter(|m| {
@@ -1245,7 +1263,7 @@ impl SystemMetricRepository for InMemorySystemMetricRepository {
         &self,
         metric_name: &str,
     ) -> Result<Option<SystemMetric>, DomainError> {
-        let metrics = self.metrics.read().unwrap();
+        let metrics = read_lock(&self.metrics, "system metrics")?;
         let latest = metrics
             .iter()
             .filter(|m| m.metric_name == metric_name)
@@ -1270,13 +1288,13 @@ impl InMemorySystemAlertRepository {
 #[async_trait]
 impl SystemAlertRepository for InMemorySystemAlertRepository {
     async fn save(&self, alert: &SystemAlert) -> Result<(), DomainError> {
-        let mut alerts = self.alerts.write().unwrap();
+        let mut alerts = write_lock(&self.alerts, "system alerts")?;
         alerts.insert(alert.id.clone(), alert.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &SystemAlertId) -> Result<Option<SystemAlert>, DomainError> {
-        let alerts = self.alerts.read().unwrap();
+        let alerts = read_lock(&self.alerts, "system alerts")?;
         Ok(alerts.get(id).cloned())
     }
 
@@ -1286,7 +1304,7 @@ impl SystemAlertRepository for InMemorySystemAlertRepository {
         severity: Option<AlertSeverity>,
         limit: u32,
     ) -> Result<Vec<SystemAlert>, DomainError> {
-        let alerts = self.alerts.read().unwrap();
+        let alerts = read_lock(&self.alerts, "system alerts")?;
         let filtered: Vec<SystemAlert> = alerts
             .values()
             .filter(|a| status.as_ref().is_none_or(|s| &a.status == s))
@@ -1306,7 +1324,7 @@ impl SystemAlertRepository for InMemorySystemAlertRepository {
         id: &SystemAlertId,
         status: AlertStatus,
     ) -> Result<(), DomainError> {
-        let mut alerts = self.alerts.write().unwrap();
+        let mut alerts = write_lock(&self.alerts, "system alerts")?;
         if let Some(alert) = alerts.get_mut(id) {
             alert.status = status;
             alert.updated_at = Utc::now();

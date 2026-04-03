@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 use crate::domain::*;
@@ -22,6 +23,23 @@ fn to_domain_value<T: Serialize>(
 ) -> Result<serde_json::Value, DomainError> {
     serde_json::to_value(value).map_err(|err| {
         DomainError::BusinessLogic(format!("Failed to serialize {}: {}", entity_name, err))
+    })
+}
+
+fn read_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockReadGuard<'a, T>, DomainError> {
+    lock.read()
+        .map_err(|_| DomainError::BusinessLogic(format!("{} lock poisoned during read", lock_name)))
+}
+
+fn write_lock<'a, T>(
+    lock: &'a RwLock<T>,
+    lock_name: &str,
+) -> Result<RwLockWriteGuard<'a, T>, DomainError> {
+    lock.write().map_err(|_| {
+        DomainError::BusinessLogic(format!("{} lock poisoned during write", lock_name))
     })
 }
 
@@ -883,18 +901,18 @@ impl InMemoryBookRepository {
 #[async_trait]
 impl BookRepository for InMemoryBookRepository {
     async fn save(&self, book: &Book) -> Result<(), DomainError> {
-        let mut books = self.books.write().unwrap();
+        let mut books = write_lock(&self.books, "books")?;
         books.insert(book.id.clone(), book.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &BookId) -> Result<Option<Book>, DomainError> {
-        let books = self.books.read().unwrap();
+        let books = read_lock(&self.books, "books")?;
         Ok(books.get(id).cloned())
     }
 
     async fn find_by_author(&self, author: &str, limit: u32) -> Result<Vec<Book>, DomainError> {
-        let books = self.books.read().unwrap();
+        let books = read_lock(&self.books, "books")?;
         let filtered: Vec<Book> = books
             .values()
             .filter(|b| b.author == author)
@@ -905,7 +923,7 @@ impl BookRepository for InMemoryBookRepository {
     }
 
     async fn find_all(&self, limit: u32) -> Result<Vec<Book>, DomainError> {
-        let books = self.books.read().unwrap();
+        let books = read_lock(&self.books, "books")?;
         let all: Vec<Book> = books.values().take(limit as usize).cloned().collect();
         Ok(all)
     }
@@ -928,18 +946,18 @@ impl InMemoryChapterRepository {
 #[async_trait]
 impl ChapterRepository for InMemoryChapterRepository {
     async fn save(&self, chapter: &Chapter) -> Result<(), DomainError> {
-        let mut chapters = self.chapters.write().unwrap();
+        let mut chapters = write_lock(&self.chapters, "chapters")?;
         chapters.insert(chapter.id.clone(), chapter.clone());
         Ok(())
     }
 
     async fn find_by_id(&self, id: &ChapterId) -> Result<Option<Chapter>, DomainError> {
-        let chapters = self.chapters.read().unwrap();
+        let chapters = read_lock(&self.chapters, "chapters")?;
         Ok(chapters.get(id).cloned())
     }
 
     async fn find_by_book(&self, book_id: &BookId) -> Result<Vec<Chapter>, DomainError> {
-        let chapters = self.chapters.read().unwrap();
+        let chapters = read_lock(&self.chapters, "chapters")?;
         let filtered: Vec<Chapter> = chapters
             .values()
             .filter(|c| &c.book_id == book_id)
@@ -964,7 +982,7 @@ impl InMemoryReadingProgressRepository {
 #[async_trait]
 impl ReadingProgressRepository for InMemoryReadingProgressRepository {
     async fn save_progress(&self, progress: &ReadingProgress) -> Result<(), DomainError> {
-        let mut progress_store = self.progress.write().unwrap();
+        let mut progress_store = write_lock(&self.progress, "reading progress")?;
         let key = (progress.user_id.clone(), progress.book_id.clone());
         progress_store.insert(key, progress.clone());
         Ok(())
@@ -975,13 +993,13 @@ impl ReadingProgressRepository for InMemoryReadingProgressRepository {
         user_id: &str,
         book_id: &BookId,
     ) -> Result<Option<ReadingProgress>, DomainError> {
-        let progress_store = self.progress.read().unwrap();
+        let progress_store = read_lock(&self.progress, "reading progress")?;
         let key = (user_id.to_string(), book_id.clone());
         Ok(progress_store.get(&key).cloned())
     }
 
     async fn find_bookmarks_by_user(&self, user_id: &str) -> Result<Vec<Bookmark>, DomainError> {
-        let progress_store = self.progress.read().unwrap();
+        let progress_store = read_lock(&self.progress, "reading progress")?;
         let bookmarks: Vec<Bookmark> = progress_store
             .values()
             .filter(|p| p.user_id == user_id)
@@ -995,7 +1013,7 @@ impl ReadingProgressRepository for InMemoryReadingProgressRepository {
         user_id: &str,
         book_id: &BookId,
     ) -> Result<Vec<Bookmark>, DomainError> {
-        let progress_store = self.progress.read().unwrap();
+        let progress_store = read_lock(&self.progress, "reading progress")?;
         let key = (user_id.to_string(), book_id.clone());
         if let Some(progress) = progress_store.get(&key) {
             Ok(progress.bookmarks.clone())
@@ -1020,7 +1038,7 @@ impl InMemoryReadingSessionRepository {
 #[async_trait]
 impl ReadingSessionRepository for InMemoryReadingSessionRepository {
     async fn save(&self, session: &ReadingSession) -> Result<(), DomainError> {
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = write_lock(&self.sessions, "reading sessions")?;
         sessions.insert(session.id.clone(), session.clone());
         Ok(())
     }
@@ -1029,7 +1047,7 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
         &self,
         id: &ReadingSessionId,
     ) -> Result<Option<ReadingSession>, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "reading sessions")?;
         Ok(sessions.get(id).cloned())
     }
 
@@ -1038,7 +1056,7 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
         user_id: &str,
         limit: u32,
     ) -> Result<Vec<ReadingSession>, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "reading sessions")?;
         let filtered: Vec<ReadingSession> = sessions
             .values()
             .filter(|s| s.user_id == user_id)
@@ -1053,7 +1071,7 @@ impl ReadingSessionRepository for InMemoryReadingSessionRepository {
         user_id: &str,
         _time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
     ) -> Result<ReadingStatistics, DomainError> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = read_lock(&self.sessions, "reading sessions")?;
         let user_sessions: Vec<&ReadingSession> =
             sessions.values().filter(|s| s.user_id == user_id).collect();
 
