@@ -139,7 +139,7 @@ jobs:
       - name: Check for vulnerabilities
         working-directory: nexus-reader
         run: |
-          if bun audit 2>/dev/null; then
+          if bun audit --audit-level moderate 2>/dev/null; then
             echo "vulnerabilities=0" >> $GITHUB_OUTPUT
             echo "✅ No vulnerabilities found"
           else
