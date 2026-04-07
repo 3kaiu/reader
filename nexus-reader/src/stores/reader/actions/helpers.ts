@@ -54,13 +54,31 @@ function parseChapterCatalogPayload(payload: unknown): unknown[] {
   return []
 }
 
+function toOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function pickFirstString(values: unknown[]): string | undefined {
+  for (const value of values) {
+    const normalized = toOptionalString(value)
+    if (normalized) {
+      return normalized
+    }
+  }
+  return undefined
+}
+
 function toCatalogChapter(entry: unknown, index: number): Chapter | null {
   if (!entry || typeof entry !== 'object') {
     return null
   }
 
   const record = entry as Record<string, unknown>
-  const urlCandidate = [
+  const url = pickFirstString([
     record.url,
     record.chapterUrl,
     record.chapter_url,
@@ -70,22 +88,20 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     record.href,
     record.chapterLink,
     record.chapter_link,
-  ].find(value => typeof value === 'string')
-  const url = typeof urlCandidate === 'string' ? urlCandidate.trim() : ''
+  ])
   if (!url) {
     return null
   }
 
-  const titleCandidate = [
+  const titleCandidate = pickFirstString([
     record.title,
     record.name,
     record.chapterTitle,
     record.chapter_title,
     record.chapterName,
     record.chapter_name,
-  ].find(value => typeof value === 'string' && value.trim())
-  const title =
-    typeof titleCandidate === 'string' ? titleCandidate.trim() : `第${index + 1}章`
+  ])
+  const title = titleCandidate || `第${index + 1}章`
 
   const normalizedIndex =
     toOptionalNumber(record.index) ??
@@ -190,38 +206,21 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
   }
 
   const name = pickBookField(records, record =>
-    typeof record.name === 'string'
-      ? record.name
-      : typeof record.title === 'string'
-        ? record.title
-        : typeof record.bookName === 'string'
-          ? record.bookName
-          : typeof record.book_name === 'string'
-            ? record.book_name
-            : undefined,
+    pickFirstString([
+      record.name,
+      record.title,
+      record.bookName,
+      record.book_name,
+    ]),
   )
   const author = pickBookField(records, record =>
-    typeof record.author === 'string'
-      ? record.author
-      : typeof record.writer === 'string'
-        ? record.writer
-        : undefined,
+    pickFirstString([record.author, record.writer]),
   )
   const coverUrl = pickBookField(records, record =>
-    typeof record.coverUrl === 'string'
-      ? record.coverUrl
-      : typeof record.cover_url === 'string'
-        ? record.cover_url
-        : undefined,
+    pickFirstString([record.coverUrl, record.cover_url]),
   )
   const intro = pickBookField(records, record =>
-    typeof record.intro === 'string'
-      ? record.intro
-      : typeof record.description === 'string'
-        ? record.description
-        : typeof record.desc === 'string'
-          ? record.desc
-          : undefined,
+    pickFirstString([record.intro, record.description, record.desc]),
   )
   const durChapterIndex = pickBookField(
     records,
@@ -245,10 +244,10 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
     ...(intro ? { intro } : {}),
     ...(typeof durChapterIndex === 'number' ? { durChapterIndex } : {}),
     ...(typeof lastChapterIndex === 'number' ? { lastChapterIndex } : {}),
-    ...(typeof root.sourceId === 'string' ? { sourceId: root.sourceId } : {}),
-    ...(typeof root.source_id === 'string' ? { sourceId: root.source_id } : {}),
-    ...(typeof root.bookUrl === 'string' ? { bookUrl: root.bookUrl } : {}),
-    ...(typeof root.book_url === 'string' ? { bookUrl: root.book_url } : {}),
+    ...(toOptionalString(root.sourceId) ? { sourceId: toOptionalString(root.sourceId) } : {}),
+    ...(toOptionalString(root.source_id) ? { sourceId: toOptionalString(root.source_id) } : {}),
+    ...(toOptionalString(root.bookUrl) ? { bookUrl: toOptionalString(root.bookUrl) } : {}),
+    ...(toOptionalString(root.book_url) ? { bookUrl: toOptionalString(root.book_url) } : {}),
   }
 }
 

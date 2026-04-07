@@ -228,6 +228,28 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('falls back to next chapter url alias when earlier value is empty', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          {
+            title: '第一章',
+            url: '   ',
+            chapter_url: 'https://example.com/book/1/1',
+          },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+    expect(catalog).toHaveLength(1)
+    expect(catalog[0].url).toBe('https://example.com/book/1/1')
+  })
+
   it('normalizes chapter index from numeric string fields', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
@@ -423,6 +445,35 @@ describe('Reader Session Flow Guards', () => {
       name: 'Alias Title',
       author: 'Alias Writer',
       intro: 'Alias Intro',
+    })
+  })
+
+  it('falls back to secondary book aliases when primary fields are blank', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        name: '   ',
+        title: 'Fallback Title',
+        author: '',
+        writer: 'Fallback Writer',
+        intro: '   ',
+        description: 'Fallback Intro',
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      name: 'Fallback Title',
+      author: 'Fallback Writer',
+      intro: 'Fallback Intro',
     })
   })
 
