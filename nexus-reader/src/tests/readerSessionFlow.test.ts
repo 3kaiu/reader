@@ -320,6 +320,26 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[1].isVip).toBe(false)
   })
 
+  it('normalizes vip semantic aliases and yes/off variants', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          { title: 'A', url: 'https://example.com/book/1/a', is_paid: 'yes' },
+          { title: 'B', url: 'https://example.com/book/1/b', isPaid: 'off' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog[0].isVip).toBe(true)
+    expect(catalog[1].isVip).toBe(false)
+  })
+
   it('normalizes snake_case book fields while keeping route target authoritative', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)

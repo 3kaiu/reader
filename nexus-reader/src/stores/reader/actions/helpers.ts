@@ -111,7 +111,9 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
   const normalizedIsVip =
     toOptionalBoolean(record.isVip) ??
     toOptionalBoolean(record.is_vip) ??
-    toOptionalBoolean(record.vip)
+    toOptionalBoolean(record.vip) ??
+    toOptionalBoolean(record.isPaid) ??
+    toOptionalBoolean(record.is_paid)
 
   return {
     title,
@@ -162,10 +164,22 @@ function toOptionalBoolean(value: unknown): boolean | undefined {
 
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase()
-    if (normalized === 'true' || normalized === '1') {
+    if (
+      normalized === 'true' ||
+      normalized === '1' ||
+      normalized === 'yes' ||
+      normalized === 'y' ||
+      normalized === 'on'
+    ) {
       return true
     }
-    if (normalized === 'false' || normalized === '0') {
+    if (
+      normalized === 'false' ||
+      normalized === '0' ||
+      normalized === 'no' ||
+      normalized === 'n' ||
+      normalized === 'off'
+    ) {
       return false
     }
   }
