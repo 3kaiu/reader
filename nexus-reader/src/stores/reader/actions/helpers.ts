@@ -226,6 +226,57 @@ function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] 
   return [...nested, root]
 }
 
+type NormalizedContentPayload = {
+  content: string
+  stageReports: Array<{ stage: string; ok: boolean; failureCode?: string; warnings?: string[]; metrics?: Record<string, string> }>
+}
+
+function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
+  const normalizedPayload = tryParseJsonPayload(payload)
+
+  if (typeof normalizedPayload === 'string') {
+    return {
+      content: normalizedPayload,
+      stageReports: [],
+    }
+  }
+
+  if (!normalizedPayload || typeof normalizedPayload !== 'object') {
+    return {
+      content: '',
+      stageReports: [],
+    }
+  }
+
+  const record = normalizedPayload as Record<string, unknown>
+  const contentValue = tryParseJsonPayload(record.content)
+  const content =
+    typeof contentValue === 'string'
+      ? contentValue
+      : typeof record.text === 'string'
+        ? record.text
+        : ''
+  const metaValue = tryParseJsonPayload(record.meta)
+  const stageReportsValue =
+    metaValue && typeof metaValue === 'object'
+      ? tryParseJsonPayload((metaValue as Record<string, unknown>).stageReports)
+      : undefined
+  const stageReports = Array.isArray(stageReportsValue)
+    ? (stageReportsValue as Array<{
+        stage: string
+        ok: boolean
+        failureCode?: string
+        warnings?: string[]
+        metrics?: Record<string, string>
+      }>)
+    : []
+
+  return {
+    content,
+    stageReports,
+  }
+}
+
 function pickBookField<T>(
   records: Record<string, unknown>[],
   selector: (record: Record<string, unknown>) => T | undefined,
@@ -473,8 +524,9 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
         throw new Error(res.errorMsg || '获取正文失败')
       }
 
-      const chapterContent = res.data?.content || ''
-      state.contentStageReports.value = res.data?.meta?.stageReports ?? []
+      const normalizedContent = normalizeContentPayload(res.data)
+      const chapterContent = normalizedContent.content || ''
+      state.contentStageReports.value = normalizedContent.stageReports
       if (!chapterContent.trim()) {
         state.loadErrorDetails.value =
           state.contentStageReports.value

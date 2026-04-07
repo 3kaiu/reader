@@ -618,6 +618,48 @@ describe('Reader Session Flow Guards', () => {
     expect(state.loadErrorDetails.value).toBe('content_empty')
   })
 
+  it('accepts plain string chapter content payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: '这是直接返回的正文字符串',
+    })
+
+    const content = await helpers.fetchChapterContent(chapter)
+    expect(content).toBe('这是直接返回的正文字符串')
+  })
+
+  it('accepts stringified json chapter content payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: JSON.stringify({
+        content: '这是 JSON 字符串里的正文',
+        meta: {
+          stageReports: [{ stage: 'decode', ok: true }],
+        },
+      }),
+    })
+
+    const content = await helpers.fetchChapterContent(chapter)
+    expect(content).toBe('这是 JSON 字符串里的正文')
+    expect(state.contentStageReports.value).toEqual([{ stage: 'decode', ok: true }])
+  })
+
   it('summarizes nexus error with failed stage as priority', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
