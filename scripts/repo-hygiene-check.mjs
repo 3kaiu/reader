@@ -5,6 +5,24 @@ import path from 'node:path'
 const root = process.cwd()
 const issues = []
 const warnings = []
+const allowlistPath = path.join(root, 'scripts', 'hygiene-allowlist.json')
+
+function loadAllowlist() {
+  if (!fs.existsSync(allowlistPath)) {
+    return { trackedGeneratedArtifacts: {} }
+  }
+
+  try {
+    const raw = fs.readFileSync(allowlistPath, 'utf8')
+    const parsed = JSON.parse(raw)
+    return {
+      trackedGeneratedArtifacts: parsed.trackedGeneratedArtifacts || {},
+    }
+  } catch (error) {
+    issues.push(`Failed to parse hygiene allowlist: ${allowlistPath}`)
+    return { trackedGeneratedArtifacts: {} }
+  }
+}
 
 function getTrackedFiles() {
   const raw = execSync('git ls-files', { encoding: 'utf8' })
@@ -45,7 +63,7 @@ function checkPyprojectReadmes(files) {
   }
 }
 
-function checkTrackedGeneratedArtifacts(files) {
+function checkTrackedGeneratedArtifacts(files, allowlist) {
   const patterns = [
     /(^|\/)node_modules\//,
     /(^|\/)target\//,
@@ -56,9 +74,23 @@ function checkTrackedGeneratedArtifacts(files) {
   ]
 
   const matched = files.filter(file => patterns.some(pattern => pattern.test(file)))
-  if (matched.length > 0) {
-    warnings.push(
-      `Tracked generated/binary-like artifacts (review if intentional): ${matched.join(', ')}`
+  if (matched.length === 0) return
+
+  const allowlisted = allowlist.trackedGeneratedArtifacts || {}
+  const unknown = []
+
+  for (const file of matched) {
+    const reason = allowlisted[file]
+    if (!reason) {
+      unknown.push(file)
+      continue
+    }
+    warnings.push(`Allowlisted artifact: ${file} (${reason})`)
+  }
+
+  if (unknown.length > 0) {
+    issues.push(
+      `Tracked generated/binary-like artifacts must be allowlisted in scripts/hygiene-allowlist.json: ${unknown.join(', ')}`
     )
   }
 }
@@ -72,9 +104,10 @@ function printSection(title, rows) {
 }
 
 const trackedFiles = getTrackedFiles()
+const allowlist = loadAllowlist()
 checkTrackedEmptyFiles(trackedFiles)
 checkPyprojectReadmes(trackedFiles)
-checkTrackedGeneratedArtifacts(trackedFiles)
+checkTrackedGeneratedArtifacts(trackedFiles, allowlist)
 
 printSection('Warnings', warnings)
 printSection('Issues', issues)

@@ -18,3 +18,4 @@ uvicorn main:app --reload --port 8000
 
 - `app.py` is only a compatibility entrypoint re-exporting `main:app`.
 - Keep endpoint behavior stable for upstream callers in `nexus-lite` and workers.
+- Runtime and legacy module boundaries are documented in `LEGACY_MODULES.md`.

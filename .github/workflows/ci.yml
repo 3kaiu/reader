@@ -40,6 +40,9 @@ jobs:
       - name: Run repository hygiene checks
         run: node scripts/repo-hygiene-check.mjs
 
+      - name: Guard CF bypass runtime boundaries
+        run: node scripts/cf-bypass-runtime-guard.mjs
+
   frontend-quality:
     name: Frontend Quality
     runs-on: ubuntu-latest
