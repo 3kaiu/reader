@@ -43,6 +43,9 @@ jobs:
       - name: Guard CF bypass runtime boundaries
         run: node scripts/cf-bypass-runtime-guard.mjs
 
+      - name: Generate dead-code/orphan report
+        run: node scripts/dead-code-report.mjs
+
   frontend-quality:
     name: Frontend Quality
     runs-on: ubuntu-latest
