@@ -640,21 +640,24 @@ jobs:
         with:
           script: |
             try {
-              // 清理旧的artifacts和deployments
-              const artifactsResponse = await github.rest.actions.listArtifactsForRepo({
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-
-              // 检查响应结构并获取artifacts数组
+              // 分页拉取全部 artifacts，避免默认单页导致清理不完整
               let artifacts = [];
-              if (artifactsResponse.data && Array.isArray(artifactsResponse.data)) {
-                artifacts = artifactsResponse.data;
-              } else if (artifactsResponse.data && artifactsResponse.data.artifacts && Array.isArray(artifactsResponse.data.artifacts)) {
-                artifacts = artifactsResponse.data.artifacts;
-              } else {
-                console.log('Unexpected artifacts response structure:', JSON.stringify(artifactsResponse, null, 2));
-                return;
+              for (let page = 1; page <= 10; page++) {
+                const artifactsResponse = await github.rest.actions.listArtifactsForRepo({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  per_page: 100,
+                  page
+                });
+
+                const batch = artifactsResponse?.data?.artifacts;
+                if (!Array.isArray(batch)) {
+                  console.log('Unexpected artifacts response structure:', JSON.stringify(artifactsResponse, null, 2));
+                  return;
+                }
+
+                artifacts = artifacts.concat(batch);
+                if (batch.length < 100) break;
               }
 
               if (artifacts.length === 0) {
