@@ -77,25 +77,68 @@ function toOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
-function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
+function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] {
   if (!payload || typeof payload !== 'object') {
+    return []
+  }
+
+  const root = payload as Record<string, unknown>
+  const nested = [root.book, root.data, root.item, root.detail].filter(
+    value => value && typeof value === 'object',
+  ) as Record<string, unknown>[]
+
+  return [...nested, root]
+}
+
+function pickBookField<T>(
+  records: Record<string, unknown>[],
+  selector: (record: Record<string, unknown>) => T | undefined,
+): T | undefined {
+  for (const record of records) {
+    const value = selector(record)
+    if (typeof value !== 'undefined') {
+      return value
+    }
+  }
+  return undefined
+}
+
+function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
+  const records = resolveBookPayloadRecords(payload)
+  if (records.length === 0) {
     return {}
   }
 
-  const record = payload as Record<string, unknown>
-  const name = typeof record.name === 'string' ? record.name : undefined
-  const author = typeof record.author === 'string' ? record.author : undefined
-  const coverUrl =
+  const name = pickBookField(records, record =>
+    typeof record.name === 'string' ? record.name : undefined,
+  )
+  const author = pickBookField(records, record =>
+    typeof record.author === 'string' ? record.author : undefined,
+  )
+  const coverUrl = pickBookField(records, record =>
     typeof record.coverUrl === 'string'
       ? record.coverUrl
       : typeof record.cover_url === 'string'
         ? record.cover_url
-        : undefined
-  const intro = typeof record.intro === 'string' ? record.intro : undefined
-  const durChapterIndex =
-    toOptionalNumber(record.durChapterIndex) ?? toOptionalNumber(record.dur_chapter_index)
-  const lastChapterIndex =
-    toOptionalNumber(record.lastChapterIndex) ?? toOptionalNumber(record.last_chapter_index)
+        : undefined,
+  )
+  const intro = pickBookField(records, record =>
+    typeof record.intro === 'string' ? record.intro : undefined,
+  )
+  const durChapterIndex = pickBookField(
+    records,
+    record =>
+      toOptionalNumber(record.durChapterIndex) ??
+      toOptionalNumber(record.dur_chapter_index),
+  )
+  const lastChapterIndex = pickBookField(
+    records,
+    record =>
+      toOptionalNumber(record.lastChapterIndex) ??
+      toOptionalNumber(record.last_chapter_index),
+  )
+
+  const root = records[records.length - 1]
 
   return {
     ...(name ? { name } : {}),
@@ -104,6 +147,10 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
     ...(intro ? { intro } : {}),
     ...(typeof durChapterIndex === 'number' ? { durChapterIndex } : {}),
     ...(typeof lastChapterIndex === 'number' ? { lastChapterIndex } : {}),
+    ...(typeof root.sourceId === 'string' ? { sourceId: root.sourceId } : {}),
+    ...(typeof root.source_id === 'string' ? { sourceId: root.source_id } : {}),
+    ...(typeof root.bookUrl === 'string' ? { bookUrl: root.bookUrl } : {}),
+    ...(typeof root.book_url === 'string' ? { bookUrl: root.book_url } : {}),
   }
 }
 

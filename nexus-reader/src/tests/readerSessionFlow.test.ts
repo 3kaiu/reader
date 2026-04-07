@@ -144,6 +144,42 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('supports wrapped book payload shape from getBookInfo response', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        book: {
+          name: 'Wrapped Book',
+          author: 'Wrapped Author',
+          cover_url: 'https://example.com/wrapped-cover.jpg',
+          dur_chapter_index: 8,
+          last_chapter_index: 20,
+        },
+        source_id: 'wrapped-source',
+        book_url: 'https://example.com/wrapped-book',
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      name: 'Wrapped Book',
+      author: 'Wrapped Author',
+      coverUrl: 'https://example.com/wrapped-cover.jpg',
+      durChapterIndex: 8,
+      lastChapterIndex: 20,
+    })
+  })
+
   it('fails fast when chapter catalog is empty', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
