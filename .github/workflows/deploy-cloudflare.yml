@@ -83,7 +83,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./cloudflare-workers
-        run: npm ci
+        run: npm install
 
       - name: Configure Wrangler
         working-directory: ./cloudflare-workers

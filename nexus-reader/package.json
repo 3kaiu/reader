@@ -78,6 +78,7 @@
     "webpack-bundle-analyzer": "^5.1.1"
   },
   "overrides": {
+    "defu": "^6.1.6",
     "picomatch": "^4.0.4",
     "tar": "^7.5.11",
     "yaml": "^2.8.3"
