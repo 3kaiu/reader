@@ -50,6 +50,15 @@ jobs:
       - name: Validate contracts
         run: node scripts/validate-contracts.mjs
 
+      - name: Run repository hygiene checks
+        run: node scripts/repo-hygiene-check.mjs
+
+      - name: Guard CF bypass runtime boundaries
+        run: node scripts/cf-bypass-runtime-guard.mjs
+
+      - name: Generate dead-code/orphan report
+        run: node scripts/dead-code-report.mjs
+
       - name: Run frontend quality gates
         uses: ./.github/actions/nexus-reader-quality
         with:
