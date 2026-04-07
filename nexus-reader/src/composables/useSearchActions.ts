@@ -1,8 +1,8 @@
 import { ref, type Ref } from 'vue'
 import type { ApiResponse } from '@/api/http/types'
 import { useOpenReader } from '@/composables/useOpenReader'
-import { useLibraryStore } from '@/stores/library'
-import { useSearchStore } from '@/stores/search'
+import type { useLibraryStore } from '@/stores/library'
+import type { useSearchStore } from '@/stores/search'
 import type { Book } from '@/types/book'
 import type { SearchResult, SearchResultActionPayload } from '@/types/search'
 import { getSearchResultIdentity } from '@/utils/searchStore'
@@ -16,7 +16,11 @@ export function useSearchActions(options: {
   success: (message: string) => void
   showError: (message: string) => void
   handleApiError: (response: ApiResponse<unknown>, fallbackMessage?: string) => void
-  handlePromiseError: (cause: unknown, fallbackMessage?: string) => void
+  handlePromiseError: (
+    cause: unknown,
+    fallbackMessage?: string,
+    showToast?: boolean,
+  ) => void
 }) {
   const { openReader } = useOpenReader()
   const openingBook = ref<string | null>(null)
@@ -156,13 +160,20 @@ export function useSearchActions(options: {
 
       const result = await openReader(book)
       if (!result.navigated) {
-        options.showError('打开书籍失败')
+        options.showError(`打开《${book.name}》失败，请重试或切换书源`)
         return
       }
 
       void ensureBookOnShelfInBackground(book)
     } catch (cause) {
-      options.handlePromiseError(cause, '打开书籍失败')
+      const causeMessage =
+        cause instanceof Error && cause.message ? cause.message.trim() : ''
+      const fallbackMessage = causeMessage
+        ? `打开《${book.name}》失败：${causeMessage}`
+        : `打开《${book.name}》失败，请重试或切换书源`
+
+      options.showError(fallbackMessage)
+      options.handlePromiseError(cause, fallbackMessage, false)
     } finally {
       openingBook.value = null
     }

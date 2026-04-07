@@ -97,6 +97,11 @@ export function createReaderSessionActions(
     const response = await helpers.fetchBookInfo(sourceId, bookUrl)
 
     if (!response.isSuccess || !response.data) {
+      const message = response.errorMsg || '获取书籍信息失败'
+      state.error.value = message
+      state.loadError.value = message
+      state.loadErrorDetails.value = null
+      state.isLoading.value = false
       return response
     }
 
