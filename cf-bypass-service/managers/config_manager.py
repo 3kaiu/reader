@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 VALID_BROWSERS = ["chrome", "firefox", "safari", "edge", "opera"]
 VALID_PLATFORMS = ["windows", "linux", "darwin", "android", "ios"]
-VALID_INTERPRETERS = ["js2py", "nodejs", "v8"]
+VALID_INTERPRETERS = ["native", "nodejs", "v8"]
 VALID_PROXY_SCHEMES = ["http", "https", "socks4", "socks5"]
 VALID_ROTATION_STRATEGIES = ["sequential", "random", "smart"]
 
@@ -118,7 +118,7 @@ class DomainConfig:
     browser: BrowserConfig
     stealth: StealthConfig
     proxy: ProxyConfig
-    interpreter: str = "js2py"
+    interpreter: str = "native"
     timeout: int = 30
     enabled: bool = True
     retry_on_403: bool = False
@@ -242,7 +242,7 @@ class ConfigManager:
                 browser=BrowserConfig(browser="chrome", platform="windows"),
                 stealth=StealthConfig(min_delay=2.0, max_delay=5.0),
                 proxy=ProxyConfig(rotation_strategy="smart"),
-                interpreter="js2py"
+                interpreter="native"
             ),
             "hetushu.com": DomainConfig(
                 domain="hetushu.com",
@@ -256,7 +256,7 @@ class ConfigManager:
                 browser=BrowserConfig(browser="chrome", platform="windows"),
                 stealth=StealthConfig(min_delay=1.0, max_delay=3.0),
                 proxy=ProxyConfig(rotation_strategy="smart"),
-                interpreter="js2py"
+                interpreter="native"
             )
         }
         
@@ -283,7 +283,7 @@ class ConfigManager:
             browser=BrowserConfig(),
             stealth=StealthConfig(),
             proxy=ProxyConfig(),
-            interpreter="js2py"
+            interpreter="native"
         )
     
     def update_from_performance(self, domain: str, success_rate: float, avg_duration: float, top_error: Optional[str] = None) -> bool:
@@ -298,7 +298,7 @@ class ConfigManager:
         modified = False
         
         # Strategy 1: Low success rate on Scraper -> Upgrade to Mesh
-        if config.interpreter == "js2py" and success_rate < 0.6:
+        if config.interpreter == "native" and success_rate < 0.6:
             logger.info(f"Auto-Evolution: Upgrading {domain} to Mesh engine due to low success rate ({success_rate:.1%})")
             # We model "Mesh" by switching to nodejs or indicating external engine preference
             # Note: The EngineFactory actually handles the physical switch, but we update the config 
@@ -365,7 +365,7 @@ class ConfigManager:
                         browser=browser,
                         stealth=stealth,
                         proxy=proxy,
-                        interpreter=config_data.get("interpreter", "js2py"),
+                        interpreter=config_data.get("interpreter", "native"),
                         timeout=config_data.get("timeout", 30),
                         enabled=config_data.get("enabled", True),
                         retry_on_403=config_data.get("retry_on_403", False),

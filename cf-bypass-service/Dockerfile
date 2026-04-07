@@ -57,7 +57,7 @@ COPY pyproject.toml uv.lock* ./
 
 # Install Python dependencies with uv
 RUN uv pip install --system --no-cache \
-    fastapi uvicorn cloudscraper pydantic cachetools js2py redis psutil \
+    fastapi uvicorn cloudscraper pydantic cachetools redis psutil \
     curl_cffi nodriver patchright DrissionPage camoufox[pw] cloudflare-bypasser xxhash
 
 # Install browsers
@@ -80,7 +80,7 @@ RUN mkdir -p /app/data /tmp/drission_profile /tmp/camoufox_profile
 # HuggingFace Spaces requires port 7860
 ENV HOST=0.0.0.0
 ENV PORT=7860
-ENV JS_INTERPRETER=js2py
+ENV JS_INTERPRETER=native
 ENV REQUEST_TIMEOUT=90
 ENV DISPLAY=:99
 

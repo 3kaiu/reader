@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 class JSInterpreterOptimizer:
     """
     Optimized JS interpreter selection
-    Performance: js2py (1000-5000ms) → nodejs (50-200ms) = 10-100x faster
+    Performance: native/js2py fallback tiers are slower than nodejs and v8.
     """
     
     INTERPRETER_PERFORMANCE = {
         'nodejs': {'speed': 10, 'reliability': 9, 'setup_time': 5},
         'v8': {'speed': 9, 'reliability': 8, 'setup_time': 6},
-        'js2py': {'speed': 2, 'reliability': 7, 'setup_time': 9}
+        'native': {'speed': 3, 'reliability': 8, 'setup_time': 8}
     }
     
     _nodejs_available: Optional[bool] = None
@@ -38,7 +38,7 @@ class JSInterpreterOptimizer:
     def select_best_interpreter(cls, domain: str = None) -> str:
         """
         Select the best available JS interpreter with performance validation
-        Priority: nodejs > v8 > js2py
+        Priority: nodejs > v8 > native
         """
         # Check Node.js (fastest)
         if cls._is_nodejs_available():
@@ -57,9 +57,9 @@ class JSInterpreterOptimizer:
             else:
                 logger.warning("V8 available but performance test failed, falling back")
 
-        # Fallback to js2py (slowest but most compatible)
-        logger.warning(f"Using js2py interpreter for {domain or 'default'} (slowest option)")
-        return 'js2py'
+        # Fallback to native interpreter (no external JS runtime dependency)
+        logger.warning(f"Using native interpreter for {domain or 'default'} (slowest option)")
+        return 'native'
     
     @classmethod
     def _is_nodejs_available(cls) -> bool:
