@@ -14,6 +14,10 @@ on:
         default: 'nexus-lite'
         type: string
 
+concurrency:
+  group: huggingface-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -21,6 +25,7 @@ jobs:
   deploy-nexus-lite:
     name: 🚀 Deploy Nexus-Lite to HF Spaces
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
