@@ -7,6 +7,13 @@ on:
       - master
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: "20"
   BUN_VERSION: "1"
@@ -15,6 +22,7 @@ jobs:
   workflow-quality:
     name: Workflow Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,6 +33,7 @@ jobs:
   validate-contracts:
     name: Validate Contracts
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -49,6 +58,7 @@ jobs:
   frontend-quality:
     name: Frontend Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -63,6 +73,7 @@ jobs:
   backend-quality:
     name: Backend Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -77,6 +88,7 @@ jobs:
   workers-quality:
     name: Workers Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -94,6 +106,7 @@ jobs:
   backend-tests:
     name: Backend Cargo Test
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs:
       - backend-quality
     steps:
@@ -108,6 +121,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs:
       - frontend-quality
     steps:
