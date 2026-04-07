@@ -8,8 +8,6 @@ on:
       - "!docs/**"
       - "!README.md"
       - "!.github/workflows/docs-deploy.yml"
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_tests:
