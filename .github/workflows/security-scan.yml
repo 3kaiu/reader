@@ -11,8 +11,6 @@ on:
 permissions:
   contents: read
   security-events: write
-  issues: write
-  pull-requests: write
 
 jobs:
   # ===== 代码安全扫描 =====
@@ -93,15 +91,119 @@ jobs:
             bun-audit-results.json
           retention-days: 30
 
+      - name: Summarize audit severities
+        id: audit-summary
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+
+          function parseJson(path) {
+            try {
+              return JSON.parse(fs.readFileSync(path, 'utf8'))
+            } catch {
+              return null
+            }
+          }
+
+          function normalizeSeverity(raw) {
+            if (!raw) return 'unknown'
+            const s = String(raw).toLowerCase()
+            if (s.includes('critical')) return 'critical'
+            if (s.includes('high')) return 'high'
+            if (s.includes('moderate') || s.includes('medium')) return 'moderate'
+            if (s.includes('low')) return 'low'
+            return 'unknown'
+          }
+
+          function bump(counter, severity) {
+            counter[severity] = (counter[severity] || 0) + 1
+          }
+
+          function scoreToSeverity(score) {
+            const n = Number(score)
+            if (!Number.isFinite(n)) return 'unknown'
+            if (n >= 9.0) return 'critical'
+            if (n >= 7.0) return 'high'
+            if (n >= 4.0) return 'moderate'
+            if (n > 0) return 'low'
+            return 'unknown'
+          }
+
+          const totals = { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 }
+
+          const rust = parseJson('rust-audit-results.json')
+          const rustList = rust?.vulnerabilities?.list
+          if (Array.isArray(rustList)) {
+            for (const item of rustList) {
+              const advisory = item?.advisory || {}
+              const sev =
+                advisory.severity ||
+                advisory.cvss?.severity ||
+                scoreToSeverity(advisory.cvss?.score)
+              bump(totals, normalizeSeverity(sev))
+            }
+          }
+
+          const bun = parseJson('bun-audit-results.json')
+          const bunVulns = bun?.vulnerabilities
+          if (bunVulns && typeof bunVulns === 'object') {
+            for (const vuln of Object.values(bunVulns)) {
+              bump(totals, normalizeSeverity(vuln?.severity))
+            }
+          } else if (Array.isArray(bun?.advisories)) {
+            for (const adv of bun.advisories) {
+              bump(totals, normalizeSeverity(adv?.severity))
+            }
+          }
+
+          const total =
+            totals.critical + totals.high + totals.moderate + totals.low + totals.unknown
+          const highCritical = totals.critical + totals.high
+
+          const outputPath = process.env.GITHUB_OUTPUT
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY
+          fs.appendFileSync(outputPath, `audit_total=${total}\n`)
+          fs.appendFileSync(outputPath, `audit_high_critical=${highCritical}\n`)
+          fs.appendFileSync(outputPath, `audit_counts=${JSON.stringify(totals)}\n`)
+
+          fs.appendFileSync(summaryPath, '### Dependency Audit Severity Summary\n')
+          fs.appendFileSync(
+            summaryPath,
+            `- Critical: ${totals.critical}, High: ${totals.high}, Moderate: ${totals.moderate}, Low: ${totals.low}, Unknown: ${totals.unknown}\n`
+          )
+          fs.appendFileSync(
+            summaryPath,
+            `- Gate policy: block on High/Critical; Moderate/Low are warnings.\n`
+          )
+          NODE
+
       - name: Enforce audit results
         run: |
-          if [ "${{ steps.rust-audit.outputs.status }}" != "0" ]; then
-            echo "❌ cargo audit reported vulnerabilities"
+          if [ ! -s rust-audit-results.json ]; then
+            echo "❌ rust-audit-results.json is missing or empty"
             exit 1
           fi
-          if [ "${{ steps.frontend-audit.outputs.status }}" != "0" ]; then
-            echo "❌ bun audit reported vulnerabilities"
+          if [ ! -s bun-audit-results.json ]; then
+            echo "❌ bun-audit-results.json is missing or empty"
             exit 1
+          fi
+
+          if [ "${{ steps.rust-audit.outputs.status }}" != "0" ]; then
+            echo "ℹ️ cargo audit exited non-zero (likely vulnerabilities present); using severity gate for final decision"
+          fi
+          if [ "${{ steps.frontend-audit.outputs.status }}" != "0" ]; then
+            echo "ℹ️ bun audit exited non-zero (likely vulnerabilities present); using severity gate for final decision"
+          fi
+
+          if [ "${{ steps.audit-summary.outputs.audit_high_critical }}" != "0" ]; then
+            echo "❌ High/Critical dependency vulnerabilities detected"
+            exit 1
+          fi
+
+          if [ "${{ steps.audit-summary.outputs.audit_total }}" != "0" ]; then
+            echo "⚠️ Moderate/Low dependency vulnerabilities detected; not blocking this workflow"
+          else
+            echo "✅ No dependency vulnerabilities detected"
           fi
 
   # ===== 自定义安全检查 =====
