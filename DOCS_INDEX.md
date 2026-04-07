@@ -5,6 +5,7 @@ This index is the canonical entrypoint for repository documentation.
 ## Global
 
 - [System Flow](SYSTEM_FLOW.md)
+- [Reading Flow Baseline](READING_FLOW_BASELINE.md)
 - [Agent/Repo Guidelines](AGENTS.md)
 
 ## Security & CI

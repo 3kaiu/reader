@@ -1,0 +1,116 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
+import { createReaderActionHelpers } from '@/stores/reader/actions/helpers'
+import type { ReaderStoreState } from '@/stores/reader/types'
+import type { Chapter } from '@/types/book'
+
+const mockGetBookInfo = vi.fn()
+const mockGetChapters = vi.fn()
+const mockGetContent = vi.fn()
+
+vi.mock('@/api/reader', () => ({
+  readerApi: {
+    getBookInfo: (...args: unknown[]) => mockGetBookInfo(...args),
+    getChapters: (...args: unknown[]) => mockGetChapters(...args),
+    getContent: (...args: unknown[]) => mockGetContent(...args),
+  },
+}))
+
+function createReaderState(): ReaderStoreState {
+  return {
+    currentBook: ref({
+      sourceId: 'demo-source',
+      bookUrl: 'https://example.com/book/1',
+      name: 'Demo',
+      author: 'Author',
+    }),
+    currentChapter: ref(null),
+    currentChapterIndex: ref(0),
+    content: ref(''),
+    formattedContent: ref(''),
+    catalog: ref([]),
+    loadedChapters: ref([]),
+    isLoading: ref(false),
+    isLoadingMore: ref(false),
+    isParsing: ref(false),
+    error: ref(null),
+    loadError: ref(null),
+    loadErrorDetails: ref(null),
+    progressMap: ref({}),
+    chapterContentCache: ref({}),
+    contentStageReports: ref([]),
+  }
+}
+
+describe('Reader Session Flow Guards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('accepts wrapped chapters payload and normalizes invalid chapter entries', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          { title: '第一章', url: 'https://example.com/book/1/1' },
+          { url: 'https://example.com/book/1/2' },
+          { title: '', url: 'https://example.com/book/1/3' },
+          { title: '缺失URL' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(3)
+    expect(catalog[0]).toMatchObject({ title: '第一章', index: 0 })
+    expect(catalog[1]).toMatchObject({ title: '第2章', index: 1 })
+    expect(catalog[2]).toMatchObject({ title: '第3章', index: 2 })
+  })
+
+  it('fails fast when chapter catalog is empty', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: [],
+    })
+
+    await expect(helpers.ensureCatalog()).rejects.toThrow('目录为空，暂无可读章节')
+  })
+
+  it('returns actionable error when chapter content is empty', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        content: '   \n  ',
+        meta: {
+          stageReports: [
+            {
+              stage: 'validation',
+              ok: false,
+              failureCode: 'content_empty',
+            },
+          ],
+        },
+      },
+    })
+
+    await expect(helpers.fetchChapterContent(chapter)).rejects.toThrow(
+      '章节内容为空，请重试或切换书源',
+    )
+    expect(state.loadErrorDetails.value).toBe('content_empty')
+  })
+})

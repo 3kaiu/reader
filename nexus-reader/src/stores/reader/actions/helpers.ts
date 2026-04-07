@@ -13,6 +13,58 @@ import {
 } from '@/utils/readerStore'
 import type { ReaderStoreState, ReaderTarget } from '../types'
 
+function parseChapterCatalogPayload(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>
+    const candidates = [record.chapters, record.items, record.data]
+    const arrayCandidate = candidates.find(Array.isArray)
+    if (arrayCandidate) {
+      return arrayCandidate as unknown[]
+    }
+  }
+
+  return []
+}
+
+function toCatalogChapter(entry: unknown, index: number): Chapter | null {
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
+
+  const record = entry as Record<string, unknown>
+  const url = typeof record.url === 'string' ? record.url.trim() : ''
+  if (!url) {
+    return null
+  }
+
+  const title =
+    typeof record.title === 'string' && record.title.trim()
+      ? record.title.trim()
+      : `第${index + 1}章`
+
+  const normalizedIndex =
+    typeof record.index === 'number' && Number.isFinite(record.index)
+      ? record.index
+      : index
+
+  return {
+    title,
+    url,
+    index: normalizedIndex,
+    ...(typeof record.isVip === 'boolean' ? { isVip: record.isVip } : {}),
+  }
+}
+
+function normalizeCatalogPayload(payload: unknown): Chapter[] {
+  return parseChapterCatalogPayload(payload)
+    .map((entry, index) => toCatalogChapter(entry, index))
+    .filter((chapter): chapter is Chapter => chapter !== null)
+}
+
 export function createReaderActionHelpers(state: ReaderStoreState) {
   const inflightChapterContentRequests = new Map<string, Promise<string>>()
 
@@ -100,11 +152,18 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       state.currentBook.value.bookUrl,
     )
 
-    if (!res.isSuccess || !Array.isArray(res.data)) {
+    if (!res.isSuccess) {
       throw new Error(res.errorMsg || '获取目录失败')
     }
 
-    state.catalog.value = normalizeReaderCatalog(res.data)
+    const normalizedCatalog = normalizeReaderCatalog(
+      normalizeCatalogPayload(res.data),
+    )
+    if (normalizedCatalog.length === 0) {
+      throw new Error('目录为空，暂无可读章节')
+    }
+
+    state.catalog.value = normalizedCatalog
 
     return state.catalog.value
   }
@@ -147,6 +206,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     }
 
     const request = (async () => {
+      state.loadErrorDetails.value = null
       const res = await readerApi.getContent(
         currentBook.sourceId,
         chapter.url,
@@ -163,6 +223,12 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
       const chapterContent = res.data?.content || ''
       state.contentStageReports.value = res.data?.meta?.stageReports ?? []
+      if (!chapterContent.trim()) {
+        state.loadErrorDetails.value =
+          state.contentStageReports.value
+            .find(report => report.ok === false)?.failureCode || null
+        throw new Error('章节内容为空，请重试或切换书源')
+      }
       state.loadErrorDetails.value = null
       if (
         state.currentBook.value?.sourceId === currentBook.sourceId &&
@@ -181,7 +247,6 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
         throw new Error(message)
       }
 
-      state.loadErrorDetails.value = null
       throw error
     })
 
