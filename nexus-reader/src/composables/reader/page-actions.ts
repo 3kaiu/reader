@@ -13,6 +13,7 @@ export function createReaderPageActions(
     toggleToolbar: options.toggleToolbar,
     handlePrevChapter: options.readerExperienceActions.handlePrevChapter,
     handleNextChapter: options.readerExperienceActions.handleNextChapter,
+    retryCurrentChapter: options.readerExperienceActions.handleRefresh,
     toggleFullscreen: options.readerExperienceActions.toggleFullscreen,
     toggleCatalog: options.toggleCatalog,
     toggleSettings: options.toggleSettings,

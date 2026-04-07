@@ -6,4 +6,5 @@ export type ReaderPageModelStateOptions = {
   currentTheme: Readonly<Ref<string>>
   isLoading: Readonly<Ref<boolean>>
   error: Readonly<Ref<string | null | undefined>>
+  errorDetails: Readonly<Ref<string | null | undefined>>
 }

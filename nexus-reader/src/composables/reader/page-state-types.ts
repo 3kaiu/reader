@@ -5,4 +5,5 @@ export interface ReaderPageState {
   readerThemeStyle: ReaderThemeStyle
   isLoading: boolean
   error: string | null | undefined
+  errorDetails: string | null | undefined
 }

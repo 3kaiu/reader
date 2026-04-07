@@ -8,7 +8,7 @@ import type {
 export type ReaderPageExperienceActions =
   Pick<
     ReaderExperienceReadingActions,
-    'handlePrevChapter' | 'handleNextChapter'
+    'handlePrevChapter' | 'handleNextChapter' | 'handleRefresh'
   > &
   Pick<
     ReaderExperienceViewActions,

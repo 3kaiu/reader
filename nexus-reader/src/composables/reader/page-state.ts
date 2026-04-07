@@ -10,5 +10,6 @@ export function createReaderPageState(
     readerThemeStyle: options.readerThemeStyle.value,
     isLoading: options.isLoading.value,
     error: options.error.value,
+    errorDetails: options.errorDetails.value,
   }))
 }

@@ -50,7 +50,9 @@ const {
       <ReaderErrorState
         v-else-if="readerPageState.error"
         :error="readerPageState.error"
+        :error-details="readerPageState.errorDetails"
         @open-source-picker="readerPageActions.openSourcePicker"
+        @retry-load="readerPageActions.retryCurrentChapter"
       />
 
       <ReaderExperience

@@ -11,6 +11,8 @@ export function createReaderErrorStateViewBindings(
 ): ReaderErrorStateViewBindings {
   return {
     errorMessage: computed(() => props.error),
+    errorDetails: computed(() => props.errorDetails),
     onOpenSourcePicker: () => emit('openSourcePicker'),
+    onRetryLoad: () => emit('retryLoad'),
   }
 }

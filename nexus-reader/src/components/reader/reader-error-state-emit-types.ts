@@ -1,5 +1,6 @@
 export type ReaderErrorStateEmits = {
   openSourcePicker: []
+  retryLoad: []
 }
 
 export type ReaderErrorStateEmitFn =
