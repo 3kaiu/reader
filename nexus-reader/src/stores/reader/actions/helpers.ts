@@ -51,13 +51,10 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     typeof titleCandidate === 'string' ? titleCandidate.trim() : `第${index + 1}章`
 
   const normalizedIndex =
-    typeof record.index === 'number' && Number.isFinite(record.index)
-      ? record.index
-      : typeof record.chapterIndex === 'number' && Number.isFinite(record.chapterIndex)
-        ? record.chapterIndex
-        : typeof record.chapter_index === 'number' && Number.isFinite(record.chapter_index)
-          ? record.chapter_index
-      : index
+    toOptionalNumber(record.index) ??
+    toOptionalNumber(record.chapterIndex) ??
+    toOptionalNumber(record.chapter_index) ??
+    index
 
   return {
     title,
@@ -74,7 +71,22 @@ function normalizeCatalogPayload(payload: unknown): Chapter[] {
 }
 
 function toOptionalNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return undefined
+    }
+    const parsed = Number(trimmed)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return undefined
 }
 
 function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] {

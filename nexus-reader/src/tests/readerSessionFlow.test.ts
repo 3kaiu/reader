@@ -109,6 +109,34 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('normalizes chapter index from numeric string fields', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        data: [
+          {
+            chapter_title: '第一章',
+            chapter_url: 'https://example.com/book/1/1',
+            chapter_index: '9',
+          },
+          {
+            title: '第二章',
+            url: 'https://example.com/book/1/2',
+            index: '10',
+          },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog[0].index).toBe(9)
+    expect(catalog[1].index).toBe(10)
+  })
+
   it('normalizes snake_case book fields while keeping route target authoritative', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
@@ -178,6 +206,34 @@ describe('Reader Session Flow Guards', () => {
       coverUrl: 'https://example.com/wrapped-cover.jpg',
       durChapterIndex: 8,
       lastChapterIndex: 20,
+    })
+  })
+
+  it('normalizes numeric-string chapter progress fields from book payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        name: 'String Number Book',
+        author: 'Author',
+        dur_chapter_index: '18',
+        last_chapter_index: '40',
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      durChapterIndex: 18,
+      lastChapterIndex: 40,
     })
   })
 
