@@ -14,9 +14,8 @@ This document marks historical modules that are no longer part of the active run
 - `engines/*`
 - `managers/*`
 
-## Legacy Modules (do not import in runtime path)
+## Removed Legacy Modules (must not be reintroduced)
 
-- `core/__init__.py`
 - `core/config_manager.py`
 - `core/domain.py`
 - `core/interfaces.py`
@@ -25,7 +24,6 @@ This document marks historical modules that are no longer part of the active run
 
 ## Policy
 
-- These legacy modules are kept temporarily for staged cleanup.
-- New runtime code must not import legacy modules.
+- These modules have been removed after confirming no runtime references.
+- New runtime code must not reintroduce imports to these module paths.
 - CI guard: `node scripts/cf-bypass-runtime-guard.mjs`.
-- Planned cleanup target: after 2026-05-31, remove legacy modules with no runtime references.

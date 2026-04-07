@@ -4,8 +4,7 @@ import path from 'node:path'
 const root = process.cwd()
 const serviceRoot = path.join(root, 'cf-bypass-service')
 
-const legacyModules = [
-  'core/__init__.py',
+const forbiddenLegacyModules = [
   'core/config_manager.py',
   'core/domain.py',
   'core/interfaces.py',
@@ -17,6 +16,7 @@ const runtimeAllowlist = [
   'main.py',
   'app.py',
   'config.py',
+  'core/__init__.py',
   'core/engine.py',
   'core/engine_factory.py',
   'core/errors.py',
@@ -43,18 +43,16 @@ function toModule(relPath) {
   return relPath.replace(/\.py$/, '').replace(/\//g, '.')
 }
 
-const legacyModulesSet = new Set(legacyModules)
 const runtimeAllowlistSet = new Set(runtimeAllowlist)
 const pyFiles = walkPyFiles(serviceRoot)
 const violations = []
 
 for (const abs of pyFiles) {
   const rel = path.relative(serviceRoot, abs)
-  if (legacyModulesSet.has(rel)) continue
 
   const source = fs.readFileSync(abs, 'utf8')
 
-  for (const legacyPath of legacyModules) {
+  for (const legacyPath of forbiddenLegacyModules) {
     const mod = toModule(legacyPath)
     const escaped = mod.replace(/\./g, '\\.')
     const directImport = new RegExp(`\\bimport\\s+${escaped}\\b`)
@@ -65,8 +63,8 @@ for (const abs of pyFiles) {
     }
   }
 
-  if (rel.startsWith('core/') && !runtimeAllowlistSet.has(rel) && !legacyModulesSet.has(rel)) {
-    violations.push(`${rel} exists in core/ but is not classified in runtime allowlist or legacy list`)
+  if (rel.startsWith('core/') && !runtimeAllowlistSet.has(rel)) {
+    violations.push(`${rel} exists in core/ but is not classified in runtime allowlist`)
   }
 }
 
