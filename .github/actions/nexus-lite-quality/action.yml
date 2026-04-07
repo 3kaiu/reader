@@ -6,8 +6,16 @@ inputs:
     description: Path to the nexus-lite workspace.
     required: false
     default: nexus-lite
+  run-fmt:
+    description: Whether to run cargo fmt --all --check.
+    required: false
+    default: "false"
   run-check:
     description: Whether to run cargo check --workspace.
+    required: false
+    default: "false"
+  run-clippy:
+    description: Whether to run cargo clippy --workspace --all-targets.
     required: false
     default: "false"
   run-tests:
@@ -46,11 +54,3 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: cargo test --workspace --quiet
-  run-fmt:
-    description: Whether to run cargo fmt --all --check.
-    required: false
-    default: "false"
-  run-clippy:
-    description: Whether to run cargo clippy --workspace --all-targets -- -D warnings.
-    required: false
-    default: "false"

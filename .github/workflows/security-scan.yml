@@ -91,6 +91,20 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Setup workers dependencies
+        working-directory: cloudflare-workers
+        run: npm install
+
+      - name: Audit workers dependencies
+        id: workers-audit
+        working-directory: cloudflare-workers
+        run: |
+          set +e
+          npm audit --json > ../npm-audit-results.json
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Upload audit results
         uses: actions/upload-artifact@v6
         with:
@@ -98,6 +112,7 @@ jobs:
           path: |
             rust-audit-results.json
             bun-audit-results.json
+            npm-audit-results.json
           retention-days: 30
 
       - name: Summarize audit severities
@@ -165,6 +180,18 @@ jobs:
             }
           }
 
+          const npm = parseJson('npm-audit-results.json')
+          const npmVulns = npm?.vulnerabilities
+          if (npmVulns && typeof npmVulns === 'object') {
+            for (const vuln of Object.values(npmVulns)) {
+              const severity = vuln?.severity
+              const nodes = Array.isArray(vuln?.nodes) ? vuln.nodes.length : 1
+              for (let i = 0; i < Math.max(nodes, 1); i++) {
+                bump(totals, normalizeSeverity(severity))
+              }
+            }
+          }
+
           const total =
             totals.critical + totals.high + totals.moderate + totals.low + totals.unknown
           const highCritical = totals.critical + totals.high
@@ -196,12 +223,19 @@ jobs:
             echo "❌ bun-audit-results.json is missing or empty"
             exit 1
           fi
+          if [ ! -s npm-audit-results.json ]; then
+            echo "❌ npm-audit-results.json is missing or empty"
+            exit 1
+          fi
 
           if [ "${{ steps.rust-audit.outputs.status }}" != "0" ]; then
             echo "ℹ️ cargo audit exited non-zero (likely vulnerabilities present); using severity gate for final decision"
           fi
           if [ "${{ steps.frontend-audit.outputs.status }}" != "0" ]; then
             echo "ℹ️ bun audit exited non-zero (likely vulnerabilities present); using severity gate for final decision"
+          fi
+          if [ "${{ steps.workers-audit.outputs.status }}" != "0" ]; then
+            echo "ℹ️ npm audit exited non-zero (likely vulnerabilities present); using severity gate for final decision"
           fi
 
           if [ "${{ steps.audit-summary.outputs.audit_high_critical }}" != "0" ]; then

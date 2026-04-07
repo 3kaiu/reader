@@ -103,7 +103,7 @@ jobs:
   performance-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [deploy-pages]
+    needs: [post-deploy-smoke]
     if: success() && github.event_name == 'push'
 
     steps:
@@ -390,11 +390,62 @@ jobs:
 
           echo "✅ Workers E2E test passed"
 
+  # ===== 部署后端到端 Smoke =====
+  post-deploy-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [deploy-pages, deploy-workers]
+    if: success()
+
+    steps:
+      - name: Smoke check Pages and API routes
+        run: |
+          set -euo pipefail
+
+          check_ok() {
+            local url="$1"
+            local label="$2"
+            local code
+            code=$(curl -sS -o /tmp/smoke.out -w '%{http_code}' --max-time 15 "$url")
+            if [ "$code" -ge 500 ]; then
+              echo "❌ ${label} returned ${code}"
+              cat /tmp/smoke.out || true
+              exit 1
+            fi
+            echo "✅ ${label} returned ${code}"
+          }
+
+          check_post_not_5xx() {
+            local url="$1"
+            local body="$2"
+            local label="$3"
+            local code
+            code=$(curl -sS -o /tmp/smoke.out -w '%{http_code}' --max-time 15 \
+              -X POST "$url" \
+              -H 'content-type: application/json' \
+              --data "$body")
+            if [ "$code" -ge 500 ]; then
+              echo "❌ ${label} returned ${code}"
+              cat /tmp/smoke.out || true
+              exit 1
+            fi
+            echo "✅ ${label} returned ${code}"
+          }
+
+          check_ok "https://nexus-reader.pages.dev" "Pages homepage"
+          check_ok "https://api.nexus-reader.pages.dev/health" "API health"
+          check_ok "https://api.nexus-reader.pages.dev/api/health" "Backend health"
+          check_ok "https://api.nexus-reader.pages.dev/api/book" "Book route"
+          check_post_not_5xx \
+            "https://api.nexus-reader.pages.dev/api/search" \
+            '{"keyword":"smoke","sources":[]}' \
+            "Search route"
+
   # ===== 部署辅助服务 =====
   deploy-services:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [deploy-pages, deploy-workers]
+    needs: [deploy-pages, deploy-workers, post-deploy-smoke]
     if: success()
     outputs:
       cf_bypass_space_url: ${{ steps.deploy-cf-bypass.outputs.space_url }}
