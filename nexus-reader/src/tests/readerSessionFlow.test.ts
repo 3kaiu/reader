@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { createReaderActionHelpers } from '@/stores/reader/actions/helpers'
 import type { ReaderStoreState } from '@/stores/reader/types'
 import type { Chapter } from '@/types/book'
+import { ErrorCode, NexusError } from '@/utils/errors'
 
 const mockGetBookInfo = vi.fn()
 const mockGetChapters = vi.fn()
@@ -221,5 +222,34 @@ describe('Reader Session Flow Guards', () => {
       '章节内容为空，请重试或切换书源',
     )
     expect(state.loadErrorDetails.value).toBe('content_empty')
+  })
+
+  it('summarizes nexus error with failed stage as priority', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockRejectedValue(
+      new NexusError(
+        ErrorCode.HTML_PARSE_ERROR,
+        '正文解析失败',
+        JSON.stringify({
+          stageReports: [
+            { stage: 'fetch', ok: true },
+            { stage: 'decode', ok: false, failureCode: 'decode_failed' },
+          ],
+          failureCode: 'fallback_code',
+        }),
+      ),
+    )
+
+    await expect(helpers.fetchChapterContent(chapter)).rejects.toThrow(
+      '正文解析失败 (阶段: decode · 代码: decode_failed)',
+    )
+    expect(state.loadErrorDetails.value).toBe('阶段: decode · 代码: decode_failed')
   })
 })

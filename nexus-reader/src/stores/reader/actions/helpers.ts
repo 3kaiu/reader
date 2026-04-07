@@ -180,9 +180,16 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     try {
       const parsed = JSON.parse(details) as {
         failureCode?: string
-        stageReports?: Array<{ stage?: string; failureCode?: string }>
+        stageReports?: Array<{ stage?: string; ok?: boolean; failureCode?: string }>
       }
-      const stage = parsed.stageReports?.find(item => typeof item?.stage === 'string')
+      const stage =
+        parsed.stageReports?.find(
+          item =>
+            item?.ok === false &&
+            (typeof item?.stage === 'string' || typeof item?.failureCode === 'string'),
+        ) ||
+        parsed.stageReports?.find(item => typeof item?.failureCode === 'string') ||
+        parsed.stageReports?.find(item => typeof item?.stage === 'string')
       const parts = [
         stage?.stage ? `阶段: ${stage.stage}` : null,
         stage?.failureCode || parsed.failureCode
