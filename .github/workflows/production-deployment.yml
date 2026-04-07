@@ -125,20 +125,66 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Run bun audit
-        working-directory: nexus-reader
-        run: bun audit --audit-level moderate || echo "Audit completed with issues"
-
       - name: Check for vulnerabilities
         working-directory: nexus-reader
         run: |
-          if bun audit --audit-level moderate 2>/dev/null; then
-            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
-            echo "✅ No vulnerabilities found"
-          else
-            echo "vulnerabilities=1" >> $GITHUB_OUTPUT
-            echo "⚠️ Vulnerabilities found (run bun audit for details)"
-          fi
+          set +e
+          bun audit --json > ../bun-audit-results.json
+          status=$?
+          set -e
+
+          AUDIT_STATUS="$status" node <<'NODE'
+          const fs = require('fs')
+          const outputPath = process.env.GITHUB_OUTPUT
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY
+          const status = Number(process.env.AUDIT_STATUS || '1')
+
+          let vulnerabilities = 0
+          let severities = { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 }
+
+          try {
+            const data = JSON.parse(fs.readFileSync('../bun-audit-results.json', 'utf8'))
+            const normalize = (raw) => {
+              const s = String(raw || 'unknown').toLowerCase()
+              if (s.includes('critical')) return 'critical'
+              if (s.includes('high')) return 'high'
+              if (s.includes('moderate') || s.includes('medium')) return 'moderate'
+              if (s.includes('low')) return 'low'
+              return 'unknown'
+            }
+
+            if (data && typeof data.vulnerabilities === 'object' && data.vulnerabilities !== null) {
+              for (const vuln of Object.values(data.vulnerabilities)) {
+                const sev = normalize(vuln?.severity)
+                severities[sev] = (severities[sev] || 0) + 1
+              }
+            } else if (Array.isArray(data?.advisories)) {
+              for (const advisory of data.advisories) {
+                const sev = normalize(advisory?.severity)
+                severities[sev] = (severities[sev] || 0) + 1
+              }
+            }
+          } catch {
+            // Keep defaults when audit output is unavailable or unparsable.
+          }
+
+          vulnerabilities = Object.values(severities).reduce((sum, v) => sum + v, 0)
+          const hasVulns = vulnerabilities > 0 || status !== 0
+          fs.appendFileSync(outputPath, `vulnerabilities=${hasVulns ? 1 : 0}\n`)
+          fs.appendFileSync(outputPath, `severity_counts=${JSON.stringify(severities)}\n`)
+
+          fs.appendFileSync(summaryPath, '### Deployment Dependency Audit (nexus-reader)\n')
+          fs.appendFileSync(
+            summaryPath,
+            `- Critical: ${severities.critical}, High: ${severities.high}, Moderate: ${severities.moderate}, Low: ${severities.low}, Unknown: ${severities.unknown}\n`
+          )
+          fs.appendFileSync(
+            summaryPath,
+            hasVulns
+              ? '- Result: ⚠️ Vulnerabilities detected; review audit logs and Dependabot.\n'
+              : '- Result: ✅ No vulnerabilities detected.\n'
+          )
+          NODE
         id: audit
 
       - name: Publish dependency audit summary
