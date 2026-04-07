@@ -20,7 +20,7 @@ function parseChapterCatalogPayload(payload: unknown): unknown[] {
 
   if (payload && typeof payload === 'object') {
     const record = payload as Record<string, unknown>
-    const candidates = [record.chapters, record.items, record.data]
+    const candidates = [record.chapters, record.items, record.data, record.list]
     const arrayCandidate = candidates.find(Array.isArray)
     if (arrayCandidate) {
       return arrayCandidate as unknown[]
@@ -55,7 +55,10 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     toOptionalNumber(record.chapterIndex) ??
     toOptionalNumber(record.chapter_index) ??
     index
-  const normalizedIsVip = toOptionalBoolean(record.isVip)
+  const normalizedIsVip =
+    toOptionalBoolean(record.isVip) ??
+    toOptionalBoolean(record.is_vip) ??
+    toOptionalBoolean(record.vip)
 
   return {
     title,

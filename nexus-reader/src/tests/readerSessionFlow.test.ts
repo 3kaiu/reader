@@ -109,6 +109,27 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('accepts list wrapper for catalog payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        list: [
+          { title: '第一章', url: 'https://example.com/book/1/1' },
+          { title: '第二章', url: 'https://example.com/book/1/2' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0].title).toBe('第一章')
+    expect(catalog[1].title).toBe('第二章')
+  })
+
   it('normalizes chapter index from numeric string fields', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
@@ -157,6 +178,26 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[0].isVip).toBe(true)
     expect(catalog[1].isVip).toBe(false)
     expect(catalog[2].isVip).toBe(true)
+  })
+
+  it('normalizes vip aliases from snake_case and short key', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          { title: 'A', url: 'https://example.com/book/1/a', is_vip: '1' },
+          { title: 'B', url: 'https://example.com/book/1/b', vip: 0 },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog[0].isVip).toBe(true)
+    expect(catalog[1].isVip).toBe(false)
   })
 
   it('normalizes snake_case book fields while keeping route target authoritative', async () => {
