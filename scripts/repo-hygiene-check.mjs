@@ -95,6 +95,33 @@ function checkTrackedGeneratedArtifacts(files, allowlist) {
   }
 }
 
+function checkDocsIndexCoverage(files) {
+  const docsIndex = path.join(root, 'DOCS_INDEX.md')
+  if (!fs.existsSync(docsIndex)) {
+    issues.push('Missing DOCS_INDEX.md (canonical docs entrypoint)')
+    return
+  }
+
+  const indexSource = fs.readFileSync(docsIndex, 'utf8')
+  const links = new Set()
+  const linkPattern = /\[[^\]]+\]\(([^)]+)\)/g
+  let match = linkPattern.exec(indexSource)
+  while (match) {
+    const raw = match[1].trim()
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      links.add(raw.replace(/^\.\//, ''))
+    }
+    match = linkPattern.exec(indexSource)
+  }
+
+  const trackedMarkdown = files.filter(file => file.endsWith('.md'))
+  const excluded = new Set(['AGENTS.md', 'DOCS_INDEX.md'])
+  const missing = trackedMarkdown.filter(file => !excluded.has(file) && !links.has(file))
+  if (missing.length > 0) {
+    issues.push(`Tracked markdown files missing from DOCS_INDEX.md: ${missing.join(', ')}`)
+  }
+}
+
 function printSection(title, rows) {
   if (rows.length === 0) return
   console.log(`\n${title}`)
@@ -108,6 +135,7 @@ const allowlist = loadAllowlist()
 checkTrackedEmptyFiles(trackedFiles)
 checkPyprojectReadmes(trackedFiles)
 checkTrackedGeneratedArtifacts(trackedFiles, allowlist)
+checkDocsIndexCoverage(trackedFiles)
 
 printSection('Warnings', warnings)
 printSection('Issues', issues)
