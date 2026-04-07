@@ -3,10 +3,17 @@ name: 🔒 Security Scan & Audit
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
   schedule:
     # Run weekly security scan
     - cron: '0 9 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -17,6 +24,7 @@ jobs:
   codeql-scan:
     name: 🔍 CodeQL Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name != 'schedule' || github.repository_visibility == 'public'
 
     steps:
@@ -39,6 +47,7 @@ jobs:
   dependency-audit:
     name: 📦 Dependency Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -210,6 +219,7 @@ jobs:
   custom-security-check:
     name: 🛡️ Custom Security Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -307,6 +317,7 @@ jobs:
   security-report:
     name: 📋 Security Report
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [codeql-scan, dependency-audit, custom-security-check]
     if: always()
 
