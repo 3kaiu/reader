@@ -36,9 +36,15 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
   }
 
   const record = entry as Record<string, unknown>
-  const urlCandidate = [record.url, record.chapterUrl, record.chapter_url].find(
-    value => typeof value === 'string',
-  )
+  const urlCandidate = [
+    record.url,
+    record.chapterUrl,
+    record.chapter_url,
+    record.link,
+    record.href,
+    record.chapterLink,
+    record.chapter_link,
+  ].find(value => typeof value === 'string')
   const url = typeof urlCandidate === 'string' ? urlCandidate.trim() : ''
   if (!url) {
     return null
@@ -153,10 +159,22 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
   }
 
   const name = pickBookField(records, record =>
-    typeof record.name === 'string' ? record.name : undefined,
+    typeof record.name === 'string'
+      ? record.name
+      : typeof record.title === 'string'
+        ? record.title
+        : typeof record.bookName === 'string'
+          ? record.bookName
+          : typeof record.book_name === 'string'
+            ? record.book_name
+            : undefined,
   )
   const author = pickBookField(records, record =>
-    typeof record.author === 'string' ? record.author : undefined,
+    typeof record.author === 'string'
+      ? record.author
+      : typeof record.writer === 'string'
+        ? record.writer
+        : undefined,
   )
   const coverUrl = pickBookField(records, record =>
     typeof record.coverUrl === 'string'
@@ -166,7 +184,13 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
         : undefined,
   )
   const intro = pickBookField(records, record =>
-    typeof record.intro === 'string' ? record.intro : undefined,
+    typeof record.intro === 'string'
+      ? record.intro
+      : typeof record.description === 'string'
+        ? record.description
+        : typeof record.desc === 'string'
+          ? record.desc
+          : undefined,
   )
   const durChapterIndex = pickBookField(
     records,

@@ -130,6 +130,27 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[1].title).toBe('第二章')
   })
 
+  it('accepts chapter url aliases like href and link', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          { title: '第一章', href: 'https://example.com/book/1/1' },
+          { title: '第二章', link: 'https://example.com/book/1/2' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0].url).toBe('https://example.com/book/1/1')
+    expect(catalog[1].url).toBe('https://example.com/book/1/2')
+  })
+
   it('normalizes chapter index from numeric string fields', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
@@ -297,6 +318,34 @@ describe('Reader Session Flow Guards', () => {
       bookUrl: 'https://example.com/caller',
       durChapterIndex: 18,
       lastChapterIndex: 40,
+    })
+  })
+
+  it('normalizes book field aliases for title writer and description', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        title: 'Alias Title',
+        writer: 'Alias Writer',
+        description: 'Alias Intro',
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      name: 'Alias Title',
+      author: 'Alias Writer',
+      intro: 'Alias Intro',
     })
   })
 
