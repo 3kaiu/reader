@@ -158,4 +158,25 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
     expect(readerStore.error).toBe('章节内容为空，请重试或切换书源')
     expect(readerStore.loadErrorDetails).toBe('content_empty')
   })
+
+  it('persists fetch-book-info failure into reader error state', async () => {
+    const readerStore = useReaderStore()
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: false,
+      errorMsg: '书籍信息服务暂时不可用',
+    })
+
+    const response = await readerStore.startReaderSession(
+      'demo-source',
+      'https://example.com/book/failed',
+    )
+
+    expect(response.isSuccess).toBe(false)
+    expect(response.errorMsg).toBe('书籍信息服务暂时不可用')
+    expect(readerStore.error).toBe('书籍信息服务暂时不可用')
+    expect(readerStore.loadError).toBe('书籍信息服务暂时不可用')
+    expect(readerStore.loadErrorDetails).toBeNull()
+    expect(readerStore.isLoading).toBe(false)
+  })
 })
