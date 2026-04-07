@@ -5,10 +5,6 @@ on:
     branches:
       - main
       - master
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 env:
@@ -40,6 +36,9 @@ jobs:
 
       - name: Validate route contracts
         run: node scripts/validate-contracts.mjs
+
+      - name: Run repository hygiene checks
+        run: node scripts/repo-hygiene-check.mjs
 
   frontend-quality:
     name: Frontend Quality

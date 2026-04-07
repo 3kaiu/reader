@@ -1,14 +1,6 @@
 name: 🔒 Security Scan & Audit
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "**/package.json"
-      - "**/package-lock.json"
-      - "**/bun.lock"
-      - "**/Cargo.toml"
-      - "**/Cargo.lock"
   pull_request:
     branches: [main]
   schedule:
