@@ -119,7 +119,7 @@ jobs:
   dependency-check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
       - uses: actions/checkout@v6
@@ -173,8 +173,11 @@ jobs:
           }
 
           vulnerabilities = Object.values(severities).reduce((sum, v) => sum + v, 0)
+          const highCritical = severities.critical + severities.high
           const hasVulns = vulnerabilities > 0 || status !== 0
           fs.appendFileSync(outputPath, `vulnerabilities=${hasVulns ? 1 : 0}\n`)
+          fs.appendFileSync(outputPath, `high_critical=${highCritical}\n`)
+          fs.appendFileSync(outputPath, `total=${vulnerabilities}\n`)
           fs.appendFileSync(outputPath, `severity_counts=${JSON.stringify(severities)}\n`)
 
           fs.appendFileSync(summaryPath, '### Deployment Dependency Audit (nexus-reader)\n')
@@ -191,14 +194,24 @@ jobs:
           NODE
         id: audit
 
+      - name: Enforce dependency vulnerability gate
+        run: |
+          if [ "${{ steps.audit.outputs.high_critical }}" != "0" ]; then
+            echo "❌ High/Critical dependency vulnerabilities detected in nexus-reader"
+            exit 1
+          fi
+          echo "✅ Dependency gate passed (no High/Critical vulnerabilities)"
+
       - name: Publish dependency audit summary
         if: always()
         run: |
           echo "### Dependency Audit (nexus-reader)" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.audit.outputs.vulnerabilities }}" = "0" ]; then
-            echo "- Result: ✅ no moderate+ vulnerabilities detected by \`bun audit\`." >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.audit.outputs.total }}" = "0" ]; then
+            echo "- Result: ✅ no vulnerabilities detected by \`bun audit\`." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.audit.outputs.high_critical }}" != "0" ]; then
+            echo "- Result: ❌ High/Critical vulnerabilities found; deployment is blocked." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- Result: ⚠️ vulnerabilities detected by \`bun audit\`; review logs and Dependabot alerts." >> "$GITHUB_STEP_SUMMARY"
+            echo "- Result: ⚠️ only Moderate/Low vulnerabilities found; deployment continues with warning." >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "- Policy: this workflow no longer auto-creates GitHub issues to avoid duplicate security tickets." >> "$GITHUB_STEP_SUMMARY"
 
@@ -206,7 +219,7 @@ jobs:
   build-frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [quality-check]
+    needs: [quality-check, dependency-check]
     if: success()
 
     steps:
@@ -295,7 +308,7 @@ jobs:
   deploy-workers:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [quality-check]
+    needs: [quality-check, dependency-check]
     if: success()
 
     steps:
