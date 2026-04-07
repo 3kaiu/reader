@@ -22,24 +22,28 @@ import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'
 import { processQueueBatch } from './entry/queue.ts'
 import { validateWorkerEnv } from './entry/validation.ts'
+import { attachRequestId, ensureRequestId } from './worker/http.ts'
 import { jsonError } from './worker/http.ts'
 import { createUserServiceContainer } from './worker/user-services.ts'
 
 export default {
   async fetch(request: Request, env: EnhancedWorkerEnv, ctx: ExecutionContextLike): Promise<Response> {
     const logger = createLogger(env)
+    const { request: requestWithId, requestId } = ensureRequestId(request)
 
     try {
       validateWorkerEnv(env)
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)
       logger.error('Worker env validation failed:', error)
-      return jsonError(request, 'MISCONFIGURED', 'Misconfigured worker', 500, errorMessage)
+      return jsonError(requestWithId, 'MISCONFIGURED', 'Misconfigured worker', 500, errorMessage)
     }
 
     const userServices = createUserServiceContainer(env)
 
-    if (request.method === 'OPTIONS') return handleCorsPreflightRequest(request)
+    if (requestWithId.method === 'OPTIONS') {
+      return attachRequestId(handleCorsPreflightRequest(requestWithId), requestId)
+    }
 
     const dispatchStable = createStableDispatcher(env, ctx, userServices)
     const dispatchAgentAware = createAgentAwareDispatcher(
@@ -52,17 +56,18 @@ export default {
 
     try {
       // Experimental optimizer is opt-in and always falls back to stable dispatch.
-      return await dispatchWithOptionalEdgeOptimization(
-        request,
+      const response = await dispatchWithOptionalEdgeOptimization(
+        requestWithId,
         env,
         dispatchAgentAware,
         logger
       )
+      return attachRequestId(response, requestId)
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)
       logger.error('Request processing error:', error)
       return jsonError(
-        request,
+        requestWithId,
         'INTERNAL_ERROR',
         'Internal Server Error',
         500,
