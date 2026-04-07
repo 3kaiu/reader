@@ -21,7 +21,15 @@ function parseChapterCatalogPayload(payload: unknown): unknown[] {
   if (payload && typeof payload === 'object') {
     const queue: unknown[] = [payload]
     const visited = new Set<unknown>()
-    const containerKeys = ['chapters', 'items', 'data', 'list', 'results']
+    const containerKeys = [
+      'chapters',
+      'items',
+      'data',
+      'list',
+      'results',
+      'chapterList',
+      'chapter_list',
+    ]
 
     while (queue.length > 0) {
       const current = queue.shift()
@@ -56,6 +64,8 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     record.url,
     record.chapterUrl,
     record.chapter_url,
+    record.chapterHref,
+    record.chapter_href,
     record.link,
     record.href,
     record.chapterLink,
@@ -66,9 +76,14 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     return null
   }
 
-  const titleCandidate = [record.title, record.name, record.chapterTitle, record.chapter_title].find(
-    value => typeof value === 'string' && value.trim(),
-  )
+  const titleCandidate = [
+    record.title,
+    record.name,
+    record.chapterTitle,
+    record.chapter_title,
+    record.chapterName,
+    record.chapter_name,
+  ].find(value => typeof value === 'string' && value.trim())
   const title =
     typeof titleCandidate === 'string' ? titleCandidate.trim() : `第${index + 1}章`
 

@@ -195,6 +195,39 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[1].url).toBe('https://example.com/book/1/2')
   })
 
+  it('accepts chapter href/name aliases and chapter_list wrapper', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapter_list: [
+          {
+            chapter_name: '第一章',
+            chapter_href: 'https://example.com/book/1/1',
+          },
+          {
+            chapterName: '第二章',
+            chapterHref: 'https://example.com/book/1/2',
+          },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0]).toMatchObject({
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+    })
+    expect(catalog[1]).toMatchObject({
+      title: '第二章',
+      url: 'https://example.com/book/1/2',
+    })
+  })
+
   it('normalizes chapter index from numeric string fields', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
