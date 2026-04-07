@@ -36,19 +36,27 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
   }
 
   const record = entry as Record<string, unknown>
-  const url = typeof record.url === 'string' ? record.url.trim() : ''
+  const urlCandidate = [record.url, record.chapterUrl, record.chapter_url].find(
+    value => typeof value === 'string',
+  )
+  const url = typeof urlCandidate === 'string' ? urlCandidate.trim() : ''
   if (!url) {
     return null
   }
 
+  const titleCandidate = [record.title, record.name, record.chapterTitle, record.chapter_title].find(
+    value => typeof value === 'string' && value.trim(),
+  )
   const title =
-    typeof record.title === 'string' && record.title.trim()
-      ? record.title.trim()
-      : `第${index + 1}章`
+    typeof titleCandidate === 'string' ? titleCandidate.trim() : `第${index + 1}章`
 
   const normalizedIndex =
     typeof record.index === 'number' && Number.isFinite(record.index)
       ? record.index
+      : typeof record.chapterIndex === 'number' && Number.isFinite(record.chapterIndex)
+        ? record.chapterIndex
+        : typeof record.chapter_index === 'number' && Number.isFinite(record.chapter_index)
+          ? record.chapter_index
       : index
 
   return {
@@ -63,6 +71,40 @@ function normalizeCatalogPayload(payload: unknown): Chapter[] {
   return parseChapterCatalogPayload(payload)
     .map((entry, index) => toCatalogChapter(entry, index))
     .filter((chapter): chapter is Chapter => chapter !== null)
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
+  if (!payload || typeof payload !== 'object') {
+    return {}
+  }
+
+  const record = payload as Record<string, unknown>
+  const name = typeof record.name === 'string' ? record.name : undefined
+  const author = typeof record.author === 'string' ? record.author : undefined
+  const coverUrl =
+    typeof record.coverUrl === 'string'
+      ? record.coverUrl
+      : typeof record.cover_url === 'string'
+        ? record.cover_url
+        : undefined
+  const intro = typeof record.intro === 'string' ? record.intro : undefined
+  const durChapterIndex =
+    toOptionalNumber(record.durChapterIndex) ?? toOptionalNumber(record.dur_chapter_index)
+  const lastChapterIndex =
+    toOptionalNumber(record.lastChapterIndex) ?? toOptionalNumber(record.last_chapter_index)
+
+  return {
+    ...(name ? { name } : {}),
+    ...(author ? { author } : {}),
+    ...(coverUrl ? { coverUrl } : {}),
+    ...(intro ? { intro } : {}),
+    ...(typeof durChapterIndex === 'number' ? { durChapterIndex } : {}),
+    ...(typeof lastChapterIndex === 'number' ? { lastChapterIndex } : {}),
+  }
 }
 
 export function createReaderActionHelpers(state: ReaderStoreState) {
@@ -121,6 +163,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       ...response,
       data: {
         ...response.data,
+        ...normalizeReaderBookPayload(response.data),
         sourceId,
         bookUrl,
       },

@@ -71,6 +71,79 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[2]).toMatchObject({ title: '第3章', index: 2 })
   })
 
+  it('accepts items wrapper and snake_case chapter fields', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        items: [
+          {
+            chapter_title: '第一章',
+            chapter_url: 'https://example.com/book/1/1',
+            chapter_index: 5,
+          },
+          {
+            name: '第二章',
+            chapterUrl: 'https://example.com/book/1/2',
+            chapterIndex: 6,
+          },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0]).toMatchObject({
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 5,
+    })
+    expect(catalog[1]).toMatchObject({
+      title: '第二章',
+      url: 'https://example.com/book/1/2',
+      index: 6,
+    })
+  })
+
+  it('normalizes snake_case book fields while keeping route target authoritative', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        sourceId: 'remote-source',
+        source_id: 'remote-source-snake',
+        bookUrl: 'https://example.com/remote',
+        book_url: 'https://example.com/remote-snake',
+        name: 'Snake Book',
+        author: 'Snake Author',
+        cover_url: 'https://example.com/cover-snake.jpg',
+        dur_chapter_index: 12,
+        last_chapter_index: 35,
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      name: 'Snake Book',
+      author: 'Snake Author',
+      coverUrl: 'https://example.com/cover-snake.jpg',
+      durChapterIndex: 12,
+      lastChapterIndex: 35,
+    })
+  })
+
   it('fails fast when chapter catalog is empty', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
