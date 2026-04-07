@@ -26,7 +26,7 @@ permissions:
 # 允许并发部署，但取消进行中的部署
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 env:
   CF_PAGES_PROJECT: nexus-reader
@@ -38,6 +38,7 @@ jobs:
   # ===== 代码质量检查 =====
   quality-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v6
@@ -72,6 +73,7 @@ jobs:
   # ===== 安全扫描 (利用GitHub CodeQL免费额度) =====
   security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -92,6 +94,7 @@ jobs:
   # ===== 性能监控 (利用Lighthouse CI) =====
   performance-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [deploy-pages]
     if: success() && github.event_name == 'push'
 
@@ -115,6 +118,7 @@ jobs:
   # ===== 依赖检查 (利用Dependabot自动PR) =====
   dependency-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.event_name == 'push'
 
     steps:
@@ -201,6 +205,7 @@ jobs:
   # ===== 构建和测试前端 =====
   build-frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [quality-check]
     if: success()
 
@@ -248,6 +253,7 @@ jobs:
   # ===== 部署到 Cloudflare Pages =====
   deploy-pages:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [build-frontend, security-scan]
     if: ${{ always() && needs.build-frontend.result == 'success' && (github.event_name != 'push' || needs.security-scan.result == 'success') }}
 
@@ -288,6 +294,7 @@ jobs:
   # ===== 部署 Cloudflare Workers =====
   deploy-workers:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [quality-check]
     if: success()
 
@@ -354,6 +361,7 @@ jobs:
   # ===== 部署辅助服务 =====
   deploy-services:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [deploy-pages, deploy-workers]
     if: success()
     outputs:
@@ -442,6 +450,7 @@ jobs:
   # ===== 集成测试 =====
   integration-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [deploy-pages, deploy-workers, deploy-services]
     if: success()
     env:
@@ -489,6 +498,7 @@ jobs:
   # ===== 生成部署报告 =====
   deployment-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [deploy-pages, deploy-workers, deploy-services, integration-test, performance-test]
     if: always()
 
@@ -565,6 +575,7 @@ jobs:
   # ===== 社区功能 =====
   community-update:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [deployment-report]
     if: success() && github.event_name == 'push'
 
@@ -587,6 +598,7 @@ jobs:
   # ===== 自动清理 =====
   cleanup:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [deployment-report]
     if: always()
 
