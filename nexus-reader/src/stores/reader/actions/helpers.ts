@@ -13,13 +13,38 @@ import {
 } from '@/utils/readerStore'
 import type { ReaderStoreState, ReaderTarget } from '../types'
 
-function parseChapterCatalogPayload(payload: unknown): unknown[] {
-  if (Array.isArray(payload)) {
-    return payload
+function tryParseJsonPayload(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value
   }
 
-  if (payload && typeof payload === 'object') {
-    const queue: unknown[] = [payload]
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return value
+  }
+
+  if (
+    !(trimmed.startsWith('{') && trimmed.endsWith('}')) &&
+    !(trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    return value
+  }
+
+  try {
+    return JSON.parse(trimmed) as unknown
+  } catch {
+    return value
+  }
+}
+
+function parseChapterCatalogPayload(payload: unknown): unknown[] {
+  const normalizedPayload = tryParseJsonPayload(payload)
+  if (Array.isArray(normalizedPayload)) {
+    return normalizedPayload
+  }
+
+  if (normalizedPayload && typeof normalizedPayload === 'object') {
+    const queue: unknown[] = [normalizedPayload]
     const visited = new Set<unknown>()
     const containerKeys = [
       'chapters',
@@ -40,7 +65,7 @@ function parseChapterCatalogPayload(payload: unknown): unknown[] {
 
       const record = current as Record<string, unknown>
       for (const key of containerKeys) {
-        const candidate = record[key]
+        const candidate = tryParseJsonPayload(record[key])
         if (Array.isArray(candidate)) {
           return candidate as unknown[]
         }
@@ -188,14 +213,15 @@ function toOptionalBoolean(value: unknown): boolean | undefined {
 }
 
 function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] {
-  if (!payload || typeof payload !== 'object') {
+  const normalizedPayload = tryParseJsonPayload(payload)
+  if (!normalizedPayload || typeof normalizedPayload !== 'object') {
     return []
   }
 
-  const root = payload as Record<string, unknown>
-  const nested = [root.book, root.data, root.item, root.detail].filter(
-    value => value && typeof value === 'object',
-  ) as Record<string, unknown>[]
+  const root = normalizedPayload as Record<string, unknown>
+  const nested = [root.book, root.data, root.item, root.detail]
+    .map(value => tryParseJsonPayload(value))
+    .filter(value => value && typeof value === 'object') as Record<string, unknown>[]
 
   return [...nested, root]
 }
