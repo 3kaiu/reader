@@ -3,11 +3,10 @@ name: Full Stack Auto Deploy (Cloudflare Free Tier Maximized)
 on:
   push:
     branches: [main]
-    paths:
-      - "**"
-      - "!docs/**"
-      - "!README.md"
-      - "!.github/workflows/docs-deploy.yml"
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - ".github/workflows/docs-deploy.yml"
   workflow_dispatch:
     inputs:
       skip_tests:
