@@ -477,6 +477,36 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('normalizes extended aliases for author cover and intro', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        title: 'Alias Book',
+        author_name: 'Alias Author',
+        image: 'https://example.com/alias-cover.jpg',
+        summary: 'Alias Summary',
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      name: 'Alias Book',
+      author: 'Alias Author',
+      coverUrl: 'https://example.com/alias-cover.jpg',
+      intro: 'Alias Summary',
+    })
+  })
+
   it('fails fast when chapter catalog is empty', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)

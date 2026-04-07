@@ -214,13 +214,31 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
     ]),
   )
   const author = pickBookField(records, record =>
-    pickFirstString([record.author, record.writer]),
+    pickFirstString([
+      record.author,
+      record.writer,
+      record.authorName,
+      record.author_name,
+    ]),
   )
   const coverUrl = pickBookField(records, record =>
-    pickFirstString([record.coverUrl, record.cover_url]),
+    pickFirstString([
+      record.coverUrl,
+      record.cover_url,
+      record.cover,
+      record.img,
+      record.image,
+    ]),
   )
   const intro = pickBookField(records, record =>
-    pickFirstString([record.intro, record.description, record.desc]),
+    pickFirstString([
+      record.intro,
+      record.description,
+      record.desc,
+      record.summary,
+      record.bookIntro,
+      record.book_intro,
+    ]),
   )
   const durChapterIndex = pickBookField(
     records,
