@@ -22,8 +22,6 @@ chrono.workspace = true
 reqwest = { version = "0.12", default-features = false, features = [
     "json", "rustls-tls", "cookies", "gzip", "brotli"
 ] }
-# L2: TLS Fingerprint Impersonation (optional, adds ~3MB)
-rquest = { version = "5.1", optional = true }
 
 # HTML Parsing
 scraper = "0.25"
@@ -68,8 +66,6 @@ headless_chrome = { version = "1.0", features = ["fetch"] }
 
 [features]
 default = []
-# Enable L2 TLS fingerprint impersonation for advanced anti-crawl
-tls-impersonate = ["rquest"]
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
