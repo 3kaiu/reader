@@ -151,8 +151,7 @@ impl DataObject {
 
     /// 检查数据是否过期
     pub fn is_expired(&self) -> bool {
-        self.expires_at
-            .map_or(false, |expires| Utc::now() > expires)
+        self.expires_at.is_some_and(|expires| Utc::now() > expires)
     }
 
     /// 更新数据内容
@@ -898,6 +897,12 @@ impl InMemoryDataObjectRepository {
     }
 }
 
+impl Default for InMemoryDataObjectRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl DataObjectRepository for InMemoryDataObjectRepository {
     async fn save(&self, object: &DataObject) -> Result<(), StorageError> {
@@ -921,7 +926,7 @@ impl DataObjectRepository for InMemoryDataObjectRepository {
         let filtered: Vec<DataObject> = objects
             .values()
             .filter(|o| o.bucket == bucket)
-            .filter(|o| prefix.as_ref().map_or(true, |p| o.key.starts_with(p)))
+            .filter(|o| prefix.as_ref().is_none_or(|p| o.key.starts_with(p)))
             .take(limit as usize)
             .cloned()
             .collect();
@@ -944,6 +949,12 @@ impl InMemoryStorageBucketRepository {
         Self {
             buckets: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryStorageBucketRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -991,6 +1002,12 @@ impl InMemoryCacheRepository {
         Self {
             entries: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryCacheRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1057,6 +1074,12 @@ impl BasicStorageStrategyService {
     }
 }
 
+impl Default for BasicStorageStrategyService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl StorageStrategyService for BasicStorageStrategyService {
     async fn apply_strategy(
@@ -1100,6 +1123,12 @@ pub struct BasicStorageMetricsService;
 impl BasicStorageMetricsService {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for BasicStorageMetricsService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

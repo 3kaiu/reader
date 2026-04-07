@@ -51,6 +51,9 @@ fn build_chapter_content(
     chunk_size: Option<usize>,
     strategy: &'static str,
     stage_reports: Vec<PipelineStageReport>,
+    source_id: &str,
+    book_identity: Option<&str>,
+    fallback_used: bool,
 ) -> ChapterContent {
     let chunks = chunk_size.map(|sz| nexus_engine::content::chunk_content(&content, sz));
     let mut meta = ChapterContentMeta::new(
@@ -58,6 +61,9 @@ fn build_chapter_content(
         vec![strategy.to_string()],
     );
     meta.stage_reports = stage_reports;
+    meta.fallback_used = fallback_used;
+    meta.effective_source_id = Some(source_id.to_string());
+    meta.book_identity = book_identity.map(ToString::to_string);
     ChapterContent {
         content: content.clone(),
         chunks,
@@ -195,6 +201,9 @@ pub async fn content(
                 query.chunk_size,
                 "cache",
                 Vec::new(),
+                &query.source,
+                query.book_id.as_deref(),
+                true,
             )));
         }
     }
@@ -236,6 +245,9 @@ pub async fn content(
         query.chunk_size,
         "engine",
         content_run.stage_reports,
+        &query.source,
+        query.book_id.as_deref(),
+        false,
     )))
 }
 

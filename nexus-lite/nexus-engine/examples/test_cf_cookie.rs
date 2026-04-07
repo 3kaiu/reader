@@ -1,6 +1,6 @@
 //! Test CF cookie extraction using headless Chrome
 
-use nexus_engine::anti_crawl::{CfCookie, CfCookieManager};
+use nexus_engine::anti_crawl::CfCookieManager;
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE};
 
 #[tokio::main]

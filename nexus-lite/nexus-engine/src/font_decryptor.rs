@@ -133,7 +133,7 @@ impl FontDecryptor {
             if char_count > 0 {
                 let ratio = mapped_count as f64 / char_count as f64;
                 analysis.mapping_ratio = ratio;
-                analysis.is_likely_obfuscated = ratio < 0.5 || ratio > 0.95;
+                analysis.is_likely_obfuscated = !(0.5..=0.95).contains(&ratio);
             }
         }
 

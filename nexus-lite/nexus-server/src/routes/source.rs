@@ -112,6 +112,15 @@ pub struct SourcePackageSummary {
     pub generated_at_ms: i64,
     pub enabled: bool,
     pub valid: bool,
+    pub readiness_state: String,
+    #[serde(default)]
+    pub searchable: bool,
+    #[serde(default)]
+    pub detail_ready: bool,
+    #[serde(default)]
+    pub toc_ready: bool,
+    #[serde(default)]
+    pub readable: bool,
     #[serde(default)]
     pub overall_health_score: f64,
     #[serde(default)]
@@ -147,6 +156,7 @@ pub struct ImportSourcePackageResponse {
     pub imported: bool,
     pub compile_ready: bool,
     pub importable: bool,
+    pub readiness_state: String,
 }
 
 pub async fn update_source_status(
@@ -211,10 +221,12 @@ pub async fn import_source_package(
     State(state): State<AppState>,
     Json(req): Json<ImportSourcePackageRequest>,
 ) -> Json<ApiResponse<ImportSourcePackageResponse>> {
-    let package = req.package;
+    let mut package = req.package;
+    package.refresh_readiness();
+    let readiness = package.effective_readiness();
     let source_id = package.source.id.clone();
     let compile_ready = package.validation.valid;
-    let importable = package.validation.importable && package.validation.compile_ok;
+    let importable = readiness.importable;
     let enabled_by_default = package
         .import_policy
         .as_ref()
@@ -251,6 +263,7 @@ pub async fn import_source_package(
         imported: true,
         compile_ready,
         importable,
+        readiness_state: readiness.state.as_str().to_string(),
     }))
 }
 
@@ -266,6 +279,7 @@ pub async fn list_source_packages(
 
     let mut items = Vec::with_capacity(packages.len());
     for package in packages {
+        let readiness = package.effective_readiness();
         let enabled = state
             .store
             .get_source_status(package.source.id.clone())
@@ -283,6 +297,11 @@ pub async fn list_source_packages(
             generated_at_ms: package.generated_at_ms,
             enabled,
             valid: package.validation.valid,
+            readiness_state: readiness.state.as_str().to_string(),
+            searchable: readiness.searchable,
+            detail_ready: readiness.detail_ready,
+            toc_ready: readiness.toc_ready,
+            readable: readiness.readable,
             overall_health_score: package.validation.health.overall_score,
             recommended: package.validation.health.recommended,
             search_status: health_status_label(&package.validation.health.search.status)
@@ -303,7 +322,10 @@ pub async fn get_source_package(
     Path(id): Path<String>,
 ) -> Json<ApiResponse<SourceRulePackage>> {
     match state.store.get_source_package(id).await {
-        Ok(Some(package)) => Json(ApiResponse::success(package)),
+        Ok(Some(mut package)) => {
+            package.refresh_readiness();
+            Json(ApiResponse::success(package))
+        },
         Ok(None) => Json(ApiResponse::error("source package not found")),
         Err(error) => Json(ApiResponse::error(&format!("get source package failed: {error}"))),
     }

@@ -18,6 +18,7 @@ const USER_SERVICE_PREFIXES = [
   '/api/content/upload',
   '/api/backup',
   '/api/metrics/client',
+  '/api/source/flow-assist',
 ]
 
 function isUserServiceRoute(pathname: string): boolean {

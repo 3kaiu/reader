@@ -90,6 +90,12 @@ pub struct ChapterContentMeta {
     pub strategy_path: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stage_reports: Vec<PipelineStageReport>,
+    #[serde(default)]
+    pub fallback_used: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_source_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub book_identity: Option<String>,
 }
 
 impl ChapterContentMeta {
@@ -98,6 +104,9 @@ impl ChapterContentMeta {
             quality,
             strategy_path,
             stage_reports: Vec::new(),
+            fallback_used: false,
+            effective_source_id: None,
+            book_identity: None,
         }
     }
 }

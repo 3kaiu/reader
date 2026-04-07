@@ -12,6 +12,7 @@ use std::sync::{Arc, LazyLock};
 
 /// Global regex cache - avoids recompiling the same patterns
 static REGEX_CACHE: LazyLock<DashMap<String, Arc<Regex>>> = LazyLock::new(DashMap::new);
+type AcCacheValue = (Arc<AhoCorasick>, Vec<String>);
 
 /// Get or compile a regex pattern (cached)
 pub fn get_or_compile_regex(pattern: &str) -> Option<Arc<Regex>> {
@@ -32,8 +33,7 @@ pub fn get_or_compile_regex(pattern: &str) -> Option<Arc<Regex>> {
 }
 
 /// Global Aho-Corasick cache
-static AC_CACHE: LazyLock<DashMap<u64, (Arc<AhoCorasick>, Vec<String>)>> =
-    LazyLock::new(DashMap::new);
+static AC_CACHE: LazyLock<DashMap<u64, AcCacheValue>> = LazyLock::new(DashMap::new);
 
 /// Calculate a stable hash for a set of replace rules
 fn hash_rules(rules: &[ReplaceRule], source_id: &str) -> u64 {

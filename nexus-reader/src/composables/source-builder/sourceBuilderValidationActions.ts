@@ -75,6 +75,20 @@ export async function refineSourceBuilderPackage(options: {
   })
 }
 
+export async function requestSourceFlowAssist(options: {
+  query: string
+  sourceId?: string
+  blockers?: string[]
+  context?: string
+}) {
+  return await syncApi.sourceFlowAssist({
+    query: options.query,
+    sourceId: options.sourceId,
+    blockers: options.blockers,
+    context: options.context,
+  })
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {

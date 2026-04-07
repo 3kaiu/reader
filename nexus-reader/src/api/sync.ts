@@ -69,6 +69,17 @@ export type SourcePackageSummary = {
   generatedAtMs: number
   enabled: boolean
   valid: boolean
+  readinessState:
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
+  searchable: boolean
+  detailReady: boolean
+  tocReady: boolean
+  readable: boolean
   overallHealthScore: number
   recommended: boolean
   searchStatus: 'pass' | 'warn' | 'fail' | 'unknown'
@@ -76,6 +87,25 @@ export type SourcePackageSummary = {
   tocStatus: 'pass' | 'warn' | 'fail' | 'unknown'
   contentStatus: 'pass' | 'warn' | 'fail' | 'unknown'
   tags: string[]
+}
+
+export type SourceReadinessReport = {
+  state:
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
+  searchable: boolean
+  detailReady: boolean
+  tocReady: boolean
+  readable: boolean
+  importable: boolean
+  blockers: string[]
+  warnings: string[]
+  suggestedActions: string[]
+  summary?: string | null
 }
 
 export type SourceHealthStatus = 'pass' | 'warn' | 'fail' | 'unknown'
@@ -225,6 +255,7 @@ export type NxsSourcePackageDetail = {
     url: string
   }
   validation: SourceRuleValidationReport
+  readiness: SourceReadinessReport
   tags: string[]
   metadata: Record<string, string>
   documentation?: SourceDocumentation | null
@@ -241,6 +272,36 @@ export type ImportSourcePackageResponse = {
   imported: boolean
   compileReady: boolean
   importable: boolean
+  readinessState:
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
+}
+
+export type SourceFlowAssistSuggestion = {
+  id: string
+  title: string
+  detail: string
+  actionCode:
+    | 'run_validation_with_samples'
+    | 'fix_rule_compile_errors'
+    | 'repair_search_selectors_or_samples'
+    | 'repair_book_title_author_selectors'
+    | 'repair_toc_item_selector'
+    | 'repair_content_selector_and_noise_rules'
+  priority: number
+}
+
+export type SourceFlowAssistResponse = {
+  success: boolean
+  cached: boolean
+  provider: 'workers-ai' | 'ai-gateway' | 'none'
+  generatedAtMs: number
+  normalizedQuery: string
+  suggestions: SourceFlowAssistSuggestion[]
 }
 
 export type SourceBuildDiagnostics = {
@@ -509,6 +570,16 @@ export const syncApi = {
     targetUrl?: string
   }) => {
     return await $post<RunByPackageResponse>("/engine/run-by-package", payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  sourceFlowAssist: async (payload: {
+    query: string
+    sourceId?: string
+    blockers?: string[]
+    context?: string
+  }) => {
+    return await $post<SourceFlowAssistResponse>('/source/flow-assist', payload, {
       silent: true,
     } satisfies ApiFetchOptions)
   },

@@ -10,6 +10,17 @@ type SourcePackageSummary = {
   generatedAtMs: number;
   enabled: boolean;
   valid: boolean;
+  readinessState:
+    | "draft"
+    | "blocked"
+    | "search_ready"
+    | "catalog_ready"
+    | "reading_ready"
+    | "full_flow_ready";
+  searchable: boolean;
+  detailReady: boolean;
+  tocReady: boolean;
+  readable: boolean;
   overallHealthScore: number;
   recommended: boolean;
   searchStatus: "pass" | "warn" | "fail" | "unknown";
@@ -33,6 +44,8 @@ type SourcePackageDetailSummary = {
   searchStrategyItems: string[];
   sampleItems: string[];
   riskItems: string[];
+  readinessBlockers: string[];
+  readinessSuggestedActions: string[];
 };
 
 const props = defineProps<{
@@ -75,6 +88,36 @@ function healthClass(status: "pass" | "warn" | "fail" | "unknown") {
   if (status === "pass") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
   if (status === "warn") return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
   if (status === "fail") return "bg-red-500/15 text-red-700 dark:text-red-300";
+  return "bg-muted text-muted-foreground";
+}
+
+function readinessLabel(
+  state: SourcePackageSummary["readinessState"]
+) {
+  switch (state) {
+    case "full_flow_ready":
+      return "全链路可用";
+    case "reading_ready":
+      return "可读待搜";
+    case "catalog_ready":
+      return "目录就绪";
+    case "search_ready":
+      return "可搜索";
+    case "blocked":
+      return "阻塞";
+    default:
+      return "草稿";
+  }
+}
+
+function readinessClass(
+  state: SourcePackageSummary["readinessState"]
+) {
+  if (state === "full_flow_ready") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+  if (state === "reading_ready" || state === "catalog_ready" || state === "search_ready") {
+    return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  }
+  if (state === "blocked") return "bg-red-500/15 text-red-700 dark:text-red-300";
   return "bg-muted text-muted-foreground";
 }
 </script>
@@ -171,6 +214,23 @@ function healthClass(status: "pass" | "warn" | "fail" | "unknown") {
                 {{ new Date(item.generatedAtMs).toLocaleString() }} · 健康 {{ Math.round(item.overallHealthScore * 100) }}
               </p>
               <div class="mt-2 flex flex-wrap gap-2">
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="readinessClass(item.readinessState)">
+                  {{ readinessLabel(item.readinessState) }}
+                </span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.searchable ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
+                  搜索{{ item.searchable ? "✓" : "✗" }}
+                </span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.detailReady ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
+                  详情{{ item.detailReady ? "✓" : "✗" }}
+                </span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.tocReady ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
+                  目录{{ item.tocReady ? "✓" : "✗" }}
+                </span>
+                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.readable ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
+                  正文{{ item.readable ? "✓" : "✗" }}
+                </span>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-2">
                 <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.searchStatus)">搜索</span>
                 <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.bookStatus)">详情</span>
                 <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.tocStatus)">目录</span>
@@ -261,6 +321,30 @@ function healthClass(status: "pass" | "warn" | "fail" | "unknown") {
               <p class="text-xs text-muted-foreground mb-2">样本</p>
               <ul class="space-y-1 text-xs break-all">
                 <li v-for="item in sourcePackageDetailSummary.sampleItems" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+
+            <div
+              v-if="sourcePackageDetailSummary.readinessSuggestedActions.length > 0"
+              class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4"
+            >
+              <p class="text-xs text-emerald-700 dark:text-emerald-300 mb-2">建议动作</p>
+              <ul class="space-y-1 text-xs break-all text-emerald-700 dark:text-emerald-300">
+                <li v-for="item in sourcePackageDetailSummary.readinessSuggestedActions" :key="item">
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+
+            <div
+              v-if="sourcePackageDetailSummary.readinessBlockers.length > 0"
+              class="rounded-xl border border-red-500/20 bg-red-500/5 p-4"
+            >
+              <p class="text-xs text-red-700 dark:text-red-300 mb-2">流程阻塞项</p>
+              <ul class="space-y-1 text-xs break-all text-red-700 dark:text-red-300">
+                <li v-for="item in sourcePackageDetailSummary.readinessBlockers" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 

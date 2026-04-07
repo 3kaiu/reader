@@ -10,6 +10,8 @@ import {
   handleUserBackup,
   handleUserPreferences,
   handleUserStats,
+  handleSourceFlowAssist,
+  handleSourceFlowAssistError,
 } from '../routes.ts'
 import type { EnhancedWorkerEnv } from '../types.ts'
 import type { UserServiceContainer } from './types.ts'
@@ -49,6 +51,12 @@ export async function dispatchUserServiceRoute(
       return handleAgentRouterConfig(request, env)
     case '/api/agent/config/audit':
       return handleAgentRouterConfigAudit(request, env)
+    case '/api/source/flow-assist':
+      try {
+        return await handleSourceFlowAssist(request, env)
+      } catch (error) {
+        return handleSourceFlowAssistError(request, error)
+      }
     default:
       return undefined
   }

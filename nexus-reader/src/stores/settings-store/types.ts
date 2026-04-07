@@ -106,6 +106,8 @@ export type SourcePackageDetailSummary = {
   searchStrategyItems: string[];
   sampleItems: string[];
   riskItems: string[];
+  readinessBlockers: string[];
+  readinessSuggestedActions: string[];
 };
 
 export type SourceBuildPreviewSummary = {
@@ -119,6 +121,8 @@ export type SourceBuildPreviewSummary = {
   diagnosticsItems: string[];
   warningItems: string[];
   riskItems: string[];
+  readinessBlockers: string[];
+  readinessSuggestedActions: string[];
   packageJson: string;
 };
 

@@ -5,7 +5,7 @@ use nexus_core::nxs::{
 };
 use nexus_core::{
     NxsSource, SearchExplainStrategy, SourceHealthReport, SourceHealthSegment, SourceHealthStatus,
-    SourceImportPolicy, SourceRulePackage, SourceRuleValidationReport,
+    SourceImportPolicy, SourceReadinessReport, SourceRulePackage, SourceRuleValidationReport,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -103,6 +103,7 @@ fn make_package(
             },
             last_validated_at_ms: Some(0),
         },
+        readiness: SourceReadinessReport::default(),
         tags: Vec::new(),
         metadata: HashMap::new(),
         documentation: None,

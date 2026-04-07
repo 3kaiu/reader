@@ -696,6 +696,12 @@ impl SimpleSearchEngine {
     }
 }
 
+impl Default for SimpleSearchEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SearchEngine for SimpleSearchEngine {
     async fn search(&self, query: SearchQuery) -> Result<SearchResult, DomainError> {
@@ -743,6 +749,12 @@ pub struct HybridRecommendationEngine;
 impl HybridRecommendationEngine {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for HybridRecommendationEngine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -809,6 +821,12 @@ impl InMemorySearchHistoryRepository {
     }
 }
 
+impl Default for InMemorySearchHistoryRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SearchHistoryRepository for InMemorySearchHistoryRepository {
     async fn save(&self, history: &SearchHistory) -> Result<(), DomainError> {
@@ -870,6 +888,12 @@ pub struct BasicSearchAnalyticsService;
 impl BasicSearchAnalyticsService {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for BasicSearchAnalyticsService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

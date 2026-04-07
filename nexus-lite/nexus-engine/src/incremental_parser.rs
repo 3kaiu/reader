@@ -301,7 +301,7 @@ mod tests {
 
         assert!(!parser.is_parsed());
 
-        let elements = parser.select(".content");
+        let _elements = parser.select(".content");
         assert!(parser.is_parsed());
     }
 

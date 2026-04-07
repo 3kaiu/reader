@@ -380,6 +380,7 @@ fn fingerprint_dom_shape(html: &str) -> (usize, usize, usize) {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_generalization_score(
     book_url: &Url,
     chapter_url: &Url,
@@ -807,6 +808,7 @@ pub(crate) fn build_source_from_samples(
         generator: "source-builder-skill".to_string(),
         source,
         validation: SourceRuleValidationReport::draft(generalization_score),
+        readiness: Default::default(),
         tags: req.tags.clone(),
         metadata,
         documentation: Some(documentation),
@@ -830,6 +832,7 @@ pub(crate) fn build_source_from_samples(
     }
     package.validation = validate_package_shape(&package);
     package.validation.score = generalization_score;
+    package.refresh_readiness();
 
     let diagnostics = SourceBuildDiagnostics {
         search_strategy: if native_search_supported {

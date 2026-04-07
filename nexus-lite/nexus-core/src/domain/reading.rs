@@ -898,6 +898,12 @@ impl InMemoryBookRepository {
     }
 }
 
+impl Default for InMemoryBookRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl BookRepository for InMemoryBookRepository {
     async fn save(&self, book: &Book) -> Result<(), DomainError> {
@@ -943,6 +949,12 @@ impl InMemoryChapterRepository {
     }
 }
 
+impl Default for InMemoryChapterRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl ChapterRepository for InMemoryChapterRepository {
     async fn save(&self, chapter: &Chapter) -> Result<(), DomainError> {
@@ -976,6 +988,12 @@ impl InMemoryReadingProgressRepository {
         Self {
             progress: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryReadingProgressRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1032,6 +1050,12 @@ impl InMemoryReadingSessionRepository {
         Self {
             sessions: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryReadingSessionRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

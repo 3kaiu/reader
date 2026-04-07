@@ -178,6 +178,10 @@ export interface WorkerEnv {
   AGENT_ROLLOUT?: string;
   AGENT_INCLUDE_ROUTES?: string;
   AGENT_EXCLUDE_ROUTES?: string;
+  SOURCE_FLOW_ASSIST_CACHE_TTL_SEC?: string;
+  CF_WORKERS_AI_MODEL?: string;
+  CF_AI_GATEWAY_BASE_URL?: string;
+  CF_AI_GATEWAY_TOKEN?: string;
 
   // Storage bindings (matched with wrangler.toml)
   ANALYTICS_DB: D1DatabaseLike;

@@ -538,6 +538,7 @@ async fn validate_source_package_returns_report() {
             health: SourceHealthReport::default(),
             last_validated_at_ms: None,
         },
+        readiness: nexus_core::SourceReadinessReport::default(),
         tags: vec![],
         metadata: HashMap::new(),
         documentation: None,

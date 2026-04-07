@@ -904,6 +904,12 @@ impl InMemoryFetchTaskRepository {
     }
 }
 
+impl Default for InMemoryFetchTaskRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl FetchTaskRepository for InMemoryFetchTaskRepository {
     async fn save(&self, task: &FetchTask) -> Result<(), EngineError> {
@@ -926,8 +932,8 @@ impl FetchTaskRepository for InMemoryFetchTaskRepository {
         let tasks = read_lock(&self.tasks, "fetch tasks")?;
         let filtered: Vec<FetchTask> = tasks
             .values()
-            .filter(|t| status.as_ref().map_or(true, |_s| matches!(&t.status, _s)))
-            .filter(|t| domain.as_ref().map_or(true, |d| &t.domain == d))
+            .filter(|t| status.as_ref().is_none_or(|_s| matches!(&t.status, _s)))
+            .filter(|t| domain.as_ref().is_none_or(|d| &t.domain == d))
             .take(limit as usize)
             .cloned()
             .collect();
@@ -950,6 +956,12 @@ impl InMemoryContentParserRepository {
         Self {
             parsers: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryContentParserRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1002,6 +1014,12 @@ impl InMemoryConnectionPoolRepository {
     }
 }
 
+impl Default for InMemoryConnectionPoolRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl ConnectionPoolRepository for InMemoryConnectionPoolRepository {
     async fn save(&self, pool: &ConnectionPool) -> Result<(), EngineError> {
@@ -1047,6 +1065,12 @@ pub struct BasicEngineMetricsService;
 impl BasicEngineMetricsService {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for BasicEngineMetricsService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -153,9 +153,9 @@ impl DynamicNoiseDetector {
 
     /// Count link characters in a paragraph (for link density by length)
     fn count_link_chars(&self, para: &str) -> usize {
-        LINK_PATTERN.as_ref().map_or(0, |re| {
-            re.find_iter(para).map(|m| m.as_str().chars().count()).sum()
-        })
+        LINK_PATTERN
+            .as_ref()
+            .map_or(0, |re| re.find_iter(para).map(|m| m.as_str().chars().count()).sum())
     }
 
     /// Calculate statistical features of a paragraph

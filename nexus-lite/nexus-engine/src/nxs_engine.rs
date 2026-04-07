@@ -212,7 +212,7 @@ impl NxsEngine {
             ctx.method = m.to_string();
         }
         ctx.body = body;
-        ctx.timeout_secs = ((profile.timeout_ms.max(1) + 999) / 1000).max(1);
+        ctx.timeout_secs = profile.timeout_ms.max(1).div_ceil(1000).max(1);
 
         if let Some(headers) = &self.source.headers {
             ctx.headers.extend(headers.clone());

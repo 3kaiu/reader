@@ -196,8 +196,8 @@ impl User {
     /// 更改用户状态
     pub fn change_status(&mut self, status: UserStatus) {
         if self.status != status {
-            let old_status = self.status.clone();
-            self.status = status.clone();
+            let old_status = self.status;
+            self.status = status;
             self.increment_version();
 
             self.uncommitted_events
@@ -212,8 +212,8 @@ impl User {
     /// 升级用户角色
     pub fn upgrade_role(&mut self, role: UserRole) {
         if self.role != role {
-            let old_role = self.role.clone();
-            self.role = role.clone();
+            let old_role = self.role;
+            self.role = role;
             self.increment_version();
 
             self.uncommitted_events
@@ -227,15 +227,15 @@ impl User {
 
     /// 验证用户是否有权限
     pub fn has_permission(&self, permission: &Permission) -> bool {
-        match (&self.role, permission) {
-            (UserRole::Administrator, _) => true,
-            (UserRole::Moderator, Permission::Read) => true,
-            (UserRole::Moderator, Permission::Write) => true,
-            (UserRole::PremiumReader, Permission::Read) => true,
-            (UserRole::PremiumReader, Permission::PremiumFeature) => true,
-            (UserRole::Reader, Permission::Read) => true,
-            _ => false,
-        }
+        matches!(
+            (&self.role, permission),
+            (UserRole::Administrator, _)
+                | (UserRole::Moderator, Permission::Read)
+                | (UserRole::Moderator, Permission::Write)
+                | (UserRole::PremiumReader, Permission::Read)
+                | (UserRole::PremiumReader, Permission::PremiumFeature)
+                | (UserRole::Reader, Permission::Read)
+        )
     }
 }
 
@@ -347,7 +347,7 @@ pub enum Visibility {
 }
 
 /// 用户资料值对象
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct UserProfile {
     pub bio: Option<String>,
     pub location: Option<String>,
@@ -359,23 +359,6 @@ pub struct UserProfile {
     pub favorite_authors: Vec<String>,
     pub reading_goal: Option<ReadingGoal>,
     pub social_links: HashMap<String, String>,
-}
-
-impl Default for UserProfile {
-    fn default() -> Self {
-        Self {
-            bio: None,
-            location: None,
-            website: None,
-            birth_date: None,
-            gender: None,
-            interests: Vec::new(),
-            favorite_genres: Vec::new(),
-            favorite_authors: Vec::new(),
-            reading_goal: None,
-            social_links: HashMap::new(),
-        }
-    }
 }
 
 impl ValueObject for UserProfile {}
@@ -1173,6 +1156,12 @@ impl InMemoryUserRepository {
     }
 }
 
+impl Default for InMemoryUserRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn save(&self, user: &User) -> Result<(), DomainError> {
@@ -1226,6 +1215,12 @@ impl InMemoryUserSessionRepository {
         Self {
             sessions: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryUserSessionRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1299,6 +1294,12 @@ impl BasicAuthenticationService {
     }
 }
 
+impl Default for BasicAuthenticationService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl AuthenticationService for BasicAuthenticationService {
     async fn authenticate(
@@ -1326,6 +1327,12 @@ pub struct RBACAuthorizationService;
 impl RBACAuthorizationService {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for RBACAuthorizationService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1408,6 +1415,12 @@ impl UsernameUniqueRule {
         Self {
             existing_usernames: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for UsernameUniqueRule {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

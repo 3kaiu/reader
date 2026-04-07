@@ -147,6 +147,7 @@ pub async fn build_source_package(
         generator: "source-builder-skill".to_string(),
         source,
         validation: SourceRuleValidationReport::draft(0.0),
+        readiness: Default::default(),
         tags: req.tags.clone(),
         metadata,
         documentation: None,
@@ -157,6 +158,7 @@ pub async fn build_source_package(
         fetch_profile: None,
     };
     pkg.validation = validate_package_shape(&pkg);
+    pkg.refresh_readiness();
 
     let package_json = serde_json::to_string_pretty(&pkg).ok();
     Json(ApiResponse::success(SourceBuildResponse {

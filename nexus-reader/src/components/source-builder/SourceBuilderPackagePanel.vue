@@ -13,6 +13,8 @@ interface PreviewSummary {
   healthScoreLabel: string
   importable: boolean
   segmentItems: string[]
+  readinessBlockers: string[]
+  readinessSuggestedActions: string[]
   hasPreview: boolean
 }
 
@@ -105,6 +107,30 @@ const emit = defineEmits<{
             可导入: {{ props.currentPreviewSummary.importable ? '是' : '否' }}
           </p>
           <p class="text-xs text-muted-foreground mt-1">fetch: {{ props.fetchProfileSummary }}</p>
+        </div>
+
+        <div
+          v-if="props.currentPreviewSummary.readinessSuggestedActions.length > 0"
+          class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4"
+        >
+          <p class="text-xs text-emerald-700 dark:text-emerald-300 mb-2">建议动作</p>
+          <ul class="space-y-1 text-xs break-all text-emerald-700 dark:text-emerald-300">
+            <li v-for="item in props.currentPreviewSummary.readinessSuggestedActions" :key="item">
+              {{ item }}
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-if="props.currentPreviewSummary.readinessBlockers.length > 0"
+          class="rounded-xl border border-red-500/20 bg-red-500/5 p-4"
+        >
+          <p class="text-xs text-red-700 dark:text-red-300 mb-2">流程阻塞项</p>
+          <ul class="space-y-1 text-xs break-all text-red-700 dark:text-red-300">
+            <li v-for="item in props.currentPreviewSummary.readinessBlockers" :key="item">
+              {{ item }}
+            </li>
+          </ul>
         </div>
 
         <div

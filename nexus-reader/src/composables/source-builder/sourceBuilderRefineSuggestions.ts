@@ -343,6 +343,106 @@ export function buildRefineSuggestions(
     }
   }
 
+  const blockers = pkg.readiness?.blockers ?? []
+  const suggestedActions = pkg.readiness?.suggestedActions ?? []
+  if (blockers.includes('search_not_ready')) {
+    suggestions.push({
+      id: 'readiness-search-not-ready',
+      step: 'readiness',
+      title: '优先修复搜索入口',
+      detail: '当前全链路被搜索环节阻塞，先补 searchResultSelector 或补充 search_curl 样本。',
+      kind: 'structured',
+      applyLabel: '填充搜索入口提示',
+      apply: () => {
+        updateStructuredHints(current => ({
+          ...current,
+          searchResultSelector:
+            current.searchResultSelector ||
+            '.search-list > li | .result-list li | .bookbox | .result-item | a[href]',
+        }))
+        updateFreeTextHints(
+          'search result: 请定位搜索结果列表中每本书的条目容器',
+          'search result url: 请确认条目中的详情链接字段'
+        )
+      },
+    })
+  }
+  if (blockers.includes('book_detail_not_ready')) {
+    suggestions.push({
+      id: 'readiness-book-detail-not-ready',
+      step: 'readiness',
+      title: '修复详情页书名/作者规则',
+      detail: '详情环节阻塞时，优先补 book title / author selector，保证详情页主信息可提取。',
+      kind: 'structured',
+      applyLabel: '填充详情页提示',
+      apply: () => {
+        updateStructuredHints(current => ({
+          ...current,
+          bookTitleSelector:
+            current.bookTitleSelector ||
+            "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
+          authorSelector: current.authorSelector || '.author | .book-author | .info .author',
+        }))
+      },
+    })
+  }
+  if (blockers.includes('toc_not_ready')) {
+    suggestions.push({
+      id: 'readiness-toc-not-ready',
+      step: 'readiness',
+      title: '修复目录列表规则',
+      detail: '目录环节阻塞时，先补 tocItemSelector，确保章节列表可提取。',
+      kind: 'structured',
+      applyLabel: '填充目录提示',
+      apply: () => {
+        updateStructuredHints(current => ({
+          ...current,
+          tocItemSelector:
+            current.tocItemSelector || '.chapter-list a | #list a | .catalog a | a[href]',
+        }))
+      },
+    })
+  }
+  if (blockers.includes('content_not_ready')) {
+    suggestions.push({
+      id: 'readiness-content-not-ready',
+      step: 'readiness',
+      title: '修复正文提取与噪音清洗',
+      detail: '正文环节阻塞时，先收窄正文容器并追加常见噪音词清洗。',
+      kind: 'structured',
+      applyLabel: '填充正文提示',
+      apply: () => {
+        updateStructuredHints(current =>
+          mergeNoisePatterns(
+            {
+              ...current,
+              contentSelector:
+                current.contentSelector ||
+                '#content | .content | .txtnav | .read-content | article',
+            },
+            ['最新网址', '推广', '广告', '手机阅读', '请收藏']
+          )
+        )
+      },
+    })
+  }
+  if (suggestedActions.includes('run_validation_with_samples')) {
+    suggestions.push({
+      id: 'readiness-run-validation-with-samples',
+      step: 'readiness',
+      title: '补齐样本再跑校验',
+      detail: '规则包尚不可导入，先补 search/book/toc/chapter 样本 URL 后重新 validate。',
+      kind: 'free_text',
+      applyLabel: '追加样本校验提示',
+      apply: () => {
+        updateFreeTextHints(
+          'validation samples: 请提供可访问的 search/book/toc/chapter 样本链接',
+          'validation: 样本与规则必须来自同源站点'
+        )
+      },
+    })
+  }
+
   return suggestions.filter(
     (item, index, list) => list.findIndex(candidate => candidate.id === item.id) === index
   )

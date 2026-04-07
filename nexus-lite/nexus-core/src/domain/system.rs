@@ -814,6 +814,7 @@ impl SystemDomain {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn create_system_alert(
         &self,
         alert_type: AlertType,
@@ -1165,6 +1166,12 @@ impl InMemorySystemConfigRepository {
     }
 }
 
+impl Default for InMemorySystemConfigRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SystemConfigRepository for InMemorySystemConfigRepository {
     async fn save(&self, config: &SystemConfig) -> Result<(), DomainError> {
@@ -1195,7 +1202,7 @@ impl SystemConfigRepository for InMemorySystemConfigRepository {
             .filter(|c| {
                 filter_by_tag
                     .as_ref()
-                    .map_or(true, |tag| c.tags.contains(tag))
+                    .is_none_or(|tag| c.tags.contains(tag))
             })
             .take(limit as usize)
             .cloned()
@@ -1219,6 +1226,12 @@ impl InMemorySystemMetricRepository {
         Self {
             metrics: std::sync::RwLock::new(Vec::new()),
         }
+    }
+}
+
+impl Default for InMemorySystemMetricRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1246,12 +1259,12 @@ impl SystemMetricRepository for InMemorySystemMetricRepository {
             .filter(|m| {
                 metric_name
                     .as_ref()
-                    .map_or(true, |name| m.metric_name == *name)
+                    .is_none_or(|name| m.metric_name == *name)
             })
             .filter(|m| {
                 time_range
                     .as_ref()
-                    .map_or(true, |(start, end)| m.timestamp >= *start && m.timestamp <= *end)
+                    .is_none_or(|(start, end)| m.timestamp >= *start && m.timestamp <= *end)
             })
             .take(limit as usize)
             .cloned()
@@ -1282,6 +1295,12 @@ impl InMemorySystemAlertRepository {
         Self {
             alerts: std::sync::RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemorySystemAlertRepository {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1341,6 +1360,12 @@ impl BasicSystemOptimizationService {
     }
 }
 
+impl Default for BasicSystemOptimizationService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SystemOptimizationService for BasicSystemOptimizationService {
     async fn run_optimization(
@@ -1396,6 +1421,12 @@ pub struct BasicSystemMonitoringService;
 impl BasicSystemMonitoringService {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for BasicSystemMonitoringService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

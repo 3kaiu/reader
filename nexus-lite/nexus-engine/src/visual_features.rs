@@ -120,9 +120,9 @@ impl VisualFeatures {
 
         // Font size: optimal range is 14-18px for reading
         if let Some(font_size) = self.font_size {
-            if font_size >= 14.0 && font_size <= 18.0 {
+            if (14.0..=18.0).contains(&font_size) {
                 score += 50.0;
-            } else if font_size >= 12.0 && font_size <= 20.0 {
+            } else if (12.0..=20.0).contains(&font_size) {
                 score += 30.0;
             } else if font_size < 12.0 {
                 score -= 20.0;
@@ -131,9 +131,9 @@ impl VisualFeatures {
 
         // Line height: optimal is 1.5-2.0
         if let Some(line_height) = self.line_height {
-            if line_height >= 1.5 && line_height <= 2.0 {
+            if (1.5..=2.0).contains(&line_height) {
                 score += 30.0;
-            } else if line_height >= 1.3 && line_height <= 2.5 {
+            } else if (1.3..=2.5).contains(&line_height) {
                 score += 15.0;
             }
         }

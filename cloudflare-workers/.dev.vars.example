@@ -27,3 +27,10 @@ ENABLE_EDGE_EXPERIMENTAL=false
 EDGE_EXPERIMENTAL_ROUTES=/api/search,/api/book,/api/chapters,/api/content
 EDGE_EXPERIMENTAL_EXCLUDE_ROUTES=/api/health,/api/analytics,/api/metrics
 EDGE_EXPERIMENTAL_ROLLOUT=0
+
+# ===== Source Flow Assist (Cloudflare Workers AI / Gateway) =====
+SOURCE_FLOW_ASSIST_CACHE_TTL_SEC=3600
+CF_WORKERS_AI_MODEL=@cf/meta/llama-3.1-8b-instruct
+# Optional (if you want requests to pass AI Gateway first)
+# CF_AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai/chat/completions
+# CF_AI_GATEWAY_TOKEN=your_gateway_token_here

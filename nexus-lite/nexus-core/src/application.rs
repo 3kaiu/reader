@@ -63,6 +63,7 @@ pub trait QueryHandler<Q, R>: Send + Sync {
 
 /// 应用命令
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ApplicationCommand {
     // 阅读相关命令
     Reading(ReadingCommand),
@@ -423,6 +424,12 @@ impl DefaultSecurityService {
     }
 }
 
+impl Default for DefaultSecurityService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SecurityService for DefaultSecurityService {
     async fn authorize_command(
@@ -463,6 +470,12 @@ impl DefaultTransactionManager {
     }
 }
 
+impl Default for DefaultTransactionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl TransactionManager for DefaultTransactionManager {
     async fn begin_transaction(&self) -> Result<Transaction, ApplicationError> {
@@ -492,6 +505,12 @@ pub struct DefaultCacheManager;
 impl DefaultCacheManager {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for DefaultCacheManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -527,6 +546,12 @@ pub struct DefaultEventPublisher;
 impl DefaultEventPublisher {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for DefaultEventPublisher {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

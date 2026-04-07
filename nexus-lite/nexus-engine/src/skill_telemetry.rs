@@ -114,7 +114,7 @@ pub fn snapshot(
             }
             true
         })
-        .take(limit.max(1).min(1000))
+        .take(limit.clamp(1, 1000))
         .cloned()
         .collect::<Vec<_>>();
     out.sort_by(|a, b| b.occurred_at_ms.cmp(&a.occurred_at_ms));

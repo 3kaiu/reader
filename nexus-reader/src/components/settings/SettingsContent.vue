@@ -82,6 +82,17 @@ type SourcePackageSummary = {
   generatedAtMs: number;
   enabled: boolean;
   valid: boolean;
+  readinessState:
+    | "draft"
+    | "blocked"
+    | "search_ready"
+    | "catalog_ready"
+    | "reading_ready"
+    | "full_flow_ready";
+  searchable: boolean;
+  detailReady: boolean;
+  tocReady: boolean;
+  readable: boolean;
   overallHealthScore: number;
   recommended: boolean;
   searchStatus: "pass" | "warn" | "fail" | "unknown";
@@ -105,6 +116,8 @@ type SourcePackageDetailSummary = {
   searchStrategyItems: string[];
   sampleItems: string[];
   riskItems: string[];
+  readinessBlockers: string[];
+  readinessSuggestedActions: string[];
 };
 
 defineProps<{

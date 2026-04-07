@@ -231,16 +231,18 @@ fn build_final_diagnostics(
     diagnostics
 }
 
-fn extract_search_detail_diagnostics(
-    steps: &[SourceValidationStepReport],
-) -> (
+type SearchDetailDiagnostics = (
     Option<String>,
     Option<String>,
     Option<bool>,
     Option<String>,
     Option<String>,
     Vec<String>,
-) {
+);
+
+fn extract_search_detail_diagnostics(
+    steps: &[SourceValidationStepReport],
+) -> SearchDetailDiagnostics {
     let Some(step) = steps.iter().find(|step| step.step == "search_detail") else {
         return (None, None, None, None, None, Vec::new());
     };

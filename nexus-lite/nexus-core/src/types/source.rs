@@ -163,6 +163,163 @@ pub struct SourceHealthReport {
     pub content: SourceHealthSegment,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceReadinessState {
+    #[default]
+    Draft,
+    Blocked,
+    SearchReady,
+    CatalogReady,
+    ReadingReady,
+    FullFlowReady,
+}
+
+impl SourceReadinessState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Blocked => "blocked",
+            Self::SearchReady => "search_ready",
+            Self::CatalogReady => "catalog_ready",
+            Self::ReadingReady => "reading_ready",
+            Self::FullFlowReady => "full_flow_ready",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceReadinessReport {
+    #[serde(default)]
+    pub state: SourceReadinessState,
+    #[serde(default)]
+    pub searchable: bool,
+    #[serde(default)]
+    pub detail_ready: bool,
+    #[serde(default)]
+    pub toc_ready: bool,
+    #[serde(default)]
+    pub readable: bool,
+    #[serde(default)]
+    pub importable: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suggested_actions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+}
+
+impl SourceReadinessReport {
+    pub fn from_validation(validation: &SourceRuleValidationReport) -> Self {
+        let searchable = matches!(
+            validation.health.search.status,
+            SourceHealthStatus::Pass | SourceHealthStatus::Warn
+        );
+        let detail_ready = matches!(
+            validation.health.book.status,
+            SourceHealthStatus::Pass | SourceHealthStatus::Warn
+        );
+        let toc_ready = matches!(
+            validation.health.toc.status,
+            SourceHealthStatus::Pass | SourceHealthStatus::Warn
+        );
+        let readable = matches!(
+            validation.health.content.status,
+            SourceHealthStatus::Pass | SourceHealthStatus::Warn
+        );
+        let importable = validation.importable && validation.compile_ok;
+
+        let mut blockers = Vec::new();
+        if !validation.compile_ok {
+            blockers.push("package_compile_failed".to_string());
+        }
+        if !validation.importable {
+            blockers.push("validation_import_blocked".to_string());
+        }
+        if !searchable {
+            blockers.push("search_not_ready".to_string());
+        }
+        if !detail_ready {
+            blockers.push("book_detail_not_ready".to_string());
+        }
+        if !toc_ready {
+            blockers.push("toc_not_ready".to_string());
+        }
+        if !readable {
+            blockers.push("content_not_ready".to_string());
+        }
+
+        let state = if !importable {
+            SourceReadinessState::Blocked
+        } else if searchable && detail_ready && toc_ready && readable {
+            SourceReadinessState::FullFlowReady
+        } else if detail_ready && toc_ready && readable {
+            SourceReadinessState::ReadingReady
+        } else if searchable && detail_ready && toc_ready {
+            SourceReadinessState::CatalogReady
+        } else if searchable {
+            SourceReadinessState::SearchReady
+        } else {
+            SourceReadinessState::Blocked
+        };
+
+        let summary = Some(match state {
+            SourceReadinessState::Draft => "draft package not validated".to_string(),
+            SourceReadinessState::Blocked => {
+                "blocked for full business flow (search/detail/toc/content)".to_string()
+            },
+            SourceReadinessState::SearchReady => {
+                "search available, downstream reading flow incomplete".to_string()
+            },
+            SourceReadinessState::CatalogReady => {
+                "search + detail + toc available, content extraction needs work".to_string()
+            },
+            SourceReadinessState::ReadingReady => {
+                "detail/toc/content available, search entry needs fallback or repair".to_string()
+            },
+            SourceReadinessState::FullFlowReady => {
+                "full flow ready: source package -> search -> detail -> toc -> content".to_string()
+            },
+        });
+        let mut suggested_actions = Vec::new();
+        if blockers.iter().any(|item| item == "validation_import_blocked") {
+            suggested_actions.push("run_validation_with_samples".to_string());
+        }
+        if blockers.iter().any(|item| item == "package_compile_failed") {
+            suggested_actions.push("fix_rule_compile_errors".to_string());
+        }
+        if blockers.iter().any(|item| item == "search_not_ready") {
+            suggested_actions.push("repair_search_selectors_or_samples".to_string());
+        }
+        if blockers.iter().any(|item| item == "book_detail_not_ready") {
+            suggested_actions.push("repair_book_title_author_selectors".to_string());
+        }
+        if blockers.iter().any(|item| item == "toc_not_ready") {
+            suggested_actions.push("repair_toc_item_selector".to_string());
+        }
+        if blockers.iter().any(|item| item == "content_not_ready") {
+            suggested_actions.push("repair_content_selector_and_noise_rules".to_string());
+        }
+
+        Self {
+            state,
+            searchable,
+            detail_ready,
+            toc_ready,
+            readable,
+            importable,
+            blockers,
+            warnings: validation.warnings.clone(),
+            suggested_actions,
+            summary,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceDocumentation {
@@ -284,7 +441,7 @@ fn default_search_priority() -> u32 {
     100
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceSearchProfile {
     #[serde(default)]
@@ -293,16 +450,6 @@ pub struct SourceSearchProfile {
     pub default_mode: Option<SourceSearchMode>,
     #[serde(default)]
     pub strategies: Vec<SearchStrategyRule>,
-}
-
-impl Default for SourceSearchProfile {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            default_mode: None,
-            strategies: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -377,6 +524,8 @@ pub struct SourceRulePackage {
     pub source: NxsSource,
     pub validation: SourceRuleValidationReport,
     #[serde(default)]
+    pub readiness: SourceReadinessReport,
+    #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]
     pub metadata: HashMap<String, String>,
@@ -392,6 +541,30 @@ pub struct SourceRulePackage {
     pub search_profile: Option<SourceSearchProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fetch_profile: Option<SourceFetchProfile>,
+}
+
+impl SourceRulePackage {
+    pub fn refresh_readiness(&mut self) {
+        self.readiness = SourceReadinessReport::from_validation(&self.validation);
+    }
+
+    pub fn effective_readiness(&self) -> SourceReadinessReport {
+        let is_default = self.readiness.state == SourceReadinessState::Draft
+            && !self.readiness.searchable
+            && !self.readiness.detail_ready
+            && !self.readiness.toc_ready
+            && !self.readiness.readable
+            && !self.readiness.importable
+            && self.readiness.blockers.is_empty()
+            && self.readiness.warnings.is_empty()
+            && self.readiness.suggested_actions.is_empty()
+            && self.readiness.summary.is_none();
+        if is_default {
+            SourceReadinessReport::from_validation(&self.validation)
+        } else {
+            self.readiness.clone()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

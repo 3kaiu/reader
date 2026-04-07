@@ -340,6 +340,12 @@ impl DomainLayerBuilder {
     }
 }
 
+impl Default for DomainLayerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 领域层统一接口
 pub struct DomainLayer {
     pub config: DomainConfig,
@@ -376,6 +382,7 @@ impl DomainLayer {
 
 /// 领域命令
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum DomainCommand {
     Reading(reading::ReadingCommand),
     Search(search::SearchCommand),

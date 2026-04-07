@@ -58,14 +58,14 @@ impl StreamingContentExtractor {
     ) -> bool {
         // Check against configured selectors
         for selector in selectors {
-            if selector.starts_with('.') {
+            if let Some(class_selector) = selector.strip_prefix('.') {
                 // Class selector
-                if class.contains(&selector[1..]) {
+                if class.contains(class_selector) {
                     return true;
                 }
-            } else if selector.starts_with('#') {
+            } else if let Some(id_selector) = selector.strip_prefix('#') {
                 // ID selector
-                if id == &selector[1..] {
+                if id == id_selector {
                     return true;
                 }
             } else {

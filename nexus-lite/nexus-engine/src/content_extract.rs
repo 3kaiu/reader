@@ -409,7 +409,7 @@ fn should_merge_paragraphs(prev: &str, next: &str, is_last: bool) -> bool {
     let prev_ends_with_sentence = ends_with_sentence(prev);
 
     // Rule 3: Check if next paragraph starts with lowercase (continuation)
-    let next_starts_lowercase = next.chars().next().map_or(false, |c| c.is_lowercase());
+    let next_starts_lowercase = next.chars().next().is_some_and(|c| c.is_lowercase());
 
     // Rule 4: Check for common continuation patterns
     let continuation_patterns = ["...", "——", "—", "—", "…"];
@@ -584,9 +584,8 @@ fn remove_noise_paragraphs(text: &str) -> String {
         // Remove common zero-width / formatting characters without new deps.
         // Keep '\n' intact (we rely on it as delimiter upstream).
         s.chars()
-            .filter(|&ch| match ch {
-                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' => false,
-                _ => true,
+            .filter(|&ch| {
+                !matches!(ch, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}')
             })
             .collect()
     }
@@ -612,9 +611,7 @@ fn remove_noise_paragraphs(text: &str) -> String {
 
     fn dedup_key(s: &str) -> String {
         // Remove leading bullet/quote markers for better equality.
-        let x = s
-            .trim()
-            .trim_start_matches(|c| c == '•' || c == '-' || c == '*' || c == '>' || c == ' ');
+        let x = s.trim().trim_start_matches(['•', '-', '*', '>', ' ']);
         normalize_para(x)
     }
 

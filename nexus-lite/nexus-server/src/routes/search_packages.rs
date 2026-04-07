@@ -30,6 +30,7 @@ pub(super) async fn runtime_search_packages(
 
     let mut filtered = Vec::new();
     for package in packages {
+        let readiness = package.effective_readiness();
         let enabled = state
             .store
             .get_source_status(package.source.id.clone())
@@ -51,7 +52,26 @@ pub(super) async fn runtime_search_packages(
                     .map(|it| it.search_supported)
                     .unwrap_or(true)
             });
-        if enabled && allow_search && profile_enabled {
+        let has_fallback_search_mode = package
+            .search_profile
+            .as_ref()
+            .map(|profile| {
+                profile.strategies.iter().any(|strategy| {
+                    strategy.enabled
+                        && matches!(
+                            strategy.mode,
+                            nexus_core::SourceSearchMode::DirectDetail
+                                | nexus_core::SourceSearchMode::ExternalDiscovery
+                        )
+                })
+            })
+            .unwrap_or(false);
+        if enabled
+            && allow_search
+            && profile_enabled
+            && readiness.importable
+            && (readiness.searchable || has_fallback_search_mode)
+        {
             filtered.push(package);
         }
     }

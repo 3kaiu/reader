@@ -84,18 +84,13 @@ pub struct PutOptions {
     pub priority: CachePriority,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum CachePriority {
     Low,
+    #[default]
     Normal,
     High,
     Critical,
-}
-
-impl Default for CachePriority {
-    fn default() -> Self {
-        CachePriority::Normal
-    }
 }
 
 /// 缓存错误
@@ -365,7 +360,7 @@ impl MemoryCache {
 
         let expires_at = options
             .ttl
-            .map(|ttl| chrono::Duration::from_std(ttl))
+            .map(chrono::Duration::from_std)
             .transpose()
             .map_err(|e| CacheError::Storage(format!("Invalid TTL duration: {}", e)))?
             .map(|ttl| chrono::Utc::now() + ttl);

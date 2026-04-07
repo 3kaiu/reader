@@ -22,3 +22,5 @@ export {
   handleDecodeRequest,
   handleProgressSync,
 } from './routes/content.ts'
+
+export { handleSourceFlowAssist, handleSourceFlowAssistError } from './routes/source-flow.ts'

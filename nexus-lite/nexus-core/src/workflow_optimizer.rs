@@ -266,7 +266,7 @@ impl WorkflowOptimizer {
         for step in steps {
             step_groups
                 .entry(step.operation.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(step);
         }
 
@@ -314,10 +314,7 @@ impl WorkflowOptimizer {
         for step in &steps {
             in_degree.entry(step.id.clone()).or_insert(0);
             for dep in &step.dependencies {
-                graph
-                    .entry(dep.clone())
-                    .or_insert_with(Vec::new)
-                    .push(step.id.clone());
+                graph.entry(dep.clone()).or_default().push(step.id.clone());
                 *in_degree.entry(step.id.clone()).or_insert(0) += 1;
             }
         }
@@ -503,6 +500,12 @@ pub struct DefaultWorkflowExecutor;
 impl DefaultWorkflowExecutor {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for DefaultWorkflowExecutor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

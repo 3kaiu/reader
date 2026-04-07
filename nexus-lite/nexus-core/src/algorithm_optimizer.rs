@@ -361,11 +361,11 @@ impl AdaptiveSearcher {
 
         let mut matrix = vec![vec![0; len_b + 1]; len_a + 1];
 
-        for i in 0..=len_a {
-            matrix[i][0] = i;
+        for (i, row) in matrix.iter_mut().enumerate().take(len_a + 1) {
+            row[0] = i;
         }
-        for j in 0..=len_b {
-            matrix[0][j] = j;
+        for (j, cell) in matrix[0].iter_mut().enumerate().take(len_b + 1) {
+            *cell = j;
         }
 
         for i in 1..=len_a {
@@ -447,6 +447,10 @@ impl<K: Clone + Eq + Hash, V> LRUCache<K, V> {
 
     pub fn len(&self) -> usize {
         self.cache.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.cache.is_empty()
     }
 
     fn touch(&mut self, key: &K) {
@@ -631,9 +635,8 @@ impl AlgorithmOptimizer {
     /// 优化的搜索算法
     pub fn optimized_search<T: Eq + Ord + Hash>(&self, data: &[T], target: &T) -> Option<usize> {
         let _ = std::time::Instant::now();
-        let result = AdaptiveSearcher::adaptive_search(data, target);
         // 指标记录在异步上下文中进行，此处省略以避免 spawn 生命周期问题
-        result
+        AdaptiveSearcher::adaptive_search(data, target)
     }
 
     /// 优化的数据压缩

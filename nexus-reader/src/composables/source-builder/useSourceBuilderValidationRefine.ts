@@ -13,6 +13,7 @@ import type {
   SourceBuilderDebugSnapshot,
 } from '@/composables/source-builder/types'
 import {
+  appendFreeTextHint,
   buildRefineSuggestions,
   hasStructuredSourceRuleHints,
 } from '@/composables/source-builder/sourceBuilderRefineSuggestions'
@@ -23,6 +24,7 @@ import {
   buildRefineSnapshot,
   buildValidationRefineSamples,
   buildValidationSnapshot,
+  requestSourceFlowAssist,
   refineSourceBuilderPackage,
   validateSourceBuilderPackage,
 } from '@/composables/source-builder/sourceBuilderValidationActions'
@@ -35,6 +37,7 @@ type UseSourceBuilderValidationRefineOptions = {
   previewDiagnostics: Ref<SourceBuildDiagnostics | null>
   fetchMode: Ref<string>
   fetchProvider: Ref<string>
+  searchKeyword: Ref<string>
   fetchSessionKey: Ref<string>
   fetchHtmlPreview: Ref<FetchHtmlResponse | null>
   lastFetchDebug: Ref<SourceFetchDebugInfo | null>
@@ -66,6 +69,9 @@ export function useSourceBuilderValidationRefine(
   const refineAutoActions = ref<string[]>([])
   const refineAppliedHints = ref<string[]>([])
   const refineChanges = ref<Array<{ path: string; before?: string | null; after?: string | null }>>([])
+  const aiAssistLoading = ref(false)
+  const aiAssistSummary = ref<string[]>([])
+  const aiAssistSuggestions = ref<RefineSuggestion[]>([])
 
   const validationStepSummary = computed<SourceValidationStepReport[]>(() => {
     const report = (validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null)?.report
@@ -78,7 +84,7 @@ export function useSourceBuilderValidationRefine(
 
   const hasStructuredHints = computed(() => hasStructuredSourceRuleHints(structuredHints.value))
 
-  const refineSuggestions = computed<RefineSuggestion[]>(() =>
+  const ruleBasedSuggestions = computed<RefineSuggestion[]>(() =>
     buildRefineSuggestions(
       {
         currentPackage: options.currentPackage.value,
@@ -103,6 +109,146 @@ export function useSourceBuilderValidationRefine(
       }
     )
   )
+  const refineSuggestions = computed<RefineSuggestion[]>(() => {
+    const merged = [...aiAssistSuggestions.value, ...ruleBasedSuggestions.value]
+    const unique = new Map<string, RefineSuggestion>()
+    for (const item of merged) {
+      if (!unique.has(item.id)) {
+        unique.set(item.id, item)
+      }
+    }
+    return [...unique.values()]
+  })
+
+  async function requestAiAssist() {
+    const pkg = options.currentPackage.value
+    if (!pkg) {
+      warning('当前没有可分析的规则包')
+      return
+    }
+    const query = validateSearchQuery.value.trim() || options.searchKeyword.value.trim()
+    if (!query) {
+      warning('请先填写 search keyword 或 validate search query')
+      return
+    }
+
+    aiAssistLoading.value = true
+    try {
+      const response = await requestSourceFlowAssist({
+        query,
+        sourceId: pkg.source.id,
+        blockers: pkg.readiness?.blockers ?? [],
+        context: freeTextHints.value.trim().slice(0, 400),
+      })
+      if (!response.isSuccess || !response.data) {
+        warning(response.errorMsg || 'Cloudflare AI 建议生成失败')
+        return
+      }
+
+      const data = response.data
+      aiAssistSummary.value = [
+        `provider=${data.provider}`,
+        `cache=${data.cached ? 'hit' : 'miss'}`,
+        `normalizedQuery=${data.normalizedQuery || '--'}`,
+        `suggestions=${data.suggestions.length}`,
+      ]
+      if (!validateSearchQuery.value.trim() && data.normalizedQuery) {
+        validateSearchQuery.value = data.normalizedQuery
+      }
+      aiAssistSuggestions.value = data.suggestions.map(item => ({
+        id: `cf-ai-${item.id}`,
+        step: 'cloudflare_ai',
+        title: `[CF AI] ${item.title}`,
+        detail: `${item.detail} (action=${item.actionCode})`,
+        kind: item.actionCode === 'repair_search_selectors_or_samples' ||
+          item.actionCode === 'repair_book_title_author_selectors' ||
+          item.actionCode === 'repair_toc_item_selector' ||
+          item.actionCode === 'repair_content_selector_and_noise_rules'
+          ? 'structured'
+          : 'free_text',
+        applyLabel: '应用建议',
+        apply: () => {
+          if (item.actionCode === 'repair_search_selectors_or_samples') {
+            structuredHints.value = {
+              ...structuredHints.value,
+              searchResultSelector:
+                structuredHints.value.searchResultSelector ||
+                '.search-list > li | .result-list li | .bookbox | .result-item | a[href]',
+            }
+            let next = freeTextHints.value
+            next = appendFreeTextHint(next, 'search result: 请确认条目容器与详情链接选择器')
+            next = appendFreeTextHint(next, item.detail)
+            freeTextHints.value = next
+            return
+          }
+          if (item.actionCode === 'repair_book_title_author_selectors') {
+            structuredHints.value = {
+              ...structuredHints.value,
+              bookTitleSelector:
+                structuredHints.value.bookTitleSelector ||
+                "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
+              authorSelector:
+                structuredHints.value.authorSelector || '.author | .book-author | .info .author',
+            }
+            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
+            return
+          }
+          if (item.actionCode === 'repair_toc_item_selector') {
+            structuredHints.value = {
+              ...structuredHints.value,
+              tocItemSelector:
+                structuredHints.value.tocItemSelector ||
+                '.chapter-list a | #list a | .catalog a | a[href]',
+            }
+            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
+            return
+          }
+          if (item.actionCode === 'repair_content_selector_and_noise_rules') {
+            structuredHints.value = {
+              ...structuredHints.value,
+              contentSelector:
+                structuredHints.value.contentSelector ||
+                '#content | .content | .txtnav | .read-content | article',
+              noisePatterns: Array.from(
+                new Set([
+                  ...(structuredHints.value.noisePatterns || []),
+                  '最新网址',
+                  '推广',
+                  '广告',
+                  '手机阅读',
+                  '请收藏',
+                ])
+              ),
+            }
+            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
+            return
+          }
+          let next = freeTextHints.value
+          next = appendFreeTextHint(next, `action: ${item.actionCode}`)
+          next = appendFreeTextHint(next, item.detail)
+          freeTextHints.value = next
+        },
+      }))
+      success('Cloudflare AI 建议已生成')
+    } catch {
+      warning('Cloudflare AI 建议生成失败')
+    } finally {
+      aiAssistLoading.value = false
+    }
+  }
+
+  async function requestAiAssistAndRefine() {
+    await requestAiAssist()
+    if (aiAssistSuggestions.value.length === 0) {
+      warning('Cloudflare AI 未返回可用建议，未执行 refine')
+      return
+    }
+    const suggestionsToApply = aiAssistSuggestions.value.slice(0, 3)
+    for (const suggestion of suggestionsToApply) {
+      suggestion.apply()
+    }
+    await executeRefinePackage('已应用 Cloudflare AI 建议并完成修正')
+  }
 
   async function validateCurrentPackage() {
     if (!options.currentPackage.value) {
@@ -228,6 +374,8 @@ export function useSourceBuilderValidationRefine(
     refineAutoActions.value = []
     refineAppliedHints.value = []
     refineChanges.value = []
+    aiAssistSummary.value = []
+    aiAssistSuggestions.value = []
   }
 
   function applySnapshot(snapshot: SourceBuilderDebugSnapshot) {
@@ -247,8 +395,12 @@ export function useSourceBuilderValidationRefine(
     refineAutoActions,
     refineAppliedHints,
     refineChanges,
+    aiAssistLoading,
+    aiAssistSummary,
     validationStepSummary,
     refineSuggestions,
+    requestAiAssist,
+    requestAiAssistAndRefine,
     validateCurrentPackage,
     applyRefineSuggestion,
     applyRefineSuggestionAndRefine,

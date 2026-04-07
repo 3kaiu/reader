@@ -25,6 +25,8 @@ const freeTextHints = defineModel<string>('freeTextHints', { required: true })
 const props = defineProps<{
   refineSuggestions: RefineSuggestion[]
   refineLoading: boolean
+  aiAssistLoading: boolean
+  aiAssistSummary: string[]
   hasCurrentPackage: boolean
   refineAutoActions: string[]
   refineAppliedHints: string[]
@@ -34,6 +36,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   applyRefineSuggestion: [item: RefineSuggestion]
   applyRefineSuggestionAndRefine: [item: RefineSuggestion]
+  requestAiAssist: []
+  requestAiAssistAndRefine: []
   refineCurrentPackage: []
 }>()
 
@@ -47,9 +51,33 @@ function onNoisePatternsInput(event: Event) {
 
 <template>
   <section class="mb-8 rounded-2xl border border-border/50 bg-card overflow-hidden">
-    <div class="p-5 border-b border-border/50">
-      <p class="text-sm font-medium">Refine With Hints</p>
-      <p class="text-xs text-muted-foreground mt-1">输入结构化提示或自由文本提示，让 AI 修正规则并重新验证。</p>
+    <div class="p-5 border-b border-border/50 flex items-start justify-between gap-3">
+      <div>
+        <p class="text-sm font-medium">Refine With Hints</p>
+        <p class="text-xs text-muted-foreground mt-1">输入结构化提示或自由文本提示，让 AI 修正规则并重新验证。</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+          :disabled="props.aiAssistLoading || props.refineLoading || !props.hasCurrentPackage"
+          @click="emit('requestAiAssist')"
+        >
+          {{ props.aiAssistLoading ? '生成中...' : 'Cloudflare AI 建议' }}
+        </button>
+        <button
+          class="h-8 px-3 rounded-full bg-primary text-primary-foreground hover:opacity-90 text-xs disabled:opacity-50"
+          :disabled="props.aiAssistLoading || props.refineLoading || !props.hasCurrentPackage"
+          @click="emit('requestAiAssistAndRefine')"
+        >
+          AI 建议并修正
+        </button>
+      </div>
+    </div>
+    <div v-if="props.aiAssistSummary.length > 0" class="p-5 border-b border-border/50">
+      <p class="text-xs text-muted-foreground mb-2">AI Assist Summary</p>
+      <ul class="space-y-1 text-xs break-all">
+        <li v-for="item in props.aiAssistSummary" :key="item">{{ item }}</li>
+      </ul>
     </div>
     <div v-if="props.refineSuggestions.length > 0" class="p-5 border-b border-border/50">
       <p class="text-xs text-muted-foreground mb-3">Suggested Fixes</p>

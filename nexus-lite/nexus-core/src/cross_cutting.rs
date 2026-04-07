@@ -147,6 +147,12 @@ impl AspectWeaver {
     }
 }
 
+impl Default for AspectWeaver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 性能监控拦截器
 pub struct PerformanceMonitoringInterceptor {
     metrics_collector: Arc<dyn crate::infrastructure::MetricsCollector>,

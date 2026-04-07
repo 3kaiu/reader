@@ -168,14 +168,12 @@ pub async fn list_discovery(
                 .and_then(|p| get_date(p, &rec_data, &sign_data, false))
                 .unwrap_or_default(), // Latest
         )
+    } else if let Some(p) = rec_data.periods.get(&target_period) {
+        (p.start_date.clone(), p.end_date.clone())
+    } else if let Some(p) = sign_data.periods.get(&target_period) {
+        (p.start_date.clone(), p.end_date.clone())
     } else {
-        if let Some(p) = rec_data.periods.get(&target_period) {
-            (p.start_date.clone(), p.end_date.clone())
-        } else if let Some(p) = sign_data.periods.get(&target_period) {
-            (p.start_date.clone(), p.end_date.clone())
-        } else {
-            ("".to_string(), "".to_string())
-        }
+        ("".to_string(), "".to_string())
     };
 
     // Add "all" to available_periods at the start

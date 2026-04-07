@@ -51,5 +51,8 @@ export interface ChapterContent {
       warnings?: string[]
       metrics?: Record<string, string>
     }>
+    fallbackUsed?: boolean
+    effectiveSourceId?: string
+    bookIdentity?: string
   }
 }

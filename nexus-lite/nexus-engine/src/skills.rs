@@ -231,7 +231,7 @@ impl FailureDiagnosisSkill {
         health_score: f64,
         stats: &SourceExtractionStats,
     ) -> FailureDiagnosis {
-        let mut failures = vec![
+        let mut failures = [
             ("validation", stats.validation_failures),
             ("rule_mismatch", stats.rule_mismatch_failures),
             ("empty_content", stats.empty_content_failures),

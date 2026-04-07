@@ -242,16 +242,22 @@ pub(super) fn searchable_source_ids(packages: &[SourceRulePackage]) -> Vec<Strin
     packages
         .iter()
         .filter(|package| {
-            package
-                .search_profile
-                .as_ref()
-                .map(|profile| {
-                    profile.strategies.iter().any(|strategy| {
-                        strategy.enabled
-                            && matches!(strategy.mode, nexus_core::SourceSearchMode::NativeSearch)
+            let readiness = package.effective_readiness();
+            readiness.importable
+                && readiness.searchable
+                && package
+                    .search_profile
+                    .as_ref()
+                    .map(|profile| {
+                        profile.strategies.iter().any(|strategy| {
+                            strategy.enabled
+                                && matches!(
+                                    strategy.mode,
+                                    nexus_core::SourceSearchMode::NativeSearch
+                                )
+                        })
                     })
-                })
-                .unwrap_or(true)
+                    .unwrap_or(true)
         })
         .map(|package| package.source.id.clone())
         .collect()

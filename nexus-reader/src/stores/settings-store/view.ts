@@ -28,6 +28,32 @@ function formatHealthStatus(status: SourceHealthStatus | undefined) {
   }
 }
 
+function formatReadinessState(
+  state:
+    | "draft"
+    | "blocked"
+    | "search_ready"
+    | "catalog_ready"
+    | "reading_ready"
+    | "full_flow_ready"
+    | undefined
+) {
+  switch (state) {
+    case "full_flow_ready":
+      return "全链路可用"
+    case "reading_ready":
+      return "可读待搜"
+    case "catalog_ready":
+      return "目录就绪"
+    case "search_ready":
+      return "可搜索"
+    case "blocked":
+      return "阻塞"
+    default:
+      return "草稿"
+  }
+}
+
 function buildSegmentItems(health?: {
   search: SourceHealthSegment
   book: SourceHealthSegment
@@ -230,7 +256,11 @@ export function createSettingsStoreView(
       validationLabel: detail?.validation
         ? `${detail.validation.valid ? "通过" : "失败"} / ${Math.round((detail.validation.score ?? 0) * 100)}`
         : "--",
-      healthLabel: detail?.validation?.health?.recommended ? "推荐" : "需复核",
+      healthLabel: detail
+        ? `${formatReadinessState(detail.readiness?.state)} · ${
+            detail.validation?.health?.recommended ? "推荐" : "需复核"
+          }`
+        : "--",
       healthScoreLabel:
         detail?.validation?.health != null
           ? `${Math.round((detail.validation.health.overallScore ?? 0) * 100)}`
@@ -242,6 +272,8 @@ export function createSettingsStoreView(
       searchStrategyItems,
       sampleItems,
       riskItems: documentation?.knownRisks ?? [],
+      readinessBlockers: detail?.readiness?.blockers ?? [],
+      readinessSuggestedActions: detail?.readiness?.suggestedActions ?? [],
     };
   });
 
@@ -259,7 +291,11 @@ export function createSettingsStoreView(
       validationLabel: validation
         ? `${validation.valid ? "通过" : "失败"} / ${Math.round((validation.score ?? 0) * 100)}`
         : "--",
-      healthLabel: validation?.health?.recommended ? "推荐" : "需复核",
+      healthLabel: preview
+        ? `${formatReadinessState(preview.package.readiness?.state)} · ${
+            validation?.health?.recommended ? "推荐" : "需复核"
+          }`
+        : "--",
       healthScoreLabel:
         validation?.health != null ? `${Math.round((validation.health.overallScore ?? 0) * 100)}` : "--",
       segmentItems: buildSegmentItems(validation?.health),
@@ -286,6 +322,8 @@ export function createSettingsStoreView(
         : [],
       warningItems: validation?.warnings ?? [],
       riskItems: diagnostics?.riskFlags ?? [],
+      readinessBlockers: preview?.package.readiness?.blockers ?? [],
+      readinessSuggestedActions: preview?.package.readiness?.suggestedActions ?? [],
       packageJson: preview?.packageJson ?? "",
     }
   })

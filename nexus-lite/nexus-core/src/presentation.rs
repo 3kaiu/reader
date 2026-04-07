@@ -314,8 +314,7 @@ impl RequestMiddleware for AuthenticationMiddleware {
     ) -> Result<(), PresentationError> {
         // 从Authorization头提取token
         if let Some(token) = request.headers.get("authorization") {
-            if token.starts_with("Bearer ") {
-                let _token = &token[7..];
+            if let Some(_token) = token.strip_prefix("Bearer ") {
                 // 验证token并设置user_id
                 // 这里是简化的实现
                 context.user_id = Some("user123".to_string());
@@ -360,6 +359,12 @@ impl LoggingMiddleware {
     }
 }
 
+impl Default for LoggingMiddleware {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl RequestMiddleware for LoggingMiddleware {
     async fn process(
@@ -384,6 +389,12 @@ pub struct DefaultRequestValidator;
 impl DefaultRequestValidator {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for DefaultRequestValidator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -420,6 +431,12 @@ pub struct JsonResponseFormatter;
 impl JsonResponseFormatter {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for JsonResponseFormatter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -475,6 +492,12 @@ pub struct ReadingDtoMapper;
 impl ReadingDtoMapper {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for ReadingDtoMapper {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

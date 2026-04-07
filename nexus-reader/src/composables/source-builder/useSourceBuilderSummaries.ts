@@ -57,6 +57,8 @@ export function useSourceBuilderSummaries(
       healthScoreLabel: health ? `${Math.round((health.overallScore ?? 0) * 100)}` : '--',
       segmentItems,
       importable: Boolean(pkg?.validation?.importable),
+      readinessBlockers: pkg?.readiness?.blockers ?? [],
+      readinessSuggestedActions: pkg?.readiness?.suggestedActions ?? [],
     }
   })
 

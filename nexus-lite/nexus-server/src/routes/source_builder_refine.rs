@@ -393,6 +393,7 @@ pub async fn refine_source_package(
     package.generator = "source-builder-refine-skill".to_string();
     package.validation =
         run_validation(&state, &package, req.samples.map(validation_samples_from_presets)).await;
+    package.refresh_readiness();
     if !auto_applied_actions.is_empty() {
         package
             .metadata

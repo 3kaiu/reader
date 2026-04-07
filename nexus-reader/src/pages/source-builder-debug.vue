@@ -66,6 +66,8 @@ const {
   refineAutoActions,
   refineAppliedHints,
   refineChanges,
+  aiAssistLoading,
+  aiAssistSummary,
   refineSuggestions,
   validateSearchQuery,
   validateBookUrl,
@@ -105,6 +107,8 @@ const {
   validateCurrentPackage,
   applyRefineSuggestion,
   applyRefineSuggestionAndRefine,
+  requestAiAssist,
+  requestAiAssistAndRefine,
   refineCurrentPackage,
   runOperation,
   runSearchAndValidateDetail,
@@ -303,8 +307,12 @@ const {
       :refine-auto-actions="refineAutoActions"
       :refine-applied-hints="refineAppliedHints"
       :refine-changes="refineChanges"
+      :ai-assist-loading="aiAssistLoading"
+      :ai-assist-summary="aiAssistSummary"
       @apply-refine-suggestion="applyRefineSuggestion"
       @apply-refine-suggestion-and-refine="applyRefineSuggestionAndRefine"
+      @request-ai-assist="requestAiAssist"
+      @request-ai-assist-and-refine="requestAiAssistAndRefine"
       @refine-current-package="refineCurrentPackage"
     />
 
