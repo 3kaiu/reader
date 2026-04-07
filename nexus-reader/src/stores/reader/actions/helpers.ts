@@ -250,12 +250,19 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
 
   const record = normalizedPayload as Record<string, unknown>
   const contentValue = tryParseJsonPayload(record.content)
+  const chunksValue = tryParseJsonPayload(record.chunks)
+  const chunksContent = Array.isArray(chunksValue)
+    ? (chunksValue as unknown[])
+        .map(item => (typeof item === 'string' ? item : ''))
+        .filter(item => item.length > 0)
+        .join('\n')
+    : ''
   const content =
     typeof contentValue === 'string'
       ? contentValue
       : typeof record.text === 'string'
         ? record.text
-        : ''
+        : chunksContent
   const metaValue = tryParseJsonPayload(record.meta)
   const stageReportsValue =
     metaValue && typeof metaValue === 'object'

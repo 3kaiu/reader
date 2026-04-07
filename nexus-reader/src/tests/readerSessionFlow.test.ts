@@ -660,6 +660,26 @@ describe('Reader Session Flow Guards', () => {
     expect(state.contentStageReports.value).toEqual([{ stage: 'decode', ok: true }])
   })
 
+  it('accepts chunks-only chapter content payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chunks: ['第一段', '第二段'],
+      },
+    })
+
+    const content = await helpers.fetchChapterContent(chapter)
+    expect(content).toBe('第一段\n第二段')
+  })
+
   it('summarizes nexus error with failed stage as priority', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
