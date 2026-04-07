@@ -130,6 +130,50 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[1].title).toBe('第二章')
   })
 
+  it('accepts nested data.items wrapper for catalog payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        data: {
+          items: [
+            { title: '第一章', url: 'https://example.com/book/1/1' },
+            { title: '第二章', url: 'https://example.com/book/1/2' },
+          ],
+        },
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0].title).toBe('第一章')
+    expect(catalog[1].title).toBe('第二章')
+  })
+
+  it('accepts results wrapper for catalog payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        results: [
+          { title: '第一章', url: 'https://example.com/book/1/1' },
+          { title: '第二章', url: 'https://example.com/book/1/2' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog).toHaveLength(2)
+    expect(catalog[0].title).toBe('第一章')
+    expect(catalog[1].title).toBe('第二章')
+  })
+
   it('accepts chapter url aliases like href and link', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)

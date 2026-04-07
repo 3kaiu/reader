@@ -19,11 +19,27 @@ function parseChapterCatalogPayload(payload: unknown): unknown[] {
   }
 
   if (payload && typeof payload === 'object') {
-    const record = payload as Record<string, unknown>
-    const candidates = [record.chapters, record.items, record.data, record.list]
-    const arrayCandidate = candidates.find(Array.isArray)
-    if (arrayCandidate) {
-      return arrayCandidate as unknown[]
+    const queue: unknown[] = [payload]
+    const visited = new Set<unknown>()
+    const containerKeys = ['chapters', 'items', 'data', 'list', 'results']
+
+    while (queue.length > 0) {
+      const current = queue.shift()
+      if (!current || typeof current !== 'object' || visited.has(current)) {
+        continue
+      }
+      visited.add(current)
+
+      const record = current as Record<string, unknown>
+      for (const key of containerKeys) {
+        const candidate = record[key]
+        if (Array.isArray(candidate)) {
+          return candidate as unknown[]
+        }
+        if (candidate && typeof candidate === 'object') {
+          queue.push(candidate)
+        }
+      }
     }
   }
 
