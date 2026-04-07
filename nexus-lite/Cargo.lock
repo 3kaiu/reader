@@ -877,7 +877,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa 1.0.17",
- "phf 0.11.3",
+ "phf 0.8.0",
  "smallvec",
 ]
 
@@ -2681,7 +2681,7 @@ dependencies = [
  "nexus-engine",
  "nexus-storage",
  "reqwest",
- "scraper 0.24.0",
+ "scraper 0.25.0",
  "serde",
  "serde_json",
  "shell-words",
