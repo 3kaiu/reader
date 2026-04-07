@@ -80,7 +80,7 @@ function scanMarkdownOrphans(files) {
   for (const md of mdFiles) {
     const base = path.basename(md)
     const refs = texts.reduce((acc, t) => acc + (t.includes(base) ? 1 : 0), 0)
-    if (refs <= 1 && md !== 'AGENTS.md') {
+    if (refs === 0 && md !== 'AGENTS.md') {
       orphans.push(md)
     }
   }

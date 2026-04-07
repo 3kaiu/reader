@@ -2,6 +2,8 @@
 
 This document defines the current end-to-end runtime flow and ownership boundaries.
 
+Documentation index: `DOCS_INDEX.md`.
+
 ## End-to-End Request Path
 
 1. `nexus-reader` (frontend) issues API requests.
