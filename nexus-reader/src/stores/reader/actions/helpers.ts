@@ -231,6 +231,74 @@ type NormalizedContentPayload = {
   stageReports: Array<{ stage: string; ok: boolean; failureCode?: string; warnings?: string[]; metrics?: Record<string, string> }>
 }
 
+function normalizeStageReports(
+  value: unknown,
+): Array<{
+  stage: string
+  ok: boolean
+  failureCode?: string
+  warnings?: string[]
+  metrics?: Record<string, string>
+}> {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map(item => {
+      if (!item || typeof item !== 'object') {
+        return null
+      }
+
+      const record = item as Record<string, unknown>
+      const stage = toOptionalString(record.stage)
+      const failureCode =
+        toOptionalString(record.failureCode) ??
+        toOptionalString(record.failure_code)
+      const ok = toOptionalBoolean(record.ok)
+
+      if (!stage && !failureCode) {
+        return null
+      }
+
+      const warningsValue = tryParseJsonPayload(record.warnings)
+      const warnings = Array.isArray(warningsValue)
+        ? (warningsValue as unknown[])
+            .map(entry => toOptionalString(entry))
+            .filter((entry): entry is string => Boolean(entry))
+        : undefined
+
+      const metricsValue = tryParseJsonPayload(record.metrics)
+      const metrics =
+        metricsValue && typeof metricsValue === 'object'
+          ? Object.fromEntries(
+              Object.entries(metricsValue as Record<string, unknown>)
+                .map(([key, raw]) => [key, toOptionalString(raw)])
+                .filter(([, raw]) => Boolean(raw)),
+            )
+          : undefined
+
+      return {
+        stage: stage || 'unknown',
+        ok: typeof ok === 'boolean' ? ok : failureCode ? false : true,
+        ...(failureCode ? { failureCode } : {}),
+        ...(warnings && warnings.length > 0 ? { warnings } : {}),
+        ...(metrics && Object.keys(metrics).length > 0 ? { metrics } : {}),
+      }
+    })
+    .filter(
+      (
+        report,
+      ): report is {
+        stage: string
+        ok: boolean
+        failureCode?: string
+        warnings?: string[]
+        metrics?: Record<string, string>
+      } => report !== null,
+    )
+}
+
 function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
   const normalizedPayload = tryParseJsonPayload(payload)
 
@@ -268,15 +336,11 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
     metaValue && typeof metaValue === 'object'
       ? tryParseJsonPayload((metaValue as Record<string, unknown>).stageReports)
       : undefined
-  const stageReports = Array.isArray(stageReportsValue)
-    ? (stageReportsValue as Array<{
-        stage: string
-        ok: boolean
-        failureCode?: string
-        warnings?: string[]
-        metrics?: Record<string, string>
-      }>)
-    : []
+  const stageReportsFallback = tryParseJsonPayload(record.stageReports)
+  const stageReportsSnake = tryParseJsonPayload(record.stage_reports)
+  const stageReports = normalizeStageReports(
+    stageReportsValue ?? stageReportsFallback ?? stageReportsSnake,
+  )
 
   return {
     content,

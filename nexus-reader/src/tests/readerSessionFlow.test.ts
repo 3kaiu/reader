@@ -660,6 +660,44 @@ describe('Reader Session Flow Guards', () => {
     expect(state.contentStageReports.value).toEqual([{ stage: 'decode', ok: true }])
   })
 
+  it('normalizes stage_reports payload aliases and value shapes', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        content: '正文',
+        stage_reports: [
+          {
+            stage: 'decode',
+            ok: '0',
+            failure_code: 'decode_failed',
+            warnings: '["warn-1"]',
+            metrics: '{"cost":"12"}',
+          },
+        ],
+      },
+    })
+
+    const content = await helpers.fetchChapterContent(chapter)
+    expect(content).toBe('正文')
+    expect(state.contentStageReports.value).toEqual([
+      {
+        stage: 'decode',
+        ok: false,
+        failureCode: 'decode_failed',
+        warnings: ['warn-1'],
+        metrics: { cost: '12' },
+      },
+    ])
+  })
+
   it('accepts chunks-only chapter content payload', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
