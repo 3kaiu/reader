@@ -55,12 +55,13 @@ function toCatalogChapter(entry: unknown, index: number): Chapter | null {
     toOptionalNumber(record.chapterIndex) ??
     toOptionalNumber(record.chapter_index) ??
     index
+  const normalizedIsVip = toOptionalBoolean(record.isVip)
 
   return {
     title,
     url,
     index: normalizedIndex,
-    ...(typeof record.isVip === 'boolean' ? { isVip: record.isVip } : {}),
+    ...(typeof normalizedIsVip === 'boolean' ? { isVip: normalizedIsVip } : {}),
   }
 }
 
@@ -83,6 +84,33 @@ function toOptionalNumber(value: unknown): number | undefined {
     const parsed = Number(trimmed)
     if (Number.isFinite(parsed)) {
       return parsed
+    }
+  }
+
+  return undefined
+}
+
+function toOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    if (value === 1) {
+      return true
+    }
+    if (value === 0) {
+      return false
+    }
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1') {
+      return true
+    }
+    if (normalized === 'false' || normalized === '0') {
+      return false
     }
   }
 

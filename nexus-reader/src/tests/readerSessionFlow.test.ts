@@ -137,6 +137,28 @@ describe('Reader Session Flow Guards', () => {
     expect(catalog[1].index).toBe(10)
   })
 
+  it('normalizes isVip from boolean-like values', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetChapters.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        chapters: [
+          { title: 'A', url: 'https://example.com/book/1/a', isVip: 1 },
+          { title: 'B', url: 'https://example.com/book/1/b', isVip: '0' },
+          { title: 'C', url: 'https://example.com/book/1/c', isVip: 'true' },
+        ],
+      },
+    })
+
+    const catalog = await helpers.ensureCatalog()
+
+    expect(catalog[0].isVip).toBe(true)
+    expect(catalog[1].isVip).toBe(false)
+    expect(catalog[2].isVip).toBe(true)
+  })
+
   it('normalizes snake_case book fields while keeping route target authoritative', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
