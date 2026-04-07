@@ -460,6 +460,34 @@ describe('Reader Session Flow Guards', () => {
     })
   })
 
+  it('supports book_info wrapper aliases in book payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+
+    mockGetBookInfo.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        book_info: {
+          title: 'Wrapped Alias Book',
+          writer: 'Wrapped Alias Author',
+        },
+      },
+    })
+
+    const response = await helpers.fetchBookInfo(
+      'caller-source',
+      'https://example.com/caller',
+    )
+
+    expect(response.isSuccess).toBe(true)
+    expect(response.data).toMatchObject({
+      sourceId: 'caller-source',
+      bookUrl: 'https://example.com/caller',
+      name: 'Wrapped Alias Book',
+      author: 'Wrapped Alias Author',
+    })
+  })
+
   it('normalizes numeric-string chapter progress fields from book payload', async () => {
     const state = createReaderState()
     const helpers = createReaderActionHelpers(state)
@@ -696,6 +724,30 @@ describe('Reader Session Flow Guards', () => {
         metrics: { cost: '12' },
       },
     ])
+  })
+
+  it('accepts meta.stage_reports in content payload', async () => {
+    const state = createReaderState()
+    const helpers = createReaderActionHelpers(state)
+    const chapter: Chapter = {
+      title: '第一章',
+      url: 'https://example.com/book/1/1',
+      index: 0,
+    }
+
+    mockGetContent.mockResolvedValue({
+      isSuccess: true,
+      data: {
+        content: '正文',
+        meta: {
+          stage_reports: [{ stage: 'fetch', ok: true }],
+        },
+      },
+    })
+
+    const content = await helpers.fetchChapterContent(chapter)
+    expect(content).toBe('正文')
+    expect(state.contentStageReports.value).toEqual([{ stage: 'fetch', ok: true }])
   })
 
   it('accepts chunks-only chapter content payload', async () => {

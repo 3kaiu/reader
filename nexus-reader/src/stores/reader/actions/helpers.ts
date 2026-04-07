@@ -219,7 +219,14 @@ function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] 
   }
 
   const root = normalizedPayload as Record<string, unknown>
-  const nested = [root.book, root.data, root.item, root.detail]
+  const nested = [
+    root.book,
+    root.bookInfo,
+    root.book_info,
+    root.data,
+    root.item,
+    root.detail,
+  ]
     .map(value => tryParseJsonPayload(value))
     .filter(value => value && typeof value === 'object') as Record<string, unknown>[]
 
@@ -334,7 +341,10 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
   const metaValue = tryParseJsonPayload(record.meta)
   const stageReportsValue =
     metaValue && typeof metaValue === 'object'
-      ? tryParseJsonPayload((metaValue as Record<string, unknown>).stageReports)
+      ? tryParseJsonPayload(
+          (metaValue as Record<string, unknown>).stageReports ??
+            (metaValue as Record<string, unknown>).stage_reports,
+        )
       : undefined
   const stageReportsFallback = tryParseJsonPayload(record.stageReports)
   const stageReportsSnake = tryParseJsonPayload(record.stage_reports)
