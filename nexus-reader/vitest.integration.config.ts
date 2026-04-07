@@ -86,13 +86,10 @@ export default defineConfig({
     // Retry configuration for flaky integration tests
     retry: 2,
     
-    // Pool options for better resource management
+    // Worker pool settings
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true // Use single fork for integration tests
-      }
-    }
+    maxWorkers: 1,
+    minWorkers: 1
   },
   
   // Resolve configuration

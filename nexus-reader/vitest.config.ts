@@ -60,14 +60,10 @@ export default defineConfig({
     // Retry configuration for flaky tests
     retry: 1,
     
-    // Pool options
+    // Worker pool settings
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        maxThreads: 4,
-        minThreads: 1
-      }
-    }
+    maxWorkers: 4,
+    minWorkers: 1
   },
   
   // Resolve configuration
