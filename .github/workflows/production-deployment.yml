@@ -137,6 +137,11 @@ jobs:
           status=$?
           set -e
 
+          if [ ! -s ../bun-audit-results.json ]; then
+            echo "❌ bun-audit-results.json is missing or empty"
+            exit 1
+          fi
+
           AUDIT_STATUS="$status" node <<'NODE'
           const fs = require('fs')
           const outputPath = process.env.GITHUB_OUTPUT
@@ -145,6 +150,7 @@ jobs:
 
           let vulnerabilities = 0
           let severities = { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 }
+          let parsedOk = true
 
           try {
             const data = JSON.parse(fs.readFileSync('../bun-audit-results.json', 'utf8'))
@@ -169,12 +175,13 @@ jobs:
               }
             }
           } catch {
-            // Keep defaults when audit output is unavailable or unparsable.
+            parsedOk = false
           }
 
           vulnerabilities = Object.values(severities).reduce((sum, v) => sum + v, 0)
           const highCritical = severities.critical + severities.high
           const hasVulns = vulnerabilities > 0 || status !== 0
+          fs.appendFileSync(outputPath, `parsed_ok=${parsedOk ? 1 : 0}\n`)
           fs.appendFileSync(outputPath, `vulnerabilities=${hasVulns ? 1 : 0}\n`)
           fs.appendFileSync(outputPath, `high_critical=${highCritical}\n`)
           fs.appendFileSync(outputPath, `total=${vulnerabilities}\n`)
@@ -196,6 +203,10 @@ jobs:
 
       - name: Enforce dependency vulnerability gate
         run: |
+          if [ "${{ steps.audit.outputs.parsed_ok }}" != "1" ]; then
+            echo "❌ Failed to parse bun audit JSON output"
+            exit 1
+          fi
           if [ "${{ steps.audit.outputs.high_critical }}" != "0" ]; then
             echo "❌ High/Critical dependency vulnerabilities detected in nexus-reader"
             exit 1
