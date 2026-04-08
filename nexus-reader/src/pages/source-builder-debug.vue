@@ -22,6 +22,7 @@ const {
   currentSourceAutoFlowStreak,
   currentSourceAutoFlowRecommendation,
   currentSourceAutoFlowHealthSummary,
+  currentSourceForcedImportSummary,
   importPreviewGuardSummary,
   importPreviewBlocked,
   forceImportArmed,
@@ -349,6 +350,7 @@ const latestOutcomeLabel = computed(() => {
           </p>
           <ul class="mt-2 space-y-1 text-[11px] text-muted-foreground break-all">
             <li v-for="item in currentSourceAutoFlowHealthSummary" :key="item">{{ item }}</li>
+            <li v-for="item in currentSourceForcedImportSummary" :key="item">{{ item }}</li>
           </ul>
         </div>
       </div>

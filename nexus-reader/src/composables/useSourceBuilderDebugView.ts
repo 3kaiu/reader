@@ -248,11 +248,21 @@ export function useSourceBuilderDebugView() {
     note: string
     createdAtMs: number
   }
+  type ForcedImportAuditEntry = {
+    id: string
+    sourceId: string
+    reason: string
+    createdAtMs: number
+  }
   const autoFlowState = ref<AutoFlowState>('IDLE')
   const autoFlowRunId = ref('')
   const autoFlowSummary = ref<string[]>([])
   const autoFlowHistory = useStorage<AutoFlowHistoryEntry[]>(
     'source-builder-auto-flow-history',
+    []
+  )
+  const forcedImportAudit = useStorage<ForcedImportAuditEntry[]>(
+    'source-builder-forced-import-audit',
     []
   )
   const currentAutoFlowSourceId = computed(
@@ -434,6 +444,21 @@ export function useSourceBuilderDebugView() {
       `导入阻断: ${importPreviewGuard.value.reasons.join(', ')}`,
       ...importPreviewGuard.value.actions,
     ]
+  })
+  const currentSourceForcedImportSummary = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = forcedImportAudit.value.filter(item => !source || item.sourceId === source)
+    const recent24h = entries.filter(item => Date.now() - item.createdAtMs <= 24 * 60 * 60 * 1000)
+    const latest = entries[0]
+    const lines = [
+      `forcedImport24h=${recent24h.length}`,
+      `forcedImportTotal=${entries.length}`,
+    ]
+    if (latest) {
+      lines.push(`lastForcedImport=${new Date(latest.createdAtMs).toLocaleString()}`)
+      lines.push(`lastForcedReason=${latest.reason}`)
+    }
+    return lines
   })
   const forceImportArmed = ref(false)
   const sourceFailureCounts = useStorage<Record<string, number>>(
@@ -820,6 +845,16 @@ export function useSourceBuilderDebugView() {
       ...autoFlowSummary.value,
       `import=forced reason=${reasonText}`,
     ].slice(-50)
+    const source = currentAutoFlowSourceId.value || 'unknown'
+    forcedImportAudit.value = [
+      {
+        id: `forced-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        sourceId: source,
+        reason: reasonText,
+        createdAtMs: Date.now(),
+      },
+      ...forcedImportAudit.value,
+    ].slice(0, 80)
     warning(`已执行强制导入（仅调试）: ${reasonText}`)
     await importPreviewPackageRaw()
   }
@@ -1117,6 +1152,7 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowRecommendation,
     currentSourceAutoFlowHealthSummary,
     importPreviewGuardSummary,
+    currentSourceForcedImportSummary,
     importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
     forceImportArmed,
     sourceFlowProfileLoading,
