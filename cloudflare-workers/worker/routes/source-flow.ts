@@ -39,6 +39,20 @@ type SourceFlowAssistResponse = {
   suggestions: SourceFlowSuggestion[]
 }
 
+type SourceFlowAssistFeedbackRequest = {
+  sourceId?: string
+  query?: string
+  normalizedQuery?: string
+  provider?: string
+  cached?: boolean
+  planSize: number
+  suggestionIds: string[]
+  beforeScore: number
+  afterScore: number
+  accepted: boolean
+  regression?: string
+}
+
 const DEFAULT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct'
 const DEFAULT_CACHE_TTL = 3600
 const MAX_QUERY_LEN = 200
@@ -348,4 +362,108 @@ export function handleSourceFlowAssistError(
     500,
     getErrorMessage(error)
   )
+}
+
+export async function handleSourceFlowAssistFeedback(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+  }
+  if (!isRecord(body)) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+  }
+
+  const feedback: SourceFlowAssistFeedbackRequest = {
+    sourceId: typeof body.sourceId === 'string' ? body.sourceId : undefined,
+    query: typeof body.query === 'string' ? body.query : undefined,
+    normalizedQuery: typeof body.normalizedQuery === 'string' ? body.normalizedQuery : undefined,
+    provider: typeof body.provider === 'string' ? body.provider : undefined,
+    cached: Boolean(body.cached),
+    planSize: Number(body.planSize ?? 0),
+    suggestionIds: Array.isArray(body.suggestionIds)
+      ? body.suggestionIds.map(item => String(item)).filter(Boolean).slice(0, 10)
+      : [],
+    beforeScore: Number(body.beforeScore ?? 0),
+    afterScore: Number(body.afterScore ?? 0),
+    accepted: Boolean(body.accepted),
+    regression: typeof body.regression === 'string' ? body.regression : undefined,
+  }
+
+  if (!Number.isFinite(feedback.planSize) || feedback.planSize <= 0) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid planSize', 400)
+  }
+
+  try {
+    await env.ANALYTICS_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_source_flow_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_id TEXT,
+        query TEXT,
+        normalized_query TEXT,
+        provider TEXT,
+        cache_hit INTEGER NOT NULL,
+        plan_size INTEGER NOT NULL,
+        suggestion_ids TEXT NOT NULL,
+        before_score REAL NOT NULL,
+        after_score REAL NOT NULL,
+        accepted INTEGER NOT NULL,
+        regression TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `).bind().run()
+
+    await env.ANALYTICS_DB.prepare(`
+      INSERT INTO ai_source_flow_feedback (
+        source_id,
+        query,
+        normalized_query,
+        provider,
+        cache_hit,
+        plan_size,
+        suggestion_ids,
+        before_score,
+        after_score,
+        accepted,
+        regression
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+      .bind(
+        feedback.sourceId || null,
+        feedback.query || null,
+        feedback.normalizedQuery || null,
+        feedback.provider || 'unknown',
+        feedback.cached ? 1 : 0,
+        Math.round(feedback.planSize),
+        JSON.stringify(feedback.suggestionIds),
+        feedback.beforeScore,
+        feedback.afterScore,
+        feedback.accepted ? 1 : 0,
+        feedback.regression || null
+      )
+      .run()
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_FEEDBACK_FAILED',
+      'Source flow feedback failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+  })
 }

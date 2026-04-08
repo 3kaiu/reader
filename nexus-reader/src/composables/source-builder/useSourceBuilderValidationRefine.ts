@@ -24,10 +24,13 @@ import {
   buildRefineSnapshot,
   buildValidationRefineSamples,
   buildValidationSnapshot,
+  requestSourceFlowAssistFeedback,
   requestSourceFlowAssist,
   refineSourceBuilderPackage,
   validateSourceBuilderPackage,
 } from '@/composables/source-builder/sourceBuilderValidationActions'
+
+const AI_REFINE_RETRY_PLAN_SIZES = [3, 2, 1] as const
 
 type UseSourceBuilderValidationRefineOptions = {
   currentPackage: ComputedRef<NxsSourcePackageDetail | null>
@@ -72,6 +75,12 @@ export function useSourceBuilderValidationRefine(
   const aiAssistLoading = ref(false)
   const aiAssistSummary = ref<string[]>([])
   const aiAssistSuggestions = ref<RefineSuggestion[]>([])
+  const aiAssistMeta = ref<{
+    query: string
+    normalizedQuery: string
+    provider: 'workers-ai' | 'ai-gateway' | 'none'
+    cached: boolean
+  } | null>(null)
 
   const validationStepSummary = computed<SourceValidationStepReport[]>(() => {
     const report = (validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null)?.report
@@ -120,6 +129,60 @@ export function useSourceBuilderValidationRefine(
     return [...unique.values()]
   })
 
+  function statusRank(status: string | undefined): number {
+    switch (status) {
+      case 'pass':
+        return 3
+      case 'warn':
+        return 2
+      case 'unknown':
+        return 1
+      case 'fail':
+      default:
+        return 0
+    }
+  }
+
+  function buildRegressionSummary(
+    beforePackage: NxsSourcePackageDetail,
+    afterPackage: NxsSourcePackageDetail
+  ): string {
+    const before = beforePackage.validation?.health
+    const after = afterPackage.validation?.health
+    if (!before || !after) {
+      return '健康分段数据缺失'
+    }
+
+    const segments = [
+      ['搜索', before.search, after.search],
+      ['详情', before.book, after.book],
+      ['目录', before.toc, after.toc],
+      ['正文', before.content, after.content],
+    ] as const
+
+    const degraded = segments
+      .filter(([, beforeSeg, afterSeg]) => {
+        const statusDrop = statusRank(afterSeg?.status) < statusRank(beforeSeg?.status)
+        const qualityDrop =
+          beforeSeg?.qualityScore != null &&
+          afterSeg?.qualityScore != null &&
+          afterSeg.qualityScore + 1e-6 < beforeSeg.qualityScore
+        return statusDrop || qualityDrop
+      })
+      .map(([label, beforeSeg, afterSeg]) => {
+        const parts: string[] = [label]
+        if (beforeSeg?.status !== afterSeg?.status) {
+          parts.push(`${beforeSeg?.status ?? 'unknown'}->${afterSeg?.status ?? 'unknown'}`)
+        }
+        if (beforeSeg?.qualityScore != null && afterSeg?.qualityScore != null) {
+          parts.push(`${Math.round(beforeSeg.qualityScore * 100)}->${Math.round(afterSeg.qualityScore * 100)}`)
+        }
+        return parts.join(' ')
+      })
+
+    return degraded.length > 0 ? degraded.join(' | ') : '总分下降但未定位到明确分段退化'
+  }
+
   async function requestAiAssist() {
     const pkg = options.currentPackage.value
     if (!pkg) {
@@ -152,6 +215,12 @@ export function useSourceBuilderValidationRefine(
         `normalizedQuery=${data.normalizedQuery || '--'}`,
         `suggestions=${data.suggestions.length}`,
       ]
+      aiAssistMeta.value = {
+        query,
+        normalizedQuery: data.normalizedQuery,
+        provider: data.provider,
+        cached: data.cached,
+      }
       if (!validateSearchQuery.value.trim() && data.normalizedQuery) {
         validateSearchQuery.value = data.normalizedQuery
       }
@@ -243,11 +312,102 @@ export function useSourceBuilderValidationRefine(
       warning('Cloudflare AI 未返回可用建议，未执行 refine')
       return
     }
-    const suggestionsToApply = aiAssistSuggestions.value.slice(0, 3)
-    for (const suggestion of suggestionsToApply) {
-      suggestion.apply()
+    const beforePackage = options.currentPackage.value
+      ? JSON.parse(JSON.stringify(options.currentPackage.value)) as NxsSourcePackageDetail
+      : null
+    const beforePackageJson = options.currentPackageJson.value
+    const beforeScore = beforePackage?.validation?.score ?? 0
+    const beforeStructuredHints = JSON.parse(JSON.stringify(structuredHints.value)) as SourceRuleHints
+    const beforeFreeTextHints = freeTextHints.value
+
+    const retryPlans = AI_REFINE_RETRY_PLAN_SIZES
+      .map(size => aiAssistSuggestions.value.slice(0, size))
+      .filter(plan => plan.length > 0)
+      .filter((plan, index, list) => {
+        const signature = plan.map(item => item.id).join('|')
+        return list.findIndex(candidate => candidate.map(item => item.id).join('|') === signature) === index
+      })
+
+    const attemptLogs: string[] = []
+    const feedbackMeta = aiAssistMeta.value
+
+    for (let attempt = 0; attempt < retryPlans.length; attempt++) {
+      structuredHints.value = JSON.parse(JSON.stringify(beforeStructuredHints)) as SourceRuleHints
+      freeTextHints.value = beforeFreeTextHints
+
+      for (const suggestion of retryPlans[attempt]) {
+        suggestion.apply()
+      }
+
+      const refined = await executeRefinePackage('已应用 Cloudflare AI 建议并完成修正', {
+        silentSuccess: true,
+      })
+      if (!refined || !beforePackage || !options.previewPackage.value) {
+        return
+      }
+
+      const afterScore = options.previewPackage.value.validation?.score ?? beforeScore
+      if (afterScore + 1e-6 >= beforeScore) {
+        void requestSourceFlowAssistFeedback({
+          sourceId: beforePackage.source.id,
+          query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
+          normalizedQuery: feedbackMeta?.normalizedQuery,
+          provider: feedbackMeta?.provider,
+          cached: feedbackMeta?.cached,
+          planSize: retryPlans[attempt].length,
+          suggestionIds: retryPlans[attempt].map(item => item.id),
+          beforeScore,
+          afterScore,
+          accepted: true,
+        }).catch(() => {})
+        attemptLogs.push(
+          `attempt ${attempt + 1}: size=${retryPlans[attempt].length} score ${Math.round(beforeScore * 100)}->${Math.round(afterScore * 100)} accepted`
+        )
+        aiAssistSummary.value = [...aiAssistSummary.value, ...attemptLogs]
+        if (attempt === 0) {
+          success('已应用 Cloudflare AI 建议并完成修正')
+        } else {
+          success('主建议组合掉分，已自动切换次优组合并完成修正')
+        }
+        return
+      }
+
+      const regression = buildRegressionSummary(beforePackage, options.previewPackage.value)
+      void requestSourceFlowAssistFeedback({
+        sourceId: beforePackage.source.id,
+        query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
+        normalizedQuery: feedbackMeta?.normalizedQuery,
+        provider: feedbackMeta?.provider,
+        cached: feedbackMeta?.cached,
+        planSize: retryPlans[attempt].length,
+        suggestionIds: retryPlans[attempt].map(item => item.id),
+        beforeScore,
+        afterScore,
+        accepted: false,
+        regression,
+      }).catch(() => {})
+      attemptLogs.push(
+        `attempt ${attempt + 1}: size=${retryPlans[attempt].length} score ${Math.round(beforeScore * 100)}->${Math.round(afterScore * 100)} rollback (${regression})`
+      )
+      options.previewPackage.value = beforePackage
+      options.previewPackageJson.value = beforePackageJson
+      validationReport.value = {
+        packageId: beforePackage.packageId,
+        report: beforePackage.validation,
+      }
+      options.lastFetchDebug.value = buildFetchDebugFromPackage(beforePackage)
+
+      if (attempt < retryPlans.length - 1) {
+        warning(
+          `AI 组合 ${attempt + 1} 掉分（${Math.round(beforeScore * 100)} -> ${Math.round(afterScore * 100)}，${regression}），自动重试次优组合`
+        )
+      } else {
+        aiAssistSummary.value = [...aiAssistSummary.value, ...attemptLogs]
+        warning(
+          `AI 自动修正全部组合均掉分（${Math.round(beforeScore * 100)} -> ${Math.round(afterScore * 100)}，${regression}），已回滚`
+        )
+      }
     }
-    await executeRefinePackage('已应用 Cloudflare AI 建议并完成修正')
   }
 
   async function validateCurrentPackage() {
@@ -304,17 +464,20 @@ export function useSourceBuilderValidationRefine(
     success(`已填充建议: ${suggestion.title}`)
   }
 
-  async function executeRefinePackage(successMessage: string) {
+  async function executeRefinePackage(
+    successMessage: string,
+    execOptions: { silentSuccess?: boolean } = {}
+  ) {
     if (!options.currentPackage.value) {
       warning('当前没有可修正的规则包')
-      return
+      return false
     }
     const hasAutoRefineSignal = (options.currentPackage.value.validation?.steps ?? []).some(
       step => Boolean(step.failureCode) || step.manualReviewRecommended
     )
     if (!hasStructuredHints.value && !freeTextHints.value.trim() && !hasAutoRefineSignal) {
       warning('当前没有可用提示，也没有可自动修正的失败分类')
-      return
+      return false
     }
 
     refineLoading.value = true
@@ -332,7 +495,7 @@ export function useSourceBuilderValidationRefine(
       })
       if (!response.isSuccess || !response.data) {
         warning(response.errorMsg || '规则修正失败')
-        return
+        return false
       }
       const refineResult = applyRefinedPackageResult(response.data)
       options.previewPackage.value = refineResult.packageData
@@ -352,9 +515,13 @@ export function useSourceBuilderValidationRefine(
           fetchHtmlPreview: options.fetchHtmlPreview.value,
         })
       )
-      success(successMessage)
+      if (!execOptions.silentSuccess) {
+        success(successMessage)
+      }
+      return true
     } catch {
       warning('规则修正失败')
+      return false
     } finally {
       refineLoading.value = false
     }
@@ -376,6 +543,7 @@ export function useSourceBuilderValidationRefine(
     refineChanges.value = []
     aiAssistSummary.value = []
     aiAssistSuggestions.value = []
+    aiAssistMeta.value = null
   }
 
   function applySnapshot(snapshot: SourceBuilderDebugSnapshot) {

@@ -89,6 +89,34 @@ export async function requestSourceFlowAssist(options: {
   })
 }
 
+export async function requestSourceFlowAssistFeedback(options: {
+  sourceId?: string
+  query?: string
+  normalizedQuery?: string
+  provider?: string
+  cached?: boolean
+  planSize: number
+  suggestionIds: string[]
+  beforeScore: number
+  afterScore: number
+  accepted: boolean
+  regression?: string
+}) {
+  return await syncApi.sourceFlowAssistFeedback({
+    sourceId: options.sourceId,
+    query: options.query,
+    normalizedQuery: options.normalizedQuery,
+    provider: options.provider,
+    cached: options.cached,
+    planSize: options.planSize,
+    suggestionIds: options.suggestionIds,
+    beforeScore: options.beforeScore,
+    afterScore: options.afterScore,
+    accepted: options.accepted,
+    regression: options.regression,
+  })
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {

@@ -23,4 +23,8 @@ export {
   handleProgressSync,
 } from './routes/content.ts'
 
-export { handleSourceFlowAssist, handleSourceFlowAssistError } from './routes/source-flow.ts'
+export {
+  handleSourceFlowAssist,
+  handleSourceFlowAssistError,
+  handleSourceFlowAssistFeedback,
+} from './routes/source-flow.ts'

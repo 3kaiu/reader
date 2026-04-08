@@ -304,6 +304,20 @@ export type SourceFlowAssistResponse = {
   suggestions: SourceFlowAssistSuggestion[]
 }
 
+export type SourceFlowAssistFeedbackRequest = {
+  sourceId?: string
+  query?: string
+  normalizedQuery?: string
+  provider?: string
+  cached?: boolean
+  planSize: number
+  suggestionIds: string[]
+  beforeScore: number
+  afterScore: number
+  accepted: boolean
+  regression?: string
+}
+
 export type SourceBuildDiagnostics = {
   host: string
   bookSampleUrl: string
@@ -580,6 +594,11 @@ export const syncApi = {
     context?: string
   }) => {
     return await $post<SourceFlowAssistResponse>('/source/flow-assist', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  sourceFlowAssistFeedback: async (payload: SourceFlowAssistFeedbackRequest) => {
+    return await $post<{ success: boolean }>('/source/flow-assist/feedback', payload, {
       silent: true,
     } satisfies ApiFetchOptions)
   },

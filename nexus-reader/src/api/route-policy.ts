@@ -6,6 +6,7 @@ const EDGE_ONLY_RULES = [
   "/api/backup",
   "/api/metrics/client",
   "/api/source/flow-assist",
+  "/api/source/flow-assist/feedback",
   "/progress/",
   "/decode/",
   "/auth/",

@@ -8,6 +8,7 @@
       "/api/backup",
       "/api/metrics/client",
       "/api/source/flow-assist",
+      "/api/source/flow-assist/feedback",
       "/progress/",
       "/decode/",
       "/auth/"
@@ -40,7 +41,8 @@
       "/api/content/upload",
       "/api/backup",
       "/api/metrics/client",
-      "/api/source/flow-assist"
+      "/api/source/flow-assist",
+      "/api/source/flow-assist/feedback"
     ],
     "experimentalRoutes": [
       "/api/search",
