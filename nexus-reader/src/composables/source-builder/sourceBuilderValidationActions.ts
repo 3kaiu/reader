@@ -2,6 +2,8 @@ import { syncApi } from '@/api/sync'
 import type {
   FetchHtmlResponse,
   NxsSourcePackageDetail,
+  SourceFlowAssistProfile,
+  SourceFlowLifecycleState,
   SourceBuildDiagnostics,
   SourceDebugPresetInputs,
   SourceFetchDebugInfo,
@@ -127,6 +129,21 @@ export async function requestSourceFlowAssistFeedbackStats(options: {
     sourceId: options.sourceId,
     days: options.days,
   })
+}
+
+export async function requestSourceFlowAssistProfile(options: { sourceId: string }) {
+  return await syncApi.getSourceFlowAssistProfile(options.sourceId)
+}
+
+export async function saveSourceFlowAssistProfile(options: {
+  sourceId: string
+  lifecycleState?: SourceFlowLifecycleState
+  preferredActions?: SourceFlowAssistProfile['preferredActions']
+  conservativeMode?: boolean
+  lastGoodRunId?: string | null
+  recentFailureCodes?: string[]
+}) {
+  return await syncApi.saveSourceFlowAssistProfile(options)
 }
 
 export function buildFetchDebugFromPackage(

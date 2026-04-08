@@ -10,6 +10,7 @@
       "/api/source/flow-assist",
       "/api/source/flow-assist/feedback",
       "/api/source/flow-assist/stats",
+      "/api/source/flow-assist/profile",
       "/progress/",
       "/decode/",
       "/auth/"
@@ -44,7 +45,8 @@
       "/api/metrics/client",
       "/api/source/flow-assist",
       "/api/source/flow-assist/feedback",
-      "/api/source/flow-assist/stats"
+      "/api/source/flow-assist/stats",
+      "/api/source/flow-assist/profile"
     ],
     "experimentalRoutes": [
       "/api/search",

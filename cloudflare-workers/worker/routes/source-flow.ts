@@ -54,6 +54,23 @@ type SourceFlowAssistFeedbackRequest = {
   regression?: string
 }
 
+type SourceFlowLifecycleState =
+  | 'new'
+  | 'warming'
+  | 'stable'
+  | 'degraded'
+  | 'quarantined'
+
+type SourceFlowAssistProfile = {
+  sourceId: string
+  lifecycleState: SourceFlowLifecycleState
+  preferredActions: SourceFlowSuggestion['actionCode'][]
+  conservativeMode: boolean
+  lastGoodRunId?: string | null
+  recentFailureCodes: string[]
+  updatedAt: string
+}
+
 type SourceFlowAssistFeedbackStatsResponse = {
   success: boolean
   windowDays: number
@@ -105,6 +122,18 @@ const ALLOWED_ACTIONS = new Set<SourceFlowSuggestion['actionCode']>([
 
 function normalizeText(input: string, limit: number): string {
   return input.trim().replace(/\s+/g, ' ').slice(0, limit)
+}
+
+function toActionCodeArray(value: unknown): SourceFlowSuggestion['actionCode'][] {
+  if (!Array.isArray(value)) return []
+  const actions: SourceFlowSuggestion['actionCode'][] = []
+  for (const item of value) {
+    const action = String(item || '').trim() as SourceFlowSuggestion['actionCode']
+    if (ALLOWED_ACTIONS.has(action) && !actions.includes(action)) {
+      actions.push(action)
+    }
+  }
+  return actions.slice(0, 6)
 }
 
 function deriveRecommendedActions(options: {
@@ -378,6 +407,31 @@ async function ensureFeedbackTable(env: EnhancedWorkerEnv): Promise<void> {
     `).bind().run()
   } catch {
     // column may already exist
+  }
+}
+
+async function ensureProfileTable(env: EnhancedWorkerEnv): Promise<void> {
+  await env.ANALYTICS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_source_flow_profiles (
+      source_id TEXT PRIMARY KEY,
+      lifecycle_state TEXT NOT NULL DEFAULT 'new',
+      preferred_actions TEXT NOT NULL DEFAULT '[]',
+      conservative_mode INTEGER NOT NULL DEFAULT 0,
+      last_good_run_id TEXT,
+      recent_failure_codes TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).bind().run()
+}
+
+function parseJsonArray(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => String(item)).map(item => item.trim()).filter(Boolean)
+  } catch {
+    return []
   }
 }
 
@@ -769,4 +823,148 @@ export async function handleSourceFlowAssistFeedbackStats(
       getErrorMessage(error)
     )
   }
+}
+
+export async function handleSourceFlowAssistProfile(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+
+  try {
+    await ensureProfileTable(env)
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_PROFILE_FAILED',
+      'Source flow profile table failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+
+  if (request.method === 'GET') {
+    const url = new URL(request.url)
+    const sourceId = normalizeText(url.searchParams.get('sourceId') || '', 120)
+    if (!sourceId) {
+      return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+    }
+
+    try {
+      const row = await env.ANALYTICS_DB.prepare(`
+        SELECT
+          source_id,
+          lifecycle_state,
+          preferred_actions,
+          conservative_mode,
+          last_good_run_id,
+          recent_failure_codes,
+          updated_at
+        FROM ai_source_flow_profiles
+        WHERE source_id = ?
+        LIMIT 1
+      `).bind(sourceId).first<{
+        source_id?: string
+        lifecycle_state?: string
+        preferred_actions?: string
+        conservative_mode?: number
+        last_good_run_id?: string | null
+        recent_failure_codes?: string
+        updated_at?: string
+      }>()
+
+      const lifecycle = String(row?.lifecycle_state || 'new') as SourceFlowLifecycleState
+      const profile: SourceFlowAssistProfile = {
+        sourceId,
+        lifecycleState: lifecycle,
+        preferredActions: toActionCodeArray(parseJsonArray(row?.preferred_actions)),
+        conservativeMode: Number(row?.conservative_mode || 0) > 0,
+        lastGoodRunId: row?.last_good_run_id || null,
+        recentFailureCodes: parseJsonArray(row?.recent_failure_codes).slice(0, 8),
+        updatedAt: row?.updated_at || new Date().toISOString(),
+      }
+      return new Response(JSON.stringify({ success: true, profile }), {
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    } catch (error) {
+      return jsonError(
+        request,
+        'SOURCE_FLOW_PROFILE_FAILED',
+        'Source flow profile failed',
+        500,
+        getErrorMessage(error)
+      )
+    }
+  }
+
+  if (request.method === 'POST') {
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+    }
+    if (!isRecord(body)) {
+      return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+    }
+
+    const sourceId = normalizeText(typeof body.sourceId === 'string' ? body.sourceId : '', 120)
+    if (!sourceId) {
+      return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+    }
+    const lifecycleCandidate = String(body.lifecycleState || 'new').trim()
+    const lifecycleState = (
+      ['new', 'warming', 'stable', 'degraded', 'quarantined'].includes(lifecycleCandidate)
+        ? lifecycleCandidate
+        : 'new'
+    ) as SourceFlowLifecycleState
+    const preferredActions = toActionCodeArray(body.preferredActions)
+    const recentFailureCodes = Array.isArray(body.recentFailureCodes)
+      ? body.recentFailureCodes.map(item => String(item)).map(item => item.trim()).filter(Boolean).slice(0, 8)
+      : []
+    const conservativeMode = Boolean(body.conservativeMode)
+    const lastGoodRunId = typeof body.lastGoodRunId === 'string' ? body.lastGoodRunId.trim() : null
+
+    try {
+      await env.ANALYTICS_DB.prepare(`
+        INSERT INTO ai_source_flow_profiles (
+          source_id,
+          lifecycle_state,
+          preferred_actions,
+          conservative_mode,
+          last_good_run_id,
+          recent_failure_codes,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(source_id) DO UPDATE SET
+          lifecycle_state = excluded.lifecycle_state,
+          preferred_actions = excluded.preferred_actions,
+          conservative_mode = excluded.conservative_mode,
+          last_good_run_id = excluded.last_good_run_id,
+          recent_failure_codes = excluded.recent_failure_codes,
+          updated_at = datetime('now')
+      `).bind(
+        sourceId,
+        lifecycleState,
+        JSON.stringify(preferredActions),
+        conservativeMode ? 1 : 0,
+        lastGoodRunId || null,
+        JSON.stringify(recentFailureCodes)
+      ).run()
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    } catch (error) {
+      return jsonError(
+        request,
+        'SOURCE_FLOW_PROFILE_FAILED',
+        'Source flow profile save failed',
+        500,
+        getErrorMessage(error)
+      )
+    }
+  }
+
+  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
 }

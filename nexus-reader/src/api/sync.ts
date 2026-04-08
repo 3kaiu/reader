@@ -361,6 +361,23 @@ export type SourceFlowAssistFeedbackStatsResponse = {
   recentRegressions: string[]
 }
 
+export type SourceFlowLifecycleState =
+  | 'new'
+  | 'warming'
+  | 'stable'
+  | 'degraded'
+  | 'quarantined'
+
+export type SourceFlowAssistProfile = {
+  sourceId: string
+  lifecycleState: SourceFlowLifecycleState
+  preferredActions: SourceFlowAssistSuggestion['actionCode'][]
+  conservativeMode: boolean
+  lastGoodRunId?: string | null
+  recentFailureCodes: string[]
+  updatedAt: string
+}
+
 export type SourceBuildDiagnostics = {
   host: string
   bookSampleUrl: string
@@ -655,6 +672,27 @@ export const syncApi = {
     }
     const suffix = query.size > 0 ? `?${query.toString()}` : ''
     return await $get<SourceFlowAssistFeedbackStatsResponse>(`/source/flow-assist/stats${suffix}`, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  getSourceFlowAssistProfile: async (sourceId: string) => {
+    const query = new URLSearchParams({ sourceId })
+    return await $get<{ success: boolean; profile: SourceFlowAssistProfile }>(
+      `/source/flow-assist/profile?${query.toString()}`,
+      {
+        silent: true,
+      } satisfies ApiFetchOptions
+    )
+  },
+  saveSourceFlowAssistProfile: async (payload: {
+    sourceId: string
+    lifecycleState?: SourceFlowLifecycleState
+    preferredActions?: SourceFlowAssistSuggestion['actionCode'][]
+    conservativeMode?: boolean
+    lastGoodRunId?: string | null
+    recentFailureCodes?: string[]
+  }) => {
+    return await $post<{ success: boolean }>('/source/flow-assist/profile', payload, {
       silent: true,
     } satisfies ApiFetchOptions)
   },

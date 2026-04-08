@@ -4,6 +4,8 @@ import type {
   FetchHtmlResponse,
   NxsSourcePackageDetail,
   SourceBuildDiagnostics,
+  SourceFlowAssistSuggestion,
+  SourceFlowAssistProfile,
   SourceFetchDebugInfo,
   SourceRuleHints,
   SourceValidationStepReport,
@@ -27,12 +29,22 @@ import {
   buildValidationSnapshot,
   requestSourceFlowAssistFeedback,
   requestSourceFlowAssistFeedbackStats,
+  requestSourceFlowAssistProfile,
   requestSourceFlowAssist,
+  saveSourceFlowAssistProfile,
   refineSourceBuilderPackage,
   validateSourceBuilderPackage,
 } from '@/composables/source-builder/sourceBuilderValidationActions'
 
 const AI_REFINE_RETRY_PLAN_SIZES = [3, 2, 1] as const
+const ALLOWED_ACTION_CODES = new Set<SourceFlowAssistSuggestion['actionCode']>([
+  'run_validation_with_samples',
+  'fix_rule_compile_errors',
+  'repair_search_selectors_or_samples',
+  'repair_book_title_author_selectors',
+  'repair_toc_item_selector',
+  'repair_content_selector_and_noise_rules',
+])
 
 type UseSourceBuilderValidationRefineOptions = {
   currentPackage: ComputedRef<NxsSourcePackageDetail | null>
@@ -108,6 +120,95 @@ export function useSourceBuilderValidationRefine(
     cached: boolean
   } | null>(null)
   const aiAssistRunId = ref<string | null>(null)
+  const aiAssistProfile = ref<SourceFlowAssistProfile | null>(null)
+  const aiAssistProfileSourceId = ref<string | null>(null)
+  const aiAssistSuggestionActionCodeById = ref<
+    Record<string, SourceFlowAssistSuggestion['actionCode']>
+  >({})
+
+  function dedupeActionCodes(actions: string[]): SourceFlowAssistSuggestion['actionCode'][] {
+    const unique: SourceFlowAssistSuggestion['actionCode'][] = []
+    for (const item of actions) {
+      const actionCode = item as SourceFlowAssistSuggestion['actionCode']
+      if (ALLOWED_ACTION_CODES.has(actionCode) && !unique.includes(actionCode)) {
+        unique.push(actionCode)
+      }
+    }
+    return unique.slice(0, 6)
+  }
+
+  async function ensureAiAssistProfile(sourceId: string) {
+    if (!sourceId) return
+    if (aiAssistProfileSourceId.value === sourceId && aiAssistProfile.value) return
+    try {
+      const response = await requestSourceFlowAssistProfile({ sourceId })
+      if (!response.isSuccess || !response.data?.profile) return
+      aiAssistProfile.value = response.data.profile
+      aiAssistProfileSourceId.value = sourceId
+      aiAssistSummary.value = [
+        ...aiAssistSummary.value,
+        `profileState=${response.data.profile.lifecycleState}`,
+        `profileConservative=${response.data.profile.conservativeMode ? 'on' : 'off'}`,
+      ]
+    } catch {
+      // best effort only
+    }
+  }
+
+  async function persistAiAssistProfile(sourceId: string, patch: {
+    lifecycleState?: SourceFlowAssistProfile['lifecycleState']
+    preferredActions?: SourceFlowAssistSuggestion['actionCode'][]
+    conservativeMode?: boolean
+    lastGoodRunId?: string | null
+    recentFailureCodes?: string[]
+  }) {
+    if (!sourceId) return
+    const current = aiAssistProfile.value?.sourceId === sourceId
+      ? aiAssistProfile.value
+      : null
+    const next: SourceFlowAssistProfile = {
+      sourceId,
+      lifecycleState: patch.lifecycleState ?? current?.lifecycleState ?? 'new',
+      preferredActions: dedupeActionCodes(
+        patch.preferredActions ?? current?.preferredActions ?? []
+      ),
+      conservativeMode: patch.conservativeMode ?? current?.conservativeMode ?? false,
+      lastGoodRunId:
+        patch.lastGoodRunId === undefined ? current?.lastGoodRunId ?? null : patch.lastGoodRunId,
+      recentFailureCodes: (patch.recentFailureCodes ?? current?.recentFailureCodes ?? []).slice(0, 8),
+      updatedAt: current?.updatedAt ?? new Date().toISOString(),
+    }
+    aiAssistProfile.value = next
+    aiAssistProfileSourceId.value = sourceId
+    try {
+      await saveSourceFlowAssistProfile({
+        sourceId: next.sourceId,
+        lifecycleState: next.lifecycleState,
+        preferredActions: next.preferredActions,
+        conservativeMode: next.conservativeMode,
+        lastGoodRunId: next.lastGoodRunId ?? null,
+        recentFailureCodes: next.recentFailureCodes,
+      })
+    } catch {
+      // best effort only
+    }
+  }
+
+  function mergeRecommendedActions(
+    statsActions: Array<{ actionCode: SourceFlowAssistSuggestion['actionCode']; reason: string; priority: number }>,
+    profileActions: SourceFlowAssistSuggestion['actionCode'][]
+  ) {
+    const merged = [...statsActions]
+    for (const actionCode of profileActions) {
+      if (merged.some(item => item.actionCode === actionCode)) continue
+      merged.push({
+        actionCode,
+        reason: 'Profile 历史偏好动作',
+        priority: 999,
+      })
+    }
+    return merged
+  }
 
   const validationStepSummary = computed<SourceValidationStepReport[]>(() => {
     const report = (validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null)?.report
@@ -404,6 +505,16 @@ export function useSourceBuilderValidationRefine(
 
   function applyRecommendedAction(actionCode: string, reason: string) {
     applyActionCodeHint(actionCode, `[Ops 推荐] ${reason}`)
+    const sourceId = options.currentPackage.value?.source.id || ''
+    if (sourceId && ALLOWED_ACTION_CODES.has(actionCode as SourceFlowAssistSuggestion['actionCode'])) {
+      const preferred = dedupeActionCodes([
+        actionCode,
+        ...(aiAssistProfile.value?.preferredActions || []),
+      ])
+      void persistAiAssistProfile(sourceId, {
+        preferredActions: preferred,
+      })
+    }
     success(`已应用推荐动作: ${actionCode}`)
   }
 
@@ -414,6 +525,7 @@ export function useSourceBuilderValidationRefine(
 
   async function appendAiFeedbackStats(sourceId?: string) {
     if (!sourceId) return
+    await ensureAiAssistProfile(sourceId)
     try {
       const response = await requestSourceFlowAssistFeedbackStats({ sourceId, days: 14 })
       if (!response.isSuccess || !response.data) return
@@ -433,7 +545,10 @@ export function useSourceBuilderValidationRefine(
       }
       aiAssistOpsLeaderboard.value = stats.sourceLeaderboard || []
       aiAssistOpsRegressionTop.value = stats.regressionTop || []
-      aiAssistOpsRecommendedActions.value = stats.recommendedActions || []
+      aiAssistOpsRecommendedActions.value = mergeRecommendedActions(
+        stats.recommendedActions || [],
+        aiAssistProfile.value?.preferredActions || []
+      )
       if ((stats.sourceLeaderboard || []).length > 0) {
         const top = stats.sourceLeaderboard[0]
         aiAssistSummary.value.push(
@@ -491,6 +606,13 @@ export function useSourceBuilderValidationRefine(
         provider: data.provider,
         cached: data.cached,
       }
+      aiAssistSuggestionActionCodeById.value = data.suggestions.reduce(
+        (acc, item) => {
+          acc[`cf-ai-${item.id}`] = item.actionCode
+          return acc
+        },
+        {} as Record<string, SourceFlowAssistSuggestion['actionCode']>
+      )
       if (!validateSearchQuery.value.trim() && data.normalizedQuery) {
         validateSearchQuery.value = data.normalizedQuery
       }
@@ -534,6 +656,7 @@ export function useSourceBuilderValidationRefine(
     const beforeFreeTextHints = freeTextHints.value
 
     const retryPlans = AI_REFINE_RETRY_PLAN_SIZES
+      .filter(size => !(aiAssistProfile.value?.conservativeMode) || size === 1)
       .map(size => aiAssistSuggestions.value.slice(0, size))
       .filter(plan => plan.length > 0)
       .filter((plan, index, list) => {
@@ -561,6 +684,11 @@ export function useSourceBuilderValidationRefine(
 
       const afterScore = options.previewPackage.value.validation?.score ?? beforeScore
       if (afterScore + 1e-6 >= beforeScore) {
+        const acceptedActionCodes = dedupeActionCodes(
+          retryPlans[attempt]
+            .map(item => aiAssistSuggestionActionCodeById.value[item.id])
+            .filter((item): item is SourceFlowAssistSuggestion['actionCode'] => Boolean(item))
+        )
         void requestSourceFlowAssistFeedback({
           runId: aiAssistRunId.value || undefined,
           sourceId: beforePackage.source.id,
@@ -577,6 +705,15 @@ export function useSourceBuilderValidationRefine(
         attemptLogs.push(
           `attempt ${attempt + 1}: size=${retryPlans[attempt].length} score ${Math.round(beforeScore * 100)}->${Math.round(afterScore * 100)} accepted`
         )
+        void persistAiAssistProfile(beforePackage.source.id, {
+          lifecycleState: 'stable',
+          preferredActions: dedupeActionCodes([
+            ...acceptedActionCodes,
+            ...(aiAssistProfile.value?.preferredActions || []),
+          ]),
+          conservativeMode: attempt > 0 ? true : (aiAssistProfile.value?.conservativeMode ?? false),
+          lastGoodRunId: aiAssistRunId.value || aiAssistProfile.value?.lastGoodRunId || null,
+        })
         aiAssistSummary.value = [...aiAssistSummary.value, ...attemptLogs]
         if (attempt === 0) {
           success('已应用 Cloudflare AI 建议并完成修正')
@@ -619,6 +756,15 @@ export function useSourceBuilderValidationRefine(
         )
       } else {
         aiAssistSummary.value = [...aiAssistSummary.value, ...attemptLogs]
+        const nextRecentFailureCodes = [
+          regression,
+          ...(aiAssistProfile.value?.recentFailureCodes || []),
+        ]
+        void persistAiAssistProfile(beforePackage.source.id, {
+          lifecycleState: 'degraded',
+          conservativeMode: true,
+          recentFailureCodes: nextRecentFailureCodes.slice(0, 8),
+        })
         warning(
           `AI 自动修正全部组合均掉分（${Math.round(beforeScore * 100)} -> ${Math.round(afterScore * 100)}，${regression}），已回滚`
         )
@@ -765,6 +911,9 @@ export function useSourceBuilderValidationRefine(
     aiAssistOpsRecommendedActions.value = []
     aiAssistMeta.value = null
     aiAssistRunId.value = null
+    aiAssistProfile.value = null
+    aiAssistProfileSourceId.value = null
+    aiAssistSuggestionActionCodeById.value = {}
   }
 
   function setAiAssistRunId(runId: string | null) {
