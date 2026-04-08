@@ -69,6 +69,18 @@ type SourceFlowAssistFeedbackStatsResponse = {
     accepted: number
     acceptRate: number
   }>
+  sourceLeaderboard: Array<{
+    sourceId: string
+    count: number
+    accepted: number
+    acceptRate: number
+    avgDeltaScore: number
+    regressionCount: number
+  }>
+  regressionTop: Array<{
+    regression: string
+    count: number
+  }>
   recentRegressions: string[]
 }
 
@@ -561,6 +573,45 @@ export async function handleSourceFlowAssistFeedbackStats(
       LIMIT 5
     `).bind(...baseBindings).all<{ regression?: string }>()
 
+    const sourceLeaderboardRows = await env.ANALYTICS_DB.prepare(`
+      SELECT
+        source_id,
+        COUNT(*) AS count,
+        COALESCE(SUM(accepted), 0) AS accepted,
+        COALESCE(AVG(after_score - before_score), 0) AS avg_delta_score,
+        COALESCE(SUM(CASE WHEN accepted = 0 THEN 1 ELSE 0 END), 0) AS regression_count
+      FROM ai_source_flow_feedback
+      WHERE created_at >= datetime('now', ?)
+        AND source_id IS NOT NULL
+        AND LENGTH(TRIM(source_id)) > 0
+      GROUP BY source_id
+      ORDER BY count DESC, avg_delta_score ASC
+      LIMIT 8
+    `).bind(`-${windowDays} days`).all<{
+      source_id?: string
+      count?: number
+      accepted?: number
+      avg_delta_score?: number
+      regression_count?: number
+    }>()
+
+    const regressionTopRows = await env.ANALYTICS_DB.prepare(`
+      SELECT
+        regression,
+        COUNT(*) AS count
+      FROM ai_source_flow_feedback
+      WHERE created_at >= datetime('now', ?)
+        AND accepted = 0
+        AND regression IS NOT NULL
+        AND LENGTH(TRIM(regression)) > 0
+      GROUP BY regression
+      ORDER BY count DESC
+      LIMIT 8
+    `).bind(`-${windowDays} days`).all<{
+      regression?: string
+      count?: number
+    }>()
+
     const total = Number(summary?.total || 0)
     const accepted = Number(summary?.accepted || 0)
     const responseBody: SourceFlowAssistFeedbackStatsResponse = {
@@ -583,6 +634,22 @@ export async function handleSourceFlowAssistFeedbackStats(
           acceptRate: count > 0 ? acceptedCount / count : 0,
         }
       }),
+      sourceLeaderboard: (sourceLeaderboardRows.results || []).map(row => {
+        const count = Number(row.count || 0)
+        const acceptedCount = Number(row.accepted || 0)
+        return {
+          sourceId: String(row.source_id || '').trim() || 'unknown',
+          count,
+          accepted: acceptedCount,
+          acceptRate: count > 0 ? acceptedCount / count : 0,
+          avgDeltaScore: Number(row.avg_delta_score || 0),
+          regressionCount: Number(row.regression_count || 0),
+        }
+      }),
+      regressionTop: (regressionTopRows.results || []).map(row => ({
+        regression: String(row.regression || '').trim(),
+        count: Number(row.count || 0),
+      })),
       recentRegressions: (regressionRows.results || [])
         .map(row => String(row.regression || '').trim())
         .filter(Boolean),

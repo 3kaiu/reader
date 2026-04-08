@@ -27,6 +27,15 @@ const props = defineProps<{
   refineLoading: boolean
   aiAssistLoading: boolean
   aiAssistSummary: string[]
+  aiAssistOpsLeaderboard: Array<{
+    sourceId: string
+    count: number
+    accepted: number
+    acceptRate: number
+    avgDeltaScore: number
+    regressionCount: number
+  }>
+  aiAssistOpsRegressionTop: Array<{ regression: string; count: number }>
   hasCurrentPackage: boolean
   refineAutoActions: string[]
   refineAppliedHints: string[]
@@ -78,6 +87,33 @@ function onNoisePatternsInput(event: Event) {
       <ul class="space-y-1 text-xs break-all">
         <li v-for="item in props.aiAssistSummary" :key="item">{{ item }}</li>
       </ul>
+    </div>
+    <div
+      v-if="props.aiAssistOpsLeaderboard.length > 0 || props.aiAssistOpsRegressionTop.length > 0"
+      class="p-5 border-b border-border/50"
+    >
+      <p class="text-xs text-muted-foreground mb-3">AI Feedback Ops Insights (14d)</p>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <div v-if="props.aiAssistOpsLeaderboard.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+          <p class="text-xs text-muted-foreground mb-2">Top Sources</p>
+          <ul class="space-y-1 text-[11px] break-all">
+            <li v-for="item in props.aiAssistOpsLeaderboard" :key="item.sourceId">
+              {{ item.sourceId }} · {{ item.accepted }}/{{ item.count }} ·
+              accept={{ Math.round(item.acceptRate * 100) }}% ·
+              delta={{ Math.round(item.avgDeltaScore * 100) }} ·
+              regressions={{ item.regressionCount }}
+            </li>
+          </ul>
+        </div>
+        <div v-if="props.aiAssistOpsRegressionTop.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+          <p class="text-xs text-muted-foreground mb-2">Top Regressions</p>
+          <ul class="space-y-1 text-[11px] break-all">
+            <li v-for="item in props.aiAssistOpsRegressionTop" :key="`${item.regression}-${item.count}`">
+              {{ item.regression }} · {{ item.count }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
     <div v-if="props.refineSuggestions.length > 0" class="p-5 border-b border-border/50">
       <p class="text-xs text-muted-foreground mb-3">Suggested Fixes</p>

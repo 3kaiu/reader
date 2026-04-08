@@ -334,6 +334,18 @@ export type SourceFlowAssistFeedbackStatsResponse = {
     accepted: number
     acceptRate: number
   }>
+  sourceLeaderboard: Array<{
+    sourceId: string
+    count: number
+    accepted: number
+    acceptRate: number
+    avgDeltaScore: number
+    regressionCount: number
+  }>
+  regressionTop: Array<{
+    regression: string
+    count: number
+  }>
   recentRegressions: string[]
 }
 

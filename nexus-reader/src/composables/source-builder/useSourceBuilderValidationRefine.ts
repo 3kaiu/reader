@@ -76,6 +76,17 @@ export function useSourceBuilderValidationRefine(
   const aiAssistLoading = ref(false)
   const aiAssistSummary = ref<string[]>([])
   const aiAssistSuggestions = ref<RefineSuggestion[]>([])
+  const aiAssistOpsLeaderboard = ref<
+    Array<{
+      sourceId: string
+      count: number
+      accepted: number
+      acceptRate: number
+      avgDeltaScore: number
+      regressionCount: number
+    }>
+  >([])
+  const aiAssistOpsRegressionTop = ref<Array<{ regression: string; count: number }>>([])
   const aiAssistMeta = ref<{
     query: string
     normalizedQuery: string
@@ -202,6 +213,18 @@ export function useSourceBuilderValidationRefine(
         aiAssistSummary.value.push(
           `topProvider=${providerTop.provider} ${providerTop.accepted}/${providerTop.count}`
         )
+      }
+      aiAssistOpsLeaderboard.value = stats.sourceLeaderboard || []
+      aiAssistOpsRegressionTop.value = stats.regressionTop || []
+      if ((stats.sourceLeaderboard || []).length > 0) {
+        const top = stats.sourceLeaderboard[0]
+        aiAssistSummary.value.push(
+          `topSource=${top.sourceId} accept=${Math.round(top.acceptRate * 100)}% delta=${Math.round(top.avgDeltaScore * 100)}`
+        )
+      }
+      if ((stats.regressionTop || []).length > 0) {
+        const top = stats.regressionTop[0]
+        aiAssistSummary.value.push(`topRegression=${top.regression} (${top.count})`)
       }
     } catch {
       // best effort only
@@ -571,6 +594,8 @@ export function useSourceBuilderValidationRefine(
     refineChanges.value = []
     aiAssistSummary.value = []
     aiAssistSuggestions.value = []
+    aiAssistOpsLeaderboard.value = []
+    aiAssistOpsRegressionTop.value = []
     aiAssistMeta.value = null
   }
 
@@ -593,6 +618,8 @@ export function useSourceBuilderValidationRefine(
     refineChanges,
     aiAssistLoading,
     aiAssistSummary,
+    aiAssistOpsLeaderboard,
+    aiAssistOpsRegressionTop,
     validationStepSummary,
     refineSuggestions,
     requestAiAssist,

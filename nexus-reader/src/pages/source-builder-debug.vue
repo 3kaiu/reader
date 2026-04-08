@@ -68,6 +68,8 @@ const {
   refineChanges,
   aiAssistLoading,
   aiAssistSummary,
+  aiAssistOpsLeaderboard,
+  aiAssistOpsRegressionTop,
   refineSuggestions,
   validateSearchQuery,
   validateBookUrl,
@@ -309,6 +311,8 @@ const {
       :refine-changes="refineChanges"
       :ai-assist-loading="aiAssistLoading"
       :ai-assist-summary="aiAssistSummary"
+      :ai-assist-ops-leaderboard="aiAssistOpsLeaderboard"
+      :ai-assist-ops-regression-top="aiAssistOpsRegressionTop"
       @apply-refine-suggestion="applyRefineSuggestion"
       @apply-refine-suggestion-and-refine="applyRefineSuggestionAndRefine"
       @request-ai-assist="requestAiAssist"
