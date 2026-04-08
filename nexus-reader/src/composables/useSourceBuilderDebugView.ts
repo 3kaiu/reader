@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
@@ -424,7 +424,7 @@ export function useSourceBuilderDebugView() {
     }
     const quality = Number(profile.qualityScore || 0)
     const cooldownActive = Boolean(
-      profile.cooldownUntil && Number(new Date(profile.cooldownUntil).getTime()) > Date.now()
+      profile.cooldownUntil && Number(new Date(profile.cooldownUntil).getTime()) > sessionNowMs.value
     )
     if (cooldownActive) {
       return {
@@ -481,6 +481,13 @@ export function useSourceBuilderDebugView() {
     }
     const sessionProfile = currentSourceSessionProfile.value
     if (sessionProfile && sessionProfile.sourceId === source) {
+      const cooldownActive = Boolean(
+        sessionProfile.cooldownUntil &&
+        Number(new Date(sessionProfile.cooldownUntil).getTime()) > sessionNowMs.value
+      )
+      if (cooldownActive) {
+        reasons.push('session_cooldown_active')
+      }
       if (sessionProfile.sessionState === 'blocked') {
         reasons.push('session_state=blocked')
       }
@@ -558,6 +565,30 @@ export function useSourceBuilderDebugView() {
       note: item.reason,
     }))
   })
+  const currentSourceSessionCooldown = computed(() => {
+    const profile = currentSourceSessionProfile.value
+    if (!profile?.cooldownUntil) {
+      return {
+        active: false,
+        leftMs: 0,
+        until: '--',
+        label: 'sessionCooldown=off',
+      }
+    }
+    const untilMs = Number(new Date(profile.cooldownUntil).getTime())
+    const leftMs = Math.max(0, untilMs - sessionNowMs.value)
+    const active = leftMs > 0
+    const minutes = Math.floor(leftMs / 60000)
+    const seconds = Math.floor((leftMs % 60000) / 1000)
+    return {
+      active,
+      leftMs,
+      until: profile.cooldownUntil,
+      label: active
+        ? `sessionCooldown=on ${minutes}m${seconds}s`
+        : `sessionCooldown=ended @ ${profile.cooldownUntil}`,
+    }
+  })
   const forceImportArmed = ref(false)
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
@@ -634,6 +665,7 @@ export function useSourceBuilderDebugView() {
   const sourceSessionProfileLoading = ref(false)
   const currentSourceSessionProfile = ref<SourceSessionProfile | null>(null)
   const sourceSessionProfileSummary = ref<string[]>([])
+  const sessionNowMs = ref(Date.now())
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
     search: 0.7,
@@ -1063,6 +1095,15 @@ export function useSourceBuilderDebugView() {
     ) {
       const acquired = await acquireSession('auto_browser_like', 'autoAcquire')
       if (!acquired.ok) return finish({ pass: false, reason: acquired.reason })
+    }
+    const cooldownUntil = currentSourceSessionProfile.value?.cooldownUntil || profile?.cooldownUntil
+    if (cooldownUntil) {
+      const cooldownLeftMs = Number(new Date(cooldownUntil).getTime()) - sessionNowMs.value
+      if (cooldownLeftMs > 0) {
+        const cooldownSeconds = Math.ceil(cooldownLeftMs / 1000)
+        autoFlowSummary.value.push(`gate@session:cooldown=fail(${cooldownSeconds}s_left)`)
+        return finish({ pass: false, reason: `session_cooldown_active:${cooldownSeconds}s` })
+      }
     }
 
     const firstVerify = await verifySession('verify')
@@ -1578,6 +1619,10 @@ export function useSourceBuilderDebugView() {
   }
 
   onMounted(async () => {
+    const timer = setInterval(() => {
+      sessionNowMs.value = Date.now()
+    }, 1000)
+    onUnmounted(() => clearInterval(timer))
     loadDebugSnapshots()
     await refreshPackages()
     await refreshCurrentSourceFlowProfile()
@@ -1599,10 +1644,12 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowRecommendation,
     currentSourceAutoFlowHealthSummary,
     currentSourceSessionRecommendation,
+    currentSourceSessionCooldown,
     importPreviewGuardSummary,
     currentSourceForcedImportSummary,
     currentSourceSessionGateHistorySummary,
     currentSourceSessionGateHistoryItems,
+    currentSourceSessionCooldownActive: computed(() => currentSourceSessionCooldown.value.active),
     importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
     forceImportArmed,
     sourceFlowProfileLoading,

@@ -23,6 +23,8 @@ const {
   currentSourceAutoFlowRecommendation,
   currentSourceAutoFlowHealthSummary,
   currentSourceSessionRecommendation,
+  currentSourceSessionCooldown,
+  currentSourceSessionCooldownActive,
   currentSourceForcedImportSummary,
   currentSourceSessionGateHistorySummary,
   currentSourceSessionGateHistoryItems,
@@ -321,7 +323,7 @@ const latestOutcomeLabel = computed(() => {
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || currentSourceSessionCooldownActive || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
           @click="buildValidateAndAutoRefine"
         >
           {{
@@ -412,6 +414,7 @@ const latestOutcomeLabel = computed(() => {
             <li v-for="item in currentSourceAutoFlowHealthSummary" :key="item">{{ item }}</li>
             <li v-for="item in currentSourceForcedImportSummary" :key="item">{{ item }}</li>
             <li v-for="item in currentSourceSessionGateHistorySummary" :key="item">{{ item }}</li>
+            <li>{{ currentSourceSessionCooldown.label }}</li>
           </ul>
         </div>
       </div>
