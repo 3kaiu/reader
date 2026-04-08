@@ -15,6 +15,8 @@ const {
   autoFlowState,
   autoFlowRunId,
   autoFlowSummary,
+  sourceFlowProfileLoading,
+  sourceFlowProfileSummary,
   sourcePackages,
   sourceBuildPreviewSummary,
   currentPreviewSummary,
@@ -127,6 +129,7 @@ const {
   runDetailValidation,
   runDetailAndChaptersValidation,
   runSearchToContentValidation,
+  refreshCurrentSourceFlowProfile,
   resetCurrentSourceFlowState,
   clearPreview,
   buildValidateAndAutoRefine,
@@ -171,10 +174,24 @@ const {
         <button class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm" @click="clearPreview">清空预览</button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceFlowProfileLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="refreshCurrentSourceFlowProfile"
+        >
+          {{ sourceFlowProfileLoading ? '刷新中...' : '刷新 Profile' }}
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
           :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !(currentPackage?.source?.id || sourceId.trim())"
           @click="resetCurrentSourceFlowState({ lifecycleState: 'warming' })"
         >
-          重置 Source 状态
+          解封 Source 状态
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="resetCurrentSourceFlowState({ lifecycleState: 'new', clearPreferredActions: true })"
+        >
+          重置为新源
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
@@ -198,6 +215,14 @@ const {
             <li>state={{ autoFlowState }}</li>
             <li v-if="autoFlowRunId">runId={{ autoFlowRunId }}</li>
             <li v-for="item in autoFlowSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="sourceFlowProfileSummary.length > 0" class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Source Flow Profile</p>
+          <ul class="space-y-1 text-xs break-all">
+            <li v-for="item in sourceFlowProfileSummary" :key="item">{{ item }}</li>
           </ul>
         </div>
       </div>

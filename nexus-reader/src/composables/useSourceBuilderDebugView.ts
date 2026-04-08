@@ -16,7 +16,10 @@ import { useSourceBuilderSummaries } from '@/composables/source-builder/useSourc
 import { useSourceBuilderValidationRefine } from '@/composables/source-builder/useSourceBuilderValidationRefine'
 import { useSourceBuilderRuntimeGovernance } from '@/composables/source-builder/useSourceBuilderRuntimeGovernance'
 import { useSourceBuilderDebugViewEffects } from '@/composables/source-builder/useSourceBuilderDebugViewEffects'
-import { resetSourceFlowAssistProfile } from '@/composables/source-builder/sourceBuilderValidationActions'
+import {
+  requestSourceFlowAssistProfile,
+  resetSourceFlowAssistProfile,
+} from '@/composables/source-builder/sourceBuilderValidationActions'
 
 export function useSourceBuilderDebugView() {
   const router = useRouter()
@@ -251,6 +254,8 @@ export function useSourceBuilderDebugView() {
     >
   >('source-builder-last-good-packages', {})
   const AUTO_FLOW_MAX_ATTEMPTS = 3
+  const sourceFlowProfileLoading = ref(false)
+  const sourceFlowProfileSummary = ref<string[]>([])
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
     search: 0.7,
@@ -603,15 +608,47 @@ export function useSourceBuilderDebugView() {
         ...autoFlowSummary.value,
         `state=RESET lifecycle=${lifecycleState} clearPreferred=${clearPreferredActions ? 'yes' : 'no'}`,
       ]
+      await refreshCurrentSourceFlowProfile()
       success('已重置 source 状态，可重新执行自动流程')
     } catch {
       warning('重置 source 状态失败')
     }
   }
 
+  async function refreshCurrentSourceFlowProfile() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      sourceFlowProfileSummary.value = []
+      return
+    }
+    sourceFlowProfileLoading.value = true
+    try {
+      const response = await requestSourceFlowAssistProfile({ sourceId: sourceIdForCounter })
+      if (!response.isSuccess || !response.data?.profile) {
+        sourceFlowProfileSummary.value = ['profile: unavailable']
+        return
+      }
+      const profile = response.data.profile
+      sourceFlowProfileSummary.value = [
+        `sourceId=${profile.sourceId}`,
+        `lifecycle=${profile.lifecycleState}`,
+        `conservative=${profile.conservativeMode ? 'on' : 'off'}`,
+        `preferredActions=${profile.preferredActions.join(' | ') || '--'}`,
+        `recentFailures=${profile.recentFailureCodes.join(' | ') || '--'}`,
+        `lastGoodRunId=${profile.lastGoodRunId || '--'}`,
+        `updatedAt=${profile.updatedAt || '--'}`,
+      ]
+    } catch {
+      sourceFlowProfileSummary.value = ['profile: load failed']
+    } finally {
+      sourceFlowProfileLoading.value = false
+    }
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
+    await refreshCurrentSourceFlowProfile()
   })
 
   return {
@@ -622,6 +659,8 @@ export function useSourceBuilderDebugView() {
     autoFlowState,
     autoFlowRunId,
     autoFlowSummary,
+    sourceFlowProfileLoading,
+    sourceFlowProfileSummary,
     sourcePackages,
     sourceBuildPreviewSummary,
     currentPreviewSummary,
@@ -738,6 +777,7 @@ export function useSourceBuilderDebugView() {
     runDetailValidation,
     runDetailAndChaptersValidation,
     runSearchToContentValidation,
+    refreshCurrentSourceFlowProfile,
     resetCurrentSourceFlowState,
     clearPreview,
     goBack,
