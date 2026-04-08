@@ -9,6 +9,7 @@
       "/api/metrics/client",
       "/api/source/flow-assist",
       "/api/source/flow-assist/feedback",
+      "/api/source/flow-assist/stats",
       "/progress/",
       "/decode/",
       "/auth/"
@@ -42,7 +43,8 @@
       "/api/backup",
       "/api/metrics/client",
       "/api/source/flow-assist",
-      "/api/source/flow-assist/feedback"
+      "/api/source/flow-assist/feedback",
+      "/api/source/flow-assist/stats"
     ],
     "experimentalRoutes": [
       "/api/search",

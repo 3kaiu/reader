@@ -318,6 +318,25 @@ export type SourceFlowAssistFeedbackRequest = {
   regression?: string
 }
 
+export type SourceFlowAssistFeedbackStatsResponse = {
+  success: boolean
+  windowDays: number
+  sourceId?: string
+  total: number
+  accepted: number
+  acceptRate: number
+  avgBeforeScore: number
+  avgAfterScore: number
+  avgDeltaScore: number
+  providers: Array<{
+    provider: string
+    count: number
+    accepted: number
+    acceptRate: number
+  }>
+  recentRegressions: string[]
+}
+
 export type SourceBuildDiagnostics = {
   host: string
   bookSampleUrl: string
@@ -599,6 +618,19 @@ export const syncApi = {
   },
   sourceFlowAssistFeedback: async (payload: SourceFlowAssistFeedbackRequest) => {
     return await $post<{ success: boolean }>('/source/flow-assist/feedback', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  getSourceFlowAssistFeedbackStats: async (params?: { sourceId?: string; days?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.sourceId) {
+      query.set('sourceId', params.sourceId)
+    }
+    if (params?.days != null) {
+      query.set('days', String(params.days))
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return await $get<SourceFlowAssistFeedbackStatsResponse>(`/source/flow-assist/stats${suffix}`, {
       silent: true,
     } satisfies ApiFetchOptions)
   },

@@ -20,6 +20,7 @@ const USER_SERVICE_PREFIXES = [
   '/api/metrics/client',
   '/api/source/flow-assist',
   '/api/source/flow-assist/feedback',
+  '/api/source/flow-assist/stats',
 ]
 
 function isUserServiceRoute(pathname: string): boolean {

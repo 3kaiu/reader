@@ -27,4 +27,5 @@ export {
   handleSourceFlowAssist,
   handleSourceFlowAssistError,
   handleSourceFlowAssistFeedback,
+  handleSourceFlowAssistFeedbackStats,
 } from './routes/source-flow.ts'

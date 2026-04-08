@@ -53,6 +53,25 @@ type SourceFlowAssistFeedbackRequest = {
   regression?: string
 }
 
+type SourceFlowAssistFeedbackStatsResponse = {
+  success: boolean
+  windowDays: number
+  sourceId?: string
+  total: number
+  accepted: number
+  acceptRate: number
+  avgBeforeScore: number
+  avgAfterScore: number
+  avgDeltaScore: number
+  providers: Array<{
+    provider: string
+    count: number
+    accepted: number
+    acceptRate: number
+  }>
+  recentRegressions: string[]
+}
+
 const DEFAULT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct'
 const DEFAULT_CACHE_TTL = 3600
 const MAX_QUERY_LEN = 200
@@ -238,6 +257,26 @@ async function logAssistEvent(
   }
 }
 
+async function ensureFeedbackTable(env: EnhancedWorkerEnv): Promise<void> {
+  await env.ANALYTICS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_source_flow_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT,
+      query TEXT,
+      normalized_query TEXT,
+      provider TEXT,
+      cache_hit INTEGER NOT NULL,
+      plan_size INTEGER NOT NULL,
+      suggestion_ids TEXT NOT NULL,
+      before_score REAL NOT NULL,
+      after_score REAL NOT NULL,
+      accepted INTEGER NOT NULL,
+      regression TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).bind().run()
+}
+
 export async function handleSourceFlowAssist(
   request: Request,
   env: EnhancedWorkerEnv
@@ -406,23 +445,7 @@ export async function handleSourceFlowAssistFeedback(
   }
 
   try {
-    await env.ANALYTICS_DB.prepare(`
-      CREATE TABLE IF NOT EXISTS ai_source_flow_feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        source_id TEXT,
-        query TEXT,
-        normalized_query TEXT,
-        provider TEXT,
-        cache_hit INTEGER NOT NULL,
-        plan_size INTEGER NOT NULL,
-        suggestion_ids TEXT NOT NULL,
-        before_score REAL NOT NULL,
-        after_score REAL NOT NULL,
-        accepted INTEGER NOT NULL,
-        regression TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `).bind().run()
+    await ensureFeedbackTable(env)
 
     await env.ANALYTICS_DB.prepare(`
       INSERT INTO ai_source_flow_feedback (
@@ -466,4 +489,115 @@ export async function handleSourceFlowAssistFeedback(
   return new Response(JSON.stringify({ success: true }), {
     headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
   })
+}
+
+export async function handleSourceFlowAssistFeedbackStats(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+
+  const url = new URL(request.url)
+  const sourceId = normalizeText(url.searchParams.get('sourceId') || '', 80)
+  const daysRaw = Number(url.searchParams.get('days') || 7)
+  const windowDays = Number.isFinite(daysRaw) ? Math.max(1, Math.min(30, Math.round(daysRaw))) : 7
+
+  try {
+    await ensureFeedbackTable(env)
+
+    const baseWhere = sourceId
+      ? "created_at >= datetime('now', ?) AND source_id = ?"
+      : "created_at >= datetime('now', ?)"
+    const baseBindings = sourceId
+      ? [`-${windowDays} days`, sourceId]
+      : [`-${windowDays} days`]
+
+    const summary = await env.ANALYTICS_DB.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(accepted), 0) AS accepted,
+        COALESCE(AVG(before_score), 0) AS avg_before_score,
+        COALESCE(AVG(after_score), 0) AS avg_after_score,
+        COALESCE(AVG(after_score - before_score), 0) AS avg_delta_score
+      FROM ai_source_flow_feedback
+      WHERE ${baseWhere}
+    `).bind(...baseBindings).first<{
+      total?: number
+      accepted?: number
+      avg_before_score?: number
+      avg_after_score?: number
+      avg_delta_score?: number
+    }>()
+
+    const providerRows = await env.ANALYTICS_DB.prepare(`
+      SELECT
+        provider,
+        COUNT(*) AS count,
+        COALESCE(SUM(accepted), 0) AS accepted
+      FROM ai_source_flow_feedback
+      WHERE ${baseWhere}
+      GROUP BY provider
+      ORDER BY count DESC
+      LIMIT 6
+    `).bind(...baseBindings).all<{
+      provider?: string
+      count?: number
+      accepted?: number
+    }>()
+
+    const regressionRows = await env.ANALYTICS_DB.prepare(`
+      SELECT regression
+      FROM ai_source_flow_feedback
+      WHERE ${baseWhere}
+        AND accepted = 0
+        AND regression IS NOT NULL
+        AND LENGTH(TRIM(regression)) > 0
+      ORDER BY id DESC
+      LIMIT 5
+    `).bind(...baseBindings).all<{ regression?: string }>()
+
+    const total = Number(summary?.total || 0)
+    const accepted = Number(summary?.accepted || 0)
+    const responseBody: SourceFlowAssistFeedbackStatsResponse = {
+      success: true,
+      windowDays,
+      ...(sourceId ? { sourceId } : {}),
+      total,
+      accepted,
+      acceptRate: total > 0 ? accepted / total : 0,
+      avgBeforeScore: Number(summary?.avg_before_score || 0),
+      avgAfterScore: Number(summary?.avg_after_score || 0),
+      avgDeltaScore: Number(summary?.avg_delta_score || 0),
+      providers: (providerRows.results || []).map(row => {
+        const count = Number(row.count || 0)
+        const acceptedCount = Number(row.accepted || 0)
+        return {
+          provider: row.provider || 'unknown',
+          count,
+          accepted: acceptedCount,
+          acceptRate: count > 0 ? acceptedCount / count : 0,
+        }
+      }),
+      recentRegressions: (regressionRows.results || [])
+        .map(row => String(row.regression || '').trim())
+        .filter(Boolean),
+    }
+
+    return new Response(JSON.stringify(responseBody), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_FEEDBACK_STATS_FAILED',
+      'Source flow feedback stats failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
 }

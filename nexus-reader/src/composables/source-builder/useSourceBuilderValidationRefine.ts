@@ -25,6 +25,7 @@ import {
   buildValidationRefineSamples,
   buildValidationSnapshot,
   requestSourceFlowAssistFeedback,
+  requestSourceFlowAssistFeedbackStats,
   requestSourceFlowAssist,
   refineSourceBuilderPackage,
   validateSourceBuilderPackage,
@@ -183,6 +184,30 @@ export function useSourceBuilderValidationRefine(
     return degraded.length > 0 ? degraded.join(' | ') : '总分下降但未定位到明确分段退化'
   }
 
+  async function appendAiFeedbackStats(sourceId?: string) {
+    if (!sourceId) return
+    try {
+      const response = await requestSourceFlowAssistFeedbackStats({ sourceId, days: 14 })
+      if (!response.isSuccess || !response.data) return
+      const stats = response.data
+      const ratePct = Math.round(stats.acceptRate * 100)
+      const deltaPct = Math.round(stats.avgDeltaScore * 100)
+      aiAssistSummary.value = [
+        ...aiAssistSummary.value,
+        `feedback14d=${stats.accepted}/${stats.total} accepted (${ratePct}%)`,
+        `avgScore=${Math.round(stats.avgBeforeScore * 100)}->${Math.round(stats.avgAfterScore * 100)} (delta=${deltaPct})`,
+      ]
+      if (stats.providers.length > 0) {
+        const providerTop = stats.providers[0]
+        aiAssistSummary.value.push(
+          `topProvider=${providerTop.provider} ${providerTop.accepted}/${providerTop.count}`
+        )
+      }
+    } catch {
+      // best effort only
+    }
+  }
+
   async function requestAiAssist() {
     const pkg = options.currentPackage.value
     if (!pkg) {
@@ -298,6 +323,7 @@ export function useSourceBuilderValidationRefine(
           freeTextHints.value = next
         },
       }))
+      await appendAiFeedbackStats(pkg.source.id)
       success('Cloudflare AI 建议已生成')
     } catch {
       warning('Cloudflare AI 建议生成失败')
@@ -369,6 +395,7 @@ export function useSourceBuilderValidationRefine(
         } else {
           success('主建议组合掉分，已自动切换次优组合并完成修正')
         }
+        void appendAiFeedbackStats(beforePackage.source.id)
         return
       }
 
@@ -406,6 +433,7 @@ export function useSourceBuilderValidationRefine(
         warning(
           `AI 自动修正全部组合均掉分（${Math.round(beforeScore * 100)} -> ${Math.round(afterScore * 100)}，${regression}），已回滚`
         )
+        void appendAiFeedbackStats(beforePackage.source.id)
       }
     }
   }

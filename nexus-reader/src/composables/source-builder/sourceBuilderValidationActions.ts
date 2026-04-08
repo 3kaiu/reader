@@ -117,6 +117,16 @@ export async function requestSourceFlowAssistFeedback(options: {
   })
 }
 
+export async function requestSourceFlowAssistFeedbackStats(options: {
+  sourceId?: string
+  days?: number
+}) {
+  return await syncApi.getSourceFlowAssistFeedbackStats({
+    sourceId: options.sourceId,
+    days: options.days,
+  })
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {
