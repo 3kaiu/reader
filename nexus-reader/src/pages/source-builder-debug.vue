@@ -18,6 +18,7 @@ const {
   autoFlowHistorySummary,
   currentSourceAutoFlowHistorySummary,
   currentSourceAutoFlowStats,
+  currentSourceAutoFlowStreak,
   currentSourceAutoFlowRecommendation,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
@@ -141,6 +142,7 @@ const {
   runChaptersContentSmoke,
   refreshCurrentSourceFlowProfile,
   resetCurrentSourceFlowState,
+  applySmokeGatePreset,
   clearAutoFlowHistory,
   clearPreview,
   buildValidateAndAutoRefine,
@@ -260,12 +262,26 @@ const {
       </div>
       <div class="px-5 pb-5">
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-          <p class="text-xs text-muted-foreground mb-2">Stability Recommendation</p>
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted-foreground">Stability Recommendation</p>
+            <div class="flex items-center gap-2">
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('strict')">
+                严格门禁
+              </button>
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('default')">
+                恢复默认
+              </button>
+            </div>
+          </div>
           <p class="text-sm font-medium break-all">
             {{ currentSourceAutoFlowRecommendation.title }}
           </p>
           <p class="mt-1 text-xs text-muted-foreground break-all">
             {{ currentSourceAutoFlowRecommendation.advice }}
+          </p>
+          <p class="mt-2 text-[11px] text-muted-foreground break-all">
+            streak: pass={{ currentSourceAutoFlowStreak.passStreak }} / fail={{ currentSourceAutoFlowStreak.failStreak }}
+            · smokeGate={{ runSmokeSampleSize }} / {{ runSmokePassRateThreshold }}%
           </p>
         </div>
       </div>

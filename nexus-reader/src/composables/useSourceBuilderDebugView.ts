@@ -293,10 +293,38 @@ export function useSourceBuilderDebugView() {
       passRate,
     }
   })
+  const currentSourceAutoFlowStreak = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = (source
+      ? autoFlowHistory.value.filter(item => item.sourceId === source)
+      : autoFlowHistory.value
+    ).slice(0, 30)
+    let passStreak = 0
+    let failStreak = 0
+    let latestOutcome: 'pass' | 'fail' | 'none' = 'none'
+    if (entries.length > 0) {
+      latestOutcome = entries[0].success ? 'pass' : 'fail'
+      for (const entry of entries) {
+        if (entry.success) {
+          if (failStreak > 0) break
+          passStreak += 1
+        } else {
+          if (passStreak > 0) break
+          failStreak += 1
+        }
+      }
+    }
+    return {
+      latestOutcome,
+      passStreak,
+      failStreak,
+    }
+  })
   const currentSourceAutoFlowRecommendation = computed(() => {
     const source = currentAutoFlowSourceId.value
     const failureCount = source ? Number(sourceFailureCounts.value[source] || 0) : 0
     const stats = currentSourceAutoFlowStats.value
+    const streak = currentSourceAutoFlowStreak.value
     if (!source) {
       return {
         level: 'unknown' as const,
@@ -318,7 +346,7 @@ export function useSourceBuilderDebugView() {
         advice: '至少累积 3 次以上自动流程结果，再依据通过率决策是否导入。',
       }
     }
-    if (stats.passRate >= 80) {
+    if (stats.passRate >= 80 && streak.failStreak === 0) {
       return {
         level: 'stable' as const,
         title: '稳定：可继续导入验证',
@@ -464,6 +492,18 @@ export function useSourceBuilderDebugView() {
     }
     autoFlowHistory.value = []
     success('已清理全部自动流程历史')
+  }
+
+  function applySmokeGatePreset(preset: 'strict' | 'default') {
+    if (preset === 'strict') {
+      runSmokeSampleSize.value = 15
+      runSmokePassRateThreshold.value = 90
+      success('已应用严格门禁: sample=15, passRate=90%')
+      return
+    }
+    runSmokeSampleSize.value = DEFAULT_SMOKE_SAMPLE_SIZE
+    runSmokePassRateThreshold.value = DEFAULT_SMOKE_PASS_RATE_THRESHOLD
+    success(`已恢复默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
   }
 
   function persistLastGoodPackage(sourceIdForCounter: string) {
@@ -949,6 +989,7 @@ export function useSourceBuilderDebugView() {
     autoFlowHistorySummary,
     currentSourceAutoFlowHistorySummary,
     currentSourceAutoFlowStats,
+    currentSourceAutoFlowStreak,
     currentSourceAutoFlowRecommendation,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
@@ -1076,6 +1117,7 @@ export function useSourceBuilderDebugView() {
     runChaptersContentSmoke,
     refreshCurrentSourceFlowProfile,
     resetCurrentSourceFlowState,
+    applySmokeGatePreset,
     clearAutoFlowHistory,
     clearPreview,
     goBack,
