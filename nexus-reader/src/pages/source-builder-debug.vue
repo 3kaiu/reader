@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { PageHeader } from '@/components/common'
 import SourceBuilderPackagePanel from '@/components/source-builder/SourceBuilderPackagePanel.vue'
 import SourceBuilderHumanSessionPanel from '@/components/source-builder/SourceBuilderHumanSessionPanel.vue'
@@ -148,6 +149,49 @@ const {
   buildValidateAndAutoRefine,
   goBack,
 } = useSourceBuilderDebugView()
+
+const recommendationToneClass = computed(() => {
+  switch (currentSourceAutoFlowRecommendation.value.level) {
+    case 'stable':
+      return 'border-emerald-500/40 bg-emerald-500/10'
+    case 'watch':
+      return 'border-amber-500/40 bg-amber-500/10'
+    case 'risky':
+      return 'border-rose-500/40 bg-rose-500/10'
+    default:
+      return 'border-border/50 bg-muted/20'
+  }
+})
+
+const recommendationLevelLabel = computed(() => {
+  switch (currentSourceAutoFlowRecommendation.value.level) {
+    case 'stable':
+      return 'Stable'
+    case 'watch':
+      return 'Watch'
+    case 'risky':
+      return 'Risky'
+    default:
+      return 'Unknown'
+  }
+})
+
+const latestOutcomeBadgeClass = computed(() => {
+  switch (currentSourceAutoFlowStreak.value.latestOutcome) {
+    case 'pass':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+    case 'fail':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-700'
+    default:
+      return 'border-border/40 bg-muted/30 text-muted-foreground'
+  }
+})
+
+const latestOutcomeLabel = computed(() => {
+  if (currentSourceAutoFlowStreak.value.latestOutcome === 'pass') return '最近一次: PASS'
+  if (currentSourceAutoFlowStreak.value.latestOutcome === 'fail') return '最近一次: FAIL'
+  return '最近一次: 无记录'
+})
 </script>
 
 <template>
@@ -174,6 +218,14 @@ const {
         <input v-model="sourceName" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="sourceName，可选" />
         <input v-model="tagsText" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="tags，逗号分隔" />
         <input v-model="searchKeyword" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="search keyword，可选" />
+      </div>
+      <div class="px-5 pb-3 flex flex-wrap items-center gap-2 text-[11px]">
+        <span class="rounded-full border px-2 py-1 bg-background text-muted-foreground">
+          当前源: {{ currentSourceAutoFlowStats.sourceId }}
+        </span>
+        <span class="rounded-full border px-2 py-1" :class="latestOutcomeBadgeClass">
+          {{ latestOutcomeLabel }}
+        </span>
       </div>
 
       <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -261,10 +313,13 @@ const {
         </div>
       </div>
       <div class="px-5 pb-5">
-        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div class="rounded-xl border p-4" :class="recommendationToneClass">
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs text-muted-foreground">Stability Recommendation</p>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+              <span class="h-7 px-2 rounded-full border bg-background text-[11px] inline-flex items-center">
+                {{ recommendationLevelLabel }}
+              </span>
               <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('strict')">
                 严格门禁
               </button>
