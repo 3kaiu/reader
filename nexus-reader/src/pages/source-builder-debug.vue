@@ -21,6 +21,7 @@ const {
   currentSourceAutoFlowStats,
   currentSourceAutoFlowStreak,
   currentSourceAutoFlowRecommendation,
+  currentSourceAutoFlowHealthSummary,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -144,6 +145,7 @@ const {
   refreshCurrentSourceFlowProfile,
   resetCurrentSourceFlowState,
   applySmokeGatePreset,
+  applyRecommendedSmokeGate,
   clearAutoFlowHistory,
   clearPreview,
   buildValidateAndAutoRefine,
@@ -320,6 +322,9 @@ const latestOutcomeLabel = computed(() => {
               <span class="h-7 px-2 rounded-full border bg-background text-[11px] inline-flex items-center">
                 {{ recommendationLevelLabel }}
               </span>
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applyRecommendedSmokeGate">
+                按建议设置
+              </button>
               <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('strict')">
                 严格门禁
               </button>
@@ -338,6 +343,9 @@ const latestOutcomeLabel = computed(() => {
             streak: pass={{ currentSourceAutoFlowStreak.passStreak }} / fail={{ currentSourceAutoFlowStreak.failStreak }}
             · smokeGate={{ runSmokeSampleSize }} / {{ runSmokePassRateThreshold }}%
           </p>
+          <ul class="mt-2 space-y-1 text-[11px] text-muted-foreground break-all">
+            <li v-for="item in currentSourceAutoFlowHealthSummary" :key="item">{{ item }}</li>
+          </ul>
         </div>
       </div>
       <div v-if="sourceFlowProfileSummary.length > 0" class="px-5 pb-5">

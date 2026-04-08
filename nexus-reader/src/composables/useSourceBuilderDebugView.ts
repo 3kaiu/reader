@@ -366,6 +366,26 @@ export function useSourceBuilderDebugView() {
       advice: '通过率过低，建议先重置状态并补齐搜索/详情/目录样本后重试。',
     }
   })
+  const currentSourceAutoFlowHealthSummary = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const stats = currentSourceAutoFlowStats.value
+    const streak = currentSourceAutoFlowStreak.value
+    const failureCount = source ? Number(sourceFailureCounts.value[source] || 0) : 0
+    const gateSampleSize = runSmokeSampleSize.value
+    const gatePassRate = runSmokePassRateThreshold.value
+    let score = stats.passRate
+    score -= Math.min(40, failureCount * 10)
+    score -= Math.min(35, streak.failStreak * 12)
+    if (stats.total < 3) score -= 20
+    score = Math.max(0, Math.min(100, Math.round(score)))
+    const grade = score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : 'D'
+    return [
+      `health=${score}/100 (${grade})`,
+      `gate=sample${gateSampleSize}/passRate${gatePassRate}%`,
+      `recentStreak=pass${streak.passStreak}/fail${streak.failStreak}`,
+      `failureCounter=${failureCount}`,
+    ]
+  })
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -504,6 +524,25 @@ export function useSourceBuilderDebugView() {
     runSmokeSampleSize.value = DEFAULT_SMOKE_SAMPLE_SIZE
     runSmokePassRateThreshold.value = DEFAULT_SMOKE_PASS_RATE_THRESHOLD
     success(`已恢复默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
+  }
+
+  function applyRecommendedSmokeGate() {
+    const recommendation = currentSourceAutoFlowRecommendation.value
+    if (recommendation.level === 'risky') {
+      runSmokeSampleSize.value = 15
+      runSmokePassRateThreshold.value = 90
+      success('已按风险建议应用严格门禁: sample=15, passRate=90%')
+      return
+    }
+    if (recommendation.level === 'watch') {
+      runSmokeSampleSize.value = 12
+      runSmokePassRateThreshold.value = 85
+      success('已按观察建议应用保守门禁: sample=12, passRate=85%')
+      return
+    }
+    runSmokeSampleSize.value = DEFAULT_SMOKE_SAMPLE_SIZE
+    runSmokePassRateThreshold.value = DEFAULT_SMOKE_PASS_RATE_THRESHOLD
+    success(`稳定状态建议默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
   }
 
   function persistLastGoodPackage(sourceIdForCounter: string) {
@@ -991,6 +1030,7 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowStats,
     currentSourceAutoFlowStreak,
     currentSourceAutoFlowRecommendation,
+    currentSourceAutoFlowHealthSummary,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,
@@ -1118,6 +1158,7 @@ export function useSourceBuilderDebugView() {
     refreshCurrentSourceFlowProfile,
     resetCurrentSourceFlowState,
     applySmokeGatePreset,
+    applyRecommendedSmokeGate,
     clearAutoFlowHistory,
     clearPreview,
     goBack,
