@@ -594,8 +594,10 @@ export function useSourceBuilderRunOperations(
   async function runChaptersContentSmoke(optionsOverride?: {
     targetUrl?: string
     sampleSize?: number
+    passRateThreshold?: number
   }) {
     const sampleSize = Math.max(1, Math.min(30, Math.trunc(optionsOverride?.sampleSize ?? 10)))
+    const passRateThreshold = Math.max(1, Math.min(100, Math.trunc(optionsOverride?.passRateThreshold ?? 100)))
     runLoading.value = true
     runContentSmokeSummary.value = []
     runContentSmokeFailures.value = []
@@ -609,7 +611,16 @@ export function useSourceBuilderRunOperations(
       if (needFreshChapters) {
         if (!targetRaw) {
           warning('请先提供 target url 或先执行章节验证')
-          return { pass: false, reasons: ['missing_target_url'] }
+          return {
+            pass: false,
+            reasons: ['missing_target_url'],
+            passed: 0,
+            failed: 0,
+            total: 0,
+            passRate: 0,
+            passRateThreshold,
+            failures: ['missing_target_url'],
+          }
         }
         const detailPayload = runSearchDetailResult.value as RunByPackageResult | null
         const chaptersTarget = detailPayload
@@ -624,13 +635,31 @@ export function useSourceBuilderRunOperations(
 
       if (!chaptersResult) {
         warning('章节烟雾测试失败：无法获取章节列表')
-        return { pass: false, reasons: ['chapters_failed'] }
+        return {
+          pass: false,
+          reasons: ['chapters_failed'],
+          passed: 0,
+          failed: 0,
+          total: 0,
+          passRate: 0,
+          passRateThreshold,
+          failures: ['chapters_failed'],
+        }
       }
 
       const chapterCandidates = extractChapterCandidates(chaptersResult).slice(0, sampleSize)
       if (chapterCandidates.length === 0) {
         warning('章节烟雾测试失败：章节列表为空')
-        return { pass: false, reasons: ['chapters_empty'] }
+        return {
+          pass: false,
+          reasons: ['chapters_empty'],
+          passed: 0,
+          failed: 0,
+          total: 0,
+          passRate: 0,
+          passRateThreshold,
+          failures: ['chapters_empty'],
+        }
       }
 
       let passed = 0
@@ -658,25 +687,30 @@ export function useSourceBuilderRunOperations(
       const total = chapterCandidates.length
       const failed = total - passed
       const passRate = Math.round((passed / total) * 100)
+      const gatePass = passRate >= passRateThreshold
       runContentSmokeSummary.value = [
         `sampled=${total}`,
         `pass=${passed}`,
         `fail=${failed}`,
         `passRate=${passRate}%`,
+        `requiredPassRate=${passRateThreshold}%`,
+        `gate=${gatePass ? 'pass' : 'fail'}`,
         `minContentLength=${CONTENT_MIN_LEN}`,
       ]
       runContentSmokeFailures.value = failures
 
-      if (failed === 0) {
+      if (gatePass) {
         success(`章节连续可读验证通过 (${passed}/${total})`)
       } else {
         warning(`章节连续可读验证未通过 (${passed}/${total})`)
       }
       return {
-        pass: failed === 0,
+        pass: gatePass,
         passed,
         failed,
         total,
+        passRate,
+        passRateThreshold,
         failures,
       }
     } finally {

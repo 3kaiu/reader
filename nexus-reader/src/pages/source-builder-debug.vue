@@ -199,11 +199,11 @@ const {
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
           @click="buildValidateAndAutoRefine"
         >
           {{
-            ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY'].includes(autoFlowState)
+            ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState)
               ? `自动流程中(${autoFlowState})...`
               : '一键封装并验证并自动修正'
           }}

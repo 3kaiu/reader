@@ -235,6 +235,7 @@ export function useSourceBuilderDebugView() {
     | 'ROLLBACK'
     | 'CONSERVATIVE_RETRY'
     | 'E2E_VERIFY'
+    | 'SMOKE_VERIFY'
     | 'MANUAL_REQUIRED'
     | 'QUARANTINED'
     | 'IMPORT_READY'
@@ -258,6 +259,8 @@ export function useSourceBuilderDebugView() {
     >
   >('source-builder-last-good-packages', {})
   const AUTO_FLOW_MAX_ATTEMPTS = 3
+  const AUTO_FLOW_SMOKE_SAMPLE_SIZE = 10
+  const AUTO_FLOW_SMOKE_MIN_PASS_RATE = 80
   const sourceFlowProfileLoading = ref(false)
   const sourceFlowProfileSummary = ref<string[]>([])
   const sourceFlowProfileAuditSummary = ref<string[]>([])
@@ -512,6 +515,21 @@ export function useSourceBuilderDebugView() {
       autoFlowSummary.value.push(`gate@e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
       if (!e2e.pass) {
         gate = { pass: false, reasons: e2e.reasons }
+      } else {
+        autoFlowState.value = 'SMOKE_VERIFY'
+        const smoke = await runChaptersContentSmoke({
+          sampleSize: AUTO_FLOW_SMOKE_SAMPLE_SIZE,
+          passRateThreshold: AUTO_FLOW_SMOKE_MIN_PASS_RATE,
+        })
+        const smokeReasons = smoke.pass
+          ? []
+          : [`smoke_pass_rate=${smoke.passRate}%<${smoke.passRateThreshold}%`]
+        autoFlowSummary.value.push(
+          `gate@smoke=${smoke.pass ? 'pass' : `fail(${smokeReasons.join(', ')})`} sampled=${smoke.total}`
+        )
+        if (!smoke.pass) {
+          gate = { pass: false, reasons: smokeReasons }
+        }
       }
     }
     if (gate.pass) {
@@ -543,6 +561,21 @@ export function useSourceBuilderDebugView() {
         autoFlowSummary.value.push(`gate@attempt${attempt}:e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
         if (!e2e.pass) {
           gate = { pass: false, reasons: e2e.reasons }
+        } else {
+          autoFlowState.value = 'SMOKE_VERIFY'
+          const smoke = await runChaptersContentSmoke({
+            sampleSize: AUTO_FLOW_SMOKE_SAMPLE_SIZE,
+            passRateThreshold: AUTO_FLOW_SMOKE_MIN_PASS_RATE,
+          })
+          const smokeReasons = smoke.pass
+            ? []
+            : [`smoke_pass_rate=${smoke.passRate}%<${smoke.passRateThreshold}%`]
+          autoFlowSummary.value.push(
+            `gate@attempt${attempt}:smoke=${smoke.pass ? 'pass' : `fail(${smokeReasons.join(', ')})`} sampled=${smoke.total}`
+          )
+          if (!smoke.pass) {
+            gate = { pass: false, reasons: smokeReasons }
+          }
         }
       }
       if (gate.pass) {
