@@ -310,14 +310,58 @@ export function useSourceBuilderDebugView() {
     >
   >('source-builder-last-good-packages', {})
   const AUTO_FLOW_MAX_ATTEMPTS = 3
-  const runSmokeSampleSize = useStorage<number>(
-    'source-builder-run-smoke-sample-size',
-    10
-  )
-  const runSmokePassRateThreshold = useStorage<number>(
-    'source-builder-run-smoke-pass-rate-threshold',
-    80
-  )
+  const sourceSmokeGateConfigs = useStorage<
+    Record<string, { sampleSize: number; passRateThreshold: number }>
+  >('source-builder-run-smoke-configs-by-source', {})
+  const DEFAULT_SMOKE_SAMPLE_SIZE = 10
+  const DEFAULT_SMOKE_PASS_RATE_THRESHOLD = 80
+  const FALLBACK_SOURCE_KEY = '__default__'
+  const runSmokeSampleSize = computed({
+    get: () => {
+      const key = currentAutoFlowSourceId.value || FALLBACK_SOURCE_KEY
+      const config = sourceSmokeGateConfigs.value[key]
+      return Number(config?.sampleSize || DEFAULT_SMOKE_SAMPLE_SIZE)
+    },
+    set: (value: number) => {
+      const key = currentAutoFlowSourceId.value || FALLBACK_SOURCE_KEY
+      const previous = sourceSmokeGateConfigs.value[key]
+      const sampleSize = Math.max(1, Math.min(30, Math.trunc(Number(value) || DEFAULT_SMOKE_SAMPLE_SIZE)))
+      const passRateThreshold = Math.max(
+        1,
+        Math.min(
+          100,
+          Math.trunc(Number(previous?.passRateThreshold || DEFAULT_SMOKE_PASS_RATE_THRESHOLD))
+        )
+      )
+      sourceSmokeGateConfigs.value = {
+        ...sourceSmokeGateConfigs.value,
+        [key]: { sampleSize, passRateThreshold },
+      }
+    },
+  })
+  const runSmokePassRateThreshold = computed({
+    get: () => {
+      const key = currentAutoFlowSourceId.value || FALLBACK_SOURCE_KEY
+      const config = sourceSmokeGateConfigs.value[key]
+      return Number(config?.passRateThreshold || DEFAULT_SMOKE_PASS_RATE_THRESHOLD)
+    },
+    set: (value: number) => {
+      const key = currentAutoFlowSourceId.value || FALLBACK_SOURCE_KEY
+      const previous = sourceSmokeGateConfigs.value[key]
+      const sampleSize = Math.max(
+        1,
+        Math.min(30, Math.trunc(Number(previous?.sampleSize || DEFAULT_SMOKE_SAMPLE_SIZE)))
+      )
+      const passRateThreshold = Math.max(
+        1,
+        Math.min(100, Math.trunc(Number(value) || DEFAULT_SMOKE_PASS_RATE_THRESHOLD))
+      )
+      sourceSmokeGateConfigs.value = {
+        ...sourceSmokeGateConfigs.value,
+        [key]: { sampleSize, passRateThreshold },
+      }
+    },
+  })
   const sourceFlowProfileLoading = ref(false)
   const sourceFlowProfileSummary = ref<string[]>([])
   const sourceFlowProfileAuditSummary = ref<string[]>([])
