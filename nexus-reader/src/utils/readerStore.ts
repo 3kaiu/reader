@@ -5,6 +5,7 @@ import {
 import type { Book, Chapter } from '@/types/book'
 
 const PROGRESS_STORAGE_KEY = 'reader-progress'
+const MAX_LOADED_SCROLL_CHAPTERS = 180
 
 export type ReaderLoadedChapter = {
   index: number
@@ -121,7 +122,13 @@ export function mergeLoadedChapters(
     return next
   }
 
-  return [...chapters, nextEntry].sort((a, b) => a.index - b.index)
+  const merged = [...chapters, nextEntry].sort((a, b) => a.index - b.index)
+  if (merged.length <= MAX_LOADED_SCROLL_CHAPTERS) {
+    return merged
+  }
+
+  // Keep a bounded sliding window for long-scroll sessions to cap memory growth.
+  return merged.slice(-MAX_LOADED_SCROLL_CHAPTERS)
 }
 
 export function resolveInitialChapterIndex(options: {
