@@ -877,6 +877,110 @@ export function useSourceBuilderDebugView() {
     await importPreviewPackageRaw()
   }
 
+  async function executeSourceSessionGate(
+    sourceIdForSession: string
+  ): Promise<{ pass: boolean; reason?: string }> {
+    const probeUrl = runTargetUrl.value.trim() || validateChapterUrl.value.trim() || undefined
+    const verifySession = async (tag: string) => {
+      const verifyResp = await requestVerifyFetchSession({
+        sourceId: sourceIdForSession,
+        probeUrl,
+        timeoutMs: 12000,
+        expectedMinBodyLength: 200,
+      })
+      if (!verifyResp.isSuccess || !verifyResp.data) {
+        return {
+          ok: false,
+          reason: `session_verify_failed:${verifyResp.errorMsg || 'unknown'}`,
+          quality: 0,
+        }
+      }
+      const verify = verifyResp.data
+      currentSourceSessionProfile.value = verify.profile
+      const quality = Math.round(Number(verify.sessionQualityScore || 0))
+      autoFlowSummary.value.push(
+        `gate@session:${tag}=${verify.verified ? 'pass' : `fail(${verify.degradedReason || 'unknown'})`} quality=${quality}`
+      )
+      if (!verify.verified || Number(verify.sessionQualityScore || 0) < 40) {
+        return {
+          ok: false,
+          reason: verify.degradedReason || 'session_quality_low',
+          quality,
+        }
+      }
+      return { ok: true, quality }
+    }
+
+    const acquireSession = async (
+      strategy: 'auto_browser_like' | 'auto_api_like',
+      tag: string
+    ) => {
+      const acquireResp = await requestAutoAcquireFetchSession({
+        sourceId: sourceIdForSession,
+        acquireStrategy: strategy,
+        ttlSeconds: Number(sessionTtlSeconds.value || 1800),
+      })
+      if (!acquireResp.isSuccess || !acquireResp.data?.profile) {
+        return {
+          ok: false,
+          reason: `session_auto_acquire_failed:${acquireResp.errorMsg || 'unknown'}`,
+        }
+      }
+      const quality = Math.round(Number(acquireResp.data.sessionQualityScore || 0))
+      currentSourceSessionProfile.value = acquireResp.data.profile
+      if (acquireResp.data.sessionKey) {
+        fetchSessionKey.value = acquireResp.data.sessionKey
+      }
+      autoFlowSummary.value.push(`gate@session:${tag}=pass quality=${quality}`)
+      return { ok: true as const }
+    }
+
+    let profile = currentSourceSessionProfile.value
+    if (!profile || profile.sourceId !== sourceIdForSession) {
+      const profileResp = await requestSourceSessionProfile({ sourceId: sourceIdForSession })
+      if (profileResp.isSuccess && profileResp.data?.profile) {
+        profile = profileResp.data.profile
+        currentSourceSessionProfile.value = profile
+      }
+    }
+    if (
+      !profile ||
+      !profile.sessionKey ||
+      profile.sessionState === 'cold' ||
+      profile.sessionState === 'blocked'
+    ) {
+      const acquired = await acquireSession('auto_browser_like', 'autoAcquire')
+      if (!acquired.ok) return { pass: false, reason: acquired.reason }
+    }
+
+    const firstVerify = await verifySession('verify')
+    if (firstVerify.ok) return { pass: true }
+
+    autoFlowSummary.value.push(`gate@session:recover=attempt(${firstVerify.reason})`)
+    const recoverResp = await recoverSourceSessionProfile({
+      sourceId: sourceIdForSession,
+      action: 'refresh_session',
+    })
+    if (recoverResp.isSuccess && recoverResp.data?.profile) {
+      currentSourceSessionProfile.value = recoverResp.data.profile
+      autoFlowSummary.value.push('gate@session:recover=pass')
+    } else {
+      autoFlowSummary.value.push(`gate@session:recover=fail(${recoverResp.errorMsg || 'unknown'})`)
+    }
+
+    const secondVerify = await verifySession('reVerify')
+    if (secondVerify.ok) return { pass: true }
+
+    autoFlowSummary.value.push(`gate@session:fallbackAcquire=attempt(${secondVerify.reason})`)
+    const fallbackAcquire = await acquireSession('auto_api_like', 'fallbackAcquire')
+    if (!fallbackAcquire.ok) {
+      return { pass: false, reason: fallbackAcquire.reason }
+    }
+    const finalVerify = await verifySession('finalVerify')
+    if (finalVerify.ok) return { pass: true }
+    return { pass: false, reason: finalVerify.reason || secondVerify.reason || firstVerify.reason }
+  }
+
   async function buildValidateAndAutoRefine() {
     const runId = nextRunId()
     autoFlowRunId.value = runId
@@ -899,103 +1003,10 @@ export function useSourceBuilderDebugView() {
       return
     }
 
-    const ensureSessionGate = async (): Promise<{ pass: boolean; reason?: string }> => {
-      const sourceIdForSession = currentPackage.value?.source.id || sourceId.value.trim()
-      if (!sourceIdForSession) return { pass: true }
-      const probeUrl = runTargetUrl.value.trim() || validateChapterUrl.value.trim() || undefined
-      const verifySession = async (tag: string) => {
-        const verifyResp = await requestVerifyFetchSession({
-          sourceId: sourceIdForSession,
-          probeUrl,
-          timeoutMs: 12000,
-          expectedMinBodyLength: 200,
-        })
-        if (!verifyResp.isSuccess || !verifyResp.data) {
-          return {
-            ok: false,
-            reason: `session_verify_failed:${verifyResp.errorMsg || 'unknown'}`,
-            quality: 0,
-          }
-        }
-        const verify = verifyResp.data
-        currentSourceSessionProfile.value = verify.profile
-        const quality = Math.round(Number(verify.sessionQualityScore || 0))
-        autoFlowSummary.value.push(
-          `gate@session:${tag}=${verify.verified ? 'pass' : `fail(${verify.degradedReason || 'unknown'})`} quality=${quality}`
-        )
-        if (!verify.verified || Number(verify.sessionQualityScore || 0) < 40) {
-          return {
-            ok: false,
-            reason: verify.degradedReason || 'session_quality_low',
-            quality,
-          }
-        }
-        return { ok: true, quality }
-      }
-
-      const acquireSession = async (strategy: 'auto_browser_like' | 'auto_api_like', tag: string) => {
-        const acquireResp = await requestAutoAcquireFetchSession({
-          sourceId: sourceIdForSession,
-          acquireStrategy: strategy,
-          ttlSeconds: Number(sessionTtlSeconds.value || 1800),
-        })
-        if (!acquireResp.isSuccess || !acquireResp.data?.profile) {
-          return {
-            ok: false,
-            reason: `session_auto_acquire_failed:${acquireResp.errorMsg || 'unknown'}`,
-          }
-        }
-        const quality = Math.round(Number(acquireResp.data.sessionQualityScore || 0))
-        currentSourceSessionProfile.value = acquireResp.data.profile
-        if (acquireResp.data.sessionKey) {
-          fetchSessionKey.value = acquireResp.data.sessionKey
-        }
-        autoFlowSummary.value.push(`gate@session:${tag}=pass quality=${quality}`)
-        return { ok: true as const }
-      }
-
-      let profile = currentSourceSessionProfile.value
-      if (!profile || profile.sourceId !== sourceIdForSession) {
-        const profileResp = await requestSourceSessionProfile({ sourceId: sourceIdForSession })
-        if (profileResp.isSuccess && profileResp.data?.profile) {
-          profile = profileResp.data.profile
-          currentSourceSessionProfile.value = profile
-        }
-      }
-      if (!profile || !profile.sessionKey || profile.sessionState === 'cold' || profile.sessionState === 'blocked') {
-        const acquired = await acquireSession('auto_browser_like', 'autoAcquire')
-        if (!acquired.ok) return { pass: false, reason: acquired.reason }
-      }
-
-      const firstVerify = await verifySession('verify')
-      if (firstVerify.ok) return { pass: true }
-
-      autoFlowSummary.value.push(`gate@session:recover=attempt(${firstVerify.reason})`)
-      const recoverResp = await recoverSourceSessionProfile({
-        sourceId: sourceIdForSession,
-        action: 'refresh_session',
-      })
-      if (recoverResp.isSuccess && recoverResp.data?.profile) {
-        currentSourceSessionProfile.value = recoverResp.data.profile
-        autoFlowSummary.value.push('gate@session:recover=pass')
-      } else {
-        autoFlowSummary.value.push(`gate@session:recover=fail(${recoverResp.errorMsg || 'unknown'})`)
-      }
-
-      const secondVerify = await verifySession('reVerify')
-      if (secondVerify.ok) return { pass: true }
-
-      autoFlowSummary.value.push(`gate@session:fallbackAcquire=attempt(${secondVerify.reason})`)
-      const fallbackAcquire = await acquireSession('auto_api_like', 'fallbackAcquire')
-      if (!fallbackAcquire.ok) {
-        return { pass: false, reason: fallbackAcquire.reason }
-      }
-      const finalVerify = await verifySession('finalVerify')
-      if (finalVerify.ok) return { pass: true }
-      return { pass: false, reason: finalVerify.reason || secondVerify.reason || firstVerify.reason }
-    }
-
-    const sessionGate = await ensureSessionGate()
+    const sourceIdForSession = currentPackage.value?.source.id || sourceId.value.trim()
+    const sessionGate = sourceIdForSession
+      ? await executeSourceSessionGate(sourceIdForSession)
+      : { pass: true }
     await refreshCurrentSourceSessionProfile()
     if (!sessionGate.pass) {
       autoFlowState.value = 'MANUAL_REQUIRED'
@@ -1397,6 +1408,37 @@ export function useSourceBuilderDebugView() {
     }
   }
 
+  async function selfHealCurrentSourceSession() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法执行会话自愈')
+      return
+    }
+    try {
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        'session=self_heal:start',
+      ].slice(-50)
+      const result = await executeSourceSessionGate(sourceIdForCounter)
+      await refreshCurrentSourceSessionProfile()
+      if (result.pass) {
+        autoFlowSummary.value = [
+          ...autoFlowSummary.value,
+          'session=self_heal:pass',
+        ].slice(-50)
+        success('会话自愈完成，门禁已通过')
+      } else {
+        autoFlowSummary.value = [
+          ...autoFlowSummary.value,
+          `session=self_heal:fail(${result.reason || 'unknown'})`,
+        ].slice(-50)
+        warning(`会话自愈失败: ${result.reason || 'unknown'}`)
+      }
+    } catch {
+      warning('会话自愈执行失败')
+    }
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
@@ -1554,6 +1596,7 @@ export function useSourceBuilderDebugView() {
     autoAcquireCurrentSourceSession,
     verifyCurrentSourceSession,
     recoverCurrentSourceSession,
+    selfHealCurrentSourceSession,
     resetCurrentSourceFlowState,
     applySmokeGatePreset,
     applyRecommendedSmokeGate,
