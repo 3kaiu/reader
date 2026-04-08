@@ -17,6 +17,7 @@ import { useSourceBuilderValidationRefine } from '@/composables/source-builder/u
 import { useSourceBuilderRuntimeGovernance } from '@/composables/source-builder/useSourceBuilderRuntimeGovernance'
 import { useSourceBuilderDebugViewEffects } from '@/composables/source-builder/useSourceBuilderDebugViewEffects'
 import {
+  requestSourceFlowAssistProfileAudit,
   requestSourceFlowAssistProfile,
   resetSourceFlowAssistProfile,
 } from '@/composables/source-builder/sourceBuilderValidationActions'
@@ -256,6 +257,7 @@ export function useSourceBuilderDebugView() {
   const AUTO_FLOW_MAX_ATTEMPTS = 3
   const sourceFlowProfileLoading = ref(false)
   const sourceFlowProfileSummary = ref<string[]>([])
+  const sourceFlowProfileAuditSummary = ref<string[]>([])
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
     search: 0.7,
@@ -619,6 +621,7 @@ export function useSourceBuilderDebugView() {
     const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
     if (!sourceIdForCounter) {
       sourceFlowProfileSummary.value = []
+      sourceFlowProfileAuditSummary.value = []
       return
     }
     sourceFlowProfileLoading.value = true
@@ -638,8 +641,29 @@ export function useSourceBuilderDebugView() {
         `lastGoodRunId=${profile.lastGoodRunId || '--'}`,
         `updatedAt=${profile.updatedAt || '--'}`,
       ]
+
+      const auditResponse = await requestSourceFlowAssistProfileAudit({
+        sourceId: sourceIdForCounter,
+        limit: 8,
+      })
+      if (auditResponse.isSuccess && Array.isArray(auditResponse.data?.entries)) {
+        sourceFlowProfileAuditSummary.value = auditResponse.data.entries.map(entry => {
+          const parts = [
+            `${entry.action}`,
+            entry.lifecycleState ? `lifecycle=${entry.lifecycleState}` : '',
+            entry.conservativeMode == null ? '' : `conservative=${entry.conservativeMode ? 'on' : 'off'}`,
+            entry.note ? `note=${entry.note}` : '',
+            entry.updatedBy ? `by=${entry.updatedBy}` : '',
+            `at=${entry.createdAt}`,
+          ].filter(Boolean)
+          return parts.join(' | ')
+        })
+      } else {
+        sourceFlowProfileAuditSummary.value = ['audit: unavailable']
+      }
     } catch {
       sourceFlowProfileSummary.value = ['profile: load failed']
+      sourceFlowProfileAuditSummary.value = ['audit: load failed']
     } finally {
       sourceFlowProfileLoading.value = false
     }
@@ -661,6 +685,7 @@ export function useSourceBuilderDebugView() {
     autoFlowSummary,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
+    sourceFlowProfileAuditSummary,
     sourcePackages,
     sourceBuildPreviewSummary,
     currentPreviewSummary,

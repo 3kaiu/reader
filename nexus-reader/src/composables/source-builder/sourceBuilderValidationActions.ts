@@ -154,6 +154,13 @@ export async function resetSourceFlowAssistProfile(options: {
   return await syncApi.resetSourceFlowAssistProfile(options)
 }
 
+export async function requestSourceFlowAssistProfileAudit(options: {
+  sourceId: string
+  limit?: number
+}) {
+  return await syncApi.getSourceFlowAssistProfileAudit(options)
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {

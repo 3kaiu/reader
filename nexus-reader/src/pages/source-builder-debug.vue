@@ -17,6 +17,7 @@ const {
   autoFlowSummary,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
+  sourceFlowProfileAuditSummary,
   sourcePackages,
   sourceBuildPreviewSummary,
   currentPreviewSummary,
@@ -223,6 +224,14 @@ const {
           <p class="text-xs text-muted-foreground mb-2">Source Flow Profile</p>
           <ul class="space-y-1 text-xs break-all">
             <li v-for="item in sourceFlowProfileSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="sourceFlowProfileAuditSummary.length > 0" class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Profile Audit (Recent)</p>
+          <ul class="space-y-1 text-xs break-all">
+            <li v-for="item in sourceFlowProfileAuditSummary" :key="item">{{ item }}</li>
           </ul>
         </div>
       </div>

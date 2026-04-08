@@ -378,6 +378,17 @@ export type SourceFlowAssistProfile = {
   updatedAt: string
 }
 
+export type SourceFlowAssistProfileAuditEntry = {
+  id: number
+  sourceId: string
+  action: string
+  lifecycleState?: string
+  conservativeMode?: boolean
+  note?: string
+  updatedBy?: string | null
+  createdAt: string
+}
+
 export type SourceBuildDiagnostics = {
   host: string
   bookSampleUrl: string
@@ -704,6 +715,18 @@ export const syncApi = {
     return await $post<{ success: boolean }>('/source/flow-assist/profile/reset', payload, {
       silent: true,
     } satisfies ApiFetchOptions)
+  },
+  getSourceFlowAssistProfileAudit: async (params: { sourceId: string; limit?: number }) => {
+    const query = new URLSearchParams({ sourceId: params.sourceId })
+    if (params.limit != null) {
+      query.set('limit', String(params.limit))
+    }
+    return await $get<{ success: boolean; entries: SourceFlowAssistProfileAuditEntry[] }>(
+      `/source/flow-assist/profile/audit?${query.toString()}`,
+      {
+        silent: true,
+      } satisfies ApiFetchOptions
+    )
   },
   importFetchSession: async (payload: {
     sessionKey: string

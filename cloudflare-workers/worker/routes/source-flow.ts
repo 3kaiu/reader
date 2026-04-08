@@ -71,6 +71,17 @@ type SourceFlowAssistProfile = {
   updatedAt: string
 }
 
+type SourceFlowProfileAuditEntry = {
+  id: number
+  sourceId: string
+  action: string
+  lifecycleState?: string
+  conservativeMode?: boolean
+  note?: string
+  updatedBy?: string | null
+  createdAt: string
+}
+
 type SourceFlowAssistFeedbackStatsResponse = {
   success: boolean
   windowDays: number
@@ -422,6 +433,53 @@ async function ensureProfileTable(env: EnhancedWorkerEnv): Promise<void> {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `).bind().run()
+}
+
+async function ensureProfileAuditTable(env: EnhancedWorkerEnv): Promise<void> {
+  await env.ANALYTICS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_source_flow_profile_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      lifecycle_state TEXT,
+      conservative_mode INTEGER,
+      note TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).bind().run()
+}
+
+async function writeProfileAudit(
+  env: EnhancedWorkerEnv,
+  payload: {
+    sourceId: string
+    action: string
+    lifecycleState?: string
+    conservativeMode?: boolean
+    note?: string
+    updatedBy?: string | null
+  }
+): Promise<void> {
+  await ensureProfileAuditTable(env)
+  await env.ANALYTICS_DB.prepare(`
+    INSERT INTO ai_source_flow_profile_audit (
+      source_id,
+      action,
+      lifecycle_state,
+      conservative_mode,
+      note,
+      updated_by,
+      created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+  `).bind(
+    payload.sourceId,
+    payload.action,
+    payload.lifecycleState || null,
+    payload.conservativeMode == null ? null : payload.conservativeMode ? 1 : 0,
+    payload.note || null,
+    payload.updatedBy || null
+  ).run()
 }
 
 function parseJsonArray(raw: string | null | undefined): string[] {
@@ -952,6 +1010,14 @@ export async function handleSourceFlowAssistProfile(
         lastGoodRunId || null,
         JSON.stringify(recentFailureCodes)
       ).run()
+      await writeProfileAudit(env, {
+        sourceId,
+        action: 'save',
+        lifecycleState,
+        conservativeMode,
+        note: `preferredActions=${preferredActions.length};recentFailures=${recentFailureCodes.length}`,
+        updatedBy: String((payload as { sub?: string }).sub || ''),
+      })
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
       })
@@ -1037,6 +1103,14 @@ export async function handleSourceFlowAssistProfileReset(
       clearPreferredActions ? '[]' : '[]',
       clearPreferredActions ? 1 : 0
     ).run()
+    await writeProfileAudit(env, {
+      sourceId,
+      action: 'reset',
+      lifecycleState,
+      conservativeMode: false,
+      note: `clearPreferredActions=${clearPreferredActions ? '1' : '0'}`,
+      updatedBy: String((payload as { sub?: string }).sub || ''),
+    })
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
     })
@@ -1045,6 +1119,88 @@ export async function handleSourceFlowAssistProfileReset(
       request,
       'SOURCE_FLOW_PROFILE_RESET_FAILED',
       'Source flow profile reset failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}
+
+export async function handleSourceFlowAssistProfileAudit(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  try {
+    await ensureProfileAuditTable(env)
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_PROFILE_AUDIT_FAILED',
+      'Source flow profile audit table failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+
+  const url = new URL(request.url)
+  const sourceId = normalizeText(url.searchParams.get('sourceId') || '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+  const limitRaw = Number(url.searchParams.get('limit') || 20)
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, Math.trunc(limitRaw))) : 20
+
+  try {
+    const rows = await env.ANALYTICS_DB.prepare(`
+      SELECT
+        id,
+        source_id,
+        action,
+        lifecycle_state,
+        conservative_mode,
+        note,
+        updated_by,
+        created_at
+      FROM ai_source_flow_profile_audit
+      WHERE source_id = ?
+      ORDER BY id DESC
+      LIMIT ?
+    `).bind(sourceId, limit).all<{
+      id?: number
+      source_id?: string
+      action?: string
+      lifecycle_state?: string | null
+      conservative_mode?: number | null
+      note?: string | null
+      updated_by?: string | null
+      created_at?: string
+    }>()
+
+    const entries: SourceFlowProfileAuditEntry[] = (rows.results || []).map(row => ({
+      id: Number(row.id || 0),
+      sourceId: String(row.source_id || sourceId),
+      action: String(row.action || 'unknown'),
+      lifecycleState: row.lifecycle_state || undefined,
+      conservativeMode:
+        row.conservative_mode == null ? undefined : Number(row.conservative_mode) > 0,
+      note: row.note || undefined,
+      updatedBy: row.updated_by || null,
+      createdAt: row.created_at || new Date().toISOString(),
+    }))
+
+    return new Response(JSON.stringify({ success: true, entries }), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_PROFILE_AUDIT_FAILED',
+      'Source flow profile audit failed',
       500,
       getErrorMessage(error)
     )
