@@ -702,6 +702,21 @@ export function useSourceBuilderDebugView() {
     success(`已恢复默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
   }
 
+  function clearSessionGateHistory(options?: { currentSourceOnly?: boolean }) {
+    if (options?.currentSourceOnly) {
+      const source = currentAutoFlowSourceId.value
+      if (!source) {
+        warning('缺少 sourceId，无法按当前源清理会话门禁历史')
+        return
+      }
+      sessionGateHistory.value = sessionGateHistory.value.filter(item => item.sourceId !== source)
+      success(`已清理当前源会话门禁历史: ${source}`)
+      return
+    }
+    sessionGateHistory.value = []
+    success('已清理全部会话门禁历史')
+  }
+
   function applyRecommendedSmokeGate() {
     const recommendation = currentSourceAutoFlowRecommendation.value
     if (recommendation.level === 'risky') {
@@ -1727,6 +1742,7 @@ export function useSourceBuilderDebugView() {
     resetCurrentSourceFlowState,
     applySmokeGatePreset,
     applyRecommendedSmokeGate,
+    clearSessionGateHistory,
     clearAutoFlowHistory,
     clearPreview,
     goBack,

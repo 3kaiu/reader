@@ -162,6 +162,7 @@ const {
   resetCurrentSourceFlowState,
   applySmokeGatePreset,
   applyRecommendedSmokeGate,
+  clearSessionGateHistory,
   clearAutoFlowHistory,
   clearPreview,
   buildValidateAndAutoRefine,
@@ -416,7 +417,17 @@ const latestOutcomeLabel = computed(() => {
       </div>
       <div v-if="currentSourceSessionGateHistoryItems.length > 0" class="px-5 pb-5">
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-          <p class="text-xs text-muted-foreground mb-2">Session Gate History (Recent)</p>
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted-foreground">Session Gate History (Recent)</p>
+            <div class="flex items-center gap-2">
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearSessionGateHistory({ currentSourceOnly: true })">
+                清空当前源会话历史
+              </button>
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearSessionGateHistory()">
+                清空全部会话历史
+              </button>
+            </div>
+          </div>
           <ul class="space-y-2 text-xs break-all">
             <li v-for="item in currentSourceSessionGateHistoryItems" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
               <p class="font-medium">{{ item.title }}</p>
