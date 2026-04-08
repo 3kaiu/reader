@@ -16,6 +16,7 @@ import {
   appendFreeTextHint,
   buildRefineSuggestions,
   hasStructuredSourceRuleHints,
+  mergeNoisePatterns,
 } from '@/composables/source-builder/sourceBuilderRefineSuggestions'
 import {
   applyRefinedPackageResult,
@@ -130,8 +131,139 @@ export function useSourceBuilderValidationRefine(
       }
     )
   )
+  const opsDrivenSuggestions = computed<RefineSuggestion[]>(() => {
+    const regressions = aiAssistOpsRegressionTop.value.map(item => item.regression).join(' | ')
+    if (!regressions) {
+      return []
+    }
+
+    const suggestions: RefineSuggestion[] = []
+    const currentSourceId = options.currentPackage.value?.source.id || ''
+    const sourceOps = aiAssistOpsLeaderboard.value.find(item => item.sourceId === currentSourceId)
+    const lowAccept = sourceOps && sourceOps.count >= 3 && sourceOps.acceptRate < 0.5
+
+    if (regressions.includes('搜索')) {
+      suggestions.push({
+        id: 'ops-regression-search',
+        step: 'ops',
+        title: '[Ops] 搜索回归高频：先稳住搜索条目定位',
+        detail: '运营统计显示搜索相关回归高频，优先固定 searchResultSelector 与详情链接语义，减少误抽。',
+        kind: 'structured',
+        applyLabel: '应用 Ops 搜索建议',
+        apply: () => {
+          structuredHints.value = {
+            ...structuredHints.value,
+            searchResultSelector:
+              structuredHints.value.searchResultSelector ||
+              '.search-list > li | .result-list li | .bookbox | .result-item | a[href]',
+          }
+          let next = freeTextHints.value
+          next = appendFreeTextHint(next, 'search result: 仅匹配书籍条目容器，不匹配导航/分页')
+          next = appendFreeTextHint(next, 'search result url: 指向书籍详情页，不指向作者页或章节页')
+          freeTextHints.value = next
+        },
+      })
+    }
+
+    if (regressions.includes('详情')) {
+      suggestions.push({
+        id: 'ops-regression-book',
+        step: 'ops',
+        title: '[Ops] 详情回归高频：补齐书名作者规则',
+        detail: '运营统计显示详情提取不稳定，先固化书名/作者 selector，避免详情判定失败。',
+        kind: 'structured',
+        applyLabel: '应用 Ops 详情建议',
+        apply: () => {
+          structuredHints.value = {
+            ...structuredHints.value,
+            bookTitleSelector:
+              structuredHints.value.bookTitleSelector ||
+              "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
+            authorSelector:
+              structuredHints.value.authorSelector ||
+              '.author | .book-author | .info .author | p.author',
+          }
+          freeTextHints.value = appendFreeTextHint(
+            freeTextHints.value,
+            'book detail: 书名与作者必须来自详情主信息区域'
+          )
+        },
+      })
+    }
+
+    if (regressions.includes('目录')) {
+      suggestions.push({
+        id: 'ops-regression-toc',
+        step: 'ops',
+        title: '[Ops] 目录回归高频：先稳定章节列表提取',
+        detail: '运营统计显示目录阶段掉分较多，建议先收敛 tocItemSelector，确保章节列表可持续抽取。',
+        kind: 'structured',
+        applyLabel: '应用 Ops 目录建议',
+        apply: () => {
+          structuredHints.value = {
+            ...structuredHints.value,
+            tocItemSelector:
+              structuredHints.value.tocItemSelector ||
+              '.chapter-list a | #list a | .catalog a | a[href]',
+          }
+          freeTextHints.value = appendFreeTextHint(
+            freeTextHints.value,
+            'toc: 排除相关推荐、上一篇/下一篇、分页链接'
+          )
+        },
+      })
+    }
+
+    if (regressions.includes('正文')) {
+      suggestions.push({
+        id: 'ops-regression-content',
+        step: 'ops',
+        title: '[Ops] 正文回归高频：收窄正文并强化去噪',
+        detail: '运营统计显示正文质量回归频发，建议先固定正文容器并补充常见噪音词。',
+        kind: 'structured',
+        applyLabel: '应用 Ops 正文建议',
+        apply: () => {
+          structuredHints.value = mergeNoisePatterns(
+            {
+              ...structuredHints.value,
+              contentSelector:
+                structuredHints.value.contentSelector ||
+                '#content | .content | .txtnav | .read-content | article',
+            },
+            ['最新网址', '推广', '广告', '手机阅读', '请收藏', '上一章', '下一章']
+          )
+          let next = freeTextHints.value
+          next = appendFreeTextHint(next, 'content: 只保留连续正文段落，不包含工具栏与相关推荐')
+          freeTextHints.value = next
+        },
+      })
+    }
+
+    if (lowAccept || regressions.includes('未定位')) {
+      suggestions.push({
+        id: 'ops-regression-conservative-plan',
+        step: 'ops',
+        title: '[Ops] 低命中策略：先最小变更再迭代',
+        detail: '当前 source 的 AI 命中率偏低或回归不可定位，建议每次只施加一类修复动作，降低组合回归风险。',
+        kind: 'free_text',
+        applyLabel: '应用 Ops 保守策略',
+        apply: () => {
+          let next = freeTextHints.value
+          next = appendFreeTextHint(next, 'refine strategy: 每次只做一种规则改动，优先搜索->详情->目录->正文')
+          next = appendFreeTextHint(next, 'refine strategy: 出现掉分立即回滚并缩小改动范围')
+          freeTextHints.value = next
+        },
+      })
+    }
+
+    return suggestions
+  })
   const refineSuggestions = computed<RefineSuggestion[]>(() => {
-    const merged = [...aiAssistSuggestions.value, ...ruleBasedSuggestions.value]
+    const merged = [
+      ...opsDrivenSuggestions.value,
+      ...aiAssistSuggestions.value,
+      ...ruleBasedSuggestions.value,
+    ]
     const unique = new Map<string, RefineSuggestion>()
     for (const item of merged) {
       if (!unique.has(item.id)) {
