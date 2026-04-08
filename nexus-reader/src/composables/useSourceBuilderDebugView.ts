@@ -293,6 +293,51 @@ export function useSourceBuilderDebugView() {
       passRate,
     }
   })
+  const currentSourceAutoFlowRecommendation = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const failureCount = source ? Number(sourceFailureCounts.value[source] || 0) : 0
+    const stats = currentSourceAutoFlowStats.value
+    if (!source) {
+      return {
+        level: 'unknown' as const,
+        title: '未选择 source',
+        advice: '先选择或构建一个 source，再运行自动流程评估稳定性。',
+      }
+    }
+    if (failureCount >= 3 || autoFlowState.value === 'QUARANTINED') {
+      return {
+        level: 'risky' as const,
+        title: '高风险：源已接近或进入隔离',
+        advice: '建议先“解封 Source 状态”或“重置为新源”，补样本后再跑自动流程。',
+      }
+    }
+    if (stats.total < 3) {
+      return {
+        level: 'watch' as const,
+        title: '样本不足：结论不稳定',
+        advice: '至少累积 3 次以上自动流程结果，再依据通过率决策是否导入。',
+      }
+    }
+    if (stats.passRate >= 80) {
+      return {
+        level: 'stable' as const,
+        title: '稳定：可继续导入验证',
+        advice: '当前源通过率较高，可继续执行导入并验证真实阅读链路。',
+      }
+    }
+    if (stats.passRate >= 50) {
+      return {
+        level: 'watch' as const,
+        title: '边缘稳定：建议保守迭代',
+        advice: '优先提高 smoke sample 或提高门禁阈值，逐步收敛规则改动范围。',
+      }
+    }
+    return {
+      level: 'risky' as const,
+      title: '不稳定：暂不建议导入',
+      advice: '通过率过低，建议先重置状态并补齐搜索/详情/目录样本后重试。',
+    }
+  })
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -904,6 +949,7 @@ export function useSourceBuilderDebugView() {
     autoFlowHistorySummary,
     currentSourceAutoFlowHistorySummary,
     currentSourceAutoFlowStats,
+    currentSourceAutoFlowRecommendation,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,

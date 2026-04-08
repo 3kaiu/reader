@@ -18,6 +18,7 @@ const {
   autoFlowHistorySummary,
   currentSourceAutoFlowHistorySummary,
   currentSourceAutoFlowStats,
+  currentSourceAutoFlowRecommendation,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -255,6 +256,17 @@ const {
               <p class="mt-1">{{ item.note }}</p>
             </li>
           </ul>
+        </div>
+      </div>
+      <div class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Stability Recommendation</p>
+          <p class="text-sm font-medium break-all">
+            {{ currentSourceAutoFlowRecommendation.title }}
+          </p>
+          <p class="mt-1 text-xs text-muted-foreground break-all">
+            {{ currentSourceAutoFlowRecommendation.advice }}
+          </p>
         </div>
       </div>
       <div v-if="sourceFlowProfileSummary.length > 0" class="px-5 pb-5">
