@@ -24,6 +24,8 @@ const {
   currentSourceAutoFlowHealthSummary,
   currentSourceSessionRecommendation,
   currentSourceForcedImportSummary,
+  currentSourceSessionGateHistorySummary,
+  currentSourceSessionGateHistoryItems,
   importPreviewGuardSummary,
   importPreviewBlocked,
   forceImportArmed,
@@ -400,6 +402,19 @@ const latestOutcomeLabel = computed(() => {
           <ul class="mt-2 space-y-1 text-[11px] text-muted-foreground break-all">
             <li v-for="item in currentSourceAutoFlowHealthSummary" :key="item">{{ item }}</li>
             <li v-for="item in currentSourceForcedImportSummary" :key="item">{{ item }}</li>
+            <li v-for="item in currentSourceSessionGateHistorySummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="currentSourceSessionGateHistoryItems.length > 0" class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Session Gate History (Recent)</p>
+          <ul class="space-y-2 text-xs break-all">
+            <li v-for="item in currentSourceSessionGateHistoryItems" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
+              <p class="font-medium">{{ item.title }}</p>
+              <p class="text-muted-foreground mt-1">{{ item.subtitle }}</p>
+              <p class="mt-1">{{ item.note }}</p>
+            </li>
           </ul>
         </div>
       </div>

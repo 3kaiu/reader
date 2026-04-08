@@ -259,6 +259,14 @@ export function useSourceBuilderDebugView() {
     reason: string
     createdAtMs: number
   }
+  type SessionGateHistoryEntry = {
+    id: string
+    sourceId: string
+    success: boolean
+    reason: string
+    quality: number
+    createdAtMs: number
+  }
   const autoFlowState = ref<AutoFlowState>('IDLE')
   const autoFlowRunId = ref('')
   const autoFlowSummary = ref<string[]>([])
@@ -268,6 +276,10 @@ export function useSourceBuilderDebugView() {
   )
   const forcedImportAudit = useStorage<ForcedImportAuditEntry[]>(
     'source-builder-forced-import-audit',
+    []
+  )
+  const sessionGateHistory = useStorage<SessionGateHistoryEntry[]>(
+    'source-builder-session-gate-history',
     []
   )
   const currentAutoFlowSourceId = computed(
@@ -504,6 +516,37 @@ export function useSourceBuilderDebugView() {
       lines.push(`lastForcedReason=${latest.reason}`)
     }
     return lines
+  })
+  const currentSourceSessionGateHistorySummary = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = (source
+      ? sessionGateHistory.value.filter(item => item.sourceId === source)
+      : sessionGateHistory.value
+    ).slice(0, 20)
+    const total = entries.length
+    const passed = entries.filter(item => item.success).length
+    const passRate = total > 0 ? Math.round((passed / total) * 100) : 0
+    const lines = [
+      `sessionGateTotal=${total}`,
+      `sessionGatePass=${passed}`,
+      `sessionGatePassRate=${passRate}%`,
+    ]
+    if (entries[0]) {
+      lines.push(`lastSessionGate=${entries[0].success ? 'PASS' : 'FAIL'}(${entries[0].reason})`)
+    }
+    return lines
+  })
+  const currentSourceSessionGateHistoryItems = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = source
+      ? sessionGateHistory.value.filter(item => item.sourceId === source)
+      : sessionGateHistory.value
+    return entries.slice(0, 12).map(item => ({
+      id: item.id,
+      title: `${item.success ? 'PASS' : 'FAIL'} · q=${item.quality}`,
+      subtitle: new Date(item.createdAtMs).toLocaleString(),
+      note: item.reason,
+    }))
   })
   const forceImportArmed = ref(false)
   const sourceFailureCounts = useStorage<Record<string, number>>(
@@ -910,6 +953,20 @@ export function useSourceBuilderDebugView() {
   async function executeSourceSessionGate(
     sourceIdForSession: string
   ): Promise<{ pass: boolean; reason?: string }> {
+    const finish = (result: { pass: boolean; reason?: string; quality?: number }) => {
+      sessionGateHistory.value = [
+        {
+          id: `sg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          sourceId: sourceIdForSession,
+          success: result.pass,
+          reason: result.reason || (result.pass ? 'passed' : 'unknown'),
+          quality: Math.max(0, Math.round(Number(result.quality || 0))),
+          createdAtMs: Date.now(),
+        },
+        ...sessionGateHistory.value,
+      ].slice(0, 120)
+      return { pass: result.pass, ...(result.reason ? { reason: result.reason } : {}) }
+    }
     const probeUrl = runTargetUrl.value.trim() || validateChapterUrl.value.trim() || undefined
     const verifySession = async (tag: string) => {
       const verifyResp = await requestVerifyFetchSession({
@@ -980,11 +1037,11 @@ export function useSourceBuilderDebugView() {
       profile.sessionState === 'blocked'
     ) {
       const acquired = await acquireSession('auto_browser_like', 'autoAcquire')
-      if (!acquired.ok) return { pass: false, reason: acquired.reason }
+      if (!acquired.ok) return finish({ pass: false, reason: acquired.reason })
     }
 
     const firstVerify = await verifySession('verify')
-    if (firstVerify.ok) return { pass: true }
+    if (firstVerify.ok) return finish({ pass: true, reason: 'verify', quality: firstVerify.quality })
 
     autoFlowSummary.value.push(`gate@session:recover=attempt(${firstVerify.reason})`)
     const recoverResp = await recoverSourceSessionProfile({
@@ -999,16 +1056,20 @@ export function useSourceBuilderDebugView() {
     }
 
     const secondVerify = await verifySession('reVerify')
-    if (secondVerify.ok) return { pass: true }
+    if (secondVerify.ok) return finish({ pass: true, reason: 'reVerify', quality: secondVerify.quality })
 
     autoFlowSummary.value.push(`gate@session:fallbackAcquire=attempt(${secondVerify.reason})`)
     const fallbackAcquire = await acquireSession('auto_api_like', 'fallbackAcquire')
     if (!fallbackAcquire.ok) {
-      return { pass: false, reason: fallbackAcquire.reason }
+      return finish({ pass: false, reason: fallbackAcquire.reason })
     }
     const finalVerify = await verifySession('finalVerify')
-    if (finalVerify.ok) return { pass: true }
-    return { pass: false, reason: finalVerify.reason || secondVerify.reason || firstVerify.reason }
+    if (finalVerify.ok) return finish({ pass: true, reason: 'finalVerify', quality: finalVerify.quality })
+    return finish({
+      pass: false,
+      reason: finalVerify.reason || secondVerify.reason || firstVerify.reason,
+      quality: finalVerify.quality || secondVerify.quality || firstVerify.quality,
+    })
   }
 
   async function buildValidateAndAutoRefine() {
@@ -1493,6 +1554,8 @@ export function useSourceBuilderDebugView() {
     currentSourceSessionRecommendation,
     importPreviewGuardSummary,
     currentSourceForcedImportSummary,
+    currentSourceSessionGateHistorySummary,
+    currentSourceSessionGateHistoryItems,
     importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
     forceImportArmed,
     sourceFlowProfileLoading,
