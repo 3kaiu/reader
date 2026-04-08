@@ -310,8 +310,14 @@ export function useSourceBuilderDebugView() {
     >
   >('source-builder-last-good-packages', {})
   const AUTO_FLOW_MAX_ATTEMPTS = 3
-  const AUTO_FLOW_SMOKE_SAMPLE_SIZE = 10
-  const AUTO_FLOW_SMOKE_MIN_PASS_RATE = 80
+  const runSmokeSampleSize = useStorage<number>(
+    'source-builder-run-smoke-sample-size',
+    10
+  )
+  const runSmokePassRateThreshold = useStorage<number>(
+    'source-builder-run-smoke-pass-rate-threshold',
+    80
+  )
   const sourceFlowProfileLoading = ref(false)
   const sourceFlowProfileSummary = ref<string[]>([])
   const sourceFlowProfileAuditSummary = ref<string[]>([])
@@ -622,8 +628,8 @@ export function useSourceBuilderDebugView() {
       } else {
         autoFlowState.value = 'SMOKE_VERIFY'
         const smoke = await runChaptersContentSmoke({
-          sampleSize: AUTO_FLOW_SMOKE_SAMPLE_SIZE,
-          passRateThreshold: AUTO_FLOW_SMOKE_MIN_PASS_RATE,
+          sampleSize: runSmokeSampleSize.value,
+          passRateThreshold: runSmokePassRateThreshold.value,
         })
         const smokeReasons = smoke.pass
           ? []
@@ -675,8 +681,8 @@ export function useSourceBuilderDebugView() {
         } else {
           autoFlowState.value = 'SMOKE_VERIFY'
           const smoke = await runChaptersContentSmoke({
-            sampleSize: AUTO_FLOW_SMOKE_SAMPLE_SIZE,
-            passRateThreshold: AUTO_FLOW_SMOKE_MIN_PASS_RATE,
+            sampleSize: runSmokeSampleSize.value,
+            passRateThreshold: runSmokePassRateThreshold.value,
           })
           const smokeReasons = smoke.pass
             ? []
@@ -928,6 +934,8 @@ export function useSourceBuilderDebugView() {
     validationLoading,
     runSearchQuery,
     runTargetUrl,
+    runSmokeSampleSize,
+    runSmokePassRateThreshold,
     runResult,
     runSearchDetailResult,
     runChaptersResult,

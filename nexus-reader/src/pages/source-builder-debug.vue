@@ -89,6 +89,8 @@ const {
   validationLoading,
   runSearchQuery,
   runTargetUrl,
+  runSmokeSampleSize,
+  runSmokePassRateThreshold,
   runResult,
   runSearchDetailResult,
   runChaptersResult,
@@ -437,6 +439,8 @@ const {
     <SourceBuilderRunPanel
       v-model:run-search-query="runSearchQuery"
       v-model:run-target-url="runTargetUrl"
+      v-model:run-smoke-sample-size="runSmokeSampleSize"
+      v-model:run-smoke-pass-rate-threshold="runSmokePassRateThreshold"
       :run-loading="runLoading"
       :has-current-package="Boolean(currentPackage)"
       :run-execution-profile-summary="runExecutionProfileSummary"

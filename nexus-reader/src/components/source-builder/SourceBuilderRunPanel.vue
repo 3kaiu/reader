@@ -13,6 +13,8 @@ interface ChapterRunResultItem {
 
 const runSearchQuery = defineModel<string>('runSearchQuery', { required: true })
 const runTargetUrl = defineModel<string>('runTargetUrl', { required: true })
+const runSmokeSampleSize = defineModel<number>('runSmokeSampleSize', { required: true })
+const runSmokePassRateThreshold = defineModel<number>('runSmokePassRateThreshold', { required: true })
 
 const props = defineProps<{
   runLoading: boolean
@@ -43,7 +45,7 @@ const emit = defineEmits<{
   runDetailValidation: [bookUrl: string]
   runDetailAndChaptersValidation: [bookUrl: string]
   runSearchToContentValidation: []
-  runChaptersContentSmoke: []
+  runChaptersContentSmoke: [options?: { sampleSize?: number; passRateThreshold?: number }]
 }>()
 </script>
 
@@ -65,6 +67,24 @@ const emit = defineEmits<{
         v-model="runTargetUrl"
         class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
         placeholder="target url"
+      />
+    </div>
+    <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+      <input
+        v-model.number="runSmokeSampleSize"
+        type="number"
+        min="1"
+        max="30"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="smoke sample size (1-30)"
+      />
+      <input
+        v-model.number="runSmokePassRateThreshold"
+        type="number"
+        min="1"
+        max="100"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="smoke pass rate threshold (1-100)"
       />
     </div>
     <div class="px-5 pb-5 flex flex-wrap gap-2">
@@ -113,9 +133,9 @@ const emit = defineEmits<{
       <button
         class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
         :disabled="props.runLoading || !props.hasCurrentPackage || (!runTargetUrl.trim() && !props.runChaptersResult)"
-        @click="emit('runChaptersContentSmoke')"
+        @click="emit('runChaptersContentSmoke', { sampleSize: runSmokeSampleSize, passRateThreshold: runSmokePassRateThreshold })"
       >
-        Chapters -> Content Smoke x10
+        Chapters -> Content Smoke x{{ runSmokeSampleSize || 10 }}
       </button>
     </div>
     <div v-if="props.runExecutionProfileSummary.length > 0" class="px-5 pb-5">
