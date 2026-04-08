@@ -255,6 +255,9 @@ export function useSourceBuilderDebugView() {
     'source-builder-auto-flow-history',
     []
   )
+  const currentAutoFlowSourceId = computed(
+    () => currentPackage.value?.source.id || sourceId.value.trim() || ''
+  )
   const autoFlowHistorySummary = computed(() =>
     autoFlowHistory.value.map(item => ({
       id: item.id,
@@ -263,6 +266,33 @@ export function useSourceBuilderDebugView() {
       note: item.note,
     }))
   )
+  const currentSourceAutoFlowHistorySummary = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = source
+      ? autoFlowHistory.value.filter(item => item.sourceId === source)
+      : autoFlowHistory.value
+    return entries.map(item => ({
+      id: item.id,
+      title: `${item.success ? 'PASS' : 'FAIL'} · ${item.finalState} · ${item.sourceId || '--'}`,
+      subtitle: `${item.runId} · ${new Date(item.createdAtMs).toLocaleString()}`,
+      note: item.note,
+    }))
+  })
+  const currentSourceAutoFlowStats = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const entries = autoFlowHistory.value.filter(item => !source || item.sourceId === source)
+    const total = entries.length
+    const passed = entries.filter(item => item.success).length
+    const failed = total - passed
+    const passRate = total > 0 ? Math.round((passed / total) * 100) : 0
+    return {
+      sourceId: source || '--',
+      total,
+      passed,
+      failed,
+      passRate,
+    }
+  })
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -324,6 +354,21 @@ export function useSourceBuilderDebugView() {
       createdAtMs: Date.now(),
     }
     autoFlowHistory.value = [next, ...autoFlowHistory.value].slice(0, 40)
+  }
+
+  function clearAutoFlowHistory(options?: { currentSourceOnly?: boolean }) {
+    if (options?.currentSourceOnly) {
+      const source = currentAutoFlowSourceId.value
+      if (!source) {
+        warning('缺少 sourceId，无法按当前源清理历史')
+        return
+      }
+      autoFlowHistory.value = autoFlowHistory.value.filter(item => item.sourceId !== source)
+      success(`已清理当前源历史: ${source}`)
+      return
+    }
+    autoFlowHistory.value = []
+    success('已清理全部自动流程历史')
   }
 
   function persistLastGoodPackage(sourceIdForCounter: string) {
@@ -807,6 +852,8 @@ export function useSourceBuilderDebugView() {
     autoFlowRunId,
     autoFlowSummary,
     autoFlowHistorySummary,
+    currentSourceAutoFlowHistorySummary,
+    currentSourceAutoFlowStats,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,
@@ -931,6 +978,7 @@ export function useSourceBuilderDebugView() {
     runChaptersContentSmoke,
     refreshCurrentSourceFlowProfile,
     resetCurrentSourceFlowState,
+    clearAutoFlowHistory,
     clearPreview,
     goBack,
   }

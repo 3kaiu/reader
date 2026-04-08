@@ -16,6 +16,8 @@ const {
   autoFlowRunId,
   autoFlowSummary,
   autoFlowHistorySummary,
+  currentSourceAutoFlowHistorySummary,
+  currentSourceAutoFlowStats,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -136,6 +138,7 @@ const {
   runChaptersContentSmoke,
   refreshCurrentSourceFlowProfile,
   resetCurrentSourceFlowState,
+  clearAutoFlowHistory,
   clearPreview,
   buildValidateAndAutoRefine,
   goBack,
@@ -225,9 +228,26 @@ const {
       </div>
       <div v-if="autoFlowHistorySummary.length > 0" class="px-5 pb-5">
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
-          <p class="text-xs text-muted-foreground mb-2">Auto Flow History (Recent)</p>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted-foreground">Auto Flow History (Recent)</p>
+            <div class="flex items-center gap-2">
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearAutoFlowHistory({ currentSourceOnly: true })">
+                清空当前源历史
+              </button>
+              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearAutoFlowHistory()">
+                清空全部历史
+              </button>
+            </div>
+          </div>
+          <div class="mb-3 rounded-md border border-border/30 bg-background p-2 text-[11px]">
+            <span class="font-medium">source={{ currentSourceAutoFlowStats.sourceId }}</span>
+            <span class="ml-2">total={{ currentSourceAutoFlowStats.total }}</span>
+            <span class="ml-2">pass={{ currentSourceAutoFlowStats.passed }}</span>
+            <span class="ml-2">fail={{ currentSourceAutoFlowStats.failed }}</span>
+            <span class="ml-2">passRate={{ currentSourceAutoFlowStats.passRate }}%</span>
+          </div>
           <ul class="space-y-2 text-xs break-all">
-            <li v-for="item in autoFlowHistorySummary.slice(0, 12)" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
+            <li v-for="item in currentSourceAutoFlowHistorySummary.slice(0, 12)" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
               <p class="font-medium">{{ item.title }}</p>
               <p class="text-muted-foreground mt-1">{{ item.subtitle }}</p>
               <p class="mt-1">{{ item.note }}</p>
