@@ -29,6 +29,10 @@ const props = defineProps<{
   runChaptersSummary: string[]
   runChapterResultItems: ChapterRunResultItem[]
   runChaptersSuggestedActions: string[]
+  runContentResult: unknown
+  runContentSummary: string[]
+  runContentSuggestedActions: string[]
+  runFullFlowSummary: string[]
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +40,7 @@ const emit = defineEmits<{
   runSearchAndValidateDetail: []
   runDetailValidation: [bookUrl: string]
   runDetailAndChaptersValidation: [bookUrl: string]
+  runSearchToContentValidation: []
 }>()
 </script>
 
@@ -73,6 +78,13 @@ const emit = defineEmits<{
         @click="emit('runSearchAndValidateDetail')"
       >
         Search -> Detail
+      </button>
+      <button
+        class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+        :disabled="props.runLoading || !props.hasCurrentPackage || !runSearchQuery.trim()"
+        @click="emit('runSearchToContentValidation')"
+      >
+        Search -> Detail -> Chapters -> Content
       </button>
       <button
         class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
@@ -217,6 +229,36 @@ const emit = defineEmits<{
           </ul>
         </div>
         <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runChaptersResult, null, 2) }}</pre>
+      </div>
+      <div
+        v-if="props.runContentResult"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3"
+      >
+        <div v-if="props.runContentSummary.length > 0">
+          <p class="text-xs text-muted-foreground mb-2">Content Validation</p>
+          <ul class="space-y-1 text-xs break-all">
+            <li v-for="item in props.runContentSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <div
+          v-if="props.runContentSuggestedActions.length > 0"
+          class="rounded-lg border border-amber-400/40 bg-amber-500/5 p-3"
+        >
+          <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">Content Suggested Actions</p>
+          <ul class="space-y-1 text-xs break-all text-amber-800 dark:text-amber-200">
+            <li v-for="item in props.runContentSuggestedActions" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runContentResult, null, 2) }}</pre>
+      </div>
+      <div
+        v-if="props.runFullFlowSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
+        <p class="text-xs text-muted-foreground mb-2">E2E Gate Summary</p>
+        <ul class="space-y-1 text-xs break-all">
+          <li v-for="item in props.runFullFlowSummary" :key="item">{{ item }}</li>
+        </ul>
       </div>
       <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runResult, null, 2) }}</pre>
     </div>

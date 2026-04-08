@@ -21,12 +21,15 @@ export function useSourceBuilderRunOperations(
   options: UseSourceBuilderRunOperationsOptions
 ) {
   const { success, warning } = useMessage()
+  const CONTENT_MIN_LEN = 120
 
   const runSearchQuery = ref('')
   const runTargetUrl = ref('')
   const runResult = ref<unknown>(null)
   const runSearchDetailResult = ref<unknown>(null)
   const runChaptersResult = ref<unknown>(null)
+  const runContentResult = ref<unknown>(null)
+  const runFullFlowSummary = ref<string[]>([])
   const runLoading = ref(false)
 
   const runExecutionProfileSummary = computed(() => {
@@ -56,7 +59,7 @@ export function useSourceBuilderRunOperations(
     }
     const normalized: SearchRunResultItem[] = []
     for (const item of items) {
-      if (!item || typeof item !== "object") {
+      if (!item || typeof item !== 'object') {
         continue
       }
       const record = item as Record<string, unknown>
@@ -196,6 +199,95 @@ export function useSourceBuilderRunOperations(
     return payload?.step?.suggestedActions ?? []
   })
 
+  const runContentSummary = computed(() => {
+    const payload = runContentResult.value as RunByPackageResult | null
+    if (!payload) {
+      return []
+    }
+
+    const summary = [`content operation: ${payload.operation || '--'}`]
+    const step = payload.step
+    if (step) {
+      summary.push(`content step: ${step.step}`)
+      summary.push(`content status: ${step.ok ? 'pass' : 'fail'}`)
+      summary.push(`content summary: ${step.summary}`)
+      if (step.failureCode) {
+        summary.push(`content failure: ${step.failureCode}`)
+      }
+    }
+
+    const contentLen = extractContentLength(payload.result)
+    if (contentLen > 0) {
+      summary.push(`content length: ${contentLen}`)
+    }
+    return summary
+  })
+
+  const runContentSuggestedActions = computed(() => {
+    const payload = runContentResult.value as { step?: SourceValidationStepReport | null } | null
+    return payload?.step?.suggestedActions ?? []
+  })
+
+  function extractStringField(record: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+      const value = record[key]
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim()
+      }
+    }
+    return ''
+  }
+
+  function extractContentLength(result: unknown): number {
+    if (typeof result === 'string') {
+      return result.trim().length
+    }
+    if (!result || typeof result !== 'object') {
+      return 0
+    }
+    const record = result as Record<string, unknown>
+    const direct = extractStringField(record, ['content', 'text', 'body', 'html', 'value'])
+    if (direct) {
+      return direct.length
+    }
+    const data = record.data
+    if (data && typeof data === 'object') {
+      return extractContentLength(data)
+    }
+    return 0
+  }
+
+  function extractDetailTarget(searchResult: RunByPackageResult): string {
+    const candidates = Array.isArray(searchResult.result)
+      ? (searchResult.result as Array<Record<string, unknown>>)
+      : []
+    for (const candidate of candidates) {
+      const url = extractStringField(candidate, ['bookUrl', 'url', 'href', 'link'])
+      if (url) return url
+    }
+    return ''
+  }
+
+  function extractTocTarget(detailResult: RunByPackageResult, fallback: string): string {
+    const payload = detailResult.result
+    if (payload && typeof payload === 'object') {
+      const tocUrl = extractStringField(payload as Record<string, unknown>, ['tocUrl', 'catalogUrl'])
+      if (tocUrl) return tocUrl
+    }
+    return fallback
+  }
+
+  function extractChapterTarget(chaptersResult: RunByPackageResult): string {
+    const items = Array.isArray(chaptersResult.result)
+      ? (chaptersResult.result as Array<Record<string, unknown>>)
+      : []
+    for (const item of items) {
+      const chapterUrl = extractStringField(item, ['url', 'href', 'link'])
+      if (chapterUrl) return chapterUrl
+    }
+    return ''
+  }
+
   async function executeRunOperation(
     operation: 'search' | 'book_info' | 'chapters' | 'content',
     optionsOverride?: {
@@ -248,6 +340,8 @@ export function useSourceBuilderRunOperations(
       if (operation !== 'search') {
         runSearchDetailResult.value = null
         runChaptersResult.value = null
+        runContentResult.value = null
+        runFullFlowSummary.value = []
       }
     } finally {
       runLoading.value = false
@@ -262,6 +356,9 @@ export function useSourceBuilderRunOperations(
 
     runLoading.value = true
     runSearchDetailResult.value = null
+    runChaptersResult.value = null
+    runContentResult.value = null
+    runFullFlowSummary.value = []
     try {
       const searchResult = await executeRunOperation('search', {
         query: runSearchQuery.value.trim(),
@@ -272,13 +369,7 @@ export function useSourceBuilderRunOperations(
         return
       }
 
-      const candidates = Array.isArray(searchResult.result)
-        ? (searchResult.result as Array<Record<string, unknown>>)
-        : []
-      const detailUrl = candidates.find(
-        item => typeof item?.bookUrl === 'string' && item.bookUrl.trim().length > 0,
-      )?.bookUrl as string | undefined
-
+      const detailUrl = extractDetailTarget(searchResult)
       if (!detailUrl) {
         warning('search 已执行，但没有可用于验证详情页的候选结果')
         return
@@ -309,6 +400,8 @@ export function useSourceBuilderRunOperations(
     runLoading.value = true
     runTargetUrl.value = normalizedUrl
     runChaptersResult.value = null
+    runContentResult.value = null
+    runFullFlowSummary.value = []
     try {
       const detailResult = await executeRunOperation('book_info', {
         targetUrl: normalizedUrl,
@@ -333,6 +426,8 @@ export function useSourceBuilderRunOperations(
     runLoading.value = true
     runTargetUrl.value = normalizedUrl
     runChaptersResult.value = null
+    runContentResult.value = null
+    runFullFlowSummary.value = []
     try {
       const detailResult = await executeRunOperation('book_info', {
         targetUrl: normalizedUrl,
@@ -343,13 +438,7 @@ export function useSourceBuilderRunOperations(
         return
       }
 
-      const detailPayload = detailResult.result
-      const chaptersTarget =
-        detailPayload && typeof detailPayload === 'object'
-          ? (((detailPayload as Record<string, unknown>).tocUrl as string | undefined)
-              || normalizedUrl)
-          : normalizedUrl
-
+      const chaptersTarget = extractTocTarget(detailResult, normalizedUrl)
       const chaptersResult = await executeRunOperation('chapters', {
         targetUrl: chaptersTarget,
         quietSuccess: true,
@@ -364,10 +453,124 @@ export function useSourceBuilderRunOperations(
     }
   }
 
+  async function runSearchToContentValidation(optionsOverride?: { query?: string }) {
+    const searchQuery = (optionsOverride?.query ?? runSearchQuery.value).trim()
+    if (!searchQuery) {
+      warning('请先填写 search query')
+      return { pass: false, reasons: ['missing_search_query'] }
+    }
+
+    runLoading.value = true
+    runFullFlowSummary.value = []
+    runSearchDetailResult.value = null
+    runChaptersResult.value = null
+    runContentResult.value = null
+
+    try {
+      const reasons: string[] = []
+
+      const searchResult = await executeRunOperation('search', {
+        query: searchQuery,
+        quietSuccess: true,
+      })
+      runResult.value = searchResult
+      if (!searchResult) {
+        return { pass: false, reasons: ['search_failed'] }
+      }
+      if (searchResult.step && !searchResult.step.ok) {
+        reasons.push(`search:${searchResult.step.failureCode || 'failed'}`)
+      }
+
+      const detailUrl = extractDetailTarget(searchResult)
+      const searchCount = Array.isArray(searchResult.result) ? searchResult.result.length : 0
+      if (!detailUrl) {
+        reasons.push('search:no_detail_candidate')
+      }
+
+      let detailResult: RunByPackageResult | null = null
+      let chaptersResult: RunByPackageResult | null = null
+      let contentResult: RunByPackageResult | null = null
+
+      if (detailUrl) {
+        runTargetUrl.value = detailUrl
+        detailResult = await executeRunOperation('book_info', {
+          targetUrl: detailUrl,
+          quietSuccess: true,
+        })
+        runSearchDetailResult.value = detailResult
+        if (!detailResult) {
+          reasons.push('book_info:failed')
+        } else if (detailResult.step && !detailResult.step.ok) {
+          reasons.push(`book_info:${detailResult.step.failureCode || 'failed'}`)
+        }
+      }
+
+      if (detailResult) {
+        const tocTarget = extractTocTarget(detailResult, detailUrl)
+        chaptersResult = await executeRunOperation('chapters', {
+          targetUrl: tocTarget,
+          quietSuccess: true,
+        })
+        runChaptersResult.value = chaptersResult
+        if (!chaptersResult) {
+          reasons.push('chapters:failed')
+        } else if (chaptersResult.step && !chaptersResult.step.ok) {
+          reasons.push(`chapters:${chaptersResult.step.failureCode || 'failed'}`)
+        }
+      }
+
+      const chapterCount = chaptersResult && Array.isArray(chaptersResult.result)
+        ? chaptersResult.result.length
+        : 0
+      const chapterUrl = chaptersResult ? extractChapterTarget(chaptersResult) : ''
+      if (chaptersResult && !chapterUrl) {
+        reasons.push('chapters:no_content_candidate')
+      }
+
+      if (chapterUrl) {
+        contentResult = await executeRunOperation('content', {
+          targetUrl: chapterUrl,
+          quietSuccess: true,
+        })
+        runContentResult.value = contentResult
+        if (!contentResult) {
+          reasons.push('content:failed')
+        } else if (contentResult.step && !contentResult.step.ok) {
+          reasons.push(`content:${contentResult.step.failureCode || 'failed'}`)
+        }
+      }
+
+      const contentLength = contentResult ? extractContentLength(contentResult.result) : 0
+      if (contentResult && contentLength < CONTENT_MIN_LEN) {
+        reasons.push(`content:length<${CONTENT_MIN_LEN}`)
+      }
+
+      runFullFlowSummary.value = [
+        `searchQuery=${searchQuery}`,
+        `searchCandidates=${searchCount}`,
+        `chapters=${chapterCount}`,
+        `contentLength=${contentLength}`,
+        `gate=${reasons.length === 0 ? 'pass' : `fail(${reasons.join(',')})`}`,
+      ]
+
+      if (reasons.length === 0) {
+        success('已完成 search -> detail -> chapters -> content 验证')
+      } else {
+        warning('端到端链路验证未通过')
+      }
+
+      return { pass: reasons.length === 0, reasons }
+    } finally {
+      runLoading.value = false
+    }
+  }
+
   function clearRunState() {
     runResult.value = null
     runSearchDetailResult.value = null
     runChaptersResult.value = null
+    runContentResult.value = null
+    runFullFlowSummary.value = []
   }
 
   return {
@@ -376,6 +579,8 @@ export function useSourceBuilderRunOperations(
     runResult,
     runSearchDetailResult,
     runChaptersResult,
+    runContentResult,
+    runFullFlowSummary,
     runLoading,
     runExecutionProfileSummary,
     runSearchResultItems,
@@ -386,10 +591,13 @@ export function useSourceBuilderRunOperations(
     runChapterResultItems,
     runChaptersSummary,
     runChaptersSuggestedActions,
+    runContentSummary,
+    runContentSuggestedActions,
     runOperation,
     runSearchAndValidateDetail,
     runDetailValidation,
     runDetailAndChaptersValidation,
+    runSearchToContentValidation,
     clearRunState,
   }
 }

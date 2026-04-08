@@ -137,6 +137,8 @@ export function useSourceBuilderDebugView() {
     runResult,
     runSearchDetailResult,
     runChaptersResult,
+    runContentResult,
+    runFullFlowSummary,
     runLoading,
     runExecutionProfileSummary,
     runSearchResultItems,
@@ -147,10 +149,13 @@ export function useSourceBuilderDebugView() {
     runChapterResultItems,
     runChaptersSummary,
     runChaptersSuggestedActions,
+    runContentSummary,
+    runContentSuggestedActions,
     runOperation,
     runSearchAndValidateDetail,
     runDetailValidation,
     runDetailAndChaptersValidation,
+    runSearchToContentValidation,
     clearRunState,
   } = runOperations
   const validationRefine = useSourceBuilderValidationRefine({
@@ -221,6 +226,7 @@ export function useSourceBuilderDebugView() {
     | 'REVALIDATING'
     | 'ROLLBACK'
     | 'CONSERVATIVE_RETRY'
+    | 'E2E_VERIFY'
     | 'MANUAL_REQUIRED'
     | 'QUARANTINED'
     | 'IMPORT_READY'
@@ -425,6 +431,16 @@ export function useSourceBuilderDebugView() {
     let gate = evaluateImportGate()
     autoFlowSummary.value.push(`gate@validate=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`)
     if (gate.pass) {
+      autoFlowState.value = 'E2E_VERIFY'
+      const e2e = await runSearchToContentValidation({
+        query: validateSearchQuery.value.trim() || searchKeyword.value.trim(),
+      })
+      autoFlowSummary.value.push(`gate@e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
+      if (!e2e.pass) {
+        gate = { pass: false, reasons: e2e.reasons }
+      }
+    }
+    if (gate.pass) {
       autoFlowState.value = 'IMPORT_READY'
       sourceFailureCounts.value = {
         ...sourceFailureCounts.value,
@@ -444,6 +460,16 @@ export function useSourceBuilderDebugView() {
       autoFlowSummary.value.push(
         `gate@attempt${attempt}=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`
       )
+      if (gate.pass) {
+        autoFlowState.value = 'E2E_VERIFY'
+        const e2e = await runSearchToContentValidation({
+          query: validateSearchQuery.value.trim() || searchKeyword.value.trim(),
+        })
+        autoFlowSummary.value.push(`gate@attempt${attempt}:e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
+        if (!e2e.pass) {
+          gate = { pass: false, reasons: e2e.reasons }
+        }
+      }
       if (gate.pass) {
         autoFlowState.value = 'IMPORT_READY'
         sourceFailureCounts.value = {
@@ -566,6 +592,8 @@ export function useSourceBuilderDebugView() {
     runResult,
     runSearchDetailResult,
     runChaptersResult,
+    runContentResult,
+    runFullFlowSummary,
     runLoading,
     runSummary,
     runSearchResultItems,
@@ -576,6 +604,8 @@ export function useSourceBuilderDebugView() {
     runChaptersSummary,
     runChapterResultItems,
     runChaptersSuggestedActions,
+    runContentSummary,
+    runContentSuggestedActions,
     buildFromSamples,
     buildValidateAndAutoRefine,
     importFetchSession: () => importFetchSession(lastFetchDebug),
@@ -603,6 +633,7 @@ export function useSourceBuilderDebugView() {
     runSearchAndValidateDetail,
     runDetailValidation,
     runDetailAndChaptersValidation,
+    runSearchToContentValidation,
     clearPreview,
     goBack,
   }

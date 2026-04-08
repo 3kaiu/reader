@@ -86,6 +86,8 @@ const {
   runResult,
   runSearchDetailResult,
   runChaptersResult,
+  runContentResult,
+  runFullFlowSummary,
   runLoading,
   runSummary,
   runSearchResultItems,
@@ -96,6 +98,8 @@ const {
   runChaptersSummary,
   runChapterResultItems,
   runChaptersSuggestedActions,
+  runContentSummary,
+  runContentSuggestedActions,
   buildFromSamples,
   importFetchSession,
   loadFetchSession,
@@ -122,6 +126,7 @@ const {
   runSearchAndValidateDetail,
   runDetailValidation,
   runDetailAndChaptersValidation,
+  runSearchToContentValidation,
   clearPreview,
   buildValidateAndAutoRefine,
   goBack,
@@ -165,11 +170,11 @@ const {
         <button class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm" @click="clearPreview">清空预览</button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
           @click="buildValidateAndAutoRefine"
         >
           {{
-            ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING'].includes(autoFlowState)
+            ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY'].includes(autoFlowState)
               ? `自动流程中(${autoFlowState})...`
               : '一键封装并验证并自动修正'
           }}
@@ -368,10 +373,15 @@ const {
       :run-chapters-summary="runChaptersSummary"
       :run-chapter-result-items="runChapterResultItems"
       :run-chapters-suggested-actions="runChaptersSuggestedActions"
+      :run-content-result="runContentResult"
+      :run-content-summary="runContentSummary"
+      :run-content-suggested-actions="runContentSuggestedActions"
+      :run-full-flow-summary="runFullFlowSummary"
       @run-operation="runOperation"
       @run-search-and-validate-detail="runSearchAndValidateDetail"
       @run-detail-validation="runDetailValidation"
       @run-detail-and-chapters-validation="runDetailAndChaptersValidation"
+      @run-search-to-content-validation="runSearchToContentValidation"
     />
   </main>
 </template>
