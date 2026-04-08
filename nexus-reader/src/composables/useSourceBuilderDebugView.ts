@@ -237,6 +237,18 @@ export function useSourceBuilderDebugView() {
     'source-builder-auto-failure-counts',
     {}
   )
+  const sourceLastGoodPackages = useStorage<
+    Record<
+      string,
+      {
+        packageId: string
+        sourceName: string
+        packageJson: string
+        updatedAtMs: number
+        validationScore: number
+      }
+    >
+  >('source-builder-last-good-packages', {})
   const AUTO_FLOW_MAX_ATTEMPTS = 3
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
@@ -253,6 +265,57 @@ export function useSourceBuilderDebugView() {
 
   function nextRunId() {
     return `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  function persistLastGoodPackage(sourceIdForCounter: string) {
+    const pkg = currentPackage.value
+    if (!pkg || !sourceIdForCounter) return
+    const packageJson = currentPackageJson.value || previewPackageJson.value
+    if (!packageJson.trim()) return
+
+    sourceLastGoodPackages.value = {
+      ...sourceLastGoodPackages.value,
+      [sourceIdForCounter]: {
+        packageId: pkg.packageId,
+        sourceName: pkg.source?.name || sourceIdForCounter,
+        packageJson,
+        updatedAtMs: Date.now(),
+        validationScore: Number(pkg.validation?.score ?? 0),
+      },
+    }
+    autoFlowSummary.value.push(
+      `lastGood=saved ${pkg.packageId} score=${Math.round(Number(pkg.validation?.score ?? 0) * 100)}`
+    )
+  }
+
+  function rollbackToLastGoodPackage(sourceIdForCounter: string): boolean {
+    const record = sourceLastGoodPackages.value[sourceIdForCounter]
+    if (!record?.packageJson) {
+      autoFlowSummary.value.push('rollback=skipped reason=no_last_good')
+      return false
+    }
+
+    try {
+      const parsed = JSON.parse(record.packageJson)
+      if (!parsed || typeof parsed !== 'object') {
+        autoFlowSummary.value.push('rollback=failed reason=invalid_json')
+        return false
+      }
+      previewPackage.value = parsed as typeof previewPackage.value
+      previewPackageJson.value = record.packageJson
+      validationReport.value = {
+        packageId: record.packageId,
+        report: (parsed as { validation?: unknown }).validation ?? null,
+      }
+      autoFlowSummary.value.push(
+        `rollback=applied ${record.packageId} savedAt=${new Date(record.updatedAtMs).toLocaleString()}`
+      )
+      success(`已回滚到上一个可用包: ${record.sourceName} / ${record.packageId}`)
+      return true
+    } catch {
+      autoFlowSummary.value.push('rollback=failed reason=parse_error')
+      return false
+    }
   }
 
   function evaluateImportGate() {
@@ -442,6 +505,7 @@ export function useSourceBuilderDebugView() {
     }
     if (gate.pass) {
       autoFlowState.value = 'IMPORT_READY'
+      persistLastGoodPackage(sourceIdForCounter)
       sourceFailureCounts.value = {
         ...sourceFailureCounts.value,
         [sourceIdForCounter]: 0,
@@ -472,6 +536,7 @@ export function useSourceBuilderDebugView() {
       }
       if (gate.pass) {
         autoFlowState.value = 'IMPORT_READY'
+        persistLastGoodPackage(sourceIdForCounter)
         sourceFailureCounts.value = {
           ...sourceFailureCounts.value,
           [sourceIdForCounter]: 0,
@@ -488,6 +553,7 @@ export function useSourceBuilderDebugView() {
       }
     }
 
+    const rolledBack = rollbackToLastGoodPackage(sourceIdForCounter)
     const nextFailureCount = (sourceFailureCounts.value[sourceIdForCounter] || 0) + 1
     sourceFailureCounts.value = {
       ...sourceFailureCounts.value,
@@ -495,13 +561,13 @@ export function useSourceBuilderDebugView() {
     }
     if (nextFailureCount >= 3) {
       autoFlowState.value = 'QUARANTINED'
-      warning('连续失败达到阈值，已进入隔离状态')
+      warning(rolledBack ? '已回滚到上一个可用包；连续失败达到阈值，source 进入隔离状态' : '连续失败达到阈值，已进入隔离状态')
       autoFlowSummary.value.push(`state=QUARANTINED failureCount=${nextFailureCount}`)
       return
     }
 
     autoFlowState.value = 'MANUAL_REQUIRED'
-    warning('自动修正未达导入门槛，请手工补样本或调整规则')
+    warning(rolledBack ? '已回滚到上一个可用包；自动修正未达导入门槛，请手工补样本或调整规则' : '自动修正未达导入门槛，请手工补样本或调整规则')
     autoFlowSummary.value.push(`state=MANUAL_REQUIRED failureCount=${nextFailureCount}`)
   }
 
