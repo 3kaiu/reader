@@ -29,6 +29,16 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
     return cachedMarkers
   }
 
+  const syncCurrentChapterByIndex = (chapterIndex: number) => {
+    if (!Number.isFinite(chapterIndex) || chapterIndex < 0) {
+      return
+    }
+
+    state.currentChapterIndex.value = chapterIndex
+    state.currentChapter.value =
+      state.catalog.value[chapterIndex] || state.currentChapter.value
+  }
+
   const updateChapterIndexByScroll = () => {
     if (state.loadedChapters.value.length === 0 || typeof document === 'undefined') {
       return
@@ -65,9 +75,7 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
 
     const markerIndex = Number(resolvedMarker.dataset.chapterIndex)
     if (!Number.isNaN(markerIndex)) {
-      state.currentChapterIndex.value = markerIndex
-      state.currentChapter.value =
-        state.catalog.value[markerIndex] || state.currentChapter.value
+      syncCurrentChapterByIndex(markerIndex)
     }
   }
 
@@ -109,6 +117,7 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
   }
 
   return {
+    syncCurrentChapterByIndex,
     updateChapterIndexByScroll,
     saveProgress,
     reset,

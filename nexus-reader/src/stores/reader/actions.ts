@@ -24,6 +24,7 @@ export function createReaderStoreActions(
   })
 
   const {
+    syncCurrentChapterByIndex,
     updateChapterIndexByScroll,
     saveProgress,
     reset,
@@ -67,6 +68,7 @@ export function createReaderStoreActions(
     reset,
     retryLoadNext,
     saveProgress,
+    syncCurrentChapterByIndex,
     startReaderSession,
     updateChapterIndexByScroll,
   }
