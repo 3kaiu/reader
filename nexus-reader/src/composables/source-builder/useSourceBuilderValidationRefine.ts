@@ -340,6 +340,77 @@ export function useSourceBuilderValidationRefine(
     return degraded.length > 0 ? degraded.join(' | ') : '总分下降但未定位到明确分段退化'
   }
 
+  function applyActionCodeHint(actionCode: string, detail: string) {
+    if (actionCode === 'repair_search_selectors_or_samples') {
+      structuredHints.value = {
+        ...structuredHints.value,
+        searchResultSelector:
+          structuredHints.value.searchResultSelector ||
+          '.search-list > li | .result-list li | .bookbox | .result-item | a[href]',
+      }
+      let next = freeTextHints.value
+      next = appendFreeTextHint(next, 'search result: 请确认条目容器与详情链接选择器')
+      next = appendFreeTextHint(next, detail)
+      freeTextHints.value = next
+      return
+    }
+    if (actionCode === 'repair_book_title_author_selectors') {
+      structuredHints.value = {
+        ...structuredHints.value,
+        bookTitleSelector:
+          structuredHints.value.bookTitleSelector ||
+          "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
+        authorSelector:
+          structuredHints.value.authorSelector || '.author | .book-author | .info .author',
+      }
+      freeTextHints.value = appendFreeTextHint(freeTextHints.value, detail)
+      return
+    }
+    if (actionCode === 'repair_toc_item_selector') {
+      structuredHints.value = {
+        ...structuredHints.value,
+        tocItemSelector:
+          structuredHints.value.tocItemSelector || '.chapter-list a | #list a | .catalog a | a[href]',
+      }
+      freeTextHints.value = appendFreeTextHint(freeTextHints.value, detail)
+      return
+    }
+    if (actionCode === 'repair_content_selector_and_noise_rules') {
+      structuredHints.value = {
+        ...structuredHints.value,
+        contentSelector:
+          structuredHints.value.contentSelector ||
+          '#content | .content | .txtnav | .read-content | article',
+        noisePatterns: Array.from(
+          new Set([
+            ...(structuredHints.value.noisePatterns || []),
+            '最新网址',
+            '推广',
+            '广告',
+            '手机阅读',
+            '请收藏',
+          ])
+        ),
+      }
+      freeTextHints.value = appendFreeTextHint(freeTextHints.value, detail)
+      return
+    }
+    let next = freeTextHints.value
+    next = appendFreeTextHint(next, `action: ${actionCode}`)
+    next = appendFreeTextHint(next, detail)
+    freeTextHints.value = next
+  }
+
+  function applyRecommendedAction(actionCode: string, reason: string) {
+    applyActionCodeHint(actionCode, `[Ops 推荐] ${reason}`)
+    success(`已应用推荐动作: ${actionCode}`)
+  }
+
+  async function applyRecommendedActionAndRefine(actionCode: string, reason: string) {
+    applyActionCodeHint(actionCode, `[Ops 推荐] ${reason}`)
+    await executeRefinePackage(`已应用推荐动作并修正: ${actionCode}`)
+  }
+
   async function appendAiFeedbackStats(sourceId?: string) {
     if (!sourceId) return
     try {
@@ -435,65 +506,7 @@ export function useSourceBuilderValidationRefine(
           : 'free_text',
         applyLabel: '应用建议',
         apply: () => {
-          if (item.actionCode === 'repair_search_selectors_or_samples') {
-            structuredHints.value = {
-              ...structuredHints.value,
-              searchResultSelector:
-                structuredHints.value.searchResultSelector ||
-                '.search-list > li | .result-list li | .bookbox | .result-item | a[href]',
-            }
-            let next = freeTextHints.value
-            next = appendFreeTextHint(next, 'search result: 请确认条目容器与详情链接选择器')
-            next = appendFreeTextHint(next, item.detail)
-            freeTextHints.value = next
-            return
-          }
-          if (item.actionCode === 'repair_book_title_author_selectors') {
-            structuredHints.value = {
-              ...structuredHints.value,
-              bookTitleSelector:
-                structuredHints.value.bookTitleSelector ||
-                "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
-              authorSelector:
-                structuredHints.value.authorSelector || '.author | .book-author | .info .author',
-            }
-            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
-            return
-          }
-          if (item.actionCode === 'repair_toc_item_selector') {
-            structuredHints.value = {
-              ...structuredHints.value,
-              tocItemSelector:
-                structuredHints.value.tocItemSelector ||
-                '.chapter-list a | #list a | .catalog a | a[href]',
-            }
-            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
-            return
-          }
-          if (item.actionCode === 'repair_content_selector_and_noise_rules') {
-            structuredHints.value = {
-              ...structuredHints.value,
-              contentSelector:
-                structuredHints.value.contentSelector ||
-                '#content | .content | .txtnav | .read-content | article',
-              noisePatterns: Array.from(
-                new Set([
-                  ...(structuredHints.value.noisePatterns || []),
-                  '最新网址',
-                  '推广',
-                  '广告',
-                  '手机阅读',
-                  '请收藏',
-                ])
-              ),
-            }
-            freeTextHints.value = appendFreeTextHint(freeTextHints.value, item.detail)
-            return
-          }
-          let next = freeTextHints.value
-          next = appendFreeTextHint(next, `action: ${item.actionCode}`)
-          next = appendFreeTextHint(next, item.detail)
-          freeTextHints.value = next
+          applyActionCodeHint(item.actionCode, item.detail)
         },
       }))
       await appendAiFeedbackStats(pkg.source.id)
@@ -776,6 +789,8 @@ export function useSourceBuilderValidationRefine(
     refineSuggestions,
     requestAiAssist,
     requestAiAssistAndRefine,
+    applyRecommendedAction,
+    applyRecommendedActionAndRefine,
     validateCurrentPackage,
     applyRefineSuggestion,
     applyRefineSuggestionAndRefine,

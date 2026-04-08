@@ -56,6 +56,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   applyRefineSuggestion: [item: RefineSuggestion]
   applyRefineSuggestionAndRefine: [item: RefineSuggestion]
+  applyRecommendedAction: [actionCode: string, reason: string]
+  applyRecommendedActionAndRefine: [actionCode: string, reason: string]
   requestAiAssist: []
   requestAiAssistAndRefine: []
   refineCurrentPackage: []
@@ -135,7 +137,15 @@ function onNoisePatternsInput(event: Event) {
               v-for="item in props.aiAssistOpsRecommendedActions"
               :key="`${item.actionCode}-${item.priority}`"
             >
-              {{ item.actionCode }} · p={{ item.priority }} · {{ item.reason }}
+              <div>{{ item.actionCode }} · p={{ item.priority }} · {{ item.reason }}</div>
+              <div class="mt-1 flex gap-1">
+                <button class="h-6 px-2 rounded-full border bg-background hover:bg-muted text-[10px]" @click="emit('applyRecommendedAction', item.actionCode, item.reason)">
+                  应用
+                </button>
+                <button class="h-6 px-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 text-[10px] disabled:opacity-50" :disabled="props.refineLoading || !props.hasCurrentPackage" @click="emit('applyRecommendedActionAndRefine', item.actionCode, item.reason)">
+                  应用并修正
+                </button>
+              </div>
             </li>
           </ul>
         </div>

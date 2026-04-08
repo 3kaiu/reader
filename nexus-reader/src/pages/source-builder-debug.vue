@@ -112,6 +112,8 @@ const {
   applyRefineSuggestionAndRefine,
   requestAiAssist,
   requestAiAssistAndRefine,
+  applyRecommendedAction,
+  applyRecommendedActionAndRefine,
   refineCurrentPackage,
   runOperation,
   runSearchAndValidateDetail,
@@ -317,6 +319,8 @@ const {
       :ai-assist-ops-recommended-actions="aiAssistOpsRecommendedActions"
       @apply-refine-suggestion="applyRefineSuggestion"
       @apply-refine-suggestion-and-refine="applyRefineSuggestionAndRefine"
+      @apply-recommended-action="applyRecommendedAction"
+      @apply-recommended-action-and-refine="applyRecommendedActionAndRefine"
       @request-ai-assist="requestAiAssist"
       @request-ai-assist-and-refine="requestAiAssistAndRefine"
       @refine-current-package="refineCurrentPackage"
