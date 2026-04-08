@@ -443,16 +443,51 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
 
 export function createReaderActionHelpers(state: ReaderStoreState) {
   const inflightChapterContentRequests = new Map<string, Promise<string>>()
+  const CHAPTER_CONTENT_CACHE_MAX_ENTRIES = 60
+  let chapterContentCacheRef = state.chapterContentCache.value
+  let chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
+
+  const syncChapterContentCacheOrder = () => {
+    if (chapterContentCacheRef === state.chapterContentCache.value) {
+      return
+    }
+
+    chapterContentCacheRef = state.chapterContentCache.value
+    chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
+  }
+
+  const touchChapterCacheEntry = (chapterUrl: string) => {
+    const existingIndex = chapterContentCacheOrder.indexOf(chapterUrl)
+    if (existingIndex >= 0) {
+      chapterContentCacheOrder.splice(existingIndex, 1)
+    }
+    chapterContentCacheOrder.push(chapterUrl)
+  }
 
   const cacheChapterContent = (chapterUrl: string, chapterContent: string) => {
-    state.chapterContentCache.value = {
-      ...state.chapterContentCache.value,
-      [chapterUrl]: chapterContent,
+    syncChapterContentCacheOrder()
+    const cache = state.chapterContentCache.value
+
+    cache[chapterUrl] = chapterContent
+    touchChapterCacheEntry(chapterUrl)
+
+    while (chapterContentCacheOrder.length > CHAPTER_CONTENT_CACHE_MAX_ENTRIES) {
+      const evictedChapterUrl = chapterContentCacheOrder.shift()
+      if (!evictedChapterUrl) {
+        continue
+      }
+      delete cache[evictedChapterUrl]
     }
   }
 
-  const getCachedChapterContent = (chapterUrl: string) =>
-    state.chapterContentCache.value[chapterUrl]
+  const getCachedChapterContent = (chapterUrl: string) => {
+    syncChapterContentCacheOrder()
+    const cached = state.chapterContentCache.value[chapterUrl]
+    if (typeof cached === 'string') {
+      touchChapterCacheEntry(chapterUrl)
+    }
+    return cached
+  }
 
   const getChapterRequestCacheKey = (
     chapter: Chapter,
