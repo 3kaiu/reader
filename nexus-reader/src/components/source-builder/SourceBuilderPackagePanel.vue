@@ -38,6 +38,8 @@ const props = defineProps<{
   searchProfileSummary: SearchProfileSummaryItem[]
   fetchProfileSummary: string
   packageJsonAvailable: boolean
+  importGuardSummary: string[]
+  importBlocked: boolean
 }>()
 
 const emit = defineEmits<{
@@ -88,14 +90,30 @@ const emit = defineEmits<{
           </p>
           <button
             class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-            :disabled="props.sourcePackageImporting || !props.packageJsonAvailable"
+            :disabled="props.sourcePackageImporting || !props.packageJsonAvailable || props.importBlocked"
             @click="emit('importPreviewPackage')"
           >
-            {{ props.sourcePackageImporting ? '导入中...' : '导入当前预览包' }}
+            {{
+              props.sourcePackageImporting
+                ? '导入中...'
+                : props.importBlocked
+                  ? '导入已阻断'
+                  : '导入当前预览包'
+            }}
           </button>
         </div>
       </div>
       <div class="p-5 space-y-4">
+        <div
+          v-if="props.importGuardSummary.length > 0"
+          class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-4"
+        >
+          <p class="text-xs text-rose-700 dark:text-rose-300 mb-2">导入阻断提示</p>
+          <ul class="space-y-1 text-xs break-all text-rose-700 dark:text-rose-300">
+            <li v-for="item in props.importGuardSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
           <p class="text-xs text-muted-foreground mb-1">packageId</p>
           <p class="text-sm font-medium break-all">{{ props.currentPreviewSummary.packageId }}</p>

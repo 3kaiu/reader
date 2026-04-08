@@ -386,6 +386,55 @@ export function useSourceBuilderDebugView() {
       `failureCounter=${failureCount}`,
     ]
   })
+  const importPreviewGuard = computed(() => {
+    const source = currentAutoFlowSourceId.value
+    const stats = currentSourceAutoFlowStats.value
+    const streak = currentSourceAutoFlowStreak.value
+    const recommendation = currentSourceAutoFlowRecommendation.value
+    const failureCount = source ? Number(sourceFailureCounts.value[source] || 0) : 0
+    const reasons: string[] = []
+    const actions: string[] = []
+
+    if (!source) {
+      return {
+        blocked: false,
+        reasons,
+        actions,
+      }
+    }
+
+    if (recommendation.level === 'risky') {
+      reasons.push(`stability=${recommendation.level}`)
+    }
+    if (autoFlowState.value === 'QUARANTINED' || failureCount >= 3) {
+      reasons.push(`source_state=QUARANTINED(${failureCount})`)
+    }
+    if (streak.failStreak >= 2) {
+      reasons.push(`recent_fail_streak=${streak.failStreak}`)
+    }
+
+    if (reasons.length > 0) {
+      actions.push('先执行“按建议设置”或“严格门禁”收紧 smoke gate')
+      actions.push('重新执行“一键封装并验证并自动修正”，至少得到 1 次 PASS')
+      if (autoFlowState.value === 'QUARANTINED' || failureCount >= 3) {
+        actions.push('先点击“解封 Source 状态”再重跑自动流程')
+      }
+      actions.push(`参考当前统计: passRate=${stats.passRate}% total=${stats.total}`)
+    }
+
+    return {
+      blocked: reasons.length > 0,
+      reasons,
+      actions,
+    }
+  })
+  const importPreviewGuardSummary = computed(() => {
+    if (!importPreviewGuard.value.blocked) return []
+    return [
+      `导入阻断: ${importPreviewGuard.value.reasons.join(', ')}`,
+      ...importPreviewGuard.value.actions,
+    ]
+  })
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -678,7 +727,7 @@ export function useSourceBuilderDebugView() {
   const {
     refreshPackages,
     buildFromSamples,
-    importPreviewPackage,
+    importPreviewPackage: importPreviewPackageRaw,
     selectPackage,
     clearPreview,
     goBack,
@@ -738,6 +787,19 @@ export function useSourceBuilderDebugView() {
       clearValidationRefineState,
     },
   })
+
+  async function importPreviewPackage() {
+    if (importPreviewGuard.value.blocked) {
+      const reasonText = importPreviewGuard.value.reasons.join(', ')
+      warning(`已阻断导入: ${reasonText}`)
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        `import=blocked reason=${reasonText}`,
+      ].slice(-50)
+      return
+    }
+    await importPreviewPackageRaw()
+  }
 
   async function buildValidateAndAutoRefine() {
     const runId = nextRunId()
@@ -1031,6 +1093,8 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowStreak,
     currentSourceAutoFlowRecommendation,
     currentSourceAutoFlowHealthSummary,
+    importPreviewGuardSummary,
+    importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,

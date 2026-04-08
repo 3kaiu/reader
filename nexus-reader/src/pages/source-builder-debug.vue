@@ -22,6 +22,8 @@ const {
   currentSourceAutoFlowStreak,
   currentSourceAutoFlowRecommendation,
   currentSourceAutoFlowHealthSummary,
+  importPreviewGuardSummary,
+  importPreviewBlocked,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -486,6 +488,8 @@ const latestOutcomeLabel = computed(() => {
       :search-profile-summary="searchProfileSummary"
       :fetch-profile-summary="fetchProfileSummary"
       :package-json-available="Boolean(sourceBuildPreviewSummary.packageJson)"
+      :import-guard-summary="importPreviewGuardSummary"
+      :import-blocked="importPreviewBlocked"
       @refresh-packages="refreshPackages"
       @select-package="selectPackage"
       @import-preview-package="importPreviewPackage"
