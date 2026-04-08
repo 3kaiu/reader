@@ -435,6 +435,7 @@ export function useSourceBuilderDebugView() {
       ...importPreviewGuard.value.actions,
     ]
   })
+  const forceImportArmed = ref(false)
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -789,6 +790,7 @@ export function useSourceBuilderDebugView() {
   })
 
   async function importPreviewPackage() {
+    forceImportArmed.value = false
     if (importPreviewGuard.value.blocked) {
       const reasonText = importPreviewGuard.value.reasons.join(', ')
       warning(`已阻断导入: ${reasonText}`)
@@ -798,6 +800,27 @@ export function useSourceBuilderDebugView() {
       ].slice(-50)
       return
     }
+    await importPreviewPackageRaw()
+  }
+
+  async function forceImportPreviewPackage() {
+    if (!importPreviewGuard.value.blocked) {
+      forceImportArmed.value = false
+      await importPreviewPackageRaw()
+      return
+    }
+    if (!forceImportArmed.value) {
+      forceImportArmed.value = true
+      warning('再次点击“强制导入（仅调试）”以确认越过门禁')
+      return
+    }
+    forceImportArmed.value = false
+    const reasonText = importPreviewGuard.value.reasons.join(', ')
+    autoFlowSummary.value = [
+      ...autoFlowSummary.value,
+      `import=forced reason=${reasonText}`,
+    ].slice(-50)
+    warning(`已执行强制导入（仅调试）: ${reasonText}`)
     await importPreviewPackageRaw()
   }
 
@@ -1095,6 +1118,7 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowHealthSummary,
     importPreviewGuardSummary,
     importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
+    forceImportArmed,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,
@@ -1198,6 +1222,7 @@ export function useSourceBuilderDebugView() {
     restoreDebugSnapshot,
     clearDebugSnapshots,
     importPreviewPackage,
+    forceImportPreviewPackage,
     refreshPackages,
     refreshRuntimeGovernance,
     saveRuntimeSnapshot,

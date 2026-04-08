@@ -24,6 +24,7 @@ const {
   currentSourceAutoFlowHealthSummary,
   importPreviewGuardSummary,
   importPreviewBlocked,
+  forceImportArmed,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -123,6 +124,7 @@ const {
   restoreDebugSnapshot,
   clearDebugSnapshots,
   importPreviewPackage,
+  forceImportPreviewPackage,
   refreshPackages,
   refreshRuntimeGovernance,
   saveRuntimeSnapshot,
@@ -490,9 +492,11 @@ const latestOutcomeLabel = computed(() => {
       :package-json-available="Boolean(sourceBuildPreviewSummary.packageJson)"
       :import-guard-summary="importPreviewGuardSummary"
       :import-blocked="importPreviewBlocked"
+      :force-import-armed="forceImportArmed"
       @refresh-packages="refreshPackages"
       @select-package="selectPackage"
       @import-preview-package="importPreviewPackage"
+      @force-import-preview-package="forceImportPreviewPackage"
     />
 
     <SourceBuilderValidationPanel

@@ -40,12 +40,14 @@ const props = defineProps<{
   packageJsonAvailable: boolean
   importGuardSummary: string[]
   importBlocked: boolean
+  forceImportArmed: boolean
 }>()
 
 const emit = defineEmits<{
   refreshPackages: []
   selectPackage: [sourceId: string]
   importPreviewPackage: []
+  forceImportPreviewPackage: []
 }>()
 </script>
 
@@ -100,6 +102,14 @@ const emit = defineEmits<{
                   ? '导入已阻断'
                   : '导入当前预览包'
             }}
+          </button>
+          <button
+            v-if="props.importBlocked"
+            class="h-9 px-4 rounded-full text-sm border border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/15 transition-colors disabled:opacity-50"
+            :disabled="props.sourcePackageImporting || !props.packageJsonAvailable"
+            @click="emit('forceImportPreviewPackage')"
+          >
+            {{ props.forceImportArmed ? '再次点击确认强制导入' : '强制导入（仅调试）' }}
           </button>
         </div>
       </div>
