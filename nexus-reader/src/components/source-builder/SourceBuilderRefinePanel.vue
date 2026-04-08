@@ -36,6 +36,17 @@ const props = defineProps<{
     regressionCount: number
   }>
   aiAssistOpsRegressionTop: Array<{ regression: string; count: number }>
+  aiAssistOpsRecommendedActions: Array<{
+    actionCode:
+      | 'run_validation_with_samples'
+      | 'fix_rule_compile_errors'
+      | 'repair_search_selectors_or_samples'
+      | 'repair_book_title_author_selectors'
+      | 'repair_toc_item_selector'
+      | 'repair_content_selector_and_noise_rules'
+    reason: string
+    priority: number
+  }>
   hasCurrentPackage: boolean
   refineAutoActions: string[]
   refineAppliedHints: string[]
@@ -89,11 +100,15 @@ function onNoisePatternsInput(event: Event) {
       </ul>
     </div>
     <div
-      v-if="props.aiAssistOpsLeaderboard.length > 0 || props.aiAssistOpsRegressionTop.length > 0"
+      v-if="
+        props.aiAssistOpsLeaderboard.length > 0 ||
+        props.aiAssistOpsRegressionTop.length > 0 ||
+        props.aiAssistOpsRecommendedActions.length > 0
+      "
       class="p-5 border-b border-border/50"
     >
       <p class="text-xs text-muted-foreground mb-3">AI Feedback Ops Insights (14d)</p>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div v-if="props.aiAssistOpsLeaderboard.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
           <p class="text-xs text-muted-foreground mb-2">Top Sources</p>
           <ul class="space-y-1 text-[11px] break-all">
@@ -110,6 +125,17 @@ function onNoisePatternsInput(event: Event) {
           <ul class="space-y-1 text-[11px] break-all">
             <li v-for="item in props.aiAssistOpsRegressionTop" :key="`${item.regression}-${item.count}`">
               {{ item.regression }} · {{ item.count }}
+            </li>
+          </ul>
+        </div>
+        <div v-if="props.aiAssistOpsRecommendedActions.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+          <p class="text-xs text-muted-foreground mb-2">Recommended Actions</p>
+          <ul class="space-y-1 text-[11px] break-all">
+            <li
+              v-for="item in props.aiAssistOpsRecommendedActions"
+              :key="`${item.actionCode}-${item.priority}`"
+            >
+              {{ item.actionCode }} · p={{ item.priority }} · {{ item.reason }}
             </li>
           </ul>
         </div>

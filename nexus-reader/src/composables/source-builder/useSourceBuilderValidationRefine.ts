@@ -88,6 +88,19 @@ export function useSourceBuilderValidationRefine(
     }>
   >([])
   const aiAssistOpsRegressionTop = ref<Array<{ regression: string; count: number }>>([])
+  const aiAssistOpsRecommendedActions = ref<
+    Array<{
+      actionCode:
+        | 'run_validation_with_samples'
+        | 'fix_rule_compile_errors'
+        | 'repair_search_selectors_or_samples'
+        | 'repair_book_title_author_selectors'
+        | 'repair_toc_item_selector'
+        | 'repair_content_selector_and_noise_rules'
+      reason: string
+      priority: number
+    }>
+  >([])
   const aiAssistMeta = ref<{
     query: string
     normalizedQuery: string
@@ -348,6 +361,7 @@ export function useSourceBuilderValidationRefine(
       }
       aiAssistOpsLeaderboard.value = stats.sourceLeaderboard || []
       aiAssistOpsRegressionTop.value = stats.regressionTop || []
+      aiAssistOpsRecommendedActions.value = stats.recommendedActions || []
       if ((stats.sourceLeaderboard || []).length > 0) {
         const top = stats.sourceLeaderboard[0]
         aiAssistSummary.value.push(
@@ -357,6 +371,10 @@ export function useSourceBuilderValidationRefine(
       if ((stats.regressionTop || []).length > 0) {
         const top = stats.regressionTop[0]
         aiAssistSummary.value.push(`topRegression=${top.regression} (${top.count})`)
+      }
+      if ((stats.recommendedActions || []).length > 0) {
+        const top = stats.recommendedActions[0]
+        aiAssistSummary.value.push(`topAction=${top.actionCode} p=${top.priority}`)
       }
     } catch {
       // best effort only
@@ -728,6 +746,7 @@ export function useSourceBuilderValidationRefine(
     aiAssistSuggestions.value = []
     aiAssistOpsLeaderboard.value = []
     aiAssistOpsRegressionTop.value = []
+    aiAssistOpsRecommendedActions.value = []
     aiAssistMeta.value = null
   }
 
@@ -752,6 +771,7 @@ export function useSourceBuilderValidationRefine(
     aiAssistSummary,
     aiAssistOpsLeaderboard,
     aiAssistOpsRegressionTop,
+    aiAssistOpsRecommendedActions,
     validationStepSummary,
     refineSuggestions,
     requestAiAssist,

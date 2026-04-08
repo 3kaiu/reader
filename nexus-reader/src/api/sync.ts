@@ -346,6 +346,17 @@ export type SourceFlowAssistFeedbackStatsResponse = {
     regression: string
     count: number
   }>
+  recommendedActions: Array<{
+    actionCode:
+      | 'run_validation_with_samples'
+      | 'fix_rule_compile_errors'
+      | 'repair_search_selectors_or_samples'
+      | 'repair_book_title_author_selectors'
+      | 'repair_toc_item_selector'
+      | 'repair_content_selector_and_noise_rules'
+    reason: string
+    priority: number
+  }>
   recentRegressions: string[]
 }
 

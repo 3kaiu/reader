@@ -81,6 +81,11 @@ type SourceFlowAssistFeedbackStatsResponse = {
     regression: string
     count: number
   }>
+  recommendedActions: Array<{
+    actionCode: SourceFlowSuggestion['actionCode']
+    reason: string
+    priority: number
+  }>
   recentRegressions: string[]
 }
 
@@ -99,6 +104,83 @@ const ALLOWED_ACTIONS = new Set<SourceFlowSuggestion['actionCode']>([
 
 function normalizeText(input: string, limit: number): string {
   return input.trim().replace(/\s+/g, ' ').slice(0, limit)
+}
+
+function deriveRecommendedActions(options: {
+  regressionTop: Array<{ regression: string; count: number }>
+  sourceLeaderboard: Array<{ acceptRate: number; count: number; regressionCount: number }>
+}): Array<{
+  actionCode: SourceFlowSuggestion['actionCode']
+  reason: string
+  priority: number
+}> {
+  const buckets = new Map<
+    SourceFlowSuggestion['actionCode'],
+    { reason: string; weight: number }
+  >()
+  const bump = (
+    actionCode: SourceFlowSuggestion['actionCode'],
+    reason: string,
+    weight: number
+  ) => {
+    const prev = buckets.get(actionCode)
+    if (!prev || weight > prev.weight) {
+      buckets.set(actionCode, { reason, weight })
+    } else {
+      prev.weight += Math.max(1, Math.round(weight * 0.3))
+    }
+  }
+
+  for (const item of options.regressionTop.slice(0, 8)) {
+    const text = item.regression
+    const weight = Math.max(1, item.count)
+    if (text.includes('搜索')) {
+      bump('repair_search_selectors_or_samples', '搜索阶段回归高频', weight + 3)
+    }
+    if (text.includes('详情')) {
+      bump('repair_book_title_author_selectors', '详情阶段回归高频', weight + 2)
+    }
+    if (text.includes('目录')) {
+      bump('repair_toc_item_selector', '目录阶段回归高频', weight + 2)
+    }
+    if (text.includes('正文')) {
+      bump('repair_content_selector_and_noise_rules', '正文阶段回归高频', weight + 2)
+    }
+    if (text.includes('未定位')) {
+      bump('run_validation_with_samples', '存在未定位回归，需补样本再验证', weight + 1)
+    }
+  }
+
+  const lowAcceptSources = options.sourceLeaderboard.filter(
+    item => item.count >= 3 && item.acceptRate < 0.5
+  ).length
+  const heavyRegressionSources = options.sourceLeaderboard.filter(
+    item => item.regressionCount >= 2
+  ).length
+
+  if (lowAcceptSources > 0) {
+    bump(
+      'run_validation_with_samples',
+      '多个 source 命中率偏低，建议先补样本再细化规则',
+      3 + lowAcceptSources
+    )
+  }
+  if (heavyRegressionSources > 0) {
+    bump(
+      'fix_rule_compile_errors',
+      '存在多源回归，建议先排除规则编译与字段映射错误',
+      2 + heavyRegressionSources
+    )
+  }
+
+  return [...buckets.entries()]
+    .map(([actionCode, value]) => ({
+      actionCode,
+      reason: value.reason,
+      priority: Math.max(1, 100 - value.weight),
+    }))
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 5)
 }
 
 function stableHash(input: string): string {
@@ -614,6 +696,23 @@ export async function handleSourceFlowAssistFeedbackStats(
 
     const total = Number(summary?.total || 0)
     const accepted = Number(summary?.accepted || 0)
+    const sourceLeaderboard = (sourceLeaderboardRows.results || []).map(row => {
+      const count = Number(row.count || 0)
+      const acceptedCount = Number(row.accepted || 0)
+      return {
+        sourceId: String(row.source_id || '').trim() || 'unknown',
+        count,
+        accepted: acceptedCount,
+        acceptRate: count > 0 ? acceptedCount / count : 0,
+        avgDeltaScore: Number(row.avg_delta_score || 0),
+        regressionCount: Number(row.regression_count || 0),
+      }
+    })
+    const regressionTop = (regressionTopRows.results || []).map(row => ({
+      regression: String(row.regression || '').trim(),
+      count: Number(row.count || 0),
+    }))
+
     const responseBody: SourceFlowAssistFeedbackStatsResponse = {
       success: true,
       windowDays,
@@ -634,22 +733,12 @@ export async function handleSourceFlowAssistFeedbackStats(
           acceptRate: count > 0 ? acceptedCount / count : 0,
         }
       }),
-      sourceLeaderboard: (sourceLeaderboardRows.results || []).map(row => {
-        const count = Number(row.count || 0)
-        const acceptedCount = Number(row.accepted || 0)
-        return {
-          sourceId: String(row.source_id || '').trim() || 'unknown',
-          count,
-          accepted: acceptedCount,
-          acceptRate: count > 0 ? acceptedCount / count : 0,
-          avgDeltaScore: Number(row.avg_delta_score || 0),
-          regressionCount: Number(row.regression_count || 0),
-        }
+      sourceLeaderboard,
+      regressionTop,
+      recommendedActions: deriveRecommendedActions({
+        regressionTop,
+        sourceLeaderboard,
       }),
-      regressionTop: (regressionTopRows.results || []).map(row => ({
-        regression: String(row.regression || '').trim(),
-        count: Number(row.count || 0),
-      })),
       recentRegressions: (regressionRows.results || [])
         .map(row => String(row.regression || '').trim())
         .filter(Boolean),

@@ -70,6 +70,7 @@ const {
   aiAssistSummary,
   aiAssistOpsLeaderboard,
   aiAssistOpsRegressionTop,
+  aiAssistOpsRecommendedActions,
   refineSuggestions,
   validateSearchQuery,
   validateBookUrl,
@@ -313,6 +314,7 @@ const {
       :ai-assist-summary="aiAssistSummary"
       :ai-assist-ops-leaderboard="aiAssistOpsLeaderboard"
       :ai-assist-ops-regression-top="aiAssistOpsRegressionTop"
+      :ai-assist-ops-recommended-actions="aiAssistOpsRecommendedActions"
       @apply-refine-suggestion="applyRefineSuggestion"
       @apply-refine-suggestion-and-refine="applyRefineSuggestionAndRefine"
       @request-ai-assist="requestAiAssist"
