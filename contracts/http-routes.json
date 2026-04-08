@@ -12,6 +12,10 @@
       "/api/source/flow-assist/stats",
       "/api/source/flow-assist/profile",
       "/api/source/flow-assist/profile/audit",
+      "/api/fetch/session/auto-acquire",
+      "/api/fetch/session/verify",
+      "/api/source-session/profile",
+      "/api/source-session/profile/recover",
       "/progress/",
       "/decode/",
       "/auth/"
@@ -48,7 +52,11 @@
       "/api/source/flow-assist/feedback",
       "/api/source/flow-assist/stats",
       "/api/source/flow-assist/profile",
-      "/api/source/flow-assist/profile/audit"
+      "/api/source/flow-assist/profile/audit",
+      "/api/fetch/session/auto-acquire",
+      "/api/fetch/session/verify",
+      "/api/source-session/profile",
+      "/api/source-session/profile/recover"
     ],
     "experimentalRoutes": [
       "/api/search",

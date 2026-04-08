@@ -23,6 +23,10 @@ const USER_SERVICE_PREFIXES = [
   '/api/source/flow-assist/stats',
   '/api/source/flow-assist/profile',
   '/api/source/flow-assist/profile/audit',
+  '/api/fetch/session/auto-acquire',
+  '/api/fetch/session/verify',
+  '/api/source-session/profile',
+  '/api/source-session/profile/recover',
 ]
 
 function isUserServiceRoute(pathname: string): boolean {

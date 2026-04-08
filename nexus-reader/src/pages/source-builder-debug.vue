@@ -29,6 +29,8 @@ const {
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
+  sourceSessionProfileLoading,
+  sourceSessionProfileSummary,
   sourcePackages,
   sourceBuildPreviewSummary,
   currentPreviewSummary,
@@ -148,6 +150,10 @@ const {
   runSearchToContentValidation,
   runChaptersContentSmoke,
   refreshCurrentSourceFlowProfile,
+  refreshCurrentSourceSessionProfile,
+  autoAcquireCurrentSourceSession,
+  verifyCurrentSourceSession,
+  recoverCurrentSourceSession,
   resetCurrentSourceFlowState,
   applySmokeGatePreset,
   applyRecommendedSmokeGate,
@@ -250,6 +256,34 @@ const latestOutcomeLabel = computed(() => {
           @click="refreshCurrentSourceFlowProfile"
         >
           {{ sourceFlowProfileLoading ? '刷新中...' : '刷新 Profile' }}
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceSessionProfileLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="refreshCurrentSourceSessionProfile"
+        >
+          {{ sourceSessionProfileLoading ? '会话刷新中...' : '刷新会话画像' }}
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="autoAcquireCurrentSourceSession"
+        >
+          自动获取会话
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="verifyCurrentSourceSession"
+        >
+          验证会话
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="recoverCurrentSourceSession"
+        >
+          会话恢复
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
@@ -359,6 +393,14 @@ const latestOutcomeLabel = computed(() => {
           <p class="text-xs text-muted-foreground mb-2">Source Flow Profile</p>
           <ul class="space-y-1 text-xs break-all">
             <li v-for="item in sourceFlowProfileSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="sourceSessionProfileSummary.length > 0" class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Source Session Profile</p>
+          <ul class="space-y-1 text-xs break-all">
+            <li v-for="item in sourceSessionProfileSummary" :key="item">{{ item }}</li>
           </ul>
         </div>
       </div>

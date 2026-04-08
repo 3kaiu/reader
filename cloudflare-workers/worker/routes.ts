@@ -31,4 +31,8 @@ export {
   handleSourceFlowAssistProfile,
   handleSourceFlowAssistProfileReset,
   handleSourceFlowAssistProfileAudit,
+  handleFetchSessionAutoAcquire,
+  handleFetchSessionVerify,
+  handleSourceSessionProfile,
+  handleSourceSessionProfileRecover,
 } from './routes/source-flow.ts'

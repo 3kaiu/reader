@@ -389,6 +389,34 @@ export type SourceFlowAssistProfileAuditEntry = {
   createdAt: string
 }
 
+export type SourceSessionState = 'cold' | 'warm' | 'healthy' | 'degraded' | 'blocked'
+
+export type SourceSessionAcquireStrategy =
+  | 'auto_browser_like'
+  | 'auto_api_like'
+  | 'manual_fallback'
+
+export type SourceSessionProfile = {
+  sourceId: string
+  sessionState: SourceSessionState
+  acquireStrategy: SourceSessionAcquireStrategy
+  sessionKey: string | null
+  ttlSeconds: number
+  failStreak: number
+  cooldownUntil: string | null
+  qualityScore: number
+  challengeHits: number
+  emptyContentHits: number
+  successCount: number
+  failureCount: number
+  lastValidatedAt: string | null
+  lastRecoveryAction: string | null
+  recoveryCount: number
+  recoveryLastAt: string | null
+  fingerprint: string | null
+  updatedAt: string
+}
+
 export type SourceBuildDiagnostics = {
   host: string
   bookSampleUrl: string
@@ -723,6 +751,68 @@ export const syncApi = {
     }
     return await $get<{ success: boolean; entries: SourceFlowAssistProfileAuditEntry[] }>(
       `/source/flow-assist/profile/audit?${query.toString()}`,
+      {
+        silent: true,
+      } satisfies ApiFetchOptions
+    )
+  },
+  autoAcquireFetchSession: async (payload: {
+    sourceId: string
+    acquireStrategy?: SourceSessionAcquireStrategy
+    ttlSeconds?: number
+    userAgent?: string
+    headers?: Record<string, string>
+    cookies?: Record<string, string>
+  }) => {
+    return await $post<{
+      success: boolean
+      profile: SourceSessionProfile
+      sessionKey: string
+      degraded: boolean
+      degradedReason?: string
+      sessionQualityScore: number
+    }>('/fetch/session/auto-acquire', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  verifyFetchSession: async (payload: {
+    sourceId: string
+    probeUrl?: string
+    method?: string
+    headers?: Record<string, string>
+    timeoutMs?: number
+    expectedMinBodyLength?: number
+  }) => {
+    return await $post<{
+      success: boolean
+      verified: boolean
+      statusCode: number | null
+      challengeDetected: boolean
+      emptyContent: boolean
+      degraded: boolean
+      degradedReason?: string
+      sessionQualityScore: number
+      profile: SourceSessionProfile
+    }>('/fetch/session/verify', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
+  getSourceSessionProfile: async (sourceId: string) => {
+    const query = new URLSearchParams({ sourceId })
+    return await $get<{ success: boolean; profile: SourceSessionProfile }>(
+      `/source-session/profile?${query.toString()}`,
+      {
+        silent: true,
+      } satisfies ApiFetchOptions
+    )
+  },
+  recoverSourceSessionProfile: async (payload: {
+    sourceId: string
+    action?: string
+  }) => {
+    return await $post<{ success: boolean; profile: SourceSessionProfile }>(
+      '/source-session/profile/recover',
+      payload,
       {
         silent: true,
       } satisfies ApiFetchOptions

@@ -161,6 +161,34 @@ export async function requestSourceFlowAssistProfileAudit(options: {
   return await syncApi.getSourceFlowAssistProfileAudit(options)
 }
 
+export async function requestAutoAcquireFetchSession(options: {
+  sourceId: string
+  acquireStrategy?: 'auto_browser_like' | 'auto_api_like' | 'manual_fallback'
+  ttlSeconds?: number
+}) {
+  return await syncApi.autoAcquireFetchSession(options)
+}
+
+export async function requestVerifyFetchSession(options: {
+  sourceId: string
+  probeUrl?: string
+  timeoutMs?: number
+  expectedMinBodyLength?: number
+}) {
+  return await syncApi.verifyFetchSession(options)
+}
+
+export async function requestSourceSessionProfile(options: { sourceId: string }) {
+  return await syncApi.getSourceSessionProfile(options.sourceId)
+}
+
+export async function recoverSourceSessionProfile(options: {
+  sourceId: string
+  action?: string
+}) {
+  return await syncApi.recoverSourceSessionProfile(options)
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {

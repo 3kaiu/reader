@@ -17,8 +17,12 @@ import { useSourceBuilderValidationRefine } from '@/composables/source-builder/u
 import { useSourceBuilderRuntimeGovernance } from '@/composables/source-builder/useSourceBuilderRuntimeGovernance'
 import { useSourceBuilderDebugViewEffects } from '@/composables/source-builder/useSourceBuilderDebugViewEffects'
 import {
+  recoverSourceSessionProfile,
+  requestAutoAcquireFetchSession,
+  requestSourceSessionProfile,
   requestSourceFlowAssistProfileAudit,
   requestSourceFlowAssistProfile,
+  requestVerifyFetchSession,
   resetSourceFlowAssistProfile,
 } from '@/composables/source-builder/sourceBuilderValidationActions'
 
@@ -533,6 +537,8 @@ export function useSourceBuilderDebugView() {
   const sourceFlowProfileLoading = ref(false)
   const sourceFlowProfileSummary = ref<string[]>([])
   const sourceFlowProfileAuditSummary = ref<string[]>([])
+  const sourceSessionProfileLoading = ref(false)
+  const sourceSessionProfileSummary = ref<string[]>([])
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
     search: 0.7,
@@ -1131,10 +1137,134 @@ export function useSourceBuilderDebugView() {
     }
   }
 
+  async function refreshCurrentSourceSessionProfile() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      sourceSessionProfileSummary.value = []
+      return
+    }
+    sourceSessionProfileLoading.value = true
+    try {
+      const response = await requestSourceSessionProfile({ sourceId: sourceIdForCounter })
+      if (!response.isSuccess || !response.data?.profile) {
+        sourceSessionProfileSummary.value = ['sessionProfile: unavailable']
+        return
+      }
+      const profile = response.data.profile
+      sourceSessionProfileSummary.value = [
+        `sessionState=${profile.sessionState}`,
+        `strategy=${profile.acquireStrategy}`,
+        `sessionKey=${profile.sessionKey || '--'}`,
+        `quality=${Math.round(Number(profile.qualityScore || 0))}`,
+        `failStreak=${profile.failStreak}`,
+        `cooldownUntil=${profile.cooldownUntil || '--'}`,
+        `success/failure=${profile.successCount}/${profile.failureCount}`,
+        `challenge/empty=${profile.challengeHits}/${profile.emptyContentHits}`,
+        `lastRecovery=${profile.lastRecoveryAction || '--'}`,
+        `updatedAt=${profile.updatedAt || '--'}`,
+      ]
+    } catch {
+      sourceSessionProfileSummary.value = ['sessionProfile: load failed']
+    } finally {
+      sourceSessionProfileLoading.value = false
+    }
+  }
+
+  async function autoAcquireCurrentSourceSession() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法自动获取会话')
+      return
+    }
+    try {
+      const response = await requestAutoAcquireFetchSession({
+        sourceId: sourceIdForCounter,
+        acquireStrategy: 'auto_browser_like',
+        ttlSeconds: Number(sessionTtlSeconds.value || 1800),
+      })
+      if (!response.isSuccess || !response.data) {
+        warning(response.errorMsg || '自动获取会话失败')
+        return
+      }
+      if (response.data.sessionKey) {
+        fetchSessionKey.value = response.data.sessionKey
+      }
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        `session=auto_acquire quality=${Math.round(response.data.sessionQualityScore || 0)} key=${response.data.sessionKey || '--'}`,
+      ].slice(-50)
+      await refreshCurrentSourceSessionProfile()
+      success('自动会话获取完成')
+    } catch {
+      warning('自动获取会话失败')
+    }
+  }
+
+  async function verifyCurrentSourceSession() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法验证会话')
+      return
+    }
+    try {
+      const probeUrl = runTargetUrl.value.trim() || validateChapterUrl.value.trim() || ''
+      const response = await requestVerifyFetchSession({
+        sourceId: sourceIdForCounter,
+        probeUrl: probeUrl || undefined,
+        timeoutMs: 12000,
+        expectedMinBodyLength: 200,
+      })
+      if (!response.isSuccess || !response.data) {
+        warning(response.errorMsg || '会话验证失败')
+        return
+      }
+      const verify = response.data
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        `session=verify ${verify.verified ? 'pass' : `fail(${verify.degradedReason || 'unknown'})`} quality=${Math.round(verify.sessionQualityScore || 0)}`,
+      ].slice(-50)
+      await refreshCurrentSourceSessionProfile()
+      if (verify.verified) {
+        success('会话验证通过')
+      } else {
+        warning(`会话验证失败: ${verify.degradedReason || 'unknown'}`)
+      }
+    } catch {
+      warning('会话验证失败')
+    }
+  }
+
+  async function recoverCurrentSourceSession() {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法恢复会话')
+      return
+    }
+    try {
+      const response = await recoverSourceSessionProfile({
+        sourceId: sourceIdForCounter,
+        action: 'refresh_session',
+      })
+      if (!response.isSuccess) {
+        warning(response.errorMsg || '会话恢复失败')
+        return
+      }
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        'session=recover action=refresh_session',
+      ].slice(-50)
+      await refreshCurrentSourceSessionProfile()
+      success('会话恢复动作已执行')
+    } catch {
+      warning('会话恢复失败')
+    }
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
     await refreshCurrentSourceFlowProfile()
+    await refreshCurrentSourceSessionProfile()
   })
 
   return {
@@ -1158,6 +1288,8 @@ export function useSourceBuilderDebugView() {
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,
+    sourceSessionProfileLoading,
+    sourceSessionProfileSummary,
     sourcePackages,
     sourceBuildPreviewSummary,
     currentPreviewSummary,
@@ -1281,6 +1413,10 @@ export function useSourceBuilderDebugView() {
     runSearchToContentValidation,
     runChaptersContentSmoke,
     refreshCurrentSourceFlowProfile,
+    refreshCurrentSourceSessionProfile,
+    autoAcquireCurrentSourceSession,
+    verifyCurrentSourceSession,
+    recoverCurrentSourceSession,
     resetCurrentSourceFlowState,
     applySmokeGatePreset,
     applyRecommendedSmokeGate,

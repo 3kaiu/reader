@@ -17,6 +17,10 @@ import {
   handleSourceFlowAssistProfile,
   handleSourceFlowAssistProfileReset,
   handleSourceFlowAssistProfileAudit,
+  handleFetchSessionAutoAcquire,
+  handleFetchSessionVerify,
+  handleSourceSessionProfile,
+  handleSourceSessionProfileRecover,
 } from '../routes.ts'
 import type { EnhancedWorkerEnv } from '../types.ts'
 import type { UserServiceContainer } from './types.ts'
@@ -72,6 +76,14 @@ export async function dispatchUserServiceRoute(
       return handleSourceFlowAssistProfileReset(request, env)
     case '/api/source/flow-assist/profile/audit':
       return handleSourceFlowAssistProfileAudit(request, env)
+    case '/api/fetch/session/auto-acquire':
+      return handleFetchSessionAutoAcquire(request, env)
+    case '/api/fetch/session/verify':
+      return handleFetchSessionVerify(request, env)
+    case '/api/source-session/profile':
+      return handleSourceSessionProfile(request, env)
+    case '/api/source-session/profile/recover':
+      return handleSourceSessionProfileRecover(request, env)
     default:
       return undefined
   }

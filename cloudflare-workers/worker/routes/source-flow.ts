@@ -71,6 +71,54 @@ type SourceFlowAssistProfile = {
   updatedAt: string
 }
 
+type SourceSessionState = 'cold' | 'warm' | 'healthy' | 'degraded' | 'blocked'
+type SourceSessionAcquireStrategy =
+  | 'auto_browser_like'
+  | 'auto_api_like'
+  | 'manual_fallback'
+
+type SourceSessionProfile = {
+  sourceId: string
+  sessionState: SourceSessionState
+  acquireStrategy: SourceSessionAcquireStrategy
+  sessionKey: string | null
+  ttlSeconds: number
+  failStreak: number
+  cooldownUntil: string | null
+  qualityScore: number
+  challengeHits: number
+  emptyContentHits: number
+  successCount: number
+  failureCount: number
+  lastValidatedAt: string | null
+  lastRecoveryAction: string | null
+  recoveryCount: number
+  recoveryLastAt: string | null
+  fingerprint: string | null
+  updatedAt: string
+}
+
+type SourceSessionAutoAcquireResponse = {
+  success: boolean
+  profile: SourceSessionProfile
+  sessionKey: string
+  degraded: boolean
+  degradedReason?: string
+  sessionQualityScore: number
+}
+
+type SourceSessionVerifyResponse = {
+  success: boolean
+  verified: boolean
+  statusCode: number | null
+  challengeDetected: boolean
+  emptyContent: boolean
+  degraded: boolean
+  degradedReason?: string
+  sessionQualityScore: number
+  profile: SourceSessionProfile
+}
+
 type SourceFlowProfileAuditEntry = {
   id: number
   sourceId: string
@@ -450,6 +498,223 @@ async function ensureProfileAuditTable(env: EnhancedWorkerEnv): Promise<void> {
   `).bind().run()
 }
 
+async function ensureSourceSessionProfileTable(env: EnhancedWorkerEnv): Promise<void> {
+  await env.ANALYTICS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_source_session_profiles (
+      source_id TEXT PRIMARY KEY,
+      session_state TEXT NOT NULL DEFAULT 'cold',
+      acquire_strategy TEXT NOT NULL DEFAULT 'auto_browser_like',
+      session_key TEXT,
+      ttl_seconds INTEGER NOT NULL DEFAULT 1800,
+      fail_streak INTEGER NOT NULL DEFAULT 0,
+      cooldown_until TEXT,
+      quality_score REAL NOT NULL DEFAULT 50,
+      challenge_hits INTEGER NOT NULL DEFAULT 0,
+      empty_content_hits INTEGER NOT NULL DEFAULT 0,
+      success_count INTEGER NOT NULL DEFAULT 0,
+      failure_count INTEGER NOT NULL DEFAULT 0,
+      last_validated_at TEXT,
+      last_recovery_action TEXT,
+      recovery_count INTEGER NOT NULL DEFAULT 0,
+      recovery_last_at TEXT,
+      fingerprint TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).bind().run()
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function buildDefaultSourceSessionProfile(sourceId: string): SourceSessionProfile {
+  return {
+    sourceId,
+    sessionState: 'cold',
+    acquireStrategy: 'auto_browser_like',
+    sessionKey: null,
+    ttlSeconds: 1800,
+    failStreak: 0,
+    cooldownUntil: null,
+    qualityScore: 50,
+    challengeHits: 0,
+    emptyContentHits: 0,
+    successCount: 0,
+    failureCount: 0,
+    lastValidatedAt: null,
+    lastRecoveryAction: null,
+    recoveryCount: 0,
+    recoveryLastAt: null,
+    fingerprint: null,
+    updatedAt: nowIso(),
+  }
+}
+
+function mapSourceSessionProfileRow(
+  sourceId: string,
+  row: {
+    source_id?: string
+    session_state?: string
+    acquire_strategy?: string
+    session_key?: string | null
+    ttl_seconds?: number
+    fail_streak?: number
+    cooldown_until?: string | null
+    quality_score?: number
+    challenge_hits?: number
+    empty_content_hits?: number
+    success_count?: number
+    failure_count?: number
+    last_validated_at?: string | null
+    last_recovery_action?: string | null
+    recovery_count?: number
+    recovery_last_at?: string | null
+    fingerprint?: string | null
+    updated_at?: string
+  } | null | undefined
+): SourceSessionProfile {
+  if (!row) {
+    return buildDefaultSourceSessionProfile(sourceId)
+  }
+  return {
+    sourceId: String(row.source_id || sourceId),
+    sessionState: toSessionState(row.session_state),
+    acquireStrategy: toAcquireStrategy(row.acquire_strategy),
+    sessionKey: row.session_key || null,
+    ttlSeconds: clampNumber(Math.round(Number(row.ttl_seconds || 1800)), 60, 43200),
+    failStreak: Math.max(0, Math.round(Number(row.fail_streak || 0))),
+    cooldownUntil: row.cooldown_until || null,
+    qualityScore: clampNumber(Number(row.quality_score || 50), 0, 100),
+    challengeHits: Math.max(0, Math.round(Number(row.challenge_hits || 0))),
+    emptyContentHits: Math.max(0, Math.round(Number(row.empty_content_hits || 0))),
+    successCount: Math.max(0, Math.round(Number(row.success_count || 0))),
+    failureCount: Math.max(0, Math.round(Number(row.failure_count || 0))),
+    lastValidatedAt: row.last_validated_at || null,
+    lastRecoveryAction: row.last_recovery_action || null,
+    recoveryCount: Math.max(0, Math.round(Number(row.recovery_count || 0))),
+    recoveryLastAt: row.recovery_last_at || null,
+    fingerprint: row.fingerprint || null,
+    updatedAt: row.updated_at || nowIso(),
+  }
+}
+
+async function getSourceSessionProfile(
+  env: EnhancedWorkerEnv,
+  sourceId: string
+): Promise<SourceSessionProfile> {
+  await ensureSourceSessionProfileTable(env)
+  const row = await env.ANALYTICS_DB.prepare(`
+    SELECT
+      source_id,
+      session_state,
+      acquire_strategy,
+      session_key,
+      ttl_seconds,
+      fail_streak,
+      cooldown_until,
+      quality_score,
+      challenge_hits,
+      empty_content_hits,
+      success_count,
+      failure_count,
+      last_validated_at,
+      last_recovery_action,
+      recovery_count,
+      recovery_last_at,
+      fingerprint,
+      updated_at
+    FROM ai_source_session_profiles
+    WHERE source_id = ?
+    LIMIT 1
+  `).bind(sourceId).first<{
+    source_id?: string
+    session_state?: string
+    acquire_strategy?: string
+    session_key?: string | null
+    ttl_seconds?: number
+    fail_streak?: number
+    cooldown_until?: string | null
+    quality_score?: number
+    challenge_hits?: number
+    empty_content_hits?: number
+    success_count?: number
+    failure_count?: number
+    last_validated_at?: string | null
+    last_recovery_action?: string | null
+    recovery_count?: number
+    recovery_last_at?: string | null
+    fingerprint?: string | null
+    updated_at?: string
+  }>()
+
+  return mapSourceSessionProfileRow(sourceId, row)
+}
+
+async function saveSourceSessionProfile(
+  env: EnhancedWorkerEnv,
+  profile: SourceSessionProfile
+): Promise<void> {
+  await ensureSourceSessionProfileTable(env)
+  await env.ANALYTICS_DB.prepare(`
+    INSERT INTO ai_source_session_profiles (
+      source_id,
+      session_state,
+      acquire_strategy,
+      session_key,
+      ttl_seconds,
+      fail_streak,
+      cooldown_until,
+      quality_score,
+      challenge_hits,
+      empty_content_hits,
+      success_count,
+      failure_count,
+      last_validated_at,
+      last_recovery_action,
+      recovery_count,
+      recovery_last_at,
+      fingerprint,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(source_id) DO UPDATE SET
+      session_state = excluded.session_state,
+      acquire_strategy = excluded.acquire_strategy,
+      session_key = excluded.session_key,
+      ttl_seconds = excluded.ttl_seconds,
+      fail_streak = excluded.fail_streak,
+      cooldown_until = excluded.cooldown_until,
+      quality_score = excluded.quality_score,
+      challenge_hits = excluded.challenge_hits,
+      empty_content_hits = excluded.empty_content_hits,
+      success_count = excluded.success_count,
+      failure_count = excluded.failure_count,
+      last_validated_at = excluded.last_validated_at,
+      last_recovery_action = excluded.last_recovery_action,
+      recovery_count = excluded.recovery_count,
+      recovery_last_at = excluded.recovery_last_at,
+      fingerprint = excluded.fingerprint,
+      updated_at = datetime('now')
+  `).bind(
+    profile.sourceId,
+    profile.sessionState,
+    profile.acquireStrategy,
+    profile.sessionKey || null,
+    clampNumber(Math.round(profile.ttlSeconds), 60, 43200),
+    Math.max(0, Math.round(profile.failStreak)),
+    profile.cooldownUntil || null,
+    clampNumber(profile.qualityScore, 0, 100),
+    Math.max(0, Math.round(profile.challengeHits)),
+    Math.max(0, Math.round(profile.emptyContentHits)),
+    Math.max(0, Math.round(profile.successCount)),
+    Math.max(0, Math.round(profile.failureCount)),
+    profile.lastValidatedAt || null,
+    profile.lastRecoveryAction || null,
+    Math.max(0, Math.round(profile.recoveryCount)),
+    profile.recoveryLastAt || null,
+    profile.fingerprint || null
+  ).run()
+}
+
 async function writeProfileAudit(
   env: EnhancedWorkerEnv,
   payload: {
@@ -491,6 +756,49 @@ function parseJsonArray(raw: string | null | undefined): string[] {
   } catch {
     return []
   }
+}
+
+function toSessionState(value: unknown): SourceSessionState {
+  const candidate = String(value || '').trim()
+  if (
+    candidate === 'cold' ||
+    candidate === 'warm' ||
+    candidate === 'healthy' ||
+    candidate === 'degraded' ||
+    candidate === 'blocked'
+  ) {
+    return candidate
+  }
+  return 'cold'
+}
+
+function toAcquireStrategy(value: unknown): SourceSessionAcquireStrategy {
+  const candidate = String(value || '').trim()
+  if (
+    candidate === 'auto_browser_like' ||
+    candidate === 'auto_api_like' ||
+    candidate === 'manual_fallback'
+  ) {
+    return candidate
+  }
+  return 'auto_browser_like'
+}
+
+function nowIso(): string {
+  return new Date().toISOString()
+}
+
+function computeChallengeDetected(status: number | null, bodyText: string): boolean {
+  if (status != null && [403, 429, 503].includes(status)) {
+    return true
+  }
+  const normalized = bodyText.toLowerCase()
+  return (
+    normalized.includes('captcha') ||
+    normalized.includes('cloudflare') ||
+    normalized.includes('attention required') ||
+    normalized.includes('verify you are human')
+  )
 }
 
 export async function handleSourceFlowAssist(
@@ -1201,6 +1509,330 @@ export async function handleSourceFlowAssistProfileAudit(
       request,
       'SOURCE_FLOW_PROFILE_AUDIT_FAILED',
       'Source flow profile audit failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}
+
+function buildAutoSessionKey(sourceId: string): string {
+  const stamp = Date.now().toString(36)
+  return `auto-${stableHash(sourceId).slice(0, 8)}-${stamp}`
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function handleFetchSessionAutoAcquire(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (!(await verifyAuth(request, env))) {
+    return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  }
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+  }
+  if (!isRecord(body)) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+  }
+
+  const sourceId = normalizeText(typeof body.sourceId === 'string' ? body.sourceId : '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+
+  try {
+    const profile = await getSourceSessionProfile(env, sourceId)
+    const ttlSeconds = clampNumber(
+      Math.round(Number(body.ttlSeconds ?? profile.ttlSeconds ?? 1800)),
+      60,
+      43200
+    )
+    const acquireStrategy = toAcquireStrategy(body.acquireStrategy)
+    const userAgent = normalizeText(typeof body.userAgent === 'string' ? body.userAgent : '', 160)
+    const sessionKey = buildAutoSessionKey(sourceId)
+    const fingerprintSeed = JSON.stringify({
+      sourceId,
+      acquireStrategy,
+      userAgent,
+      headerKeys: isRecord(body.headers) ? Object.keys(body.headers).sort().slice(0, 10) : [],
+      cookieKeys: isRecord(body.cookies) ? Object.keys(body.cookies).sort().slice(0, 10) : [],
+    })
+
+    const nextProfile: SourceSessionProfile = {
+      ...profile,
+      sessionState: profile.sessionState === 'blocked' ? 'degraded' : 'warm',
+      acquireStrategy,
+      sessionKey,
+      ttlSeconds,
+      failStreak: 0,
+      cooldownUntil: null,
+      qualityScore: clampNumber(Math.max(profile.qualityScore, 58), 0, 100),
+      lastValidatedAt: nowIso(),
+      fingerprint: stableHash(fingerprintSeed),
+      updatedAt: nowIso(),
+    }
+    await saveSourceSessionProfile(env, nextProfile)
+
+    const responseBody: SourceSessionAutoAcquireResponse = {
+      success: true,
+      profile: nextProfile,
+      sessionKey,
+      degraded: false,
+      sessionQualityScore: nextProfile.qualityScore,
+    }
+    return new Response(JSON.stringify(responseBody), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SESSION_AUTO_ACQUIRE_FAILED',
+      'Session auto acquire failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}
+
+export async function handleFetchSessionVerify(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (!(await verifyAuth(request, env))) {
+    return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  }
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+  }
+  if (!isRecord(body)) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+  }
+
+  const sourceId = normalizeText(typeof body.sourceId === 'string' ? body.sourceId : '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+
+  try {
+    const profile = await getSourceSessionProfile(env, sourceId)
+    const probeUrl = normalizeText(typeof body.probeUrl === 'string' ? body.probeUrl : '', 512)
+    const timeoutMs = clampNumber(Math.round(Number(body.timeoutMs ?? 12000)), 1500, 30000)
+    const expectedMinBodyLength = clampNumber(
+      Math.round(Number(body.expectedMinBodyLength ?? 200)),
+      10,
+      5000
+    )
+    const method = normalizeText(typeof body.method === 'string' ? body.method : 'GET', 8)
+      .toUpperCase()
+    let statusCode: number | null = null
+    let responseBodyText = ''
+    let verifyError: string | null = null
+
+    if (probeUrl) {
+      const headers = new Headers()
+      if (isRecord(body.headers)) {
+        for (const [key, value] of Object.entries(body.headers)) {
+          if (!key) continue
+          headers.set(key, String(value))
+        }
+      }
+      if (profile.sessionKey) {
+        headers.set('X-Fetch-Session-Key', profile.sessionKey)
+      }
+      try {
+        const resp = await fetchWithTimeout(
+          probeUrl,
+          { method, headers },
+          timeoutMs
+        )
+        statusCode = resp.status
+        responseBodyText = await resp.text()
+      } catch (error) {
+        verifyError = getErrorMessage(error)
+      }
+    } else {
+      responseBodyText = 'no_probe_url'
+    }
+
+    const challengeDetected = verifyError
+      ? true
+      : computeChallengeDetected(statusCode, responseBodyText)
+    const emptyContent = !verifyError && responseBodyText.trim().length < expectedMinBodyLength
+    const verified = !verifyError && (statusCode == null || (statusCode >= 200 && statusCode < 300)) && !challengeDetected && !emptyContent
+
+    const nextProfile: SourceSessionProfile = {
+      ...profile,
+      lastValidatedAt: nowIso(),
+      updatedAt: nowIso(),
+    }
+
+    if (verified) {
+      nextProfile.sessionState = 'healthy'
+      nextProfile.failStreak = 0
+      nextProfile.cooldownUntil = null
+      nextProfile.successCount += 1
+      nextProfile.qualityScore = clampNumber(nextProfile.qualityScore + 8, 0, 100)
+    } else {
+      nextProfile.failureCount += 1
+      nextProfile.failStreak += 1
+      nextProfile.qualityScore = clampNumber(
+        nextProfile.qualityScore - (challengeDetected ? 18 : emptyContent ? 12 : 8),
+        0,
+        100
+      )
+      if (challengeDetected) nextProfile.challengeHits += 1
+      if (emptyContent) nextProfile.emptyContentHits += 1
+      if (nextProfile.failStreak >= 3) {
+        nextProfile.sessionState = 'blocked'
+        nextProfile.cooldownUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      } else {
+        nextProfile.sessionState = 'degraded'
+      }
+    }
+
+    await saveSourceSessionProfile(env, nextProfile)
+
+    const degraded = !verified
+    const degradedReason = degraded
+      ? verifyError
+        ? `verify_error:${verifyError}`
+        : challengeDetected
+          ? 'challenge_detected'
+          : emptyContent
+            ? 'empty_content'
+            : 'verify_failed'
+      : undefined
+    const response: SourceSessionVerifyResponse = {
+      success: true,
+      verified,
+      statusCode,
+      challengeDetected,
+      emptyContent,
+      degraded,
+      ...(degradedReason ? { degradedReason } : {}),
+      sessionQualityScore: nextProfile.qualityScore,
+      profile: nextProfile,
+    }
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SESSION_VERIFY_FAILED',
+      'Session verify failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}
+
+export async function handleSourceSessionProfile(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (!(await verifyAuth(request, env))) {
+    return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  }
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+  const url = new URL(request.url)
+  const sourceId = normalizeText(url.searchParams.get('sourceId') || '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+  try {
+    const profile = await getSourceSessionProfile(env, sourceId)
+    return new Response(JSON.stringify({ success: true, profile }), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_SESSION_PROFILE_FAILED',
+      'Source session profile failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}
+
+export async function handleSourceSessionProfileRecover(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  if (!(await verifyAuth(request, env))) {
+    return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  }
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+  }
+  if (!isRecord(body)) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+  }
+  const sourceId = normalizeText(typeof body.sourceId === 'string' ? body.sourceId : '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+  const action = normalizeText(typeof body.action === 'string' ? body.action : 'refresh_session', 60)
+
+  try {
+    const profile = await getSourceSessionProfile(env, sourceId)
+    const nextProfile: SourceSessionProfile = {
+      ...profile,
+      sessionState: profile.sessionState === 'blocked' ? 'degraded' : 'warm',
+      failStreak: 0,
+      cooldownUntil: null,
+      qualityScore: clampNumber(profile.qualityScore + 5, 0, 100),
+      recoveryCount: profile.recoveryCount + 1,
+      recoveryLastAt: nowIso(),
+      lastRecoveryAction: action,
+      updatedAt: nowIso(),
+    }
+    await saveSourceSessionProfile(env, nextProfile)
+    return new Response(JSON.stringify({ success: true, profile: nextProfile }), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_SESSION_RECOVER_FAILED',
+      'Source session recover failed',
       500,
       getErrorMessage(error)
     )
