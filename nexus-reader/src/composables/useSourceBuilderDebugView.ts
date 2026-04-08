@@ -2,6 +2,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import type { SourceSessionProfile } from '@/api/sync'
 import { useMessage } from '@/composables/useMessage'
 import { useSettingsStore } from '@/stores/settings'
 import { useSourceBuilderDebugFormState } from '@/composables/source-builder/useSourceBuilderDebugFormState'
@@ -426,9 +427,19 @@ export function useSourceBuilderDebugView() {
     if (streak.failStreak >= 2) {
       reasons.push(`recent_fail_streak=${streak.failStreak}`)
     }
+    const sessionProfile = currentSourceSessionProfile.value
+    if (sessionProfile && sessionProfile.sourceId === source) {
+      if (sessionProfile.sessionState === 'blocked') {
+        reasons.push('session_state=blocked')
+      }
+      if (Number(sessionProfile.qualityScore || 0) < 40) {
+        reasons.push(`session_quality<40(${Math.round(Number(sessionProfile.qualityScore || 0))})`)
+      }
+    }
 
     if (reasons.length > 0) {
       actions.push('先执行“按建议设置”或“严格门禁”收紧 smoke gate')
+      actions.push('先执行“自动获取会话 -> 验证会话 -> 会话恢复”再尝试导入')
       actions.push('重新执行“一键封装并验证并自动修正”，至少得到 1 次 PASS')
       if (autoFlowState.value === 'QUARANTINED' || failureCount >= 3) {
         actions.push('先点击“解封 Source 状态”再重跑自动流程')
@@ -538,6 +549,7 @@ export function useSourceBuilderDebugView() {
   const sourceFlowProfileSummary = ref<string[]>([])
   const sourceFlowProfileAuditSummary = ref<string[]>([])
   const sourceSessionProfileLoading = ref(false)
+  const currentSourceSessionProfile = ref<SourceSessionProfile | null>(null)
   const sourceSessionProfileSummary = ref<string[]>([])
   const SCORE_MIN = 0.75
   const SEGMENT_MIN = {
@@ -887,6 +899,72 @@ export function useSourceBuilderDebugView() {
       return
     }
 
+    const ensureSessionGate = async (): Promise<{ pass: boolean; reason?: string }> => {
+      const sourceIdForSession = currentPackage.value?.source.id || sourceId.value.trim()
+      if (!sourceIdForSession) return { pass: true }
+      let profile = currentSourceSessionProfile.value
+      if (!profile || profile.sourceId !== sourceIdForSession) {
+        const profileResp = await requestSourceSessionProfile({ sourceId: sourceIdForSession })
+        if (profileResp.isSuccess && profileResp.data?.profile) {
+          profile = profileResp.data.profile
+          currentSourceSessionProfile.value = profile
+        }
+      }
+      if (!profile || !profile.sessionKey || profile.sessionState === 'cold' || profile.sessionState === 'blocked') {
+        const acquireResp = await requestAutoAcquireFetchSession({
+          sourceId: sourceIdForSession,
+          acquireStrategy: 'auto_browser_like',
+          ttlSeconds: Number(sessionTtlSeconds.value || 1800),
+        })
+        if (!acquireResp.isSuccess || !acquireResp.data?.profile) {
+          return { pass: false, reason: `session_auto_acquire_failed:${acquireResp.errorMsg || 'unknown'}` }
+        }
+        profile = acquireResp.data.profile
+        currentSourceSessionProfile.value = profile
+        if (acquireResp.data.sessionKey) {
+          fetchSessionKey.value = acquireResp.data.sessionKey
+        }
+        autoFlowSummary.value.push(
+          `gate@session:autoAcquire=pass quality=${Math.round(acquireResp.data.sessionQualityScore || 0)}`
+        )
+      }
+
+      const verifyResp = await requestVerifyFetchSession({
+        sourceId: sourceIdForSession,
+        probeUrl: runTargetUrl.value.trim() || validateChapterUrl.value.trim() || undefined,
+        timeoutMs: 12000,
+        expectedMinBodyLength: 200,
+      })
+      if (!verifyResp.isSuccess || !verifyResp.data) {
+        return { pass: false, reason: `session_verify_failed:${verifyResp.errorMsg || 'unknown'}` }
+      }
+      const verify = verifyResp.data
+      currentSourceSessionProfile.value = verify.profile
+      autoFlowSummary.value.push(
+        `gate@session:verify=${verify.verified ? 'pass' : `fail(${verify.degradedReason || 'unknown'})`} quality=${Math.round(verify.sessionQualityScore || 0)}`
+      )
+      if (!verify.verified || Number(verify.sessionQualityScore || 0) < 40) {
+        return { pass: false, reason: verify.degradedReason || 'session_quality_low' }
+      }
+      return { pass: true }
+    }
+
+    const sessionGate = await ensureSessionGate()
+    await refreshCurrentSourceSessionProfile()
+    if (!sessionGate.pass) {
+      autoFlowState.value = 'MANUAL_REQUIRED'
+      warning(`会话门禁未通过: ${sessionGate.reason || 'unknown'}`)
+      autoFlowSummary.value.push(`state=MANUAL_REQUIRED reason=session_gate:${sessionGate.reason || 'unknown'}`)
+      pushAutoFlowHistory({
+        runId,
+        sourceId: sourceIdForCounter,
+        finalState: 'MANUAL_REQUIRED',
+        success: false,
+        note: `session_gate:${sessionGate.reason || 'unknown'}`,
+      })
+      return
+    }
+
     autoFlowState.value = 'BUILDING'
     const built = await buildFromSamples()
     if (!built || !currentPackage.value) {
@@ -1140,6 +1218,7 @@ export function useSourceBuilderDebugView() {
   async function refreshCurrentSourceSessionProfile() {
     const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
     if (!sourceIdForCounter) {
+      currentSourceSessionProfile.value = null
       sourceSessionProfileSummary.value = []
       return
     }
@@ -1147,10 +1226,12 @@ export function useSourceBuilderDebugView() {
     try {
       const response = await requestSourceSessionProfile({ sourceId: sourceIdForCounter })
       if (!response.isSuccess || !response.data?.profile) {
+        currentSourceSessionProfile.value = null
         sourceSessionProfileSummary.value = ['sessionProfile: unavailable']
         return
       }
       const profile = response.data.profile
+      currentSourceSessionProfile.value = profile
       sourceSessionProfileSummary.value = [
         `sessionState=${profile.sessionState}`,
         `strategy=${profile.acquireStrategy}`,
@@ -1164,6 +1245,7 @@ export function useSourceBuilderDebugView() {
         `updatedAt=${profile.updatedAt || '--'}`,
       ]
     } catch {
+      currentSourceSessionProfile.value = null
       sourceSessionProfileSummary.value = ['sessionProfile: load failed']
     } finally {
       sourceSessionProfileLoading.value = false
@@ -1185,6 +1267,9 @@ export function useSourceBuilderDebugView() {
       if (!response.isSuccess || !response.data) {
         warning(response.errorMsg || '自动获取会话失败')
         return
+      }
+      if (response.data.profile) {
+        currentSourceSessionProfile.value = response.data.profile
       }
       if (response.data.sessionKey) {
         fetchSessionKey.value = response.data.sessionKey
@@ -1219,6 +1304,9 @@ export function useSourceBuilderDebugView() {
         return
       }
       const verify = response.data
+      if (verify.profile) {
+        currentSourceSessionProfile.value = verify.profile
+      }
       autoFlowSummary.value = [
         ...autoFlowSummary.value,
         `session=verify ${verify.verified ? 'pass' : `fail(${verify.degradedReason || 'unknown'})`} quality=${Math.round(verify.sessionQualityScore || 0)}`,
@@ -1248,6 +1336,9 @@ export function useSourceBuilderDebugView() {
       if (!response.isSuccess) {
         warning(response.errorMsg || '会话恢复失败')
         return
+      }
+      if (response.data?.profile) {
+        currentSourceSessionProfile.value = response.data.profile
       }
       autoFlowSummary.value = [
         ...autoFlowSummary.value,
