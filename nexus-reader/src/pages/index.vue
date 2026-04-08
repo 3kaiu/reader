@@ -16,7 +16,6 @@ const {
   menuOpen,
   isDesktop,
   menuGroups,
-  isFeatureEnabled,
   loading,
   books,
   groups,
@@ -36,7 +35,6 @@ const {
   handleMoveConfirm,
   handleDelete,
   navigateTo,
-  goDiscovery,
   goSearch,
 } = useBookshelfView();
 const {
@@ -71,13 +69,12 @@ function bindVirtualContainerRef(
     <BookshelfHeaderBar
       v-model:menu-open="menuOpen"
       :is-dark="isDark"
-      :show-discovery="isFeatureEnabled('discovery')"
+      :show-discovery="false"
       :has-books="hasBooks"
       :is-manage-mode="isManageMode"
       :is-desktop="isDesktop"
       :menu-groups="menuGroups"
       @toggle-dark="toggleDark()"
-      @discovery="goDiscovery()"
       @search="goSearch()"
       @toggle-manage-mode="toggleManageMode()"
       @navigate="navigateTo"

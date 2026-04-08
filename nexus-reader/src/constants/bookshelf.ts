@@ -1,5 +1,4 @@
-import { Server, Settings, Wand2 } from 'lucide-vue-next'
-import { ADDON_MENU_ENTRIES } from '@/constants/addons'
+import { Server, Settings, Wrench } from 'lucide-vue-next'
 import type { OptionalFeature } from '@/utils/features'
 
 export type BookshelfMenuItem = {
@@ -17,22 +16,9 @@ export type BookshelfMenuGroup = {
 }
 
 export function buildBookshelfMenuGroups(
-  isFeatureEnabled: (feature: OptionalFeature) => boolean
+  _isFeatureEnabled: (feature: OptionalFeature) => boolean
 ): BookshelfMenuGroup[] {
   return [
-    {
-      title: '发现',
-      items: ADDON_MENU_ENTRIES.filter(
-        item => item.feature === 'discovery' && isFeatureEnabled(item.feature)
-      ).map(item => ({
-        label: item.label,
-        desc: item.description,
-        icon: item.icon,
-        path: item.path,
-        color: item.color,
-        bg: item.bg,
-      })),
-    },
     {
       title: '内容管理',
       items: [
@@ -45,27 +31,14 @@ export function buildBookshelfMenuGroups(
           bg: 'bg-blue-500/10',
         },
         {
-          label: '替换规则',
-          desc: '净化与替换文本内容',
-          icon: Wand2,
-          path: '/replace-rule',
-          color: 'text-purple-500',
-          bg: 'bg-purple-500/10',
+          label: '书源工厂',
+          desc: '封装、验证和自动修正规则包',
+          icon: Wrench,
+          path: '/source-builder-debug',
+          color: 'text-emerald-500',
+          bg: 'bg-emerald-500/10',
         },
       ],
-    },
-    {
-      title: '附属模块',
-      items: ADDON_MENU_ENTRIES.filter(
-        item => item.feature === 'ai' && isFeatureEnabled(item.feature)
-      ).map(item => ({
-        label: item.label,
-        desc: item.description,
-        icon: item.icon,
-        path: item.path,
-        color: item.color,
-        bg: item.bg,
-      })),
     },
     {
       title: '系统',

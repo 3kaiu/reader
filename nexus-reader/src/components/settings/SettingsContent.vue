@@ -9,6 +9,7 @@ import SettingsAddonSection from "./SettingsAddonSection.vue";
 import SettingsMaintenanceSection from "./SettingsMaintenanceSection.vue";
 import SettingsRoutingSection from "./SettingsRoutingSection.vue";
 import SettingsSourcePackagesSection from "./SettingsSourcePackagesSection.vue";
+import SettingsToolboxSection from "./SettingsToolboxSection.vue";
 
 type RouteStat = {
   key: string;
@@ -124,6 +125,7 @@ defineProps<{
   addonFeatures: Record<string, boolean>;
   storageUsage: BrowserStorageEstimate | null;
   addonEntryCards: AddonRouteEntry[];
+  toolboxMode: boolean;
   clientRoutingLoading: boolean;
   clientRoutingSummary: ClientRoutingSummary;
   agentRoutingLoading: boolean;
@@ -157,6 +159,7 @@ const emit = defineEmits<{
   importSourcePackage: [packageJson: string];
   selectSourcePackage: [sourceId: string];
   deleteSourcePackage: [sourceId: string];
+  toggleToolboxMode: [enabled: boolean];
   navigate: [path: string];
 }>();
 </script>
@@ -167,10 +170,15 @@ const emit = defineEmits<{
 
     <SettingsAddonSection
       :addon-features="addonFeatures"
-      :addon-entry-cards="addonEntryCards"
       @update-addon-feature="
         (feature, enabled) => emit('updateAddonFeature', feature, enabled)
       "
+    />
+
+    <SettingsToolboxSection
+      :toolbox-mode="toolboxMode"
+      :addon-entry-cards="addonEntryCards"
+      @toggle-toolbox-mode="emit('toggleToolboxMode', $event)"
       @navigate="emit('navigate', $event)"
     />
 
@@ -181,6 +189,7 @@ const emit = defineEmits<{
     />
 
     <SettingsRoutingSection
+      v-if="toolboxMode"
       :client-routing-loading="clientRoutingLoading"
       :client-routing-summary="clientRoutingSummary"
       :agent-routing-loading="agentRoutingLoading"

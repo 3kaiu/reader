@@ -120,6 +120,7 @@ const {
   runDetailValidation,
   runDetailAndChaptersValidation,
   clearPreview,
+  buildValidateAndAutoRefine,
   goBack,
 } = useSourceBuilderDebugView()
 </script>
@@ -159,6 +160,13 @@ const {
 
       <div class="px-5 pb-5 flex gap-2 justify-end">
         <button class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm" @click="clearPreview">清空预览</button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !bookCurl.trim() || !chapterCurl.trim()"
+          @click="buildValidateAndAutoRefine"
+        >
+          一键封装并验证并自动修正
+        </button>
         <button class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="sourceBuildRunning || !bookCurl.trim() || !chapterCurl.trim()" @click="buildFromSamples">
           {{ sourceBuildRunning ? '构建中...' : '生成规则包预览' }}
         </button>

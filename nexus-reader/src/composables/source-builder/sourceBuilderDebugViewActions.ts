@@ -92,7 +92,7 @@ export async function refreshSourceBuilderPackages(options: {
 export async function buildSourceBuilderFromSamples(options: BuildFromSamplesOptions) {
   if (!options.bookCurl.value.trim() || !options.chapterCurl.value.trim()) {
     options.warning('请至少提供 book curl 和 chapter curl')
-    return
+    return false
   }
 
   const ok = await options.settingsStore.buildSourcePackageFromSamples({
@@ -122,7 +122,7 @@ export async function buildSourceBuilderFromSamples(options: BuildFromSamplesOpt
 
   if (!ok) {
     options.warning('构建失败')
-    return
+    return false
   }
 
   options.pushDebugSnapshot({
@@ -144,6 +144,7 @@ export async function buildSourceBuilderFromSamples(options: BuildFromSamplesOpt
     fetchHtmlPreview: options.fetchHtmlPreview.value,
   })
   options.success('规则包预览已生成')
+  return true
 }
 
 export async function importSourceBuilderPreviewPackage(options: ImportPreviewPackageOptions) {

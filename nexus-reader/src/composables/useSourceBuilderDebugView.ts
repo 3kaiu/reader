@@ -305,6 +305,19 @@ export function useSourceBuilderDebugView() {
     },
   })
 
+  async function buildValidateAndAutoRefine() {
+    const built = await buildFromSamples()
+    if (!built || !currentPackage.value) {
+      warning('未生成可用规则包，无法继续自动流程')
+      return
+    }
+    if (!validateSearchQuery.value.trim() && searchKeyword.value.trim()) {
+      validateSearchQuery.value = searchKeyword.value.trim()
+    }
+    await validateCurrentPackage()
+    await requestAiAssistAndRefine()
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
@@ -400,6 +413,7 @@ export function useSourceBuilderDebugView() {
     runChapterResultItems,
     runChaptersSuggestedActions,
     buildFromSamples,
+    buildValidateAndAutoRefine,
     importFetchSession: () => importFetchSession(lastFetchDebug),
     loadFetchSession,
     previewFetchHtml: () => previewFetchHtml(lastFetchDebug),

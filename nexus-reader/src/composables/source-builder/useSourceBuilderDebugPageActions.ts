@@ -54,7 +54,7 @@ export function useSourceBuilderDebugPageActions({
   }
 
   async function buildFromSamples() {
-    await buildSourceBuilderFromSamples(buildFromSamplesOptions)
+    return await buildSourceBuilderFromSamples(buildFromSamplesOptions)
   }
 
   async function importPreviewPackage() {

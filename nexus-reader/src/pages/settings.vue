@@ -6,6 +6,7 @@ const {
   addonFeatures,
   storageUsage,
   addonEntryCards,
+  toolboxMode,
   clientRoutingLoading,
   clientRoutingSummary,
   agentRoutingLoading,
@@ -35,6 +36,7 @@ const {
   importSourcePackage,
   selectSourcePackage,
   deleteSourcePackage,
+  toggleToolboxMode,
   navigateTo,
   goBack,
 } = useSettingsView();
@@ -48,6 +50,7 @@ const {
       :addon-features="addonFeatures"
       :storage-usage="storageUsage"
       :addon-entry-cards="addonEntryCards"
+      :toolbox-mode="toolboxMode"
       :client-routing-loading="clientRoutingLoading"
       :client-routing-summary="clientRoutingSummary"
       :agent-routing-loading="agentRoutingLoading"
@@ -80,6 +83,7 @@ const {
       @import-source-package="importSourcePackage"
       @select-source-package="selectSourcePackage"
       @delete-source-package="deleteSourcePackage"
+      @toggle-toolbox-mode="toggleToolboxMode"
       @navigate="navigateTo"
     />
   </div>

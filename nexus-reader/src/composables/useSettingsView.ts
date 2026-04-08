@@ -1,4 +1,5 @@
 import { computed, onMounted } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { ADDON_ENTRY_CARDS } from '@/constants/addons'
@@ -19,6 +20,7 @@ export function useSettingsView() {
   const { success, warning } = useMessage()
   const { handlePromiseError } = useErrorHandler()
   const addonsStore = useAddonsStore()
+  const toolboxMode = useStorage('settings-toolbox-mode', false)
   const settingsStore = useSettingsStore()
   const {
     refreshClientRouting,
@@ -103,6 +105,11 @@ export function useSettingsView() {
     void router.push(path)
   }
 
+  function toggleToolboxMode(enabled: boolean) {
+    toolboxMode.value = enabled
+    success(enabled ? '已开启个人工具箱模式' : '已隐藏个人工具箱模式')
+  }
+
   function goBack() {
     navigateTo('/')
   }
@@ -126,6 +133,7 @@ export function useSettingsView() {
     addonFeatures,
     storageUsage,
     addonEntryCards,
+    toolboxMode,
     clientRoutingLoading,
     clientRoutingSummary,
     agentRoutingLoading,
@@ -155,6 +163,7 @@ export function useSettingsView() {
     importSourcePackage,
     selectSourcePackage,
     deleteSourcePackage,
+    toggleToolboxMode,
     navigateTo,
     goBack,
   }
