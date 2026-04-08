@@ -144,6 +144,8 @@ export function useSourceBuilderDebugView() {
     runChaptersResult,
     runContentResult,
     runFullFlowSummary,
+    runContentSmokeSummary,
+    runContentSmokeFailures,
     runLoading,
     runExecutionProfileSummary,
     runSearchResultItems,
@@ -161,6 +163,7 @@ export function useSourceBuilderDebugView() {
     runDetailValidation,
     runDetailAndChaptersValidation,
     runSearchToContentValidation,
+    runChaptersContentSmoke,
     clearRunState,
   } = runOperations
   const validationRefine = useSourceBuilderValidationRefine({
@@ -762,6 +765,8 @@ export function useSourceBuilderDebugView() {
     runChaptersResult,
     runContentResult,
     runFullFlowSummary,
+    runContentSmokeSummary,
+    runContentSmokeFailures,
     runLoading,
     runSummary,
     runSearchResultItems,
@@ -802,6 +807,7 @@ export function useSourceBuilderDebugView() {
     runDetailValidation,
     runDetailAndChaptersValidation,
     runSearchToContentValidation,
+    runChaptersContentSmoke,
     refreshCurrentSourceFlowProfile,
     resetCurrentSourceFlowState,
     clearPreview,

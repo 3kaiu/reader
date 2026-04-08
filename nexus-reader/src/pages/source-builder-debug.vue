@@ -91,6 +91,8 @@ const {
   runChaptersResult,
   runContentResult,
   runFullFlowSummary,
+  runContentSmokeSummary,
+  runContentSmokeFailures,
   runLoading,
   runSummary,
   runSearchResultItems,
@@ -130,6 +132,7 @@ const {
   runDetailValidation,
   runDetailAndChaptersValidation,
   runSearchToContentValidation,
+  runChaptersContentSmoke,
   refreshCurrentSourceFlowProfile,
   resetCurrentSourceFlowState,
   clearPreview,
@@ -419,11 +422,14 @@ const {
       :run-content-summary="runContentSummary"
       :run-content-suggested-actions="runContentSuggestedActions"
       :run-full-flow-summary="runFullFlowSummary"
+      :run-content-smoke-summary="runContentSmokeSummary"
+      :run-content-smoke-failures="runContentSmokeFailures"
       @run-operation="runOperation"
       @run-search-and-validate-detail="runSearchAndValidateDetail"
       @run-detail-validation="runDetailValidation"
       @run-detail-and-chapters-validation="runDetailAndChaptersValidation"
       @run-search-to-content-validation="runSearchToContentValidation"
+      @run-chapters-content-smoke="runChaptersContentSmoke"
     />
   </main>
 </template>

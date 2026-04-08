@@ -30,6 +30,8 @@ export function useSourceBuilderRunOperations(
   const runChaptersResult = ref<unknown>(null)
   const runContentResult = ref<unknown>(null)
   const runFullFlowSummary = ref<string[]>([])
+  const runContentSmokeSummary = ref<string[]>([])
+  const runContentSmokeFailures = ref<string[]>([])
   const runLoading = ref(false)
 
   const runExecutionProfileSummary = computed(() => {
@@ -288,6 +290,20 @@ export function useSourceBuilderRunOperations(
     return ''
   }
 
+  function extractChapterCandidates(chaptersResult: RunByPackageResult): ChapterRunResultItem[] {
+    const raw = Array.isArray(chaptersResult.result)
+      ? (chaptersResult.result as Array<Record<string, unknown>>)
+      : []
+    const items: ChapterRunResultItem[] = []
+    for (const item of raw) {
+      const url = extractStringField(item, ['url', 'href', 'link'])
+      if (!url) continue
+      const title = extractStringField(item, ['title', 'name', 'chapterName']) || '--'
+      items.push({ title, url })
+    }
+    return items
+  }
+
   async function executeRunOperation(
     operation: 'search' | 'book_info' | 'chapters' | 'content',
     optionsOverride?: {
@@ -342,6 +358,8 @@ export function useSourceBuilderRunOperations(
         runChaptersResult.value = null
         runContentResult.value = null
         runFullFlowSummary.value = []
+        runContentSmokeSummary.value = []
+        runContentSmokeFailures.value = []
       }
     } finally {
       runLoading.value = false
@@ -359,6 +377,8 @@ export function useSourceBuilderRunOperations(
     runChaptersResult.value = null
     runContentResult.value = null
     runFullFlowSummary.value = []
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
     try {
       const searchResult = await executeRunOperation('search', {
         query: runSearchQuery.value.trim(),
@@ -402,6 +422,8 @@ export function useSourceBuilderRunOperations(
     runChaptersResult.value = null
     runContentResult.value = null
     runFullFlowSummary.value = []
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
     try {
       const detailResult = await executeRunOperation('book_info', {
         targetUrl: normalizedUrl,
@@ -428,6 +450,8 @@ export function useSourceBuilderRunOperations(
     runChaptersResult.value = null
     runContentResult.value = null
     runFullFlowSummary.value = []
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
     try {
       const detailResult = await executeRunOperation('book_info', {
         targetUrl: normalizedUrl,
@@ -465,6 +489,8 @@ export function useSourceBuilderRunOperations(
     runSearchDetailResult.value = null
     runChaptersResult.value = null
     runContentResult.value = null
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
 
     try {
       const reasons: string[] = []
@@ -565,12 +591,107 @@ export function useSourceBuilderRunOperations(
     }
   }
 
+  async function runChaptersContentSmoke(optionsOverride?: {
+    targetUrl?: string
+    sampleSize?: number
+  }) {
+    const sampleSize = Math.max(1, Math.min(30, Math.trunc(optionsOverride?.sampleSize ?? 10)))
+    runLoading.value = true
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
+    runContentResult.value = null
+
+    try {
+      const targetRaw = (optionsOverride?.targetUrl ?? runTargetUrl.value).trim()
+      let chaptersResult = runChaptersResult.value as RunByPackageResult | null
+
+      const needFreshChapters = !chaptersResult || !Array.isArray(chaptersResult.result)
+      if (needFreshChapters) {
+        if (!targetRaw) {
+          warning('请先提供 target url 或先执行章节验证')
+          return { pass: false, reasons: ['missing_target_url'] }
+        }
+        const detailPayload = runSearchDetailResult.value as RunByPackageResult | null
+        const chaptersTarget = detailPayload
+          ? extractTocTarget(detailPayload, targetRaw)
+          : targetRaw
+        chaptersResult = await executeRunOperation('chapters', {
+          targetUrl: chaptersTarget,
+          quietSuccess: true,
+        })
+        runChaptersResult.value = chaptersResult
+      }
+
+      if (!chaptersResult) {
+        warning('章节烟雾测试失败：无法获取章节列表')
+        return { pass: false, reasons: ['chapters_failed'] }
+      }
+
+      const chapterCandidates = extractChapterCandidates(chaptersResult).slice(0, sampleSize)
+      if (chapterCandidates.length === 0) {
+        warning('章节烟雾测试失败：章节列表为空')
+        return { pass: false, reasons: ['chapters_empty'] }
+      }
+
+      let passed = 0
+      const failures: string[] = []
+      for (let i = 0; i < chapterCandidates.length; i++) {
+        const chapter = chapterCandidates[i]
+        const contentResult = await executeRunOperation('content', {
+          targetUrl: chapter.url || '',
+          quietSuccess: true,
+        })
+        if (contentResult) {
+          runContentResult.value = contentResult
+        }
+        const contentLen = contentResult ? extractContentLength(contentResult.result) : 0
+        const stepOk = Boolean(contentResult?.step?.ok)
+        if (stepOk && contentLen >= CONTENT_MIN_LEN) {
+          passed += 1
+          continue
+        }
+        const reason = contentResult?.step?.failureCode
+          || (contentLen < CONTENT_MIN_LEN ? `content_too_short(${contentLen})` : 'content_failed')
+        failures.push(`#${i + 1} ${chapter.title || '--'} -> ${reason}`)
+      }
+
+      const total = chapterCandidates.length
+      const failed = total - passed
+      const passRate = Math.round((passed / total) * 100)
+      runContentSmokeSummary.value = [
+        `sampled=${total}`,
+        `pass=${passed}`,
+        `fail=${failed}`,
+        `passRate=${passRate}%`,
+        `minContentLength=${CONTENT_MIN_LEN}`,
+      ]
+      runContentSmokeFailures.value = failures
+
+      if (failed === 0) {
+        success(`章节连续可读验证通过 (${passed}/${total})`)
+      } else {
+        warning(`章节连续可读验证未通过 (${passed}/${total})`)
+      }
+      return {
+        pass: failed === 0,
+        passed,
+        failed,
+        total,
+        failures,
+      }
+    } finally {
+      runLoading.value = false
+    }
+  }
+
   function clearRunState() {
     runResult.value = null
     runSearchDetailResult.value = null
     runChaptersResult.value = null
     runContentResult.value = null
     runFullFlowSummary.value = []
+    runContentSmokeSummary.value = []
+    runContentSmokeFailures.value = []
   }
 
   return {
@@ -581,6 +702,8 @@ export function useSourceBuilderRunOperations(
     runChaptersResult,
     runContentResult,
     runFullFlowSummary,
+    runContentSmokeSummary,
+    runContentSmokeFailures,
     runLoading,
     runExecutionProfileSummary,
     runSearchResultItems,
@@ -598,6 +721,7 @@ export function useSourceBuilderRunOperations(
     runDetailValidation,
     runDetailAndChaptersValidation,
     runSearchToContentValidation,
+    runChaptersContentSmoke,
     clearRunState,
   }
 }

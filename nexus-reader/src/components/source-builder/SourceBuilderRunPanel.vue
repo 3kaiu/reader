@@ -33,6 +33,8 @@ const props = defineProps<{
   runContentSummary: string[]
   runContentSuggestedActions: string[]
   runFullFlowSummary: string[]
+  runContentSmokeSummary: string[]
+  runContentSmokeFailures: string[]
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +43,7 @@ const emit = defineEmits<{
   runDetailValidation: [bookUrl: string]
   runDetailAndChaptersValidation: [bookUrl: string]
   runSearchToContentValidation: []
+  runChaptersContentSmoke: []
 }>()
 </script>
 
@@ -106,6 +109,13 @@ const emit = defineEmits<{
         @click="emit('runOperation', 'content')"
       >
         Run Content
+      </button>
+      <button
+        class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+        :disabled="props.runLoading || !props.hasCurrentPackage || (!runTargetUrl.trim() && !props.runChaptersResult)"
+        @click="emit('runChaptersContentSmoke')"
+      >
+        Chapters -> Content Smoke x10
       </button>
     </div>
     <div v-if="props.runExecutionProfileSummary.length > 0" class="px-5 pb-5">
@@ -259,6 +269,26 @@ const emit = defineEmits<{
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.runFullFlowSummary" :key="item">{{ item }}</li>
         </ul>
+      </div>
+      <div
+        v-if="props.runContentSmokeSummary.length > 0 || props.runContentSmokeFailures.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3"
+      >
+        <div v-if="props.runContentSmokeSummary.length > 0">
+          <p class="text-xs text-muted-foreground mb-2">Content Smoke Summary</p>
+          <ul class="space-y-1 text-xs break-all">
+            <li v-for="item in props.runContentSmokeSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <div
+          v-if="props.runContentSmokeFailures.length > 0"
+          class="rounded-lg border border-amber-400/40 bg-amber-500/5 p-3"
+        >
+          <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">Smoke Failures</p>
+          <ul class="space-y-1 text-xs break-all text-amber-800 dark:text-amber-200">
+            <li v-for="item in props.runContentSmokeFailures" :key="item">{{ item }}</li>
+          </ul>
+        </div>
       </div>
       <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runResult, null, 2) }}</pre>
     </div>
