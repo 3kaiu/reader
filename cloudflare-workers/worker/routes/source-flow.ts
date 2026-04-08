@@ -40,6 +40,7 @@ type SourceFlowAssistResponse = {
 }
 
 type SourceFlowAssistFeedbackRequest = {
+  runId?: string
   sourceId?: string
   query?: string
   normalizedQuery?: string
@@ -355,6 +356,7 @@ async function ensureFeedbackTable(env: EnhancedWorkerEnv): Promise<void> {
   await env.ANALYTICS_DB.prepare(`
     CREATE TABLE IF NOT EXISTS ai_source_flow_feedback (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT,
       source_id TEXT,
       query TEXT,
       normalized_query TEXT,
@@ -369,6 +371,14 @@ async function ensureFeedbackTable(env: EnhancedWorkerEnv): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `).bind().run()
+
+  try {
+    await env.ANALYTICS_DB.prepare(`
+      ALTER TABLE ai_source_flow_feedback ADD COLUMN run_id TEXT
+    `).bind().run()
+  } catch {
+    // column may already exist
+  }
 }
 
 export async function handleSourceFlowAssist(
@@ -519,6 +529,7 @@ export async function handleSourceFlowAssistFeedback(
   }
 
   const feedback: SourceFlowAssistFeedbackRequest = {
+    runId: typeof body.runId === 'string' ? body.runId : undefined,
     sourceId: typeof body.sourceId === 'string' ? body.sourceId : undefined,
     query: typeof body.query === 'string' ? body.query : undefined,
     normalizedQuery: typeof body.normalizedQuery === 'string' ? body.normalizedQuery : undefined,
@@ -543,6 +554,7 @@ export async function handleSourceFlowAssistFeedback(
 
     await env.ANALYTICS_DB.prepare(`
       INSERT INTO ai_source_flow_feedback (
+        run_id,
         source_id,
         query,
         normalized_query,
@@ -554,9 +566,10 @@ export async function handleSourceFlowAssistFeedback(
         after_score,
         accepted,
         regression
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
       .bind(
+        feedback.runId || null,
         feedback.sourceId || null,
         feedback.query || null,
         feedback.normalizedQuery || null,

@@ -107,6 +107,7 @@ export function useSourceBuilderValidationRefine(
     provider: 'workers-ai' | 'ai-gateway' | 'none'
     cached: boolean
   } | null>(null)
+  const aiAssistRunId = ref<string | null>(null)
 
   const validationStepSummary = computed<SourceValidationStepReport[]>(() => {
     const report = (validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null)?.report
@@ -561,6 +562,7 @@ export function useSourceBuilderValidationRefine(
       const afterScore = options.previewPackage.value.validation?.score ?? beforeScore
       if (afterScore + 1e-6 >= beforeScore) {
         void requestSourceFlowAssistFeedback({
+          runId: aiAssistRunId.value || undefined,
           sourceId: beforePackage.source.id,
           query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
           normalizedQuery: feedbackMeta?.normalizedQuery,
@@ -587,6 +589,7 @@ export function useSourceBuilderValidationRefine(
 
       const regression = buildRegressionSummary(beforePackage, options.previewPackage.value)
       void requestSourceFlowAssistFeedback({
+        runId: aiAssistRunId.value || undefined,
         sourceId: beforePackage.source.id,
         query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
         normalizedQuery: feedbackMeta?.normalizedQuery,
@@ -761,6 +764,11 @@ export function useSourceBuilderValidationRefine(
     aiAssistOpsRegressionTop.value = []
     aiAssistOpsRecommendedActions.value = []
     aiAssistMeta.value = null
+    aiAssistRunId.value = null
+  }
+
+  function setAiAssistRunId(runId: string | null) {
+    aiAssistRunId.value = runId?.trim() || null
   }
 
   function applySnapshot(snapshot: SourceBuilderDebugSnapshot) {
@@ -789,6 +797,7 @@ export function useSourceBuilderValidationRefine(
     refineSuggestions,
     requestAiAssist,
     requestAiAssistAndRefine,
+    setAiAssistRunId,
     applyRecommendedAction,
     applyRecommendedActionAndRefine,
     validateCurrentPackage,

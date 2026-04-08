@@ -90,6 +90,7 @@ export async function requestSourceFlowAssist(options: {
 }
 
 export async function requestSourceFlowAssistFeedback(options: {
+  runId?: string
   sourceId?: string
   query?: string
   normalizedQuery?: string
@@ -103,6 +104,7 @@ export async function requestSourceFlowAssistFeedback(options: {
   regression?: string
 }) {
   return await syncApi.sourceFlowAssistFeedback({
+    runId: options.runId,
     sourceId: options.sourceId,
     query: options.query,
     normalizedQuery: options.normalizedQuery,

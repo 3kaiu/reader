@@ -1,4 +1,5 @@
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useMessage } from '@/composables/useMessage'
@@ -200,6 +201,7 @@ export function useSourceBuilderDebugView() {
     refineSuggestions,
     requestAiAssist,
     requestAiAssistAndRefine,
+    setAiAssistRunId,
     applyRecommendedAction,
     applyRecommendedActionAndRefine,
     validateCurrentPackage,
@@ -210,6 +212,91 @@ export function useSourceBuilderDebugView() {
     applySnapshot: applyValidationSnapshot,
     clearValidationRefineState,
   } = validationRefine
+
+  type AutoFlowState =
+    | 'IDLE'
+    | 'BUILDING'
+    | 'VALIDATING'
+    | 'AI_REFINE_ATTEMPT'
+    | 'REVALIDATING'
+    | 'ROLLBACK'
+    | 'CONSERVATIVE_RETRY'
+    | 'MANUAL_REQUIRED'
+    | 'QUARANTINED'
+    | 'IMPORT_READY'
+  const autoFlowState = ref<AutoFlowState>('IDLE')
+  const autoFlowRunId = ref('')
+  const autoFlowSummary = ref<string[]>([])
+  const sourceFailureCounts = useStorage<Record<string, number>>(
+    'source-builder-auto-failure-counts',
+    {}
+  )
+  const AUTO_FLOW_MAX_ATTEMPTS = 3
+  const SCORE_MIN = 0.75
+  const SEGMENT_MIN = {
+    search: 0.7,
+    book: 0.7,
+    toc: 0.68,
+    content: 0.7,
+  } as const
+  const BLOCKING_FAILURE_CODES = new Set([
+    'fetch_failed',
+    'compile_failed',
+    'detail_cross_site',
+  ])
+
+  function nextRunId() {
+    return `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  function evaluateImportGate() {
+    const pkg = currentPackage.value
+    if (!pkg) {
+      return { pass: false, reasons: ['规则包为空'] }
+    }
+
+    const reasons: string[] = []
+    const score = Number(pkg.validation?.score ?? 0)
+    if (score + 1e-9 < SCORE_MIN) {
+      reasons.push(`overall<${Math.round(SCORE_MIN * 100)} (${Math.round(score * 100)})`)
+    }
+
+    const health = pkg.validation?.health
+    const segmentScore = {
+      search: Number(health?.search?.qualityScore ?? 0),
+      book: Number(health?.book?.qualityScore ?? 0),
+      toc: Number(health?.toc?.qualityScore ?? 0),
+      content: Number(health?.content?.qualityScore ?? 0),
+    }
+    for (const [segment, minScore] of Object.entries(SEGMENT_MIN) as Array<
+      [keyof typeof SEGMENT_MIN, number]
+    >) {
+      if (segmentScore[segment] + 1e-9 < minScore) {
+        reasons.push(`${segment}<${Math.round(minScore * 100)} (${Math.round(segmentScore[segment] * 100)})`)
+      }
+    }
+
+    const steps = pkg.validation?.steps ?? []
+    for (const step of steps) {
+      const code = String(step.failureCode || '').trim()
+      if (!code) continue
+      if (BLOCKING_FAILURE_CODES.has(code)) {
+        reasons.push(`blocking:${code}`)
+      }
+      if (
+        code === 'empty_result' &&
+        (step.step === 'chapters' || step.step === 'content')
+      ) {
+        reasons.push(`blocking:${step.step}:empty_result`)
+      }
+    }
+
+    if (!pkg.validation?.importable) {
+      reasons.push('validation.importable=false')
+    }
+
+    return { pass: reasons.length === 0, reasons }
+  }
 
   const { previewDiagnosticsItems } = useSourceBuilderDebugViewEffects({
     restoredDebugSnapshot,
@@ -306,16 +393,90 @@ export function useSourceBuilderDebugView() {
   })
 
   async function buildValidateAndAutoRefine() {
-    const built = await buildFromSamples()
-    if (!built || !currentPackage.value) {
-      warning('未生成可用规则包，无法继续自动流程')
+    const runId = nextRunId()
+    autoFlowRunId.value = runId
+    setAiAssistRunId(runId)
+    autoFlowSummary.value = [`runId=${runId}`]
+
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim() || 'unknown'
+    const failureCount = sourceFailureCounts.value[sourceIdForCounter] || 0
+    if (failureCount >= 3) {
+      autoFlowState.value = 'QUARANTINED'
+      warning('该 source 已进入隔离状态，请手工修正样本后再试')
+      autoFlowSummary.value.push(`state=QUARANTINED failureCount=${failureCount}`)
       return
     }
+
+    autoFlowState.value = 'BUILDING'
+    const built = await buildFromSamples()
+    if (!built || !currentPackage.value) {
+      autoFlowState.value = 'MANUAL_REQUIRED'
+      warning('未生成可用规则包，无法继续自动流程')
+      autoFlowSummary.value.push('state=MANUAL_REQUIRED reason=build_failed')
+      return
+    }
+
+    autoFlowState.value = 'VALIDATING'
     if (!validateSearchQuery.value.trim() && searchKeyword.value.trim()) {
       validateSearchQuery.value = searchKeyword.value.trim()
     }
     await validateCurrentPackage()
-    await requestAiAssistAndRefine()
+
+    let gate = evaluateImportGate()
+    autoFlowSummary.value.push(`gate@validate=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`)
+    if (gate.pass) {
+      autoFlowState.value = 'IMPORT_READY'
+      sourceFailureCounts.value = {
+        ...sourceFailureCounts.value,
+        [sourceIdForCounter]: 0,
+      }
+      success('规则包已达导入门槛，可直接导入')
+      return
+    }
+
+    for (let attempt = 1; attempt <= AUTO_FLOW_MAX_ATTEMPTS; attempt++) {
+      autoFlowState.value = 'AI_REFINE_ATTEMPT'
+      autoFlowSummary.value.push(`attempt=${attempt} action=ai_refine`)
+      await requestAiAssistAndRefine()
+
+      autoFlowState.value = 'REVALIDATING'
+      gate = evaluateImportGate()
+      autoFlowSummary.value.push(
+        `gate@attempt${attempt}=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`
+      )
+      if (gate.pass) {
+        autoFlowState.value = 'IMPORT_READY'
+        sourceFailureCounts.value = {
+          ...sourceFailureCounts.value,
+          [sourceIdForCounter]: 0,
+        }
+        success('自动修正达标，可导入规则包')
+        return
+      }
+
+      if (attempt < AUTO_FLOW_MAX_ATTEMPTS) {
+        autoFlowState.value = 'CONSERVATIVE_RETRY'
+        warning(`第 ${attempt} 次自动修正未达标，已切换保守重试`)
+      } else {
+        autoFlowState.value = 'ROLLBACK'
+      }
+    }
+
+    const nextFailureCount = (sourceFailureCounts.value[sourceIdForCounter] || 0) + 1
+    sourceFailureCounts.value = {
+      ...sourceFailureCounts.value,
+      [sourceIdForCounter]: nextFailureCount,
+    }
+    if (nextFailureCount >= 3) {
+      autoFlowState.value = 'QUARANTINED'
+      warning('连续失败达到阈值，已进入隔离状态')
+      autoFlowSummary.value.push(`state=QUARANTINED failureCount=${nextFailureCount}`)
+      return
+    }
+
+    autoFlowState.value = 'MANUAL_REQUIRED'
+    warning('自动修正未达导入门槛，请手工补样本或调整规则')
+    autoFlowSummary.value.push(`state=MANUAL_REQUIRED failureCount=${nextFailureCount}`)
   }
 
   onMounted(async () => {
@@ -328,6 +489,9 @@ export function useSourceBuilderDebugView() {
     sourcePackageImporting,
     sourcePackageDetailLoading,
     sourceBuildRunning,
+    autoFlowState,
+    autoFlowRunId,
+    autoFlowSummary,
     sourcePackages,
     sourceBuildPreviewSummary,
     currentPreviewSummary,

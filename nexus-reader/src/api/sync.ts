@@ -305,6 +305,7 @@ export type SourceFlowAssistResponse = {
 }
 
 export type SourceFlowAssistFeedbackRequest = {
+  runId?: string
   sourceId?: string
   query?: string
   normalizedQuery?: string
