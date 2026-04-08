@@ -968,3 +968,85 @@ export async function handleSourceFlowAssistProfile(
 
   return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
 }
+
+export async function handleSourceFlowAssistProfileReset(
+  request: Request,
+  env: EnhancedWorkerEnv
+): Promise<Response> {
+  const payload = await verifyAuth(request, env)
+  if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  }
+
+  try {
+    await ensureProfileTable(env)
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_PROFILE_RESET_FAILED',
+      'Source flow profile table failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid JSON', 400)
+  }
+  if (!isRecord(body)) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid payload', 400)
+  }
+
+  const sourceId = normalizeText(typeof body.sourceId === 'string' ? body.sourceId : '', 120)
+  if (!sourceId) {
+    return jsonError(request, 'BAD_REQUEST', 'Missing sourceId', 400)
+  }
+  const lifecycleState = (
+    String(body.lifecycleState || 'warming').trim() === 'new' ? 'new' : 'warming'
+  ) as SourceFlowLifecycleState
+  const clearPreferredActions = Boolean(body.clearPreferredActions)
+
+  try {
+    await env.ANALYTICS_DB.prepare(`
+      INSERT INTO ai_source_flow_profiles (
+        source_id,
+        lifecycle_state,
+        preferred_actions,
+        conservative_mode,
+        last_good_run_id,
+        recent_failure_codes,
+        updated_at
+      ) VALUES (?, ?, ?, 0, NULL, '[]', datetime('now'))
+      ON CONFLICT(source_id) DO UPDATE SET
+        lifecycle_state = excluded.lifecycle_state,
+        preferred_actions = CASE
+          WHEN ? = 1 THEN '[]'
+          ELSE preferred_actions
+        END,
+        conservative_mode = 0,
+        last_good_run_id = NULL,
+        recent_failure_codes = '[]',
+        updated_at = datetime('now')
+    `).bind(
+      sourceId,
+      lifecycleState,
+      clearPreferredActions ? '[]' : '[]',
+      clearPreferredActions ? 1 : 0
+    ).run()
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return jsonError(
+      request,
+      'SOURCE_FLOW_PROFILE_RESET_FAILED',
+      'Source flow profile reset failed',
+      500,
+      getErrorMessage(error)
+    )
+  }
+}

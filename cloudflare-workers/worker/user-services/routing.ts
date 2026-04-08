@@ -15,6 +15,7 @@ import {
   handleSourceFlowAssistFeedback,
   handleSourceFlowAssistFeedbackStats,
   handleSourceFlowAssistProfile,
+  handleSourceFlowAssistProfileReset,
 } from '../routes.ts'
 import type { EnhancedWorkerEnv } from '../types.ts'
 import type { UserServiceContainer } from './types.ts'
@@ -66,6 +67,8 @@ export async function dispatchUserServiceRoute(
       return handleSourceFlowAssistFeedbackStats(request, env)
     case '/api/source/flow-assist/profile':
       return handleSourceFlowAssistProfile(request, env)
+    case '/api/source/flow-assist/profile/reset':
+      return handleSourceFlowAssistProfileReset(request, env)
     default:
       return undefined
   }

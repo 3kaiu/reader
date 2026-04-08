@@ -16,6 +16,7 @@ import { useSourceBuilderSummaries } from '@/composables/source-builder/useSourc
 import { useSourceBuilderValidationRefine } from '@/composables/source-builder/useSourceBuilderValidationRefine'
 import { useSourceBuilderRuntimeGovernance } from '@/composables/source-builder/useSourceBuilderRuntimeGovernance'
 import { useSourceBuilderDebugViewEffects } from '@/composables/source-builder/useSourceBuilderDebugViewEffects'
+import { resetSourceFlowAssistProfile } from '@/composables/source-builder/sourceBuilderValidationActions'
 
 export function useSourceBuilderDebugView() {
   const router = useRouter()
@@ -571,6 +572,43 @@ export function useSourceBuilderDebugView() {
     autoFlowSummary.value.push(`state=MANUAL_REQUIRED failureCount=${nextFailureCount}`)
   }
 
+  async function resetCurrentSourceFlowState(options?: {
+    lifecycleState?: 'new' | 'warming'
+    clearPreferredActions?: boolean
+  }) {
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法重置 source 状态')
+      return
+    }
+    const lifecycleState = options?.lifecycleState || 'warming'
+    const clearPreferredActions = Boolean(options?.clearPreferredActions)
+
+    try {
+      const response = await resetSourceFlowAssistProfile({
+        sourceId: sourceIdForCounter,
+        lifecycleState,
+        clearPreferredActions,
+      })
+      if (!response.isSuccess) {
+        warning(response.errorMsg || '重置 source 状态失败')
+        return
+      }
+      sourceFailureCounts.value = {
+        ...sourceFailureCounts.value,
+        [sourceIdForCounter]: 0,
+      }
+      autoFlowState.value = 'IDLE'
+      autoFlowSummary.value = [
+        ...autoFlowSummary.value,
+        `state=RESET lifecycle=${lifecycleState} clearPreferred=${clearPreferredActions ? 'yes' : 'no'}`,
+      ]
+      success('已重置 source 状态，可重新执行自动流程')
+    } catch {
+      warning('重置 source 状态失败')
+    }
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
@@ -700,6 +738,7 @@ export function useSourceBuilderDebugView() {
     runDetailValidation,
     runDetailAndChaptersValidation,
     runSearchToContentValidation,
+    resetCurrentSourceFlowState,
     clearPreview,
     goBack,
   }

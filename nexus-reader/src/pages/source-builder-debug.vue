@@ -127,6 +127,7 @@ const {
   runDetailValidation,
   runDetailAndChaptersValidation,
   runSearchToContentValidation,
+  resetCurrentSourceFlowState,
   clearPreview,
   buildValidateAndAutoRefine,
   goBack,
@@ -168,6 +169,13 @@ const {
 
       <div class="px-5 pb-5 flex gap-2 justify-end">
         <button class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm" @click="clearPreview">清空预览</button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="resetCurrentSourceFlowState({ lifecycleState: 'warming' })"
+        >
+          重置 Source 状态
+        </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
           :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"

@@ -696,6 +696,15 @@ export const syncApi = {
       silent: true,
     } satisfies ApiFetchOptions)
   },
+  resetSourceFlowAssistProfile: async (payload: {
+    sourceId: string
+    lifecycleState?: 'new' | 'warming'
+    clearPreferredActions?: boolean
+  }) => {
+    return await $post<{ success: boolean }>('/source/flow-assist/profile/reset', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
+  },
   importFetchSession: async (payload: {
     sessionKey: string
     label?: string

@@ -146,6 +146,14 @@ export async function saveSourceFlowAssistProfile(options: {
   return await syncApi.saveSourceFlowAssistProfile(options)
 }
 
+export async function resetSourceFlowAssistProfile(options: {
+  sourceId: string
+  lifecycleState?: 'new' | 'warming'
+  clearPreferredActions?: boolean
+}) {
+  return await syncApi.resetSourceFlowAssistProfile(options)
+}
+
 export function buildFetchDebugFromPackage(
   sourcePackage: NxsSourcePackageDetail
 ): SourceFetchDebugInfo | null {

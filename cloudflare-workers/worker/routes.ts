@@ -29,4 +29,5 @@ export {
   handleSourceFlowAssistFeedback,
   handleSourceFlowAssistFeedbackStats,
   handleSourceFlowAssistProfile,
+  handleSourceFlowAssistProfileReset,
 } from './routes/source-flow.ts'
