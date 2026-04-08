@@ -1,4 +1,4 @@
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
@@ -239,9 +239,30 @@ export function useSourceBuilderDebugView() {
     | 'MANUAL_REQUIRED'
     | 'QUARANTINED'
     | 'IMPORT_READY'
+  type AutoFlowHistoryEntry = {
+    id: string
+    runId: string
+    sourceId: string
+    finalState: AutoFlowState
+    success: boolean
+    note: string
+    createdAtMs: number
+  }
   const autoFlowState = ref<AutoFlowState>('IDLE')
   const autoFlowRunId = ref('')
   const autoFlowSummary = ref<string[]>([])
+  const autoFlowHistory = useStorage<AutoFlowHistoryEntry[]>(
+    'source-builder-auto-flow-history',
+    []
+  )
+  const autoFlowHistorySummary = computed(() =>
+    autoFlowHistory.value.map(item => ({
+      id: item.id,
+      title: `${item.success ? 'PASS' : 'FAIL'} · ${item.finalState} · ${item.sourceId || '--'}`,
+      subtitle: `${item.runId} · ${new Date(item.createdAtMs).toLocaleString()}`,
+      note: item.note,
+    }))
+  )
   const sourceFailureCounts = useStorage<Record<string, number>>(
     'source-builder-auto-failure-counts',
     {}
@@ -279,6 +300,30 @@ export function useSourceBuilderDebugView() {
 
   function nextRunId() {
     return `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  function latestGateNote(): string {
+    const gateLines = autoFlowSummary.value.filter(item => item.startsWith('gate@'))
+    return gateLines.length > 0 ? gateLines[gateLines.length - 1] : '--'
+  }
+
+  function pushAutoFlowHistory(options: {
+    runId: string
+    sourceId: string
+    finalState: AutoFlowState
+    success: boolean
+    note: string
+  }) {
+    const next: AutoFlowHistoryEntry = {
+      id: `${options.runId}-${Date.now().toString(36)}`,
+      runId: options.runId,
+      sourceId: options.sourceId,
+      finalState: options.finalState,
+      success: options.success,
+      note: options.note,
+      createdAtMs: Date.now(),
+    }
+    autoFlowHistory.value = [next, ...autoFlowHistory.value].slice(0, 40)
   }
 
   function persistLastGoodPackage(sourceIdForCounter: string) {
@@ -487,6 +532,13 @@ export function useSourceBuilderDebugView() {
       autoFlowState.value = 'QUARANTINED'
       warning('该 source 已进入隔离状态，请手工修正样本后再试')
       autoFlowSummary.value.push(`state=QUARANTINED failureCount=${failureCount}`)
+      pushAutoFlowHistory({
+        runId,
+        sourceId: sourceIdForCounter,
+        finalState: 'QUARANTINED',
+        success: false,
+        note: `precheck failureCount=${failureCount}`,
+      })
       return
     }
 
@@ -496,6 +548,13 @@ export function useSourceBuilderDebugView() {
       autoFlowState.value = 'MANUAL_REQUIRED'
       warning('未生成可用规则包，无法继续自动流程')
       autoFlowSummary.value.push('state=MANUAL_REQUIRED reason=build_failed')
+      pushAutoFlowHistory({
+        runId,
+        sourceId: sourceIdForCounter,
+        finalState: 'MANUAL_REQUIRED',
+        success: false,
+        note: 'build_failed',
+      })
       return
     }
 
@@ -540,6 +599,13 @@ export function useSourceBuilderDebugView() {
         [sourceIdForCounter]: 0,
       }
       success('规则包已达导入门槛，可直接导入')
+      pushAutoFlowHistory({
+        runId,
+        sourceId: sourceIdForCounter,
+        finalState: 'IMPORT_READY',
+        success: true,
+        note: latestGateNote(),
+      })
       return
     }
 
@@ -586,6 +652,13 @@ export function useSourceBuilderDebugView() {
           [sourceIdForCounter]: 0,
         }
         success('自动修正达标，可导入规则包')
+        pushAutoFlowHistory({
+          runId,
+          sourceId: sourceIdForCounter,
+          finalState: 'IMPORT_READY',
+          success: true,
+          note: latestGateNote(),
+        })
         return
       }
 
@@ -607,12 +680,26 @@ export function useSourceBuilderDebugView() {
       autoFlowState.value = 'QUARANTINED'
       warning(rolledBack ? '已回滚到上一个可用包；连续失败达到阈值，source 进入隔离状态' : '连续失败达到阈值，已进入隔离状态')
       autoFlowSummary.value.push(`state=QUARANTINED failureCount=${nextFailureCount}`)
+      pushAutoFlowHistory({
+        runId,
+        sourceId: sourceIdForCounter,
+        finalState: 'QUARANTINED',
+        success: false,
+        note: `${rolledBack ? 'rolled_back;' : ''}${latestGateNote()}`,
+      })
       return
     }
 
     autoFlowState.value = 'MANUAL_REQUIRED'
     warning(rolledBack ? '已回滚到上一个可用包；自动修正未达导入门槛，请手工补样本或调整规则' : '自动修正未达导入门槛，请手工补样本或调整规则')
     autoFlowSummary.value.push(`state=MANUAL_REQUIRED failureCount=${nextFailureCount}`)
+    pushAutoFlowHistory({
+      runId,
+      sourceId: sourceIdForCounter,
+      finalState: 'MANUAL_REQUIRED',
+      success: false,
+      note: `${rolledBack ? 'rolled_back;' : ''}${latestGateNote()}`,
+    })
   }
 
   async function resetCurrentSourceFlowState(options?: {
@@ -719,6 +806,7 @@ export function useSourceBuilderDebugView() {
     autoFlowState,
     autoFlowRunId,
     autoFlowSummary,
+    autoFlowHistorySummary,
     sourceFlowProfileLoading,
     sourceFlowProfileSummary,
     sourceFlowProfileAuditSummary,

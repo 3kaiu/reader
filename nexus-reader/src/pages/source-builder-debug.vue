@@ -15,6 +15,7 @@ const {
   autoFlowState,
   autoFlowRunId,
   autoFlowSummary,
+  autoFlowHistorySummary,
   sourceFlowProfileLoading,
   sourceFlowProfileSummary,
   sourceFlowProfileAuditSummary,
@@ -219,6 +220,18 @@ const {
             <li>state={{ autoFlowState }}</li>
             <li v-if="autoFlowRunId">runId={{ autoFlowRunId }}</li>
             <li v-for="item in autoFlowSummary" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <div v-if="autoFlowHistorySummary.length > 0" class="px-5 pb-5">
+        <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p class="text-xs text-muted-foreground mb-2">Auto Flow History (Recent)</p>
+          <ul class="space-y-2 text-xs break-all">
+            <li v-for="item in autoFlowHistorySummary.slice(0, 12)" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
+              <p class="font-medium">{{ item.title }}</p>
+              <p class="text-muted-foreground mt-1">{{ item.subtitle }}</p>
+              <p class="mt-1">{{ item.note }}</p>
+            </li>
           </ul>
         </div>
       </div>
