@@ -22,6 +22,7 @@ const {
   currentSourceAutoFlowStreak,
   currentSourceAutoFlowRecommendation,
   currentSourceAutoFlowHealthSummary,
+  currentSourceSessionRecommendation,
   currentSourceForcedImportSummary,
   importPreviewGuardSummary,
   importPreviewBlocked,
@@ -385,6 +386,12 @@ const latestOutcomeLabel = computed(() => {
           </p>
           <p class="mt-1 text-xs text-muted-foreground break-all">
             {{ currentSourceAutoFlowRecommendation.advice }}
+          </p>
+          <p class="mt-2 text-xs font-medium break-all">
+            {{ currentSourceSessionRecommendation.title }}
+          </p>
+          <p class="mt-1 text-[11px] text-muted-foreground break-all">
+            {{ currentSourceSessionRecommendation.advice }}
           </p>
           <p class="mt-2 text-[11px] text-muted-foreground break-all">
             streak: pass={{ currentSourceAutoFlowStreak.passStreak }} / fail={{ currentSourceAutoFlowStreak.failStreak }}

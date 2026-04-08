@@ -401,6 +401,36 @@ export function useSourceBuilderDebugView() {
       `failureCounter=${failureCount}`,
     ]
   })
+  const currentSourceSessionRecommendation = computed(() => {
+    const profile = currentSourceSessionProfile.value
+    if (!profile) {
+      return {
+        level: 'unknown' as const,
+        title: '会话状态未知',
+        advice: '先刷新会话画像，必要时执行“会话自愈”。',
+      }
+    }
+    const quality = Number(profile.qualityScore || 0)
+    if (profile.sessionState === 'blocked' || quality < 40) {
+      return {
+        level: 'risky' as const,
+        title: '会话高风险：建议先修复会话',
+        advice: '执行“会话自愈”或“自动获取会话”，再运行自动流程。',
+      }
+    }
+    if (profile.sessionState === 'degraded' || quality < 70 || profile.failStreak >= 1) {
+      return {
+        level: 'watch' as const,
+        title: '会话边缘稳定：建议先验证',
+        advice: '优先执行“验证会话”，确认通过后再跑自动流程。',
+      }
+    }
+    return {
+      level: 'stable' as const,
+      title: '会话稳定：可继续自动流程',
+      advice: '当前会话质量较高，可直接执行自动流程与导入验证。',
+    }
+  })
   const importPreviewGuard = computed(() => {
     const source = currentAutoFlowSourceId.value
     const stats = currentSourceAutoFlowStats.value
@@ -1460,6 +1490,7 @@ export function useSourceBuilderDebugView() {
     currentSourceAutoFlowStreak,
     currentSourceAutoFlowRecommendation,
     currentSourceAutoFlowHealthSummary,
+    currentSourceSessionRecommendation,
     importPreviewGuardSummary,
     currentSourceForcedImportSummary,
     importPreviewBlocked: computed(() => importPreviewGuard.value.blocked),
