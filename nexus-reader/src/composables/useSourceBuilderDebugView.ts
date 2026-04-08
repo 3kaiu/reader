@@ -423,6 +423,16 @@ export function useSourceBuilderDebugView() {
       }
     }
     const quality = Number(profile.qualityScore || 0)
+    const cooldownActive = Boolean(
+      profile.cooldownUntil && Number(new Date(profile.cooldownUntil).getTime()) > Date.now()
+    )
+    if (cooldownActive) {
+      return {
+        level: 'risky' as const,
+        title: '会话冷却中：暂不建议继续重试',
+        advice: `建议先执行“会话恢复”或等待冷却结束（${profile.cooldownUntil}）后再验证。`,
+      }
+    }
     if (profile.sessionState === 'blocked' || quality < 40) {
       return {
         level: 'risky' as const,
@@ -1530,6 +1540,28 @@ export function useSourceBuilderDebugView() {
     }
   }
 
+  async function applySessionRecommendation() {
+    const recommendation = currentSourceSessionRecommendation.value
+    const sourceIdForCounter = currentPackage.value?.source.id || sourceId.value.trim()
+    if (!sourceIdForCounter) {
+      warning('缺少 sourceId，无法执行会话建议动作')
+      return
+    }
+    if (recommendation.level === 'risky') {
+      await selfHealCurrentSourceSession()
+      return
+    }
+    if (recommendation.level === 'watch') {
+      await verifyCurrentSourceSession()
+      return
+    }
+    if (recommendation.level === 'stable') {
+      success('会话状态稳定，可直接执行自动流程')
+      return
+    }
+    await refreshCurrentSourceSessionProfile()
+  }
+
   onMounted(async () => {
     loadDebugSnapshots()
     await refreshPackages()
@@ -1691,6 +1723,7 @@ export function useSourceBuilderDebugView() {
     verifyCurrentSourceSession,
     recoverCurrentSourceSession,
     selfHealCurrentSourceSession,
+    applySessionRecommendation,
     resetCurrentSourceFlowState,
     applySmokeGatePreset,
     applyRecommendedSmokeGate,

@@ -158,6 +158,7 @@ const {
   verifyCurrentSourceSession,
   recoverCurrentSourceSession,
   selfHealCurrentSourceSession,
+  applySessionRecommendation,
   resetCurrentSourceFlowState,
   applySmokeGatePreset,
   applyRecommendedSmokeGate,
@@ -295,6 +296,13 @@ const latestOutcomeLabel = computed(() => {
           @click="selfHealCurrentSourceSession"
         >
           会话自愈
+        </button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
+          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          @click="applySessionRecommendation"
+        >
+          按会话建议执行
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
