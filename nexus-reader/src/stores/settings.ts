@@ -7,6 +7,7 @@ export type {
   ChineseConvert,
   FontFamily,
   ReaderConfig,
+  ReaderPerformanceMode,
   ReaderTheme,
   ThemeColors,
 } from "@/types/settings";

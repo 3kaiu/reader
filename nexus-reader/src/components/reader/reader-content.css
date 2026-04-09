@@ -1,6 +1,24 @@
 .reader-container {
   min-height: 100vh;
   cursor: text;
+  scroll-behavior: auto;
+}
+
+.reader-content-host {
+  overflow-anchor: auto;
+  overscroll-behavior-y: contain;
+}
+
+.reader-content-host .reader-scroll-load-anchor {
+  overflow-anchor: none;
+}
+
+@supports (content-visibility: auto) {
+  .reader-content-host .reader-chapter-block {
+    content-visibility: auto;
+    contain: layout paint style;
+    contain-intrinsic-size: var(--chapter-intrinsic-size, 1200px);
+  }
 }
 
 .reader-content-host .reader-text .content-paragraph {

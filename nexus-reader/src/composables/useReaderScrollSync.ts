@@ -2,9 +2,11 @@ import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useScroll, useThrottleFn } from '@vueuse/core'
 import { logger } from '@/utils/logger'
 import { useReaderStore } from '@/stores/reader'
+import { useSettingsStore } from '@/stores/settings'
 
 export function useReaderScrollSync(options: {
   readerStore: ReturnType<typeof useReaderStore>
+  settingsStore: ReturnType<typeof useSettingsStore>
 }) {
   const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
   const handleBeforeUnload = () => options.readerStore.saveProgress()
@@ -26,6 +28,8 @@ export function useReaderScrollSync(options: {
   const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
   let chapterMarkerObserver: IntersectionObserver | null = null
   const visibleChapterMarkers = new Set<HTMLElement>()
+  let performanceObservers: PerformanceObserver[] = []
+  let previousDocumentScrollBehavior: string | null = null
 
   const syncChapterByVisibleMarkers = () => {
     if (visibleChapterMarkers.size === 0) {
@@ -98,6 +102,99 @@ export function useReaderScrollSync(options: {
     return true
   }
 
+  const clearPerformanceObservers = () => {
+    performanceObservers.forEach(observer => observer.disconnect())
+    performanceObservers = []
+  }
+
+  const setupPerformanceObservers = () => {
+    if (
+      typeof window === 'undefined' ||
+      typeof PerformanceObserver === 'undefined' ||
+      options.settingsStore.config.performanceMode === 'compat'
+    ) {
+      return
+    }
+
+    const supportedEntryTypes = PerformanceObserver.supportedEntryTypes || []
+
+    if (supportedEntryTypes.includes('longtask')) {
+      const longTaskObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.duration >= 50) {
+            logger.debug('reader long task detected', {
+              duration: Number(entry.duration.toFixed(1)),
+              chapterIndex: options.readerStore.currentChapterIndex,
+              loadedChapters: options.readerStore.loadedChapters.length,
+            })
+          }
+        })
+      })
+      longTaskObserver.observe({ type: 'longtask', buffered: true })
+      performanceObservers.push(longTaskObserver)
+    }
+
+    if (supportedEntryTypes.includes('layout-shift')) {
+      const layoutShiftObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          const shiftEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean }
+          if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
+            logger.debug('reader layout shift detected', {
+              value: Number((shiftEntry.value || 0).toFixed(4)),
+              chapterIndex: options.readerStore.currentChapterIndex,
+            })
+          }
+        })
+      })
+      layoutShiftObserver.observe({ type: 'layout-shift', buffered: true })
+      performanceObservers.push(layoutShiftObserver)
+    }
+  }
+
+  const applyReaderPerformanceEnvironment = () => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    const mode = options.settingsStore.config.performanceMode
+    const root = document.documentElement
+    root.dataset.readerPerformanceMode = mode
+    if (previousDocumentScrollBehavior === null) {
+      previousDocumentScrollBehavior = root.style.scrollBehavior || ''
+    }
+    root.style.scrollBehavior = 'auto'
+  }
+
+  const resetReaderPerformanceEnvironment = () => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    const root = document.documentElement
+    delete root.dataset.readerPerformanceMode
+    root.style.scrollBehavior = previousDocumentScrollBehavior ?? ''
+    previousDocumentScrollBehavior = null
+  }
+
+  const teardownChapterSyncBindings = () => {
+    if (chapterMarkerObserver) {
+      chapterMarkerObserver.disconnect()
+      chapterMarkerObserver = null
+      visibleChapterMarkers.clear()
+    }
+    window.removeEventListener('scroll', debouncedChapterSync)
+  }
+
+  const setupChapterSyncBindings = () => {
+    const mode = options.settingsStore.config.performanceMode
+    const shouldUseObserver = mode !== 'compat'
+    if (shouldUseObserver && setupChapterMarkerObserver()) {
+      return
+    }
+
+    window.addEventListener('scroll', debouncedChapterSync, { passive: true })
+  }
+
   watch(
     () => arrivedState.bottom,
     (isBottom) => {
@@ -118,31 +215,39 @@ export function useReaderScrollSync(options: {
     },
     () => {
       void nextTick(() => {
-        if (chapterMarkerObserver) {
+        if (chapterMarkerObserver && options.settingsStore.config.performanceMode !== 'compat') {
           chapterMarkerObserver.disconnect()
           visibleChapterMarkers.clear()
+          setupChapterMarkerObserver()
         }
-        setupChapterMarkerObserver()
       })
     },
     { flush: 'post' },
   )
 
+  watch(
+    () => options.settingsStore.config.performanceMode,
+    () => {
+      applyReaderPerformanceEnvironment()
+      teardownChapterSyncBindings()
+      clearPerformanceObservers()
+      setupChapterSyncBindings()
+      setupPerformanceObservers()
+    },
+    { flush: 'post' },
+  )
+
   onMounted(() => {
-    const observerEnabled = setupChapterMarkerObserver()
-    if (!observerEnabled) {
-      window.addEventListener('scroll', debouncedChapterSync, { passive: true })
-    }
+    applyReaderPerformanceEnvironment()
+    setupChapterSyncBindings()
+    setupPerformanceObservers()
     window.addEventListener('beforeunload', handleBeforeUnload)
   })
 
   onUnmounted(() => {
-    if (chapterMarkerObserver) {
-      chapterMarkerObserver.disconnect()
-      chapterMarkerObserver = null
-      visibleChapterMarkers.clear()
-    }
-    window.removeEventListener('scroll', debouncedChapterSync)
+    teardownChapterSyncBindings()
+    clearPerformanceObservers()
+    resetReaderPerformanceEnvironment()
     window.removeEventListener('beforeunload', handleBeforeUnload)
   })
 }

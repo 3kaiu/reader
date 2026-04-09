@@ -25,10 +25,12 @@ const {
   >
     <ReaderScrollChapterList v-bind="chapterListProps" />
 
-    <ReaderScrollLoadState
-      v-bind="loadStateProps"
-      @load-next-chapter="emit('loadNextChapter')"
-      @retry-load="emit('retryLoad')"
-    />
+    <div class="reader-scroll-load-anchor">
+      <ReaderScrollLoadState
+        v-bind="loadStateProps"
+        @load-next-chapter="emit('loadNextChapter')"
+        @retry-load="emit('retryLoad')"
+      />
+    </div>
   </div>
 </template>

@@ -31,6 +31,7 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
   nightModeStartHour: 20,
   nightModeEndHour: 6,
   zenMode: false,
+  performanceMode: 'balanced',
 }
 
 export const THEME_COLORS: Record<Exclude<ReaderTheme, 'custom'>, ThemeColors> = {
@@ -114,6 +115,7 @@ export function sanitizePersistedConfig(
     nightModeStartHour: persisted.nightModeStartHour,
     nightModeEndHour: persisted.nightModeEndHour,
     zenMode: persisted.zenMode,
+    performanceMode: persisted.performanceMode,
   }
 }
 

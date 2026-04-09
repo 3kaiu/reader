@@ -17,6 +17,7 @@ export type FontFamily =
 
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
 export type ClientRouteKind = 'direct' | 'edge'
+export type ReaderPerformanceMode = 'balanced' | 'aggressive' | 'compat'
 
 export type ThemeColors = {
   bg: string
@@ -37,4 +38,5 @@ export type ReaderConfig = {
   nightModeStartHour: number
   nightModeEndHour: number
   zenMode: boolean
+  performanceMode: ReaderPerformanceMode
 }

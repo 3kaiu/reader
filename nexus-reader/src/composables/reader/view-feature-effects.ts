@@ -4,5 +4,8 @@ import type { ReaderViewServices } from './view-dependencies'
 export function setupReaderViewFeatureEffects(
   services: ReaderViewServices,
 ) {
-  useReaderScrollSync({ readerStore: services.readerStore })
+  useReaderScrollSync({
+    readerStore: services.readerStore,
+    settingsStore: services.settingsStore,
+  })
 }

@@ -444,8 +444,11 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
 export function createReaderActionHelpers(state: ReaderStoreState) {
   const inflightChapterContentRequests = new Map<string, Promise<string>>()
   const CHAPTER_CONTENT_CACHE_MAX_ENTRIES = 60
+  const PREFETCH_IDLE_TIMEOUT_MS = 1200
   let chapterContentCacheRef = state.chapterContentCache.value
   let chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
+  let prefetchIdleTaskId: number | ReturnType<typeof setTimeout> | null = null
+  let prefetchAbortController: AbortController | null = null
 
   const syncChapterContentCacheOrder = () => {
     if (chapterContentCacheRef === state.chapterContentCache.value) {
@@ -684,6 +687,24 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       return
     }
 
+    if (prefetchAbortController) {
+      prefetchAbortController.abort()
+      prefetchAbortController = null
+    }
+
+    if (prefetchIdleTaskId !== null) {
+      if (
+        typeof prefetchIdleTaskId === 'number' &&
+        typeof window !== 'undefined' &&
+        typeof window.cancelIdleCallback === 'function'
+      ) {
+        window.cancelIdleCallback(prefetchIdleTaskId)
+      } else {
+        clearTimeout(prefetchIdleTaskId)
+      }
+      prefetchIdleTaskId = null
+    }
+
     if (typeof getCachedChapterContent(chapter.url) === 'string') {
       return
     }
@@ -693,7 +714,31 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       return
     }
 
-    void fetchChapterContent(chapter).catch(() => undefined)
+    const abortController = new AbortController()
+    prefetchAbortController = abortController
+
+    const executePrefetch = () => {
+      prefetchIdleTaskId = null
+      if (abortController.signal.aborted) {
+        return
+      }
+      const latestRequestCacheKey = getChapterRequestCacheKey(chapter)
+      if (inflightChapterContentRequests.has(latestRequestCacheKey)) {
+        return
+      }
+
+      void fetchChapterContent(chapter).catch(() => undefined)
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      prefetchIdleTaskId = window.requestIdleCallback(
+        () => executePrefetch(),
+        { timeout: PREFETCH_IDLE_TIMEOUT_MS },
+      )
+      return
+    }
+
+    prefetchIdleTaskId = globalThis.setTimeout(executePrefetch, 120)
   }
 
   const loadChapterAt = async (
