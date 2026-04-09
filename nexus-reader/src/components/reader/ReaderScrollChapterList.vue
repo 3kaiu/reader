@@ -22,7 +22,9 @@ const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
 let pendingVirtualMeasureRafId: number | null = null
 let pendingVirtualMeasureIdleTask: IdleTaskHandle | null = null
 let removeFontListeners: (() => void) | null = null
+let chapterResizeObserver: ResizeObserver | null = null
 const measuredChapterHeightMap = new Map<number, number>()
+const observedVirtualElements = new Map<number, HTMLElement>()
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
 const CHAPTER_VISUAL_LINE_HEIGHT = 30
@@ -193,8 +195,26 @@ const bindVirtualItemRef = (
 ) => {
   const target =
     element && '$el' in element ? (element.$el as Element | null) : element
+  const previousObservedElement = observedVirtualElements.get(chapterIndex)
+
   if (!(target instanceof HTMLElement)) {
+    if (previousObservedElement && chapterResizeObserver) {
+      chapterResizeObserver.unobserve(previousObservedElement)
+    }
+    observedVirtualElements.delete(chapterIndex)
     return
+  }
+
+  if (
+    previousObservedElement &&
+    previousObservedElement !== target &&
+    chapterResizeObserver
+  ) {
+    chapterResizeObserver.unobserve(previousObservedElement)
+  }
+  observedVirtualElements.set(chapterIndex, target)
+  if (chapterResizeObserver) {
+    chapterResizeObserver.observe(target)
   }
 
   const measuredHeight = target.offsetHeight
@@ -208,6 +228,11 @@ const bindVirtualItemRef = (
 
 onUnmounted(() => {
   measuredChapterHeightMap.clear()
+  observedVirtualElements.clear()
+  if (chapterResizeObserver) {
+    chapterResizeObserver.disconnect()
+    chapterResizeObserver = null
+  }
   cancelPendingVirtualMeasure()
   if (removeFontListeners) {
     removeFontListeners()
@@ -216,6 +241,33 @@ onUnmounted(() => {
 })
 
 onMounted(() => {
+  if (typeof ResizeObserver !== 'undefined') {
+    chapterResizeObserver = new ResizeObserver((entries) => {
+      entries.forEach(entry => {
+        const target = entry.target as HTMLElement
+        const chapterIndex = Number(target.dataset.chapterIndex)
+        if (Number.isNaN(chapterIndex)) {
+          return
+        }
+
+        const measuredHeight = Math.ceil(entry.contentRect.height)
+        if (measuredHeight <= 0) {
+          return
+        }
+        if (measuredChapterHeightMap.get(chapterIndex) === measuredHeight) {
+          return
+        }
+
+        measuredChapterHeightMap.set(chapterIndex, measuredHeight)
+        virtualizer.value?.measureElement(target)
+      })
+    })
+
+    observedVirtualElements.forEach(target => {
+      chapterResizeObserver?.observe(target)
+    })
+  }
+
   if (typeof document === 'undefined' || !document.fonts) {
     return
   }
