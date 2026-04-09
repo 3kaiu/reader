@@ -10,6 +10,20 @@ export function useReaderScrollSync(options: {
 }) {
   const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
   const handleBeforeUnload = () => options.readerStore.saveProgress()
+  let pageActive = true
+  const handleVisibilityChange = () => {
+    const hidden =
+      typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
+    pageActive = !hidden
+    if (!pageActive) {
+      teardownChapterSyncBindings()
+      clearPerformanceObservers()
+      return
+    }
+
+    setupChapterSyncBindings()
+    setupPerformanceObservers()
+  }
 
   const debouncedAppendNext = useThrottleFn(async () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
@@ -260,6 +274,10 @@ export function useReaderScrollSync(options: {
   }
 
   const setupChapterSyncBindings = () => {
+    if (!pageActive) {
+      return
+    }
+
     const mode = options.settingsStore.config.performanceMode
     const shouldUseObserver = mode !== 'compat'
     if (shouldUseObserver && setupChapterMarkerObserver()) {
@@ -272,6 +290,10 @@ export function useReaderScrollSync(options: {
   watch(
     () => arrivedState.bottom,
     (isBottom) => {
+      if (!pageActive) {
+        return
+      }
+
       if (isBottom) {
         if (!options.readerStore.loadError) {
           debouncedAppendNext()
@@ -308,10 +330,13 @@ export function useReaderScrollSync(options: {
   )
 
   onMounted(() => {
+    pageActive =
+      typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
     applyReaderPerformanceEnvironment()
     setupChapterSyncBindings()
     setupPerformanceObservers()
     window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
   })
 
   onUnmounted(() => {
@@ -319,5 +344,6 @@ export function useReaderScrollSync(options: {
     clearPerformanceObservers()
     resetReaderPerformanceEnvironment()
     window.removeEventListener('beforeunload', handleBeforeUnload)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 }
