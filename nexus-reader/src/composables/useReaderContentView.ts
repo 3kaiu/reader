@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { DecodedEntity } from '@/types/decoder'
 import { applyDecoderHighlight } from '@/utils/readerContent'
 
@@ -54,6 +54,14 @@ export function useReaderContentView(options: {
       highlightCache.delete(oldestKey)
     }
   }
+
+  watch(
+    entitySignature,
+    () => {
+      highlightCache.clear()
+    },
+    { flush: 'sync' },
+  )
 
   function handleContentClick(event: MouseEvent) {
     const target = event.target as HTMLElement | null

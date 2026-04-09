@@ -19,6 +19,7 @@ const props = defineProps<ReaderScrollChapterListProps>()
 const settingsStore = useSettingsStore()
 const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
 let pendingVirtualMeasureRafId: number | null = null
+const measuredChapterHeightMap = new Map<number, number>()
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
 const CHAPTER_VISUAL_LINE_HEIGHT = 30
@@ -49,7 +50,14 @@ const shouldUseVirtualScroll = computed(
   () => chapterItemPropsList.value.length > virtualScrollThreshold.value,
 )
 
-const estimateChapterHeight = (formattedContent?: string) => {
+const estimateChapterHeight = (virtualIndex: number, formattedContent?: string) => {
+  const measuredHeight = measuredChapterHeightMap.get(
+    chapterItemPropsList.value[virtualIndex]?.chapter.index ?? -1,
+  )
+  if (typeof measuredHeight === 'number' && measuredHeight > 0) {
+    return measuredHeight
+  }
+
   if (!formattedContent) {
     return CHAPTER_BASE_ESTIMATED_HEIGHT
   }
@@ -64,7 +72,10 @@ const estimateChapterHeight = (formattedContent?: string) => {
 const virtualizer = useWindowVirtualizer({
   count: chapterItemPropsList.value.length,
   estimateSize: index =>
-    estimateChapterHeight(chapterItemPropsList.value[index]?.chapter.formattedContent),
+    estimateChapterHeight(
+      index,
+      chapterItemPropsList.value[index]?.chapter.formattedContent,
+    ),
   overscan: virtualOverscan.value,
   getItemKey: index => chapterItemPropsList.value[index]?.chapter.index ?? index,
 })
@@ -100,10 +111,33 @@ const virtualTotalSize = computed(() =>
   shouldUseVirtualScroll.value ? (virtualizer.value?.getTotalSize() ?? 0) : 0,
 )
 
-const getChapterPropsByVirtualIndex = (index: number) => chapterItemPropsList.value[index]
+const virtualChapterItems = computed(() =>
+  virtualItems.value
+    .map(virtualItem => {
+      const chapterProps = chapterItemPropsList.value[virtualItem.index]
+      if (!chapterProps) {
+        return null
+      }
+      return {
+        virtualItem,
+        chapterProps,
+        chapterIndex: chapterProps.chapter.index,
+      }
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        virtualItem: (typeof virtualItems.value)[number]
+        chapterProps: (typeof chapterItemPropsList.value)[number]
+        chapterIndex: number
+      } => item !== null,
+    ),
+)
 
 const bindVirtualItemRef = (
   element: Element | ComponentPublicInstance | null,
+  chapterIndex: number,
 ) => {
   const target =
     element && '$el' in element ? (element.$el as Element | null) : element
@@ -111,10 +145,17 @@ const bindVirtualItemRef = (
     return
   }
 
+  const measuredHeight = target.offsetHeight
+  if (measuredChapterHeightMap.get(chapterIndex) === measuredHeight) {
+    return
+  }
+
+  measuredChapterHeightMap.set(chapterIndex, measuredHeight)
   virtualizer.value?.measureElement(target)
 }
 
 onUnmounted(() => {
+  measuredChapterHeightMap.clear()
   if (pendingVirtualMeasureRafId !== null) {
     window.cancelAnimationFrame(pendingVirtualMeasureRafId)
     pendingVirtualMeasureRafId = null
@@ -131,22 +172,20 @@ onUnmounted(() => {
       }"
     >
       <div
-        v-for="virtualItem in virtualItems"
-        :key="`virtual-chapter-${virtualItem.key}`"
-        :ref="bindVirtualItemRef"
-        :data-virtual-index="virtualItem.index"
+        v-for="virtualChapter in virtualChapterItems"
+        :key="`virtual-chapter-${virtualChapter.virtualItem.key}`"
+        :ref="el => bindVirtualItemRef(el, virtualChapter.chapterIndex)"
+        :data-virtual-index="virtualChapter.virtualItem.index"
+        :data-chapter-index="virtualChapter.chapterIndex"
         :style="{
           position: 'absolute',
           top: 0,
           left: 0,
           width: '100%',
-          transform: `translateY(${virtualItem.start}px)`,
+          transform: `translateY(${virtualChapter.virtualItem.start}px)`,
         }"
       >
-        <ReaderScrollChapter
-          v-if="getChapterPropsByVirtualIndex(virtualItem.index)"
-          v-bind="getChapterPropsByVirtualIndex(virtualItem.index)"
-        />
+        <ReaderScrollChapter v-bind="virtualChapter.chapterProps" />
       </div>
     </div>
   </template>
