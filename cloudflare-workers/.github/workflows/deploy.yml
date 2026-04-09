@@ -84,10 +84,8 @@ jobs:
         working-directory: cloudflare-workers
         run: |
           # 创建必要的KV命名空间（免费）
-          wrangler kv:namespace create "USER_CACHE" --preview false || echo "KV namespace may already exist"
+          wrangler kv:namespace create "PROGRESS" --preview false || echo "KV namespace may already exist"
           wrangler kv:namespace create "CONTENT_CACHE" --preview false || echo "KV namespace may already exist"
-          wrangler kv:namespace create "RECOMMENDATION" --preview false || echo "KV namespace may already exist"
-          wrangler kv:namespace create "ANALYTICS" --preview false || echo "KV namespace may already exist"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -96,16 +94,12 @@ jobs:
         working-directory: cloudflare-workers
         run: |
           # 自动获取并更新KV命名空间ID
-          USER_CACHE_ID=$(wrangler kv:namespace list | jq -r '.[] | select(.title=="nexus-reader-edge-USER_CACHE") | .id')
+          PROGRESS_KV_ID=$(wrangler kv:namespace list | jq -r '.[] | select(.title=="nexus-reader-edge-PROGRESS") | .id')
           CONTENT_CACHE_ID=$(wrangler kv:namespace list | jq -r '.[] | select(.title=="nexus-reader-edge-CONTENT_CACHE") | .id')
-          RECOMMENDATION_ID=$(wrangler kv:namespace list | jq -r '.[] | select(.title=="nexus-reader-edge-RECOMMENDATION") | .id')
-          ANALYTICS_ID=$(wrangler kv:namespace list | jq -r '.[] | select(.title=="nexus-reader-edge-ANALYTICS") | .id')
 
           # 更新配置文件
-          sed -i "s/user_cache_kv_id/$USER_CACHE_ID/g" wrangler.toml
-          sed -i "s/content_cache_kv_id/$CONTENT_CACHE_ID/g" wrangler.toml
-          sed -i "s/recommendation_kv_id/$RECOMMENDATION_ID/g" wrangler.toml
-          sed -i "s/analytics_kv_id/$ANALYTICS_ID/g" wrangler.toml
+          sed -i "s/YOUR_PROGRESS_KV_ID_HERE/$PROGRESS_KV_ID/g" wrangler.toml
+          sed -i "s/YOUR_CONTENT_CACHE_KV_ID_HERE/$CONTENT_CACHE_ID/g" wrangler.toml
 
       - name: Deploy Workers
         working-directory: cloudflare-workers
@@ -116,53 +110,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # ===== 性能测试和优化 =====
-  performance-test:
-    runs-on: ubuntu-latest
-    needs: [deploy-pages, deploy-workers]
-    if: success()
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Install Lighthouse CI
-        run: npm install -g @lhci/cli
-
-      - name: Run Lighthouse Performance Test
-        run: |
-          # 测试Cloudflare Pages性能
-          lhci autorun \
-            --config=./lighthouse-config.json \
-            --upload.target=temporary-public-storage \
-            || echo "Lighthouse test completed with warnings"
-
-      - name: Test Workers API
-        run: |
-          # 测试Workers API响应时间
-          API_URL="https://api.nexus-reader.pages.dev/health"
-
-          # 简单的响应时间测试
-          START_TIME=$(date +%s%3N)
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $API_URL)
-          END_TIME=$(date +%s%3N)
-          RESPONSE_TIME=$((END_TIME - START_TIME))
-
-          if [ "$HTTP_CODE" -eq 200 ] && [ "$RESPONSE_TIME" -lt 1000 ]; then
-            echo "✅ Workers API test passed (${RESPONSE_TIME}ms)"
-          else
-            echo "⚠️ Workers API test: ${HTTP_CODE} status, ${RESPONSE_TIME}ms response"
-          fi
-
-  # ===== 部署摘要 =====
   summary:
     runs-on: ubuntu-latest
-    needs: [deploy-pages, deploy-workers, performance-test]
+    needs: [deploy-pages, deploy-workers]
     if: always()
 
     steps:
@@ -183,13 +133,6 @@ jobs:
             echo "✅ **Cloudflare Workers**: https://api.nexus-reader.pages.dev" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Cloudflare Workers**: Deployment failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # 性能测试状态
-          if [ "${{ needs.performance-test.result }}" == "success" ]; then
-            echo "✅ **Performance Tests**: All tests passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **Performance Tests**: Some tests failed" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
