@@ -21,6 +21,12 @@
   }
 }
 
+html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter-block {
+  content-visibility: visible;
+  contain: none;
+  contain-intrinsic-size: auto;
+}
+
 .reader-content-host .reader-text .content-paragraph {
   text-indent: 2em;
   word-break: break-word;

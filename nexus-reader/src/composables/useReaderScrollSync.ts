@@ -35,6 +35,21 @@ export function useReaderScrollSync(options: {
   let pendingChapterSyncRafId: number | null = null
   let performanceObservers: PerformanceObserver[] = []
   let previousDocumentScrollBehavior: string | null = null
+  const performanceLogLastAt = new Map<string, number>()
+  const PERFORMANCE_LOG_THROTTLE_MS = 3000
+
+  const logPerformanceEvent = (
+    kind: 'longtask' | 'layout-shift' | 'event',
+    payload: Record<string, unknown>,
+  ) => {
+    const now = Date.now()
+    const lastAt = performanceLogLastAt.get(kind) || 0
+    if (now - lastAt < PERFORMANCE_LOG_THROTTLE_MS) {
+      return
+    }
+    performanceLogLastAt.set(kind, now)
+    logger.debug(`reader ${kind} detected`, payload)
+  }
 
   const syncChapterByVisibleMarkers = () => {
     if (visibleChapterMarkers.size === 0) {
@@ -138,7 +153,7 @@ export function useReaderScrollSync(options: {
       const longTaskObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
           if (entry.duration >= 50) {
-            logger.debug('reader long task detected', {
+            logPerformanceEvent('longtask', {
               duration: Number(entry.duration.toFixed(1)),
               chapterIndex: options.readerStore.currentChapterIndex,
               loadedChapters: options.readerStore.loadedChapters.length,
@@ -155,7 +170,7 @@ export function useReaderScrollSync(options: {
         list.getEntries().forEach((entry) => {
           const shiftEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean }
           if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
-            logger.debug('reader layout shift detected', {
+            logPerformanceEvent('layout-shift', {
               value: Number((shiftEntry.value || 0).toFixed(4)),
               chapterIndex: options.readerStore.currentChapterIndex,
             })
@@ -170,7 +185,7 @@ export function useReaderScrollSync(options: {
       const eventObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
           if (entry.duration >= 120) {
-            logger.debug('reader slow interaction detected', {
+            logPerformanceEvent('event', {
               name: entry.name,
               duration: Number(entry.duration.toFixed(1)),
               chapterIndex: options.readerStore.currentChapterIndex,
