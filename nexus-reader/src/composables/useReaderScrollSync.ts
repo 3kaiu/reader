@@ -33,6 +33,7 @@ export function useReaderScrollSync(options: {
   let chapterMarkerObserver: IntersectionObserver | null = null
   const visibleChapterMarkers = new Set<HTMLElement>()
   let pendingChapterSyncRafId: number | null = null
+  let pendingMarkerRebindRafId: number | null = null
   let performanceObservers: PerformanceObserver[] = []
   let previousDocumentScrollBehavior: string | null = null
   const performanceLogLastAt = new Map<string, number>()
@@ -95,6 +96,21 @@ export function useReaderScrollSync(options: {
     pendingChapterSyncRafId = window.requestAnimationFrame(() => {
       pendingChapterSyncRafId = null
       syncChapterByVisibleMarkers()
+    })
+  }
+
+  const scheduleMarkerObserverRebind = () => {
+    if (pendingMarkerRebindRafId !== null) {
+      return
+    }
+
+    pendingMarkerRebindRafId = window.requestAnimationFrame(() => {
+      pendingMarkerRebindRafId = null
+      if (chapterMarkerObserver && options.settingsStore.config.performanceMode !== 'compat') {
+        chapterMarkerObserver.disconnect()
+        visibleChapterMarkers.clear()
+        setupChapterMarkerObserver()
+      }
     })
   }
 
@@ -236,6 +252,10 @@ export function useReaderScrollSync(options: {
       window.cancelAnimationFrame(pendingChapterSyncRafId)
       pendingChapterSyncRafId = null
     }
+    if (pendingMarkerRebindRafId !== null) {
+      window.cancelAnimationFrame(pendingMarkerRebindRafId)
+      pendingMarkerRebindRafId = null
+    }
     window.removeEventListener('scroll', debouncedChapterSync)
   }
 
@@ -269,11 +289,7 @@ export function useReaderScrollSync(options: {
     },
     () => {
       void nextTick(() => {
-        if (chapterMarkerObserver && options.settingsStore.config.performanceMode !== 'compat') {
-          chapterMarkerObserver.disconnect()
-          visibleChapterMarkers.clear()
-          setupChapterMarkerObserver()
-        }
+        scheduleMarkerObserverRebind()
       })
     },
     { flush: 'post' },

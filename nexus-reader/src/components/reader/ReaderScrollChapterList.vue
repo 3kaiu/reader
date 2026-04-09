@@ -6,6 +6,7 @@ import {
   VIRTUAL_SCROLL_OVERSCAN,
   VIRTUAL_SCROLL_THRESHOLD,
 } from '@/constants/ui'
+import { useSettingsStore } from '@/stores/settings'
 import ReaderScrollChapter from './ReaderScrollChapter.vue'
 import {
   createReaderScrollChapterListBindings,
@@ -15,6 +16,7 @@ import type {
 } from './reader-scroll-chapter-list-prop-types'
 
 const props = defineProps<ReaderScrollChapterListProps>()
+const settingsStore = useSettingsStore()
 const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
@@ -22,8 +24,28 @@ const CHAPTER_VISUAL_LINE_HEIGHT = 30
 const CHAPTER_CHARS_PER_VISUAL_LINE = 34
 const CHAPTER_HEIGHT_PADDING = 180
 
+const performanceMode = computed(() => settingsStore.config.performanceMode)
+const virtualScrollThreshold = computed(() => {
+  if (performanceMode.value === 'aggressive') {
+    return Math.max(12, VIRTUAL_SCROLL_THRESHOLD - 4)
+  }
+  if (performanceMode.value === 'compat') {
+    return VIRTUAL_SCROLL_THRESHOLD + 10
+  }
+  return VIRTUAL_SCROLL_THRESHOLD
+})
+const virtualOverscan = computed(() => {
+  if (performanceMode.value === 'aggressive') {
+    return VIRTUAL_SCROLL_OVERSCAN + 8
+  }
+  if (performanceMode.value === 'compat') {
+    return VIRTUAL_SCROLL_OVERSCAN + 2
+  }
+  return VIRTUAL_SCROLL_OVERSCAN + 4
+})
+
 const shouldUseVirtualScroll = computed(
-  () => chapterItemPropsList.value.length > VIRTUAL_SCROLL_THRESHOLD,
+  () => chapterItemPropsList.value.length > virtualScrollThreshold.value,
 )
 
 const estimateChapterHeight = (formattedContent?: string) => {
@@ -42,13 +64,13 @@ const virtualizer = useWindowVirtualizer({
   count: chapterItemPropsList.value.length,
   estimateSize: index =>
     estimateChapterHeight(chapterItemPropsList.value[index]?.chapter.formattedContent),
-  overscan: VIRTUAL_SCROLL_OVERSCAN + 4,
+  overscan: virtualOverscan.value,
   getItemKey: index => chapterItemPropsList.value[index]?.chapter.index ?? index,
 })
 
 watch(
-  chapterItemPropsList,
-  chapters => {
+  [chapterItemPropsList, virtualOverscan],
+  ([chapters, overscan]) => {
     if (!virtualizer.value) {
       return
     }
@@ -56,6 +78,7 @@ watch(
     virtualizer.value.setOptions({
       ...virtualizer.value.options,
       count: chapters.length,
+      overscan,
     })
     virtualizer.value.measure()
   },
