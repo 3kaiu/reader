@@ -39,4 +39,8 @@ export type ReaderConfig = {
   nightModeEndHour: number
   zenMode: boolean
   performanceMode: ReaderPerformanceMode
+  adaptivePrefetchEnabled: boolean
+  offlinePersistenceEnabled: boolean
+  wakeLockEnabled: boolean
+  perfTelemetrySampleRate: number
 }

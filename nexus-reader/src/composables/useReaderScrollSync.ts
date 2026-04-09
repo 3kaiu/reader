@@ -1,5 +1,7 @@
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useScroll, useThrottleFn } from '@vueuse/core'
+import { networkDetector } from '@/services/network/optimizer'
+import { getPerformanceMonitor } from '@/services/network/optimizer/runtime'
 import { logger } from '@/utils/logger'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
@@ -10,7 +12,39 @@ export function useReaderScrollSync(options: {
 }) {
   const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
   const handleBeforeUnload = () => options.readerStore.saveProgress()
+  let lastAutoAppendAt = 0
   let pageActive = true
+  const shouldSampleMetric = () => {
+    const rate = options.settingsStore.config.perfTelemetrySampleRate
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return false
+    }
+    if (rate >= 1) {
+      return true
+    }
+    return Math.random() < rate
+  }
+
+  const reportReaderMetric = (
+    name: string,
+    value: number,
+    context: Record<string, unknown> = {},
+  ) => {
+    if (!shouldSampleMetric()) {
+      return
+    }
+
+    const performanceMonitor = getPerformanceMonitor()
+    if (!performanceMonitor) {
+      return
+    }
+
+    performanceMonitor.reportMetric(name, value, {
+      ...context,
+      readerPerformanceMode: options.settingsStore.config.performanceMode,
+      chapterIndex: options.readerStore.currentChapterIndex,
+    })
+  }
   const handleVisibilityChange = () => {
     const hidden =
       typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
@@ -24,14 +58,53 @@ export function useReaderScrollSync(options: {
     setupChapterSyncBindings()
     setupPerformanceObservers()
   }
+  const handlePageHide = () => {
+    pageActive = false
+    teardownChapterSyncBindings()
+    clearPerformanceObservers()
+  }
+
+  const handlePageShow = (event: PageTransitionEvent) => {
+    pageActive = true
+    setupChapterSyncBindings()
+    setupPerformanceObservers()
+    if (event.persisted) {
+      void nextTick(() => {
+        options.readerStore.updateChapterIndexByScroll()
+      })
+      reportReaderMetric('reader_bfcache_restore', 1)
+    }
+  }
 
   const debouncedAppendNext = useThrottleFn(async () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
       return
     }
 
+    const adaptivePrefetchEnabled = options.settingsStore.config.adaptivePrefetchEnabled
+    const networkInfo = adaptivePrefetchEnabled ? networkDetector.getNetworkInfo() : null
+    if (networkInfo && (!networkInfo.isOnline || networkInfo.saveData)) {
+      return
+    }
+    if (networkInfo?.effectiveType === '2g' || networkInfo?.effectiveType === 'slow-2g') {
+      return
+    }
+    if (networkInfo?.effectiveType === '3g') {
+      const now = Date.now()
+      if (now - lastAutoAppendAt < 2500) {
+        return
+      }
+      lastAutoAppendAt = now
+    }
+
     if (options.readerStore.hasNextChapter && !options.readerStore.isLoadingMore) {
+      const appendStartAt = performance.now()
       const success = await options.readerStore.appendNextChapter()
+      reportReaderMetric('reader_append_next_duration', performance.now() - appendStartAt, {
+        success,
+        networkType: networkInfo?.effectiveType || 'unknown',
+        saveData: Boolean(networkInfo?.saveData),
+      })
       if (!success) {
         logger.warn('自动加载下一章失败，显示重试选项', {
           loadError: options.readerStore.loadError,
@@ -359,6 +432,8 @@ export function useReaderScrollSync(options: {
     setupChapterSyncBindings()
     setupPerformanceObservers()
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
+    window.addEventListener('pageshow', handlePageShow)
     document.addEventListener('visibilitychange', handleVisibilityChange)
   })
 
@@ -367,6 +442,8 @@ export function useReaderScrollSync(options: {
     clearPerformanceObservers()
     resetReaderPerformanceEnvironment()
     window.removeEventListener('beforeunload', handleBeforeUnload)
+    window.removeEventListener('pagehide', handlePageHide)
+    window.removeEventListener('pageshow', handlePageShow)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 }

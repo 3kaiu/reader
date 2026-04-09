@@ -32,6 +32,10 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
   nightModeEndHour: 6,
   zenMode: false,
   performanceMode: 'balanced',
+  adaptivePrefetchEnabled: true,
+  offlinePersistenceEnabled: true,
+  wakeLockEnabled: true,
+  perfTelemetrySampleRate: 0.05,
 }
 
 export const THEME_COLORS: Record<Exclude<ReaderTheme, 'custom'>, ThemeColors> = {
@@ -116,6 +120,10 @@ export function sanitizePersistedConfig(
     nightModeEndHour: persisted.nightModeEndHour,
     zenMode: persisted.zenMode,
     performanceMode: persisted.performanceMode,
+    adaptivePrefetchEnabled: persisted.adaptivePrefetchEnabled,
+    offlinePersistenceEnabled: persisted.offlinePersistenceEnabled,
+    wakeLockEnabled: persisted.wakeLockEnabled,
+    perfTelemetrySampleRate: persisted.perfTelemetrySampleRate,
   }
 }
 

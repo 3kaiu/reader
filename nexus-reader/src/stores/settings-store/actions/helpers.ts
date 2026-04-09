@@ -73,6 +73,11 @@ export function assignSettingsConfigValue<K extends keyof ReaderConfig>(
     return;
   }
 
+  if (key === "perfTelemetrySampleRate") {
+    config.perfTelemetrySampleRate = clampSettingValue(value as number, 0, 1);
+    return;
+  }
+
   if (key === "customColors") {
     config.customColors = {
       ...config.customColors,
