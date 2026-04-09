@@ -83,6 +83,13 @@ const virtualizer = useWindowVirtualizer({
 watch(
   [chapterItemPropsList, virtualOverscan],
   ([chapters, overscan]) => {
+    const activeChapterIndexSet = new Set(chapters.map(item => item.chapter.index))
+    for (const chapterIndex of measuredChapterHeightMap.keys()) {
+      if (!activeChapterIndexSet.has(chapterIndex)) {
+        measuredChapterHeightMap.delete(chapterIndex)
+      }
+    }
+
     if (!virtualizer.value) {
       return
     }

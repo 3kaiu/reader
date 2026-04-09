@@ -170,6 +170,7 @@ export function useReaderScrollSync(options: {
 
   const setupPerformanceObservers = () => {
     if (
+      !import.meta.env.DEV ||
       typeof window === 'undefined' ||
       typeof PerformanceObserver === 'undefined' ||
       options.settingsStore.config.performanceMode === 'compat'
