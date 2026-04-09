@@ -7,6 +7,7 @@ import {
   VIRTUAL_SCROLL_THRESHOLD,
 } from '@/constants/ui'
 import { useSettingsStore } from '@/stores/settings'
+import { hasPendingUserInput, scheduleIdleTask, type IdleTaskHandle } from '@/utils/browserScheduling'
 import ReaderScrollChapter from './ReaderScrollChapter.vue'
 import {
   createReaderScrollChapterListBindings,
@@ -19,12 +20,14 @@ const props = defineProps<ReaderScrollChapterListProps>()
 const settingsStore = useSettingsStore()
 const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
 let pendingVirtualMeasureRafId: number | null = null
+let pendingVirtualMeasureIdleTask: IdleTaskHandle | null = null
 const measuredChapterHeightMap = new Map<number, number>()
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
 const CHAPTER_VISUAL_LINE_HEIGHT = 30
 const CHAPTER_CHARS_PER_VISUAL_LINE = 34
 const CHAPTER_HEIGHT_PADDING = 180
+const MAX_MEASURE_DEFER_COUNT = 3
 
 const performanceMode = computed(() => settingsStore.config.performanceMode)
 const virtualScrollThreshold = computed(() => {
@@ -99,13 +102,32 @@ watch(
       count: chapters.length,
       overscan,
     })
+    if (pendingVirtualMeasureIdleTask) {
+      pendingVirtualMeasureIdleTask.cancel()
+      pendingVirtualMeasureIdleTask = null
+    }
     if (pendingVirtualMeasureRafId !== null) {
       window.cancelAnimationFrame(pendingVirtualMeasureRafId)
     }
-    pendingVirtualMeasureRafId = window.requestAnimationFrame(() => {
-      pendingVirtualMeasureRafId = null
-      virtualizer.value?.measure()
-    })
+    let deferredCount = 0
+    const scheduleMeasure = () => {
+      pendingVirtualMeasureRafId = window.requestAnimationFrame(() => {
+        if (hasPendingUserInput() && deferredCount < MAX_MEASURE_DEFER_COUNT) {
+          deferredCount += 1
+          scheduleMeasure()
+          return
+        }
+        pendingVirtualMeasureRafId = null
+        pendingVirtualMeasureIdleTask = scheduleIdleTask(
+          () => {
+            pendingVirtualMeasureIdleTask = null
+            virtualizer.value?.measure()
+          },
+          { timeoutMs: 180 },
+        )
+      })
+    }
+    scheduleMeasure()
   },
   { flush: 'post' },
 )
@@ -163,6 +185,10 @@ const bindVirtualItemRef = (
 
 onUnmounted(() => {
   measuredChapterHeightMap.clear()
+  if (pendingVirtualMeasureIdleTask) {
+    pendingVirtualMeasureIdleTask.cancel()
+    pendingVirtualMeasureIdleTask = null
+  }
   if (pendingVirtualMeasureRafId !== null) {
     window.cancelAnimationFrame(pendingVirtualMeasureRafId)
     pendingVirtualMeasureRafId = null

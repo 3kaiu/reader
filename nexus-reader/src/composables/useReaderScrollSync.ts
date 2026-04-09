@@ -3,6 +3,7 @@ import { useScroll, useThrottleFn } from '@vueuse/core'
 import { networkDetector } from '@/services/network/optimizer'
 import { getPerformanceMonitor } from '@/services/network/optimizer/runtime'
 import { logger } from '@/utils/logger'
+import { hasPendingUserInput } from '@/utils/browserScheduling'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -140,8 +141,11 @@ export function useReaderScrollSync(options: {
   let previousDocumentScrollBehavior: string | null = null
   let wakeLockSentinel: ReaderWakeLockSentinel | null = null
   let wakeLockRequestInFlight = false
+  let pendingSyncDefers = 0
+  let pendingRebindDefers = 0
   const performanceLogLastAt = new Map<string, number>()
   const PERFORMANCE_LOG_THROTTLE_MS = 3000
+  const MAX_INPUT_PENDING_DEFERS = 4
 
   const logPerformanceEvent = (
     kind: 'longtask' | 'layout-shift' | 'event',
@@ -262,6 +266,13 @@ export function useReaderScrollSync(options: {
     }
 
     pendingChapterSyncRafId = window.requestAnimationFrame(() => {
+      if (hasPendingUserInput() && pendingSyncDefers < MAX_INPUT_PENDING_DEFERS) {
+        pendingSyncDefers += 1
+        pendingChapterSyncRafId = null
+        scheduleChapterSyncByVisibleMarkers()
+        return
+      }
+      pendingSyncDefers = 0
       pendingChapterSyncRafId = null
       syncChapterByVisibleMarkers()
     })
@@ -277,6 +288,13 @@ export function useReaderScrollSync(options: {
     }
 
     pendingMarkerRebindRafId = window.requestAnimationFrame(() => {
+      if (hasPendingUserInput() && pendingRebindDefers < MAX_INPUT_PENDING_DEFERS) {
+        pendingRebindDefers += 1
+        pendingMarkerRebindRafId = null
+        scheduleMarkerObserverRebind()
+        return
+      }
+      pendingRebindDefers = 0
       pendingMarkerRebindRafId = null
       if (chapterMarkerObserver && options.settingsStore.config.performanceMode !== 'compat') {
         chapterMarkerObserver.disconnect()
@@ -431,10 +449,12 @@ export function useReaderScrollSync(options: {
       window.cancelAnimationFrame(pendingChapterSyncRafId)
       pendingChapterSyncRafId = null
     }
+    pendingSyncDefers = 0
     if (pendingMarkerRebindRafId !== null) {
       window.cancelAnimationFrame(pendingMarkerRebindRafId)
       pendingMarkerRebindRafId = null
     }
+    pendingRebindDefers = 0
     window.removeEventListener('scroll', debouncedChapterSync)
   }
 
