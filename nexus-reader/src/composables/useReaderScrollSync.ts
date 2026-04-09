@@ -6,6 +6,17 @@ import { logger } from '@/utils/logger'
 import { useReaderStore } from '@/stores/reader'
 import { useSettingsStore } from '@/stores/settings'
 
+type ReaderWakeLockSentinel = {
+  release: () => Promise<void>
+  addEventListener: (type: 'release', listener: () => void) => void
+}
+
+type ReaderWakeLockNavigator = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<ReaderWakeLockSentinel>
+  }
+}
+
 export function useReaderScrollSync(options: {
   readerStore: ReturnType<typeof useReaderStore>
   settingsStore: ReturnType<typeof useSettingsStore>
@@ -52,22 +63,26 @@ export function useReaderScrollSync(options: {
     if (!pageActive) {
       teardownChapterSyncBindings()
       clearPerformanceObservers()
+      void releaseReaderWakeLock()
       return
     }
 
     setupChapterSyncBindings()
     setupPerformanceObservers()
+    void requestReaderWakeLock()
   }
   const handlePageHide = () => {
     pageActive = false
     teardownChapterSyncBindings()
     clearPerformanceObservers()
+    void releaseReaderWakeLock()
   }
 
   const handlePageShow = (event: PageTransitionEvent) => {
     pageActive = true
     setupChapterSyncBindings()
     setupPerformanceObservers()
+    void requestReaderWakeLock()
     if (event.persisted) {
       void nextTick(() => {
         options.readerStore.updateChapterIndexByScroll()
@@ -123,6 +138,8 @@ export function useReaderScrollSync(options: {
   let pendingMarkerRebindRafId: number | null = null
   let performanceObservers: PerformanceObserver[] = []
   let previousDocumentScrollBehavior: string | null = null
+  let wakeLockSentinel: ReaderWakeLockSentinel | null = null
+  let wakeLockRequestInFlight = false
   const performanceLogLastAt = new Map<string, number>()
   const PERFORMANCE_LOG_THROTTLE_MS = 3000
 
@@ -137,6 +154,62 @@ export function useReaderScrollSync(options: {
     }
     performanceLogLastAt.set(kind, now)
     logger.debug(`reader ${kind} detected`, payload)
+  }
+
+  const shouldHoldWakeLock = () => {
+    if (typeof document === 'undefined') {
+      return false
+    }
+    if (!options.settingsStore.config.wakeLockEnabled) {
+      return false
+    }
+    if (!pageActive) {
+      return false
+    }
+    return document.visibilityState !== 'hidden'
+  }
+
+  const requestReaderWakeLock = async () => {
+    if (wakeLockRequestInFlight || wakeLockSentinel || !shouldHoldWakeLock()) {
+      return
+    }
+    if (typeof navigator === 'undefined') {
+      return
+    }
+
+    const wakeLockNavigator = navigator as ReaderWakeLockNavigator
+    if (!wakeLockNavigator.wakeLock) {
+      return
+    }
+
+    wakeLockRequestInFlight = true
+    try {
+      wakeLockSentinel = await wakeLockNavigator.wakeLock.request('screen')
+      wakeLockSentinel.addEventListener('release', () => {
+        wakeLockSentinel = null
+        if (shouldHoldWakeLock()) {
+          void requestReaderWakeLock()
+        }
+      })
+    } catch (error) {
+      logger.debug('Wake lock request failed', { error })
+    } finally {
+      wakeLockRequestInFlight = false
+    }
+  }
+
+  const releaseReaderWakeLock = async () => {
+    if (!wakeLockSentinel) {
+      return
+    }
+
+    const currentSentinel = wakeLockSentinel
+    wakeLockSentinel = null
+    try {
+      await currentSentinel.release()
+    } catch (error) {
+      logger.debug('Wake lock release failed', { error })
+    }
   }
 
   const syncChapterByVisibleMarkers = () => {
@@ -425,12 +498,24 @@ export function useReaderScrollSync(options: {
     { flush: 'post' },
   )
 
+  watch(
+    () => options.settingsStore.config.wakeLockEnabled,
+    enabled => {
+      if (!enabled) {
+        void releaseReaderWakeLock()
+        return
+      }
+      void requestReaderWakeLock()
+    },
+  )
+
   onMounted(() => {
     pageActive =
       typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
     applyReaderPerformanceEnvironment()
     setupChapterSyncBindings()
     setupPerformanceObservers()
+    void requestReaderWakeLock()
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handlePageHide)
     window.addEventListener('pageshow', handlePageShow)
@@ -440,6 +525,7 @@ export function useReaderScrollSync(options: {
   onUnmounted(() => {
     teardownChapterSyncBindings()
     clearPerformanceObservers()
+    void releaseReaderWakeLock()
     resetReaderPerformanceEnvironment()
     window.removeEventListener('beforeunload', handleBeforeUnload)
     window.removeEventListener('pagehide', handlePageHide)

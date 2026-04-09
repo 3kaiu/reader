@@ -6,7 +6,11 @@ import App from './App.vue'
 import router from './router'
 import './styles/main.css'
 import { useSettingsStore } from '@/stores/settings'
-import { requestPersistentBrowserStorage } from '@/utils/browserStorage'
+import {
+  deriveChapterCachePolicyFromStorage,
+  estimateBrowserStorage,
+  requestPersistentBrowserStorage,
+} from '@/utils/browserStorage'
 import { logger } from '@/utils/logger'
 
 declare module 'vue-router' {
@@ -32,6 +36,46 @@ const settingsStore = useSettingsStore()
 // 加载用户设置
 settingsStore.loadFromConfig()
 
+const updateServiceWorkerChapterCachePolicy = async () => {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) {
+    return
+  }
+  if (!settingsStore.config.offlinePersistenceEnabled) {
+    return
+  }
+
+  const storageEstimate = await estimateBrowserStorage()
+  const policy = deriveChapterCachePolicyFromStorage(storageEstimate)
+  if (!policy) {
+    return
+  }
+
+  const payload = {
+    type: 'UPDATE_CHAPTER_CACHE_POLICY',
+    maxEntries: policy.maxEntries,
+    ttlMs: policy.ttlMs,
+  }
+
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker) {
+      return false
+    }
+    worker.postMessage(payload)
+    return true
+  }
+
+  if (postToWorker(navigator.serviceWorker.controller)) {
+    return
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready
+    postToWorker(registration.active || registration.waiting || registration.installing)
+  } catch (error) {
+    logger.debug('Service Worker not ready for chapter cache policy update', { error })
+  }
+}
+
 if (settingsStore.config.offlinePersistenceEnabled) {
   void requestPersistentBrowserStorage()
     .then(granted => {
@@ -39,6 +83,7 @@ if (settingsStore.config.offlinePersistenceEnabled) {
         return
       }
       logger.info('Persistent storage request completed', { granted })
+      return updateServiceWorkerChapterCachePolicy()
     })
     .catch(error => {
       logger.warn('Persistent storage request failed', { error })
@@ -73,8 +118,9 @@ router.afterEach((_to, _from) => {
 // 注册 Service Worker (仅在生产环境)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
+    void navigator.serviceWorker
       .register('/sw.js')
+      .then(() => updateServiceWorkerChapterCachePolicy())
       .catch(_error => {
         // Service Worker 注册失败（生产环境）
       })

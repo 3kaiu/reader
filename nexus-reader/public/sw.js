@@ -5,8 +5,8 @@ const CHAPTER_CACHE = `${CACHE_VERSION}-chapters`
 const CHAPTER_META_CACHE = `${CACHE_VERSION}-chapters-meta`
 const MODEL_CACHE = `${CACHE_VERSION}-models`
 const ACTIVE_CACHES = [STATIC_CACHE, API_CACHE, CHAPTER_CACHE, CHAPTER_META_CACHE, MODEL_CACHE]
-const CHAPTER_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7
-const CHAPTER_CACHE_MAX_ENTRIES = 600
+let CHAPTER_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7
+let CHAPTER_CACHE_MAX_ENTRIES = 600
 const CHAPTER_CACHE_PRUNE_INTERVAL_MS = 1000 * 60 * 3
 let lastChapterCachePruneAt = 0
 
@@ -103,6 +103,27 @@ self.addEventListener('message', event => {
 
   if (event.data?.type === 'CLEAR_CHAPTER_CACHE') {
     event.waitUntil(Promise.all([caches.delete(CHAPTER_CACHE), caches.delete(CHAPTER_META_CACHE)]))
+    return
+  }
+
+  if (event.data?.type === 'UPDATE_CHAPTER_CACHE_POLICY') {
+    const maxEntries = Number(event.data.maxEntries)
+    const ttlMs = Number(event.data.ttlMs)
+    if (Number.isFinite(maxEntries) && maxEntries > 0) {
+      CHAPTER_CACHE_MAX_ENTRIES = Math.max(100, Math.min(2000, Math.trunc(maxEntries)))
+    }
+    if (Number.isFinite(ttlMs) && ttlMs > 0) {
+      CHAPTER_CACHE_TTL_MS = Math.max(
+        1000 * 60 * 60 * 6,
+        Math.min(1000 * 60 * 60 * 24 * 30, Math.trunc(ttlMs))
+      )
+    }
+    event.waitUntil(
+      Promise.all([caches.open(CHAPTER_CACHE), caches.open(CHAPTER_META_CACHE)]).then(
+        ([chapterCache, chapterMetaCache]) =>
+          maybePruneChapterCache(chapterCache, chapterMetaCache)
+      )
+    )
   }
 })
 
