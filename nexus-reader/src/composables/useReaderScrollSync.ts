@@ -114,6 +114,10 @@ export function useReaderScrollSync(options: {
   }
 
   const scheduleMarkerObserverRebind = () => {
+    if (!pageActive) {
+      return
+    }
+
     if (pendingMarkerRebindRafId !== null) {
       return
     }
@@ -133,6 +137,12 @@ export function useReaderScrollSync(options: {
       return false
     }
 
+    const mode = options.settingsStore.config.performanceMode
+    const observerRootMargin =
+      mode === 'aggressive' ? '-30% 0px -50% 0px' : '-35% 0px -45% 0px'
+    const observerThreshold =
+      mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
+
     if (!chapterMarkerObserver) {
       chapterMarkerObserver = new IntersectionObserver(
         entries => {
@@ -148,8 +158,8 @@ export function useReaderScrollSync(options: {
         },
         {
           root: null,
-          rootMargin: '-35% 0px -45% 0px',
-          threshold: [0, 0.1, 0.5, 1],
+          rootMargin: observerRootMargin,
+          threshold: observerThreshold,
         },
       )
     }
@@ -311,6 +321,10 @@ export function useReaderScrollSync(options: {
       return `${chapters.length}:${firstIndex}:${lastIndex}`
     },
     () => {
+      if (!pageActive) {
+        return
+      }
+
       void nextTick(() => {
         scheduleMarkerObserverRebind()
       })
