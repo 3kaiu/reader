@@ -10,6 +10,15 @@ export function useReaderContentView(options: {
   const HIGHLIGHT_CACHE_MAX_ENTRIES = 80
   const highlightCache = new Map<string, string>()
 
+  const hashContent = (value: string) => {
+    let hash = 2166136261
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+    return (hash >>> 0).toString(36)
+  }
+
   const entityMap = computed(() => {
     const entities = options.decoderEntities || []
     return new Map(entities.map(entity => [entity.id, entity]))
@@ -28,7 +37,8 @@ export function useReaderContentView(options: {
       .join('|')
   })
 
-  const getCacheKey = (content: string) => `${entitySignature.value}::${content}`
+  const getCacheKey = (content: string) =>
+    `${entitySignature.value}:${content.length}:${hashContent(content)}`
 
   const setHighlightCache = (cacheKey: string, highlighted: string) => {
     if (highlightCache.has(cacheKey)) {

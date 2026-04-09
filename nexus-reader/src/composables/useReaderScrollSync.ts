@@ -12,6 +12,10 @@ export function useReaderScrollSync(options: {
   const handleBeforeUnload = () => options.readerStore.saveProgress()
 
   const debouncedAppendNext = useThrottleFn(async () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return
+    }
+
     if (options.readerStore.hasNextChapter && !options.readerStore.isLoadingMore) {
       const success = await options.readerStore.appendNextChapter()
       if (!success) {
@@ -28,6 +32,7 @@ export function useReaderScrollSync(options: {
   const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
   let chapterMarkerObserver: IntersectionObserver | null = null
   const visibleChapterMarkers = new Set<HTMLElement>()
+  let pendingChapterSyncRafId: number | null = null
   let performanceObservers: PerformanceObserver[] = []
   let previousDocumentScrollBehavior: string | null = null
 
@@ -67,6 +72,17 @@ export function useReaderScrollSync(options: {
     options.readerStore.updateChapterIndexByScroll()
   }
 
+  const scheduleChapterSyncByVisibleMarkers = () => {
+    if (pendingChapterSyncRafId !== null) {
+      return
+    }
+
+    pendingChapterSyncRafId = window.requestAnimationFrame(() => {
+      pendingChapterSyncRafId = null
+      syncChapterByVisibleMarkers()
+    })
+  }
+
   const setupChapterMarkerObserver = () => {
     if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
       return false
@@ -83,7 +99,7 @@ export function useReaderScrollSync(options: {
               visibleChapterMarkers.delete(marker)
             }
           })
-          syncChapterByVisibleMarkers()
+          scheduleChapterSyncByVisibleMarkers()
         },
         {
           root: null,
@@ -98,7 +114,7 @@ export function useReaderScrollSync(options: {
       document.querySelectorAll<HTMLElement>(chapterMarkerSelector),
     )
     chapterMarkers.forEach(marker => chapterMarkerObserver?.observe(marker))
-    syncChapterByVisibleMarkers()
+    scheduleChapterSyncByVisibleMarkers()
     return true
   }
 
@@ -200,6 +216,10 @@ export function useReaderScrollSync(options: {
       chapterMarkerObserver.disconnect()
       chapterMarkerObserver = null
       visibleChapterMarkers.clear()
+    }
+    if (pendingChapterSyncRafId !== null) {
+      window.cancelAnimationFrame(pendingChapterSyncRafId)
+      pendingChapterSyncRafId = null
     }
     window.removeEventListener('scroll', debouncedChapterSync)
   }
