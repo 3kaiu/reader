@@ -26,6 +26,19 @@ export async function estimateBrowserStorage():
   }
 }
 
+export async function requestPersistentBrowserStorage(): Promise<boolean | null> {
+  if (!navigator.storage?.persist || !navigator.storage?.persisted) {
+    return null
+  }
+
+  const isPersisted = await navigator.storage.persisted()
+  if (isPersisted) {
+    return true
+  }
+
+  return await navigator.storage.persist()
+}
+
 export function getLocalStorageItem(key: string): string | null {
   if (typeof localStorage === 'undefined') {
     return null

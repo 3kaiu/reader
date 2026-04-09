@@ -6,6 +6,7 @@ import App from './App.vue'
 import router from './router'
 import './styles/main.css'
 import { useSettingsStore } from '@/stores/settings'
+import { requestPersistentBrowserStorage } from '@/utils/browserStorage'
 import { logger } from '@/utils/logger'
 
 declare module 'vue-router' {
@@ -30,6 +31,19 @@ const settingsStore = useSettingsStore()
 
 // 加载用户设置
 settingsStore.loadFromConfig()
+
+if (settingsStore.config.offlinePersistenceEnabled) {
+  void requestPersistentBrowserStorage()
+    .then(granted => {
+      if (granted === null) {
+        return
+      }
+      logger.info('Persistent storage request completed', { granted })
+    })
+    .catch(error => {
+      logger.warn('Persistent storage request failed', { error })
+    })
+}
 
 // 全局错误处理
 app.config.errorHandler = (err, _instance, info) => {

@@ -1,9 +1,14 @@
-const CACHE_VERSION = 'reader-v3'
+const CACHE_VERSION = 'reader-v4'
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const API_CACHE = `${CACHE_VERSION}-api`
 const CHAPTER_CACHE = `${CACHE_VERSION}-chapters`
+const CHAPTER_META_CACHE = `${CACHE_VERSION}-chapters-meta`
 const MODEL_CACHE = `${CACHE_VERSION}-models`
-const ACTIVE_CACHES = [STATIC_CACHE, API_CACHE, CHAPTER_CACHE, MODEL_CACHE]
+const ACTIVE_CACHES = [STATIC_CACHE, API_CACHE, CHAPTER_CACHE, CHAPTER_META_CACHE, MODEL_CACHE]
+const CHAPTER_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7
+const CHAPTER_CACHE_MAX_ENTRIES = 600
+const CHAPTER_CACHE_PRUNE_INTERVAL_MS = 1000 * 60 * 3
+let lastChapterCachePruneAt = 0
 
 const STATIC_ASSETS = ['/', '/index.html']
 
@@ -52,7 +57,7 @@ self.addEventListener('fetch', event => {
   }
 
   if (isChapterRequest(url)) {
-    event.respondWith(cacheFirstWithRefresh(request, CHAPTER_CACHE))
+    event.respondWith(chapterCacheFirstWithRefresh(request))
     return
   }
 
@@ -77,18 +82,27 @@ self.addEventListener('message', event => {
   if (event.data?.type === 'CACHE_CHAPTER') {
     const { url, content } = event.data
     event.waitUntil(
-      caches.open(CHAPTER_CACHE).then(cache => {
-        const response = new Response(JSON.stringify({ isSuccess: true, data: content }), {
-          headers: { 'Content-Type': 'application/json' },
-        })
-        return cache.put(url, response)
-      })
+      Promise.all([
+        caches.open(CHAPTER_CACHE),
+        caches.open(CHAPTER_META_CACHE),
+      ]).then(([chapterCache, chapterMetaCache]) => {
+        const response = withChapterCacheHeaders(
+          new Response(JSON.stringify({ isSuccess: true, data: content }), {
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        return Promise.all([
+          chapterCache.put(url, response),
+          writeChapterCacheMetadata(chapterMetaCache, url),
+          maybePruneChapterCache(chapterCache, chapterMetaCache),
+        ])
+      }),
     )
     return
   }
 
   if (event.data?.type === 'CLEAR_CHAPTER_CACHE') {
-    event.waitUntil(caches.delete(CHAPTER_CACHE))
+    event.waitUntil(Promise.all([caches.delete(CHAPTER_CACHE), caches.delete(CHAPTER_META_CACHE)]))
   }
 })
 
@@ -152,6 +166,147 @@ async function cacheFirstWithRefresh(request, cacheName) {
   const response = await fetch(request)
   if (response.ok) {
     await cache.put(request, response.clone())
+  }
+  return response
+}
+
+function withChapterCacheHeaders(response) {
+  const headers = new Headers(response.headers)
+  headers.set('X-Reader-Chapter-Cached-At', `${Date.now()}`)
+  headers.set('X-Reader-Chapter-TTL', `${CHAPTER_CACHE_TTL_MS}`)
+  return new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+function getChapterCacheMetaRequest(url) {
+  return new Request(
+    `${self.location.origin}/__chapter_cache_meta__?url=${encodeURIComponent(url)}`
+  )
+}
+
+async function readChapterCacheMetadata(metaCache, url) {
+  const metaResponse = await metaCache.match(getChapterCacheMetaRequest(url))
+  if (!metaResponse) {
+    return null
+  }
+
+  try {
+    return await metaResponse.json()
+  } catch {
+    return null
+  }
+}
+
+async function writeChapterCacheMetadata(metaCache, url) {
+  const now = Date.now()
+  const metadata = {
+    url,
+    lastAccessAt: now,
+    expiresAt: now + CHAPTER_CACHE_TTL_MS,
+  }
+  await metaCache.put(
+    getChapterCacheMetaRequest(url),
+    new Response(JSON.stringify(metadata), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  )
+}
+
+async function deleteChapterCacheEntry(chapterCache, metaCache, requestOrUrl) {
+  const request =
+    typeof requestOrUrl === 'string' ? new Request(requestOrUrl) : requestOrUrl
+  await Promise.all([
+    chapterCache.delete(request),
+    metaCache.delete(getChapterCacheMetaRequest(request.url)),
+  ])
+}
+
+async function maybePruneChapterCache(chapterCache, metaCache) {
+  const now = Date.now()
+  if (now - lastChapterCachePruneAt < CHAPTER_CACHE_PRUNE_INTERVAL_MS) {
+    return
+  }
+  lastChapterCachePruneAt = now
+
+  const chapterRequests = await chapterCache.keys()
+  if (chapterRequests.length === 0) {
+    return
+  }
+
+  const entries = await Promise.all(
+    chapterRequests.map(async request => ({
+      request,
+      metadata: await readChapterCacheMetadata(metaCache, request.url),
+    }))
+  )
+
+  await Promise.all(
+    entries
+      .filter(entry => !entry.metadata || entry.metadata.expiresAt <= now)
+      .map(entry => deleteChapterCacheEntry(chapterCache, metaCache, entry.request))
+  )
+
+  const remaining = (
+    await Promise.all(
+      (await chapterCache.keys()).map(async request => ({
+        request,
+        metadata: await readChapterCacheMetadata(metaCache, request.url),
+      }))
+    )
+  ).sort(
+    (a, b) =>
+      (b.metadata?.lastAccessAt || 0) - (a.metadata?.lastAccessAt || 0)
+  )
+
+  if (remaining.length <= CHAPTER_CACHE_MAX_ENTRIES) {
+    return
+  }
+
+  const toDelete = remaining.slice(CHAPTER_CACHE_MAX_ENTRIES)
+  await Promise.all(
+    toDelete.map(entry => deleteChapterCacheEntry(chapterCache, metaCache, entry.request))
+  )
+}
+
+async function chapterCacheFirstWithRefresh(request) {
+  const [chapterCache, chapterMetaCache] = await Promise.all([
+    caches.open(CHAPTER_CACHE),
+    caches.open(CHAPTER_META_CACHE),
+  ])
+  const cached = await chapterCache.match(request)
+  if (cached) {
+    const metadata = await readChapterCacheMetadata(chapterMetaCache, request.url)
+    if (metadata && metadata.expiresAt <= Date.now()) {
+      await deleteChapterCacheEntry(chapterCache, chapterMetaCache, request)
+    } else {
+      await writeChapterCacheMetadata(chapterMetaCache, request.url)
+      void fetch(request)
+        .then(response => {
+          if (response.ok) {
+            return Promise.all([
+              chapterCache.put(request, withChapterCacheHeaders(response)),
+              writeChapterCacheMetadata(chapterMetaCache, request.url),
+              maybePruneChapterCache(chapterCache, chapterMetaCache),
+            ])
+          }
+          return undefined
+        })
+        .catch(() => {})
+
+      return cached
+    }
+  }
+
+  const response = await fetch(request)
+  if (response.ok) {
+    await Promise.all([
+      chapterCache.put(request, withChapterCacheHeaders(response)),
+      writeChapterCacheMetadata(chapterMetaCache, request.url),
+      maybePruneChapterCache(chapterCache, chapterMetaCache),
+    ])
   }
   return response
 }
