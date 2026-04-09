@@ -149,6 +149,25 @@ export function useReaderScrollSync(options: {
       layoutShiftObserver.observe({ type: 'layout-shift', buffered: true })
       performanceObservers.push(layoutShiftObserver)
     }
+
+    if (supportedEntryTypes.includes('event')) {
+      const eventObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.duration >= 120) {
+            logger.debug('reader slow interaction detected', {
+              name: entry.name,
+              duration: Number(entry.duration.toFixed(1)),
+              chapterIndex: options.readerStore.currentChapterIndex,
+            })
+          }
+        })
+      })
+      eventObserver.observe({
+        type: 'event',
+        buffered: true,
+      } as PerformanceObserverInit)
+      performanceObservers.push(eventObserver)
+    }
   }
 
   const applyReaderPerformanceEnvironment = () => {

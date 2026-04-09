@@ -449,6 +449,33 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
   let chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
   let prefetchIdleTaskId: number | ReturnType<typeof setTimeout> | null = null
   let prefetchAbortController: AbortController | null = null
+  let prefetchTaskAbortController: AbortController | null = null
+
+  const scheduleBackgroundTask = (
+    callback: () => void,
+    timeoutMs: number,
+  ): number | ReturnType<typeof setTimeout> => {
+    const scheduler = (globalThis as { scheduler?: { postTask?: Function } }).scheduler
+    if (scheduler?.postTask) {
+      prefetchTaskAbortController = new AbortController()
+      void scheduler
+        .postTask(callback, {
+          priority: 'background',
+          signal: prefetchTaskAbortController.signal,
+        })
+        .catch(() => undefined)
+      return -1
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      return window.requestIdleCallback(
+        () => callback(),
+        { timeout: timeoutMs },
+      )
+    }
+
+    return globalThis.setTimeout(callback, 120)
+  }
 
   const syncChapterContentCacheOrder = () => {
     if (chapterContentCacheRef === state.chapterContentCache.value) {
@@ -691,15 +718,20 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       prefetchAbortController.abort()
       prefetchAbortController = null
     }
+    if (prefetchTaskAbortController) {
+      prefetchTaskAbortController.abort()
+      prefetchTaskAbortController = null
+    }
 
     if (prefetchIdleTaskId !== null) {
       if (
         typeof prefetchIdleTaskId === 'number' &&
+        prefetchIdleTaskId >= 0 &&
         typeof window !== 'undefined' &&
         typeof window.cancelIdleCallback === 'function'
       ) {
         window.cancelIdleCallback(prefetchIdleTaskId)
-      } else {
+      } else if (prefetchIdleTaskId !== -1) {
         clearTimeout(prefetchIdleTaskId)
       }
       prefetchIdleTaskId = null
@@ -730,15 +762,10 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       void fetchChapterContent(chapter).catch(() => undefined)
     }
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      prefetchIdleTaskId = window.requestIdleCallback(
-        () => executePrefetch(),
-        { timeout: PREFETCH_IDLE_TIMEOUT_MS },
-      )
-      return
-    }
-
-    prefetchIdleTaskId = globalThis.setTimeout(executePrefetch, 120)
+    prefetchIdleTaskId = scheduleBackgroundTask(
+      executePrefetch,
+      PREFETCH_IDLE_TIMEOUT_MS,
+    )
   }
 
   const loadChapterAt = async (
