@@ -13,6 +13,18 @@
   overflow-anchor: none;
 }
 
+.reader-content-host [data-virtual-index] {
+  overflow-anchor: none;
+}
+
+.reader-content-host .reader-chapter-block {
+  overflow-anchor: none;
+}
+
+.reader-content-host .chapter-marker {
+  overflow-anchor: auto;
+}
+
 @supports (content-visibility: auto) {
   .reader-content-host .reader-chapter-block {
     content-visibility: auto;
