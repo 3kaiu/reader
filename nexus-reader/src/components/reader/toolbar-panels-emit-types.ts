@@ -11,8 +11,6 @@ export type ReaderToolbarPanelsEmits = {
   nextChapter: []
   openSourcePicker: []
   openBookInfo: []
-  toggleDecoder: [enabled: boolean]
-  openDecoderSettings: []
 }
 
 export type ReaderToolbarPanelsEmitFn =

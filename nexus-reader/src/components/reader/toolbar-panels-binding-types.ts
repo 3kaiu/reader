@@ -20,8 +20,6 @@ export interface ReaderToolbarPanelsBottomBarBindings
   onNextChapter: () => void
   onOpenSourcePicker: () => void
   onOpenBookInfo: () => void
-  onToggleDecoder: (enabled: boolean) => void
-  onOpenDecoderSettings: () => void
 }
 
 export interface ReaderToolbarPanelsBindingResult {

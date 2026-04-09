@@ -30,8 +30,6 @@ const {
   >
     <!-- 键盘控制与手势 -->
     <ReaderKeyboard
-      @prev="readerPageActions.handlePrevChapter"
-      @next="readerPageActions.handleNextChapter"
       @toggle-fullscreen="readerPageActions.toggleFullscreen"
       @toggle-catalog="readerPageActions.toggleCatalog"
       @toggle-settings="readerPageActions.toggleSettings"

@@ -18,8 +18,6 @@ export interface ReaderToolbarBottomPanelActionBindings
   onRefresh: () => void
   onOpenSourcePicker: () => void
   onOpenBookInfo: () => void
-  onToggleDecoder: (enabled: boolean) => void
-  onOpenDecoderSettings: () => void
 }
 
 export interface ReaderToolbarBottomPanelBindingResult {

@@ -7,16 +7,7 @@ export type ReaderKeyboardShortcutDefinition = {
 }
 
 export const READER_KEYBOARD_SHORTCUTS: ReaderKeyboardShortcutDefinition[] = [
-  {
-    keys: ['ArrowLeft', 'ArrowUp'],
-    event: 'prev',
-    preventDefault: true,
-  },
-  {
-    keys: ['ArrowRight', 'ArrowDown', ' '],
-    event: 'next',
-    preventDefault: true,
-  },
+
   { keys: 'Escape', event: 'escape' },
   { keys: 'f', event: 'toggle-fullscreen' },
   { keys: 'c', event: 'toggle-catalog' },

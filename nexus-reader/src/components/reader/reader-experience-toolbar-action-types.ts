@@ -1,5 +1,4 @@
 import type {
-  ReaderExperienceDecoderActions,
 } from '@/composables/reader/experience-decoder-action-types'
 import type {
   ReaderExperienceReadingActions,
@@ -25,4 +24,3 @@ export type ReaderExperienceToolbarActions =
     ReaderExperienceReadingActions,
     'handleRefresh' | 'handlePrevChapter' | 'handleNextChapter'
   > &
-  Pick<ReaderExperienceDecoderActions, 'handleToggleDecoder'>

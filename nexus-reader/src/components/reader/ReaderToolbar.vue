@@ -34,8 +34,6 @@ const {
       @next-chapter="emit('nextChapter')"
       @open-source-picker="emit('openSourcePicker')"
       @open-book-info="emit('openBookInfo')"
-      @toggle-decoder="emit('toggleDecoder', $event)"
-      @open-decoder-settings="emit('openDecoderSettings')"
     />
 
     <ReaderToolbarZenButton

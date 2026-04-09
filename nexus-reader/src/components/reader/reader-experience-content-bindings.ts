@@ -1,7 +1,6 @@
 import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import type {
-  ReaderExperienceDecoderActions,
 } from '@/composables/reader/experience-decoder-action-types'
 import type {
   ReaderExperienceServiceState,
@@ -10,7 +9,6 @@ import type { ReaderContentProps } from './reader-content-prop-types'
 
 export function createReaderExperienceContentBindings(
   state: Pick<ReaderExperienceServiceState, 'readerStore'>,
-  actions: Pick<ReaderExperienceDecoderActions, 'handleEntityClick'>,
   contentProps: ComputedRef<ReaderContentProps>,
 ) {
   return computed(() => ({

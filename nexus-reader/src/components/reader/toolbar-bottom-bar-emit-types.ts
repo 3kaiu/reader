@@ -8,8 +8,6 @@ export type ReaderToolbarBottomBarEmits = {
   nextChapter: []
   openSourcePicker: []
   openBookInfo: []
-  toggleDecoder: [enabled: boolean]
-  openDecoderSettings: []
 }
 
 export type ReaderToolbarBottomBarEmitFn =

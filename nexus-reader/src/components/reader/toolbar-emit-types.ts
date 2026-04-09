@@ -11,6 +11,4 @@ export type ReaderToolbarEmits = {
   nextChapter: []
   openSourcePicker: []
   openBookInfo: []
-  toggleDecoder: [enabled: boolean]
-  openDecoderSettings: []
 }

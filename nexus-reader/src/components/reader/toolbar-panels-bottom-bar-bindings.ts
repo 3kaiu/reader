@@ -22,7 +22,5 @@ export function createReaderToolbarPanelsBottomBarBindings(
     onNextChapter: () => emit('nextChapter'),
     onOpenSourcePicker: () => emit('openSourcePicker'),
     onOpenBookInfo: () => emit('openBookInfo'),
-    onToggleDecoder: (enabled: boolean) => emit('toggleDecoder', enabled),
-    onOpenDecoderSettings: () => emit('openDecoderSettings'),
   }))
 }

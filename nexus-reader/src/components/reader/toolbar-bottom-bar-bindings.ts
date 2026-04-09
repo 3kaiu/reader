@@ -21,8 +21,6 @@ export function createReaderToolbarBottomBarBindings(
     isNightMode: props.isNightMode,
     isEyeCareEnabled: props.isEyeCareEnabled,
     contentIssue: props.contentIssue,
-    showDecoderAction: props.showDecoderAction,
-    isDecoderEnabled: props.isDecoderEnabled,
     isDecoding: props.isDecoding,
   }))
 

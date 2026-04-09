@@ -1,13 +1,11 @@
 import { config } from './config'
 
-const optionalFeatureKeys = ['discovery', 'ai', 'decoder'] as const
+const optionalFeatureKeys = ['discovery'] as const
 
 export type OptionalFeature = (typeof optionalFeatureKeys)[number]
 
 const featureConfigKeys: Record<OptionalFeature, string> = {
   discovery: 'features.discovery',
-  ai: 'features.ai',
-  decoder: 'features.decoder',
 }
 
 export function isOptionalFeature(feature: string): feature is OptionalFeature {
@@ -25,7 +23,5 @@ export function setOptionalFeatureEnabled(feature: OptionalFeature, enabled: boo
 export function getOptionalFeatureState(): Record<OptionalFeature, boolean> {
   return {
     discovery: isOptionalFeatureEnabled('discovery'),
-    ai: isOptionalFeatureEnabled('ai'),
-    decoder: isOptionalFeatureEnabled('decoder'),
   }
 }

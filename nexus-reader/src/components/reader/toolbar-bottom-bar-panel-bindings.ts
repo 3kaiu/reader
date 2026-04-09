@@ -36,8 +36,6 @@ export function createReaderToolbarBottomBarPanelBindings(
     onNextChapter: () => emit('nextChapter'),
     onOpenSourcePicker: () => emit('openSourcePicker'),
     onOpenBookInfo: () => emit('openBookInfo'),
-    onToggleDecoder: (enabled: boolean) => emit('toggleDecoder', enabled),
-    onOpenDecoderSettings: () => emit('openDecoderSettings'),
   }))
 
   const isVisible = computed(() => props.show && !props.zenMode)

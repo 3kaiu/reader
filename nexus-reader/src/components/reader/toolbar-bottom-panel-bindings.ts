@@ -35,8 +35,6 @@ export function createReaderToolbarBottomPanelBindings(
     onRefresh: () => emit('refresh'),
     onOpenSourcePicker: () => emit('openSourcePicker'),
     onOpenBookInfo: () => emit('openBookInfo'),
-    onToggleDecoder: (enabled: boolean) => emit('toggleDecoder', enabled),
-    onOpenDecoderSettings: () => emit('openDecoderSettings'),
   }))
 
   return {

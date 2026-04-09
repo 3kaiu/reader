@@ -22,7 +22,6 @@ export function createReaderExperienceToolbarPropsBindings(
     onNextChapter: actions.handleNextChapter,
     onOpenSourcePicker: actions.openSourcePicker,
     onOpenBookInfo: actions.openBookInfo,
-    onToggleDecoder: actions.handleToggleDecoder,
     onOpenDecoderSettings: actions.openDecoderSettings,
   }
 }

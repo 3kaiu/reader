@@ -1,6 +1,4 @@
 export type ReaderKeyboardEmits = {
-  prev: []
-  next: []
   'toggle-fullscreen': []
   'toggle-catalog': []
   'toggle-settings': []

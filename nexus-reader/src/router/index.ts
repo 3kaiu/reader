@@ -59,13 +59,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Source Builder Debug' },
   },
 
-  {
-    path: '/decoder-dictionary',
-    name: 'decoder-dictionary',
-    // 解密词典页按需加载
-    component: () => import('@/pages/decoder-dictionary.vue'),
-    meta: { title: '解密词典', feature: 'decoder' },
-  },
 ]
 
 const router = createRouter({
