@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
-import { computed, watch } from 'vue'
+import { computed, onUnmounted, watch } from 'vue'
 import { useWindowVirtualizer } from '@tanstack/vue-virtual'
 import {
   VIRTUAL_SCROLL_OVERSCAN,
@@ -18,6 +18,7 @@ import type {
 const props = defineProps<ReaderScrollChapterListProps>()
 const settingsStore = useSettingsStore()
 const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
+let pendingVirtualMeasureRafId: number | null = null
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
 const CHAPTER_VISUAL_LINE_HEIGHT = 30
@@ -80,7 +81,13 @@ watch(
       count: chapters.length,
       overscan,
     })
-    virtualizer.value.measure()
+    if (pendingVirtualMeasureRafId !== null) {
+      window.cancelAnimationFrame(pendingVirtualMeasureRafId)
+    }
+    pendingVirtualMeasureRafId = window.requestAnimationFrame(() => {
+      pendingVirtualMeasureRafId = null
+      virtualizer.value?.measure()
+    })
   },
   { flush: 'post' },
 )
@@ -106,6 +113,13 @@ const bindVirtualItemRef = (
 
   virtualizer.value?.measureElement(target)
 }
+
+onUnmounted(() => {
+  if (pendingVirtualMeasureRafId !== null) {
+    window.cancelAnimationFrame(pendingVirtualMeasureRafId)
+    pendingVirtualMeasureRafId = null
+  }
+})
 </script>
 
 <template>

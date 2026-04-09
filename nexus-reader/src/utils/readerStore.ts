@@ -97,12 +97,13 @@ export function normalizeReaderCatalog(chapters: Chapter[]): Chapter[] {
 
 export function createLoadedChapter(
   chapter: Chapter,
-  chapterContent: string
+  chapterContent: string,
+  options: { formattedContent?: string } = {},
 ): ReaderLoadedChapter {
   return {
     index: chapter.index,
     title: chapter.title,
-    formattedContent: formatReaderContent(chapterContent),
+    formattedContent: options.formattedContent ?? formatReaderContent(chapterContent),
   }
 }
 

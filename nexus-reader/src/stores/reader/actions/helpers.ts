@@ -443,10 +443,20 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
 
 export function createReaderActionHelpers(state: ReaderStoreState) {
   const inflightChapterContentRequests = new Map<string, Promise<string>>()
+  const FORMATTED_CONTENT_CACHE_MAX_ENTRIES = 30
   const CHAPTER_CONTENT_CACHE_MAX_ENTRIES = 60
   const PREFETCH_IDLE_TIMEOUT_MS = 1200
   let chapterContentCacheRef = state.chapterContentCache.value
   let chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
+  const formattedContentCache = new Map<string, string>()
+  const hashText = (value: string) => {
+    let hash = 2166136261
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+    return (hash >>> 0).toString(36)
+  }
   let prefetchIdleTaskId: number | ReturnType<typeof setTimeout> | null = null
   let prefetchAbortController: AbortController | null = null
   let prefetchTaskAbortController: AbortController | null = null
@@ -523,6 +533,27 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     chapter: Chapter,
     book: ReaderBook | null = state.currentBook.value,
   ) => `${book?.bookUrl || ''}::${chapter.url}`
+
+  const formatChapterContent = (chapterContent: string) => {
+    const cacheKey = `${chapterContent.length}:${hashText(chapterContent)}`
+    const cached = formattedContentCache.get(cacheKey)
+    if (typeof cached === 'string') {
+      formattedContentCache.delete(cacheKey)
+      formattedContentCache.set(cacheKey, cached)
+      return cached
+    }
+
+    const formatted = formatReaderContent(chapterContent)
+    formattedContentCache.set(cacheKey, formatted)
+    while (formattedContentCache.size > FORMATTED_CONTENT_CACHE_MAX_ENTRIES) {
+      const oldestKey = formattedContentCache.keys().next().value
+      if (!oldestKey) {
+        break
+      }
+      formattedContentCache.delete(oldestKey)
+    }
+    return formatted
+  }
 
   const summarizeStageFailure = (details?: string): string | null => {
     if (!details) {
@@ -621,7 +652,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     state.currentChapter.value = chapter
     state.content.value = chapterContent
     state.isParsing.value = true
-    state.formattedContent.value = formatReaderContent(chapterContent)
+    state.formattedContent.value = formatChapterContent(chapterContent)
     state.isParsing.value = false
   }
 
@@ -630,9 +661,14 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     chapterContent: string,
     replaceOnly = false,
   ) => {
+    const formattedContent =
+      state.currentChapter.value?.url === chapter.url
+        ? state.formattedContent.value
+        : formatChapterContent(chapterContent)
+
     state.loadedChapters.value = mergeLoadedChapters(
       state.loadedChapters.value,
-      createLoadedChapter(chapter, chapterContent),
+      createLoadedChapter(chapter, chapterContent, { formattedContent }),
       replaceOnly,
     )
   }
