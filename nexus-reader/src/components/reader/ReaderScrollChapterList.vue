@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
-import { computed, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWindowVirtualizer } from '@tanstack/vue-virtual'
 import {
   VIRTUAL_SCROLL_OVERSCAN,
@@ -21,6 +21,7 @@ const settingsStore = useSettingsStore()
 const { chapterItemPropsList } = createReaderScrollChapterListBindings(props)
 let pendingVirtualMeasureRafId: number | null = null
 let pendingVirtualMeasureIdleTask: IdleTaskHandle | null = null
+let removeFontListeners: (() => void) | null = null
 const measuredChapterHeightMap = new Map<number, number>()
 
 const CHAPTER_BASE_ESTIMATED_HEIGHT = 560
@@ -83,6 +84,44 @@ const virtualizer = useWindowVirtualizer({
   getItemKey: index => chapterItemPropsList.value[index]?.chapter.index ?? index,
 })
 
+const cancelPendingVirtualMeasure = () => {
+  if (pendingVirtualMeasureIdleTask) {
+    pendingVirtualMeasureIdleTask.cancel()
+    pendingVirtualMeasureIdleTask = null
+  }
+  if (pendingVirtualMeasureRafId !== null) {
+    window.cancelAnimationFrame(pendingVirtualMeasureRafId)
+    pendingVirtualMeasureRafId = null
+  }
+}
+
+const scheduleVirtualMeasure = (timeoutMs = 180) => {
+  if (!virtualizer.value) {
+    return
+  }
+
+  cancelPendingVirtualMeasure()
+  let deferredCount = 0
+  const scheduleMeasure = () => {
+    pendingVirtualMeasureRafId = window.requestAnimationFrame(() => {
+      if (hasPendingUserInput() && deferredCount < MAX_MEASURE_DEFER_COUNT) {
+        deferredCount += 1
+        scheduleMeasure()
+        return
+      }
+      pendingVirtualMeasureRafId = null
+      pendingVirtualMeasureIdleTask = scheduleIdleTask(
+        () => {
+          pendingVirtualMeasureIdleTask = null
+          virtualizer.value?.measure()
+        },
+        { timeoutMs },
+      )
+    })
+  }
+  scheduleMeasure()
+}
+
 watch(
   [chapterItemPropsList, virtualOverscan],
   ([chapters, overscan]) => {
@@ -102,32 +141,16 @@ watch(
       count: chapters.length,
       overscan,
     })
-    if (pendingVirtualMeasureIdleTask) {
-      pendingVirtualMeasureIdleTask.cancel()
-      pendingVirtualMeasureIdleTask = null
-    }
-    if (pendingVirtualMeasureRafId !== null) {
-      window.cancelAnimationFrame(pendingVirtualMeasureRafId)
-    }
-    let deferredCount = 0
-    const scheduleMeasure = () => {
-      pendingVirtualMeasureRafId = window.requestAnimationFrame(() => {
-        if (hasPendingUserInput() && deferredCount < MAX_MEASURE_DEFER_COUNT) {
-          deferredCount += 1
-          scheduleMeasure()
-          return
-        }
-        pendingVirtualMeasureRafId = null
-        pendingVirtualMeasureIdleTask = scheduleIdleTask(
-          () => {
-            pendingVirtualMeasureIdleTask = null
-            virtualizer.value?.measure()
-          },
-          { timeoutMs: 180 },
-        )
-      })
-    }
-    scheduleMeasure()
+    scheduleVirtualMeasure()
+  },
+  { flush: 'post' },
+)
+
+watch(
+  () => props.layoutVersion,
+  () => {
+    measuredChapterHeightMap.clear()
+    scheduleVirtualMeasure(120)
   },
   { flush: 'post' },
 )
@@ -185,13 +208,32 @@ const bindVirtualItemRef = (
 
 onUnmounted(() => {
   measuredChapterHeightMap.clear()
-  if (pendingVirtualMeasureIdleTask) {
-    pendingVirtualMeasureIdleTask.cancel()
-    pendingVirtualMeasureIdleTask = null
+  cancelPendingVirtualMeasure()
+  if (removeFontListeners) {
+    removeFontListeners()
+    removeFontListeners = null
   }
-  if (pendingVirtualMeasureRafId !== null) {
-    window.cancelAnimationFrame(pendingVirtualMeasureRafId)
-    pendingVirtualMeasureRafId = null
+})
+
+onMounted(() => {
+  if (typeof document === 'undefined' || !document.fonts) {
+    return
+  }
+
+  const handleFontLoadEvent = () => {
+    measuredChapterHeightMap.clear()
+    scheduleVirtualMeasure(120)
+  }
+
+  void document.fonts.ready.then(() => {
+    handleFontLoadEvent()
+  })
+
+  document.fonts.addEventListener('loadingdone', handleFontLoadEvent)
+  document.fonts.addEventListener('loadingerror', handleFontLoadEvent)
+  removeFontListeners = () => {
+    document.fonts.removeEventListener('loadingdone', handleFontLoadEvent)
+    document.fonts.removeEventListener('loadingerror', handleFontLoadEvent)
   }
 })
 </script>
