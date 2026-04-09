@@ -34,6 +34,10 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
       return
     }
 
+    if (state.currentChapterIndex.value === chapterIndex) {
+      return
+    }
+
     state.currentChapterIndex.value = chapterIndex
     state.currentChapter.value =
       state.catalog.value[chapterIndex] || state.currentChapter.value

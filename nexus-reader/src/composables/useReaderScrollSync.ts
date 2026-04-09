@@ -67,6 +67,10 @@ export function useReaderScrollSync(options: {
   }
 
   const syncChapterByVisibleMarkers = () => {
+    if (!pageActive) {
+      return
+    }
+
     if (visibleChapterMarkers.size === 0) {
       options.readerStore.updateChapterIndexByScroll()
       return
@@ -103,6 +107,10 @@ export function useReaderScrollSync(options: {
   }
 
   const scheduleChapterSyncByVisibleMarkers = () => {
+    if (!pageActive) {
+      return
+    }
+
     if (pendingChapterSyncRafId !== null) {
       return
     }
