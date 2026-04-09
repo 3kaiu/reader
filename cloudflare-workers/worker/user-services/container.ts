@@ -1,5 +1,4 @@
 import {
-  AnalyticsSystem,
   ContentManagementSystem,
   QueueProcessor,
   UserPreferencesSystem,
@@ -20,13 +19,11 @@ function createLazyServiceGetter<T>(factory: () => T): () => T {
 }
 
 export function createUserServiceContainer(env: EnhancedWorkerEnv): UserServiceContainer {
-  const getAnalytics = createLazyServiceGetter(() => new AnalyticsSystem(env))
   const getUserPreferences = createLazyServiceGetter(() => new UserPreferencesSystem(env))
   const getContentManagement = createLazyServiceGetter(() => new ContentManagementSystem(env))
   const getQueueProcessor = createLazyServiceGetter(() => new QueueProcessor(env))
 
   return {
-    getAnalytics,
     getUserPreferences,
     getContentManagement,
     getQueueProcessor,

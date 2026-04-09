@@ -13,7 +13,6 @@ mod routes;
 mod source_access;
 mod source_builder_state;
 mod validation;
-mod ws;
 
 use nexus_core::EngineConfig;
 use tracing::info;

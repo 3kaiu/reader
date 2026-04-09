@@ -14,7 +14,7 @@ use tower_http::{
 };
 use tracing::info;
 
-use crate::{app_state::build_app_state, routes, ws};
+use crate::{app_state::build_app_state, routes};
 
 pub use crate::app_state::AppState;
 
@@ -87,7 +87,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .merge(routes::source_builder::router())
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))
-        .route("/ws/search", get(ws::ws_handler))
+
         .route("/api/book", get(routes::book::book_info))
         .route("/api/chapters", get(routes::book::chapters))
         .route("/api/content", get(routes::book::content))
@@ -97,24 +97,12 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/bookshelf/{id}", patch(routes::bookshelf::update_progress))
         .route("/api/bookshelf/{id}", put(routes::bookshelf::move_to_group))
         .route("/api/bookshelf/{id}", delete(routes::bookshelf::remove))
-        .route("/api/groups", get(routes::group::list_groups))
-        .route("/api/groups", post(routes::group::save_group))
-        .route("/api/groups/{id}", delete(routes::group::delete_group))
+
         .route("/api/replace_rules", get(routes::replace_rules::list_rules))
         .route("/api/replace_rules", post(routes::replace_rules::save_rule))
         .route("/api/replace_rules/{id}", delete(routes::replace_rules::delete_rule))
         .route("/api/discovery", get(routes::discovery::list_discovery))
-        .route("/api/ai/mappings", get(routes::ai::list_mapping_rules))
-        .route("/api/ai/mappings", post(routes::ai::save_mapping_rule))
-        .route("/api/ai/mappings/{id}", delete(routes::ai::delete_mapping_rule))
-        .route("/api/ai/history", get(routes::ai::list_analysis_history))
-        .route("/api/ai/history", post(routes::ai::save_analysis_history))
-        .route("/api/ai/history", delete(routes::ai::clear_analysis_history))
-        .route("/api/voice/metadata", get(routes::voice::list_voice_metadata))
-        .route("/api/voice/metadata", post(routes::voice::save_voice_metadata))
-        .route("/api/voice/metadata/{id}", delete(routes::voice::delete_voice_metadata))
-        .route("/api/voice/config/{key}", get(routes::voice::get_voice_config))
-        .route("/api/voice/config/{key}", post(routes::voice::save_voice_config))
+
         .with_state(state.clone());
 
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());

@@ -1,13 +1,4 @@
-export {
-  handleHealthCheck,
-  handleUserStats,
-  handlePopularContent,
-  handleClientRoutingAnalytics,
-  handleClientMetrics,
-  handleAgentRouterStats,
-  handleAgentRouterConfig,
-  handleAgentRouterConfigAudit,
-} from './routes/analytics.ts'
+
 
 export {
   handleGitHubLogin,

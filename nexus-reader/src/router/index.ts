@@ -44,13 +44,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackPrefetch: true */ '@/pages/replace-rule.vue'),
     meta: { title: '替换规则' },
   },
-  {
-    path: '/ai-settings',
-    name: 'ai-settings',
-    // AI 设置页面 - 按需加载（包含大依赖）
-    component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-settings.vue'),
-    meta: { title: '本地 AI 模型', feature: 'ai' },
-  },
+
   {
     path: '/settings',
     name: 'settings',
@@ -64,13 +58,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackPrefetch: true */ '@/pages/source-builder-debug.vue'),
     meta: { title: 'Source Builder Debug' },
   },
-  {
-    path: '/ai-analysis-settings',
-    name: 'ai-analysis-settings',
-    // AI 分析助手页面 - 按需加载（包含AI依赖）
-    component: () => import(/* webpackChunkName: "ai-features" */ '@/pages/ai-analysis-settings.vue'),
-    meta: { title: 'AI 映射规则', feature: 'ai' },
-  },
+
   {
     path: '/decoder-dictionary',
     name: 'decoder-dictionary',

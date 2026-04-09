@@ -13,7 +13,7 @@
 
 import { handleCorsPreflightRequest } from './shared/cors.ts'
 import { createLogger } from './shared/logger.ts'
-import { dispatchWithOptionalEdgeOptimization } from './src/entry-adapter.ts'
+
 
 import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from './shared/types.ts'
 import type { EnhancedWorkerEnv } from './worker/types.ts'
@@ -55,13 +55,7 @@ export default {
     )
 
     try {
-      // Experimental optimizer is opt-in and always falls back to stable dispatch.
-      const response = await dispatchWithOptionalEdgeOptimization(
-        requestWithId,
-        env,
-        dispatchAgentAware,
-        logger
-      )
+      const response = await dispatchAgentAware(requestWithId)
       return attachRequestId(response, requestId)
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)

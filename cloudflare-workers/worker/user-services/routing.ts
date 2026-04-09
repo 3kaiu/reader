@@ -1,12 +1,3 @@
-import {
-  handleClientMetrics,
-  handleClientRoutingAnalytics,
-  handleAgentRouterStats,
-  handleAgentRouterConfig,
-  handleAgentRouterConfigAudit,
-  handleContentUpload,
-  handleHealthCheck,
-  handlePopularContent,
   handleUserBackup,
   handleUserPreferences,
   handleUserStats,
@@ -33,14 +24,6 @@ export async function dispatchUserServiceRoute(
   const url = new URL(request.url)
 
   switch (url.pathname) {
-    case '/api/health':
-      return handleHealthCheck(request, env, services.getAnalytics())
-    case '/api/analytics/user-stats':
-      return handleUserStats(request, env, services.getAnalytics())
-    case '/api/analytics/popular-content':
-      return handlePopularContent(request, env, services.getAnalytics())
-    case '/api/analytics/client-routing':
-      return handleClientRoutingAnalytics(request, env)
     case '/api/preferences':
       return handleUserPreferences(request, env, services.getUserPreferences())
     case '/api/content/upload':
@@ -52,14 +35,6 @@ export async function dispatchUserServiceRoute(
         services.getContentManagement(),
         services.getQueueProcessor()
       )
-    case '/api/metrics/client':
-      return handleClientMetrics(request, env)
-    case '/api/agent/router-stats':
-      return handleAgentRouterStats(request, env)
-    case '/api/agent/config':
-      return handleAgentRouterConfig(request, env)
-    case '/api/agent/config/audit':
-      return handleAgentRouterConfigAudit(request, env)
     case '/api/source/flow-assist':
       try {
         return await handleSourceFlowAssist(request, env)

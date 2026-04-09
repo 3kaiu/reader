@@ -1,6 +1,3 @@
-// ===== 核心模块 (Core Modules) =====
-pub mod core;
-
 // ===== 业务主线模块 (Lean Business Modules) =====
 pub mod business_modules;
 

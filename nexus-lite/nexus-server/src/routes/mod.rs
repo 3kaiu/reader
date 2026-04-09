@@ -1,17 +1,17 @@
 //! API route handlers
 
-pub mod ai;
+
 pub mod book;
 pub mod bookshelf;
 pub mod discovery;
-pub mod group;
+
 pub mod replace_rules;
 pub mod search;
 pub mod source;
 pub mod source_builder;
 pub mod source_diagnosis;
 pub mod source_runtime;
-pub mod voice;
+
 
 use axum::{extract::State, Json};
 use nexus_engine::extraction_metrics;

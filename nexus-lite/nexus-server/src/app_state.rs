@@ -30,7 +30,7 @@ pub struct AppState {
     pub _anti_crawl: Arc<FallbackChain>,
     pub orchestrator: Arc<SearchOrchestrator>,
     pub config: Arc<EngineConfig>,
-    pub event_bus: Arc<EventBus>,
+    pub _event_bus: Arc<EventBus>,
     pub snapshot_status: Arc<SnapshotStatus>,
 }
 
@@ -281,7 +281,7 @@ pub async fn build_app_state(config: &EngineConfig) -> anyhow::Result<AppState> 
         _anti_crawl: anti_crawl,
         orchestrator,
         config: Arc::new(config.clone()),
-        event_bus,
+        _event_bus: event_bus,
         snapshot_status,
     })
 }
