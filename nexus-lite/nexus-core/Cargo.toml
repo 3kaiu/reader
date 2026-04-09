@@ -17,5 +17,4 @@ chrono.workspace = true
 tracing.workspace = true
 urlencoding = "2"
 dashmap = "6.1.0"
-warp = "0.4.2"
 http = "1"

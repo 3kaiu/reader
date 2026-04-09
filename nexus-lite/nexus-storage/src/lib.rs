@@ -5,10 +5,6 @@
 //! - 两级章节缓存（内存+磁盘）
 //! - 基于JSON的源配置存储
 
-// ===== 领域层 (Domain Layer) =====
-// 存储核心业务逻辑
-pub mod domain;
-
 // ===== 基础设施层 (Infrastructure Layer) =====
 // 外部接口实现
 pub mod cache;
@@ -19,9 +15,6 @@ pub mod source_store;
 pub use cache::ChapterCache;
 pub use sled_store::SledStore;
 pub use source_store::SourceStore;
-
-// 新架构导出
-pub use domain::*;
 
 // Error type re-export
 pub use nexus_core::EngineError;

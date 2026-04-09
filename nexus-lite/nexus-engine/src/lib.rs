@@ -10,10 +10,6 @@
 //! - 高级内容清洗（零宽字符、去重、字体解密）
 #![cfg_attr(test, allow(dead_code))]
 
-// ===== 领域层 (Domain Layer) =====
-// 引擎核心业务逻辑
-pub mod domain;
-
 // ===== 基础设施层 (Infrastructure Layer) =====
 // 外部接口实现
 pub mod anti_crawl;
@@ -61,6 +57,3 @@ pub use text_cleaner::{
     clean_text, remove_zero_width_chars, CleanConfig as TextCleanConfig, TextCleaner,
 };
 pub use text_dedup::{deduplicate_paragraphs, similarity, DedupConfig, TextDeduplicator};
-
-// 新架构导出
-pub use domain::*;

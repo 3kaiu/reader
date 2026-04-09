@@ -58,28 +58,6 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("Failed to initialize cache manager: {}", e);
     }
 
-    // Keep platform optimizer opt-in to avoid over-platformization of the main reading flow.
-    let enable_platform_optimizer = std::env::var("ENABLE_PLATFORM_OPTIMIZER")
-        .map(|v| is_true_flag(&v))
-        .unwrap_or(false);
-    if enable_platform_optimizer {
-        let _ =
-            nexus_core::optimizer::init_optimizer_manager(nexus_core::optimizer::OptimizerConfig {
-                enable_memory_optimization: true,
-                enable_cpu_optimization: true,
-                enable_io_optimization: true,
-                enable_network_optimization: true,
-                enable_cache_optimization: true,
-                enable_algorithm_optimization: true,
-                monitoring_interval_ms: 30000,
-                optimization_interval_ms: 300000,
-                max_concurrent_optimizations: 5,
-            });
-        info!("Platform optimizer enabled by ENABLE_PLATFORM_OPTIMIZER");
-    } else {
-        info!("Platform optimizer skipped (set ENABLE_PLATFORM_OPTIMIZER=true to enable)");
-    }
-
     // Initialize Prometheus metrics (port 9090)
     if let Err(e) = metrics::init_metrics(9090) {
         tracing::warn!("Failed to initialize metrics: {}", e);

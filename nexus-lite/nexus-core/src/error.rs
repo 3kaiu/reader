@@ -1,8 +1,6 @@
 //! Unified error types for NexusLite with standardized error codes
 //! Implements cross-language error protocol compatible with CF Bypass and Nexus Reader
 
-#![allow(deprecated)]
-
 use serde::{Deserialize, Serialize};
 
 /// Standardized error codes across all Nexus components
@@ -462,24 +460,6 @@ impl From<serde_json::Error> for EngineError {
     fn from(err: serde_json::Error) -> Self {
         Self::JsonParse {
             message: err.to_string(),
-        }
-    }
-}
-
-impl From<crate::domain::DomainError> for EngineError {
-    fn from(err: crate::domain::DomainError) -> Self {
-        match err {
-            crate::domain::DomainError::Validation(msg) => Self::Validation {
-                field: "unknown".to_string(),
-                message: msg,
-            },
-            crate::domain::DomainError::BusinessLogic(msg) => Self::Internal { message: msg },
-            crate::domain::DomainError::NotFound(entity) => Self::SourceNotFound { id: entity },
-            crate::domain::DomainError::Conflict(msg) => Self::Internal {
-                message: format!("Conflict: {}", msg),
-            },
-            crate::domain::DomainError::Unauthorized(_msg) => Self::Unauthorized,
-            crate::domain::DomainError::ExternalService(msg) => Self::Network { message: msg },
         }
     }
 }
