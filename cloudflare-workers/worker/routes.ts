@@ -10,7 +10,6 @@ export {
   handleUserPreferences,
   handleContentUpload,
   handleUserBackup,
-  handleDecodeRequest,
   handleProgressSync,
 } from './routes/content.ts'
 

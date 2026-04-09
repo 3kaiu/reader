@@ -20,13 +20,6 @@ VITE_NEXUS_LITE_DIRECT_URL=${HF_SPACE_URL}
 VITE_NEXUS_LITE_API_KEY=your-nexus-lite-api-key-here
 VITE_PROGRESS_SYNC_URL=https://nexus-reader-edge.your-account.workers.dev
 VITE_BACKUP_URL=https://nexus-reader-edge.your-account.workers.dev
-VITE_DECODER_URL=https://nexus-reader-edge.your-account.workers.dev
-
-# ===== Edge Experimental Routing (optional) =====
-ENABLE_EDGE_EXPERIMENTAL=false
-EDGE_EXPERIMENTAL_ROUTES=/api/search,/api/book,/api/chapters,/api/content
-EDGE_EXPERIMENTAL_EXCLUDE_ROUTES=/api/health,/api/analytics,/api/metrics
-EDGE_EXPERIMENTAL_ROLLOUT=0
 
 # ===== Source Flow Assist (Cloudflare Workers AI / Gateway) =====
 SOURCE_FLOW_ASSIST_CACHE_TTL_SEC=3600

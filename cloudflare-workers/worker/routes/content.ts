@@ -1,6 +1,6 @@
 import { verifyAuth } from '../../shared/auth.ts'
-import { DecoderEngine } from '../../decoder/decoder-engine.ts'
-import type { DecodeRequest, Progress } from '../../shared/types.ts'
+
+import type { Progress } from '../../shared/types.ts'
 import type {
   AnalyticsSystem,
   ContentManagementSystem,
@@ -90,28 +90,6 @@ export async function handleUserBackup(
   }), { headers: corsHeaders(request) })
 }
 
-export async function handleDecodeRequest(request: Request, env: EnhancedWorkerEnv): Promise<Response> {
-  if (!env.DECODER_KV || !env.AI_CACHE_KV) {
-    const res = jsonError(
-      request,
-      'DECODE_UNAVAILABLE',
-      'Decode temporarily unavailable',
-      503,
-      'Missing DECODER_KV/AI_CACHE_KV bindings'
-    )
-    res.headers.set('Retry-After', '60')
-    return res
-  }
-
-  const decoder = new DecoderEngine(env)
-  await decoder.init()
-  const decodeRequest: DecodeRequest = await request.json()
-  const result = await decoder.decode(decodeRequest)
-
-  return new Response(JSON.stringify(result), {
-    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
-  })
-}
 
 export async function handleProgressSync(request: Request, env: EnhancedWorkerEnv, url: URL): Promise<Response> {
   const payload = await verifyAuth(request, env)

@@ -3,48 +3,18 @@ main = "entry.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# ===== 环境变量 (Default/Development) =====
 [vars]
-ADMIN_USER_ID = "auto-admin"
 ENVIRONMENT = "development"
 LOG_LEVEL = "debug"
-ENABLE_ANALYTICS = "true"
 ENABLE_CACHE = "true"
-ENABLE_EDGE_EXPERIMENTAL = "false"
-EDGE_EXPERIMENTAL_ROUTES = "/api/search,/api/book,/api/chapters,/api/content,/api/source-builder/*,/api/source-packages/*,/api/engine/run-by-package,/api/fetch/*"
-EDGE_EXPERIMENTAL_EXCLUDE_ROUTES = "/api/health,/api/analytics,/api/metrics"
-EDGE_EXPERIMENTAL_ROLLOUT = "0"
-AGENT_ENABLED = "false"
-AGENT_SHADOW_MODE = "false"
-AGENT_AI_ENABLED = "true"
-AGENT_AI_MAX_LATENCY_MS = "300"
-AGENT_MIN_CONFIDENCE = "0.65"
-AGENT_ROLLOUT = "0"
-AGENT_INCLUDE_ROUTES = "/decode/*,/api/search,/api/book,/api/chapters,/api/content,/api/source-builder/*,/api/source-packages/*,/api/engine/run-by-package,/api/fetch/*"
-AGENT_EXCLUDE_ROUTES = "/api/health,/api/analytics/*,/api/metrics/client"
 SOURCE_FLOW_ASSIST_CACHE_TTL_SEC = "3600"
 CF_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
-# Optional: set full AI Gateway endpoint URL and token to route requests through gateway.
-# CF_AI_GATEWAY_BASE_URL = "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai/chat/completions"
-# CF_AI_GATEWAY_TOKEN = "your_gateway_token"
-# OAuth GitHub Configuration (loaded from .dev.vars in production)
-# OAUTH_GITHUB_CLIENT_ID = "your_client_id"
-# OAUTH_GITHUB_CLIENT_SECRET = "your_client_secret"
-# AUTH_SECRET = "your_auth_secret"
-
-# ===== D1 Database =====
-# 注意：请运行 `wrangler d1 create nexus_analytics` 创建数据库并获取 ID
-[[d1_databases]]
-binding = "ANALYTICS_DB"
-database_name = "nexus_analytics"
-database_id = "YOUR_ANALYTICS_DB_ID_HERE"
 
 [[d1_databases]]
 binding = "USER_PREFERENCES_DB"
 database_name = "nexus_user_prefs"
 database_id = "YOUR_USER_PREFS_DB_ID_HERE"
 
-# ===== R2 Storage =====
 [[r2_buckets]]
 binding = "USER_CONTENT_R2"
 bucket_name = "nexus-user-content"
@@ -53,8 +23,6 @@ bucket_name = "nexus-user-content"
 binding = "BACKUP_R2"
 bucket_name = "nexus-backup"
 
-# ===== KV 存储 =====
-# 注意：请运行 `wrangler kv:namespace create` 创建命名空间并获取 ID
 [[kv_namespaces]]
 binding = "PROGRESS_KV"
 id = "YOUR_PROGRESS_KV_ID_HERE"
@@ -63,45 +31,15 @@ id = "YOUR_PROGRESS_KV_ID_HERE"
 binding = "CONTENT_CACHE_KV"
 id = "YOUR_CONTENT_CACHE_KV_ID_HERE"
 
-[[kv_namespaces]]
-binding = "DECODER_KV"
-id = "YOUR_DECODER_KV_ID_HERE"
-
-[[kv_namespaces]]
-binding = "AI_CACHE_KV"
-id = "YOUR_AI_CACHE_KV_ID_HERE"
-
-# ===== Queues =====
-[[queues.producers]]
-binding = "ANALYTICS_QUEUE"
-queue = "nexus-analytics-queue"
-
-[[queues.consumers]]
-queue = "nexus-analytics-queue"
-max_batch_size = 10
-max_batch_timeout = 30
-
-# ===== Analytics Engine =====
-[[analytics_engine_datasets]]
-binding = "ANALYTICS_ENGINE"
-dataset = "nexus_usage_analytics"
-
-# ===== Workers AI =====
 [ai]
 binding = "AI"
 
-# ===== 环境配置 =====
 [env.production]
 name = "nexus-reader-prod"
 vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
 routes = [
     { pattern = "api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
 ]
-
-[[env.production.d1_databases]]
-binding = "ANALYTICS_DB"
-database_name = "nexus_analytics_prod"
-database_id = "YOUR_PROD_ANALYTICS_DB_ID_HERE"
 
 [[env.production.d1_databases]]
 binding = "USER_PREFERENCES_DB"
