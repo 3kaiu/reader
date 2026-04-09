@@ -34,14 +34,12 @@ const {
       @toggle-catalog="readerPageActions.toggleCatalog"
       @toggle-settings="readerPageActions.toggleSettings"
       @toggle-day-night="readerPageActions.toggleDayNight"
-      @toggle-zen-mode="readerPageActions.toggleZenMode"
       @toggle-help="readerPageActions.toggleKeyboardHelp"
       @escape="readerPageActions.handleEscape"
     />
 
     <ReaderGesture
       @toggle-toolbar="readerPageActions.toggleToolbar"
-      @toggle-zen-mode="readerPageActions.toggleZenMode"
     >
       <ReaderLoadingOverlay v-if="readerPageState.isLoading" />
 
@@ -63,37 +61,25 @@ const {
 </template>
 
 <style scoped>
-/* 核心排版样式保留 */
+/* 核心排版样式：Notion/Linear 极简风 */
 .reader-container {
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* 简约主题 - 仅保留必要的日/夜/护眼模式 */
 .theme-white {
   background: #ffffff;
-  color: #242424;
+  color: #37352f; /* Notion-like dark gray */
 }
 .theme-paper {
-  background: #faf7ed;
-  color: #38342f;
-}
-.theme-sepia {
-  background: #efe6d5;
-  color: #4a3b32;
-}
-.theme-gray {
-  background: #f2f3f5;
-  color: #2b2b2b;
-}
-.theme-green {
-  background: #e6f0e6;
-  color: #2e362c;
+  background: #f7f6f3; /* Notion-like light beige */
+  color: #37352f;
 }
 .theme-night {
-  background: #1c1c1e;
-  color: #a1a1aa;
-}
-.theme-custom {
-  background: var(--custom-bg);
-  color: var(--custom-text);
+  background: #191919; /* Linear-like dark */
+  color: rgba(255, 255, 255, 0.81);
 }
 </style>
 

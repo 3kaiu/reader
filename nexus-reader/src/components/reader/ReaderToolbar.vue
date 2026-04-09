@@ -5,7 +5,7 @@
  */
 import './reader-toolbar.css'
 import ReaderToolbarPanels from './ReaderToolbarPanels.vue'
-import ReaderToolbarZenButton from './ReaderToolbarZenButton.vue'
+
 import { createReaderToolbarBindings } from './toolbar-bindings'
 import type { ReaderToolbarEmits } from './toolbar-emit-types'
 import type { ReaderToolbarProps } from './toolbar-prop-types'
@@ -13,9 +13,8 @@ import type { ReaderToolbarProps } from './toolbar-prop-types'
 const props = defineProps<ReaderToolbarProps>()
 const emit = defineEmits<ReaderToolbarEmits>()
 const {
-  panelsProps,
-  zenButtonProps,
-} = createReaderToolbarBindings(props)
+      panelsProps,
+    } = createReaderToolbarBindings(props)
 </script>
 
 <template>
@@ -28,7 +27,6 @@ const {
       @toggle-day-night="emit('toggleDayNight')"
       @toggle-settings="emit('toggleSettings')"
       @toggle-eye-care="emit('toggleEyeCare')"
-      @toggle-zen-mode="emit('toggleZenMode')"
       @refresh="emit('refresh')"
       @prev-chapter="emit('prevChapter')"
       @next-chapter="emit('nextChapter')"
@@ -36,9 +34,6 @@ const {
       @open-book-info="emit('openBookInfo')"
     />
 
-    <ReaderToolbarZenButton
-      v-bind="zenButtonProps"
-      @exit="emit('toggleZenMode')"
-    />
+
   </div>
 </template>

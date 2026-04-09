@@ -3,7 +3,6 @@ export type ReaderKeyboardEmits = {
   'toggle-catalog': []
   'toggle-settings': []
   'toggle-day-night': []
-  'toggle-zen-mode': []
   'toggle-help': []
   escape: []
 }

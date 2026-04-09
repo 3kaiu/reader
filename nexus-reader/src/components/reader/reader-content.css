@@ -42,10 +42,10 @@ html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter
 .reader-content-host .reader-text .content-paragraph {
   text-indent: 2em;
   word-break: break-word;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.05em;
   text-align: justify;
-  line-height: var(--p-line-height, 1.8);
-  margin-bottom: var(--p-spacing, 1.2em);
+  line-height: var(--p-line-height, 2.0);
+  margin-bottom: var(--p-spacing, 1.6em);
 }
 
 .reader-content-host .chapter-title {

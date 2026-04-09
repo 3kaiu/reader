@@ -31,7 +31,6 @@ export function createReaderToolbarBottomPanelBindings(
     onToggleDayNight: () => emit('toggleDayNight'),
     onToggleSettings: () => emit('toggleSettings'),
     onToggleEyeCare: () => emit('toggleEyeCare'),
-    onToggleZenMode: () => emit('toggleZenMode'),
     onRefresh: () => emit('refresh'),
     onOpenSourcePicker: () => emit('openSourcePicker'),
     onOpenBookInfo: () => emit('openBookInfo'),

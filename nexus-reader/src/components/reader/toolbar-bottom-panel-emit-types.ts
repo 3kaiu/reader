@@ -2,7 +2,6 @@ export type ReaderToolbarBottomPanelEmits = {
   toggleDayNight: []
   toggleSettings: []
   toggleEyeCare: []
-  toggleZenMode: []
   refresh: []
   prevChapter: []
   nextChapter: []

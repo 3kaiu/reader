@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useIntersectionObserver } from '@vueuse/core'
 import ReaderScrollFinishedState from './ReaderScrollFinishedState.vue'
 import ReaderScrollLoadActions from './ReaderScrollLoadActions.vue'
 import ReaderScrollLoadingState from './ReaderScrollLoadingState.vue'
@@ -27,13 +29,33 @@ const {
   loadingMoreProps,
   loadActionsBindings,
 } = createReaderScrollLoadStateViewBindings(props, emit)
+const rootRef = ref<HTMLElement | null>(null)
+
+useIntersectionObserver(
+  rootRef,
+  ([{ isIntersecting }]) => {
+    // 只有在屏幕底部的等待加载视图出现时，且没有发生错误，才自动加载下一章
+    if (
+      isIntersecting &&
+      !props.isLoadingMore &&
+      !props.loadError &&
+      props.hasNextChapter
+    ) {
+      emit('loadNextChapter')
+    }
+  },
+  {
+    rootMargin: '200px', // 提前 200px 触发
+  }
+)
 </script>
 
 <template>
-  <ReaderScrollLoadingState
-    v-if="showInitialParsing"
-    v-bind="initialLoadingProps"
-  />
+  <div ref="rootRef" class="w-full">
+    <ReaderScrollLoadingState
+      v-if="showInitialParsing"
+      v-bind="initialLoadingProps"
+    />
 
   <ReaderScrollLoadingState
     v-else-if="showLoadingMore"
@@ -46,4 +68,5 @@ const {
     v-else-if="showLoadActions"
     v-bind="loadActionsBindings"
   />
+  </div>
 </template>

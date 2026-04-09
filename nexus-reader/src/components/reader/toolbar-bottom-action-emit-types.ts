@@ -2,7 +2,6 @@ export type ReaderToolbarBottomActionsEmits = {
   toggleDayNight: []
   toggleSettings: []
   toggleEyeCare: []
-  toggleZenMode: []
   refresh: []
   openSourcePicker: []
   openBookInfo: []

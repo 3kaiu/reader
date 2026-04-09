@@ -5,7 +5,6 @@ export type ReaderToolbarPanelsEmits = {
   toggleDayNight: []
   toggleSettings: []
   toggleEyeCare: []
-  toggleZenMode: []
   refresh: []
   prevChapter: []
   nextChapter: []

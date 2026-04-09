@@ -1,11 +1,7 @@
 export type ReaderTheme =
   | 'white'
   | 'paper'
-  | 'sepia'
-  | 'gray'
-  | 'green'
   | 'night'
-  | 'custom'
 
 export type FontFamily =
   | 'system'

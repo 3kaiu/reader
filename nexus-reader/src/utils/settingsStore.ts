@@ -24,8 +24,8 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
   chineseConvert: 'none',
   fontSize: 18,
   fontWeight: 400,
-  lineHeight: 1.8,
-  paragraphSpacing: 1.2,
+  lineHeight: 2.0,
+  paragraphSpacing: 1.6,
   pageWidth: 800,
   autoNightMode: false,
   nightModeStartHour: 20,
@@ -38,13 +38,10 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
   perfTelemetrySampleRate: 0.05,
 }
 
-export const THEME_COLORS: Record<Exclude<ReaderTheme, 'custom'>, ThemeColors> = {
+export const THEME_COLORS: Record<ReaderTheme, ThemeColors> = {
   white: { bg: '#FFFFFF', text: '#242424' },
   paper: { bg: '#FAF7ED', text: '#38342F' },
-  sepia: { bg: '#EFE6D5', text: '#4A3B32' },
-  gray: { bg: '#F2F3F5', text: '#2B2B2B' },
-  green: { bg: '#E6F0E6', text: '#2E362C' },
-  night: { bg: '#1C1C1E', text: '#A1A1AA' },
+  night: { bg: '#191919', text: '#D1D1D6' },
 }
 
 export const FONT_FAMILY_MAP: Record<FontFamily, string> = {

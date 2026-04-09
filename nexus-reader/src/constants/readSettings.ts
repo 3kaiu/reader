@@ -12,9 +12,6 @@ export const READ_SETTINGS_THEME_OPTIONS: Array<{
 }> = [
   { key: 'white', label: '白', color: '#FFFFFF' },
   { key: 'paper', label: '护眼', color: '#FAF7ED' },
-  { key: 'sepia', label: '羊皮', color: '#EFE6D5' },
-  { key: 'gray', label: '水墨', color: '#F2F3F5' },
-  { key: 'green', label: '清新', color: '#E6F0E6' },
   { key: 'night', label: '夜间', color: '#1C1C1E', textColor: '#A1A1AA' },
 ]
 

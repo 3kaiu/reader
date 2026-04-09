@@ -5,7 +5,6 @@ export type ReaderToolbarEmits = {
   toggleDayNight: []
   toggleFullscreen: []
   toggleEyeCare: []
-  toggleZenMode: []
   refresh: []
   prevChapter: []
   nextChapter: []

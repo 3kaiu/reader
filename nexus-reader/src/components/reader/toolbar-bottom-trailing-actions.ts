@@ -14,7 +14,6 @@ export function createReaderToolbarBottomTrailingActions(
       label: '禅模式',
       icon: Settings,
       iconClass: 'w-5 h-5 text-primary',
-      onClick: () => emit('toggleZenMode'),
     },
     {
       key: 'book-info',

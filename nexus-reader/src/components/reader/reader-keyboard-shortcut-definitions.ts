@@ -13,6 +13,5 @@ export const READER_KEYBOARD_SHORTCUTS: ReaderKeyboardShortcutDefinition[] = [
   { keys: 'c', event: 'toggle-catalog' },
   { keys: 's', event: 'toggle-settings' },
   { keys: 'd', event: 'toggle-day-night' },
-  { keys: 'z', event: 'toggle-zen-mode' },
   { keys: ['?', 'h'], event: 'toggle-help' },
 ]
