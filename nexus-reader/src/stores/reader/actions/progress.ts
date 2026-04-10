@@ -1,6 +1,10 @@
 import { progressApi } from '@/api/progress'
 import { buildReaderContentBookId } from '@/utils/readerStore'
 import { savePersistedReaderProgress } from '@/utils/readerStore'
+import {
+  loadPersistedReaderProgressMeta,
+  savePersistedReaderProgressMeta,
+} from '@/utils/readerStore'
 import type { ReaderStoreState } from '../types'
 
 export function createReaderProgressHandlers(state: ReaderStoreState) {
@@ -11,6 +15,58 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
   let lastCloudSyncedIndex = -1
   let lastCloudSyncedScrollBucket: number | null = null
   let lastCloudSyncedBookId = ''
+  let lastLocalMetaTouchAt = 0
+  let lastLocalMetaTouchedIndex = -1
+  let lastLocalMetaTouchedScrollBucket: number | null = null
+
+  const touchLocalProgressMeta = () => {
+    if (!state.currentBook.value) return
+    const bookUrl = state.currentBook.value.bookUrl
+    const meta = loadPersistedReaderProgressMeta()
+    meta[bookUrl] = {
+      index: state.currentChapterIndex.value,
+      updatedAt: Date.now(),
+    }
+    savePersistedReaderProgressMeta(meta)
+  }
+
+  const touchLocalProgressMetaWithTimestamp = (updatedAt: number) => {
+    if (!state.currentBook.value) return
+    if (!Number.isFinite(updatedAt)) return
+    const bookUrl = state.currentBook.value.bookUrl
+    const meta = loadPersistedReaderProgressMeta()
+    const existing = meta[bookUrl]
+    const existingUpdatedAt =
+      existing && typeof existing.updatedAt === 'number' && Number.isFinite(existing.updatedAt)
+        ? existing.updatedAt
+        : 0
+    const nextUpdatedAt = Math.max(existingUpdatedAt, updatedAt)
+    meta[bookUrl] = {
+      index: state.currentChapterIndex.value,
+      updatedAt: nextUpdatedAt,
+    }
+    savePersistedReaderProgressMeta(meta)
+  }
+
+  const touchLocalProgressMetaThrottled = (options: {
+    scrollBucket: number | null
+    minIntervalMs: number
+  }) => {
+    const now = Date.now()
+    const index = state.currentChapterIndex.value
+    const scrollBucket = options.scrollBucket
+    if (
+      now - lastLocalMetaTouchAt < options.minIntervalMs &&
+      index === lastLocalMetaTouchedIndex &&
+      scrollBucket === lastLocalMetaTouchedScrollBucket
+    ) {
+      return
+    }
+    lastLocalMetaTouchAt = now
+    lastLocalMetaTouchedIndex = index
+    lastLocalMetaTouchedScrollBucket = scrollBucket
+    touchLocalProgressMeta()
+  }
 
   const scheduleCloudProgressSync = (options?: {
     reason?: string
@@ -46,6 +102,12 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
           ? Math.max(0, Math.min(100, Math.round(scrollPercent / 2) * 2))
           : null
 
+      // Keep local "newness" aligned with our cloud sync throttle and semantic buckets.
+      touchLocalProgressMetaThrottled({
+        scrollBucket,
+        minIntervalMs,
+      })
+
       if (
         currentBookId === lastCloudSyncedBookId &&
         currentIndex === lastCloudSyncedIndex &&
@@ -74,6 +136,8 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
 
           if (serverUpdatedAt !== null) {
             lastCloudSyncAt = serverUpdatedAt
+            // Align local "newness" with server time without regressing timestamps.
+            touchLocalProgressMetaWithTimestamp(serverUpdatedAt)
           }
 
           lastCloudSyncedBookId = currentBookId
@@ -181,11 +245,14 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
       return
     }
 
+    const bookUrl = state.currentBook.value.bookUrl
     state.progressMap.value = {
       ...state.progressMap.value,
-      [state.currentBook.value.bookUrl]: state.currentChapterIndex.value,
+      [bookUrl]: state.currentChapterIndex.value,
     }
     savePersistedReaderProgress(state.progressMap.value)
+    touchLocalProgressMeta()
+
     scheduleCloudProgressSync({ reason: 'saveProgress' })
   }
 

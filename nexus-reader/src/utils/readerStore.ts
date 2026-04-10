@@ -2,6 +2,7 @@ import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage
 import type { Book, Chapter } from '@/types/book'
 
 const PROGRESS_STORAGE_KEY = 'reader-progress'
+const PROGRESS_META_STORAGE_KEY = 'reader-progress-meta'
 const MAX_LOADED_SCROLL_CHAPTERS = 180
 
 export type ReaderLoadedChapter = {
@@ -81,6 +82,30 @@ export function loadPersistedReaderProgress(): Record<string, number> {
 export function savePersistedReaderProgress(progressMap: Record<string, number>): void {
   try {
     setLocalStorageItem(PROGRESS_STORAGE_KEY, JSON.stringify(progressMap))
+  } catch {
+    // ignore persist failures
+  }
+}
+
+export type PersistedReaderProgressMeta = {
+  index: number
+  updatedAt: number
+}
+
+export function loadPersistedReaderProgressMeta(): Record<string, PersistedReaderProgressMeta> {
+  try {
+    const raw = getLocalStorageItem(PROGRESS_META_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as Record<string, PersistedReaderProgressMeta>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function savePersistedReaderProgressMeta(
+  metaMap: Record<string, PersistedReaderProgressMeta>
+): void {
+  try {
+    setLocalStorageItem(PROGRESS_META_STORAGE_KEY, JSON.stringify(metaMap))
   } catch {
     // ignore persist failures
   }
