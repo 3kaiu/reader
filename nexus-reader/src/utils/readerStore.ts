@@ -1,7 +1,4 @@
-import {
-  getLocalStorageItem,
-  setLocalStorageItem,
-} from '@/utils/browserStorage'
+import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage'
 import type { Book, Chapter } from '@/types/book'
 
 const PROGRESS_STORAGE_KEY = 'reader-progress'
@@ -20,7 +17,10 @@ export type ReaderBook = Book & {
 }
 
 function sanitizeCacheSegment(value: string): string {
-  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_')
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
   return normalized.replace(/^_+|_+$/g, '') || 'source'
 }
 
@@ -78,9 +78,7 @@ export function loadPersistedReaderProgress(): Record<string, number> {
   }
 }
 
-export function savePersistedReaderProgress(
-  progressMap: Record<string, number>
-): void {
+export function savePersistedReaderProgress(progressMap: Record<string, number>): void {
   try {
     setLocalStorageItem(PROGRESS_STORAGE_KEY, JSON.stringify(progressMap))
   } catch {
@@ -98,7 +96,7 @@ export function normalizeReaderCatalog(chapters: Chapter[]): Chapter[] {
 export function createLoadedChapter(
   chapter: Chapter,
   chapterContent: string,
-  options: { formattedContent?: string } = {},
+  options: { formattedContent?: string } = {}
 ): ReaderLoadedChapter {
   return {
     index: chapter.index,

@@ -3,8 +3,9 @@ export type ReaderToolbarActionButtonEmits = {
   contextmenu: [event: MouseEvent]
 }
 
-export type ReaderToolbarActionButtonEmitFn =
-  <EventName extends keyof ReaderToolbarActionButtonEmits>(
-    event: EventName,
-    ...args: ReaderToolbarActionButtonEmits[EventName]
-  ) => void
+export type ReaderToolbarActionButtonEmitFn = <
+  EventName extends keyof ReaderToolbarActionButtonEmits,
+>(
+  event: EventName,
+  ...args: ReaderToolbarActionButtonEmits[EventName]
+) => void

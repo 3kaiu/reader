@@ -23,19 +23,12 @@ const emit = defineEmits<{
   error: []
 }>()
 
-const {
-  containerRef,
-  isLoaded,
-  hasError,
-  currentSrc,
-  shouldLoad,
-  handleLoad,
-  handleImageError,
-} = useLazyImage(props, emit)
+const { containerRef, isLoaded, hasError, currentSrc, shouldLoad, handleLoad, handleImageError } =
+  useLazyImage(props, emit)
 </script>
 
 <template>
-  <div 
+  <div
     ref="containerRef"
     class="lazy-image-root relative overflow-hidden bg-muted/30"
     :class="props.class"
@@ -48,7 +41,7 @@ const {
       height="100%"
       class-name="absolute inset-0 z-[1]"
     />
-    
+
     <!-- 实际图片 -->
     <img
       v-if="shouldLoad && !hasError"
@@ -58,14 +51,14 @@ const {
       decoding="async"
       class="w-full h-full object-cover transition-all duration-700 ease-out will-change-transform"
       :class="[
-        isLoaded && !props.loading ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-110 blur-sm'
+        isLoaded && !props.loading ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-110 blur-sm',
       ]"
       @load="handleLoad"
       @error="handleImageError"
     />
-    
+
     <!-- 错误状态 -->
-    <div 
+    <div
       v-if="hasError || !src"
       class="absolute inset-0 flex items-center justify-center bg-muted/10"
     >

@@ -1,44 +1,42 @@
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
-import {
-  LoadingGrid,
-} from "@/components/common";
-import type { SourceListItem } from "@/stores/source";
-import SourcesLocalEmptyState from "./SourcesLocalEmptyState.vue";
-import SourceListCard from "./SourceListCard.vue";
-import SourcesLocalToolbar from "./SourcesLocalToolbar.vue";
+import { X } from 'lucide-vue-next'
+import { LoadingGrid } from '@/components/common'
+import type { SourceListItem } from '@/stores/source'
+import SourcesLocalEmptyState from './SourcesLocalEmptyState.vue'
+import SourceListCard from './SourceListCard.vue'
+import SourcesLocalToolbar from './SourcesLocalToolbar.vue'
 
 type SourceStats = {
-  total: number;
-  enabled: number;
-  unhealthy: number;
-  openCircuit: number;
-  filtered: number;
-  selected: number;
-};
+  total: number
+  enabled: number
+  unhealthy: number
+  openCircuit: number
+  filtered: number
+  selected: number
+}
 
 defineProps<{
-  searchKeyword: string;
-  activeGroup: string;
-  groups: [string, number][];
-  loading: boolean;
-  filteredSources: SourceListItem[];
-  isManageMode: boolean;
-  stats: SourceStats;
-  isSourceSelected: (source: SourceListItem) => boolean;
-}>();
+  searchKeyword: string
+  activeGroup: string
+  groups: [string, number][]
+  loading: boolean
+  filteredSources: SourceListItem[]
+  isManageMode: boolean
+  stats: SourceStats
+  isSourceSelected: (source: SourceListItem) => boolean
+}>()
 
 const emit = defineEmits<{
-  "update:activeGroup": [value: string];
-  toggleManageMode: [];
-  toggleSelect: [source: SourceListItem];
-  openEdit: [source: SourceListItem];
-  toggleEnable: [source: SourceListItem, enabled: boolean];
-  deleteSource: [source: SourceListItem];
-  deleteGroupSources: [groupName: string];
-  openImport: [];
-  resetFilters: [];
-}>();
+  'update:activeGroup': [value: string]
+  toggleManageMode: []
+  toggleSelect: [source: SourceListItem]
+  openEdit: [source: SourceListItem]
+  toggleEnable: [source: SourceListItem, enabled: boolean]
+  deleteSource: [source: SourceListItem]
+  deleteGroupSources: [groupName: string]
+  openImport: []
+  resetFilters: []
+}>()
 </script>
 
 <template>
@@ -108,9 +106,7 @@ const emit = defineEmits<{
         :is-selected="isSourceSelected(source)"
         @toggle-select="emit('toggleSelect', $event)"
         @open-edit="emit('openEdit', $event)"
-        @toggle-enable="
-          (source, enabled) => emit('toggleEnable', source, enabled)
-        "
+        @toggle-enable="(source, enabled) => emit('toggleEnable', source, enabled)"
         @delete-source="emit('deleteSource', $event)"
       />
     </div>

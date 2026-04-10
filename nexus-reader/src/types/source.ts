@@ -5,12 +5,7 @@ export type SourceLicenseStatus =
   | 'restricted'
   | 'blocked'
 
-export type SourceAccessMode =
-  | 'unknown'
-  | 'api'
-  | 'feed'
-  | 'public_archive'
-  | 'manual_import'
+export type SourceAccessMode = 'unknown' | 'api' | 'feed' | 'public_archive' | 'manual_import'
 
 export interface SourcePolicy {
   licenseStatus?: SourceLicenseStatus

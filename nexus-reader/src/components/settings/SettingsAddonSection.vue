@@ -1,25 +1,23 @@
 <script setup lang="ts">
-import { Brain } from "lucide-vue-next";
-import { ADDON_FEATURE_TOGGLES } from "@/constants/addons";
-import { Switch } from "@/components/ui/switch";
-import type { OptionalFeature } from "@/utils/features";
+import { Brain } from 'lucide-vue-next'
+import { ADDON_FEATURE_TOGGLES } from '@/constants/addons'
+import { Switch } from '@/components/ui/switch'
+import type { OptionalFeature } from '@/utils/features'
 
 defineProps<{
-  addonFeatures: Record<string, boolean>;
-}>();
+  addonFeatures: Record<string, boolean>
+}>()
 
 const emit = defineEmits<{
-  updateAddonFeature: [feature: OptionalFeature, enabled: boolean];
-}>();
+  updateAddonFeature: [feature: OptionalFeature, enabled: boolean]
+}>()
 </script>
 
 <template>
   <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div class="flex items-center gap-2 mb-4 px-1">
       <Brain class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-        附属功能
-      </h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">附属功能</h2>
     </div>
 
     <div class="space-y-3 mb-4">
@@ -50,6 +48,5 @@ const emit = defineEmits<{
         </div>
       </div>
     </div>
-
   </section>
 </template>

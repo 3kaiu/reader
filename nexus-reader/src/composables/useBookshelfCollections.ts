@@ -28,8 +28,7 @@ export function useBookshelfCollections(options: {
         sourceCount,
         cachePercent: cacheStatus.percentage,
         isFullyCached:
-          cacheStatus.cached >= (book.totalChapterNum || 0) &&
-          (book.totalChapterNum || 0) > 0,
+          cacheStatus.cached >= (book.totalChapterNum || 0) && (book.totalChapterNum || 0) > 0,
       }
     })
   )
@@ -41,9 +40,7 @@ export function useBookshelfCollections(options: {
     const filteredBooks =
       options.currentGroupId.value === 'all'
         ? booksWithStatus.value
-        : booksWithStatus.value.filter(
-            book => book.groupId === options.currentGroupId.value
-          )
+        : booksWithStatus.value.filter(book => book.groupId === options.currentGroupId.value)
 
     return sortBooksByLastRead(filteredBooks)
   })

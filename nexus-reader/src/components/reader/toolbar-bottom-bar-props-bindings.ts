@@ -2,9 +2,7 @@ import { computed } from 'vue'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 import type { ReaderToolbarProps } from './toolbar-prop-types'
 
-export function createReaderToolbarBottomBarPropsBindings(
-  props: ReaderToolbarProps,
-) {
+export function createReaderToolbarBottomBarPropsBindings(props: ReaderToolbarProps) {
   return computed<ReaderToolbarBottomBarProps>(() => ({
     show: props.show,
     zenMode: props.zenMode,
@@ -15,6 +13,5 @@ export function createReaderToolbarBottomBarPropsBindings(
     isNightMode: props.isNightMode,
     isEyeCareEnabled: props.isEyeCareEnabled,
     contentIssue: props.contentIssue,
-    isDecoding: props.isDecoding,
   }))
 }

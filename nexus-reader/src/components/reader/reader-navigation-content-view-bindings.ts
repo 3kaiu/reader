@@ -1,10 +1,6 @@
 import { computed } from 'vue'
-import type {
-  ReaderNavigationContentEmitFn,
-} from './reader-navigation-content-emit-types'
-import type {
-  ReaderNavigationContentProps,
-} from './reader-navigation-content-prop-types'
+import type { ReaderNavigationContentEmitFn } from './reader-navigation-content-emit-types'
+import type { ReaderNavigationContentProps } from './reader-navigation-content-prop-types'
 import type {
   ReaderNavigationButtonBindings,
   ReaderNavigationContentViewBindingResult,
@@ -12,7 +8,7 @@ import type {
 
 export function createReaderNavigationContentViewBindings(
   props: ReaderNavigationContentProps,
-  emit: ReaderNavigationContentEmitFn,
+  emit: ReaderNavigationContentEmitFn
 ): ReaderNavigationContentViewBindingResult {
   const previousButtonBindings = computed<ReaderNavigationButtonBindings>(() => ({
     disabled: !props.hasPrevChapter,

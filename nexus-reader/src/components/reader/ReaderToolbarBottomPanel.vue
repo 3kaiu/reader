@@ -2,24 +2,15 @@
 import ReaderNavigation from './ReaderNavigation.vue'
 import ReaderProgress from './ReaderProgress.vue'
 import ReaderToolbarBottomActions from './ReaderToolbarBottomActions.vue'
-import {
-  createReaderToolbarBottomPanelBindings,
-} from './toolbar-bottom-panel-bindings'
-import type {
-  ReaderToolbarBottomPanelEmits,
-} from './toolbar-bottom-panel-emit-types'
-import type {
-  ReaderToolbarBottomPanelProps,
-} from './toolbar-bottom-panel-prop-types'
+import { createReaderToolbarBottomPanelBindings } from './toolbar-bottom-panel-bindings'
+import type { ReaderToolbarBottomPanelEmits } from './toolbar-bottom-panel-emit-types'
+import type { ReaderToolbarBottomPanelProps } from './toolbar-bottom-panel-prop-types'
 
 const props = defineProps<ReaderToolbarBottomPanelProps>()
 
 const emit = defineEmits<ReaderToolbarBottomPanelEmits>()
-const {
-  navigationBindings,
-  progressProps,
-  actionBindings,
-} = createReaderToolbarBottomPanelBindings(props, emit)
+const { navigationBindings, progressProps, actionBindings } =
+  createReaderToolbarBottomPanelBindings(props, emit)
 </script>
 
 <template>

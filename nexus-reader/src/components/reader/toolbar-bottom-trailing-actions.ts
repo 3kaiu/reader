@@ -1,12 +1,9 @@
-import {
-  BookOpen,
-  Settings,
-} from 'lucide-vue-next'
+import { BookOpen, Settings } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
 import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
 
 export function createReaderToolbarBottomTrailingActions(
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
   return [
     {
@@ -14,6 +11,7 @@ export function createReaderToolbarBottomTrailingActions(
       label: '禅模式',
       icon: Settings,
       iconClass: 'w-5 h-5 text-primary',
+      onClick: () => emit('toggleZenMode'),
     },
     {
       key: 'book-info',

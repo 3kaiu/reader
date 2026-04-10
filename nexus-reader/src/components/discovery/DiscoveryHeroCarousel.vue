@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Badge } from "@/components/ui/badge";
-import { LazyImage } from "@/components/ui";
-import type { DiscoveryItem } from "@/types/discovery";
+import { Badge } from '@/components/ui/badge'
+import { LazyImage } from '@/components/ui'
+import type { DiscoveryItem } from '@/types/discovery'
 
 defineProps<{
-  items: DiscoveryItem[];
-}>();
+  items: DiscoveryItem[]
+}>()
 
 const emit = defineEmits<{
-  open: [item: DiscoveryItem];
-}>();
+  open: [item: DiscoveryItem]
+}>()
 </script>
 
 <template>
@@ -42,10 +42,7 @@ const emit = defineEmits<{
             <h2 class="text-xl sm:text-2xl font-bold text-white mb-1 line-clamp-1">
               {{ book.name }}
             </h2>
-            <p
-              v-if="book.intro"
-              class="text-white/70 text-sm line-clamp-2 max-w-[90%]"
-            >
+            <p v-if="book.intro" class="text-white/70 text-sm line-clamp-2 max-w-[90%]">
               {{ book.intro }}
             </p>
           </div>

@@ -1,7 +1,4 @@
-import type {
-  NetworkInfo,
-  NetworkQuality,
-} from '../types'
+import type { NetworkInfo, NetworkQuality } from '../types'
 
 export function getNetworkQualityFromInfo(info: NetworkInfo): NetworkQuality {
   if (!info.isOnline) {

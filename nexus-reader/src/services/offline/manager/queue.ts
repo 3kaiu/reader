@@ -9,7 +9,7 @@ import type {
 
 export function clearOfflineQueue(
   state: OfflineManagerRuntimeState,
-  options: OfflineManagerQueueOptions,
+  options: OfflineManagerQueueOptions
 ): void {
   state.operationQueue = []
   void nexusDB
@@ -21,7 +21,7 @@ export function clearOfflineQueue(
 
 export async function queueOfflineOperation(
   operation: OfflineOperationInput,
-  options: Pick<OfflineManagerQueueOptions, 'refreshPersistedState'>,
+  options: Pick<OfflineManagerQueueOptions, 'refreshPersistedState'>
 ): Promise<void> {
   await syncManager.addTask({
     type: operation.type,
@@ -35,7 +35,7 @@ export async function queueOfflineOperation(
 }
 
 export async function syncOfflineQueue(
-  options: Pick<OfflineManagerQueueOptions, 'refreshPersistedState'>,
+  options: Pick<OfflineManagerQueueOptions, 'refreshPersistedState'>
 ): Promise<void> {
   logger.info('🔄 Triggering sync via SyncManager...')
   await syncManager.processQueue()

@@ -17,14 +17,14 @@ export type ParsedSourceImport = {
 function isNxsSource(source: unknown): source is SourceDefinition {
   return Boolean(
     source &&
-      typeof source === 'object' &&
-      'id' in source &&
-      'name' in source &&
-      'url' in source &&
-      'search' in source &&
-      'book' in source &&
-      'toc' in source &&
-      'content' in source,
+    typeof source === 'object' &&
+    'id' in source &&
+    'name' in source &&
+    'url' in source &&
+    'search' in source &&
+    'book' in source &&
+    'toc' in source &&
+    'content' in source
   )
 }
 

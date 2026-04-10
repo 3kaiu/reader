@@ -130,7 +130,9 @@ export function validatePerformance(
     const averageTimes = stats.averageResponseTimes || {}
     Object.entries(averageTimes).forEach(([endpoint, averageTime]) => {
       if ((averageTime as number) > thresholds.maxResponseTime!) {
-        violations.push(`${endpoint} average response time ${averageTime}ms exceeds ${thresholds.maxResponseTime}ms`)
+        violations.push(
+          `${endpoint} average response time ${averageTime}ms exceeds ${thresholds.maxResponseTime}ms`
+        )
       }
     })
   }
@@ -139,7 +141,9 @@ export function validatePerformance(
     const memoryUsage = stats.memoryUsage || {}
     Object.entries(memoryUsage).forEach(([component, usage]) => {
       if ((usage as number) > thresholds.maxMemoryUsage!) {
-        violations.push(`${component} memory usage ${usage} bytes exceeds ${thresholds.maxMemoryUsage} bytes`)
+        violations.push(
+          `${component} memory usage ${usage} bytes exceeds ${thresholds.maxMemoryUsage} bytes`
+        )
       }
     })
   }

@@ -5,30 +5,24 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import type { BookshelfMenuGroup } from "@/constants/bookshelf";
+} from '@/components/ui/dropdown-menu'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import type { BookshelfMenuGroup } from '@/constants/bookshelf'
 
 defineProps<{
-  open: boolean;
-  isDesktop: boolean;
-  menuGroups: BookshelfMenuGroup[];
-}>();
+  open: boolean
+  isDesktop: boolean
+  menuGroups: BookshelfMenuGroup[]
+}>()
 
 const emit = defineEmits<{
-  "update:open": [value: boolean];
-  navigate: [path: string];
-}>();
+  'update:open': [value: boolean]
+  navigate: [path: string]
+}>()
 
 function handleSheetNavigation(path: string) {
-  emit("navigate", path);
-  emit("update:open", false);
+  emit('navigate', path)
+  emit('update:open', false)
 }
 </script>
 
@@ -72,17 +66,12 @@ function handleSheetNavigation(path: string) {
               <span class="text-[13px] font-medium text-foreground leading-none">
                 {{ item.label }}
               </span>
-              <span
-                class="text-[11px] text-muted-foreground truncate leading-none opacity-80"
-              >
+              <span class="text-[11px] text-muted-foreground truncate leading-none opacity-80">
                 {{ item.desc }}
               </span>
             </div>
           </DropdownMenuItem>
-          <DropdownMenuSeparator
-            v-if="idx < menuGroups.length - 1"
-            class="my-1 opacity-50"
-          />
+          <DropdownMenuSeparator v-if="idx < menuGroups.length - 1" class="my-1 opacity-50" />
         </div>
       </div>
     </DropdownMenuContent>

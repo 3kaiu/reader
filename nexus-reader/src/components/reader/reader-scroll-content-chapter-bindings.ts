@@ -1,7 +1,5 @@
 import { computed } from 'vue'
-import type {
-  ReaderScrollChapterListProps,
-} from './reader-scroll-chapter-list-prop-types'
+import type { ReaderScrollChapterListProps } from './reader-scroll-chapter-list-prop-types'
 import type { ReaderScrollContentProps } from './reader-scroll-content-prop-types'
 
 export function createReaderScrollChapterListBindings(
@@ -12,7 +10,7 @@ export function createReaderScrollChapterListBindings(
     | 'handleContentClick'
     | 'contentStyle'
     | 'paragraphSpacing'
-  >,
+  >
 ) {
   const layoutVersion = computed(() => {
     const contentStyle = props.contentStyle || {}

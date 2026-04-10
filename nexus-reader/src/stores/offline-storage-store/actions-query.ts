@@ -10,15 +10,14 @@ export function createOfflineStoreQueryActions(options: {
 }) {
   const getBookCacheStatus: OfflineStoreActions['getBookCacheStatus'] = (
     bookUrl,
-    totalChapters,
+    totalChapters
   ) => {
     const cached = options.state.offlineState.value.items.filter(
-      item => item.type === 'chapter' && item.bookUrl === bookUrl,
+      item => item.type === 'chapter' && item.bookUrl === bookUrl
     ).length
 
     const safeTotal = Math.max(totalChapters, 0)
-    const percentage =
-      safeTotal > 0 ? Math.min(100, Math.round((cached / safeTotal) * 100)) : 0
+    const percentage = safeTotal > 0 ? Math.min(100, Math.round((cached / safeTotal) * 100)) : 0
 
     return {
       cached,

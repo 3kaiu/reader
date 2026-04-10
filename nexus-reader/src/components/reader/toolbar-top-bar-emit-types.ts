@@ -4,8 +4,7 @@ export type ReaderToolbarTopBarEmits = {
   toggleFullscreen: []
 }
 
-export type ReaderToolbarTopBarEmitFn =
-  <EventName extends keyof ReaderToolbarTopBarEmits>(
-    event: EventName,
-    ...args: ReaderToolbarTopBarEmits[EventName]
-  ) => void
+export type ReaderToolbarTopBarEmitFn = <EventName extends keyof ReaderToolbarTopBarEmits>(
+  event: EventName,
+  ...args: ReaderToolbarTopBarEmits[EventName]
+) => void

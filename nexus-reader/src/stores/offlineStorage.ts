@@ -12,10 +12,7 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
   const state = createOfflineStoreState()
   const view = createOfflineStoreView(state)
   const helpers = createOfflineStoreHelpers(state)
-  const {
-    initialize,
-    ...actions
-  } = createOfflineStoreActions(state, helpers)
+  const { initialize, ...actions } = createOfflineStoreActions(state, helpers)
 
   void initialize()
 

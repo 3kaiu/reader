@@ -8,9 +8,7 @@ export interface ReaderChromeBindingState {
   showSourcePicker: ReaderChromeState['showSourcePicker']
   showBookInfo: ReaderChromeState['showBookInfo']
   showKeyboardHelp: ReaderChromeState['showKeyboardHelp']
-  showDecoderSettings: ReaderChromeState['showDecoderSettings']
 }
 
 export interface ReaderChromeBindingsResult
-  extends Omit<ReaderChromeActionsResult, 'clearHideTimer'>,
-  ReaderChromeBindingState {}
+  extends Omit<ReaderChromeActionsResult, 'clearHideTimer'>, ReaderChromeBindingState {}

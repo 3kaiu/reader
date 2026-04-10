@@ -18,6 +18,8 @@ export function createReaderStoreState(): ReaderStoreState {
     loadError: ref<string | null>(null),
     loadErrorDetails: ref<string | null>(null),
     progressMap: ref(loadPersistedReaderProgress()),
+    resumeScrollPercent: ref(null),
+    resumeScrollChapterIndex: ref(null),
     chapterContentCache: ref({}),
     contentStageReports: ref([]),
   }

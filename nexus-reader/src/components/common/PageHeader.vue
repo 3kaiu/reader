@@ -18,28 +18,31 @@ interface HeaderAction {
   hideLabelOnMobile?: boolean
 }
 
-const props = withDefaults(defineProps<{
-  searchPlaceholder?: string
-  searchValue?: string
-  actions?: HeaderAction[]
-  showBack?: boolean
-  backTo?: string | (() => void)
-}>(), {
-  searchPlaceholder: '搜索...',
-  searchValue: '',
-  actions: () => [],
-  showBack: true,
-  backTo: '/',
-})
+const props = withDefaults(
+  defineProps<{
+    searchPlaceholder?: string
+    searchValue?: string
+    actions?: HeaderAction[]
+    showBack?: boolean
+    backTo?: string | (() => void)
+  }>(),
+  {
+    searchPlaceholder: '搜索...',
+    searchValue: '',
+    actions: () => [],
+    showBack: true,
+    backTo: '/',
+  }
+)
 
 const emit = defineEmits<{
   'update:searchValue': [value: string]
-  'back': []
+  back: []
 }>()
 
 const searchModel = computed({
   get: () => props.searchValue,
-  set: (value) => emit('update:searchValue', value),
+  set: value => emit('update:searchValue', value),
 })
 
 function handleBack() {
@@ -63,16 +66,14 @@ function handleBack() {
     >
       <ArrowLeft class="h-5 w-5 text-muted-foreground" />
     </button>
-    
+
     <!-- 左侧扩展区域 (例如 Tabs) -->
     <slot name="left" />
 
     <!-- 搜索框（居中） -->
     <div class="flex-1 flex justify-center">
       <div class="relative group w-full max-w-md">
-        <div
-          class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10"
-        >
+        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
           <Search
             class="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
           />
@@ -89,9 +90,7 @@ function handleBack() {
           @click="searchModel = ''"
           aria-label="清除"
         >
-          <X
-            class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-          />
+          <X class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
         </button>
       </div>
     </div>

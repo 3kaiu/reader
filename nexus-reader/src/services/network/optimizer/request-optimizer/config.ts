@@ -1,7 +1,4 @@
-import type {
-  NetworkQuality,
-  RequestOptimizationConfig,
-} from '../types'
+import type { NetworkQuality, RequestOptimizationConfig } from '../types'
 
 export const REQUEST_OPTIMIZATION_CONFIGS = {
   excellent: {

@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { Button } from "@/components/ui/button";
-import type { SearchSourceOption } from "@/types/search";
-import SearchQueryBar from "./SearchQueryBar.vue";
-import SearchSourceFilters from "./SearchSourceFilters.vue";
+import { Button } from '@/components/ui/button'
+import type { SearchSourceOption } from '@/types/search'
+import SearchQueryBar from './SearchQueryBar.vue'
+import SearchSourceFilters from './SearchSourceFilters.vue'
 
 defineProps<{
-  searchKeyword: string;
-  searchHistory: string[];
-  loading: boolean;
-  availableSources: SearchSourceOption[];
-  selectedSources: Set<string>;
-}>();
+  searchKeyword: string
+  searchHistory: string[]
+  loading: boolean
+  availableSources: SearchSourceOption[]
+  selectedSources: Set<string>
+}>()
 
 const emit = defineEmits<{
-  (e: "update:searchKeyword", value: string): void;
-  (e: "search", keyword?: string): void;
-  (e: "clearHistory"): void;
-  (e: "goBack"): void;
-  (e: "stopSearch"): void;
-  (e: "toggleSource", sourceId: string): void;
-  (e: "clearSourceFilter"): void;
-}>();
+  (e: 'update:searchKeyword', value: string): void
+  (e: 'search', keyword?: string): void
+  (e: 'clearHistory'): void
+  (e: 'goBack'): void
+  (e: 'stopSearch'): void
+  (e: 'toggleSource', sourceId: string): void
+  (e: 'clearSourceFilter'): void
+}>()
 </script>
 
 <template>

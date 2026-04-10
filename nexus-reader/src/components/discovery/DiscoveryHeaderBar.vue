@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import { Calendar, ChevronLeft, Sparkles } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
+import { Calendar, ChevronLeft, Sparkles } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 
 type DiscoveryPeriodOption = {
-  value: string;
-  label: string;
-  active: boolean;
-};
+  value: string
+  label: string
+  active: boolean
+}
 
 defineProps<{
-  hasData: boolean;
-  currentPeriodLabel: string;
-  currentPeriodButtonLabel: string;
-  dateRangeLabel: string;
-  periodOptions: DiscoveryPeriodOption[];
-}>();
+  hasData: boolean
+  currentPeriodLabel: string
+  currentPeriodButtonLabel: string
+  dateRangeLabel: string
+  periodOptions: DiscoveryPeriodOption[]
+}>()
 
 const emit = defineEmits<{
-  back: [];
-  changePeriod: [period: string];
-}>();
+  back: []
+  changePeriod: [period: string]
+}>()
 </script>
 
 <template>
@@ -68,7 +68,7 @@ const emit = defineEmits<{
             :key="option.value"
             @click="emit('changePeriod', option.value)"
             class="flex items-center justify-between py-2.5 px-3 cursor-pointer"
-          :class="option.active ? 'bg-primary/10 text-primary font-bold' : ''"
+            :class="option.active ? 'bg-primary/10 text-primary font-bold' : ''"
           >
             <span class="text-sm">{{ option.label }}</span>
             <Sparkles v-if="option.active" class="h-3 w-3" />

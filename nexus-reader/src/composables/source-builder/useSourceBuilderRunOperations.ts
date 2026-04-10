@@ -17,9 +17,7 @@ type UseSourceBuilderRunOperationsOptions = {
   lastFetchDebug: Ref<SourceFetchDebugInfo | null>
 }
 
-export function useSourceBuilderRunOperations(
-  options: UseSourceBuilderRunOperationsOptions
-) {
+export function useSourceBuilderRunOperations(options: UseSourceBuilderRunOperationsOptions) {
   const { success, warning } = useMessage()
   const CONTENT_MIN_LEN = 120
 
@@ -149,7 +147,9 @@ export function useSourceBuilderRunOperations(
   })
 
   const runSearchDetailSuggestedActions = computed(() => {
-    const payload = runSearchDetailResult.value as { step?: SourceValidationStepReport | null } | null
+    const payload = runSearchDetailResult.value as {
+      step?: SourceValidationStepReport | null
+    } | null
     return payload?.step?.suggestedActions ?? []
   })
 
@@ -273,7 +273,10 @@ export function useSourceBuilderRunOperations(
   function extractTocTarget(detailResult: RunByPackageResult, fallback: string): string {
     const payload = detailResult.result
     if (payload && typeof payload === 'object') {
-      const tocUrl = extractStringField(payload as Record<string, unknown>, ['tocUrl', 'catalogUrl'])
+      const tocUrl = extractStringField(payload as Record<string, unknown>, [
+        'tocUrl',
+        'catalogUrl',
+      ])
       if (tocUrl) return tocUrl
     }
     return fallback
@@ -545,9 +548,8 @@ export function useSourceBuilderRunOperations(
         }
       }
 
-      const chapterCount = chaptersResult && Array.isArray(chaptersResult.result)
-        ? chaptersResult.result.length
-        : 0
+      const chapterCount =
+        chaptersResult && Array.isArray(chaptersResult.result) ? chaptersResult.result.length : 0
       const chapterUrl = chaptersResult ? extractChapterTarget(chaptersResult) : ''
       if (chaptersResult && !chapterUrl) {
         reasons.push('chapters:no_content_candidate')
@@ -597,7 +599,10 @@ export function useSourceBuilderRunOperations(
     passRateThreshold?: number
   }) {
     const sampleSize = Math.max(1, Math.min(30, Math.trunc(optionsOverride?.sampleSize ?? 10)))
-    const passRateThreshold = Math.max(1, Math.min(100, Math.trunc(optionsOverride?.passRateThreshold ?? 100)))
+    const passRateThreshold = Math.max(
+      1,
+      Math.min(100, Math.trunc(optionsOverride?.passRateThreshold ?? 100))
+    )
     runLoading.value = true
     runContentSmokeSummary.value = []
     runContentSmokeFailures.value = []
@@ -679,8 +684,9 @@ export function useSourceBuilderRunOperations(
           passed += 1
           continue
         }
-        const reason = contentResult?.step?.failureCode
-          || (contentLen < CONTENT_MIN_LEN ? `content_too_short(${contentLen})` : 'content_failed')
+        const reason =
+          contentResult?.step?.failureCode ||
+          (contentLen < CONTENT_MIN_LEN ? `content_too_short(${contentLen})` : 'content_failed')
         failures.push(`#${i + 1} ${chapter.title || '--'} -> ${reason}`)
       }
 

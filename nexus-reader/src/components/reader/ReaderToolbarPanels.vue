@@ -8,10 +8,7 @@ import type { ReaderToolbarPanelsProps } from './toolbar-panels-prop-types'
 const props = defineProps<ReaderToolbarPanelsProps>()
 
 const emit = defineEmits<ReaderToolbarPanelsEmits>()
-const {
-  topBarBindings,
-  bottomBarBindings,
-} = createReaderToolbarPanelsBindings(props, emit)
+const { topBarBindings, bottomBarBindings } = createReaderToolbarPanelsBindings(props, emit)
 </script>
 
 <template>

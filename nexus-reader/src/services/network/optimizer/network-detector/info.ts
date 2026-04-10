@@ -34,10 +34,7 @@ export function detectNetworkInfo(): NetworkInfo {
   return getFallbackNetworkInfo()
 }
 
-export function hasNetworkChanged(
-  currentInfo: NetworkInfo | null,
-  nextInfo: NetworkInfo,
-): boolean {
+export function hasNetworkChanged(currentInfo: NetworkInfo | null, nextInfo: NetworkInfo): boolean {
   if (!currentInfo) {
     return true
   }

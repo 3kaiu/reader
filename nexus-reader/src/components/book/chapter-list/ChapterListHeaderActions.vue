@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import {
-  ArrowDown,
-  ArrowUp,
-  CloudDownload,
-  Locate,
-  RotateCw,
-} from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, CloudDownload, Locate, RotateCw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
 defineProps<{
@@ -46,12 +40,7 @@ const emit = defineEmits<{
       定位
     </Button>
 
-    <Button
-      variant="outline"
-      size="sm"
-      class="flex-1 h-8 text-xs gap-1"
-      @click="emit('refresh')"
-    >
+    <Button variant="outline" size="sm" class="flex-1 h-8 text-xs gap-1" @click="emit('refresh')">
       <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
       刷新
     </Button>
@@ -64,10 +53,7 @@ const emit = defineEmits<{
       :disabled="isDownloading"
       @click="emit('download-all')"
     >
-      <CloudDownload
-        class="h-3.5 w-3.5"
-        :class="{ 'animate-pulse': isDownloading }"
-      />
+      <CloudDownload class="h-3.5 w-3.5" :class="{ 'animate-pulse': isDownloading }" />
       {{ isDownloading ? '下载中' : '缓存全本' }}
     </Button>
   </div>

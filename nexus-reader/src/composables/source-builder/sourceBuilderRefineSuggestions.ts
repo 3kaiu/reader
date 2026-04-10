@@ -24,22 +24,19 @@ type RefineSuggestionMutators = {
 export function hasStructuredSourceRuleHints(value: SourceRuleHints) {
   return Boolean(
     value.searchEntry ||
-      value.searchResultSelector ||
-      value.bookTitleSelector ||
-      value.authorSelector ||
-      value.introSelector ||
-      value.tocItemSelector ||
-      value.contentSelector ||
-      value.contentTitleSelector ||
-      value.paginationSelector ||
-      value.noisePatterns.length > 0
+    value.searchResultSelector ||
+    value.bookTitleSelector ||
+    value.authorSelector ||
+    value.introSelector ||
+    value.tocItemSelector ||
+    value.contentSelector ||
+    value.contentTitleSelector ||
+    value.paginationSelector ||
+    value.noisePatterns.length > 0
   )
 }
 
-export function mergeNoisePatterns(
-  hints: SourceRuleHints,
-  patterns: string[]
-): SourceRuleHints {
+export function mergeNoisePatterns(hints: SourceRuleHints, patterns: string[]): SourceRuleHints {
   return {
     ...hints,
     noisePatterns: Array.from(
@@ -122,7 +119,8 @@ export function buildRefineSuggestions(
           id: 'search-jina-fallback',
           step: step.step,
           title: '启用 Jina 外部发现补位',
-          detail: '当前包未验证 native_search，可先通过 jina_search 命中详情页，再补 search_curl 回修原生搜索规则。',
+          detail:
+            '当前包未验证 native_search，可先通过 jina_search 命中详情页，再补 search_curl 回修原生搜索规则。',
           kind: 'free_text',
           applyLabel: '追加 Jina 搜索提示',
           apply: () => {
@@ -170,13 +168,19 @@ export function buildRefineSuggestions(
 
     if (
       step.step === 'search_detail' &&
-      ['detail_mismatch', 'detail_cross_site', 'detail_fetch_failed', 'detail_selector_miss'].includes(code)
+      [
+        'detail_mismatch',
+        'detail_cross_site',
+        'detail_fetch_failed',
+        'detail_selector_miss',
+      ].includes(code)
     ) {
       suggestions.push({
         id: 'search-detail-url-fallback',
         step: step.step,
         title: '修正搜索详情链接提取',
-        detail: '搜索结果能出来，但跳到详情页失败，优先修正 search item url selector 或增加结果过滤。',
+        detail:
+          '搜索结果能出来，但跳到详情页失败，优先修正 search item url selector 或增加结果过滤。',
         kind: 'structured',
         applyLabel: '填充 url selector',
         apply: () => {
@@ -229,8 +233,7 @@ export function buildRefineSuggestions(
           apply: () => {
             updateStructuredHints(current => ({
               ...current,
-              bookTitleSelector:
-                "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
+              bookTitleSelector: "h1 | .book-title | .title | .info h1 | meta[property='og:title']",
               authorSelector: '.author | .book-author | .info .author | p.author',
             }))
           },
@@ -318,7 +321,8 @@ export function buildRefineSuggestions(
           id: `content-trafilatura-${code}`,
           step: step.step,
           title: '按 Trafilatura 结果收窄正文',
-          detail: 'Trafilatura 提取的连续正文更干净，优先围绕它暴露出的段落边界修正 content selector 和噪音清洗。',
+          detail:
+            'Trafilatura 提取的连续正文更干净，优先围绕它暴露出的段落边界修正 content selector 和噪音清洗。',
           kind: 'free_text',
           applyLabel: '追加 Trafilatura 提示',
           apply: () => {

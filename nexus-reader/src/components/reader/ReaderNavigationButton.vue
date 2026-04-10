@@ -1,29 +1,19 @@
 <script setup lang="ts">
-import {
-  createReaderNavigationButtonViewBindings,
-} from './reader-navigation-button-view-bindings'
+import { createReaderNavigationButtonViewBindings } from './reader-navigation-button-view-bindings'
 import type { ReaderNavigationButtonEmits } from './reader-navigation-button-emit-types'
 import type { ReaderNavigationButtonEmitFn } from './reader-navigation-button-emit-types'
 import type { ReaderNavigationButtonProps } from './reader-navigation-button-prop-types'
 
 const props = defineProps<ReaderNavigationButtonProps>()
 const emit = defineEmits<ReaderNavigationButtonEmits>()
-const {
-  buttonClass,
-  onClick,
-} = createReaderNavigationButtonViewBindings(
+const { buttonClass, onClick } = createReaderNavigationButtonViewBindings(
   props,
-  emit as unknown as ReaderNavigationButtonEmitFn,
+  emit as unknown as ReaderNavigationButtonEmitFn
 )
 </script>
 
 <template>
-  <button
-    :disabled="disabled"
-    class="chapter-nav-btn"
-    :class="buttonClass"
-    @click="onClick"
-  >
+  <button :disabled="disabled" class="chapter-nav-btn" :class="buttonClass" @click="onClick">
     <slot name="before" />
     <span><slot /></span>
     <slot name="after" />

@@ -1,29 +1,18 @@
-import {
-  offlineManager,
-  type CachedContent,
-  type OfflineStatus,
-} from '@/services/offline/manager'
-import type {
-  OfflineItem,
-  OfflineStoreState,
-} from './types'
+import { offlineManager, type CachedContent, type OfflineStatus } from '@/services/offline/manager'
+import type { OfflineItem, OfflineStoreState } from './types'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function createOfflineStoreHelpers(state: OfflineStoreState) {
-  const mapCachedTypeToOfflineType = (
-    type: CachedContent['type'],
-  ): OfflineItem['type'] => {
+  const mapCachedTypeToOfflineType = (type: CachedContent['type']): OfflineItem['type'] => {
     if (type === 'chapter') return 'chapter'
     if (type === 'book') return 'book'
     return 'cache'
   }
 
-  const mapOfflineTypeToCachedType = (
-    type: OfflineItem['type'],
-  ): CachedContent['type'] => {
+  const mapOfflineTypeToCachedType = (type: OfflineItem['type']): CachedContent['type'] => {
     if (type === 'chapter') return 'chapter'
     if (type === 'book') return 'book'
     return 'api-response'

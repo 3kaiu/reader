@@ -1,26 +1,22 @@
 <script setup lang="ts">
-import { Database, Download, HardDrive, Trash2 } from "lucide-vue-next";
-import { formatBytes, type BrowserStorageEstimate } from "@/utils/browserStorage";
+import { Database, Download, HardDrive, Trash2 } from 'lucide-vue-next'
+import { formatBytes, type BrowserStorageEstimate } from '@/utils/browserStorage'
 
 defineProps<{
-  storageUsage: BrowserStorageEstimate | null;
-}>();
+  storageUsage: BrowserStorageEstimate | null
+}>()
 
 const emit = defineEmits<{
-  exportData: [];
-  clearCache: [];
-}>();
+  exportData: []
+  clearCache: []
+}>()
 </script>
 
 <template>
-  <section
-    class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
-  >
+  <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
     <div class="flex items-center gap-2 mb-4 px-1">
       <Database class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-        数据管理
-      </h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">数据管理</h2>
     </div>
     <div class="space-y-3">
       <div
@@ -49,20 +45,13 @@ const emit = defineEmits<{
     </div>
   </section>
 
-  <section
-    class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200"
-  >
+  <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
     <div class="flex items-center gap-2 mb-4 px-1">
       <HardDrive class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-        存储管理
-      </h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">存储管理</h2>
     </div>
     <div class="space-y-3">
-      <div
-        v-if="storageUsage"
-        class="rounded-2xl border border-border/50 bg-card overflow-hidden"
-      >
+      <div v-if="storageUsage" class="rounded-2xl border border-border/50 bg-card overflow-hidden">
         <div class="p-5">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
@@ -107,9 +96,7 @@ const emit = defineEmits<{
             <Trash2 class="h-6 w-6" />
           </div>
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-base text-destructive mb-1">
-              清除应用缓存
-            </h3>
+            <h3 class="font-semibold text-base text-destructive mb-1">清除应用缓存</h3>
             <p class="text-xs text-muted-foreground line-clamp-1">
               清除所有本地缓存和设置（不会删除服务器数据）
             </p>

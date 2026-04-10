@@ -21,7 +21,7 @@ type CryptoSubtleMethod =
   | 'unwrapKey'
 
 type BoundSubtleCrypto = {
-  [K in CryptoSubtleMethod]: typeof webcrypto.subtle[K]
+  [K in CryptoSubtleMethod]: (typeof webcrypto.subtle)[K]
 }
 
 interface CryptoPolyfillShape {
@@ -87,14 +87,14 @@ const subtleMethods: CryptoSubtleMethod[] = [
   'importKey',
   'exportKey',
   'wrapKey',
-  'unwrapKey'
+  'unwrapKey',
 ]
 
 const defineGlobalValue = (property: string, value: unknown): void => {
   Object.defineProperty(globalThis, property, {
     value,
     writable: true,
-    configurable: true
+    configurable: true,
   })
 }
 
@@ -115,21 +115,23 @@ const createStorageMock = (): Storage => {
     },
     setItem: (key: string, value: string) => {
       values.set(key, value)
-    }
+    },
   }
 }
 
 // Create a comprehensive crypto polyfill
 const cryptoPolyfill: CryptoPolyfillShape = {
   getRandomValues: webcrypto.getRandomValues.bind(webcrypto),
-  randomUUID: webcrypto.randomUUID?.bind(webcrypto) || (() => {
-    // Fallback UUID generation for older Node.js versions
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }),
+  randomUUID:
+    webcrypto.randomUUID?.bind(webcrypto) ||
+    (() => {
+      // Fallback UUID generation for older Node.js versions
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }),
   subtle: {
     encrypt: webcrypto.subtle.encrypt.bind(webcrypto.subtle),
     decrypt: webcrypto.subtle.decrypt.bind(webcrypto.subtle),
@@ -142,8 +144,8 @@ const cryptoPolyfill: CryptoPolyfillShape = {
     importKey: webcrypto.subtle.importKey.bind(webcrypto.subtle),
     exportKey: webcrypto.subtle.exportKey.bind(webcrypto.subtle),
     wrapKey: webcrypto.subtle.wrapKey.bind(webcrypto.subtle),
-    unwrapKey: webcrypto.subtle.unwrapKey.bind(webcrypto.subtle)
-  }
+    unwrapKey: webcrypto.subtle.unwrapKey.bind(webcrypto.subtle),
+  },
 }
 
 // Force polyfill Web Crypto API for Node.js testing environment
@@ -158,10 +160,10 @@ try {
     Object.defineProperty(globalThis.crypto, 'subtle', {
       value: cryptoPolyfill.subtle,
       writable: true,
-      configurable: true
+      configurable: true,
     })
   }
-  
+
   if (globalThis.crypto?.subtle) {
     // Patch individual methods
     subtleMethods.forEach(method => {
@@ -169,7 +171,7 @@ try {
         Object.defineProperty(globalThis.crypto.subtle, method, {
           value: cryptoPolyfill.subtle[method],
           writable: true,
-          configurable: true
+          configurable: true,
         })
       }
     })
@@ -223,11 +225,11 @@ if (typeof globalThis.navigator === 'undefined') {
       effectiveType: '4g',
       downlink: 10,
       rtt: 50,
-      saveData: false
+      saveData: false,
     },
     serviceWorker: {
-      register: () => Promise.reject(new Error('Service Worker not available in test environment'))
-    }
+      register: () => Promise.reject(new Error('Service Worker not available in test environment')),
+    },
   }
 
   defineGlobalValue('navigator', navigatorMock)
@@ -241,7 +243,7 @@ if (typeof globalThis.window === 'undefined') {
       origin: 'http://localhost:3000',
       pathname: '/test',
       search: '',
-      hash: ''
+      hash: '',
     },
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
@@ -254,7 +256,7 @@ if (typeof globalThis.window === 'undefined') {
     dispatchEvent: (_event: Event) => {
       // Mock event dispatch - do nothing in test environment
       return true
-    }
+    },
   }
 
   defineGlobalValue('window', windowMock)
@@ -265,7 +267,7 @@ if (typeof globalThis.document === 'undefined') {
   const documentMock: TestDocument = {
     createElement: () => ({}),
     head: { appendChild: () => {} },
-    body: { appendChild: () => {} }
+    body: { appendChild: () => {} },
   }
 
   defineGlobalValue('document', documentMock)

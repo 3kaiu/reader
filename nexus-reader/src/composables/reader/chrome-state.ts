@@ -8,7 +8,6 @@ export interface ReaderChromeState {
   showSourcePicker: Ref<boolean>
   showBookInfo: Ref<boolean>
   showKeyboardHelp: Ref<boolean>
-  showDecoderSettings: Ref<boolean>
   hideToolbarTimer: Ref<ReturnType<typeof setTimeout> | null>
 }
 
@@ -20,7 +19,6 @@ export function createReaderChromeState(): ReaderChromeState {
     showSourcePicker: ref(false),
     showBookInfo: ref(false),
     showKeyboardHelp: ref(false),
-    showDecoderSettings: ref(false),
     hideToolbarTimer: ref(null),
   }
 }

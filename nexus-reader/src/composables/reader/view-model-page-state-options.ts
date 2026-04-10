@@ -5,17 +5,17 @@ import type { ReaderPageModelFeatures } from './view-model-page-feature-types'
 
 export function createReaderPageModelStateOptions(
   services: ReaderViewServices,
-  features: ReaderPageModelFeatures,
+  features: ReaderPageModelFeatures
 ): ReaderPageModelStateOptions {
   const currentTheme = computed(() => services.settingsStore.config.theme)
   const isLoading = computed(() => Boolean(unref(services.readerStore.isLoading as never)))
   const error = computed(
     () =>
       (unref(services.readerStore.error as never) as string | null | undefined) ||
-      (unref(services.readerStore.loadError as never) as string | null | undefined),
+      (unref(services.readerStore.loadError as never) as string | null | undefined)
   )
   const errorDetails = computed(
-    () => unref(services.readerStore.loadErrorDetails as never) as string | null | undefined,
+    () => unref(services.readerStore.loadErrorDetails as never) as string | null | undefined
   )
 
   return {

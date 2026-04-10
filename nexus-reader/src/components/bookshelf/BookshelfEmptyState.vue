@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { BookOpen, Plus } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
+import { BookOpen, Plus } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 
 const emit = defineEmits<{
-  search: [];
-}>();
+  search: []
+}>()
 </script>
 
 <template>
@@ -15,9 +15,7 @@ const emit = defineEmits<{
       <BookOpen class="h-6 w-6 text-muted-foreground/60" />
       <h2 class="text-xl font-bold">开启阅读之旅</h2>
     </div>
-    <p
-      class="text-muted-foreground/80 text-center max-w-xs mb-8 leading-relaxed"
-    >
+    <p class="text-muted-foreground/80 text-center max-w-xs mb-8 leading-relaxed">
       书架空空如也，去探索一些有趣的故事吧
     </p>
     <Button size="lg" @click="emit('search')">

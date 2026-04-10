@@ -12,9 +12,7 @@ type UseSourceBuilderDebugSnapshotsOptions = {
 const DEFAULT_SNAPSHOT_KEY = 'source-builder-debug-snapshots'
 const DEFAULT_SNAPSHOT_LIMIT = 20
 
-export function useSourceBuilderDebugSnapshots(
-  options: UseSourceBuilderDebugSnapshotsOptions
-) {
+export function useSourceBuilderDebugSnapshots(options: UseSourceBuilderDebugSnapshotsOptions) {
   const { success, warning } = useMessage()
   const snapshotKey = options.key ?? DEFAULT_SNAPSHOT_KEY
   const snapshotLimit = options.limit ?? DEFAULT_SNAPSHOT_LIMIT

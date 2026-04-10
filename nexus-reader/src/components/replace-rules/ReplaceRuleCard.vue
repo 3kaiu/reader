@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { Edit2, Trash2, Wand2 } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import type { ReplaceRule } from "@/types/replace";
+import { Edit2, Trash2, Wand2 } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
+import type { ReplaceRule } from '@/types/replace'
 
 defineProps<{
-  rule: ReplaceRule;
-  isManageMode: boolean;
-  isSelected: boolean;
-}>();
+  rule: ReplaceRule
+  isManageMode: boolean
+  isSelected: boolean
+}>()
 
 const emit = defineEmits<{
-  toggleSelect: [rule: ReplaceRule];
-  openEdit: [rule?: ReplaceRule];
-  deleteRule: [rule: ReplaceRule];
-  toggleEnabled: [rule: ReplaceRule, enabled: boolean];
-}>();
+  toggleSelect: [rule: ReplaceRule]
+  openEdit: [rule?: ReplaceRule]
+  deleteRule: [rule: ReplaceRule]
+  toggleEnabled: [rule: ReplaceRule, enabled: boolean]
+}>()
 </script>
 
 <template>
@@ -71,10 +71,8 @@ const emit = defineEmits<{
               >
                 {{ rule.group }}
               </Badge>
-              <span
-                class="text-xs text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded"
-              >
-                {{ rule.scope || "全局" }}
+              <span class="text-xs text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded">
+                {{ rule.scope || '全局' }}
               </span>
               <Badge
                 v-if="rule.isRegex"
@@ -123,14 +121,14 @@ const emit = defineEmits<{
             class="flex-1 bg-muted/80 px-2 py-1.5 rounded text-[10px] truncate font-mono text-foreground/80"
             :title="rule.replacement || '删除'"
           >
-            {{ rule.replacement || "删除" }}
+            {{ rule.replacement || '删除' }}
           </code>
         </div>
       </div>
 
       <div class="flex items-center justify-between pt-2 border-t border-border/40">
         <div class="text-xs text-muted-foreground/60">
-          {{ rule.isEnabled ? "已启用" : "已禁用" }}
+          {{ rule.isEnabled ? '已启用' : '已禁用' }}
         </div>
 
         <Switch

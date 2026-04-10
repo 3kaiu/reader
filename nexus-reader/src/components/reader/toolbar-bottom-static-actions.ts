@@ -5,7 +5,7 @@ import { createReaderToolbarBottomTrailingActions } from './toolbar-bottom-trail
 
 export function createReaderToolbarBottomStaticActions(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ) {
   const primaryActions = createReaderToolbarBottomPrimaryActions(props, emit)
   const trailingActions = createReaderToolbarBottomTrailingActions(emit)

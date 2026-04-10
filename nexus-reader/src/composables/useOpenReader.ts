@@ -32,7 +32,7 @@ export function useOpenReader() {
 
   async function openReader(
     book: ReaderOpenInput,
-    options: OpenReaderOptions = {},
+    options: OpenReaderOptions = {}
   ): Promise<OpenReaderResult> {
     let ensureResult: EnsureBookResult | undefined
     let navigationTarget: ReaderOpenInput | Book = book
@@ -52,9 +52,7 @@ export function useOpenReader() {
     }
 
     if (options.preload) {
-      await readerStore.ensureReaderSession(
-        toReaderSessionBook(book, ensureResult?.book),
-      )
+      await readerStore.ensureReaderSession(toReaderSessionBook(book, ensureResult?.book))
     }
 
     await router.push(buildReaderRouteLocation(navigationTarget))

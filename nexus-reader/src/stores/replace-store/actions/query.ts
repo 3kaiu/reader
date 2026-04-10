@@ -19,7 +19,7 @@ export function createReplaceQueryActions(state: ReplaceStoreState) {
 
   function getExportRules(
     keys?: Iterable<string>,
-    fallback: ReplaceRule[] = state.rules.value,
+    fallback: ReplaceRule[] = state.rules.value
   ): ReplaceRule[] {
     const selectedRules = keys ? getRulesByKeys(keys) : []
     return selectedRules.length > 0 ? selectedRules : fallback

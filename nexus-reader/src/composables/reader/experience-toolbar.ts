@@ -1,22 +1,13 @@
 import { computed } from 'vue'
-import type {
-  ReaderExperienceDisplayState,
-} from './experience-state-display-types'
-import type {
-  ReaderExperienceServiceState,
-} from './experience-state-service-types'
-import type {
-  ReaderExperienceVisibilityState,
-} from './experience-state-visibility-types'
+import type { ReaderExperienceDisplayState } from './experience-state-display-types'
+import type { ReaderExperienceServiceState } from './experience-state-service-types'
+import type { ReaderExperienceVisibilityState } from './experience-state-visibility-types'
 
-type ReaderExperienceToolbarState =
-  ReaderExperienceServiceState &
+type ReaderExperienceToolbarState = ReaderExperienceServiceState &
   ReaderExperienceVisibilityState &
   ReaderExperienceDisplayState
 
-export function createReaderExperienceToolbarProps(
-  state: ReaderExperienceToolbarState,
-) {
+export function createReaderExperienceToolbarProps(state: ReaderExperienceToolbarState) {
   return computed(() => ({
     show: state.showToolbar,
     zenMode: state.settingsStore.config.zenMode,
@@ -30,10 +21,5 @@ export function createReaderExperienceToolbarProps(
     isFullscreen: state.isFullscreen,
     isEyeCareEnabled: state.eyeCare.config.value.enabled,
     contentIssue: state.readerStore.loadError,
-    showDecoderAction: state.decoderAddonEnabled,
-    isDecoderEnabled:
-      state.decoderAddonEnabled && state.decoderStore.isEnabled,
-    isDecoding:
-      state.decoderAddonEnabled && state.decoderStore.isDecoding,
   }))
 }

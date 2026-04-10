@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import type {
-  ReaderScrollLoadingStateProps,
-} from './reader-scroll-loading-state-prop-types'
+import type { ReaderScrollLoadingStateProps } from './reader-scroll-loading-state-prop-types'
 import { Loader2 } from 'lucide-vue-next'
 
-withDefaults(
-  defineProps<ReaderScrollLoadingStateProps>(),
-  {
-    containerClass: 'py-12 text-center',
-  },
-)
+withDefaults(defineProps<ReaderScrollLoadingStateProps>(), {
+  containerClass: 'py-12 text-center',
+})
 </script>
 
 <template>

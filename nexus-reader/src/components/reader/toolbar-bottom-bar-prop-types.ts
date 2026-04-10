@@ -8,5 +8,4 @@ export interface ReaderToolbarBottomBarProps {
   isNightMode: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
-  isDecoding?: boolean
 }

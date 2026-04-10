@@ -5,9 +5,8 @@ import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-pr
 
 export function createReaderToolbarBottomActionList(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
-  const { primaryActions, trailingActions } =
-    createReaderToolbarBottomStaticActions(props, emit)
+  const { primaryActions, trailingActions } = createReaderToolbarBottomStaticActions(props, emit)
   return [...primaryActions, ...trailingActions]
 }

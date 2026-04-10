@@ -15,25 +15,30 @@ interface ManageAction {
   variant?: 'default' | 'danger'
 }
 
-const props = withDefaults(defineProps<{
-  selectedCount: number
-  totalCount: number
-  actions?: ManageAction[]
-  showDelete?: boolean
-}>(), {
-  selectedCount: 0,
-  totalCount: 0,
-  actions: () => [],
-  showDelete: true,
-})
+const props = withDefaults(
+  defineProps<{
+    selectedCount: number
+    totalCount: number
+    actions?: ManageAction[]
+    showDelete?: boolean
+  }>(),
+  {
+    selectedCount: 0,
+    totalCount: 0,
+    actions: () => [],
+    showDelete: true,
+  }
+)
 
 const emit = defineEmits<{
   'select-all': []
-  'delete': []
-  'close': []
+  delete: []
+  close: []
 }>()
 
-const isAllSelected = computed(() => props.selectedCount === props.totalCount && props.totalCount > 0)
+const isAllSelected = computed(
+  () => props.selectedCount === props.totalCount && props.totalCount > 0
+)
 </script>
 
 <template>
@@ -45,10 +50,7 @@ const isAllSelected = computed(() => props.selectedCount === props.totalCount &&
     leave-from-class="translate-y-0 opacity-100 scale-100"
     leave-to-class="translate-y-20 opacity-0 scale-90"
   >
-    <div
-      v-if="true"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[95vw]"
-    >
+    <div v-if="true" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[95vw]">
       <div
         class="bg-background/95 dark:bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-full px-3 py-2 flex items-center gap-2 text-foreground"
       >
@@ -64,9 +66,7 @@ const isAllSelected = computed(() => props.selectedCount === props.totalCount &&
         <div class="w-px h-6 bg-border mx-1"></div>
 
         <!-- 已选数量 -->
-        <span
-          class="text-xs font-medium px-2 text-muted-foreground tabular-nums"
-        >
+        <span class="text-xs font-medium px-2 text-muted-foreground tabular-nums">
           已选 {{ selectedCount }}
         </span>
 

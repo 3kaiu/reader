@@ -219,14 +219,7 @@ function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] 
   }
 
   const root = normalizedPayload as Record<string, unknown>
-  const nested = [
-    root.book,
-    root.bookInfo,
-    root.book_info,
-    root.data,
-    root.item,
-    root.detail,
-  ]
+  const nested = [root.book, root.bookInfo, root.book_info, root.data, root.item, root.detail]
     .map(value => tryParseJsonPayload(value))
     .filter(value => value && typeof value === 'object') as Record<string, unknown>[]
 
@@ -235,12 +228,16 @@ function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] 
 
 type NormalizedContentPayload = {
   content: string
-  stageReports: Array<{ stage: string; ok: boolean; failureCode?: string; warnings?: string[]; metrics?: Record<string, string> }>
+  stageReports: Array<{
+    stage: string
+    ok: boolean
+    failureCode?: string
+    warnings?: string[]
+    metrics?: Record<string, string>
+  }>
 }
 
-function normalizeStageReports(
-  value: unknown,
-): Array<{
+function normalizeStageReports(value: unknown): Array<{
   stage: string
   ok: boolean
   failureCode?: string
@@ -260,8 +257,7 @@ function normalizeStageReports(
       const record = item as Record<string, unknown>
       const stage = toOptionalString(record.stage)
       const failureCode =
-        toOptionalString(record.failureCode) ??
-        toOptionalString(record.failure_code)
+        toOptionalString(record.failureCode) ?? toOptionalString(record.failure_code)
       const ok = toOptionalBoolean(record.ok)
 
       if (!stage && !failureCode) {
@@ -281,7 +277,7 @@ function normalizeStageReports(
           ? Object.fromEntries(
               Object.entries(metricsValue as Record<string, unknown>)
                 .map(([key, raw]) => [key, toOptionalString(raw)])
-                .filter(([, raw]) => Boolean(raw)),
+                .filter(([, raw]) => Boolean(raw))
             )
           : undefined
 
@@ -295,14 +291,14 @@ function normalizeStageReports(
     })
     .filter(
       (
-        report,
+        report
       ): report is {
         stage: string
         ok: boolean
         failureCode?: string
         warnings?: string[]
         metrics?: Record<string, string>
-      } => report !== null,
+      } => report !== null
     )
 }
 
@@ -343,13 +339,13 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
     metaValue && typeof metaValue === 'object'
       ? tryParseJsonPayload(
           (metaValue as Record<string, unknown>).stageReports ??
-            (metaValue as Record<string, unknown>).stage_reports,
+            (metaValue as Record<string, unknown>).stage_reports
         )
       : undefined
   const stageReportsFallback = tryParseJsonPayload(record.stageReports)
   const stageReportsSnake = tryParseJsonPayload(record.stage_reports)
   const stageReports = normalizeStageReports(
-    stageReportsValue ?? stageReportsFallback ?? stageReportsSnake,
+    stageReportsValue ?? stageReportsFallback ?? stageReportsSnake
   )
 
   return {
@@ -360,7 +356,7 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
 
 function pickBookField<T>(
   records: Record<string, unknown>[],
-  selector: (record: Record<string, unknown>) => T | undefined,
+  selector: (record: Record<string, unknown>) => T | undefined
 ): T | undefined {
   for (const record of records) {
     const value = selector(record)
@@ -378,29 +374,13 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
   }
 
   const name = pickBookField(records, record =>
-    pickFirstString([
-      record.name,
-      record.title,
-      record.bookName,
-      record.book_name,
-    ]),
+    pickFirstString([record.name, record.title, record.bookName, record.book_name])
   )
   const author = pickBookField(records, record =>
-    pickFirstString([
-      record.author,
-      record.writer,
-      record.authorName,
-      record.author_name,
-    ]),
+    pickFirstString([record.author, record.writer, record.authorName, record.author_name])
   )
   const coverUrl = pickBookField(records, record =>
-    pickFirstString([
-      record.coverUrl,
-      record.cover_url,
-      record.cover,
-      record.img,
-      record.image,
-    ]),
+    pickFirstString([record.coverUrl, record.cover_url, record.cover, record.img, record.image])
   )
   const intro = pickBookField(records, record =>
     pickFirstString([
@@ -410,19 +390,16 @@ function normalizeReaderBookPayload(payload: unknown): Partial<ReaderBook> {
       record.summary,
       record.bookIntro,
       record.book_intro,
-    ]),
+    ])
   )
   const durChapterIndex = pickBookField(
     records,
-    record =>
-      toOptionalNumber(record.durChapterIndex) ??
-      toOptionalNumber(record.dur_chapter_index),
+    record => toOptionalNumber(record.durChapterIndex) ?? toOptionalNumber(record.dur_chapter_index)
   )
   const lastChapterIndex = pickBookField(
     records,
     record =>
-      toOptionalNumber(record.lastChapterIndex) ??
-      toOptionalNumber(record.last_chapter_index),
+      toOptionalNumber(record.lastChapterIndex) ?? toOptionalNumber(record.last_chapter_index)
   )
 
   const root = records[records.length - 1]
@@ -446,6 +423,8 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
   const FORMATTED_CONTENT_CACHE_MAX_ENTRIES = 30
   const CHAPTER_CONTENT_CACHE_MAX_ENTRIES = 60
   const PREFETCH_IDLE_TIMEOUT_MS = 1200
+  /** Align with server `max_batch_content_urls` default (128); keep small for prefetch UX. */
+  const PREFETCH_BATCH_MAX = 4
   let chapterContentCacheRef = state.chapterContentCache.value
   let chapterContentCacheOrder = Object.keys(chapterContentCacheRef)
   const formattedContentCache = new Map<string, string>()
@@ -463,9 +442,21 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
   const scheduleBackgroundTask = (
     callback: () => void,
-    timeoutMs: number,
+    timeoutMs: number
   ): number | ReturnType<typeof setTimeout> => {
-    const scheduler = (globalThis as { scheduler?: { postTask?: Function } }).scheduler
+    const scheduler = (
+      globalThis as {
+        scheduler?: {
+          postTask?: (
+            callback: () => void,
+            options: {
+              priority: 'background'
+              signal: AbortSignal
+            }
+          ) => Promise<unknown>
+        }
+      }
+    ).scheduler
     if (scheduler?.postTask) {
       prefetchTaskAbortController = new AbortController()
       void scheduler
@@ -478,10 +469,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     }
 
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      return window.requestIdleCallback(
-        () => callback(),
-        { timeout: timeoutMs },
-      )
+      return window.requestIdleCallback(() => callback(), { timeout: timeoutMs })
     }
 
     return globalThis.setTimeout(callback, 120)
@@ -531,7 +519,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
   const getChapterRequestCacheKey = (
     chapter: Chapter,
-    book: ReaderBook | null = state.currentBook.value,
+    book: ReaderBook | null = state.currentBook.value
   ) => `${book?.bookUrl || ''}::${chapter.url}`
 
   const formatChapterContent = (chapterContent: string) => {
@@ -569,7 +557,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
         parsed.stageReports?.find(
           item =>
             item?.ok === false &&
-            (typeof item?.stage === 'string' || typeof item?.failureCode === 'string'),
+            (typeof item?.stage === 'string' || typeof item?.failureCode === 'string')
         ) ||
         parsed.stageReports?.find(item => typeof item?.failureCode === 'string') ||
         parsed.stageReports?.find(item => typeof item?.stage === 'string')
@@ -588,7 +576,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
   const fetchBookInfo = async (
     sourceId: string,
-    bookUrl: string,
+    bookUrl: string
   ): Promise<ApiResponse<ReaderBook>> => {
     const response = await readerApi.getBookInfo(sourceId, bookUrl)
 
@@ -608,10 +596,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
   }
 
   const isCurrentBookTarget = (target: ReaderTarget) =>
-    Boolean(
-      state.currentBook.value &&
-        isSameReaderRouteTarget(state.currentBook.value, target),
-    )
+    Boolean(state.currentBook.value && isSameReaderRouteTarget(state.currentBook.value, target))
 
   const hasActiveSession = (target: ReaderTarget) =>
     isCurrentBookTarget(target) &&
@@ -629,16 +614,14 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
     const res = await readerApi.getChapters(
       state.currentBook.value.sourceId,
-      state.currentBook.value.bookUrl,
+      state.currentBook.value.bookUrl
     )
 
     if (!res.isSuccess) {
       throw new Error(res.errorMsg || '获取目录失败')
     }
 
-    const normalizedCatalog = normalizeReaderCatalog(
-      normalizeCatalogPayload(res.data),
-    )
+    const normalizedCatalog = normalizeReaderCatalog(normalizeCatalogPayload(res.data))
     if (normalizedCatalog.length === 0) {
       throw new Error('目录为空，暂无可读章节')
     }
@@ -656,11 +639,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     state.isParsing.value = false
   }
 
-  const updateLoadedChapter = (
-    chapter: Chapter,
-    chapterContent: string,
-    replaceOnly = false,
-  ) => {
+  const updateLoadedChapter = (chapter: Chapter, chapterContent: string, replaceOnly = false) => {
     const formattedContent =
       state.currentChapter.value?.url === chapter.url
         ? state.formattedContent.value
@@ -669,7 +648,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     state.loadedChapters.value = mergeLoadedChapters(
       state.loadedChapters.value,
       createLoadedChapter(chapter, chapterContent, { formattedContent }),
-      replaceOnly,
+      replaceOnly
     )
   }
 
@@ -692,15 +671,11 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
     const request = (async () => {
       state.loadErrorDetails.value = null
-      const res = await readerApi.getContent(
-        currentBook.sourceId,
-        chapter.url,
-        {
-          bookUrl: currentBook.bookUrl,
-          bookId: buildReaderContentBookId(currentBook),
-          index: chapter.index,
-        },
-      )
+      const res = await readerApi.getContent(currentBook.sourceId, chapter.url, {
+        bookUrl: currentBook.bookUrl,
+        bookId: buildReaderContentBookId(currentBook),
+        index: chapter.index,
+      })
 
       if (!res.isSuccess) {
         throw new Error(res.errorMsg || '获取正文失败')
@@ -711,8 +686,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       state.contentStageReports.value = normalizedContent.stageReports
       if (!chapterContent.trim()) {
         state.loadErrorDetails.value =
-          state.contentStageReports.value
-            .find(report => report.ok === false)?.failureCode || null
+          state.contentStageReports.value.find(report => report.ok === false)?.failureCode || null
         throw new Error('章节内容为空，请重试或切换书源')
       }
       state.loadErrorDetails.value = null
@@ -727,9 +701,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       if (isNexusError(error)) {
         const stageSummary = summarizeStageFailure(error.details)
         state.loadErrorDetails.value = stageSummary
-        const message = stageSummary
-          ? `${error.message} (${stageSummary})`
-          : error.message
+        const message = stageSummary ? `${error.message} (${stageSummary})` : error.message
         throw new Error(message)
       }
 
@@ -790,24 +762,91 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       if (abortController.signal.aborted) {
         return
       }
-      const latestRequestCacheKey = getChapterRequestCacheKey(chapter)
-      if (inflightChapterContentRequests.has(latestRequestCacheKey)) {
+      const currentBook = state.currentBook.value
+      if (!currentBook) {
         return
       }
 
-      void fetchChapterContent(chapter).catch(() => undefined)
+      const catalog = state.catalog.value
+      if (!catalog || catalog.length === 0) {
+        return
+      }
+
+      const startIdx = catalog.findIndex(c => c.url === chapter.url)
+      if (startIdx < 0) {
+        return
+      }
+
+      const slice = catalog.slice(startIdx, startIdx + PREFETCH_BATCH_MAX)
+      const toPrefetch: Chapter[] = []
+      for (const ch of slice) {
+        if (typeof getCachedChapterContent(ch.url) === 'string') {
+          continue
+        }
+        const k = getChapterRequestCacheKey(ch, currentBook)
+        if (inflightChapterContentRequests.has(k)) {
+          continue
+        }
+        toPrefetch.push(ch)
+      }
+
+      if (toPrefetch.length === 0) {
+        return
+      }
+
+      if (toPrefetch.length === 1) {
+        void fetchChapterContent(toPrefetch[0]).catch(() => undefined)
+        return
+      }
+
+      const urls = toPrefetch.map(ch => ch.url)
+      const batchPromise = (async () => {
+        const res = await readerApi.batchContent(currentBook.sourceId, urls)
+        if (!res.isSuccess) {
+          throw new Error(res.errorMsg || '批量预取正文失败')
+        }
+        const data = res.data
+        if (!data?.results) {
+          return
+        }
+        for (const row of data.results) {
+          const text = row.content?.trim()
+          if (text && row.url) {
+            if (
+              state.currentBook.value?.sourceId === currentBook.sourceId &&
+              state.currentBook.value?.bookUrl === currentBook.bookUrl
+            ) {
+              cacheChapterContent(row.url, text)
+            }
+          }
+        }
+      })().catch(() => undefined)
+
+      for (const ch of toPrefetch) {
+        const k = getChapterRequestCacheKey(ch, currentBook)
+        inflightChapterContentRequests.set(
+          k,
+          batchPromise.then(() => {
+            const c = getCachedChapterContent(ch.url)
+            if (typeof c !== 'string') {
+              throw new Error('预取未完成')
+            }
+            return c
+          })
+        )
+      }
+
+      void batchPromise.finally(() => {
+        for (const ch of toPrefetch) {
+          inflightChapterContentRequests.delete(getChapterRequestCacheKey(ch, currentBook))
+        }
+      })
     }
 
-    prefetchIdleTaskId = scheduleBackgroundTask(
-      executePrefetch,
-      PREFETCH_IDLE_TIMEOUT_MS,
-    )
+    prefetchIdleTaskId = scheduleBackgroundTask(executePrefetch, PREFETCH_IDLE_TIMEOUT_MS)
   }
 
-  const loadChapterAt = async (
-    index: number,
-    options: { replaceLoaded?: boolean } = {},
-  ) => {
+  const loadChapterAt = async (index: number, options: { replaceLoaded?: boolean } = {}) => {
     const chapters = await ensureCatalog()
     const target = chapters[index]
 

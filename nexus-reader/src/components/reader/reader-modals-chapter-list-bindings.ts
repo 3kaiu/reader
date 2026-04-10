@@ -4,7 +4,7 @@ import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderChapterListModalBindings(
   props: ReaderModalsProps,
-  emit: ReaderModalsEmitFn,
+  emit: ReaderModalsEmitFn
 ) {
   return computed(() => ({
     open: props.showCatalog,

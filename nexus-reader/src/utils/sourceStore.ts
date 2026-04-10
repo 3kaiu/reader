@@ -64,10 +64,9 @@ export function getSourceBusinessPriority(source: Partial<BookSource>): number {
 
 export function compareSourcesByBusinessPriority(
   left: Partial<BookSource>,
-  right: Partial<BookSource>,
+  right: Partial<BookSource>
 ): number {
-  const priorityDiff =
-    getSourceBusinessPriority(right) - getSourceBusinessPriority(left)
+  const priorityDiff = getSourceBusinessPriority(right) - getSourceBusinessPriority(left)
 
   if (priorityDiff !== 0) {
     return priorityDiff
@@ -123,14 +122,14 @@ export function filterSourcesByKeyword<T extends Pick<BookSource, 'name' | 'url'
 
   return sources.filter(
     source =>
-      source.name.toLowerCase().includes(query) ||
-      (source.url || '').toLowerCase().includes(query)
+      source.name.toLowerCase().includes(query) || (source.url || '').toLowerCase().includes(query)
   )
 }
 
-export function filterSourcesByGroup<
-  T extends Pick<BookSource, 'bookSourceGroup'>
->(sources: T[], groupName: string): T[] {
+export function filterSourcesByGroup<T extends Pick<BookSource, 'bookSourceGroup'>>(
+  sources: T[],
+  groupName: string
+): T[] {
   if (!groupName || groupName === '全部') {
     return sources
   }

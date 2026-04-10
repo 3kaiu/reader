@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
-import {
-  createReaderKeyboardHelpHeaderViewBindings,
-} from './reader-keyboard-help-header-view-bindings'
+import { createReaderKeyboardHelpHeaderViewBindings } from './reader-keyboard-help-header-view-bindings'
 import type {
   ReaderKeyboardHelpHeaderEmits,
   ReaderKeyboardHelpHeaderEmitFn,
@@ -10,7 +8,7 @@ import type {
 
 const emit = defineEmits<ReaderKeyboardHelpHeaderEmits>()
 const { onClose } = createReaderKeyboardHelpHeaderViewBindings(
-  emit as unknown as ReaderKeyboardHelpHeaderEmitFn,
+  emit as unknown as ReaderKeyboardHelpHeaderEmitFn
 )
 </script>
 

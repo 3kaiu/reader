@@ -5,14 +5,7 @@
 
 import './optimizer/autostart'
 
-export type {
-  NetworkInfo,
-  NetworkQuality,
-  RequestOptimizationConfig,
-} from './optimizer/types'
+export type { NetworkInfo, NetworkQuality, RequestOptimizationConfig } from './optimizer/types'
 export { NetworkDetector } from './optimizer/networkDetector'
 export { RequestOptimizer } from './optimizer/requestOptimizer'
-export {
-  networkDetector,
-  requestOptimizer,
-} from './optimizer/instances'
+export { networkDetector, requestOptimizer } from './optimizer/instances'

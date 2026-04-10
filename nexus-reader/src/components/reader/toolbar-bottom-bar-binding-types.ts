@@ -1,10 +1,7 @@
 import type { ComputedRef } from 'vue'
-import type {
-  ReaderToolbarBottomPanelProps,
-} from './toolbar-bottom-panel-prop-types'
+import type { ReaderToolbarBottomPanelProps } from './toolbar-bottom-panel-prop-types'
 
-export interface ReaderToolbarBottomBarPanelBindings
-  extends ReaderToolbarBottomPanelProps {
+export interface ReaderToolbarBottomBarPanelBindings extends ReaderToolbarBottomPanelProps {
   onToggleDayNight: () => void
   onToggleSettings: () => void
   onToggleEyeCare: () => void

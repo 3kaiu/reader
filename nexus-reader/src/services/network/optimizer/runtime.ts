@@ -32,7 +32,12 @@ export function getErrorMessage(error: unknown): string {
     return error
   }
 
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message
   }
 

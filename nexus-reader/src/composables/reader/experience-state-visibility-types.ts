@@ -5,6 +5,5 @@ export interface ReaderExperienceVisibilityState {
   showSourcePicker: boolean
   showBookInfo: boolean
   showKeyboardHelp: boolean
-  showDecoderSettings: boolean
   isFullscreen: boolean
 }

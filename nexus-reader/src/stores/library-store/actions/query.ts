@@ -1,10 +1,7 @@
 import type { Book } from '@/types/book'
 import type { LibraryStoreState, LibraryStoreView } from '../types'
 
-export function createLibraryQueryActions(
-  state: LibraryStoreState,
-  view: LibraryStoreView,
-) {
+export function createLibraryQueryActions(state: LibraryStoreState, view: LibraryStoreView) {
   function hasBook(bookUrl: string): boolean {
     return view.bookUrls.value.has(bookUrl)
   }

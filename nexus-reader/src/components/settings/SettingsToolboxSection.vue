@@ -1,44 +1,44 @@
 <script setup lang="ts">
-import { Brain, Wand2, Wrench } from "lucide-vue-next";
-import type { AddonRouteEntry } from "@/constants/addons";
+import { Brain, Wand2, Wrench } from 'lucide-vue-next'
+import type { AddonRouteEntry } from '@/constants/addons'
 
 type ToolboxEntry = {
-  label: string;
-  description: string;
-  path: string;
-  icon: typeof Brain;
-  color: string;
-  bg: string;
-};
+  label: string
+  description: string
+  path: string
+  icon: typeof Brain
+  color: string
+  bg: string
+}
 
 const props = defineProps<{
-  toolboxMode: boolean;
-  addonEntryCards: AddonRouteEntry[];
-}>();
+  toolboxMode: boolean
+  addonEntryCards: AddonRouteEntry[]
+}>()
 
 const emit = defineEmits<{
-  toggleToolboxMode: [enabled: boolean];
-  navigate: [path: string];
-}>();
+  toggleToolboxMode: [enabled: boolean]
+  navigate: [path: string]
+}>()
 
 const staticEntries: ToolboxEntry[] = [
   {
-    label: "替换规则",
-    description: "正文净化和规则替换",
-    path: "/replace-rule",
+    label: '替换规则',
+    description: '正文净化和规则替换',
+    path: '/replace-rule',
     icon: Wand2,
-    color: "text-purple-500",
-    bg: "bg-purple-500/10",
+    color: 'text-purple-500',
+    bg: 'bg-purple-500/10',
   },
   {
-    label: "书源工厂",
-    description: "封装样本并自动验证修正",
-    path: "/source-builder-debug",
+    label: '书源工厂',
+    description: '封装样本并自动验证修正',
+    path: '/source-builder-debug',
     icon: Wrench,
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10",
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-500/10',
   },
-];
+]
 </script>
 
 <template>
@@ -55,15 +55,12 @@ const staticEntries: ToolboxEntry[] = [
           class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs"
           @click="emit('toggleToolboxMode', !props.toolboxMode)"
         >
-          {{ props.toolboxMode ? "隐藏工具箱" : "显示工具箱" }}
+          {{ props.toolboxMode ? '隐藏工具箱' : '显示工具箱' }}
         </button>
       </div>
     </div>
 
-    <div
-      v-if="props.toolboxMode"
-      class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3"
-    >
+    <div v-if="props.toolboxMode" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
       <div
         v-for="item in staticEntries"
         :key="item.path"

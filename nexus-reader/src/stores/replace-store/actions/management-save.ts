@@ -4,9 +4,7 @@ import type { ReplaceRule } from '@/types/replace'
 import { upsertRuleList } from '@/utils/replaceStore'
 import type { ReplaceManagementHelpers } from './management-shared'
 
-export function createReplaceManagementSaveActions(
-  helpers: ReplaceManagementHelpers,
-) {
+export function createReplaceManagementSaveActions(helpers: ReplaceManagementHelpers) {
   async function saveRule(rule: ReplaceRule): Promise<ApiResponse<ReplaceRule>> {
     const response = await replaceApi.saveReplaceRule(rule)
     if (response.isSuccess && response.data) {

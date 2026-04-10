@@ -1,9 +1,6 @@
 import { logger } from '@/utils/logger'
 import { offlineManager } from '@/services/offline/manager'
-import type {
-  OfflineStoreActions,
-  OfflineStoreState,
-} from './types'
+import type { OfflineStoreActions, OfflineStoreState } from './types'
 import type { OfflineStoreActionHelpers } from './actions-types'
 
 export function createOfflineStoreSyncActions(options: {
@@ -14,7 +11,10 @@ export function createOfflineStoreSyncActions(options: {
   const syncWithServer: OfflineStoreActions['syncWithServer'] = async () => {
     await options.initialize()
 
-    if (!options.state.offlineState.value.isOnline || !options.state.offlineState.value.syncPending) {
+    if (
+      !options.state.offlineState.value.isOnline ||
+      !options.state.offlineState.value.syncPending
+    ) {
       return
     }
 

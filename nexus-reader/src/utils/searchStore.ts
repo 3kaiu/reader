@@ -6,14 +6,12 @@ import type {
 } from '@/types/search'
 
 export function getSearchResultIdentity(
-  result: Pick<SearchResult, 'sourceId' | 'bookUrl'>,
+  result: Pick<SearchResult, 'sourceId' | 'bookUrl'>
 ): string {
   return `${result.sourceId}::${result.bookUrl}`
 }
 
-export function getSearchAggregateKey(
-  result: Pick<SearchResult, 'name' | 'author'>,
-): string {
+export function getSearchAggregateKey(result: Pick<SearchResult, 'name' | 'author'>): string {
   return `${normalizeAggregateKeySegment(result.name)}||${normalizeAggregateKeySegment(result.author)}`
 }
 
@@ -30,7 +28,7 @@ export function buildAvailableSources(results: SearchResult[]): SearchSourceOpti
   })
 
   return Array.from(sources.values()).sort((left, right) =>
-    left.name.localeCompare(right.name, 'zh-CN'),
+    left.name.localeCompare(right.name, 'zh-CN')
   )
 }
 
@@ -45,11 +43,7 @@ export function filterSearchResultsBySources(
   return results.filter(book => selectedSources.has(book.sourceId || ''))
 }
 
-export function appendSearchHistory(
-  history: string[],
-  query: string,
-  limit: number
-): string[] {
+export function appendSearchHistory(history: string[], query: string, limit: number): string[] {
   if (history.includes(query)) {
     return history
   }
@@ -57,10 +51,7 @@ export function appendSearchHistory(
   return [query, ...history.slice(0, limit - 1)]
 }
 
-export function toggleSelectedSource(
-  selectedSources: Set<string>,
-  source: string
-): Set<string> {
+export function toggleSelectedSource(selectedSources: Set<string>, source: string): Set<string> {
   const nextSources = new Set(selectedSources)
 
   if (nextSources.has(source)) {
@@ -74,12 +65,10 @@ export function toggleSelectedSource(
 
 export function appendSearchResult(
   results: SearchResult[],
-  nextResult: SearchResult,
+  nextResult: SearchResult
 ): SearchResult[] {
   const existingIndex = results.findIndex(
-    book =>
-      book.sourceId === nextResult.sourceId &&
-      book.bookUrl === nextResult.bookUrl,
+    book => book.sourceId === nextResult.sourceId && book.bookUrl === nextResult.bookUrl
   )
 
   if (existingIndex >= 0) {
@@ -91,10 +80,7 @@ export function appendSearchResult(
   return [...results, nextResult]
 }
 
-export function appendSearchError(
-  errors: SearchError[],
-  nextError: SearchError,
-): SearchError[] {
+export function appendSearchError(errors: SearchError[], nextError: SearchError): SearchError[] {
   const existingIndex = errors.findIndex(error => error.sourceId === nextError.sourceId)
 
   if (existingIndex >= 0) {
@@ -107,22 +93,13 @@ export function appendSearchError(
 }
 
 function normalizeAggregateKeySegment(value: string | undefined): string {
-  return (value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
+  return (value || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function mergeSearchResultDetails(
-  current: SearchResult,
-  incoming: SearchResult,
-): SearchResult {
+function mergeSearchResultDetails(current: SearchResult, incoming: SearchResult): SearchResult {
   return {
     ...current,
-    intro:
-      current.intro && current.intro.trim().length > 0
-        ? current.intro
-        : incoming.intro,
+    intro: current.intro && current.intro.trim().length > 0 ? current.intro : incoming.intro,
     coverUrl: current.coverUrl || incoming.coverUrl,
     latestChapterTitle: current.latestChapterTitle || incoming.latestChapterTitle,
     latestChapter: current.latestChapter || incoming.latestChapter,
@@ -132,18 +109,16 @@ function mergeSearchResultDetails(
 function upsertSearchVariant(
   variants: SearchResult[],
   nextVariant: SearchResult,
-  comparePrimary: (left: SearchResult, right: SearchResult) => number,
+  comparePrimary: (left: SearchResult, right: SearchResult) => number
 ): SearchResult[] {
   const existingIndex = variants.findIndex(
-    variant =>
-      variant.sourceId === nextVariant.sourceId &&
-      variant.bookUrl === nextVariant.bookUrl,
+    variant => variant.sourceId === nextVariant.sourceId && variant.bookUrl === nextVariant.bookUrl
   )
 
   const nextVariants =
     existingIndex >= 0
       ? variants.map((variant, index) =>
-          index === existingIndex ? mergeSearchResultDetails(nextVariant, variant) : variant,
+          index === existingIndex ? mergeSearchResultDetails(nextVariant, variant) : variant
         )
       : [...variants, nextVariant]
 
@@ -160,7 +135,7 @@ function upsertSearchVariant(
 
 export function aggregateSearchResults(
   results: SearchResult[],
-  comparePrimary: (left: SearchResult, right: SearchResult) => number,
+  comparePrimary: (left: SearchResult, right: SearchResult) => number
 ): SearchDisplayResult[] {
   const resultMap = new Map<string, SearchDisplayResult>()
 
@@ -182,15 +157,11 @@ export function aggregateSearchResults(
       return
     }
 
-    const sourceVariants = upsertSearchVariant(
-      existing.sourceVariants,
-      result,
-      comparePrimary,
-    )
+    const sourceVariants = upsertSearchVariant(existing.sourceVariants, result, comparePrimary)
     const primaryResult = sourceVariants[0] || result
     const mergedPrimary = sourceVariants.reduce(
       (merged, variant) => mergeSearchResultDetails(merged, variant),
-      primaryResult,
+      primaryResult
     )
     const matchedSources = sourceVariants.map(variant => ({
       id: variant.sourceId,

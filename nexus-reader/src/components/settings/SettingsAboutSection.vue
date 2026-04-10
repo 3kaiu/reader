@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { Info, Settings } from "lucide-vue-next";
+import { Info, Settings } from 'lucide-vue-next'
 </script>
 
 <template>
   <section class="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
     <div class="flex items-center gap-2 mb-4 px-1">
       <Info class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-        关于
-      </h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">关于</h2>
     </div>
     <div
       class="rounded-2xl border border-border/50 bg-card hover:bg-muted/30 transition-all duration-200 hover:shadow-md overflow-hidden"
@@ -24,9 +22,7 @@ import { Info, Settings } from "lucide-vue-next";
         </div>
         <div class="space-y-2">
           <h3 class="text-2xl font-bold tracking-tight">Reader Web v3</h3>
-          <p class="text-sm text-muted-foreground">
-            Modern Web Reader powered by Shadcn Vue
-          </p>
+          <p class="text-sm text-muted-foreground">Modern Web Reader powered by Shadcn Vue</p>
         </div>
         <div class="pt-2 flex items-center justify-center gap-4 text-sm">
           <a

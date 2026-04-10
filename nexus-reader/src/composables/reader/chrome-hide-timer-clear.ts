@@ -1,8 +1,6 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
 
-export function createReaderChromeHideTimerClearAction(
-  context: ReaderChromeActionContext,
-) {
+export function createReaderChromeHideTimerClearAction(context: ReaderChromeActionContext) {
   return function clearHideTimer() {
     if (context.state.hideToolbarTimer.value) {
       clearTimeout(context.state.hideToolbarTimer.value)

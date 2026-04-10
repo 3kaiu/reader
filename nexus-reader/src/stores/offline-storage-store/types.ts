@@ -38,6 +38,6 @@ export interface OfflineStoreActions {
   loadCacheIndex(): Promise<void>
   getBookCacheStatus(
     bookUrl: string,
-    totalChapters: number,
+    totalChapters: number
   ): { cached: number; total: number; percentage: number }
 }

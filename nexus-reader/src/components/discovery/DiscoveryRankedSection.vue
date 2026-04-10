@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ArrowRight, BookOpen, Sparkles, Trophy, Users } from "lucide-vue-next";
-import { LazyImage } from "@/components/ui";
-import type { DiscoveryItem } from "@/types/discovery";
+import { ArrowRight, BookOpen, Sparkles, Trophy, Users } from 'lucide-vue-next'
+import { LazyImage } from '@/components/ui'
+import type { DiscoveryItem } from '@/types/discovery'
 
 defineProps<{
-  items: DiscoveryItem[];
-}>();
+  items: DiscoveryItem[]
+}>()
 
 const emit = defineEmits<{
-  open: [item: DiscoveryItem];
-}>();
+  open: [item: DiscoveryItem]
+}>()
 </script>
 
 <template>
@@ -35,10 +35,7 @@ const emit = defineEmits<{
             aspect-ratio="4/5"
             class="w-full h-full"
           />
-          <div
-            v-else
-            class="w-full h-full bg-muted flex items-center justify-center"
-          >
+          <div v-else class="w-full h-full bg-muted flex items-center justify-center">
             <BookOpen class="h-6 w-6 text-muted-foreground/30" />
           </div>
         </div>
@@ -50,7 +47,7 @@ const emit = defineEmits<{
               #{{ book.position }}
             </span>
             <h4 class="font-bold text-base truncate group-hover:text-primary transition-colors">
-              {{ book.name || "未知书名" }}
+              {{ book.name || '未知书名' }}
             </h4>
           </div>
           <div class="flex items-center gap-3 text-xs text-muted-foreground">
@@ -58,10 +55,7 @@ const emit = defineEmits<{
               <Users class="h-3 w-3" />
               {{ book.author }}
             </span>
-            <span
-              v-if="book.followers"
-              class="flex items-center gap-1 text-primary/80 font-medium"
-            >
+            <span v-if="book.followers" class="flex items-center gap-1 text-primary/80 font-medium">
               <Sparkles class="h-3 w-3" />
               {{ (book.followers / 10000).toFixed(1) }}万关注
             </span>

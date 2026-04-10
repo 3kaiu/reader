@@ -4,9 +4,7 @@ import type { ReaderExperienceModelOptions } from './experience-model-option-typ
 
 export type { ReaderExperienceModelOptions } from './experience-model-option-types'
 
-export function createReaderExperienceModel(
-  options: ReaderExperienceModelOptions,
-) {
+export function createReaderExperienceModel(options: ReaderExperienceModelOptions) {
   const readerExperienceState = createReaderExperienceState(options)
   const readerExperienceActions = createReaderExperienceActions(options)
 

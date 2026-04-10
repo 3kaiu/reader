@@ -4,7 +4,7 @@ import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
 export function createReaderToolbarTopBarContentViewBindings(
   props: Pick<ReaderToolbarTopBarProps, 'isFullscreen'>,
-  emit: ReaderToolbarTopBarEmitFn,
+  emit: ReaderToolbarTopBarEmitFn
 ) {
   const fullscreenIconProps = computed(() => ({
     isFullscreen: props.isFullscreen,

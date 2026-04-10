@@ -14,7 +14,10 @@ class WebLocks {
       release = resolve
     })
 
-    this.fallbackLocks.set(name, previous.then(() => current))
+    this.fallbackLocks.set(
+      name,
+      previous.then(() => current)
+    )
 
     await previous
     try {

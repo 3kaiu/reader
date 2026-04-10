@@ -1,7 +1,13 @@
 import type { ReadyAwareService } from './types'
 
-export function hasReadyMethod(service: unknown): service is ReadyAwareService & { ready: () => boolean } {
-  return typeof service === 'object' && service !== null && typeof (service as ReadyAwareService).ready === 'function'
+export function hasReadyMethod(
+  service: unknown
+): service is ReadyAwareService & { ready: () => boolean } {
+  return (
+    typeof service === 'object' &&
+    service !== null &&
+    typeof (service as ReadyAwareService).ready === 'function'
+  )
 }
 
 export async function waitForServicesReady(

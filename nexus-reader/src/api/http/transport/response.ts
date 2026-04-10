@@ -2,11 +2,7 @@ import { clearAuthToken } from '@/utils/authStorage'
 import { reportError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 import { decode } from '@/utils/msgpack'
-import {
-  convertToNexusError,
-  reportBusinessError,
-  reportRequestError,
-} from '../errors'
+import { convertToNexusError, reportBusinessError, reportRequestError } from '../errors'
 import type { InternalApiFetchOptions } from '../types'
 import type { ApiInterceptorResponse } from './types'
 
@@ -18,9 +14,9 @@ interface BusinessErrorPayload {
 function isBusinessErrorPayload(value: unknown): value is BusinessErrorPayload {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'isSuccess' in value &&
-      (value as { isSuccess?: unknown }).isSuccess === false
+    typeof value === 'object' &&
+    'isSuccess' in value &&
+    (value as { isSuccess?: unknown }).isSuccess === false
   )
 }
 
@@ -33,7 +29,12 @@ function getErrorMessage(error: unknown): string | undefined {
     return error
   }
 
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message
   }
 

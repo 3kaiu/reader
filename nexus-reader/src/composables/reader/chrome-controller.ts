@@ -4,7 +4,7 @@ import type { ReaderChromeController } from './chrome-controller-types'
 import type { ReaderChromeActionOptions } from './chrome-option-types'
 
 export function createReaderChromeController(
-  options: ReaderChromeActionOptions,
+  options: ReaderChromeActionOptions
 ): ReaderChromeController {
   const state = createReaderChromeState()
   const actions = createReaderChromeActions(state, options)

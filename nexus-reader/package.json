@@ -21,6 +21,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "node scripts/run-type-check.mjs",
+    "contracts:generate": "node ../scripts/generate-http-route-constants.mjs",
     "contracts:validate": "node ../scripts/validate-contracts.mjs",
     "docs:api": "typedoc",
     "docs:build": "bun run docs:api && bun run docs:generate",

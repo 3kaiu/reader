@@ -1,8 +1,4 @@
-import type {
-  ChineseConvert,
-  FontFamily,
-  ReaderTheme,
-} from '@/types/settings'
+import type { ChineseConvert, FontFamily, ReaderTheme } from '@/types/settings'
 
 export const READ_SETTINGS_THEME_OPTIONS: Array<{
   key: ReaderTheme

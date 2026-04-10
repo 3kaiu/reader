@@ -1,12 +1,5 @@
-import type {
-  CachedContent,
-  OfflineStatus,
-} from '../../types'
-import type {
-  OfflineExportData,
-  OfflineManagerRuntimeState,
-  OfflineOperationInput,
-} from '../types'
+import type { CachedContent, OfflineStatus } from '../../types'
+import type { OfflineExportData, OfflineManagerRuntimeState, OfflineOperationInput } from '../types'
 
 export interface OfflineManagerImportData {
   operations?: OfflineManagerRuntimeState['operationQueue']

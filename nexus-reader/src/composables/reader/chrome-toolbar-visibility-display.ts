@@ -4,7 +4,7 @@ import type { ReaderChromeTimerActions } from './chrome-timer-action-types'
 
 export function createReaderChromeToolbarVisibilityDisplayActions(
   context: ReaderChromeActionContext,
-  timers: ReaderChromeTimerActions,
+  timers: ReaderChromeTimerActions
 ): Pick<ReaderChromeDisplayActions, 'toggleToolbar'> {
   const toggleToolbar = () => {
     if (context.options.settingsStore.config.zenMode) {

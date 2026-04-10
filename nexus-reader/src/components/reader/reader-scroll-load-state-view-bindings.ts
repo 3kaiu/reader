@@ -1,15 +1,11 @@
 import { computed } from 'vue'
-import type {
-  ReaderScrollLoadStateEmitFn,
-} from './reader-scroll-load-state-emit-types'
+import type { ReaderScrollLoadStateEmitFn } from './reader-scroll-load-state-emit-types'
 import type { ReaderScrollLoadStateProps } from './reader-scroll-load-state-prop-types'
-import type {
-  ReaderScrollLoadStateViewBindings,
-} from './reader-scroll-load-state-view-binding-types'
+import type { ReaderScrollLoadStateViewBindings } from './reader-scroll-load-state-view-binding-types'
 
 export function createReaderScrollLoadStateViewBindings(
   props: ReaderScrollLoadStateProps,
-  emit: ReaderScrollLoadStateEmitFn,
+  emit: ReaderScrollLoadStateEmitFn
 ): ReaderScrollLoadStateViewBindings {
   return {
     initialLoadingProps: {

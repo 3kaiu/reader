@@ -40,6 +40,8 @@ function createReaderState(): ReaderStoreState {
     loadError: ref<string | null>(null),
     loadErrorDetails: ref<string | null>(null),
     progressMap: ref({}),
+    resumeScrollPercent: ref(null),
+    resumeScrollChapterIndex: ref(null),
     chapterContentCache: ref({}),
     contentStageReports: ref([]),
   }
@@ -112,7 +114,7 @@ describe('Search -> Open Reader Error Semantics', () => {
     expect(handlePromiseError).toHaveBeenCalledWith(
       expect.any(Error),
       '打开《测试小说》失败：网络超时',
-      false,
+      false
     )
   })
 })
@@ -132,10 +134,7 @@ describe('Reader Session Failure State', () => {
       loadChapterAt: vi.fn(),
     })
 
-    const response = await actions.startReaderSession(
-      'demo-source',
-      'https://example.com/book/1',
-    )
+    const response = await actions.startReaderSession('demo-source', 'https://example.com/book/1')
 
     expect(response.isSuccess).toBe(false)
     expect(state.error.value).toBe('书籍信息获取失败')

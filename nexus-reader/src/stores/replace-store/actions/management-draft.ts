@@ -11,15 +11,13 @@ interface ReplaceManagementDraftActionsDeps {
   saveRule: (rule: ReplaceRule) => Promise<ApiResponse<ReplaceRule>>
 }
 
-export function createReplaceManagementDraftActions(
-  deps: ReplaceManagementDraftActionsDeps,
-) {
+export function createReplaceManagementDraftActions(deps: ReplaceManagementDraftActionsDeps) {
   function createRuleDraft(rule?: Partial<ReplaceRule> | null): ReplaceRuleDraft {
     return createReplaceRuleDraft(rule)
   }
 
   async function saveRuleDraft(
-    draft: Partial<ReplaceRuleDraft>,
+    draft: Partial<ReplaceRuleDraft>
   ): Promise<SaveReplaceRuleDraftResult> {
     const rule = buildReplaceRuleFromDraft(draft)
     if (!rule) {

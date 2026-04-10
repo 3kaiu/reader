@@ -1,7 +1,4 @@
-import {
-  ErrorCode,
-  ErrorSeverity,
-} from '../types'
+import { ErrorCode, ErrorSeverity } from '../types'
 
 const CRITICAL_ERROR_CODES: readonly ErrorCode[] = [
   ErrorCode.CIRCUIT_OPEN,

@@ -1,19 +1,12 @@
-import type {
-  ReaderExperienceModelServiceOptions,
-} from './experience-model-service-types'
-import type {
-  ReaderExperienceModelVisibilityOptions,
-} from './experience-model-visibility-types'
-import type {
-  ReaderExperienceVisibilityState,
-} from './experience-state-visibility-types'
+import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
+import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
+import type { ReaderExperienceVisibilityState } from './experience-state-visibility-types'
 
-type ReaderExperienceVisibilityStateOptions =
-  ReaderExperienceModelVisibilityOptions &
+type ReaderExperienceVisibilityStateOptions = ReaderExperienceModelVisibilityOptions &
   Pick<ReaderExperienceModelServiceOptions, 'isFullscreen'>
 
 export function createReaderExperienceVisibilityState(
-  options: ReaderExperienceVisibilityStateOptions,
+  options: ReaderExperienceVisibilityStateOptions
 ): ReaderExperienceVisibilityState {
   return {
     showToolbar: options.showToolbar.value,
@@ -22,7 +15,6 @@ export function createReaderExperienceVisibilityState(
     showSourcePicker: options.showSourcePicker.value,
     showBookInfo: options.showBookInfo.value,
     showKeyboardHelp: options.showKeyboardHelp.value,
-    showDecoderSettings: options.showDecoderSettings.value,
     isFullscreen: options.isFullscreen.value,
   }
 }

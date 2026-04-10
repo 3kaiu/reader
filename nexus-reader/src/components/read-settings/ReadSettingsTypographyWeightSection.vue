@@ -22,9 +22,11 @@ const emit = defineEmits<{
         v-for="weight in fontWeights"
         :key="weight"
         class="flex-1 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        :class="selectedWeight === weight
-          ? 'border-primary bg-primary/10 text-primary'
-          : 'border-border hover:border-primary/50'"
+        :class="
+          selectedWeight === weight
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border hover:border-primary/50'
+        "
         :style="{ fontWeight: weight }"
         :aria-label="`字重${weight}`"
         :aria-pressed="selectedWeight === weight"

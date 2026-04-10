@@ -11,9 +11,7 @@ export function useReplaceRulePageView() {
   const { rules, loading, enabledCount } = storeToRefs(replaceStore)
 
   const searchKeyword = ref('')
-  const filteredRules = computed(() =>
-    replaceStore.filterRules(searchKeyword.value)
-  )
+  const filteredRules = computed(() => replaceStore.filterRules(searchKeyword.value))
 
   const {
     isManageMode,
@@ -25,10 +23,7 @@ export function useReplaceRulePageView() {
     toggleSelect,
     selectAll,
     toggleManageMode,
-  } = useManageSelection<ReplaceRule, string>(
-    getReplaceRuleKey,
-    () => filteredRules.value
-  )
+  } = useManageSelection<ReplaceRule, string>(getReplaceRuleKey, () => filteredRules.value)
 
   const stats = computed(() => ({
     total: rules.value.length,

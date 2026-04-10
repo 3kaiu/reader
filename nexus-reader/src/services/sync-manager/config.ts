@@ -19,7 +19,7 @@ export function createSyncTaskId(): string {
 
 export function resolveSyncTaskPriority(
   priority: SyncPriority,
-  powerMode: PowerMode,
+  powerMode: PowerMode
 ): SyncPriority {
   if (powerMode === PowerMode.ULTRA_LOW && priority !== 'CRITICAL') {
     return 'IDLE'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2 } from "lucide-vue-next";
+import { Loader2 } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -8,9 +8,7 @@ import { Loader2 } from "lucide-vue-next";
   >
     <div class="flex flex-col items-center gap-6">
       <Loader2 class="w-16 h-16 text-primary/10 animate-spin" />
-      <p class="text-xs font-medium tracking-widest text-primary/40 uppercase">
-        Loading Content
-      </p>
+      <p class="text-xs font-medium tracking-widest text-primary/40 uppercase">Loading Content</p>
     </div>
   </div>
 </template>

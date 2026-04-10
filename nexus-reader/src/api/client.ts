@@ -110,7 +110,9 @@ export const $put = <T>(url: string, body?: unknown, options?: ApiFetchOptions) 
 }
 
 export const $delete = <T>(url: string, options?: ApiFetchOptions) => {
-  return requestOptimizer.requestWithRetry(() => requestMutation<T>('DELETE', url, undefined, options))
+  return requestOptimizer.requestWithRetry(() =>
+    requestMutation<T>('DELETE', url, undefined, options)
+  )
 }
 
 export const $patch = <T>(url: string, body?: unknown, options?: ApiFetchOptions) => {

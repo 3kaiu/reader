@@ -9,12 +9,8 @@ export function useReaderView() {
   const services = createReaderViewServices()
   const layout = createReaderViewLayout()
   const features = createReaderViewFeatures(services, layout)
-  const {
-    readerPageState,
-    readerPageActions,
-    readerExperienceState,
-    readerExperienceActions,
-  } = createReaderViewModels(services, layout, features)
+  const { readerPageState, readerPageActions, readerExperienceState, readerExperienceActions } =
+    createReaderViewModels(services, layout, features)
 
   return {
     readerRef: layout.readerRef,

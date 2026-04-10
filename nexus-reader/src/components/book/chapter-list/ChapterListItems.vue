@@ -23,11 +23,7 @@ const emit = defineEmits<{
     <Skeleton v-for="i in 12" :key="i" width="100%" height="20px" class-name="rounded" />
   </div>
 
-  <div
-    v-else
-    class="flex-1 overflow-hidden relative"
-    v-bind="containerProps"
-  >
+  <div v-else class="flex-1 overflow-hidden relative" v-bind="containerProps">
     <div v-bind="wrapperProps">
       <div
         v-for="item in list"

@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import type { BookGroup } from "@/types/group";
+import type { BookGroup } from '@/types/group'
 
 defineProps<{
-  nonEmptyGroups: BookGroup[];
-  currentGroupId: string | number;
-}>();
+  nonEmptyGroups: BookGroup[]
+  currentGroupId: string | number
+}>()
 
 const emit = defineEmits<{
-  "update:currentGroupId": [value: string | number];
-}>();
+  'update:currentGroupId': [value: string | number]
+}>()
 </script>
 
 <template>
-  <section
-    class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1"
-  >
+  <section class="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide flex items-center gap-2 py-1">
     <button
       class="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
       :class="

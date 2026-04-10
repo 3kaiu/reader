@@ -1,26 +1,23 @@
 <script setup lang="ts">
 import { useEditRuleView } from '@/composables/useEditRuleView'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ReplaceRule } from '@/types/replace'
 
-const props = withDefaults(defineProps<{
-  open?: boolean
-  rule?: ReplaceRule | null
-}>(), {
-  open: false
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    rule?: ReplaceRule | null
+  }>(),
+  {
+    open: false,
+  }
+)
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'saved': []
+  saved: []
 }>()
 
 const { loading, form, handleSave } = useEditRuleView({
@@ -42,7 +39,7 @@ const { loading, form, handleSave } = useEditRuleView({
           <label class="text-sm font-medium">规则名称</label>
           <Input v-model="form.name" placeholder="请输入规则名称" />
         </div>
-        
+
         <div class="space-y-2">
           <label class="text-sm font-medium">替换规则 (Pattern)</label>
           <Input v-model="form.pattern" placeholder="要查找的内容" />
@@ -61,12 +58,16 @@ const { loading, form, handleSave } = useEditRuleView({
 
         <div class="flex items-center gap-4 py-2">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="form.isRegex" class="w-4 h-4 rounded border-gray-300">
+            <input type="checkbox" v-model="form.isRegex" class="w-4 h-4 rounded border-gray-300" />
             <span class="text-sm">使用正则</span>
           </label>
-          
+
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="form.isEnabled" class="w-4 h-4 rounded border-gray-300">
+            <input
+              type="checkbox"
+              v-model="form.isEnabled"
+              class="w-4 h-4 rounded border-gray-300"
+            />
             <span class="text-sm">启用规则</span>
           </label>
         </div>

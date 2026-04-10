@@ -12,16 +12,9 @@ export function createReaderChapterOperations(
   helpers: {
     fetchChapterContent: (chapter: Chapter) => Promise<string>
     prefetchChapterContent: (chapter: Chapter | undefined) => void
-    setCurrentChapterContent: (
-      chapter: Chapter,
-      chapterContent: string,
-    ) => void
-    updateLoadedChapter: (
-      chapter: Chapter,
-      chapterContent: string,
-      replaceOnly?: boolean,
-    ) => void
-  },
+    setCurrentChapterContent: (chapter: Chapter, chapterContent: string) => void
+    updateLoadedChapter: (chapter: Chapter, chapterContent: string, replaceOnly?: boolean) => void
+  }
 ) {
   const captureScrollAnchorSnapshot = (): ScrollAnchorSnapshot | null => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -29,7 +22,7 @@ export function createReaderChapterOperations(
     }
 
     const markers = Array.from(
-      document.querySelectorAll<HTMLElement>('.chapter-marker[data-chapter-index]'),
+      document.querySelectorAll<HTMLElement>('.chapter-marker[data-chapter-index]')
     )
     if (markers.length === 0) {
       return null
@@ -71,7 +64,7 @@ export function createReaderChapterOperations(
     const restoreWithRetry = (retryLeft: number) => {
       window.requestAnimationFrame(() => {
         const marker = document.querySelector<HTMLElement>(
-          `.chapter-marker[data-chapter-index="${snapshot.chapterIndex}"]`,
+          `.chapter-marker[data-chapter-index="${snapshot.chapterIndex}"]`
         )
         if (!marker) {
           if (retryLeft > 0) {
@@ -97,10 +90,7 @@ export function createReaderChapterOperations(
   }
 
   const appendNextChapter = async (): Promise<boolean> => {
-    if (
-      !view.hasNextChapter.value ||
-      !state.catalog.value[state.currentChapterIndex.value + 1]
-    ) {
+    if (!view.hasNextChapter.value || !state.catalog.value[state.currentChapterIndex.value + 1]) {
       return false
     }
 
@@ -114,9 +104,7 @@ export function createReaderChapterOperations(
       const chapterContent = await helpers.fetchChapterContent(next)
       helpers.updateLoadedChapter(next, chapterContent, false)
       restoreScrollByAnchor(scrollAnchorSnapshot)
-      helpers.prefetchChapterContent(
-        state.catalog.value[state.currentChapterIndex.value + 2],
-      )
+      helpers.prefetchChapterContent(state.catalog.value[state.currentChapterIndex.value + 2])
       return true
     } catch (err) {
       state.loadError.value = err instanceof Error ? err.message : '加载下一章失败'
@@ -139,8 +127,7 @@ export function createReaderChapterOperations(
 
     const scrollRatio =
       typeof window !== 'undefined' && document.documentElement.scrollHeight > window.innerHeight
-        ? window.scrollY /
-          Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)
+        ? window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)
         : 0
 
     const chapterContent = await helpers.fetchChapterContent(state.currentChapter.value)

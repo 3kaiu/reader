@@ -1,36 +1,25 @@
 import { replaceApi } from '@/api/replace'
 import type { ApiResponse } from '@/api/http/types'
 import type { ReplaceRule } from '@/types/replace'
-import {
-  buildDeleteBatchSummary,
-  normalizeBatchIds,
-} from '@/utils/batchMutation'
+import { buildDeleteBatchSummary, normalizeBatchIds } from '@/utils/batchMutation'
 import { getReplaceRuleKey } from '@/utils/replaceRules'
-import type {
-  DeleteReplaceRulesResult,
-} from '../types'
+import type { DeleteReplaceRulesResult } from '../types'
 import type { ReplaceManagementHelpers } from './management-shared'
 
-export function createReplaceManagementDeleteActions(
-  helpers: ReplaceManagementHelpers,
-) {
+export function createReplaceManagementDeleteActions(helpers: ReplaceManagementHelpers) {
   async function deleteRules(targetRules: ReplaceRule[]): Promise<ApiResponse<ReplaceRule[]>> {
     const response = await replaceApi.deleteReplaceRules(targetRules)
     const deletedRules = response.data || []
 
     if (deletedRules.length > 0) {
       const deletedKeys = new Set(deletedRules.map(getReplaceRuleKey))
-      helpers.setRules(
-        helpers.rules().filter(rule => !deletedKeys.has(getReplaceRuleKey(rule))),
-      )
+      helpers.setRules(helpers.rules().filter(rule => !deletedKeys.has(getReplaceRuleKey(rule))))
     }
 
     return response
   }
 
-  async function deleteRulesByKeys(
-    keys: Iterable<string>,
-  ): Promise<DeleteReplaceRulesResult> {
+  async function deleteRulesByKeys(keys: Iterable<string>): Promise<DeleteReplaceRulesResult> {
     const targetKeys = normalizeBatchIds(keys)
     const targetRules = helpers.getRulesByKeys(targetKeys)
     if (targetRules.length === 0) {
@@ -47,7 +36,7 @@ export function createReplaceManagementDeleteActions(
     const summary = buildDeleteBatchSummary(
       targetKeys,
       (response.data || []).map(getReplaceRuleKey),
-      response.errorMsg,
+      response.errorMsg
     )
 
     return {

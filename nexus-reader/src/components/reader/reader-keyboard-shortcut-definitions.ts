@@ -7,7 +7,6 @@ export type ReaderKeyboardShortcutDefinition = {
 }
 
 export const READER_KEYBOARD_SHORTCUTS: ReaderKeyboardShortcutDefinition[] = [
-
   { keys: 'Escape', event: 'escape' },
   { keys: 'f', event: 'toggle-fullscreen' },
   { keys: 'c', event: 'toggle-catalog' },

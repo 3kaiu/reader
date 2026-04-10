@@ -1,4 +1,3 @@
-import type { DecodedEntity } from '@/types/decoder'
 import type { ReaderLoadedChapter } from './content-chapter-types'
 import type { ReaderContentStyle } from './content-style-types'
 
@@ -13,6 +12,4 @@ export interface ReaderContentProps {
   paragraphSpacing: number
   loadError?: string | null
   loadErrorDetails?: string | null
-  decoderEnabled?: boolean
-  decoderEntities?: DecodedEntity[]
 }

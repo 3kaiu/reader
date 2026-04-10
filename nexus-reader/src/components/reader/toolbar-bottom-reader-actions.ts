@@ -1,12 +1,9 @@
-import {
-  RotateCcw,
-  Type,
-} from 'lucide-vue-next'
+import { RotateCcw, Type } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
 import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
 
 export function createReaderToolbarBottomReaderActions(
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
   return [
     {

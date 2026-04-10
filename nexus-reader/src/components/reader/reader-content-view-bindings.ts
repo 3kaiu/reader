@@ -1,19 +1,12 @@
 import { useReaderContentView } from '@/composables/useReaderContentView'
-import type {
-  ReaderContentBindingOptions,
-  ReaderContentInteractionBindings,
-} from './reader-content-binding-types'
+import type { ReaderContentInteractionBindings } from './reader-content-binding-types'
 import type { ReaderContentProps } from './reader-content-prop-types'
 
 export function createReaderContentViewBindings(
-  props: ReaderContentProps,
-  options: ReaderContentBindingOptions,
+  props: ReaderContentProps
 ): ReaderContentInteractionBindings {
-  const { handleContentClick, getHighlightedContent } = useReaderContentView({
-    decoderEnabled: props.decoderEnabled,
-    decoderEntities: props.decoderEntities,
-    onEntityClick: options.onEntityClick,
-  })
+  void props
+  const { handleContentClick, getHighlightedContent } = useReaderContentView()
 
   return {
     handleContentClick,

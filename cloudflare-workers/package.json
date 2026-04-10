@@ -11,6 +11,7 @@
     "type-check": "node ./scripts/type-check.mjs",
     "build": "wrangler deploy --dry-run",
     "dev": "wrangler dev",
+    "contracts:generate": "node ../scripts/generate-http-route-constants.mjs",
     "contracts:validate": "node ../scripts/validate-contracts.mjs"
   },
   "keywords": [

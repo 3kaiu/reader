@@ -123,28 +123,44 @@ const emit = defineEmits<{
       />
     </div>
     <div
-      v-if="props.fetchSessionSummary.length > 0 || props.fetchHtmlPreviewSummary.length > 0 || props.rawFetchHtmlPreviewSummary.length > 0"
+      v-if="
+        props.fetchSessionSummary.length > 0 ||
+        props.fetchHtmlPreviewSummary.length > 0 ||
+        props.rawFetchHtmlPreviewSummary.length > 0
+      "
       class="px-5 pb-5 grid grid-cols-1 xl:grid-cols-2 gap-3"
     >
-      <div v-if="props.fetchSessionSummary.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+      <div
+        v-if="props.fetchSessionSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
         <p class="text-xs text-muted-foreground mb-2">Session State</p>
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.fetchSessionSummary" :key="item">{{ item }}</li>
         </ul>
       </div>
-      <div v-if="props.fetchHtmlPreviewSummary.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+      <div
+        v-if="props.fetchHtmlPreviewSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
         <p class="text-xs text-muted-foreground mb-2">Fetch Preview</p>
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.fetchHtmlPreviewSummary" :key="item">{{ item }}</li>
         </ul>
       </div>
-      <div v-if="props.rawFetchHtmlPreviewSummary.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+      <div
+        v-if="props.rawFetchHtmlPreviewSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
         <p class="text-xs text-muted-foreground mb-2">Raw Preview</p>
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.rawFetchHtmlPreviewSummary" :key="item">{{ item }}</li>
         </ul>
       </div>
-      <div v-if="props.fetchHtmlCompareSummary.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+      <div
+        v-if="props.fetchHtmlCompareSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
         <p class="text-xs text-muted-foreground mb-2">Compare Summary</p>
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.fetchHtmlCompareSummary" :key="item">{{ item }}</li>
@@ -160,21 +176,33 @@ const emit = defineEmits<{
       <div class="mb-3 flex gap-2">
         <button
           class="h-8 px-3 rounded-full border text-xs"
-          :class="fetchHtmlViewMode === 'jina' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'"
+          :class="
+            fetchHtmlViewMode === 'jina'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background hover:bg-muted'
+          "
           @click="fetchHtmlViewMode = 'jina'"
         >
           Jina
         </button>
         <button
           class="h-8 px-3 rounded-full border text-xs"
-          :class="fetchHtmlViewMode === 'raw' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'"
+          :class="
+            fetchHtmlViewMode === 'raw'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background hover:bg-muted'
+          "
           @click="fetchHtmlViewMode = 'raw'"
         >
           Raw
         </button>
         <button
           class="h-8 px-3 rounded-full border text-xs"
-          :class="fetchHtmlViewMode === 'compare' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'"
+          :class="
+            fetchHtmlViewMode === 'compare'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background hover:bg-muted'
+          "
           @click="fetchHtmlViewMode = 'compare'"
         >
           Compare
@@ -192,7 +220,10 @@ const emit = defineEmits<{
         readonly
         class="w-full min-h-56 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
       />
-      <div v-else-if="fetchHtmlViewMode === 'compare'" class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div
+        v-else-if="fetchHtmlViewMode === 'compare'"
+        class="grid grid-cols-1 xl:grid-cols-2 gap-3"
+      >
         <textarea
           :value="props.fetchHtmlPreview?.html || ''"
           readonly

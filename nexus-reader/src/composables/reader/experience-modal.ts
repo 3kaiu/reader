@@ -1,22 +1,13 @@
 import { computed } from 'vue'
-import type {
-  ReaderExperienceDisplayState,
-} from './experience-state-display-types'
-import type {
-  ReaderExperienceServiceState,
-} from './experience-state-service-types'
-import type {
-  ReaderExperienceVisibilityState,
-} from './experience-state-visibility-types'
+import type { ReaderExperienceDisplayState } from './experience-state-display-types'
+import type { ReaderExperienceServiceState } from './experience-state-service-types'
+import type { ReaderExperienceVisibilityState } from './experience-state-visibility-types'
 
-type ReaderExperienceModalState =
-  ReaderExperienceServiceState &
+type ReaderExperienceModalState = ReaderExperienceServiceState &
   ReaderExperienceVisibilityState &
   ReaderExperienceDisplayState
 
-export function createReaderExperienceModalProps(
-  state: ReaderExperienceModalState,
-) {
+export function createReaderExperienceModalProps(state: ReaderExperienceModalState) {
   return computed(() => ({
     showCatalog: state.showCatalog,
     showSettings: state.showSettings,

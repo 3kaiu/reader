@@ -1,23 +1,12 @@
 <script setup lang="ts">
 import ReaderKeyboardHelpDialog from './ReaderKeyboardHelpDialog.vue'
 import { createReaderKeyboardHelpOverlayBindings } from './reader-keyboard-help-overlay-bindings'
-import type {
-  ReaderKeyboardHelpOverlayEmits,
-} from './reader-keyboard-help-overlay-emit-types'
-import type {
-  ReaderKeyboardHelpOverlayProps,
-} from './reader-keyboard-help-overlay-prop-types'
+import type { ReaderKeyboardHelpOverlayEmits } from './reader-keyboard-help-overlay-emit-types'
+import type { ReaderKeyboardHelpOverlayProps } from './reader-keyboard-help-overlay-prop-types'
 
 const props = defineProps<ReaderKeyboardHelpOverlayProps>()
 const emit = defineEmits<ReaderKeyboardHelpOverlayEmits>()
-const {
-  isOpen,
-  dialogProps,
-  onClose,
-} = createReaderKeyboardHelpOverlayBindings(
-  props,
-  emit,
-)
+const { isOpen, dialogProps, onClose } = createReaderKeyboardHelpOverlayBindings(props, emit)
 </script>
 
 <template>
@@ -27,10 +16,7 @@ const {
       class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       @click="onClose"
     >
-      <ReaderKeyboardHelpDialog
-        v-bind="dialogProps"
-        @close="onClose"
-      />
+      <ReaderKeyboardHelpDialog v-bind="dialogProps" @close="onClose" />
     </div>
   </Transition>
 </template>

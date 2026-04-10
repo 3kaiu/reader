@@ -1,7 +1,4 @@
-import {
-  getLocalStorageItem,
-  getSessionStorageItem,
-} from '../browserStorage'
+import { getLocalStorageItem, getSessionStorageItem } from '../browserStorage'
 import { logger } from '../logger'
 import {
   ErrorCode,
@@ -34,17 +31,12 @@ export function createErrorBoundary() {
       const errorStack = getErrorStackValue(error)
       const runtimeContext = getRuntimeErrorContext()
 
-      const nexusError = new NexusError(
-        ErrorCode.INTERNAL_ERROR,
-        errorMessage,
-        errorStack,
-        {
-          ...context,
-          originalError: stringifyError(error),
-          userAgent: runtimeContext.userAgent,
-          url: runtimeContext.url,
-        }
-      )
+      const nexusError = new NexusError(ErrorCode.INTERNAL_ERROR, errorMessage, errorStack, {
+        ...context,
+        originalError: stringifyError(error),
+        userAgent: runtimeContext.userAgent,
+        url: runtimeContext.url,
+      })
 
       this.error = nexusError
       return nexusError
@@ -56,7 +48,7 @@ export function createErrorBoundary() {
 
     getLastError() {
       return this.error
-    }
+    },
   }
 }
 
@@ -70,7 +62,7 @@ export function reportError(error: NexusError, additionalContext?: ErrorContext)
       ...additionalContext,
       userId: getLocalStorageItem('user_id'),
       sessionId: getSessionStorageItem('session_id'),
-    }
+    },
   }
 
   if (import.meta.env.DEV) {
@@ -101,8 +93,8 @@ export function errorHandler(_target: object, propertyKey: string, descriptor: P
         getErrorStackValue(error),
         {
           method: propertyKey,
-          args: args.map(arg => typeof arg === 'object' ? '[Object]' : String(arg)),
-          originalError: stringifyError(error)
+          args: args.map(arg => (typeof arg === 'object' ? '[Object]' : String(arg))),
+          originalError: stringifyError(error),
         }
       )
 
@@ -114,7 +106,11 @@ export function errorHandler(_target: object, propertyKey: string, descriptor: P
   return descriptor
 }
 
-export function syncErrorHandler(_target: object, propertyKey: string, descriptor: PropertyDescriptor) {
+export function syncErrorHandler(
+  _target: object,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+) {
   const originalMethod = descriptor.value as ((...args: unknown[]) => unknown) | undefined
   if (!originalMethod) {
     return descriptor
@@ -135,8 +131,8 @@ export function syncErrorHandler(_target: object, propertyKey: string, descripto
         getErrorStackValue(error),
         {
           method: propertyKey,
-          args: args.map(arg => typeof arg === 'object' ? '[Object]' : String(arg)),
-          originalError: stringifyError(error)
+          args: args.map(arg => (typeof arg === 'object' ? '[Object]' : String(arg))),
+          originalError: stringifyError(error),
         }
       )
 

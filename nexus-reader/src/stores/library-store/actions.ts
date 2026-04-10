@@ -2,15 +2,11 @@ import { createLibraryBookActions } from './actions/books'
 import { createLibraryActionHelpers } from './actions/helpers'
 import { createLibraryLoadingActions } from './actions/loading'
 import { createLibraryQueryActions } from './actions/query'
-import type {
-  LibraryStoreActions,
-  LibraryStoreState,
-  LibraryStoreView,
-} from './types'
+import type { LibraryStoreActions, LibraryStoreState, LibraryStoreView } from './types'
 
 export function createLibraryStoreActions(
   state: LibraryStoreState,
-  view: LibraryStoreView,
+  view: LibraryStoreView
 ): LibraryStoreActions {
   const helperActions = createLibraryActionHelpers(state)
   const loadingActions = createLibraryLoadingActions(state, {

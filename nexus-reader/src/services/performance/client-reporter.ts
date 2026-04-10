@@ -28,7 +28,7 @@ function getEndpoint(): string {
 function ensureFlushTimer() {
   if (flushTimer != null || typeof window === 'undefined') return
   flushTimer = window.setInterval(() => {
-    flushClientMetrics().catch(() => { })
+    flushClientMetrics().catch(() => {})
   }, FLUSH_INTERVAL_MS)
 
   window.addEventListener('beforeunload', () => {

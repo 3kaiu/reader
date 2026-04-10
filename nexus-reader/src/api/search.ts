@@ -1,16 +1,8 @@
-import { $post } from "./client"
-import { isLikelyNetworkOrCorsError } from "./http/errors"
-import {
-  mergeHeaders,
-  resolveBaseUrl,
-  attachAuthHeaders,
-} from "./http/transport/request"
-import type { InternalApiFetchOptions } from "./http/types"
-import type {
-  SearchError,
-  SearchResponse,
-  SearchResult,
-} from "@/types/search"
+import { $post } from './client'
+import { isLikelyNetworkOrCorsError } from './http/errors'
+import { mergeHeaders, resolveBaseUrl, attachAuthHeaders } from './http/transport/request'
+import type { InternalApiFetchOptions } from './http/types'
+import type { SearchError, SearchResponse, SearchResult } from '@/types/search'
 
 export type { SearchError, SearchResponse, SearchResult }
 
@@ -28,8 +20,8 @@ type SearchStreamOptions = {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException
-    ? error.name === "AbortError"
-    : error instanceof Error && error.name === "AbortError"
+    ? error.name === 'AbortError'
+    : error instanceof Error && error.name === 'AbortError'
 }
 
 function joinBaseUrl(baseURL: string | undefined, requestUrl: string): string {
@@ -37,8 +29,8 @@ function joinBaseUrl(baseURL: string | undefined, requestUrl: string): string {
     return requestUrl
   }
 
-  const normalizedBase = baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL
-  const normalizedPath = requestUrl.startsWith("/") ? requestUrl : `/${requestUrl}`
+  const normalizedBase = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL
+  const normalizedPath = requestUrl.startsWith('/') ? requestUrl : `/${requestUrl}`
   return `${normalizedBase}${normalizedPath}`
 }
 
@@ -46,8 +38,8 @@ async function toRequestError(response: Response): Promise<Error> {
   let message = `搜索失败 (${response.status})`
 
   try {
-    const contentType = response.headers.get("content-type") || ""
-    if (contentType.includes("application/json")) {
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
       const data = (await response.json()) as
         | { message?: string; error?: string; errorMsg?: string }
         | undefined
@@ -73,24 +65,24 @@ async function toRequestError(response: Response): Promise<Error> {
 
 function processSseEventBlock(
   block: string,
-  handlers: Required<Pick<SearchStreamOptions, "onResult" | "onError" | "onDone">>,
+  handlers: Required<Pick<SearchStreamOptions, 'onResult' | 'onError' | 'onDone'>>
 ): void {
-  const normalizedBlock = block.replace(/\r/g, "").trim()
-  if (!normalizedBlock || normalizedBlock.startsWith(":")) {
+  const normalizedBlock = block.replace(/\r/g, '').trim()
+  if (!normalizedBlock || normalizedBlock.startsWith(':')) {
     return
   }
 
-  let eventName = "message"
+  let eventName = 'message'
   const dataLines: string[] = []
 
-  normalizedBlock.split("\n").forEach(line => {
-    if (line.startsWith("event:")) {
-      eventName = line.slice("event:".length).trim()
+  normalizedBlock.split('\n').forEach(line => {
+    if (line.startsWith('event:')) {
+      eventName = line.slice('event:'.length).trim()
       return
     }
 
-    if (line.startsWith("data:")) {
-      dataLines.push(line.slice("data:".length).trim())
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).trim())
     }
   })
 
@@ -98,17 +90,17 @@ function processSseEventBlock(
     return
   }
 
-  const dataText = dataLines.join("\n")
+  const dataText = dataLines.join('\n')
   const payload = JSON.parse(dataText) as
     | { data?: SearchResult; source_id?: string; error?: string; total?: number }
     | undefined
 
-  if (eventName === "result" && payload?.data) {
+  if (eventName === 'result' && payload?.data) {
     handlers.onResult(payload.data)
     return
   }
 
-  if (eventName === "error" && payload?.source_id && payload.error) {
+  if (eventName === 'error' && payload?.source_id && payload.error) {
     handlers.onError({
       sourceId: payload.source_id,
       error: payload.error,
@@ -116,22 +108,22 @@ function processSseEventBlock(
     return
   }
 
-  if (eventName === "done") {
-    handlers.onDone(typeof payload?.total === "number" ? payload.total : 0)
+  if (eventName === 'done') {
+    handlers.onDone(typeof payload?.total === 'number' ? payload.total : 0)
   }
 }
 
 async function consumeSearchStream(
   response: Response,
-  options: SearchStreamOptions,
+  options: SearchStreamOptions
 ): Promise<void> {
   if (!response.body) {
-    throw new Error("搜索流不可用")
+    throw new Error('搜索流不可用')
   }
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
-  let buffer = ""
+  let buffer = ''
 
   const handlers = {
     onResult: options.onResult || (() => undefined),
@@ -145,14 +137,14 @@ async function consumeSearchStream(
       break
     }
 
-    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, "")
+    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '')
 
-    let separatorIndex = buffer.indexOf("\n\n")
+    let separatorIndex = buffer.indexOf('\n\n')
     while (separatorIndex >= 0) {
       const block = buffer.slice(0, separatorIndex)
       buffer = buffer.slice(separatorIndex + 2)
       processSseEventBlock(block, handlers)
-      separatorIndex = buffer.indexOf("\n\n")
+      separatorIndex = buffer.indexOf('\n\n')
     }
   }
 
@@ -165,32 +157,35 @@ async function consumeSearchStream(
 async function requestSearchStream(
   payload: SearchPayload,
   options: SearchStreamOptions,
-  forceEdge = false,
+  forceEdge = false
 ): Promise<{ usedDirect: boolean }> {
-  const requestUrl = "/search/stream"
+  const requestUrl = '/search/stream'
   const requestOptions = {
-    method: "POST",
+    method: 'POST',
     forceEdge,
     signal: options.signal,
     headers: {
-      Accept: "text/event-stream",
-      "Content-Type": "application/json",
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
     },
   } as InternalApiFetchOptions
 
   resolveBaseUrl(requestOptions, requestUrl)
   attachAuthHeaders(requestOptions)
   requestOptions.headers = mergeHeaders(requestOptions.headers, {
-    Accept: "text/event-stream",
-    "Content-Type": "application/json",
+    Accept: 'text/event-stream',
+    'Content-Type': 'application/json',
   })
 
-  const response = await fetch(joinBaseUrl(requestOptions.baseURL as string | undefined, requestUrl), {
-    method: "POST",
-    headers: requestOptions.headers as HeadersInit,
-    body: JSON.stringify(payload),
-    signal: options.signal,
-  })
+  const response = await fetch(
+    joinBaseUrl(requestOptions.baseURL as string | undefined, requestUrl),
+    {
+      method: 'POST',
+      headers: requestOptions.headers as HeadersInit,
+      body: JSON.stringify(payload),
+      signal: options.signal,
+    }
+  )
 
   if (!response.ok) {
     throw await toRequestError(response)
@@ -205,25 +200,21 @@ async function requestSearchStream(
 
 export const searchApi = {
   searchBooks: (keyword: string, sources: string[] = []) =>
-    $post<SearchResponse>("/search", { keyword, sources }),
+    $post<SearchResponse>('/search', { keyword, sources }),
 
   async searchBooksStream(
     keyword: string,
     sources: string[] = [],
-    options: SearchStreamOptions = {},
+    options: SearchStreamOptions = {}
   ): Promise<void> {
     const payload: SearchPayload = { keyword, sources }
 
     try {
       await requestSearchStream(payload, options)
     } catch (error) {
-      const hasDirectBaseUrl = Boolean(import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || "")
+      const hasDirectBaseUrl = Boolean(import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || '')
 
-      if (
-        !hasDirectBaseUrl ||
-        isAbortError(error) ||
-        !isLikelyNetworkOrCorsError(error)
-      ) {
+      if (!hasDirectBaseUrl || isAbortError(error) || !isLikelyNetworkOrCorsError(error)) {
         throw error
       }
 

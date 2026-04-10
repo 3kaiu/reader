@@ -4,46 +4,46 @@ import type {
   SearchResultActionPayload,
   SearchSourceOption,
   SearchResult,
-} from "@/types/search";
-import { getSearchAggregateKey } from "@/utils/searchStore";
-import SearchQueryBar from "./SearchQueryBar.vue";
-import SearchErrorPanel from "./SearchErrorPanel.vue";
-import SearchResultsEmptyState from "./SearchResultsEmptyState.vue";
-import SearchResultsHeader from "./SearchResultsHeader.vue";
-import SearchResultsLoadingGrid from "./SearchResultsLoadingGrid.vue";
-import SearchResultCard from "./SearchResultCard.vue";
-import SearchSourceFilters from "./SearchSourceFilters.vue";
+} from '@/types/search'
+import { getSearchAggregateKey } from '@/utils/searchStore'
+import SearchQueryBar from './SearchQueryBar.vue'
+import SearchErrorPanel from './SearchErrorPanel.vue'
+import SearchResultsEmptyState from './SearchResultsEmptyState.vue'
+import SearchResultsHeader from './SearchResultsHeader.vue'
+import SearchResultsLoadingGrid from './SearchResultsLoadingGrid.vue'
+import SearchResultCard from './SearchResultCard.vue'
+import SearchSourceFilters from './SearchSourceFilters.vue'
 
 defineProps<{
-  searchKeyword: string;
-  loading: boolean;
-  resultCount: number;
-  showSourceFilters: boolean;
-  availableSources: SearchSourceOption[];
-  selectedSources: Set<string>;
+  searchKeyword: string
+  loading: boolean
+  resultCount: number
+  showSourceFilters: boolean
+  availableSources: SearchSourceOption[]
+  selectedSources: Set<string>
   searchErrors: Array<{
-    sourceId: string;
-    sourceName: string;
-    error: string;
-  }>;
-  filteredResults: SearchDisplayResult[];
-  searchResultCount: number;
-  hasSearched: boolean;
-  openingBook: string | null;
-  hasBookOnShelf: (book: SearchResult) => boolean;
-}>();
+    sourceId: string
+    sourceName: string
+    error: string
+  }>
+  filteredResults: SearchDisplayResult[]
+  searchResultCount: number
+  hasSearched: boolean
+  openingBook: string | null
+  hasBookOnShelf: (book: SearchResult) => boolean
+}>()
 
 const emit = defineEmits<{
-  (e: "update:searchKeyword", value: string): void;
-  (e: "search"): void;
-  (e: "stopSearch"): void;
-  (e: "toggleSource", source: string): void;
-  (e: "clearSourceFilter"): void;
-  (e: "addToShelf", payload: SearchResultActionPayload): void;
-  (e: "openBook", payload: SearchResultActionPayload): void;
-  (e: "resetSearch"): void;
-  (e: "goBack"): void;
-}>();
+  (e: 'update:searchKeyword', value: string): void
+  (e: 'search'): void
+  (e: 'stopSearch'): void
+  (e: 'toggleSource', source: string): void
+  (e: 'clearSourceFilter'): void
+  (e: 'addToShelf', payload: SearchResultActionPayload): void
+  (e: 'openBook', payload: SearchResultActionPayload): void
+  (e: 'resetSearch'): void
+  (e: 'goBack'): void
+}>()
 </script>
 
 <template>
@@ -96,9 +96,7 @@ const emit = defineEmits<{
       />
     </div>
 
-    <SearchResultsLoadingGrid
-      v-if="loading && searchResultCount === 0"
-    />
+    <SearchResultsLoadingGrid v-if="loading && searchResultCount === 0" />
 
     <SearchResultsEmptyState
       v-if="!loading && searchResultCount === 0 && hasSearched"

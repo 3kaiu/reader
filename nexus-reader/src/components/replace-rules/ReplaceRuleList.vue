@@ -1,38 +1,34 @@
 <script setup lang="ts">
-import { Plus, Wand2 } from "lucide-vue-next";
-import {
-  EmptyState,
-  LoadingGrid,
-  PageToolbar,
-} from "@/components/common";
-import type { ReplaceRule } from "@/types/replace";
-import { getReplaceRuleKey } from "@/utils/replaceRules";
-import ReplaceRuleCard from "./ReplaceRuleCard.vue";
+import { Plus, Wand2 } from 'lucide-vue-next'
+import { EmptyState, LoadingGrid, PageToolbar } from '@/components/common'
+import type { ReplaceRule } from '@/types/replace'
+import { getReplaceRuleKey } from '@/utils/replaceRules'
+import ReplaceRuleCard from './ReplaceRuleCard.vue'
 
 type ReplaceRuleStats = {
-  total: number;
-  enabled: number;
-  filtered: number;
-  selected: number;
-};
+  total: number
+  enabled: number
+  filtered: number
+  selected: number
+}
 
 defineProps<{
-  searchKeyword: string;
-  loading: boolean;
-  filteredRules: ReplaceRule[];
-  isManageMode: boolean;
-  stats: ReplaceRuleStats;
-  isRuleSelected: (rule: ReplaceRule) => boolean;
-}>();
+  searchKeyword: string
+  loading: boolean
+  filteredRules: ReplaceRule[]
+  isManageMode: boolean
+  stats: ReplaceRuleStats
+  isRuleSelected: (rule: ReplaceRule) => boolean
+}>()
 
 const emit = defineEmits<{
-  toggleManageMode: [];
-  toggleSelect: [rule: ReplaceRule];
-  openEdit: [rule?: ReplaceRule];
-  deleteRule: [rule: ReplaceRule];
-  toggleEnabled: [rule: ReplaceRule, enabled: boolean];
-  resetSearch: [];
-}>();
+  toggleManageMode: []
+  toggleSelect: [rule: ReplaceRule]
+  openEdit: [rule?: ReplaceRule]
+  deleteRule: [rule: ReplaceRule]
+  toggleEnabled: [rule: ReplaceRule, enabled: boolean]
+  resetSearch: []
+}>()
 </script>
 
 <template>
@@ -62,11 +58,7 @@ const emit = defineEmits<{
       v-else-if="filteredRules.length === 0"
       :icon="Wand2"
       :title="searchKeyword ? '未找到匹配的规则' : '暂无规则'"
-      :description="
-        searchKeyword
-          ? '尝试更换搜索关键词'
-          : '创建替换规则来优化阅读体验'
-      "
+      :description="searchKeyword ? '尝试更换搜索关键词' : '创建替换规则来优化阅读体验'"
       :actions="[
         {
           label: '新增规则',
@@ -98,9 +90,7 @@ const emit = defineEmits<{
         @toggle-select="emit('toggleSelect', $event)"
         @open-edit="emit('openEdit', $event)"
         @delete-rule="emit('deleteRule', $event)"
-        @toggle-enabled="
-          (rule, enabled) => emit('toggleEnabled', rule, enabled)
-        "
+        @toggle-enabled="(rule, enabled) => emit('toggleEnabled', rule, enabled)"
       />
     </div>
   </div>

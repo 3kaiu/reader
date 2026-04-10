@@ -14,9 +14,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useMessage } from '@/composables/useMessage'
 import { useReplaceStore } from '@/stores/replace'
 
-export function useReplaceRuleManagementView(
-  options: ReplaceRuleManagementSelection,
-) {
+export function useReplaceRuleManagementView(options: ReplaceRuleManagementSelection) {
   const router = useRouter()
   const { success, error } = useMessage()
   const { confirm } = useConfirm()

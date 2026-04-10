@@ -1,21 +1,15 @@
 <script setup lang="ts">
 import { ArrowLeft, List } from 'lucide-vue-next'
 import ReaderFullscreenIcon from './ReaderFullscreenIcon.vue'
-import {
-  createReaderToolbarTopBarContentViewBindings,
-} from './toolbar-top-bar-content-view-bindings'
+import { createReaderToolbarTopBarContentViewBindings } from './toolbar-top-bar-content-view-bindings'
 import type { ReaderToolbarTopBarEmits } from './toolbar-top-bar-emit-types'
 import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
 const props = defineProps<ReaderToolbarTopBarProps>()
 
 const emit = defineEmits<ReaderToolbarTopBarEmits>()
-const {
-  fullscreenIconProps,
-  onBack,
-  onToggleCatalog,
-  onToggleFullscreen,
-} = createReaderToolbarTopBarContentViewBindings(props, emit)
+const { fullscreenIconProps, onBack, onToggleCatalog, onToggleFullscreen } =
+  createReaderToolbarTopBarContentViewBindings(props, emit)
 </script>
 
 <template>

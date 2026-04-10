@@ -60,9 +60,7 @@ export function useConfirm() {
       showConfirm({
         ...options,
         message: options.message || options.description || '',
-        type:
-          options.type ||
-          (options.variant === 'destructive' ? 'danger' : 'info'),
+        type: options.type || (options.variant === 'destructive' ? 'danger' : 'info'),
       }),
     showConfirm,
     handleConfirm,

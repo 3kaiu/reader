@@ -2,14 +2,10 @@ import type { ReaderChromeActionContext } from './chrome-context-types'
 import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
 
 export function createReaderChromePanelToggleDisplayActions(
-  context: ReaderChromeActionContext,
+  context: ReaderChromeActionContext
 ): Pick<
   ReaderChromeDisplayActions,
-  | 'toggleCatalog'
-  | 'openCatalog'
-  | 'toggleSettings'
-  | 'openSettings'
-  | 'toggleKeyboardHelp'
+  'toggleCatalog' | 'openCatalog' | 'toggleSettings' | 'openSettings' | 'toggleKeyboardHelp'
 > {
   const toggleCatalog = () => {
     context.state.showCatalog.value = !context.state.showCatalog.value

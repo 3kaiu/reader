@@ -4,7 +4,7 @@ import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderBookInfoModalBindings(
   props: ReaderModalsProps,
-  emit: ReaderModalsEmitFn,
+  emit: ReaderModalsEmitFn
 ) {
   return computed(() => ({
     open: props.showBookInfo,

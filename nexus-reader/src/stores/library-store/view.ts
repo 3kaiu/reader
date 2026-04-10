@@ -7,7 +7,7 @@ export function createLibraryStoreView(state: LibraryStoreState): LibraryStoreVi
     isInitialLoading: computed(
       () =>
         (!state.booksLoaded.value || !state.groupsLoaded.value) &&
-        (state.loadingBooks.value || state.loadingGroups.value),
+        (state.loadingBooks.value || state.loadingGroups.value)
     ),
   }
 }

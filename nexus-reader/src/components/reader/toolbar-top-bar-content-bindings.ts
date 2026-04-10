@@ -8,7 +8,7 @@ import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
 export function createReaderToolbarTopBarBindings(
   props: ReaderToolbarTopBarProps,
-  emit: ReaderToolbarTopBarEmitFn,
+  emit: ReaderToolbarTopBarEmitFn
 ): ReaderToolbarTopBarBindingResult {
   const contentBindings = computed<ReaderToolbarTopBarContentBindings>(() => ({
     ...props,

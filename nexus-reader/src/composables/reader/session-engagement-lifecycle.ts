@@ -1,19 +1,11 @@
-import {
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-} from 'vue'
+import { nextTick, onBeforeUnmount, onMounted } from 'vue'
 import { useEngagementTracker } from '@/composables/useEngagementTracker'
-import type {
-  ReaderSessionLifecycleContext,
-} from './session-lifecycle-context-types'
+import type { ReaderSessionLifecycleContext } from './session-lifecycle-context-types'
 
-export function setupReaderSessionEngagementLifecycle(
-  context: ReaderSessionLifecycleContext,
-) {
+export function setupReaderSessionEngagementLifecycle(context: ReaderSessionLifecycleContext) {
   const { startTracking, stopTracking } = useEngagementTracker(
     context.activeBookUrl.value,
-    context.options.readerStore.currentChapterIndex,
+    context.options.readerStore.currentChapterIndex
   )
 
   onMounted(() => {

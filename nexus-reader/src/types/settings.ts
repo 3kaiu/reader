@@ -1,15 +1,6 @@
-export type ReaderTheme =
-  | 'white'
-  | 'paper'
-  | 'night'
+export type ReaderTheme = 'white' | 'paper' | 'night'
 
-export type FontFamily =
-  | 'system'
-  | 'heiti'
-  | 'kaiti'
-  | 'songti'
-  | 'fangsong'
-  | 'lxgw'
+export type FontFamily = 'system' | 'heiti' | 'kaiti' | 'songti' | 'fangsong' | 'lxgw'
 
 export type ChineseConvert = 'none' | 'toSimplified' | 'toTraditional'
 export type ClientRouteKind = 'direct' | 'edge'

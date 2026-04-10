@@ -23,8 +23,7 @@ export function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }
 
-export async function estimateBrowserStorage():
-  Promise<BrowserStorageEstimate | null> {
+export async function estimateBrowserStorage(): Promise<BrowserStorageEstimate | null> {
   if (!navigator.storage?.estimate) {
     return null
   }
@@ -58,7 +57,7 @@ export function deriveChapterCachePolicyFromStorage(
 
   const used = Math.max(0, estimate.used || 0)
   const quota = Math.max(0, estimate.quota)
-  const quotaGiB = quota / (1024 ** 3)
+  const quotaGiB = quota / 1024 ** 3
   const usageRatio = quota > 0 ? used / quota : 0
 
   let maxEntries = 600
@@ -94,7 +93,10 @@ export function deriveChapterCachePolicyFromStorage(
       MIN_CHAPTER_CACHE_ENTRIES,
       Math.min(MAX_CHAPTER_CACHE_ENTRIES, Math.trunc(maxEntries))
     ),
-    ttlMs: Math.max(MIN_CHAPTER_CACHE_TTL_MS, Math.min(MAX_CHAPTER_CACHE_TTL_MS, Math.trunc(ttlMs))),
+    ttlMs: Math.max(
+      MIN_CHAPTER_CACHE_TTL_MS,
+      Math.min(MAX_CHAPTER_CACHE_TTL_MS, Math.trunc(ttlMs))
+    ),
   }
 }
 

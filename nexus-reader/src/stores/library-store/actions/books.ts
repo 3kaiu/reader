@@ -8,15 +8,8 @@ import {
   getSettledApiError,
   normalizeBatchIds,
 } from '@/utils/batchMutation'
-import {
-  isConflictError,
-  mergeSavedBook,
-  toSaveBookInput,
-} from '@/utils/libraryStore'
-import type {
-  DeleteBooksResult,
-  EnsureBookResult,
-} from '../types'
+import { isConflictError, mergeSavedBook, toSaveBookInput } from '@/utils/libraryStore'
+import type { DeleteBooksResult, EnsureBookResult } from '../types'
 
 interface LibraryBookHelpers {
   books: () => Book[]
@@ -27,9 +20,7 @@ interface LibraryBookHelpers {
   loadBooks: (force?: boolean) => Promise<ApiResponse<Book[]>>
 }
 
-export function createLibraryBookActions(
-  helpers: LibraryBookHelpers,
-) {
+export function createLibraryBookActions(helpers: LibraryBookHelpers) {
   async function addBook(book: SaveBookInput | Book): Promise<ApiResponse<Book>> {
     const response = await libraryApi.saveBook(toSaveBookInput(book))
     if (response.isSuccess) {
@@ -83,17 +74,13 @@ export function createLibraryBookActions(
       }
     }
 
-    const results = await Promise.allSettled(
-      targetIds.map(id => libraryApi.deleteBook(id)),
-    )
+    const results = await Promise.allSettled(targetIds.map(id => libraryApi.deleteBook(id)))
 
     const deletedIds = collectSettledSuccessIds(targetIds, results)
 
     if (deletedIds.length > 0) {
       const deletedIdSet = new Set(deletedIds)
-      helpers.setBooks(
-        helpers.books().filter(book => !book.id || !deletedIdSet.has(book.id)),
-      )
+      helpers.setBooks(helpers.books().filter(book => !book.id || !deletedIdSet.has(book.id)))
     }
 
     return {
@@ -111,14 +98,14 @@ export function createLibraryBookActions(
 
   async function moveBooksToGroup(
     groupId: string | null,
-    selectedBooks: Book[],
+    selectedBooks: Book[]
   ): Promise<ApiResponse<void>> {
     const response = await libraryApi.moveBooksToGroup(groupId, selectedBooks)
     if (response.isSuccess) {
       const targetIds = new Set(
         selectedBooks
           .map(book => book.id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
       )
 
       helpers.setBooks(
@@ -128,8 +115,8 @@ export function createLibraryBookActions(
                 ...book,
                 groupId: groupId ?? undefined,
               }
-            : book,
-        ),
+            : book
+        )
       )
     }
     return response
@@ -137,7 +124,7 @@ export function createLibraryBookActions(
 
   async function moveBookIdsToGroup(
     groupId: string | null,
-    ids: Iterable<string>,
+    ids: Iterable<string>
   ): Promise<ApiResponse<void>> {
     const selectedBooks = helpers.getBooksByIds(ids)
     if (selectedBooks.length === 0) {

@@ -146,7 +146,6 @@ function isChapterRequest(url) {
 function isEdgeAddonRequest(url) {
   return (
     url.pathname.startsWith('/auth/') ||
-    url.pathname.startsWith('/decode/') ||
     url.pathname.startsWith('/progress/')
   )
 }

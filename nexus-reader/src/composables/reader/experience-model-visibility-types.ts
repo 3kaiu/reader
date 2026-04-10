@@ -7,5 +7,4 @@ export type ReaderExperienceModelVisibilityOptions = {
   showSourcePicker: Ref<boolean>
   showBookInfo: Ref<boolean>
   showKeyboardHelp: Ref<boolean>
-  showDecoderSettings: Ref<boolean>
 }

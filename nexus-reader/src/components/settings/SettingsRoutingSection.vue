@@ -1,94 +1,94 @@
 <script setup lang="ts">
-import { reactive, toRefs, watch } from "vue";
-import { Info } from "lucide-vue-next";
-import type { AgentRouterConfigPatch } from "@/api/sync";
+import { reactive, toRefs, watch } from 'vue'
+import { Info } from 'lucide-vue-next'
+import type { AgentRouterConfigPatch } from '@/api/sync'
 
 type RouteStat = {
-  key: string;
-  label: string;
-  shareLabel: string;
-  p50Label: string;
-  p95Label: string;
-};
+  key: string
+  label: string
+  shareLabel: string
+  p50Label: string
+  p95Label: string
+}
 
 type ClientRoutingSummary = {
-  window: string;
-  note: string;
-  routes: RouteStat[];
-};
+  window: string
+  note: string
+  routes: RouteStat[]
+}
 
 type AgentRoutingSummary = {
-  window: string;
-  totalSelectionsLabel: string;
-  aiAttemptRateLabel: string;
-  fallbackRateLabel: string;
-  aiTimeoutRateLabel: string;
+  window: string
+  totalSelectionsLabel: string
+  aiAttemptRateLabel: string
+  fallbackRateLabel: string
+  aiTimeoutRateLabel: string
   topSkills: Array<{
-    key: string;
-    label: string;
-    countLabel: string;
-    shareLabel: string;
-  }>;
-};
+    key: string
+    label: string
+    countLabel: string
+    shareLabel: string
+  }>
+}
 
 type AgentRoutingConfigSummary = {
-  enabledLabel: string;
-  shadowModeLabel: string;
-  aiEnabledLabel: string;
-  rolloutLabel: string;
-  timeoutLabel: string;
-  confidenceLabel: string;
-  includeRoutesLabel: string;
-  excludeRoutesLabel: string;
-};
+  enabledLabel: string
+  shadowModeLabel: string
+  aiEnabledLabel: string
+  rolloutLabel: string
+  timeoutLabel: string
+  confidenceLabel: string
+  includeRoutesLabel: string
+  excludeRoutesLabel: string
+}
 
 type AgentRoutingConfigRaw = {
-  source: string;
-  overrideUpdatedAt: string;
-  overrideUpdatedBy: string;
-  enabled: boolean;
-  shadowMode: boolean;
-  allowAISelection: boolean;
-  rolloutPercent: number;
-  aiMaxLatencyMs: number;
-  minConfidencePercent: number;
-  includeRoutes: string[];
-  excludeRoutes: string[];
-};
+  source: string
+  overrideUpdatedAt: string
+  overrideUpdatedBy: string
+  enabled: boolean
+  shadowMode: boolean
+  allowAISelection: boolean
+  rolloutPercent: number
+  aiMaxLatencyMs: number
+  minConfidencePercent: number
+  includeRoutes: string[]
+  excludeRoutes: string[]
+}
 
 type AgentRoutingAuditSummary = {
-  hasMore: boolean;
+  hasMore: boolean
   records: Array<{
-    id: string;
-    action: string;
-    actor: string;
-    timestamp: string;
-    changeItems: string[];
-  }>;
-};
+    id: string
+    action: string
+    actor: string
+    timestamp: string
+    changeItems: string[]
+  }>
+}
 
 const props = defineProps<{
-  clientRoutingLoading: boolean;
-  clientRoutingSummary: ClientRoutingSummary;
-  agentRoutingLoading: boolean;
-  agentRoutingSummary: AgentRoutingSummary;
-  agentConfigLoading: boolean;
-  agentConfigSaving: boolean;
-  agentConfigAuditLoading: boolean;
-  agentRoutingConfigSummary: AgentRoutingConfigSummary;
-  agentRoutingConfigRaw: AgentRoutingConfigRaw;
-  agentRoutingAuditSummary: AgentRoutingAuditSummary;
-}>();
+  clientRoutingLoading: boolean
+  clientRoutingSummary: ClientRoutingSummary
+  agentRoutingLoading: boolean
+  agentRoutingSummary: AgentRoutingSummary
+  agentConfigLoading: boolean
+  agentConfigSaving: boolean
+  agentConfigAuditLoading: boolean
+  agentRoutingConfigSummary: AgentRoutingConfigSummary
+  agentRoutingConfigRaw: AgentRoutingConfigRaw
+  agentRoutingAuditSummary: AgentRoutingAuditSummary
+}>()
 
 const emit = defineEmits<{
-  refresh: [];
-  setAgentConfigDisabled: [];
-  setAgentConfigShadow: [];
-  setAgentConfigCanary: [];
-  saveAgentConfigCustom: [patch: AgentRouterConfigPatch];
-  resetAgentConfigOverride: [];
-  loadMoreAgentAudit: [];
-}>();
+  refresh: []
+  setAgentConfigDisabled: []
+  setAgentConfigShadow: []
+  setAgentConfigCanary: []
+  saveAgentConfigCustom: [patch: AgentRouterConfigPatch]
+  resetAgentConfigOverride: []
+  loadMoreAgentAudit: []
+}>()
 const {
   clientRoutingLoading,
   clientRoutingSummary,
@@ -100,7 +100,7 @@ const {
   agentRoutingConfigSummary,
   agentRoutingConfigRaw,
   agentRoutingAuditSummary,
-} = toRefs(props);
+} = toRefs(props)
 
 const draft = reactive({
   enabled: false,
@@ -109,30 +109,30 @@ const draft = reactive({
   rolloutPercent: 0,
   aiMaxLatencyMs: 300,
   minConfidencePercent: 65,
-  includeRoutesText: "",
-  excludeRoutesText: "",
-});
+  includeRoutesText: '',
+  excludeRoutesText: '',
+})
 
 watch(
   () => props.agentRoutingConfigRaw,
-  (value) => {
-    draft.enabled = value.enabled;
-    draft.shadowMode = value.shadowMode;
-    draft.allowAISelection = value.allowAISelection;
-    draft.rolloutPercent = value.rolloutPercent;
-    draft.aiMaxLatencyMs = value.aiMaxLatencyMs;
-    draft.minConfidencePercent = value.minConfidencePercent;
-    draft.includeRoutesText = value.includeRoutes.join(", ");
-    draft.excludeRoutesText = value.excludeRoutes.join(", ");
+  value => {
+    draft.enabled = value.enabled
+    draft.shadowMode = value.shadowMode
+    draft.allowAISelection = value.allowAISelection
+    draft.rolloutPercent = value.rolloutPercent
+    draft.aiMaxLatencyMs = value.aiMaxLatencyMs
+    draft.minConfidencePercent = value.minConfidencePercent
+    draft.includeRoutesText = value.includeRoutes.join(', ')
+    draft.excludeRoutesText = value.excludeRoutes.join(', ')
   },
-  { immediate: true },
-);
+  { immediate: true }
+)
 
 function parseRouteText(raw: string): string[] {
   return raw
     .split(/[\n,]/g)
-    .map((item) => item.trim())
-    .filter(Boolean);
+    .map(item => item.trim())
+    .filter(Boolean)
 }
 
 function submitCustomConfig() {
@@ -145,8 +145,8 @@ function submitCustomConfig() {
     minConfidence: Math.max(0, Math.min(1, Number(draft.minConfidencePercent || 65) / 100)),
     includeRoutes: parseRouteText(draft.includeRoutesText),
     excludeRoutes: parseRouteText(draft.excludeRoutesText),
-  };
-  emit("saveAgentConfigCustom", patch);
+  }
+  emit('saveAgentConfigCustom', patch)
 }
 </script>
 
@@ -173,7 +173,7 @@ function submitCustomConfig() {
           :disabled="clientRoutingLoading"
           @click="emit('refresh')"
         >
-          {{ clientRoutingLoading ? "刷新中..." : "刷新" }}
+          {{ clientRoutingLoading ? '刷新中...' : '刷新' }}
         </button>
       </div>
 
@@ -228,7 +228,10 @@ function submitCustomConfig() {
 
       <div class="px-5 pb-5">
         <p class="text-xs text-muted-foreground mb-2">Top Skills</p>
-        <div v-if="agentRoutingSummary.topSkills.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div
+          v-if="agentRoutingSummary.topSkills.length > 0"
+          class="grid grid-cols-1 md:grid-cols-2 gap-3"
+        >
           <div
             v-for="skill in agentRoutingSummary.topSkills"
             :key="skill.key"
@@ -240,7 +243,7 @@ function submitCustomConfig() {
           </div>
         </div>
         <p v-else class="text-xs text-muted-foreground/70">
-          {{ agentRoutingLoading ? "加载中..." : "暂无 agent 路由数据" }}
+          {{ agentRoutingLoading ? '加载中...' : '暂无 agent 路由数据' }}
         </p>
       </div>
     </div>
@@ -323,7 +326,8 @@ function submitCustomConfig() {
         </p>
         <p>
           <span class="font-medium text-foreground">Updated:</span>
-          {{ agentRoutingConfigRaw.overrideUpdatedAt }} · {{ agentRoutingConfigRaw.overrideUpdatedBy }}
+          {{ agentRoutingConfigRaw.overrideUpdatedAt }} ·
+          {{ agentRoutingConfigRaw.overrideUpdatedBy }}
         </p>
         <p v-if="agentConfigLoading" class="text-muted-foreground/70">配置加载中...</p>
         <p v-if="agentConfigSaving" class="text-muted-foreground/70">配置保存中...</p>
@@ -419,8 +423,7 @@ function submitCustomConfig() {
           >
             <p>
               <span class="font-medium">{{ record.action }}</span>
-              · {{ record.timestamp }}
-              · by {{ record.actor }}
+              · {{ record.timestamp }} · by {{ record.actor }}
             </p>
             <div class="flex flex-wrap gap-1.5">
               <span
@@ -430,17 +433,14 @@ function submitCustomConfig() {
               >
                 {{ item }}
               </span>
-              <span
-                v-if="record.changeItems.length === 0"
-                class="text-muted-foreground"
-              >
+              <span v-if="record.changeItems.length === 0" class="text-muted-foreground">
                 no field changed
               </span>
             </div>
           </div>
         </div>
         <p v-else class="text-xs text-muted-foreground/70">
-          {{ agentConfigAuditLoading ? "审计日志加载中..." : "暂无配置变更记录" }}
+          {{ agentConfigAuditLoading ? '审计日志加载中...' : '暂无配置变更记录' }}
         </p>
         <div v-if="agentRoutingAuditSummary.hasMore" class="pt-1">
           <button
@@ -448,7 +448,7 @@ function submitCustomConfig() {
             :disabled="agentConfigAuditLoading"
             @click="emit('loadMoreAgentAudit')"
           >
-            {{ agentConfigAuditLoading ? "加载中..." : "加载更多" }}
+            {{ agentConfigAuditLoading ? '加载中...' : '加载更多' }}
           </button>
         </div>
       </div>

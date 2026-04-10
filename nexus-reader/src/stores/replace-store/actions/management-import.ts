@@ -9,9 +9,7 @@ interface ReplaceManagementImportActionsDeps {
   saveRules: (batch: ReplaceRule[]) => Promise<ApiResponse<ReplaceRule[]>>
 }
 
-export function createReplaceManagementImportActions(
-  deps: ReplaceManagementImportActionsDeps,
-) {
+export function createReplaceManagementImportActions(deps: ReplaceManagementImportActionsDeps) {
   async function importRulesFromText(text: string): Promise<ImportReplaceRulesResult> {
     const parsed = parseReplaceRuleImport(text)
     if (!parsed.success) {
@@ -33,10 +31,9 @@ export function createReplaceManagementImportActions(
       savedCount,
       skippedCount: parsed.skippedCount,
       normalizedText: toPrettyJson(parsed.rules),
-      errorMsg:
-        response.isSuccess
-          ? undefined
-          : response.errorMsg || (savedCount > 0 ? '部分规则导入失败' : '导入失败'),
+      errorMsg: response.isSuccess
+        ? undefined
+        : response.errorMsg || (savedCount > 0 ? '部分规则导入失败' : '导入失败'),
     }
   }
 

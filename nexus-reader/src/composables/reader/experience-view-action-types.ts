@@ -8,5 +8,4 @@ export interface ReaderExperienceViewActions {
   toggleZenMode(): void
   openSourcePicker(): void
   openBookInfo(): void
-  openDecoderSettings(): void
 }

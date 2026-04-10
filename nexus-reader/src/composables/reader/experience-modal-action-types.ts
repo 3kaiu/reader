@@ -4,5 +4,4 @@ export interface ReaderExperienceModalActions {
   setShowSourcePicker(value: boolean): void
   setShowBookInfo(value: boolean): void
   setShowKeyboardHelp(value: boolean): void
-  setShowDecoderSettings(value: boolean): void
 }

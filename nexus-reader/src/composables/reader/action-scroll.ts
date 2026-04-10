@@ -5,8 +5,7 @@ export function scrollReaderToTop(behavior: ScrollBehavior = 'smooth'): void {
 export function restoreReaderRefreshPosition(scrollRatio: number): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const newScrollHeight =
-        document.documentElement.scrollHeight - window.innerHeight
+      const newScrollHeight = document.documentElement.scrollHeight - window.innerHeight
       window.scrollTo({
         top: scrollRatio * newScrollHeight,
         behavior: 'auto',
@@ -16,9 +15,7 @@ export function restoreReaderRefreshPosition(scrollRatio: number): void {
 }
 
 export function scrollReaderToChapterMarker(index: number): boolean {
-  const chapterMarker = document.querySelector(
-    `[data-chapter-index='${index}']`,
-  )
+  const chapterMarker = document.querySelector(`[data-chapter-index='${index}']`)
 
   if (!(chapterMarker instanceof HTMLElement)) {
     return false

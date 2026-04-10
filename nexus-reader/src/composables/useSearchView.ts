@@ -11,9 +11,7 @@ import { useSearchStore } from '@/stores/search'
 import { useSourceStore } from '@/stores/source'
 import type { SearchDisplayResult, SearchResult, SearchSourceOption } from '@/types/search'
 import { aggregateSearchResults, getSearchAggregateKey } from '@/utils/searchStore'
-import {
-  compareSourcesByBusinessPriority,
-} from '@/utils/sourceStore'
+import { compareSourcesByBusinessPriority } from '@/utils/sourceStore'
 
 export function useSearchView() {
   const router = useRouter()
@@ -58,7 +56,7 @@ export function useSearchView() {
     })
 
     const sourceOrderMap = new Map(
-      sources.value.map((source, index) => [source.id, index] as const),
+      sources.value.map((source, index) => [source.id, index] as const)
     )
 
     return Array.from(sourceMap.values()).sort((left, right) => {
@@ -85,13 +83,13 @@ export function useSearchView() {
     return new Map<string, string>(entries)
   })
   const sourceById = computed(
-    () => new Map(sources.value.map(source => [source.id, source] as const)),
+    () => new Map(sources.value.map(source => [source.id, source] as const))
   )
   const searchErrorItems = computed(() =>
     searchErrors.value.map(error => ({
       ...error,
       sourceName: sourceNameMap.value.get(error.sourceId) || error.sourceId,
-    })),
+    }))
   )
   const compareSearchResultsBySourcePriority = (left: SearchResult, right: SearchResult) => {
     const leftAggregateKey = getSearchAggregateKey(left)
@@ -124,7 +122,7 @@ export function useSearchView() {
 
     return compareSourcesByBusinessPriority(
       leftSource || { id: left.sourceId, name: left.sourceName, enabled: true },
-      rightSource || { id: right.sourceId, name: right.sourceName, enabled: true },
+      rightSource || { id: right.sourceId, name: right.sourceName, enabled: true }
     )
   }
 
@@ -142,8 +140,8 @@ export function useSearchView() {
         }
 
         return left.name.localeCompare(right.name, 'zh-CN')
-      },
-    ),
+      }
+    )
   )
   const displayResultCount = computed(() => aggregatedFilteredResults.value.length)
   const hasResults = computed(() => aggregatedFilteredResults.value.length > 0)

@@ -1,8 +1,4 @@
-import type {
-  ErrorContext,
-  ErrorSeverity,
-  KnownErrorPreset,
-} from '../core'
+import type { ErrorContext, ErrorSeverity, KnownErrorPreset } from '../core'
 
 export interface ErrorInfo {
   message: string
@@ -16,7 +12,7 @@ export interface ErrorInfo {
 export type StructuredLogMethod = (
   message: string,
   payload?: unknown,
-  context?: ErrorContext,
+  context?: ErrorContext
 ) => void
 
 export type { KnownErrorPreset }

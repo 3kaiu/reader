@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import {
-  X,
-} from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 import ChapterListHeaderActions from './ChapterListHeaderActions.vue'
 import ChapterListHeaderCurrentReading from './ChapterListHeaderCurrentReading.vue'
 import ChapterListHeaderDownloadProgress from './ChapterListHeaderDownloadProgress.vue'
 import ChapterListHeaderInfo from './ChapterListHeaderInfo.vue'
 import ChapterListHeaderSearch from './ChapterListHeaderSearch.vue'
 import type { ChapterListDownloadProgress } from './types'
-import {
-  SheetClose,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { SheetClose, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 defineProps<{
   bookName?: string
@@ -32,7 +26,7 @@ const emit = defineEmits<{
   'update:searchKeyword': [value: string]
   'toggle-reverse': []
   'scroll-to-current': []
-  'refresh': []
+  refresh: []
   'download-all': []
   'clear-search': []
 }>()
@@ -47,10 +41,7 @@ const emit = defineEmits<{
       </SheetClose>
     </div>
 
-    <ChapterListHeaderInfo
-      :book-name="bookName"
-      :chapters-count="chaptersCount"
-    />
+    <ChapterListHeaderInfo :book-name="bookName" :chapters-count="chaptersCount" />
 
     <ChapterListHeaderActions
       :is-reverse="isReverse"

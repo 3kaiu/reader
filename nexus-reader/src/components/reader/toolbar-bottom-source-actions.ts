@@ -5,7 +5,7 @@ import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-pr
 
 export function createReaderToolbarBottomSourceActions(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
   return [
     {

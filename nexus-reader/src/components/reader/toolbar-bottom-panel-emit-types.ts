@@ -2,6 +2,7 @@ export type ReaderToolbarBottomPanelEmits = {
   toggleDayNight: []
   toggleSettings: []
   toggleEyeCare: []
+  toggleZenMode: []
   refresh: []
   prevChapter: []
   nextChapter: []
@@ -9,8 +10,9 @@ export type ReaderToolbarBottomPanelEmits = {
   openBookInfo: []
 }
 
-export type ReaderToolbarBottomPanelEmitFn =
-  <EventName extends keyof ReaderToolbarBottomPanelEmits>(
-    event: EventName,
-    ...args: ReaderToolbarBottomPanelEmits[EventName]
-  ) => void
+export type ReaderToolbarBottomPanelEmitFn = <
+  EventName extends keyof ReaderToolbarBottomPanelEmits,
+>(
+  event: EventName,
+  ...args: ReaderToolbarBottomPanelEmits[EventName]
+) => void

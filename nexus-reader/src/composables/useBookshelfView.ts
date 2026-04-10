@@ -34,18 +34,13 @@ export function useBookshelfView() {
     isFeatureAvailable: feature => optionalFeatures.value[feature],
   })
 
-  const {
-    booksWithStatus,
-    nonEmptyGroups,
-    recentBooks,
-    otherBooks,
-    hasBooks,
-  } = useBookshelfCollections({
-    books,
-    groups,
-    currentGroupId,
-    offlineStore,
-  })
+  const { booksWithStatus, nonEmptyGroups, recentBooks, otherBooks, hasBooks } =
+    useBookshelfCollections({
+      books,
+      groups,
+      currentGroupId,
+      offlineStore,
+    })
   const {
     isManageMode,
     selectedKeys: selectedBooks,

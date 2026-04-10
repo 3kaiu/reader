@@ -10,9 +10,7 @@ export function normalizeBatchIds(ids: Iterable<string>): string[] {
 export function countSettledSuccesses<T extends ApiMutationResult>(
   results: PromiseSettledResult<T>[]
 ): number {
-  return results.filter(
-    result => result.status === 'fulfilled' && result.value.isSuccess
-  ).length
+  return results.filter(result => result.status === 'fulfilled' && result.value.isSuccess).length
 }
 
 export function collectSettledSuccessIds<T extends ApiMutationResult>(
@@ -40,10 +38,7 @@ export function getSettledApiError<T extends ApiMutationResult>(
       : undefined
 }
 
-export function getRemainingBatchIds(
-  targetIds: string[],
-  successIds: string[]
-): string[] {
+export function getRemainingBatchIds(targetIds: string[], successIds: string[]): string[] {
   const successIdSet = new Set(successIds)
   return targetIds.filter(id => !successIdSet.has(id))
 }

@@ -1,102 +1,96 @@
 <script setup lang="ts">
-import {
-  Circle,
-  CheckCircle2,
-  Globe2,
-  Edit2,
-  Trash2,
-} from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import type { SourceListItem } from "@/stores/source";
+import { Circle, CheckCircle2, Globe2, Edit2, Trash2 } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import type { SourceListItem } from '@/stores/source'
 
 const props = defineProps<{
-  source: SourceListItem;
-  isManageMode: boolean;
-  isSelected: boolean;
-}>();
+  source: SourceListItem
+  isManageMode: boolean
+  isSelected: boolean
+}>()
 
 const emit = defineEmits<{
-  toggleSelect: [source: SourceListItem];
-  openEdit: [source: SourceListItem];
-  toggleEnable: [source: SourceListItem, enabled: boolean];
-  deleteSource: [source: SourceListItem];
-}>();
+  toggleSelect: [source: SourceListItem]
+  openEdit: [source: SourceListItem]
+  toggleEnable: [source: SourceListItem, enabled: boolean]
+  deleteSource: [source: SourceListItem]
+}>()
 
 function getLicenseLabel(source: SourceListItem): string {
   switch (source.policy?.licenseStatus) {
-    case "licensed":
-      return "已授权";
-    case "public_domain":
-      return "公版";
-    case "restricted":
-      return "受限";
-    case "blocked":
-      return "已封禁";
+    case 'licensed':
+      return '已授权'
+    case 'public_domain':
+      return '公版'
+    case 'restricted':
+      return '受限'
+    case 'blocked':
+      return '已封禁'
     default:
-      return "待审核";
+      return '待审核'
   }
 }
 
 function getLicenseVariant(
-  source: SourceListItem,
-): "default" | "secondary" | "outline" | "destructive" {
+  source: SourceListItem
+): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (source.policy?.licenseStatus) {
-    case "licensed":
-    case "public_domain":
-      return "default";
-    case "restricted":
-      return "secondary";
-    case "blocked":
-      return "destructive";
+    case 'licensed':
+    case 'public_domain':
+      return 'default'
+    case 'restricted':
+      return 'secondary'
+    case 'blocked':
+      return 'destructive'
     default:
-      return "outline";
+      return 'outline'
   }
 }
 
 function getHealthLabel(source: SourceListItem): string {
   if (!source.health) {
-    return "健康度待采样";
+    return '健康度待采样'
   }
 
-  const score = Math.round(source.health.score * 100);
-  const latency = source.health.avgLatencyMs;
-  const parts = [`健康度 ${score}`, `${latency}ms`];
+  const score = Math.round(source.health.score * 100)
+  const latency = source.health.avgLatencyMs
+  const parts = [`健康度 ${score}`, `${latency}ms`]
 
-  if (typeof source.health.healthPoints === "number") {
-    parts.push(`积分=${source.health.healthPoints}`);
+  if (typeof source.health.healthPoints === 'number') {
+    parts.push(`积分=${source.health.healthPoints}`)
   }
 
-  if (source.health.circuitState && source.health.circuitState !== "closed") {
-    parts.push(`熔断=${source.health.circuitState}`);
+  if (source.health.circuitState && source.health.circuitState !== 'closed') {
+    parts.push(`熔断=${source.health.circuitState}`)
   }
-  if (source.health.primaryFailure && source.health.primaryFailure !== "none") {
-    parts.push(`失败=${source.health.primaryFailure}`);
+  if (source.health.primaryFailure && source.health.primaryFailure !== 'none') {
+    parts.push(`失败=${source.health.primaryFailure}`)
   }
   if (
-    typeof source.health.consecutiveFailures === "number" &&
+    typeof source.health.consecutiveFailures === 'number' &&
     source.health.consecutiveFailures > 0
   ) {
-    parts.push(`连败=${source.health.consecutiveFailures}`);
+    parts.push(`连败=${source.health.consecutiveFailures}`)
   }
   if (Array.isArray(source.health.strategyChain) && source.health.strategyChain.length > 0) {
-    parts.push(`链路=${source.health.strategyChain[0]}`);
+    parts.push(`链路=${source.health.strategyChain[0]}`)
   }
   if (
     source.health.restoredFromSnapshot &&
-    typeof source.health.snapshotUpdatedAtMs === "number" &&
+    typeof source.health.snapshotUpdatedAtMs === 'number' &&
     source.health.snapshotUpdatedAtMs > 0
   ) {
-    parts.push(`快照=${new Date(source.health.snapshotUpdatedAtMs).toLocaleString()}`);
+    parts.push(`快照=${new Date(source.health.snapshotUpdatedAtMs).toLocaleString()}`)
   }
   if (
-    typeof source.health.healthEventsSinceSnapshot === "number" &&
+    typeof source.health.healthEventsSinceSnapshot === 'number' &&
     source.health.healthEventsSinceSnapshot > 0
   ) {
-    parts.push(`新增=${source.health.healthEventsSinceSnapshot}`);
+    parts.push(`新增=${source.health.healthEventsSinceSnapshot}`)
   }
 
-  return parts.join(" · ");
+  return parts.join(' · ')
 }
 </script>
 
@@ -105,10 +99,13 @@ function getHealthLabel(source: SourceListItem): string {
     class="group relative bg-card hover:bg-muted/50 rounded-xl border border-transparent transition-all duration-200 cursor-pointer overflow-hidden"
     :class="{
       'bg-muted/20': props.isSelected && props.isManageMode,
-      'border-border/40 hover:border-border hover:shadow-sm': !props.isManageMode || !props.isSelected,
+      'border-border/40 hover:border-border hover:shadow-sm':
+        !props.isManageMode || !props.isSelected,
       'opacity-60': props.source.enabled === false && !props.isManageMode,
     }"
-    @click="props.isManageMode ? emit('toggleSelect', props.source) : emit('openEdit', props.source)"
+    @click="
+      props.isManageMode ? emit('toggleSelect', props.source) : emit('openEdit', props.source)
+    "
   >
     <div class="px-3 py-3 flex items-center gap-3">
       <div class="shrink-0 flex items-center justify-center">
@@ -134,20 +131,13 @@ function getHealthLabel(source: SourceListItem): string {
           {{ props.source.name }}
         </h3>
         <p class="text-[10px] text-muted-foreground/50 font-mono truncate">
-          {{ props.source.url.replace(/https?:\/\//, "").replace(/\/$/, "") }}
+          {{ props.source.url.replace(/https?:\/\//, '').replace(/\/$/, '') }}
         </p>
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
-          <Badge
-            :variant="getLicenseVariant(props.source)"
-            class="px-1.5 py-0 text-[10px]"
-          >
+          <Badge :variant="getLicenseVariant(props.source)" class="px-1.5 py-0 text-[10px]">
             {{ getLicenseLabel(props.source) }}
           </Badge>
-          <Badge
-            v-if="!props.source.enabled"
-            variant="outline"
-            class="px-1.5 py-0 text-[10px]"
-          >
+          <Badge v-if="!props.source.enabled" variant="outline" class="px-1.5 py-0 text-[10px]">
             已停用
           </Badge>
           <Badge

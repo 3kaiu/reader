@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import {
-  createReaderNavigationProgressViewBindings,
-} from './reader-navigation-progress-view-bindings'
+import { createReaderNavigationProgressViewBindings } from './reader-navigation-progress-view-bindings'
 import type { ReaderNavigationProgressProps } from './reader-navigation-progress-prop-types'
 
 const props = defineProps<ReaderNavigationProgressProps>()
-const {
-  chapterProgressText,
-  progressPercentText,
-} = createReaderNavigationProgressViewBindings(props)
+const { chapterProgressText, progressPercentText } =
+  createReaderNavigationProgressViewBindings(props)
 </script>
 
 <template>

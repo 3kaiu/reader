@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Sparkles } from "lucide-vue-next";
-import { LazyImage } from "@/components/ui";
-import type { DiscoveryItem } from "@/types/discovery";
+import { Sparkles } from 'lucide-vue-next'
+import { LazyImage } from '@/components/ui'
+import type { DiscoveryItem } from '@/types/discovery'
 
 defineProps<{
-  items: DiscoveryItem[];
-}>();
+  items: DiscoveryItem[]
+}>()
 
 const emit = defineEmits<{
-  open: [item: DiscoveryItem];
-}>();
+  open: [item: DiscoveryItem]
+}>()
 </script>
 
 <template>
@@ -20,9 +20,7 @@ const emit = defineEmits<{
         本周力荐
       </h3>
     </div>
-    <div
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
-    >
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
       <div
         v-for="book in items"
         :key="book.bookId"
@@ -39,9 +37,7 @@ const emit = defineEmits<{
             aspect-ratio="3/4"
             class="w-full h-full transition-transform duration-500 group-hover:scale-105"
           />
-          <div
-            class="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors"
-          />
+          <div class="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors" />
           <div class="absolute top-2 left-2">
             <div
               class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-lg font-bold"

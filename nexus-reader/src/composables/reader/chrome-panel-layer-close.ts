@@ -1,14 +1,7 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
 
-export function createReaderChromePanelLayerCloseAction(
-  context: ReaderChromeActionContext,
-) {
+export function createReaderChromePanelLayerCloseAction(context: ReaderChromeActionContext) {
   return function closePanelLayer() {
-    if (context.state.showDecoderSettings.value) {
-      context.state.showDecoderSettings.value = false
-      return true
-    }
-
     if (context.state.showKeyboardHelp.value) {
       context.state.showKeyboardHelp.value = false
       return true

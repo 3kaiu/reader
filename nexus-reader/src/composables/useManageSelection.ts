@@ -4,7 +4,7 @@ type SelectionKey = string | number
 
 export function useManageSelection<T, K extends SelectionKey>(
   getKey: (item: T) => K | null | undefined,
-  items?: () => readonly T[],
+  items?: () => readonly T[]
 ) {
   const isManageMode = ref(false)
   const selectedKeys = shallowRef<Set<K>>(new Set())

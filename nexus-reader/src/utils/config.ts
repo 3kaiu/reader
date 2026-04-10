@@ -1,7 +1,4 @@
-import {
-  getLocalStorageItem,
-  setLocalStorageItem,
-} from '@/utils/browserStorage'
+import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage'
 import { logger } from '@/utils/logger'
 
 class UnifiedConfig {
@@ -37,8 +34,6 @@ class UnifiedConfig {
     this.config.set('cache.enabled', true)
     this.config.set('cache.ttl', 5 * 60 * 1000)
     this.config.set('features.discovery', false)
-    this.config.set('features.ai', false)
-    this.config.set('features.decoder', false)
     this.config.set('ui.theme', 'auto')
     this.config.set('ui.language', 'zh-CN')
     this.loadPersistedConfig()

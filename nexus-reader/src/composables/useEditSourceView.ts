@@ -89,14 +89,9 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
   const runtimeError = ref('')
 
   const canEditPolicy = computed(() => Boolean(options.props.source?.id))
-  const publicAccessEnabled = computed(
-    () => options.props.source?.publicAccessEnabled === true,
-  )
+  const publicAccessEnabled = computed(() => options.props.source?.publicAccessEnabled === true)
   const diagnosticSuggestions = computed<SourceDiagnosticSuggestion[]>(() => {
-    return buildSourceGovernanceSuggestions(
-      options.props.source?.health,
-      circuitState.value,
-    )
+    return buildSourceGovernanceSuggestions(options.props.source?.health, circuitState.value)
   })
 
   function hydratePolicyForm(source: BookSource) {
@@ -124,7 +119,7 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
 
       hydratePolicyForm(source)
     },
-    { immediate: true },
+    { immediate: true }
   )
 
   watch(
@@ -163,7 +158,7 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
         loading.value = false
         diagnosticsLoading.value = false
       }
-    },
+    }
   )
 
   async function savePolicy(): Promise<BookSource | null> {
@@ -221,9 +216,7 @@ export function useEditSourceView(options: { props: EditSourceViewProps }) {
       }
       await sourceStore.loadSources(true)
       message.success(
-        mode === 'circuit_only'
-          ? '已重置熔断状态'
-          : '已重置书源健康分、熔断状态与提取指标'
+        mode === 'circuit_only' ? '已重置熔断状态' : '已重置书源健康分、熔断状态与提取指标'
       )
       return true
     } catch {

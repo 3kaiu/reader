@@ -1,39 +1,41 @@
 <script setup lang="ts">
-import { useMoveBookDialogView } from "@/composables/useMoveBookDialogView";
+import { useMoveBookDialogView } from '@/composables/useMoveBookDialogView'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { FolderHeart, Check } from "lucide-vue-next";
-import type { BookGroup } from "@/types/group";
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { FolderHeart, Check } from 'lucide-vue-next'
+import type { BookGroup } from '@/types/group'
 
 const props = defineProps<{
-  open: boolean;
-  groups: BookGroup[];
-  selectedCount: number;
-}>();
+  open: boolean
+  groups: BookGroup[]
+  selectedCount: number
+}>()
 
 const emit = defineEmits<{
-  (e: "update:open", value: boolean): void;
-  (e: "confirm", groupId: string | null): void;
-}>();
+  (e: 'update:open', value: boolean): void
+  (e: 'confirm', groupId: string | null): void
+}>()
 
 const { selectedId, selectGroup, handleConfirm } = useMoveBookDialogView({
   open: props.open,
   groups: props.groups,
-  onConfirm: (groupId) => emit("confirm", groupId),
-  onClose: () => emit("update:open", false),
-});
+  onConfirm: groupId => emit('confirm', groupId),
+  onClose: () => emit('update:open', false),
+})
 </script>
 
 <template>
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
-    <DialogContent class="sm:max-w-md bg-card border-none shadow-2xl rounded-3xl p-0 overflow-hidden">
+    <DialogContent
+      class="sm:max-w-md bg-card border-none shadow-2xl rounded-3xl p-0 overflow-hidden"
+    >
       <DialogHeader class="p-6 pb-2">
         <DialogTitle class="flex items-center gap-3 text-xl font-bold">
           <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -53,7 +55,11 @@ const { selectedId, selectGroup, handleConfirm } = useMoveBookDialogView({
             <!-- 未分组选项 -->
             <button
               class="w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2"
-              :class="selectedId === null ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30 hover:bg-muted/50'"
+              :class="
+                selectedId === null
+                  ? 'border-primary bg-primary/5'
+                  : 'border-transparent bg-muted/30 hover:bg-muted/50'
+              "
               @click="selectGroup(null)"
             >
               <div class="flex items-center gap-3">
@@ -70,7 +76,11 @@ const { selectedId, selectGroup, handleConfirm } = useMoveBookDialogView({
               v-for="group in groups"
               :key="group.groupId"
               class="w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2"
-              :class="selectedId === group.groupId ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30 hover:bg-muted/50'"
+              :class="
+                selectedId === group.groupId
+                  ? 'border-primary bg-primary/5'
+                  : 'border-transparent bg-muted/30 hover:bg-muted/50'
+              "
               @click="selectGroup(group.groupId as string)"
             >
               <div class="flex items-center gap-3">
@@ -89,9 +99,7 @@ const { selectedId, selectGroup, handleConfirm } = useMoveBookDialogView({
         <Button variant="ghost" class="rounded-full px-8" @click="$emit('update:open', false)">
           取消
         </Button>
-        <Button class="rounded-full px-8" @click="handleConfirm">
-          确定移动
-        </Button>
+        <Button class="rounded-full px-8" @click="handleConfirm"> 确定移动 </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

@@ -4,11 +4,10 @@ import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderSourcePickerModalBindings(
   props: ReaderModalsProps,
-  emit: ReaderModalsEmitFn,
+  emit: ReaderModalsEmitFn
 ) {
   return computed(() => ({
     open: props.showSourcePicker,
-    'onUpdate:open': (value: boolean) =>
-      emit('update:showSourcePicker', value),
+    'onUpdate:open': (value: boolean) => emit('update:showSourcePicker', value),
   }))
 }

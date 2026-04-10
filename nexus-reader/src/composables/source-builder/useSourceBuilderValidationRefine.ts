@@ -62,14 +62,10 @@ type UseSourceBuilderValidationRefineOptions = {
     SourceBuilderDebugSnapshot,
     'sourceLabel' | 'sessionKey' | 'bookCurl' | 'chapterCurl' | 'searchCurl' | 'searchKeyword'
   >
-  pushDebugSnapshot: (
-    snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>
-  ) => void
+  pushDebugSnapshot: (snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>) => void
 }
 
-export function useSourceBuilderValidationRefine(
-  options: UseSourceBuilderValidationRefineOptions
-) {
+export function useSourceBuilderValidationRefine(options: UseSourceBuilderValidationRefineOptions) {
   const { success, warning } = useMessage()
 
   const validateSearchQuery = ref('')
@@ -85,7 +81,9 @@ export function useSourceBuilderValidationRefine(
   const refineLoading = ref(false)
   const refineAutoActions = ref<string[]>([])
   const refineAppliedHints = ref<string[]>([])
-  const refineChanges = ref<Array<{ path: string; before?: string | null; after?: string | null }>>([])
+  const refineChanges = ref<Array<{ path: string; before?: string | null; after?: string | null }>>(
+    []
+  )
   const aiAssistLoading = ref(false)
   const aiAssistSummary = ref<string[]>([])
   const aiAssistSuggestions = ref<RefineSuggestion[]>([])
@@ -155,17 +153,18 @@ export function useSourceBuilderValidationRefine(
     }
   }
 
-  async function persistAiAssistProfile(sourceId: string, patch: {
-    lifecycleState?: SourceFlowAssistProfile['lifecycleState']
-    preferredActions?: SourceFlowAssistSuggestion['actionCode'][]
-    conservativeMode?: boolean
-    lastGoodRunId?: string | null
-    recentFailureCodes?: string[]
-  }) {
+  async function persistAiAssistProfile(
+    sourceId: string,
+    patch: {
+      lifecycleState?: SourceFlowAssistProfile['lifecycleState']
+      preferredActions?: SourceFlowAssistSuggestion['actionCode'][]
+      conservativeMode?: boolean
+      lastGoodRunId?: string | null
+      recentFailureCodes?: string[]
+    }
+  ) {
     if (!sourceId) return
-    const current = aiAssistProfile.value?.sourceId === sourceId
-      ? aiAssistProfile.value
-      : null
+    const current = aiAssistProfile.value?.sourceId === sourceId ? aiAssistProfile.value : null
     const next: SourceFlowAssistProfile = {
       sourceId,
       lifecycleState: patch.lifecycleState ?? current?.lifecycleState ?? 'new',
@@ -174,8 +173,11 @@ export function useSourceBuilderValidationRefine(
       ),
       conservativeMode: patch.conservativeMode ?? current?.conservativeMode ?? false,
       lastGoodRunId:
-        patch.lastGoodRunId === undefined ? current?.lastGoodRunId ?? null : patch.lastGoodRunId,
-      recentFailureCodes: (patch.recentFailureCodes ?? current?.recentFailureCodes ?? []).slice(0, 8),
+        patch.lastGoodRunId === undefined ? (current?.lastGoodRunId ?? null) : patch.lastGoodRunId,
+      recentFailureCodes: (patch.recentFailureCodes ?? current?.recentFailureCodes ?? []).slice(
+        0,
+        8
+      ),
       updatedAt: current?.updatedAt ?? new Date().toISOString(),
     }
     aiAssistProfile.value = next
@@ -195,7 +197,11 @@ export function useSourceBuilderValidationRefine(
   }
 
   function mergeRecommendedActions(
-    statsActions: Array<{ actionCode: SourceFlowAssistSuggestion['actionCode']; reason: string; priority: number }>,
+    statsActions: Array<{
+      actionCode: SourceFlowAssistSuggestion['actionCode']
+      reason: string
+      priority: number
+    }>,
     profileActions: SourceFlowAssistSuggestion['actionCode'][]
   ) {
     const merged = [...statsActions]
@@ -211,7 +217,9 @@ export function useSourceBuilderValidationRefine(
   }
 
   const validationStepSummary = computed<SourceValidationStepReport[]>(() => {
-    const report = (validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null)?.report
+    const report = (
+      validationReport.value as { report?: { steps?: SourceValidationStepReport[] } } | null
+    )?.report
     const steps = report?.steps
     if (Array.isArray(steps) && steps.length > 0) {
       return steps
@@ -262,7 +270,8 @@ export function useSourceBuilderValidationRefine(
         id: 'ops-regression-search',
         step: 'ops',
         title: '[Ops] 搜索回归高频：先稳住搜索条目定位',
-        detail: '运营统计显示搜索相关回归高频，优先固定 searchResultSelector 与详情链接语义，减少误抽。',
+        detail:
+          '运营统计显示搜索相关回归高频，优先固定 searchResultSelector 与详情链接语义，减少误抽。',
         kind: 'structured',
         applyLabel: '应用 Ops 搜索建议',
         apply: () => {
@@ -311,7 +320,8 @@ export function useSourceBuilderValidationRefine(
         id: 'ops-regression-toc',
         step: 'ops',
         title: '[Ops] 目录回归高频：先稳定章节列表提取',
-        detail: '运营统计显示目录阶段掉分较多，建议先收敛 tocItemSelector，确保章节列表可持续抽取。',
+        detail:
+          '运营统计显示目录阶段掉分较多，建议先收敛 tocItemSelector，确保章节列表可持续抽取。',
         kind: 'structured',
         applyLabel: '应用 Ops 目录建议',
         apply: () => {
@@ -359,12 +369,16 @@ export function useSourceBuilderValidationRefine(
         id: 'ops-regression-conservative-plan',
         step: 'ops',
         title: '[Ops] 低命中策略：先最小变更再迭代',
-        detail: '当前 source 的 AI 命中率偏低或回归不可定位，建议每次只施加一类修复动作，降低组合回归风险。',
+        detail:
+          '当前 source 的 AI 命中率偏低或回归不可定位，建议每次只施加一类修复动作，降低组合回归风险。',
         kind: 'free_text',
         applyLabel: '应用 Ops 保守策略',
         apply: () => {
           let next = freeTextHints.value
-          next = appendFreeTextHint(next, 'refine strategy: 每次只做一种规则改动，优先搜索->详情->目录->正文')
+          next = appendFreeTextHint(
+            next,
+            'refine strategy: 每次只做一种规则改动，优先搜索->详情->目录->正文'
+          )
           next = appendFreeTextHint(next, 'refine strategy: 出现掉分立即回滚并缩小改动范围')
           freeTextHints.value = next
         },
@@ -434,7 +448,9 @@ export function useSourceBuilderValidationRefine(
           parts.push(`${beforeSeg?.status ?? 'unknown'}->${afterSeg?.status ?? 'unknown'}`)
         }
         if (beforeSeg?.qualityScore != null && afterSeg?.qualityScore != null) {
-          parts.push(`${Math.round(beforeSeg.qualityScore * 100)}->${Math.round(afterSeg.qualityScore * 100)}`)
+          parts.push(
+            `${Math.round(beforeSeg.qualityScore * 100)}->${Math.round(afterSeg.qualityScore * 100)}`
+          )
         }
         return parts.join(' ')
       })
@@ -472,7 +488,8 @@ export function useSourceBuilderValidationRefine(
       structuredHints.value = {
         ...structuredHints.value,
         tocItemSelector:
-          structuredHints.value.tocItemSelector || '.chapter-list a | #list a | .catalog a | a[href]',
+          structuredHints.value.tocItemSelector ||
+          '.chapter-list a | #list a | .catalog a | a[href]',
       }
       freeTextHints.value = appendFreeTextHint(freeTextHints.value, detail)
       return
@@ -506,7 +523,10 @@ export function useSourceBuilderValidationRefine(
   function applyRecommendedAction(actionCode: string, reason: string) {
     applyActionCodeHint(actionCode, `[Ops 推荐] ${reason}`)
     const sourceId = options.currentPackage.value?.source.id || ''
-    if (sourceId && ALLOWED_ACTION_CODES.has(actionCode as SourceFlowAssistSuggestion['actionCode'])) {
+    if (
+      sourceId &&
+      ALLOWED_ACTION_CODES.has(actionCode as SourceFlowAssistSuggestion['actionCode'])
+    ) {
       const preferred = dedupeActionCodes([
         actionCode,
         ...(aiAssistProfile.value?.preferredActions || []),
@@ -621,12 +641,13 @@ export function useSourceBuilderValidationRefine(
         step: 'cloudflare_ai',
         title: `[CF AI] ${item.title}`,
         detail: `${item.detail} (action=${item.actionCode})`,
-        kind: item.actionCode === 'repair_search_selectors_or_samples' ||
+        kind:
+          item.actionCode === 'repair_search_selectors_or_samples' ||
           item.actionCode === 'repair_book_title_author_selectors' ||
           item.actionCode === 'repair_toc_item_selector' ||
           item.actionCode === 'repair_content_selector_and_noise_rules'
-          ? 'structured'
-          : 'free_text',
+            ? 'structured'
+            : 'free_text',
         applyLabel: '应用建议',
         apply: () => {
           applyActionCodeHint(item.actionCode, item.detail)
@@ -648,20 +669,26 @@ export function useSourceBuilderValidationRefine(
       return
     }
     const beforePackage = options.currentPackage.value
-      ? JSON.parse(JSON.stringify(options.currentPackage.value)) as NxsSourcePackageDetail
+      ? (JSON.parse(JSON.stringify(options.currentPackage.value)) as NxsSourcePackageDetail)
       : null
     const beforePackageJson = options.currentPackageJson.value
     const beforeScore = beforePackage?.validation?.score ?? 0
-    const beforeStructuredHints = JSON.parse(JSON.stringify(structuredHints.value)) as SourceRuleHints
+    const beforeStructuredHints = JSON.parse(
+      JSON.stringify(structuredHints.value)
+    ) as SourceRuleHints
     const beforeFreeTextHints = freeTextHints.value
 
-    const retryPlans = AI_REFINE_RETRY_PLAN_SIZES
-      .filter(size => !(aiAssistProfile.value?.conservativeMode) || size === 1)
+    const retryPlans = AI_REFINE_RETRY_PLAN_SIZES.filter(
+      size => !aiAssistProfile.value?.conservativeMode || size === 1
+    )
       .map(size => aiAssistSuggestions.value.slice(0, size))
       .filter(plan => plan.length > 0)
       .filter((plan, index, list) => {
         const signature = plan.map(item => item.id).join('|')
-        return list.findIndex(candidate => candidate.map(item => item.id).join('|') === signature) === index
+        return (
+          list.findIndex(candidate => candidate.map(item => item.id).join('|') === signature) ===
+          index
+        )
       })
 
     const attemptLogs: string[] = []
@@ -692,7 +719,10 @@ export function useSourceBuilderValidationRefine(
         void requestSourceFlowAssistFeedback({
           runId: aiAssistRunId.value || undefined,
           sourceId: beforePackage.source.id,
-          query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
+          query:
+            feedbackMeta?.query ||
+            validateSearchQuery.value.trim() ||
+            options.searchKeyword.value.trim(),
           normalizedQuery: feedbackMeta?.normalizedQuery,
           provider: feedbackMeta?.provider,
           cached: feedbackMeta?.cached,
@@ -728,7 +758,10 @@ export function useSourceBuilderValidationRefine(
       void requestSourceFlowAssistFeedback({
         runId: aiAssistRunId.value || undefined,
         sourceId: beforePackage.source.id,
-        query: feedbackMeta?.query || validateSearchQuery.value.trim() || options.searchKeyword.value.trim(),
+        query:
+          feedbackMeta?.query ||
+          validateSearchQuery.value.trim() ||
+          options.searchKeyword.value.trim(),
         normalizedQuery: feedbackMeta?.normalizedQuery,
         provider: feedbackMeta?.provider,
         cached: feedbackMeta?.cached,

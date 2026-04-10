@@ -6,27 +6,19 @@ import {
   type OfflineManagerRuntimeContext,
 } from './context'
 
-export function clearOfflineManagerQueue(
-  context: OfflineManagerRuntimeContext,
-): void {
-  clearOfflineQueue(
-    context.runtimeState,
-    createOfflineManagerQueueCallbacks(context),
-  )
+export function clearOfflineManagerQueue(context: OfflineManagerRuntimeContext): void {
+  clearOfflineQueue(context.runtimeState, createOfflineManagerQueueCallbacks(context))
 }
 
 export async function queueOfflineManagerOperation(
   context: OfflineManagerRuntimeContext,
-  operation: OfflineOperationInput,
+  operation: OfflineOperationInput
 ): Promise<void> {
-  await queueOfflineOperation(
-    operation,
-    createOfflineManagerRefreshCallbacks(context),
-  )
+  await queueOfflineOperation(operation, createOfflineManagerRefreshCallbacks(context))
 }
 
 export async function syncOfflineManagerQueuedOperations(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): Promise<void> {
   await syncOfflineQueue(createOfflineManagerRefreshCallbacks(context))
 }

@@ -1,12 +1,6 @@
 import { logger } from '@/utils/logger'
-import {
-  getPerformanceMonitor,
-  getRetryAfterHeader,
-} from '../runtime'
-import type {
-  NetworkQuality,
-  RequestOptimizationConfig,
-} from '../types'
+import { getPerformanceMonitor, getRetryAfterHeader } from '../runtime'
+import type { NetworkQuality, RequestOptimizationConfig } from '../types'
 
 export function createRequestTimeoutPromise(timeout: number): Promise<never> {
   return new Promise((_, reject) => {
@@ -29,7 +23,7 @@ export function reportRetrySuccess(networkQuality: NetworkQuality, attempt: numb
 export function reportRetryFailure(
   networkQuality: NetworkQuality,
   maxRetries: number,
-  errorMessage: string,
+  errorMessage: string
 ): void {
   const performanceMonitor = getPerformanceMonitor()
   if (!performanceMonitor) {
@@ -55,10 +49,7 @@ function getServerRetryDelay(error: unknown, maxDelay: number): number | null {
   return Math.min(retryAfterSeconds * 1000, maxDelay)
 }
 
-function getExponentialRetryDelay(
-  attempt: number,
-  config: RequestOptimizationConfig,
-): number {
+function getExponentialRetryDelay(attempt: number, config: RequestOptimizationConfig): number {
   const baseDelay = Math.min(config.baseDelay * Math.pow(2, attempt), config.maxDelay)
   const jitter = baseDelay * config.jitterFactor * Math.random()
   return baseDelay + jitter
@@ -72,7 +63,7 @@ export async function waitForRetryDelay(
   error: unknown,
   attempt: number,
   config: RequestOptimizationConfig,
-  errorMessage: string,
+  errorMessage: string
 ): Promise<void> {
   const serverDelay = getServerRetryDelay(error, config.maxDelay)
   if (serverDelay !== null) {

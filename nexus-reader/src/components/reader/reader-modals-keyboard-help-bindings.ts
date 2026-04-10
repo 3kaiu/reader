@@ -4,12 +4,11 @@ import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderKeyboardHelpModalBindings(
   props: ReaderModalsProps,
-  emit: ReaderModalsEmitFn,
+  emit: ReaderModalsEmitFn
 ) {
   return computed(() => ({
     open: props.showKeyboardHelp,
     shortcuts: props.keyboardShortcuts,
-    'onUpdate:open': (value: boolean) =>
-      emit('update:showKeyboardHelp', value),
+    'onUpdate:open': (value: boolean) => emit('update:showKeyboardHelp', value),
   }))
 }

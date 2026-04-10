@@ -2,10 +2,7 @@
 import { useChapterListView } from '@/composables/useChapterListView'
 import ChapterListHeader from '@/components/book/chapter-list/ChapterListHeader.vue'
 import ChapterListItems from '@/components/book/chapter-list/ChapterListItems.vue'
-import {
-  Sheet,
-  SheetContent,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import type { Chapter } from '@/types/book'
 import type {
   ChapterListDownloadProgress,
@@ -63,7 +60,7 @@ function handleListSelect(item: ChapterListVirtualItem) {
 </script>
 
 <template>
-  <Sheet :open="open" @update:open="(val) => emit('update:open', val)">
+  <Sheet :open="open" @update:open="val => emit('update:open', val)">
     <SheetContent side="left" class="w-[320px] sm:w-[400px] p-0 flex flex-col gap-0">
       <ChapterListHeader
         :book-name="bookName"
@@ -96,7 +93,9 @@ function handleListSelect(item: ChapterListVirtualItem) {
         @select="handleListSelect"
       />
 
-      <div class="h-4 bg-gradient-to-t from-background to-transparent -mt-4 relative z-10 pointer-events-none" />
+      <div
+        class="h-4 bg-gradient-to-t from-background to-transparent -mt-4 relative z-10 pointer-events-none"
+      />
     </SheetContent>
   </Sheet>
 </template>

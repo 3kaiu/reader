@@ -6,20 +6,18 @@ import { useReadSettingsView } from '@/composables/useReadSettingsView'
 import ReadSettingsBehaviorSection from '@/components/read-settings/ReadSettingsBehaviorSection.vue'
 import ReadSettingsThemeSection from '@/components/read-settings/ReadSettingsThemeSection.vue'
 import ReadSettingsTypographySection from '@/components/read-settings/ReadSettingsTypographySection.vue'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Settings, RotateCcw } from 'lucide-vue-next'
 
-withDefaults(defineProps<{
-  open?: boolean
-}>(), {
-  open: false
-})
+withDefaults(
+  defineProps<{
+    open?: boolean
+  }>(),
+  {
+    open: false,
+  }
+)
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -31,17 +29,12 @@ const {
   fonts,
   chineseOptions,
   fontWeights,
-  isCustomTheme,
-  customThemeBackground,
-  customThemeText,
   fontSizeValue,
   lineHeightValue,
   paragraphSpacingValue,
   pageWidthValue,
   resetConfig,
   selectTheme,
-  updateCustomBackground,
-  updateCustomText,
   selectFontFamily,
   selectChineseConvert,
   updateFontSize,
@@ -73,12 +66,7 @@ const {
         <ReadSettingsThemeSection
           :current-theme="settingsStore.config.theme"
           :themes="themes"
-          :is-custom-theme="isCustomTheme"
-          :custom-theme-background="customThemeBackground"
-          :custom-theme-text="customThemeText"
           @select-theme="selectTheme"
-          @update-custom-background="updateCustomBackground"
-          @update-custom-text="updateCustomText"
         />
 
         <ReadSettingsTypographySection

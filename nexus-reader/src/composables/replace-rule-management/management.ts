@@ -3,9 +3,7 @@ import { getReplaceRuleKey } from '@/utils/replaceRules'
 import type { ReplaceRule } from '@/types/replace'
 import type { ReplaceRuleManagementContext } from './types'
 
-export function createReplaceRuleManagementActions(
-  context: ReplaceRuleManagementContext,
-) {
+export function createReplaceRuleManagementActions(context: ReplaceRuleManagementContext) {
   async function deleteRule(rule: ReplaceRule) {
     const confirmed = await context.confirm({
       title: '确认删除',
@@ -22,8 +20,8 @@ export function createReplaceRuleManagementActions(
       if (result.status === 'deleted') {
         context.options.setSelection(
           Array.from(context.options.selectedRuleKeys.value).filter(
-            selectedRuleKey => selectedRuleKey !== ruleKey,
-          ),
+            selectedRuleKey => selectedRuleKey !== ruleKey
+          )
         )
         context.success('删除成功')
         return
@@ -78,7 +76,7 @@ export function createReplaceRuleManagementActions(
   function exportRules() {
     const target = context.replaceStore.getExportRules(
       context.options.selectedRuleKeys.value,
-      context.options.filteredRules.value,
+      context.options.filteredRules.value
     )
 
     try {

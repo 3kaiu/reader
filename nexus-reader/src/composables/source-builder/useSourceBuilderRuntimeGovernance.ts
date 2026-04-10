@@ -86,7 +86,7 @@ export function useSourceBuilderRuntimeGovernance(
 
   const runtimeGovernanceSuggestions = computed(() => {
     return buildSourceGovernanceSuggestions(currentRuntimeSourceHealth.value).map(
-      item => `${item.title}：${item.detail}`,
+      item => `${item.title}：${item.detail}`
     )
   })
 
@@ -112,7 +112,9 @@ export function useSourceBuilderRuntimeGovernance(
         return
       }
       await refreshRuntimeGovernance()
-      success(`快照已保存 · 健康源 ${response.data.healthSources} · 提取源 ${response.data.extractionSources}`)
+      success(
+        `快照已保存 · 健康源 ${response.data.healthSources} · 提取源 ${response.data.extractionSources}`
+      )
     } finally {
       runtimeGovernanceActionLoading.value = false
     }
@@ -146,9 +148,7 @@ export function useSourceBuilderRuntimeGovernance(
       runtimeGovernanceActionLoading.value = true
       try {
         const text = await file.text()
-        const payload = JSON.parse(text) as Parameters<
-          typeof sourceStore.importRuntimeSnapshot
-        >[0]
+        const payload = JSON.parse(text) as Parameters<typeof sourceStore.importRuntimeSnapshot>[0]
         const response = await sourceStore.importRuntimeSnapshot(payload)
         if (!response.isSuccess || !response.data) {
           warning(response.errorMsg || '导入治理快照失败')

@@ -5,22 +5,23 @@
 import { Button } from '@/components/ui/button'
 import type { IconComponent } from '@/types/components'
 
-withDefaults(defineProps<{
-  icon?: IconComponent
-  title: string
-  description?: string
-  actions?: Array<{
-    label: string
-    onClick: () => void
-    variant?: 'default' | 'outline' | 'ghost' | 'destructive'
+withDefaults(
+  defineProps<{
     icon?: IconComponent
-  }>
-}>(), {
-  description: '',
-  actions: () => [],
-})
-
-
+    title: string
+    description?: string
+    actions?: Array<{
+      label: string
+      onClick: () => void
+      variant?: 'default' | 'outline' | 'ghost' | 'destructive'
+      icon?: IconComponent
+    }>
+  }>(),
+  {
+    description: '',
+    actions: () => [],
+  }
+)
 </script>
 
 <template>

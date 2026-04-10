@@ -1,10 +1,4 @@
-import {
-  computed,
-  onMounted,
-  onUnmounted,
-  ref,
-  watch,
-} from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { LAZY_IMAGE_ROOT_MARGIN } from '@/constants/ui'
 import type { LazyImageProps } from './types'
 import { useLazyImageOptimizedSrc } from './source'
@@ -14,10 +8,7 @@ interface LazyImageEmit {
   (event: 'error'): void
 }
 
-export function useLazyImage(
-  props: LazyImageProps,
-  emit: LazyImageEmit,
-) {
+export function useLazyImage(props: LazyImageProps, emit: LazyImageEmit) {
   const containerRef = ref<HTMLElement | null>(null)
   const isInView = ref(false)
   const isLoaded = ref(false)
@@ -41,16 +32,19 @@ export function useLazyImage(
       return
     }
 
-    observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          isInView.value = true
-          observer?.disconnect()
-        }
-      })
-    }, {
-      rootMargin: LAZY_IMAGE_ROOT_MARGIN,
-    })
+    observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            isInView.value = true
+            observer?.disconnect()
+          }
+        })
+      },
+      {
+        rootMargin: LAZY_IMAGE_ROOT_MARGIN,
+      }
+    )
 
     observer.observe(containerRef.value)
   })

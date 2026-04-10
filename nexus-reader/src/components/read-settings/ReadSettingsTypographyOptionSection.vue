@@ -31,9 +31,11 @@ function getAriaLabel(label: string) {
         v-for="option in options"
         :key="option.key"
         class="px-4 py-2 rounded-lg border transition-all text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        :class="selectedKey === option.key
-          ? 'border-primary bg-primary/10 text-primary'
-          : 'border-border hover:border-primary/50'"
+        :class="
+          selectedKey === option.key
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border hover:border-primary/50'
+        "
         :aria-label="getAriaLabel(option.label)"
         :aria-pressed="selectedKey === option.key"
         @click="emit('select', option.key)"

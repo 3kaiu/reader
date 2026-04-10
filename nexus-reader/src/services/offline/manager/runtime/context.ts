@@ -10,14 +10,11 @@ export interface OfflineManagerRuntimeContext {
   syncQueuedOperations: () => Promise<void>
 }
 
-export type OfflineManagerRuntimeHandlers = Omit<
-  OfflineManagerRuntimeContext,
-  'runtimeState'
->
+export type OfflineManagerRuntimeHandlers = Omit<OfflineManagerRuntimeContext, 'runtimeState'>
 
 export function createOfflineManagerRuntimeContext(
   runtimeState: OfflineManagerRuntimeState,
-  handlers: OfflineManagerRuntimeHandlers,
+  handlers: OfflineManagerRuntimeHandlers
 ): OfflineManagerRuntimeContext {
   return {
     runtimeState,
@@ -25,26 +22,20 @@ export function createOfflineManagerRuntimeContext(
   }
 }
 
-export function createOfflineManagerQueueCallbacks(
-  context: OfflineManagerRuntimeContext,
-) {
+export function createOfflineManagerQueueCallbacks(context: OfflineManagerRuntimeContext) {
   return {
     refreshPersistedState: () => context.refreshPersistedState(),
     notifyListeners: () => context.notifyListeners(),
   }
 }
 
-export function createOfflineManagerRefreshCallbacks(
-  context: OfflineManagerRuntimeContext,
-) {
+export function createOfflineManagerRefreshCallbacks(context: OfflineManagerRuntimeContext) {
   return {
     refreshPersistedState: () => context.refreshPersistedState(),
   }
 }
 
-export function createOfflineManagerCacheCallbacks(
-  context: OfflineManagerRuntimeContext,
-) {
+export function createOfflineManagerCacheCallbacks(context: OfflineManagerRuntimeContext) {
   return {
     persistCachedContent: () => context.persistCachedContent(),
     notifyListeners: () => context.notifyListeners(),
@@ -52,9 +43,7 @@ export function createOfflineManagerCacheCallbacks(
   }
 }
 
-export function createOfflineManagerStatusCallbacks(
-  context: OfflineManagerRuntimeContext,
-) {
+export function createOfflineManagerStatusCallbacks(context: OfflineManagerRuntimeContext) {
   return {
     notifyListeners: () => context.notifyListeners(),
   }

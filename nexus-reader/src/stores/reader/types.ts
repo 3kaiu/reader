@@ -1,9 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { Chapter } from '@/types/book'
-import type {
-  ReaderBook,
-  ReaderLoadedChapter as LoadedChapter,
-} from '@/utils/readerStore'
+import type { ReaderBook, ReaderLoadedChapter as LoadedChapter } from '@/utils/readerStore'
 
 export interface ReaderStageReport {
   stage: string
@@ -29,6 +26,12 @@ export interface ReaderStoreState {
   loadError: Ref<string | null>
   loadErrorDetails: Ref<string | null>
   progressMap: Ref<Record<string, number>>
+  /**
+   * Pending scroll resume, sourced from `/progress/{bookId}`. Cleared after applied.
+   * Percent is 0..100 for the document scroll position in scroll-reader mode.
+   */
+  resumeScrollPercent: Ref<number | null>
+  resumeScrollChapterIndex: Ref<number | null>
   chapterContentCache: Ref<Record<string, string>>
   contentStageReports: Ref<ReaderStageReport[]>
 }

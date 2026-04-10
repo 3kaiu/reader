@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import ReaderToolbarActionButton from './ReaderToolbarActionButton.vue'
 import { createReaderToolbarBottomActions } from './toolbar-bottom-actions'
-import type {
-  ReaderToolbarBottomActionsEmits,
-} from './toolbar-bottom-action-emit-types'
-import type {
-  ReaderToolbarBottomActionsProps,
-} from './toolbar-bottom-action-prop-types'
+import type { ReaderToolbarBottomActionsEmits } from './toolbar-bottom-action-emit-types'
+import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
 
 const props = defineProps<ReaderToolbarBottomActionsProps>()
 const emit = defineEmits<ReaderToolbarBottomActionsEmits>()

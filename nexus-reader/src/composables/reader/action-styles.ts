@@ -13,22 +13,12 @@ export function createReaderActionStyles(options: ReaderActionOptions) {
     '--custom-text': options.settingsStore.themeColors.text,
   }))
 
-  const readerThemeStyle = computed(() =>
-    options.settingsStore.config.theme === 'custom'
-      ? {
-          backgroundColor: options.settingsStore.config.customColors.bg,
-          color: options.settingsStore.config.customColors.text,
-        }
-      : {}
-  )
+  const readerThemeStyle = computed(() => ({}))
 
   const isNightMode = computed(() => options.settingsStore.config.theme === 'night')
 
   const toggleDayNight = () => {
-    options.settingsStore.updateConfig(
-      'theme',
-      isNightMode.value ? 'white' : 'night',
-    )
+    options.settingsStore.updateConfig('theme', isNightMode.value ? 'white' : 'night')
   }
 
   return {

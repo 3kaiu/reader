@@ -1,10 +1,17 @@
 {
   "frontend": {
     "edgeOnlyPrefixes": [
+      "/api/analytics",
+      "/api/agent",
       "/api/preferences",
       "/api/content/upload",
       "/api/backup",
+      "/api/metrics/client",
       "/api/source/flow-assist",
+      "/api/source/flow-assist/feedback",
+      "/api/source/flow-assist/stats",
+      "/api/source/flow-assist/profile",
+      "/api/source/flow-assist/profile/audit",
       "/api/fetch/session/auto-acquire",
       "/api/fetch/session/verify",
       "/api/source-session/profile",
@@ -24,16 +31,25 @@
       "/api/content",
       "/api/batch/content",
       "/api/bookshelf",
+      "/api/groups",
       "/api/replace_rules",
-      "/api/discovery"
+      "/api/discovery",
+      "/ws/"
     ]
   },
   "worker": {
     "userServicePrefixes": [
+      "/api/analytics/",
+      "/api/agent/",
       "/api/preferences",
       "/api/content/upload",
       "/api/backup",
+      "/api/metrics/client",
       "/api/source/flow-assist",
+      "/api/source/flow-assist/feedback",
+      "/api/source/flow-assist/stats",
+      "/api/source/flow-assist/profile",
+      "/api/source/flow-assist/profile/audit",
       "/api/fetch/session/auto-acquire",
       "/api/fetch/session/verify",
       "/api/source-session/profile",
@@ -62,6 +78,8 @@
       "/api/batch/content",
       "/api/bookshelf",
       "/api/bookshelf/{id}",
+      "/api/groups",
+      "/api/groups/{id}",
       "/api/replace_rules",
       "/api/replace_rules/{id}",
       "/api/discovery"

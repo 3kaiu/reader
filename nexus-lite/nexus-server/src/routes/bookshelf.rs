@@ -6,13 +6,33 @@ use axum::{
     Json,
 };
 use chrono::Utc;
-use nexus_core::BookshelfItem;
-use serde::Deserialize;
+use nexus_core::{BookGroup, BookshelfItem};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::app::AppState;
-use crate::error::{conflict, internal_error, ApiErrorResponse};
+use crate::error::{bad_request, conflict, internal_error, ApiErrorResponse};
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BookGroupResponse {
+    pub group_id: String,
+    pub group_name: String,
+    pub order: u32,
+    pub show: bool,
+}
+
+impl From<BookGroup> for BookGroupResponse {
+    fn from(value: BookGroup) -> Self {
+        Self {
+            group_id: value.id,
+            group_name: value.name,
+            order: value.order_index,
+            show: true,
+        }
+    }
+}
 
 /// List bookshelf items
 pub async fn list(
@@ -145,5 +165,66 @@ pub async fn move_to_group(
         .move_to_group(id, req.group_id)
         .await
         .map(|_| StatusCode::OK)
+        .map_err(|e| internal_error(e.to_string()))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveGroupRequest {
+    pub group_id: Option<String>,
+    pub group_name: String,
+    pub order: Option<u32>,
+}
+
+/// List book groups
+pub async fn list_groups(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<BookGroupResponse>>, ApiErrorResponse> {
+    state
+        .store
+        .get_groups()
+        .await
+        .map(|groups| Json(groups.into_iter().map(BookGroupResponse::from).collect()))
+        .map_err(|e| internal_error(e.to_string()))
+}
+
+/// Create or update a book group
+pub async fn save_group(
+    State(state): State<AppState>,
+    Json(req): Json<SaveGroupRequest>,
+) -> Result<Json<BookGroupResponse>, ApiErrorResponse> {
+    let group_name = req.group_name.trim();
+    if group_name.is_empty() {
+        return Err(bad_request("groupName is required"));
+    }
+
+    let group = BookGroup {
+        id: req
+            .group_id
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| Uuid::new_v4().to_string()),
+        name: group_name.to_string(),
+        order_index: req.order.unwrap_or_default(),
+    };
+
+    state
+        .store
+        .save_group(group.clone())
+        .await
+        .map_err(|e| internal_error(e.to_string()))?;
+
+    Ok(Json(BookGroupResponse::from(group)))
+}
+
+/// Delete a book group and detach any books assigned to it
+pub async fn delete_group(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiErrorResponse> {
+    state
+        .store
+        .delete_group(id)
+        .await
+        .map(|_| StatusCode::NO_CONTENT)
         .map_err(|e| internal_error(e.to_string()))
 }

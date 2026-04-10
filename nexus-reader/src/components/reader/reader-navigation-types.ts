@@ -10,8 +10,7 @@ export type ReaderNavigationEmits = {
   next: []
 }
 
-export type ReaderNavigationEmitFn =
-  <EventName extends keyof ReaderNavigationEmits>(
-    event: EventName,
-    ...args: ReaderNavigationEmits[EventName]
-  ) => void
+export type ReaderNavigationEmitFn = <EventName extends keyof ReaderNavigationEmits>(
+  event: EventName,
+  ...args: ReaderNavigationEmits[EventName]
+) => void

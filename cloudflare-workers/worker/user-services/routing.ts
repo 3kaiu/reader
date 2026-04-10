@@ -1,18 +1,28 @@
+import {
+  handleContentUpload,
   handleUserBackup,
   handleUserPreferences,
-  handleUserStats,
+} from '../routes/content.ts'
+import {
+  handleAgentRouterConfig,
+  handleAgentRouterConfigAudit,
+  handleAgentRouterStats,
+  handleClientMetrics,
+  handleClientRoutingAnalytics,
+} from '../routes/analytics.ts'
+import {
+  handleFetchSessionAutoAcquire,
+  handleFetchSessionVerify,
   handleSourceFlowAssist,
   handleSourceFlowAssistError,
   handleSourceFlowAssistFeedback,
   handleSourceFlowAssistFeedbackStats,
   handleSourceFlowAssistProfile,
-  handleSourceFlowAssistProfileReset,
   handleSourceFlowAssistProfileAudit,
-  handleFetchSessionAutoAcquire,
-  handleFetchSessionVerify,
+  handleSourceFlowAssistProfileReset,
   handleSourceSessionProfile,
   handleSourceSessionProfileRecover,
-} from '../routes.ts'
+} from '../routes/source-flow.ts'
 import type { EnhancedWorkerEnv } from '../types.ts'
 import type { UserServiceContainer } from './types.ts'
 
@@ -35,6 +45,16 @@ export async function dispatchUserServiceRoute(
         services.getContentManagement(),
         services.getQueueProcessor()
       )
+    case '/api/analytics/client-routing':
+      return handleClientRoutingAnalytics(request, env)
+    case '/api/agent/router-stats':
+      return handleAgentRouterStats(request, env)
+    case '/api/agent/config':
+      return handleAgentRouterConfig(request, env)
+    case '/api/agent/config/audit':
+      return handleAgentRouterConfigAudit(request, env)
+    case '/api/metrics/client':
+      return handleClientMetrics(request, env)
     case '/api/source/flow-assist':
       try {
         return await handleSourceFlowAssist(request, env)

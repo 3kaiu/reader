@@ -1,8 +1,6 @@
 import type { ReaderViewServices } from './view-dependencies'
 
-export function createReaderActionFeatureOptions(
-  services: ReaderViewServices,
-) {
+export function createReaderActionFeatureOptions(services: ReaderViewServices) {
   return {
     readerStore: services.readerStore,
     settingsStore: services.settingsStore,

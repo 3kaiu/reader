@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Skeleton } from "@/components/ui";
+import { Skeleton } from '@/components/ui'
 
 defineProps<{
-  count?: number;
-}>();
+  count?: number
+}>()
 </script>
 
 <template>

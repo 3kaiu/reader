@@ -58,7 +58,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackPrefetch: true */ '@/pages/source-builder-debug.vue'),
     meta: { title: 'Source Builder Debug' },
   },
-
 ]
 
 const router = createRouter({

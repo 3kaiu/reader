@@ -1,14 +1,9 @@
 import { logger } from '../../../../utils/logger'
 import { setupOfflineDetection } from '../network'
 import { loadOfflineManagerData } from '../persistence'
-import {
-  createOfflineManagerStatusCallbacks,
-  type OfflineManagerRuntimeContext,
-} from './context'
+import { createOfflineManagerStatusCallbacks, type OfflineManagerRuntimeContext } from './context'
 
-export function initializeOfflineManager(
-  context: OfflineManagerRuntimeContext,
-): Promise<void> {
+export function initializeOfflineManager(context: OfflineManagerRuntimeContext): Promise<void> {
   setupOfflineDetection({
     statusTracker: context.runtimeState.statusTracker,
     onReconnect: () => context.syncQueuedOperations(),
@@ -18,7 +13,7 @@ export function initializeOfflineManager(
 
   return loadOfflineManagerData(
     context.runtimeState,
-    createOfflineManagerStatusCallbacks(context),
+    createOfflineManagerStatusCallbacks(context)
   ).catch(error => {
     logger.error('Failed to load offline data', { error })
   })

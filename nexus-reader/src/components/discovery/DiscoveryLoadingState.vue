@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Skeleton } from "@/components/ui";
+import { Skeleton } from '@/components/ui'
 </script>
 
 <template>
@@ -20,11 +20,7 @@ import { Skeleton } from "@/components/ui";
         class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
       >
         <div v-for="i in 6" :key="i" class="space-y-3">
-          <Skeleton
-            width="100%"
-            aspect-ratio="3/4"
-            class-name="rounded-2xl"
-          />
+          <Skeleton width="100%" aspect-ratio="3/4" class-name="rounded-2xl" />
           <div class="space-y-2">
             <Skeleton width="80%" height="16px" />
             <Skeleton width="40%" height="12px" />

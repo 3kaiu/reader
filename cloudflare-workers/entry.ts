@@ -13,11 +13,8 @@
 
 import { handleCorsPreflightRequest } from './shared/cors.ts'
 import { createLogger } from './shared/logger.ts'
-
-
 import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from './shared/types.ts'
 import type { EnhancedWorkerEnv } from './worker/types.ts'
-import { createAgentAwareDispatcher } from './entry/agent/dispatcher.ts'
 import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'
 import { processQueueBatch } from './entry/queue.ts'
@@ -46,16 +43,9 @@ export default {
     }
 
     const dispatchStable = createStableDispatcher(env, ctx, userServices)
-    const dispatchAgentAware = createAgentAwareDispatcher(
-      env,
-      ctx,
-      userServices,
-      dispatchStable,
-      logger
-    )
 
     try {
-      const response = await dispatchAgentAware(requestWithId)
+      const response = await dispatchStable(requestWithId)
       return attachRequestId(response, requestId)
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)

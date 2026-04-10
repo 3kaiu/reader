@@ -1,31 +1,27 @@
 <script setup lang="ts">
 import { useImportRuleView } from '@/composables/useImportRuleView'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Upload } from 'lucide-vue-next'
 
-withDefaults(defineProps<{
-  open?: boolean
-}>(), {
-  open: false
-})
+withDefaults(
+  defineProps<{
+    open?: boolean
+  }>(),
+  {
+    open: false,
+  }
+)
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'success': []
+  success: []
 }>()
 
 const { loading, jsonText, onFileChange, handleImport } = useImportRuleView({
   close: () => emit('update:open', false),
   notifySuccess: () => emit('success'),
 })
-
 </script>
 
 <template>
@@ -45,10 +41,14 @@ const { loading, jsonText, onFileChange, handleImport } = useImportRuleView({
         </div>
 
         <div class="flex items-center justify-between">
-          <span class="text-xs text-muted-foreground">仅支持 ReplaceRule JSON，`scope` 只接受书源 ID 或留空</span>
+          <span class="text-xs text-muted-foreground"
+            >仅支持 ReplaceRule JSON，`scope` 只接受书源 ID 或留空</span
+          >
           <label class="cursor-pointer">
-            <input type="file" accept=".json,.txt" class="hidden" @change="onFileChange">
-            <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors">
+            <input type="file" accept=".json,.txt" class="hidden" @change="onFileChange" />
+            <span
+              class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
+            >
               <Upload class="h-3 w-3" />
               选择文件
             </span>

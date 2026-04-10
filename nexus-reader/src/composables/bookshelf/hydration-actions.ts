@@ -1,8 +1,6 @@
 import type { BookshelfActionsOptions } from './types'
 
-export function createBookshelfHydrationActions(
-  options: BookshelfActionsOptions,
-) {
+export function createBookshelfHydrationActions(options: BookshelfActionsOptions) {
   async function hydrateBookshelf() {
     options.addonsStore.refresh()
     await Promise.allSettled([

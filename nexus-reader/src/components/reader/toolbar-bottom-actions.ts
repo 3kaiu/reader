@@ -4,19 +4,15 @@ import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-e
 import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
 import { createReaderToolbarBottomActionList } from './toolbar-bottom-action-list'
 
-export type {
-  ReaderToolbarBottomActionsEmits,
-} from './toolbar-bottom-action-emit-types'
-export type {
-  ReaderToolbarBottomActionsProps,
-} from './toolbar-bottom-action-prop-types'
+export type { ReaderToolbarBottomActionsEmits } from './toolbar-bottom-action-emit-types'
+export type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
 
 export function createReaderToolbarBottomActions(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ) {
   const actionButtons = computed<ReaderToolbarBottomAction[]>(() =>
-    createReaderToolbarBottomActionList(props, emit),
+    createReaderToolbarBottomActionList(props, emit)
   )
 
   return {

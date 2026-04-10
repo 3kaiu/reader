@@ -20,8 +20,4 @@ export {
   syncErrorHandler,
 } from './errors/boundary'
 
-export {
-  processError,
-  withRetry,
-  type ErrorInfo,
-} from './errors/processing'
+export { processError, withRetry, type ErrorInfo } from './errors/processing'

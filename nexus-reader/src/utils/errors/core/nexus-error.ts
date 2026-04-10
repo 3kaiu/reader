@@ -1,4 +1,1 @@
-export {
-  isNexusError,
-  NexusError,
-} from './nexus-error/manager'
+export { isNexusError, NexusError } from './nexus-error/manager'

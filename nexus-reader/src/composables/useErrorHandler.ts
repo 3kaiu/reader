@@ -47,7 +47,10 @@ export function useErrorHandler() {
     }
 
     // 使用统一的错误处理器
-    errorHandler.handle(normalizedError, typeof context === 'string' ? { message: context } : context)
+    errorHandler.handle(
+      normalizedError,
+      typeof context === 'string' ? { message: context } : context
+    )
 
     return errorId
   }
@@ -77,7 +80,8 @@ export function useErrorHandler() {
   }
 
   const handlePromiseError = (error: unknown, fallbackMessage?: string, showToast = true) => {
-    const wrappedError = error instanceof Error ? error : new Error(fallbackMessage || String(error))
+    const wrappedError =
+      error instanceof Error ? error : new Error(fallbackMessage || String(error))
     return handleError(wrappedError, { source: 'promise', fallbackMessage }, showToast)
   }
 
@@ -97,6 +101,6 @@ export function useErrorHandler() {
     handleWarning,
     formatErrorMessage,
     clearError,
-    clearAllErrors
+    clearAllErrors,
   }
 }

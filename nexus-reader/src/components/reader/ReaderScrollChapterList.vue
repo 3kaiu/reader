@@ -2,19 +2,16 @@
 import type { ComponentPublicInstance } from 'vue'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWindowVirtualizer } from '@tanstack/vue-virtual'
-import {
-  VIRTUAL_SCROLL_OVERSCAN,
-  VIRTUAL_SCROLL_THRESHOLD,
-} from '@/constants/ui'
+import { VIRTUAL_SCROLL_OVERSCAN, VIRTUAL_SCROLL_THRESHOLD } from '@/constants/ui'
 import { useSettingsStore } from '@/stores/settings'
-import { hasPendingUserInput, scheduleIdleTask, type IdleTaskHandle } from '@/utils/browserScheduling'
-import ReaderScrollChapter from './ReaderScrollChapter.vue'
 import {
-  createReaderScrollChapterListBindings,
-} from './reader-scroll-chapter-list-bindings'
-import type {
-  ReaderScrollChapterListProps,
-} from './reader-scroll-chapter-list-prop-types'
+  hasPendingUserInput,
+  scheduleIdleTask,
+  type IdleTaskHandle,
+} from '@/utils/browserScheduling'
+import ReaderScrollChapter from './ReaderScrollChapter.vue'
+import { createReaderScrollChapterListBindings } from './reader-scroll-chapter-list-bindings'
+import type { ReaderScrollChapterListProps } from './reader-scroll-chapter-list-prop-types'
 
 const props = defineProps<ReaderScrollChapterListProps>()
 const settingsStore = useSettingsStore()
@@ -53,12 +50,12 @@ const virtualOverscan = computed(() => {
 })
 
 const shouldUseVirtualScroll = computed(
-  () => chapterItemPropsList.value.length > virtualScrollThreshold.value,
+  () => chapterItemPropsList.value.length > virtualScrollThreshold.value
 )
 
 const estimateChapterHeight = (virtualIndex: number, formattedContent?: string) => {
   const measuredHeight = measuredChapterHeightMap.get(
-    chapterItemPropsList.value[virtualIndex]?.chapter.index ?? -1,
+    chapterItemPropsList.value[virtualIndex]?.chapter.index ?? -1
   )
   if (typeof measuredHeight === 'number' && measuredHeight > 0) {
     return measuredHeight
@@ -78,10 +75,7 @@ const estimateChapterHeight = (virtualIndex: number, formattedContent?: string) 
 const virtualizer = useWindowVirtualizer({
   count: chapterItemPropsList.value.length,
   estimateSize: index =>
-    estimateChapterHeight(
-      index,
-      chapterItemPropsList.value[index]?.chapter.formattedContent,
-    ),
+    estimateChapterHeight(index, chapterItemPropsList.value[index]?.chapter.formattedContent),
   overscan: virtualOverscan.value,
   getItemKey: index => chapterItemPropsList.value[index]?.chapter.index ?? index,
 })
@@ -117,7 +111,7 @@ const scheduleVirtualMeasure = (timeoutMs = 180) => {
           pendingVirtualMeasureIdleTask = null
           virtualizer.value?.measure()
         },
-        { timeoutMs },
+        { timeoutMs }
       )
     })
   }
@@ -145,7 +139,7 @@ watch(
     })
     scheduleVirtualMeasure()
   },
-  { flush: 'post' },
+  { flush: 'post' }
 )
 
 watch(
@@ -154,15 +148,15 @@ watch(
     measuredChapterHeightMap.clear()
     scheduleVirtualMeasure(120)
   },
-  { flush: 'post' },
+  { flush: 'post' }
 )
 
 const virtualItems = computed(() =>
-  shouldUseVirtualScroll.value ? (virtualizer.value?.getVirtualItems() ?? []) : [],
+  shouldUseVirtualScroll.value ? (virtualizer.value?.getVirtualItems() ?? []) : []
 )
 
 const virtualTotalSize = computed(() =>
-  shouldUseVirtualScroll.value ? (virtualizer.value?.getTotalSize() ?? 0) : 0,
+  shouldUseVirtualScroll.value ? (virtualizer.value?.getTotalSize() ?? 0) : 0
 )
 
 const virtualChapterItems = computed(() =>
@@ -180,21 +174,20 @@ const virtualChapterItems = computed(() =>
     })
     .filter(
       (
-        item,
+        item
       ): item is {
         virtualItem: (typeof virtualItems.value)[number]
         chapterProps: (typeof chapterItemPropsList.value)[number]
         chapterIndex: number
-      } => item !== null,
-    ),
+      } => item !== null
+    )
 )
 
 const bindVirtualItemRef = (
   element: Element | ComponentPublicInstance | null,
-  chapterIndex: number,
+  chapterIndex: number
 ) => {
-  const target =
-    element && '$el' in element ? (element.$el as Element | null) : element
+  const target = element && '$el' in element ? (element.$el as Element | null) : element
   const previousObservedElement = observedVirtualElements.get(chapterIndex)
 
   if (!(target instanceof HTMLElement)) {
@@ -205,11 +198,7 @@ const bindVirtualItemRef = (
     return
   }
 
-  if (
-    previousObservedElement &&
-    previousObservedElement !== target &&
-    chapterResizeObserver
-  ) {
+  if (previousObservedElement && previousObservedElement !== target && chapterResizeObserver) {
     chapterResizeObserver.unobserve(previousObservedElement)
   }
   observedVirtualElements.set(chapterIndex, target)
@@ -242,7 +231,7 @@ onUnmounted(() => {
 
 onMounted(() => {
   if (typeof ResizeObserver !== 'undefined') {
-    chapterResizeObserver = new ResizeObserver((entries) => {
+    chapterResizeObserver = new ResizeObserver(entries => {
       entries.forEach(entry => {
         const target = entry.target as HTMLElement
         const chapterIndex = Number(target.dataset.chapterIndex)

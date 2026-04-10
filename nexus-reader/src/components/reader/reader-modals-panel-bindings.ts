@@ -4,14 +4,12 @@ import { createReaderKeyboardHelpModalBindings } from './reader-modals-keyboard-
 import { createReaderSettingsModalBindings } from './reader-modals-settings-bindings'
 import { createReaderSourcePickerModalBindings } from './reader-modals-source-picker-bindings'
 import type { ReaderModalsEmitFn } from './reader-modals-emit-types'
-import type {
-  ReaderModalsPanelBindings,
-} from './reader-modals-panel-binding-types'
+import type { ReaderModalsPanelBindings } from './reader-modals-panel-binding-types'
 import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderModalsPanelBindings(
   props: ReaderModalsProps,
-  emit: ReaderModalsEmitFn,
+  emit: ReaderModalsEmitFn
 ): ReaderModalsPanelBindings {
   return {
     chapterListBindings: createReaderChapterListModalBindings(props, emit),

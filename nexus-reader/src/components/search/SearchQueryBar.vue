@@ -1,37 +1,35 @@
 <script setup lang="ts">
-import { Search, X } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Search, X } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 withDefaults(
   defineProps<{
-    modelValue: string;
-    variant?: "hero" | "results";
-    showSearchButton?: boolean;
-    showStopButton?: boolean;
-    autofocus?: boolean;
+    modelValue: string
+    variant?: 'hero' | 'results'
+    showSearchButton?: boolean
+    showStopButton?: boolean
+    autofocus?: boolean
   }>(),
   {
-    variant: "results",
+    variant: 'results',
     showSearchButton: false,
     showStopButton: false,
     autofocus: false,
   }
-);
+)
 
 const emit = defineEmits<{
-  "update:modelValue": [value: string];
-  search: [];
-  stop: [];
-}>();
+  'update:modelValue': [value: string]
+  search: []
+  stop: []
+}>()
 </script>
 
 <template>
   <div :class="showSearchButton || showStopButton ? 'flex items-center gap-3' : 'block'">
     <div class="flex-1 relative group">
-      <div
-        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10"
-      >
+      <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
         <Search
           class="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
         />
@@ -73,14 +71,10 @@ const emit = defineEmits<{
       variant="destructive"
       size="sm"
       @click="emit('stop')"
-      :class="
-        variant === 'hero'
-          ? 'rounded-full shrink-0'
-          : 'rounded-full text-xs h-7 px-3'
-      "
+      :class="variant === 'hero' ? 'rounded-full shrink-0' : 'rounded-full text-xs h-7 px-3'"
       aria-label="停止搜索"
     >
-      {{ variant === "hero" ? "停止" : "停止搜索" }}
+      {{ variant === 'hero' ? '停止' : '停止搜索' }}
     </Button>
   </div>
 </template>

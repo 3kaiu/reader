@@ -14,7 +14,6 @@ export async function setupMockServices(services: Map<string, unknown>): Promise
 
   const mockWorkers = {
     analytics: vi.fn(),
-    ai: vi.fn(),
     sync: vi.fn(),
     health: vi.fn(),
     storage: vi.fn(),
@@ -27,13 +26,6 @@ export async function setupMockServices(services: Map<string, unknown>): Promise
     getUsage: vi.fn(),
   }
   services.set('analytics', mockAnalytics)
-
-  const mockAI = {
-    recommend: vi.fn(),
-    search: vi.fn(),
-    classify: vi.fn(),
-  }
-  services.set('ai', mockAI)
 
   const mockCDN = {
     cache: vi.fn(),

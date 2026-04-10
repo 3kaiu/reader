@@ -1,20 +1,11 @@
-import type {
-  ErrorContext,
-  ErrorResponse,
-} from '../types'
-import {
-  ErrorCode,
-  type ErrorSeverity,
-} from '../types'
+import type { ErrorContext, ErrorResponse } from '../types'
+import { ErrorCode, type ErrorSeverity } from '../types'
 import {
   createAIErrorInput,
   createNetworkErrorInput,
   createValidationErrorInput,
 } from './factories'
-import {
-  isRetryableErrorCode,
-  resolveRetryDelay,
-} from './retry'
+import { isRetryableErrorCode, resolveRetryDelay } from './retry'
 import { resolveErrorSeverity } from './severity'
 
 export class NexusError extends Error {

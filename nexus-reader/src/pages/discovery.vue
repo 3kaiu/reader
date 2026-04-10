@@ -3,9 +3,9 @@
  * 发现页 - Discovery / Explore
  * 特性：周报回溯、轮播图展示、精选榜单、沉浸式设计
  */
-import { useDiscoveryView } from "@/composables/useDiscoveryView";
-import DiscoveryContent from "@/components/discovery/DiscoveryContent.vue";
-import DiscoveryHeaderBar from "@/components/discovery/DiscoveryHeaderBar.vue";
+import { useDiscoveryView } from '@/composables/useDiscoveryView'
+import DiscoveryContent from '@/components/discovery/DiscoveryContent.vue'
+import DiscoveryHeaderBar from '@/components/discovery/DiscoveryHeaderBar.vue'
 
 const {
   data,
@@ -21,7 +21,7 @@ const {
   changePeriod,
   openDiscoveryItem,
   goBack,
-} = useDiscoveryView();
+} = useDiscoveryView()
 </script>
 
 <template>

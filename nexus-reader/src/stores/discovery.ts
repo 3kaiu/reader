@@ -42,9 +42,7 @@ export const useDiscoveryStore = defineStore('discovery', () => {
 
   const currentPeriod = computed(() => data.value?.period || '')
   const currentPeriodLabel = computed(() => formatPeriodLabel(currentPeriod.value))
-  const currentPeriodButtonLabel = computed(() =>
-    formatPeriodButtonLabel(currentPeriod.value)
-  )
+  const currentPeriodButtonLabel = computed(() => formatPeriodButtonLabel(currentPeriod.value))
   const availablePeriods = computed(() => data.value?.availablePeriods || [])
   const periodOptions = computed<DiscoveryPeriodOption[]>(() =>
     availablePeriods.value.map(period => ({
@@ -61,9 +59,7 @@ export const useDiscoveryStore = defineStore('discovery', () => {
   const heroItems = computed(() => sectionsByType.value.carousel || [])
   const featuredItems = computed(() => sectionsByType.value.image_list || [])
   const rankedItems = computed(() => sectionsByType.value.new_sign || [])
-  const dateRangeLabel = computed(() =>
-    formatDateRange(data.value?.startDate, data.value?.endDate)
-  )
+  const dateRangeLabel = computed(() => formatDateRange(data.value?.startDate, data.value?.endDate))
 
   async function loadDiscovery(period?: string): Promise<ApiResponse<DiscoveryResponse>> {
     loading.value = true

@@ -7,7 +7,7 @@ import type { ReaderChromeState } from './chrome-state'
 
 export function createReaderChromeActions(
   state: ReaderChromeState,
-  options: ReaderChromeActionOptions,
+  options: ReaderChromeActionOptions
 ): ReaderChromeActionsResult {
   const context = { state, options }
   const timers = createReaderChromeTimerActions(context)

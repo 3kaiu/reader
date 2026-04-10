@@ -4,9 +4,7 @@ import BookInfoModal from '@/components/book/BookInfoModal.vue'
 import BookSourcePicker from '@/components/book/BookSourcePicker.vue'
 import ReadSettings from '@/components/ReadSettings.vue'
 import ReaderKeyboardHelpOverlay from '@/components/reader/ReaderKeyboardHelpOverlay.vue'
-import type {
-  ReaderModalsPanelsProps,
-} from './reader-modals-panels-prop-types'
+import type { ReaderModalsPanelsProps } from './reader-modals-panels-prop-types'
 
 defineProps<ReaderModalsPanelsProps>()
 </script>

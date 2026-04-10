@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Search } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
+import { Search } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 
 const emit = defineEmits<{
-  (e: "reset-search"): void;
-  (e: "go-back"): void;
-}>();
+  (e: 'reset-search'): void
+  (e: 'go-back'): void
+}>()
 </script>
 
 <template>
@@ -23,9 +23,7 @@ const emit = defineEmits<{
       <Button @click="emit('reset-search')" variant="outline" class="rounded-full">
         重新搜索
       </Button>
-      <Button @click="emit('go-back')" variant="ghost" class="rounded-full">
-        返回书架
-      </Button>
+      <Button @click="emit('go-back')" variant="ghost" class="rounded-full"> 返回书架 </Button>
     </div>
   </div>
 </template>

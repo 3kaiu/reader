@@ -1,15 +1,15 @@
 /**
  * Integration Test Setup
- * 
+ *
  * Global setup configuration for integration tests
  */
 
-import { vi, beforeAll, afterAll } from 'vitest';
+import { vi, beforeAll, afterAll } from 'vitest'
 
-type ConsoleSnapshot = Partial<Record<keyof Console, Console[keyof Console]>>;
+type ConsoleSnapshot = Partial<Record<keyof Console, Console[keyof Console]>>
 
 declare global {
-  var __originalConsole: ConsoleSnapshot | undefined;
+  var __originalConsole: ConsoleSnapshot | undefined
 }
 
 // Global mocks and polyfills
@@ -23,7 +23,7 @@ beforeAll(() => {
         removeItem: vi.fn(),
         clear: vi.fn(),
         key: vi.fn(),
-        length: 0
+        length: 0,
       },
       sessionStorage: {
         getItem: vi.fn(),
@@ -31,7 +31,7 @@ beforeAll(() => {
         removeItem: vi.fn(),
         clear: vi.fn(),
         key: vi.fn(),
-        length: 0
+        length: 0,
       },
       location: {
         href: 'http://localhost:3000',
@@ -42,14 +42,14 @@ beforeAll(() => {
         port: '3000',
         pathname: '/',
         search: '',
-        hash: ''
+        hash: '',
       },
       navigator: {
         userAgent: 'Mozilla/5.0 (Test Environment)',
         language: 'en-US',
         languages: ['en-US', 'en'],
         onLine: true,
-        cookieEnabled: true
+        cookieEnabled: true,
       },
       document: {
         createElement: vi.fn(),
@@ -60,7 +60,7 @@ beforeAll(() => {
         removeEventListener: vi.fn(),
         title: 'Test Environment',
         body: {},
-        head: {}
+        head: {},
       },
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -79,40 +79,42 @@ beforeAll(() => {
         mark: vi.fn(),
         measure: vi.fn(),
         getEntriesByType: vi.fn(() => []),
-        getEntriesByName: vi.fn(() => [])
+        getEntriesByName: vi.fn(() => []),
       },
-      requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 16)),
+      requestAnimationFrame: vi.fn(cb => setTimeout(cb, 16)),
       cancelAnimationFrame: vi.fn(),
       setTimeout: vi.fn((cb, delay) => setTimeout(cb, delay)),
-      loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => { /* mock implementation */ }),
+      loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => {
+        /* mock implementation */
+      }),
       clearTimeout: vi.fn(),
       setInterval: vi.fn((cb, delay) => setInterval(cb, delay)),
-      clearInterval: vi.fn()
+      clearInterval: vi.fn(),
     },
     writable: true,
-    configurable: true
-  });
+    configurable: true,
+  })
 
   // Mock global fetch if not available
   if (!globalThis.fetch) {
-    globalThis.fetch = vi.fn();
+    globalThis.fetch = vi.fn()
   }
 
   // Mock console methods for cleaner test output
-  const originalConsole = { ...console };
-  console.log = vi.fn();
-  console.info = vi.fn();
-  console.warn = vi.fn();
-  console.error = vi.fn();
-  console.debug = vi.fn();
+  const originalConsole = { ...console }
+  console.log = vi.fn()
+  console.info = vi.fn()
+  console.warn = vi.fn()
+  console.error = vi.fn()
+  console.debug = vi.fn()
 
   // Restore console for important messages
-  globalThis.__originalConsole = originalConsole;
-});
+  globalThis.__originalConsole = originalConsole
+})
 
 afterAll(() => {
   // Restore original console
   if (globalThis.__originalConsole) {
-    Object.assign(console, globalThis.__originalConsole);
+    Object.assign(console, globalThis.__originalConsole)
   }
-});
+})

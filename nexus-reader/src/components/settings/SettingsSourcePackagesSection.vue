@@ -1,124 +1,120 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Database, FileJson, RefreshCw, SquareArrowOutUpRight, Trash2 } from "lucide-vue-next";
+import { computed, ref } from 'vue'
+import { Database, FileJson, RefreshCw, SquareArrowOutUpRight, Trash2 } from 'lucide-vue-next'
 
 type SourcePackageSummary = {
-  sourceId: string;
-  sourceName: string;
-  host: string;
-  packageId: string;
-  generatedAtMs: number;
-  enabled: boolean;
-  valid: boolean;
+  sourceId: string
+  sourceName: string
+  host: string
+  packageId: string
+  generatedAtMs: number
+  enabled: boolean
+  valid: boolean
   readinessState:
-    | "draft"
-    | "blocked"
-    | "search_ready"
-    | "catalog_ready"
-    | "reading_ready"
-    | "full_flow_ready";
-  searchable: boolean;
-  detailReady: boolean;
-  tocReady: boolean;
-  readable: boolean;
-  overallHealthScore: number;
-  recommended: boolean;
-  searchStatus: "pass" | "warn" | "fail" | "unknown";
-  bookStatus: "pass" | "warn" | "fail" | "unknown";
-  tocStatus: "pass" | "warn" | "fail" | "unknown";
-  contentStatus: "pass" | "warn" | "fail" | "unknown";
-  tags: string[];
-};
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
+  searchable: boolean
+  detailReady: boolean
+  tocReady: boolean
+  readable: boolean
+  overallHealthScore: number
+  recommended: boolean
+  searchStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  bookStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  tocStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  contentStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  tags: string[]
+}
 
 type SourcePackageDetailSummary = {
-  packageId: string;
-  sourceLabel: string;
-  generatedAtLabel: string;
-  validationLabel: string;
-  healthLabel: string;
-  healthScoreLabel: string;
-  segmentItems: string[];
-  warningItems: string[];
-  errorItems: string[];
-  capabilityItems: string[];
-  searchStrategyItems: string[];
-  sampleItems: string[];
-  riskItems: string[];
-  readinessBlockers: string[];
-  readinessSuggestedActions: string[];
-};
+  packageId: string
+  sourceLabel: string
+  generatedAtLabel: string
+  validationLabel: string
+  healthLabel: string
+  healthScoreLabel: string
+  segmentItems: string[]
+  warningItems: string[]
+  errorItems: string[]
+  capabilityItems: string[]
+  searchStrategyItems: string[]
+  sampleItems: string[]
+  riskItems: string[]
+  readinessBlockers: string[]
+  readinessSuggestedActions: string[]
+}
 
 const props = defineProps<{
-  sourcePackagesLoading: boolean;
-  sourcePackageImporting: boolean;
-  sourcePackageDetailLoading: boolean;
-  sourcePackages: SourcePackageSummary[];
-  sourcePackageDetailSummary: SourcePackageDetailSummary;
-}>();
+  sourcePackagesLoading: boolean
+  sourcePackageImporting: boolean
+  sourcePackageDetailLoading: boolean
+  sourcePackages: SourcePackageSummary[]
+  sourcePackageDetailSummary: SourcePackageDetailSummary
+}>()
 
 const emit = defineEmits<{
-  refreshSourcePackages: [];
-  importSourcePackage: [packageJson: string];
-  selectSourcePackage: [sourceId: string];
-  deleteSourcePackage: [sourceId: string];
-  navigate: [path: string];
-}>();
+  refreshSourcePackages: []
+  importSourcePackage: [packageJson: string]
+  selectSourcePackage: [sourceId: string]
+  deleteSourcePackage: [sourceId: string]
+  navigate: [path: string]
+}>()
 
-const importJson = ref("");
-const selectedSourceId = ref("");
+const importJson = ref('')
+const selectedSourceId = ref('')
 
 const sortedPackages = computed(() =>
   [...props.sourcePackages].sort((a, b) => b.generatedAtMs - a.generatedAtMs)
-);
+)
 
 function submitImport() {
   if (!importJson.value.trim()) {
-    return;
+    return
   }
-  emit("importSourcePackage", importJson.value);
-  importJson.value = "";
+  emit('importSourcePackage', importJson.value)
+  importJson.value = ''
 }
 
 function selectPackage(sourceId: string) {
-  selectedSourceId.value = sourceId;
-  emit("selectSourcePackage", sourceId);
+  selectedSourceId.value = sourceId
+  emit('selectSourcePackage', sourceId)
 }
 
-function healthClass(status: "pass" | "warn" | "fail" | "unknown") {
-  if (status === "pass") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
-  if (status === "warn") return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
-  if (status === "fail") return "bg-red-500/15 text-red-700 dark:text-red-300";
-  return "bg-muted text-muted-foreground";
+function healthClass(status: 'pass' | 'warn' | 'fail' | 'unknown') {
+  if (status === 'pass') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+  if (status === 'warn') return 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+  if (status === 'fail') return 'bg-red-500/15 text-red-700 dark:text-red-300'
+  return 'bg-muted text-muted-foreground'
 }
 
-function readinessLabel(
-  state: SourcePackageSummary["readinessState"]
-) {
+function readinessLabel(state: SourcePackageSummary['readinessState']) {
   switch (state) {
-    case "full_flow_ready":
-      return "全链路可用";
-    case "reading_ready":
-      return "可读待搜";
-    case "catalog_ready":
-      return "目录就绪";
-    case "search_ready":
-      return "可搜索";
-    case "blocked":
-      return "阻塞";
+    case 'full_flow_ready':
+      return '全链路可用'
+    case 'reading_ready':
+      return '可读待搜'
+    case 'catalog_ready':
+      return '目录就绪'
+    case 'search_ready':
+      return '可搜索'
+    case 'blocked':
+      return '阻塞'
     default:
-      return "草稿";
+      return '草稿'
   }
 }
 
-function readinessClass(
-  state: SourcePackageSummary["readinessState"]
-) {
-  if (state === "full_flow_ready") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
-  if (state === "reading_ready" || state === "catalog_ready" || state === "search_ready") {
-    return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+function readinessClass(state: SourcePackageSummary['readinessState']) {
+  if (state === 'full_flow_ready') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+  if (state === 'reading_ready' || state === 'catalog_ready' || state === 'search_ready') {
+    return 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
   }
-  if (state === "blocked") return "bg-red-500/15 text-red-700 dark:text-red-300";
-  return "bg-muted text-muted-foreground";
+  if (state === 'blocked') return 'bg-red-500/15 text-red-700 dark:text-red-300'
+  return 'bg-muted text-muted-foreground'
 }
 </script>
 
@@ -126,15 +122,13 @@ function readinessClass(
   <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
     <div class="flex items-center gap-2 mb-4 px-1">
       <Database class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-        源规则包
-      </h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">源规则包</h2>
       <button
         class="ml-auto h-8 px-3 text-xs rounded-full border bg-background hover:bg-muted transition-colors"
         :disabled="sourcePackagesLoading"
         @click="emit('refreshSourcePackages')"
       >
-        {{ sourcePackagesLoading ? "刷新中..." : "刷新列表" }}
+        {{ sourcePackagesLoading ? '刷新中...' : '刷新列表' }}
       </button>
     </div>
 
@@ -176,7 +170,7 @@ function readinessClass(
             :disabled="sourcePackageImporting || !importJson.trim()"
             @click="submitImport"
           >
-            {{ sourcePackageImporting ? "导入中..." : "导入规则包" }}
+            {{ sourcePackageImporting ? '导入中...' : '导入规则包' }}
           </button>
         </div>
       </div>
@@ -193,7 +187,11 @@ function readinessClass(
               v-for="item in sortedPackages"
               :key="item.sourceId"
               class="w-full text-left rounded-xl border p-4 transition-colors"
-              :class="selectedSourceId === item.sourceId ? 'border-primary bg-primary/5' : 'border-border/50 bg-muted/20 hover:bg-muted/35'"
+              :class="
+                selectedSourceId === item.sourceId
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border/50 bg-muted/20 hover:bg-muted/35'
+              "
               @click="selectPackage(item.sourceId)"
             >
               <div class="flex items-start justify-between gap-3">
@@ -205,36 +203,88 @@ function readinessClass(
                 </div>
                 <span
                   class="shrink-0 rounded-full px-2 py-1 text-[11px]"
-                  :class="item.recommended ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'"
+                  :class="
+                    item.recommended
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  "
                 >
-                  {{ item.recommended ? "推荐" : "待复核" }}
+                  {{ item.recommended ? '推荐' : '待复核' }}
                 </span>
               </div>
               <p class="text-xs text-muted-foreground mt-2">
-                {{ new Date(item.generatedAtMs).toLocaleString() }} · 健康 {{ Math.round(item.overallHealthScore * 100) }}
+                {{ new Date(item.generatedAtMs).toLocaleString() }} · 健康
+                {{ Math.round(item.overallHealthScore * 100) }}
               </p>
               <div class="mt-2 flex flex-wrap gap-2">
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="readinessClass(item.readinessState)">
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="readinessClass(item.readinessState)"
+                >
                   {{ readinessLabel(item.readinessState) }}
                 </span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.searchable ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
-                  搜索{{ item.searchable ? "✓" : "✗" }}
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="
+                    item.searchable
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-red-500/15 text-red-700 dark:text-red-300'
+                  "
+                >
+                  搜索{{ item.searchable ? '✓' : '✗' }}
                 </span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.detailReady ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
-                  详情{{ item.detailReady ? "✓" : "✗" }}
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="
+                    item.detailReady
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-red-500/15 text-red-700 dark:text-red-300'
+                  "
+                >
+                  详情{{ item.detailReady ? '✓' : '✗' }}
                 </span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.tocReady ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
-                  目录{{ item.tocReady ? "✓" : "✗" }}
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="
+                    item.tocReady
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-red-500/15 text-red-700 dark:text-red-300'
+                  "
+                >
+                  目录{{ item.tocReady ? '✓' : '✗' }}
                 </span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="item.readable ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300'">
-                  正文{{ item.readable ? "✓" : "✗" }}
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="
+                    item.readable
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-red-500/15 text-red-700 dark:text-red-300'
+                  "
+                >
+                  正文{{ item.readable ? '✓' : '✗' }}
                 </span>
               </div>
               <div class="mt-2 flex flex-wrap gap-2">
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.searchStatus)">搜索</span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.bookStatus)">详情</span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.tocStatus)">目录</span>
-                <span class="rounded-full px-2 py-1 text-[11px]" :class="healthClass(item.contentStatus)">正文</span>
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="healthClass(item.searchStatus)"
+                  >搜索</span
+                >
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="healthClass(item.bookStatus)"
+                  >详情</span
+                >
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="healthClass(item.tocStatus)"
+                  >目录</span
+                >
+                <span
+                  class="rounded-full px-2 py-1 text-[11px]"
+                  :class="healthClass(item.contentStatus)"
+                  >正文</span
+                >
               </div>
               <div class="flex items-center justify-between mt-3">
                 <div class="flex flex-wrap gap-2">
@@ -258,7 +308,7 @@ function readinessClass(
           </div>
 
           <p v-else class="text-xs text-muted-foreground/70">
-            {{ sourcePackagesLoading ? "正在加载源规则包..." : "暂无已导入源规则包" }}
+            {{ sourcePackagesLoading ? '正在加载源规则包...' : '暂无已导入源规则包' }}
           </p>
         </div>
 
@@ -281,21 +331,26 @@ function readinessClass(
                 校验: {{ sourcePackageDetailSummary.validationLabel }}
               </p>
               <p class="text-xs text-muted-foreground mt-1">
-                健康: {{ sourcePackageDetailSummary.healthLabel }} · {{ sourcePackageDetailSummary.healthScoreLabel }}
+                健康: {{ sourcePackageDetailSummary.healthLabel }} ·
+                {{ sourcePackageDetailSummary.healthScoreLabel }}
               </p>
             </div>
 
             <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
               <p class="text-xs text-muted-foreground mb-2">健康分段</p>
               <ul class="space-y-1 text-xs break-all">
-                <li v-for="item in sourcePackageDetailSummary.segmentItems" :key="item">{{ item }}</li>
+                <li v-for="item in sourcePackageDetailSummary.segmentItems" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 
             <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
               <p class="text-xs text-muted-foreground mb-2">能力矩阵</p>
               <ul class="space-y-1 text-xs">
-                <li v-for="item in sourcePackageDetailSummary.capabilityItems" :key="item">{{ item }}</li>
+                <li v-for="item in sourcePackageDetailSummary.capabilityItems" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 
@@ -305,22 +360,19 @@ function readinessClass(
                 v-if="sourcePackageDetailSummary.searchStrategyItems.length > 0"
                 class="space-y-1 text-xs break-all"
               >
-                <li
-                  v-for="item in sourcePackageDetailSummary.searchStrategyItems"
-                  :key="item"
-                >
+                <li v-for="item in sourcePackageDetailSummary.searchStrategyItems" :key="item">
                   {{ item }}
                 </li>
               </ul>
-              <p v-else class="text-xs text-muted-foreground">
-                当前规则包没有显式 searchProfile
-              </p>
+              <p v-else class="text-xs text-muted-foreground">当前规则包没有显式 searchProfile</p>
             </div>
 
             <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
               <p class="text-xs text-muted-foreground mb-2">样本</p>
               <ul class="space-y-1 text-xs break-all">
-                <li v-for="item in sourcePackageDetailSummary.sampleItems" :key="item">{{ item }}</li>
+                <li v-for="item in sourcePackageDetailSummary.sampleItems" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 
@@ -330,7 +382,10 @@ function readinessClass(
             >
               <p class="text-xs text-emerald-700 dark:text-emerald-300 mb-2">建议动作</p>
               <ul class="space-y-1 text-xs break-all text-emerald-700 dark:text-emerald-300">
-                <li v-for="item in sourcePackageDetailSummary.readinessSuggestedActions" :key="item">
+                <li
+                  v-for="item in sourcePackageDetailSummary.readinessSuggestedActions"
+                  :key="item"
+                >
                   {{ item }}
                 </li>
               </ul>
@@ -354,7 +409,9 @@ function readinessClass(
             >
               <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">Warnings</p>
               <ul class="space-y-1 text-xs">
-                <li v-for="item in sourcePackageDetailSummary.warningItems" :key="item">{{ item }}</li>
+                <li v-for="item in sourcePackageDetailSummary.warningItems" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 
@@ -364,7 +421,9 @@ function readinessClass(
             >
               <p class="text-xs text-red-700 dark:text-red-300 mb-2">Errors</p>
               <ul class="space-y-1 text-xs">
-                <li v-for="item in sourcePackageDetailSummary.errorItems" :key="item">{{ item }}</li>
+                <li v-for="item in sourcePackageDetailSummary.errorItems" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 

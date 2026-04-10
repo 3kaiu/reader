@@ -8,7 +8,11 @@ interface KVLookupMock {
 
 function getKVService(services: Map<string, unknown>): KVLookupMock {
   const mockKV = services.get('kv')
-  if (!mockKV || typeof mockKV !== 'object' || typeof (mockKV as KVLookupMock).get?.mockImplementation !== 'function') {
+  if (
+    !mockKV ||
+    typeof mockKV !== 'object' ||
+    typeof (mockKV as KVLookupMock).get?.mockImplementation !== 'function'
+  ) {
     throw new Error('KV mock service is not available')
   }
 

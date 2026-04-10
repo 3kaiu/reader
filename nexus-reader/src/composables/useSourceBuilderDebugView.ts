@@ -7,9 +7,7 @@ import { useMessage } from '@/composables/useMessage'
 import { useSettingsStore } from '@/stores/settings'
 import { useSourceBuilderDebugFormState } from '@/composables/source-builder/useSourceBuilderDebugFormState'
 import { useSourceBuilderPreviewState } from '@/composables/source-builder/useSourceBuilderPreviewState'
-import {
-  useSourceBuilderDebugSnapshots,
-} from '@/composables/source-builder/useSourceBuilderDebugSnapshots'
+import { useSourceBuilderDebugSnapshots } from '@/composables/source-builder/useSourceBuilderDebugSnapshots'
 import { useSourceBuilderDebugPageActions } from '@/composables/source-builder/useSourceBuilderDebugPageActions'
 import { useSourceBuilderFetchSession } from '@/composables/source-builder/useSourceBuilderFetchSession'
 import { useSourceBuilderRunOperations } from '@/composables/source-builder/useSourceBuilderRunOperations'
@@ -270,10 +268,7 @@ export function useSourceBuilderDebugView() {
   const autoFlowState = ref<AutoFlowState>('IDLE')
   const autoFlowRunId = ref('')
   const autoFlowSummary = ref<string[]>([])
-  const autoFlowHistory = useStorage<AutoFlowHistoryEntry[]>(
-    'source-builder-auto-flow-history',
-    []
-  )
+  const autoFlowHistory = useStorage<AutoFlowHistoryEntry[]>('source-builder-auto-flow-history', [])
   const forcedImportAudit = useStorage<ForcedImportAuditEntry[]>(
     'source-builder-forced-import-audit',
     []
@@ -322,9 +317,10 @@ export function useSourceBuilderDebugView() {
   })
   const currentSourceAutoFlowStreak = computed(() => {
     const source = currentAutoFlowSourceId.value
-    const entries = (source
-      ? autoFlowHistory.value.filter(item => item.sourceId === source)
-      : autoFlowHistory.value
+    const entries = (
+      source
+        ? autoFlowHistory.value.filter(item => item.sourceId === source)
+        : autoFlowHistory.value
     ).slice(0, 30)
     let passStreak = 0
     let failStreak = 0
@@ -424,7 +420,8 @@ export function useSourceBuilderDebugView() {
     }
     const quality = Number(profile.qualityScore || 0)
     const cooldownActive = Boolean(
-      profile.cooldownUntil && Number(new Date(profile.cooldownUntil).getTime()) > sessionNowMs.value
+      profile.cooldownUntil &&
+      Number(new Date(profile.cooldownUntil).getTime()) > sessionNowMs.value
     )
     if (cooldownActive) {
       return {
@@ -524,10 +521,7 @@ export function useSourceBuilderDebugView() {
     const entries = forcedImportAudit.value.filter(item => !source || item.sourceId === source)
     const recent24h = entries.filter(item => Date.now() - item.createdAtMs <= 24 * 60 * 60 * 1000)
     const latest = entries[0]
-    const lines = [
-      `forcedImport24h=${recent24h.length}`,
-      `forcedImportTotal=${entries.length}`,
-    ]
+    const lines = [`forcedImport24h=${recent24h.length}`, `forcedImportTotal=${entries.length}`]
     if (latest) {
       lines.push(`lastForcedImport=${new Date(latest.createdAtMs).toLocaleString()}`)
       lines.push(`lastForcedReason=${latest.reason}`)
@@ -536,9 +530,10 @@ export function useSourceBuilderDebugView() {
   })
   const currentSourceSessionGateHistorySummary = computed(() => {
     const source = currentAutoFlowSourceId.value
-    const entries = (source
-      ? sessionGateHistory.value.filter(item => item.sourceId === source)
-      : sessionGateHistory.value
+    const entries = (
+      source
+        ? sessionGateHistory.value.filter(item => item.sourceId === source)
+        : sessionGateHistory.value
     ).slice(0, 20)
     const total = entries.length
     const passed = entries.filter(item => item.success).length
@@ -622,7 +617,10 @@ export function useSourceBuilderDebugView() {
     set: (value: number) => {
       const key = currentAutoFlowSourceId.value || FALLBACK_SOURCE_KEY
       const previous = sourceSmokeGateConfigs.value[key]
-      const sampleSize = Math.max(1, Math.min(30, Math.trunc(Number(value) || DEFAULT_SMOKE_SAMPLE_SIZE)))
+      const sampleSize = Math.max(
+        1,
+        Math.min(30, Math.trunc(Number(value) || DEFAULT_SMOKE_SAMPLE_SIZE))
+      )
       const passRateThreshold = Math.max(
         1,
         Math.min(
@@ -673,11 +671,7 @@ export function useSourceBuilderDebugView() {
     toc: 0.68,
     content: 0.7,
   } as const
-  const BLOCKING_FAILURE_CODES = new Set([
-    'fetch_failed',
-    'compile_failed',
-    'detail_cross_site',
-  ])
+  const BLOCKING_FAILURE_CODES = new Set(['fetch_failed', 'compile_failed', 'detail_cross_site'])
 
   function nextRunId() {
     return `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -731,7 +725,9 @@ export function useSourceBuilderDebugView() {
     }
     runSmokeSampleSize.value = DEFAULT_SMOKE_SAMPLE_SIZE
     runSmokePassRateThreshold.value = DEFAULT_SMOKE_PASS_RATE_THRESHOLD
-    success(`已恢复默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
+    success(
+      `已恢复默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`
+    )
   }
 
   function clearSessionGateHistory(options?: { currentSourceOnly?: boolean }) {
@@ -765,7 +761,9 @@ export function useSourceBuilderDebugView() {
     }
     runSmokeSampleSize.value = DEFAULT_SMOKE_SAMPLE_SIZE
     runSmokePassRateThreshold.value = DEFAULT_SMOKE_PASS_RATE_THRESHOLD
-    success(`稳定状态建议默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`)
+    success(
+      `稳定状态建议默认门禁: sample=${DEFAULT_SMOKE_SAMPLE_SIZE}, passRate=${DEFAULT_SMOKE_PASS_RATE_THRESHOLD}%`
+    )
   }
 
   function persistLastGoodPackage(sourceIdForCounter: string) {
@@ -842,7 +840,9 @@ export function useSourceBuilderDebugView() {
       [keyof typeof SEGMENT_MIN, number]
     >) {
       if (segmentScore[segment] + 1e-9 < minScore) {
-        reasons.push(`${segment}<${Math.round(minScore * 100)} (${Math.round(segmentScore[segment] * 100)})`)
+        reasons.push(
+          `${segment}<${Math.round(minScore * 100)} (${Math.round(segmentScore[segment] * 100)})`
+        )
       }
     }
 
@@ -853,10 +853,7 @@ export function useSourceBuilderDebugView() {
       if (BLOCKING_FAILURE_CODES.has(code)) {
         reasons.push(`blocking:${code}`)
       }
-      if (
-        code === 'empty_result' &&
-        (step.step === 'chapters' || step.step === 'content')
-      ) {
+      if (code === 'empty_result' && (step.step === 'chapters' || step.step === 'content')) {
         reasons.push(`blocking:${step.step}:empty_result`)
       }
     }
@@ -989,10 +986,9 @@ export function useSourceBuilderDebugView() {
     }
     forceImportArmed.value = false
     const reasonText = importPreviewGuard.value.reasons.join(', ')
-    autoFlowSummary.value = [
-      ...autoFlowSummary.value,
-      `import=forced reason=${reasonText}`,
-    ].slice(-50)
+    autoFlowSummary.value = [...autoFlowSummary.value, `import=forced reason=${reasonText}`].slice(
+      -50
+    )
     const source = currentAutoFlowSourceId.value || 'unknown'
     forcedImportAudit.value = [
       {
@@ -1055,10 +1051,7 @@ export function useSourceBuilderDebugView() {
       return { ok: true, quality }
     }
 
-    const acquireSession = async (
-      strategy: 'auto_browser_like' | 'auto_api_like',
-      tag: string
-    ) => {
+    const acquireSession = async (strategy: 'auto_browser_like' | 'auto_api_like', tag: string) => {
       const acquireResp = await requestAutoAcquireFetchSession({
         sourceId: sourceIdForSession,
         acquireStrategy: strategy,
@@ -1107,7 +1100,8 @@ export function useSourceBuilderDebugView() {
     }
 
     const firstVerify = await verifySession('verify')
-    if (firstVerify.ok) return finish({ pass: true, reason: 'verify', quality: firstVerify.quality })
+    if (firstVerify.ok)
+      return finish({ pass: true, reason: 'verify', quality: firstVerify.quality })
 
     autoFlowSummary.value.push(`gate@session:recover=attempt(${firstVerify.reason})`)
     const recoverResp = await recoverSourceSessionProfile({
@@ -1122,7 +1116,8 @@ export function useSourceBuilderDebugView() {
     }
 
     const secondVerify = await verifySession('reVerify')
-    if (secondVerify.ok) return finish({ pass: true, reason: 'reVerify', quality: secondVerify.quality })
+    if (secondVerify.ok)
+      return finish({ pass: true, reason: 'reVerify', quality: secondVerify.quality })
 
     autoFlowSummary.value.push(`gate@session:fallbackAcquire=attempt(${secondVerify.reason})`)
     const fallbackAcquire = await acquireSession('auto_api_like', 'fallbackAcquire')
@@ -1130,7 +1125,8 @@ export function useSourceBuilderDebugView() {
       return finish({ pass: false, reason: fallbackAcquire.reason })
     }
     const finalVerify = await verifySession('finalVerify')
-    if (finalVerify.ok) return finish({ pass: true, reason: 'finalVerify', quality: finalVerify.quality })
+    if (finalVerify.ok)
+      return finish({ pass: true, reason: 'finalVerify', quality: finalVerify.quality })
     return finish({
       pass: false,
       reason: finalVerify.reason || secondVerify.reason || firstVerify.reason,
@@ -1168,7 +1164,9 @@ export function useSourceBuilderDebugView() {
     if (!sessionGate.pass) {
       autoFlowState.value = 'MANUAL_REQUIRED'
       warning(`会话门禁未通过: ${sessionGate.reason || 'unknown'}`)
-      autoFlowSummary.value.push(`state=MANUAL_REQUIRED reason=session_gate:${sessionGate.reason || 'unknown'}`)
+      autoFlowSummary.value.push(
+        `state=MANUAL_REQUIRED reason=session_gate:${sessionGate.reason || 'unknown'}`
+      )
       pushAutoFlowHistory({
         runId,
         sourceId: sourceIdForCounter,
@@ -1202,13 +1200,17 @@ export function useSourceBuilderDebugView() {
     await validateCurrentPackage()
 
     let gate = evaluateImportGate()
-    autoFlowSummary.value.push(`gate@validate=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`)
+    autoFlowSummary.value.push(
+      `gate@validate=${gate.pass ? 'pass' : `fail(${gate.reasons.join(', ')})`}`
+    )
     if (gate.pass) {
       autoFlowState.value = 'E2E_VERIFY'
       const e2e = await runSearchToContentValidation({
         query: validateSearchQuery.value.trim() || searchKeyword.value.trim(),
       })
-      autoFlowSummary.value.push(`gate@e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
+      autoFlowSummary.value.push(
+        `gate@e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`
+      )
       if (!e2e.pass) {
         gate = { pass: false, reasons: e2e.reasons }
       } else {
@@ -1261,7 +1263,9 @@ export function useSourceBuilderDebugView() {
         const e2e = await runSearchToContentValidation({
           query: validateSearchQuery.value.trim() || searchKeyword.value.trim(),
         })
-        autoFlowSummary.value.push(`gate@attempt${attempt}:e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`)
+        autoFlowSummary.value.push(
+          `gate@attempt${attempt}:e2e=${e2e.pass ? 'pass' : `fail(${e2e.reasons.join(', ')})`}`
+        )
         if (!e2e.pass) {
           gate = { pass: false, reasons: e2e.reasons }
         } else {
@@ -1315,7 +1319,11 @@ export function useSourceBuilderDebugView() {
     }
     if (nextFailureCount >= 3) {
       autoFlowState.value = 'QUARANTINED'
-      warning(rolledBack ? '已回滚到上一个可用包；连续失败达到阈值，source 进入隔离状态' : '连续失败达到阈值，已进入隔离状态')
+      warning(
+        rolledBack
+          ? '已回滚到上一个可用包；连续失败达到阈值，source 进入隔离状态'
+          : '连续失败达到阈值，已进入隔离状态'
+      )
       autoFlowSummary.value.push(`state=QUARANTINED failureCount=${nextFailureCount}`)
       pushAutoFlowHistory({
         runId,
@@ -1328,7 +1336,11 @@ export function useSourceBuilderDebugView() {
     }
 
     autoFlowState.value = 'MANUAL_REQUIRED'
-    warning(rolledBack ? '已回滚到上一个可用包；自动修正未达导入门槛，请手工补样本或调整规则' : '自动修正未达导入门槛，请手工补样本或调整规则')
+    warning(
+      rolledBack
+        ? '已回滚到上一个可用包；自动修正未达导入门槛，请手工补样本或调整规则'
+        : '自动修正未达导入门槛，请手工补样本或调整规则'
+    )
     autoFlowSummary.value.push(`state=MANUAL_REQUIRED failureCount=${nextFailureCount}`)
     pushAutoFlowHistory({
       runId,
@@ -1411,7 +1423,9 @@ export function useSourceBuilderDebugView() {
           const parts = [
             `${entry.action}`,
             entry.lifecycleState ? `lifecycle=${entry.lifecycleState}` : '',
-            entry.conservativeMode == null ? '' : `conservative=${entry.conservativeMode ? 'on' : 'off'}`,
+            entry.conservativeMode == null
+              ? ''
+              : `conservative=${entry.conservativeMode ? 'on' : 'off'}`,
             entry.note ? `note=${entry.note}` : '',
             entry.updatedBy ? `by=${entry.updatedBy}` : '',
             `at=${entry.createdAt}`,
@@ -1572,17 +1586,11 @@ export function useSourceBuilderDebugView() {
       return
     }
     try {
-      autoFlowSummary.value = [
-        ...autoFlowSummary.value,
-        'session=self_heal:start',
-      ].slice(-50)
+      autoFlowSummary.value = [...autoFlowSummary.value, 'session=self_heal:start'].slice(-50)
       const result = await executeSourceSessionGate(sourceIdForCounter)
       await refreshCurrentSourceSessionProfile()
       if (result.pass) {
-        autoFlowSummary.value = [
-          ...autoFlowSummary.value,
-          'session=self_heal:pass',
-        ].slice(-50)
+        autoFlowSummary.value = [...autoFlowSummary.value, 'session=self_heal:pass'].slice(-50)
         success('会话自愈完成，门禁已通过')
       } else {
         autoFlowSummary.value = [

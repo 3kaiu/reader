@@ -1,7 +1,18 @@
-import { $get } from "./client"
-import type { Book, Chapter, ChapterContent } from "@/types/book"
+import { $get, $post } from './client'
+import type { Book, Chapter, ChapterContent } from '@/types/book'
 
-export type { Book, Chapter, ChapterContent } from "@/types/book"
+export type { Book, Chapter, ChapterContent } from '@/types/book'
+
+/** Mirrors `nexus-server` `BatchContentResponse` / `BatchContentResult`. */
+export type BatchContentResult = {
+  url: string
+  content?: string | null
+  error?: string | null
+}
+
+export type BatchContentResponse = {
+  results: BatchContentResult[]
+}
 
 type ReaderContentRequest = {
   bookUrl?: string
@@ -11,7 +22,7 @@ type ReaderContentRequest = {
 }
 
 function safeDecodeUrl(url: string): string {
-  if (!url || typeof url !== "string") {
+  if (!url || typeof url !== 'string') {
     return url
   }
 
@@ -20,11 +31,11 @@ function safeDecodeUrl(url: string): string {
   let attempts = 0
   const maxAttempts = 5
 
-  if (!decoded.includes("%")) {
+  if (!decoded.includes('%')) {
     return decoded
   }
 
-  while (attempts < maxAttempts && decoded.includes("%")) {
+  while (attempts < maxAttempts && decoded.includes('%')) {
     try {
       const previous = decoded
       decoded = decodeURIComponent(decoded)
@@ -35,9 +46,9 @@ function safeDecodeUrl(url: string): string {
 
       try {
         const urlObj = new URL(decoded)
-        if (urlObj.protocol === "http:" || urlObj.protocol === "https:") {
+        if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
           lastValid = decoded
-          if (decoded.includes("%")) {
+          if (decoded.includes('%')) {
             attempts++
             continue
           }
@@ -62,11 +73,11 @@ function safeDecodeUrl(url: string): string {
 }
 
 function validateSourceAndUrl(source: string, url: string): string {
-  if (!source || typeof source !== "string" || source.trim().length === 0) {
-    throw new Error("Source parameter is required and must be a non-empty string")
+  if (!source || typeof source !== 'string' || source.trim().length === 0) {
+    throw new Error('Source parameter is required and must be a non-empty string')
   }
-  if (!url || typeof url !== "string" || url.trim().length === 0) {
-    throw new Error("URL parameter is required and must be a non-empty string")
+  if (!url || typeof url !== 'string' || url.trim().length === 0) {
+    throw new Error('URL parameter is required and must be a non-empty string')
   }
 
   return safeDecodeUrl(url)
@@ -78,35 +89,43 @@ export const readerApi = {
 
     try {
       const urlObj = new URL(decodedUrl)
-      if (!["http:", "https:"].includes(urlObj.protocol)) {
-        throw new Error("URL must use http or https protocol")
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        throw new Error('URL must use http or https protocol')
       }
     } catch (error) {
       if (error instanceof TypeError) {
-        throw new Error("Invalid URL format")
+        throw new Error('Invalid URL format')
       }
       throw error
     }
 
-    return $get<Book>("/book", { params: { source: source.trim(), url: decodedUrl } })
+    return $get<Book>('/book', { params: { source: source.trim(), url: decodedUrl } })
   },
   getChapters: (source: string, url: string) => {
     const decodedUrl = validateSourceAndUrl(source, url)
-    return $get<Chapter[]>("/chapters", { params: { source: source.trim(), url: decodedUrl } })
+    return $get<Chapter[]>('/chapters', { params: { source: source.trim(), url: decodedUrl } })
   },
   getContent: (source: string, url: string, request?: ReaderContentRequest) => {
     const decodedUrl = validateSourceAndUrl(source, url)
-    return $get<ChapterContent>("/content", {
+    return $get<ChapterContent>('/content', {
       params: {
         source: source.trim(),
         url: decodedUrl,
         ...(request?.bookUrl ? { bookUrl: request.bookUrl } : {}),
         ...(request?.bookId ? { book_id: request.bookId } : {}),
-        ...(typeof request?.index === "number" ? { index: request.index } : {}),
-        ...(typeof request?.chunkSize === "number"
-          ? { chunk_size: request.chunkSize }
-          : {}),
+        ...(typeof request?.index === 'number' ? { index: request.index } : {}),
+        ...(typeof request?.chunkSize === 'number' ? { chunk_size: request.chunkSize } : {}),
       },
     })
+  },
+
+  /** Prefetch-only: same engine `content()` as GET /content, no book_id/chunk metadata. */
+  batchContent: (source: string, urls: string[]) => {
+    if (!source || typeof source !== 'string' || source.trim().length === 0) {
+      throw new Error('Source parameter is required and must be a non-empty string')
+    }
+    const trimmed = source.trim()
+    const decoded = urls.map(u => validateSourceAndUrl(trimmed, u))
+    return $post<BatchContentResponse>('/batch/content', { source: trimmed, urls: decoded })
   },
 }

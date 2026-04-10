@@ -2,9 +2,7 @@ import { useRouter } from 'vue-router'
 import { createReaderSessionInitializer } from '@/composables/reader/session-init'
 import { setupReaderSessionLifecycle } from '@/composables/reader/session-lifecycle'
 import { createReaderSessionRouteState } from '@/composables/reader/session-route'
-import type {
-  ReaderSessionOptions,
-} from '@/composables/reader/session-option-types'
+import type { ReaderSessionOptions } from '@/composables/reader/session-option-types'
 
 export function useReaderSession(options: ReaderSessionOptions) {
   const router = useRouter()

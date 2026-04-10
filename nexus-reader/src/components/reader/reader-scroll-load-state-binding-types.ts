@@ -1,6 +1,4 @@
-import type {
-  ComputedRef,
-} from 'vue'
+import type { ComputedRef } from 'vue'
 
 export interface ReaderScrollLoadStateVisibilityBindings {
   showInitialParsing: ComputedRef<boolean>

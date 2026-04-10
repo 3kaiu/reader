@@ -61,21 +61,14 @@ export function useChapterListView(options: {
       return 0
     }
 
-    return Math.round(
-      ((options.props.currentInd + 1) / options.props.chapters.length) * 100
-    )
+    return Math.round(((options.props.currentInd + 1) / options.props.chapters.length) * 100)
   })
 
   const currentChapterTitle = computed(
     () => options.props.chapters[options.props.currentInd]?.title || ''
   )
 
-  const {
-    list,
-    containerProps,
-    wrapperProps,
-    scrollTo,
-  } = useVirtualList(filteredChapters, {
+  const { list, containerProps, wrapperProps, scrollTo } = useVirtualList(filteredChapters, {
     itemHeight: 50,
     overscan: 10,
   })

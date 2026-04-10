@@ -1,7 +1,4 @@
-import type {
-  CachedContent,
-  OfflineStatus,
-} from '../../types'
+import type { CachedContent, OfflineStatus } from '../../types'
 import {
   cacheOfflineManagerContent,
   cleanupOfflineManagerExpiredContent,
@@ -20,18 +17,12 @@ import {
   isOfflineManagerRuntimeOnline,
   removeOfflineManagerStatusListener,
 } from './status'
-import {
-  clearOfflineManagerQueue,
-  queueOfflineManagerOperation,
-} from './queue'
+import { clearOfflineManagerQueue, queueOfflineManagerOperation } from './queue'
 import type { OfflineManagerControllerRuntime } from './controller-runtime'
-import type {
-  OfflineManagerController,
-  OfflineManagerImportData,
-} from './controller-types'
+import type { OfflineManagerController, OfflineManagerImportData } from './controller-types'
 
 export function createOfflineManagerControllerActions(
-  runtime: OfflineManagerControllerRuntime,
+  runtime: OfflineManagerControllerRuntime
 ): OfflineManagerController {
   const { runtimeContext, ready } = runtime
 
@@ -39,18 +30,16 @@ export function createOfflineManagerControllerActions(
     await ready
   }
 
-  const getOfflineStatus = (): OfflineStatus =>
-    getOfflineManagerRuntimeStatus(runtimeContext)
+  const getOfflineStatus = (): OfflineStatus => getOfflineManagerRuntimeStatus(runtimeContext)
 
-  const isOnlineStatus = (): boolean =>
-    isOfflineManagerRuntimeOnline(runtimeContext)
+  const isOnlineStatus = (): boolean => isOfflineManagerRuntimeOnline(runtimeContext)
 
   const clearQueue = () => {
     clearOfflineManagerQueue(runtimeContext)
   }
 
   const queueOperation = async (
-    operation: Parameters<OfflineManagerController['queueOperation']>[0],
+    operation: Parameters<OfflineManagerController['queueOperation']>[0]
   ) => {
     await queueOfflineManagerOperation(runtimeContext, operation)
   }
@@ -67,8 +56,7 @@ export function createOfflineManagerControllerActions(
     await clearOfflineManagerCachedContent(runtimeContext)
   }
 
-  const getCachedContent = (id: string) =>
-    getOfflineManagerCachedContent(runtimeContext, id)
+  const getCachedContent = (id: string) => getOfflineManagerCachedContent(runtimeContext, id)
 
   const searchCachedContent = (type?: string, query?: string) =>
     searchOfflineManagerCachedContent(runtimeContext, type, query)
@@ -97,8 +85,7 @@ export function createOfflineManagerControllerActions(
     // SyncManager 负责轮询，这里暂不处理
   }
 
-  const getOfflineAvailableContent = () =>
-    getOfflineManagerAvailableContent(runtimeContext)
+  const getOfflineAvailableContent = () => getOfflineManagerAvailableContent(runtimeContext)
 
   const precacheImportantContent = async (contentIds: string[]) => {
     await precacheOfflineManagerImportantContent(runtimeContext, contentIds)

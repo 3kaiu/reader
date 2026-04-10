@@ -1,7 +1,4 @@
-import type {
-  CachedContent,
-  OfflineStatus,
-} from '@/services/offline/manager'
+import type { CachedContent, OfflineStatus } from '@/services/offline/manager'
 import type { OfflineItem } from './types'
 
 export interface OfflineStoreActionHelpers {

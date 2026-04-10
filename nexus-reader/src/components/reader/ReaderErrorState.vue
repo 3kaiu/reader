@@ -1,22 +1,13 @@
 <script setup lang="ts">
-import {
-  createReaderErrorStateViewBindings,
-} from './reader-error-state-view-bindings'
+import { createReaderErrorStateViewBindings } from './reader-error-state-view-bindings'
 import type { ReaderErrorStateEmits } from './reader-error-state-emit-types'
 import type { ReaderErrorStateEmitFn } from './reader-error-state-emit-types'
 import type { ReaderErrorStateProps } from './reader-error-state-prop-types'
 
 const props = defineProps<ReaderErrorStateProps>()
 const emit = defineEmits<ReaderErrorStateEmits>()
-const {
-  errorMessage,
-  errorDetails,
-  onOpenSourcePicker,
-  onRetryLoad,
-} = createReaderErrorStateViewBindings(
-  props,
-  emit as unknown as ReaderErrorStateEmitFn,
-)
+const { errorMessage, errorDetails, onOpenSourcePicker, onRetryLoad } =
+  createReaderErrorStateViewBindings(props, emit as unknown as ReaderErrorStateEmitFn)
 </script>
 
 <template>

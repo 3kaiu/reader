@@ -33,9 +33,7 @@ export function useSourceBuilderPreviewState({
   const previewDiagnostics = ref<SourceBuildDiagnostics | null>(null)
   const restoredDebugSnapshot = ref<SourceBuilderDebugSnapshot | null>(null)
 
-  const currentPackage = computed(
-    () => previewPackage.value || sourcePackageDetail.value || null
-  )
+  const currentPackage = computed(() => previewPackage.value || sourcePackageDetail.value || null)
   const currentPackageJson = computed(
     () => previewPackageJson.value || sourceBuildPreviewSummary.value.packageJson || ''
   )

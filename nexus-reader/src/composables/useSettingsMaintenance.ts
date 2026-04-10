@@ -52,23 +52,17 @@ export function useSettingsMaintenance() {
       sourceStore.loadSources(true),
     ])
 
-    downloadJsonFile(
-      `reader_backup_${new Date().toISOString().slice(0, 10)}.json`,
-      {
-        groups: groups.data,
-        replaces: replaces.data,
-        sources: sources.data,
-        timestamp: Date.now(),
-        version: '3.0',
-      }
-    )
+    downloadJsonFile(`reader_backup_${new Date().toISOString().slice(0, 10)}.json`, {
+      groups: groups.data,
+      replaces: replaces.data,
+      sources: sources.data,
+      timestamp: Date.now(),
+      version: '3.0',
+    })
   }
 
   async function clearAppCache(): Promise<void> {
-    removeLocalStorageKeys([
-      ...APP_LOCAL_STORAGE_KEYS,
-      ...LEGACY_LOCAL_STORAGE_KEYS,
-    ])
+    removeLocalStorageKeys([...APP_LOCAL_STORAGE_KEYS, ...LEGACY_LOCAL_STORAGE_KEYS])
     removeLocalStorageKeysByPrefix('offline_')
     await clearCachesByPatterns(['webllm', 'mlc', 'ai-models', 'nexus'])
     await deleteIndexedDatabases(APP_INDEXED_DB_NAMES)

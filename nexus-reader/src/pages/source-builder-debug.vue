@@ -228,17 +228,49 @@ const latestOutcomeLabel = computed(() => {
       </div>
 
       <div class="p-5 grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <textarea v-model="bookCurl" class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono" placeholder="book curl..." />
-        <textarea v-model="chapterCurl" class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono" placeholder="chapter curl..." />
-        <textarea v-model="searchCurl" class="w-full min-h-36 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono" placeholder="search curl，可选..." />
-        <textarea v-model="siteEntryCurl" class="w-full min-h-36 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono" placeholder="site entry curl，可选..." />
+        <textarea
+          v-model="bookCurl"
+          class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
+          placeholder="book curl..."
+        />
+        <textarea
+          v-model="chapterCurl"
+          class="w-full min-h-44 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
+          placeholder="chapter curl..."
+        />
+        <textarea
+          v-model="searchCurl"
+          class="w-full min-h-36 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
+          placeholder="search curl，可选..."
+        />
+        <textarea
+          v-model="siteEntryCurl"
+          class="w-full min-h-36 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
+          placeholder="site entry curl，可选..."
+        />
       </div>
 
       <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input v-model="sourceId" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="sourceId，可选" />
-        <input v-model="sourceName" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="sourceName，可选" />
-        <input v-model="tagsText" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="tags，逗号分隔" />
-        <input v-model="searchKeyword" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="search keyword，可选" />
+        <input
+          v-model="sourceId"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="sourceId，可选"
+        />
+        <input
+          v-model="sourceName"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="sourceName，可选"
+        />
+        <input
+          v-model="tagsText"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="tags，逗号分隔"
+        />
+        <input
+          v-model="searchKeyword"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="search keyword，可选"
+        />
       </div>
       <div class="px-5 pb-3 flex flex-wrap items-center gap-2 text-[11px]">
         <span class="rounded-full border px-2 py-1 bg-background text-muted-foreground">
@@ -250,14 +282,35 @@ const latestOutcomeLabel = computed(() => {
       </div>
 
       <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <input v-model="fetchMode" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="fetch mode，默认 external" />
-        <input v-model="fetchProvider" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="fetch provider，默认 jina_reader" />
-        <input v-model="fetchServiceUrl" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="保留字段，可留空" />
-        <input v-model="fetchEngine" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="jina respondWith，如 markdown / text / html" />
+        <input
+          v-model="fetchMode"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="fetch mode，默认 external"
+        />
+        <input
+          v-model="fetchProvider"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="fetch provider，默认 jina_reader"
+        />
+        <input
+          v-model="fetchServiceUrl"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="保留字段，可留空"
+        />
+        <input
+          v-model="fetchEngine"
+          class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+          placeholder="jina respondWith，如 markdown / text / html"
+        />
       </div>
 
       <div class="px-5 pb-5 flex gap-2 justify-end">
-        <button class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm" @click="clearPreview">清空预览</button>
+        <button
+          class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm"
+          @click="clearPreview"
+        >
+          清空预览
+        </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
           :disabled="sourceFlowProfileLoading || !(currentPackage?.source?.id || sourceId.trim())"
@@ -267,72 +320,135 @@ const latestOutcomeLabel = computed(() => {
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading || !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="refreshCurrentSourceSessionProfile"
         >
           {{ sourceSessionProfileLoading ? '会话刷新中...' : '刷新会话画像' }}
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading ||
+            sourceBuildRunning ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="autoAcquireCurrentSourceSession"
         >
           自动获取会话
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading ||
+            sourceBuildRunning ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="verifyCurrentSourceSession"
         >
           验证会话
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading ||
+            sourceBuildRunning ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="recoverCurrentSourceSession"
         >
           会话恢复
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading ||
+            sourceBuildRunning ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="selfHealCurrentSourceSession"
         >
           会话自愈
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceSessionProfileLoading || sourceBuildRunning || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceSessionProfileLoading ||
+            sourceBuildRunning ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="applySessionRecommendation"
         >
           按会话建议执行
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !(currentPackage?.source?.id || sourceId.trim())"
+          :disabled="
+            sourceBuildRunning ||
+            validationLoading ||
+            refineLoading ||
+            aiAssistLoading ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
           @click="resetCurrentSourceFlowState({ lifecycleState: 'warming' })"
         >
           解封 Source 状态
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || !(currentPackage?.source?.id || sourceId.trim())"
-          @click="resetCurrentSourceFlowState({ lifecycleState: 'new', clearPreferredActions: true })"
+          :disabled="
+            sourceBuildRunning ||
+            validationLoading ||
+            refineLoading ||
+            aiAssistLoading ||
+            !(currentPackage?.source?.id || sourceId.trim())
+          "
+          @click="
+            resetCurrentSourceFlowState({ lifecycleState: 'new', clearPreferredActions: true })
+          "
         >
           重置为新源
         </button>
         <button
           class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-          :disabled="sourceBuildRunning || validationLoading || refineLoading || aiAssistLoading || currentSourceSessionCooldownActive || ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState) || !bookCurl.trim() || !chapterCurl.trim()"
+          :disabled="
+            sourceBuildRunning ||
+            validationLoading ||
+            refineLoading ||
+            aiAssistLoading ||
+            currentSourceSessionCooldownActive ||
+            [
+              'BUILDING',
+              'VALIDATING',
+              'AI_REFINE_ATTEMPT',
+              'REVALIDATING',
+              'E2E_VERIFY',
+              'SMOKE_VERIFY',
+            ].includes(autoFlowState) ||
+            !bookCurl.trim() ||
+            !chapterCurl.trim()
+          "
           @click="buildValidateAndAutoRefine"
         >
           {{
-            ['BUILDING','VALIDATING','AI_REFINE_ATTEMPT','REVALIDATING','E2E_VERIFY','SMOKE_VERIFY'].includes(autoFlowState)
+            [
+              'BUILDING',
+              'VALIDATING',
+              'AI_REFINE_ATTEMPT',
+              'REVALIDATING',
+              'E2E_VERIFY',
+              'SMOKE_VERIFY',
+            ].includes(autoFlowState)
               ? `自动流程中(${autoFlowState})...`
               : '一键封装并验证并自动修正'
           }}
         </button>
-        <button class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="sourceBuildRunning || !bookCurl.trim() || !chapterCurl.trim()" @click="buildFromSamples">
+        <button
+          class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+          :disabled="sourceBuildRunning || !bookCurl.trim() || !chapterCurl.trim()"
+          @click="buildFromSamples"
+        >
           {{ sourceBuildRunning ? '构建中...' : '生成规则包预览' }}
         </button>
       </div>
@@ -351,10 +467,16 @@ const latestOutcomeLabel = computed(() => {
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs text-muted-foreground">Auto Flow History (Recent)</p>
             <div class="flex items-center gap-2">
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearAutoFlowHistory({ currentSourceOnly: true })">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="clearAutoFlowHistory({ currentSourceOnly: true })"
+              >
                 清空当前源历史
               </button>
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearAutoFlowHistory()">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="clearAutoFlowHistory()"
+              >
                 清空全部历史
               </button>
             </div>
@@ -367,7 +489,11 @@ const latestOutcomeLabel = computed(() => {
             <span class="ml-2">passRate={{ currentSourceAutoFlowStats.passRate }}%</span>
           </div>
           <ul class="space-y-2 text-xs break-all">
-            <li v-for="item in currentSourceAutoFlowHistorySummary.slice(0, 12)" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
+            <li
+              v-for="item in currentSourceAutoFlowHistorySummary.slice(0, 12)"
+              :key="item.id"
+              class="rounded-md border border-border/30 bg-background p-2"
+            >
               <p class="font-medium">{{ item.title }}</p>
               <p class="text-muted-foreground mt-1">{{ item.subtitle }}</p>
               <p class="mt-1">{{ item.note }}</p>
@@ -380,16 +506,27 @@ const latestOutcomeLabel = computed(() => {
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs text-muted-foreground">Stability Recommendation</p>
             <div class="flex items-center gap-2 flex-wrap justify-end">
-              <span class="h-7 px-2 rounded-full border bg-background text-[11px] inline-flex items-center">
+              <span
+                class="h-7 px-2 rounded-full border bg-background text-[11px] inline-flex items-center"
+              >
                 {{ recommendationLevelLabel }}
               </span>
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applyRecommendedSmokeGate">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="applyRecommendedSmokeGate"
+              >
                 按建议设置
               </button>
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('strict')">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="applySmokeGatePreset('strict')"
+              >
                 严格门禁
               </button>
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="applySmokeGatePreset('default')">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="applySmokeGatePreset('default')"
+              >
                 恢复默认
               </button>
             </div>
@@ -407,7 +544,9 @@ const latestOutcomeLabel = computed(() => {
             {{ currentSourceSessionRecommendation.advice }}
           </p>
           <p class="mt-2 text-[11px] text-muted-foreground break-all">
-            streak: pass={{ currentSourceAutoFlowStreak.passStreak }} / fail={{ currentSourceAutoFlowStreak.failStreak }}
+            streak: pass={{ currentSourceAutoFlowStreak.passStreak }} / fail={{
+              currentSourceAutoFlowStreak.failStreak
+            }}
             · smokeGate={{ runSmokeSampleSize }} / {{ runSmokePassRateThreshold }}%
           </p>
           <ul class="mt-2 space-y-1 text-[11px] text-muted-foreground break-all">
@@ -423,16 +562,26 @@ const latestOutcomeLabel = computed(() => {
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs text-muted-foreground">Session Gate History (Recent)</p>
             <div class="flex items-center gap-2">
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearSessionGateHistory({ currentSourceOnly: true })">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="clearSessionGateHistory({ currentSourceOnly: true })"
+              >
                 清空当前源会话历史
               </button>
-              <button class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]" @click="clearSessionGateHistory()">
+              <button
+                class="h-7 px-2 rounded-full border bg-background hover:bg-muted text-[11px]"
+                @click="clearSessionGateHistory()"
+              >
                 清空全部会话历史
               </button>
             </div>
           </div>
           <ul class="space-y-2 text-xs break-all">
-            <li v-for="item in currentSourceSessionGateHistoryItems" :key="item.id" class="rounded-md border border-border/30 bg-background p-2">
+            <li
+              v-for="item in currentSourceSessionGateHistoryItems"
+              :key="item.id"
+              class="rounded-md border border-border/30 bg-background p-2"
+            >
               <p class="font-medium">{{ item.title }}</p>
               <p class="text-muted-foreground mt-1">{{ item.subtitle }}</p>
               <p class="mt-1">{{ item.note }}</p>
@@ -475,16 +624,32 @@ const latestOutcomeLabel = computed(() => {
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceLoading" @click="refreshRuntimeGovernance">
+          <button
+            class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+            :disabled="runtimeGovernanceLoading"
+            @click="refreshRuntimeGovernance"
+          >
             {{ runtimeGovernanceLoading ? '刷新中...' : '刷新治理状态' }}
           </button>
-          <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceActionLoading" @click="saveRuntimeSnapshot">
+          <button
+            class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+            :disabled="runtimeGovernanceActionLoading"
+            @click="saveRuntimeSnapshot"
+          >
             {{ runtimeGovernanceActionLoading ? '处理中...' : '保存快照' }}
           </button>
-          <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceActionLoading" @click="exportRuntimeSnapshot">
+          <button
+            class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+            :disabled="runtimeGovernanceActionLoading"
+            @click="exportRuntimeSnapshot"
+          >
             {{ runtimeGovernanceActionLoading ? '处理中...' : '导出治理快照' }}
           </button>
-          <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceActionLoading" @click="importRuntimeSnapshot">
+          <button
+            class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+            :disabled="runtimeGovernanceActionLoading"
+            @click="importRuntimeSnapshot"
+          >
             {{ runtimeGovernanceActionLoading ? '处理中...' : '导入治理快照' }}
           </button>
         </div>
@@ -493,17 +658,28 @@ const latestOutcomeLabel = computed(() => {
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
           <p class="text-xs text-muted-foreground mb-2">Current Source Runtime</p>
           <p class="text-sm font-medium break-all">{{ currentRuntimeSourceId || '--' }}</p>
-          <ul v-if="currentRuntimeGovernanceSummary.length > 0" class="mt-3 space-y-1 text-xs break-all">
+          <ul
+            v-if="currentRuntimeGovernanceSummary.length > 0"
+            class="mt-3 space-y-1 text-xs break-all"
+          >
             <li v-for="item in currentRuntimeGovernanceSummary" :key="item">{{ item }}</li>
           </ul>
           <p v-else class="mt-3 text-xs text-muted-foreground">
             当前 builder 还没有可关联的运行时 source，导入包或填写 sourceId 后可查看。
           </p>
           <div class="mt-4 flex flex-wrap gap-2">
-            <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceActionLoading || !currentRuntimeSourceId" @click="resetCurrentRuntimeState('circuit_only')">
+            <button
+              class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+              :disabled="runtimeGovernanceActionLoading || !currentRuntimeSourceId"
+              @click="resetCurrentRuntimeState('circuit_only')"
+            >
               仅重置熔断
             </button>
-            <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="runtimeGovernanceActionLoading || !currentRuntimeSourceId" @click="resetCurrentRuntimeState('full')">
+            <button
+              class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+              :disabled="runtimeGovernanceActionLoading || !currentRuntimeSourceId"
+              @click="resetCurrentRuntimeState('full')"
+            >
               全量重置治理状态
             </button>
           </div>
@@ -553,18 +729,31 @@ const latestOutcomeLabel = computed(() => {
       <div class="p-5 border-b border-border/50 flex items-center justify-between gap-3">
         <div>
           <p class="text-sm font-medium">Debug Snapshots</p>
-          <p class="text-xs text-muted-foreground mt-1">本地保存最近 20 次 session/build/validate/refine/fetch 快照。</p>
+          <p class="text-xs text-muted-foreground mt-1">
+            本地保存最近 20 次 session/build/validate/refine/fetch 快照。
+          </p>
         </div>
-        <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50" :disabled="debugSnapshotSummary.length === 0" @click="clearDebugSnapshots">
+        <button
+          class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs disabled:opacity-50"
+          :disabled="debugSnapshotSummary.length === 0"
+          @click="clearDebugSnapshots"
+        >
           清空快照
         </button>
       </div>
       <div v-if="debugSnapshotSummary.length > 0" class="p-5 grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <div v-for="item in debugSnapshotSummary" :key="item.id" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div
+          v-for="item in debugSnapshotSummary"
+          :key="item.id"
+          class="rounded-xl border border-border/50 bg-muted/20 p-4"
+        >
           <p class="text-sm font-medium">{{ item.title }}</p>
           <p class="text-xs text-muted-foreground mt-1">{{ item.subtitle }}</p>
           <div class="mt-3 flex justify-end">
-            <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs" @click="restoreDebugSnapshot(item.id)">
+            <button
+              class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs"
+              @click="restoreDebugSnapshot(item.id)"
+            >
               恢复快照
             </button>
           </div>

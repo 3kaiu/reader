@@ -1,9 +1,4 @@
-import {
-  ErrorCode,
-  ErrorSeverity,
-  type ErrorContext,
-  NexusError,
-} from './core'
+import { ErrorCode, ErrorSeverity, type ErrorContext, NexusError } from './core'
 import { logProcessedError } from './processing/logging'
 import {
   extractErrorMessage,
@@ -53,7 +48,7 @@ export function processError(error: unknown, context?: ErrorContext): ErrorInfo 
 
   return {
     ...errorInfo,
-    context
+    context,
   }
 }
 

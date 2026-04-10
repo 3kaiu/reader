@@ -86,12 +86,11 @@ export function convertToNexusError(error: unknown, url: string, method: string)
   }
 
   if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
-    return new NexusError(
-      ErrorCode.NETWORK_ERROR,
-      '网络连接失败，请检查网络后重试',
-      errorMessage,
-      { url, method, originalError: errorString }
-    )
+    return new NexusError(ErrorCode.NETWORK_ERROR, '网络连接失败，请检查网络后重试', errorMessage, {
+      url,
+      method,
+      originalError: errorString,
+    })
   }
 
   if (normalizedError.status === 401) {

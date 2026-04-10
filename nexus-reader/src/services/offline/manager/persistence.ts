@@ -13,7 +13,7 @@ import type {
 import { getOfflineManagerStatus } from './status'
 
 export async function persistOfflineCachedContent(
-  state: OfflineManagerRuntimeState,
+  state: OfflineManagerRuntimeState
 ): Promise<void> {
   try {
     await persistCachedContentSnapshot(state.cacheRegistry.values())
@@ -23,7 +23,7 @@ export async function persistOfflineCachedContent(
 }
 
 export async function syncOfflineManagerFromDatabase(
-  state: OfflineManagerRuntimeState,
+  state: OfflineManagerRuntimeState
 ): Promise<void> {
   const snapshot = await loadOfflineSnapshot()
   state.operationQueue = snapshot.operationQueue
@@ -32,7 +32,7 @@ export async function syncOfflineManagerFromDatabase(
 
 export async function loadOfflineManagerData(
   state: OfflineManagerRuntimeState,
-  options: OfflineManagerPersistenceOptions,
+  options: OfflineManagerPersistenceOptions
 ): Promise<void> {
   try {
     await syncOfflineManagerFromDatabase(state)
@@ -49,7 +49,7 @@ export async function loadOfflineManagerData(
 
 export async function refreshOfflineManagerState(
   state: OfflineManagerRuntimeState,
-  options: OfflineManagerPersistenceOptions,
+  options: OfflineManagerPersistenceOptions
 ): Promise<void> {
   try {
     await syncOfflineManagerFromDatabase(state)
@@ -60,9 +60,7 @@ export async function refreshOfflineManagerState(
   }
 }
 
-export function exportOfflineManagerData(
-  state: OfflineManagerRuntimeState,
-): OfflineExportData {
+export function exportOfflineManagerData(state: OfflineManagerRuntimeState): OfflineExportData {
   return {
     operations: [...state.operationQueue],
     content: state.cacheRegistry.snapshot(),
@@ -76,12 +74,12 @@ export function importOfflineManagerData(
   options: {
     persistCachedContent: () => Promise<void>
     notifyListeners: () => void
-  },
+  }
 ): void {
   if (data.operations) {
     state.operationQueue = data.operations
     void replacePersistedSyncQueue(data.operations).catch(err =>
-      logger.error('Failed to import sync queue', { error: err }),
+      logger.error('Failed to import sync queue', { error: err })
     )
   }
 

@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
-import type { BookshelfBook } from "@/utils/bookshelf";
-import type { BookshelfVirtualizer } from "./types";
-import BookshelfBookGrid from "./BookshelfBookGrid.vue";
+import type { BookshelfBook } from '@/utils/bookshelf'
+import type { BookshelfVirtualizer } from './types'
+import BookshelfBookGrid from './BookshelfBookGrid.vue'
 
 defineProps<{
-  showProgress: boolean;
-  isManageMode: boolean;
-  selectedBooks: Set<string>;
-  bindVirtualContainerRef: (element: Element | ComponentPublicInstance | null) => void;
-  virtualizer: BookshelfVirtualizer;
-  getVirtualRowItems: (rowIndex: number) => BookshelfBook[];
-}>();
+  showProgress: boolean
+  isManageMode: boolean
+  selectedBooks: Set<string>
+  bindVirtualContainerRef: (element: Element | ComponentPublicInstance | null) => void
+  virtualizer: BookshelfVirtualizer
+  getVirtualRowItems: (rowIndex: number) => BookshelfBook[]
+}>()
 
 const emit = defineEmits<{
-  open: [book: BookshelfBook];
-  delete: [book: BookshelfBook];
-}>();
+  open: [book: BookshelfBook]
+  delete: [book: BookshelfBook]
+}>()
 </script>
 
 <template>

@@ -2,15 +2,13 @@ import type { ComputedRef } from 'vue'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
-export interface ReaderToolbarPanelsTopBarBindings
-  extends ReaderToolbarTopBarProps {
+export interface ReaderToolbarPanelsTopBarBindings extends ReaderToolbarTopBarProps {
   onBack: () => void
   onToggleCatalog: () => void
   onToggleFullscreen: () => void
 }
 
-export interface ReaderToolbarPanelsBottomBarBindings
-  extends ReaderToolbarBottomBarProps {
+export interface ReaderToolbarPanelsBottomBarBindings extends ReaderToolbarBottomBarProps {
   onToggleDayNight: () => void
   onToggleSettings: () => void
   onToggleEyeCare: () => void

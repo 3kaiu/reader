@@ -32,7 +32,7 @@ export interface ReplaceRuleManagementContext {
   handleApiError: (
     response: { isSuccess?: boolean; errorMsg?: string },
     fallbackMessage?: string,
-    showToast?: boolean,
+    showToast?: boolean
   ) => void
   handlePromiseError: (cause: unknown, fallbackMessage?: string) => void
 }

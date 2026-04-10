@@ -1,7 +1,4 @@
-import {
-  getLocalStorageItem,
-  setLocalStorageItem,
-} from '@/utils/browserStorage'
+import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage'
 import { config as appConfig } from '@/utils/config'
 import { logger } from '@/utils/logger'
 import type {
@@ -66,11 +63,7 @@ export function clampSettingValue(value: number, min: number, max: number): numb
   return Math.min(max, Math.max(min, value))
 }
 
-export function isInNightWindow(
-  hour: number,
-  startHour: number,
-  endHour: number
-): boolean {
+export function isInNightWindow(hour: number, startHour: number, endHour: number): boolean {
   if (startHour === endHour) {
     return true
   }

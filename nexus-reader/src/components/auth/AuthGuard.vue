@@ -7,8 +7,7 @@ import { useAuthGuardView } from '@/composables/useAuthGuardView'
 import { Github, Loader2, ShieldAlert } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 
-const { isChecking, isAuthenticated, error, loginWithGitHub } =
-  useAuthGuardView()
+const { isChecking, isAuthenticated, error, loginWithGitHub } = useAuthGuardView()
 </script>
 
 <template>
@@ -45,9 +44,7 @@ const { isChecking, isAuthenticated, error, loginWithGitHub } =
         </Button>
       </div>
 
-      <p class="text-xs text-muted-foreground">
-        仅项目 Owner 可访问
-      </p>
+      <p class="text-xs text-muted-foreground">仅项目 Owner 可访问</p>
     </div>
   </div>
 </template>

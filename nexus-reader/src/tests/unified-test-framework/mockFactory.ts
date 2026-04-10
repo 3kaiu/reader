@@ -11,11 +11,13 @@ export class MockFactory {
 
     Object.entries(methods).forEach(([method, implementation]) => {
       if (typeof implementation === 'function') {
-        mock[method] = vi.fn().mockImplementation((...args: unknown[]) =>
-          Promise.resolve(
-            (implementation as (...callArgs: unknown[]) => unknown | Promise<unknown>)(...args)
+        mock[method] = vi
+          .fn()
+          .mockImplementation((...args: unknown[]) =>
+            Promise.resolve(
+              (implementation as (...callArgs: unknown[]) => unknown | Promise<unknown>)(...args)
+            )
           )
-        )
       }
     })
 

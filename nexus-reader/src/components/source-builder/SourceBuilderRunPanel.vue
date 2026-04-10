@@ -14,7 +14,9 @@ interface ChapterRunResultItem {
 const runSearchQuery = defineModel<string>('runSearchQuery', { required: true })
 const runTargetUrl = defineModel<string>('runTargetUrl', { required: true })
 const runSmokeSampleSize = defineModel<number>('runSmokeSampleSize', { required: true })
-const runSmokePassRateThreshold = defineModel<number>('runSmokePassRateThreshold', { required: true })
+const runSmokePassRateThreshold = defineModel<number>('runSmokePassRateThreshold', {
+  required: true,
+})
 
 const props = defineProps<{
   runLoading: boolean
@@ -54,7 +56,8 @@ const emit = defineEmits<{
     <div class="p-5 border-b border-border/50">
       <p class="text-sm font-medium">Run By Package</p>
       <p class="text-xs text-muted-foreground mt-1">
-        对当前预览包直接执行 search / book / chapters / content，优先用于验证搜索候选规则是否真的可跑。
+        对当前预览包直接执行 search / book / chapters /
+        content，优先用于验证搜索候选规则是否真的可跑。
       </p>
     </div>
     <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -132,8 +135,17 @@ const emit = defineEmits<{
       </button>
       <button
         class="h-9 px-4 rounded-full border bg-background hover:bg-muted text-sm disabled:opacity-50"
-        :disabled="props.runLoading || !props.hasCurrentPackage || (!runTargetUrl.trim() && !props.runChaptersResult)"
-        @click="emit('runChaptersContentSmoke', { sampleSize: runSmokeSampleSize, passRateThreshold: runSmokePassRateThreshold })"
+        :disabled="
+          props.runLoading ||
+          !props.hasCurrentPackage ||
+          (!runTargetUrl.trim() && !props.runChaptersResult)
+        "
+        @click="
+          emit('runChaptersContentSmoke', {
+            sampleSize: runSmokeSampleSize,
+            passRateThreshold: runSmokePassRateThreshold,
+          })
+        "
       >
         Chapters -> Content Smoke x{{ runSmokeSampleSize || 10 }}
       </button>
@@ -147,7 +159,10 @@ const emit = defineEmits<{
       </div>
     </div>
     <div v-if="props.runResult" class="px-5 pb-5 space-y-4">
-      <div v-if="props.runSummary.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-4">
+      <div
+        v-if="props.runSummary.length > 0"
+        class="rounded-xl border border-border/50 bg-muted/20 p-4"
+      >
         <p class="text-xs text-muted-foreground mb-2">Run Summary</p>
         <ul class="space-y-1 text-xs break-all">
           <li v-for="item in props.runSummary" :key="item">{{ item }}</li>
@@ -219,7 +234,10 @@ const emit = defineEmits<{
             <li v-for="item in props.runSearchDetailSuggestedActions" :key="item">{{ item }}</li>
           </ul>
         </div>
-        <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runSearchDetailResult, null, 2) }}</pre>
+        <pre
+          class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs"
+          >{{ JSON.stringify(props.runSearchDetailResult, null, 2) }}</pre
+        >
       </div>
       <div
         v-if="props.runChaptersResult"
@@ -258,7 +276,10 @@ const emit = defineEmits<{
             <li v-for="item in props.runChaptersSuggestedActions" :key="item">{{ item }}</li>
           </ul>
         </div>
-        <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runChaptersResult, null, 2) }}</pre>
+        <pre
+          class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs"
+          >{{ JSON.stringify(props.runChaptersResult, null, 2) }}</pre
+        >
       </div>
       <div
         v-if="props.runContentResult"
@@ -279,7 +300,10 @@ const emit = defineEmits<{
             <li v-for="item in props.runContentSuggestedActions" :key="item">{{ item }}</li>
           </ul>
         </div>
-        <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runContentResult, null, 2) }}</pre>
+        <pre
+          class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs"
+          >{{ JSON.stringify(props.runContentResult, null, 2) }}</pre
+        >
       </div>
       <div
         v-if="props.runFullFlowSummary.length > 0"
@@ -310,7 +334,10 @@ const emit = defineEmits<{
           </ul>
         </div>
       </div>
-      <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.runResult, null, 2) }}</pre>
+      <pre
+        class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs"
+        >{{ JSON.stringify(props.runResult, null, 2) }}</pre
+      >
     </div>
   </section>
 </template>

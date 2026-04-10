@@ -1,9 +1,5 @@
 import { ref } from 'vue'
-import {
-  useDateFormat,
-  useFullscreen,
-  useNow,
-} from '@vueuse/core'
+import { useDateFormat, useFullscreen, useNow } from '@vueuse/core'
 
 export function createReaderViewLayout() {
   const readerRef = ref<HTMLElement | null>(null)

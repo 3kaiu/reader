@@ -2,9 +2,7 @@ import { downloadJsonFile } from '@/utils/download'
 import type { SourceListItem } from '@/stores/source'
 import type { SourceManagementContext } from './types'
 
-export function createSourceLoadingActions(
-  context: SourceManagementContext,
-) {
+export function createSourceLoadingActions(context: SourceManagementContext) {
   async function loadSources() {
     context.options.clearSelection()
 

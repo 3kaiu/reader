@@ -1,14 +1,10 @@
 import type { ReaderChromeActionContext } from './chrome-context-types'
 import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
-import {
-  createReaderChromePanelOpenDisplayActions,
-} from './chrome-panel-open-display'
-import {
-  createReaderChromePanelToggleDisplayActions,
-} from './chrome-panel-toggle-display'
+import { createReaderChromePanelOpenDisplayActions } from './chrome-panel-open-display'
+import { createReaderChromePanelToggleDisplayActions } from './chrome-panel-toggle-display'
 
 export function createReaderChromePanelDisplayActions(
-  context: ReaderChromeActionContext,
+  context: ReaderChromeActionContext
 ): Pick<
   ReaderChromeDisplayActions,
   | 'toggleCatalog'
@@ -18,7 +14,6 @@ export function createReaderChromePanelDisplayActions(
   | 'toggleKeyboardHelp'
   | 'openSourcePicker'
   | 'openBookInfo'
-  | 'openDecoderSettings'
 > {
   const toggles = createReaderChromePanelToggleDisplayActions(context)
   const opens = createReaderChromePanelOpenDisplayActions(context)

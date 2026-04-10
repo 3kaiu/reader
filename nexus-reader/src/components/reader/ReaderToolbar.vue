@@ -12,9 +12,7 @@ import type { ReaderToolbarProps } from './toolbar-prop-types'
 
 const props = defineProps<ReaderToolbarProps>()
 const emit = defineEmits<ReaderToolbarEmits>()
-const {
-      panelsProps,
-    } = createReaderToolbarBindings(props)
+const { panelsProps } = createReaderToolbarBindings(props)
 </script>
 
 <template>
@@ -33,7 +31,5 @@ const {
       @open-source-picker="emit('openSourcePicker')"
       @open-book-info="emit('openBookInfo')"
     />
-
-
   </div>
 </template>

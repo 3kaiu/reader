@@ -1,11 +1,9 @@
-import type {
-  ReaderExperienceModalBindingActions,
-} from './reader-experience-modal-action-types'
+import type { ReaderExperienceModalBindingActions } from './reader-experience-modal-action-types'
 import type { ReaderModalsProps } from './reader-modals-prop-types'
 
 export function createReaderExperienceModalPropsBindings(
   modalProps: ReaderModalsProps,
-  actions: ReaderExperienceModalBindingActions,
+  actions: ReaderExperienceModalBindingActions
 ) {
   return {
     ...modalProps,

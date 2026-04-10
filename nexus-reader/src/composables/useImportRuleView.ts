@@ -3,10 +3,7 @@ import { useMessage } from '@/composables/useMessage'
 import { useTextFileInput } from '@/composables/useTextFileInput'
 import { useReplaceStore } from '@/stores/replace'
 
-export function useImportRuleView(options: {
-  close: () => void
-  notifySuccess: () => void
-}) {
+export function useImportRuleView(options: { close: () => void; notifySuccess: () => void }) {
   const message = useMessage()
   const replaceStore = useReplaceStore()
 

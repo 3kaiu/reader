@@ -1,13 +1,10 @@
 import type { Book } from '@/types/book'
 import type { BookshelfBook } from '@/utils/bookshelf'
-import type {
-  BookshelfActionsOptions,
-  BookshelfOpenReader,
-} from './types'
+import type { BookshelfActionsOptions, BookshelfOpenReader } from './types'
 
 export function createBookshelfLibraryActions(
   options: BookshelfActionsOptions,
-  openReader: BookshelfOpenReader,
+  openReader: BookshelfOpenReader
 ) {
   async function openBook(book: Book) {
     if (options.isManageMode.value) {
@@ -65,7 +62,7 @@ export function createBookshelfLibraryActions(
     try {
       const response = await options.libraryStore.moveBookIdsToGroup(
         groupId,
-        options.selectedBooks.value,
+        options.selectedBooks.value
       )
       if (response.isSuccess) {
         options.success('移动成功')

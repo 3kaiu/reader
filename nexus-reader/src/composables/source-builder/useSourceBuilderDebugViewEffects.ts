@@ -37,9 +37,7 @@ type UseSourceBuilderDebugViewEffectsOptions = {
   sourceBuildPreviewSummary: ComputedRef<SourceBuildPreviewSummary>
 }
 
-export function useSourceBuilderDebugViewEffects(
-  options: UseSourceBuilderDebugViewEffectsOptions
-) {
+export function useSourceBuilderDebugViewEffects(options: UseSourceBuilderDebugViewEffectsOptions) {
   watch(options.restoredDebugSnapshot, snapshot => {
     if (!snapshot) {
       return
@@ -56,7 +54,8 @@ export function useSourceBuilderDebugViewEffects(
         return
       }
       options.validateBookUrl.value = samples.bookSampleUrl || options.validateBookUrl.value
-      options.validateChapterUrl.value = samples.chapterSampleUrl || options.validateChapterUrl.value
+      options.validateChapterUrl.value =
+        samples.chapterSampleUrl || options.validateChapterUrl.value
       options.runTargetUrl.value =
         samples.chapterSampleUrl || samples.bookSampleUrl || options.runTargetUrl.value
       options.fetchHtmlUrl.value = samples.bookSampleUrl || options.fetchHtmlUrl.value

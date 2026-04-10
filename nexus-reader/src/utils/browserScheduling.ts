@@ -5,7 +5,7 @@ type SchedulerLike = {
       priority?: 'user-blocking' | 'user-visible' | 'background'
       signal?: AbortSignal
       delay?: number
-    },
+    }
   ) => Promise<unknown>
 }
 
@@ -43,7 +43,7 @@ export function scheduleIdleTask(
   options: {
     timeoutMs?: number
     preferBackgroundTask?: boolean
-  } = {},
+  } = {}
 ): IdleTaskHandle {
   const timeoutMs = options.timeoutMs ?? FALLBACK_IDLE_TIMEOUT_MS
   const preferBackgroundTask = options.preferBackgroundTask !== false

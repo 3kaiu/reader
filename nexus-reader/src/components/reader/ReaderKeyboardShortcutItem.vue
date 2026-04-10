@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import {
-  createReaderKeyboardShortcutItemViewBindings,
-} from './reader-keyboard-shortcut-item-view-bindings'
+import { createReaderKeyboardShortcutItemViewBindings } from './reader-keyboard-shortcut-item-view-bindings'
 import type { ReaderKeyboardShortcutItemProps } from './reader-keyboard-shortcut-item-prop-types'
 
 const props = defineProps<ReaderKeyboardShortcutItemProps>()
-const {
-  shortcutKey,
-  shortcutDescription,
-} = createReaderKeyboardShortcutItemViewBindings(props)
+const { shortcutKey, shortcutDescription } = createReaderKeyboardShortcutItemViewBindings(props)
 </script>
 
 <template>

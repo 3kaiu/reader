@@ -1,12 +1,6 @@
-import type {
-  Component,
-  VNode,
-} from 'vue'
+import type { Component, VNode } from 'vue'
 
-export type StringOrVNode =
-  | string
-  | VNode
-  | (() => VNode)
+export type StringOrVNode = string | VNode | (() => VNode)
 
 export type ToasterToast = {
   id: string
@@ -29,21 +23,21 @@ type ToastActionType = typeof toastActionTypes
 
 export type ToastAction =
   | {
-    type: ToastActionType['ADD_TOAST']
-    toast: ToasterToast
-  }
+      type: ToastActionType['ADD_TOAST']
+      toast: ToasterToast
+    }
   | {
-    type: ToastActionType['UPDATE_TOAST']
-    toast: Partial<ToasterToast>
-  }
+      type: ToastActionType['UPDATE_TOAST']
+      toast: Partial<ToasterToast>
+    }
   | {
-    type: ToastActionType['DISMISS_TOAST']
-    toastId?: ToasterToast['id']
-  }
+      type: ToastActionType['DISMISS_TOAST']
+      toastId?: ToasterToast['id']
+    }
   | {
-    type: ToastActionType['REMOVE_TOAST']
-    toastId?: ToasterToast['id']
-  }
+      type: ToastActionType['REMOVE_TOAST']
+      toastId?: ToasterToast['id']
+    }
 
 export interface ToastState {
   toasts: ToasterToast[]

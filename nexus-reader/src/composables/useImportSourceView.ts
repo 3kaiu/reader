@@ -12,10 +12,7 @@ type SourceImportPreview = {
   sources?: Record<string, unknown>[]
 }
 
-export function useImportSourceView(options: {
-  close: () => void
-  notifySuccess: () => void
-}) {
+export function useImportSourceView(options: { close: () => void; notifySuccess: () => void }) {
   const message = useMessage()
   const sourceStore = useSourceStore()
 
@@ -25,10 +22,7 @@ export function useImportSourceView(options: {
   const isDragging = ref(false)
   let previewTimer: ReturnType<typeof setTimeout> | null = null
 
-  const {
-    loadFile,
-    handleFileChange: onFileChange,
-  } = useTextFileInput({
+  const { loadFile, handleFileChange: onFileChange } = useTextFileInput({
     onText: text => {
       jsonText.value = text
       previewParse()

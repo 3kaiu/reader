@@ -10,14 +10,8 @@ import type {
   SourceRuntimeProfileResponse,
 } from '@/types/source'
 import { toPrettyJson } from '@/utils/json'
-import {
-  filterSourcesByKeyword,
-  toSourceDetailText,
-} from '@/utils/sourceStore'
-import type {
-  SourceDetailTextResult,
-  SourceStoreState,
-} from '../types'
+import { filterSourcesByKeyword, toSourceDetailText } from '@/utils/sourceStore'
+import type { SourceDetailTextResult, SourceStoreState } from '../types'
 
 export function createSourceQueryActions(state: SourceStoreState) {
   function filterSources(keyword = '') {
@@ -33,10 +27,7 @@ export function createSourceQueryActions(state: SourceStoreState) {
     return state.sources.value.filter(source => targetIds.has(source.id))
   }
 
-  function getExportSources(
-    ids?: Iterable<string>,
-    fallback = state.sources.value,
-  ) {
+  function getExportSources(ids?: Iterable<string>, fallback = state.sources.value) {
     const selectedSources = ids ? getSourcesByIds(ids) : []
     return selectedSources.length > 0 ? selectedSources : fallback
   }
@@ -54,26 +45,26 @@ export function createSourceQueryActions(state: SourceStoreState) {
   }
 
   async function importRuntimeSnapshot(
-    payload: RuntimeSnapshotExportResponse,
+    payload: RuntimeSnapshotExportResponse
   ): Promise<ApiResponse<RuntimeSnapshotImportResponse>> {
     return sourceApi.importRuntimeSnapshot(payload)
   }
 
   async function getSourceRuntimeProfile(
-    id: string,
+    id: string
   ): Promise<ApiResponse<SourceRuntimeProfileResponse>> {
     return sourceApi.getSourceRuntimeProfile(id)
   }
 
   async function getSourceCircuitState(
-    id: string,
+    id: string
   ): Promise<ApiResponse<SourceCircuitStateResponse>> {
     return sourceApi.getSourceCircuitState(id)
   }
 
   async function resetSourceRuntimeState(
     id: string,
-    mode: 'full' | 'circuit_only' = 'full',
+    mode: 'full' | 'circuit_only' = 'full'
   ): Promise<ApiResponse<SourceRuntimeResetResponse>> {
     return sourceApi.resetSourceRuntimeState(id, mode)
   }

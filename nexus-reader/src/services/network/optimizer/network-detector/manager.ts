@@ -1,18 +1,7 @@
 import { getNavigatorConnection } from '../runtime'
-import type {
-  NetworkInfo,
-  NetworkQuality,
-} from '../types'
-import {
-  detectNetworkInfo,
-  getFallbackNetworkInfo,
-  hasNetworkChanged,
-} from './info'
-import {
-  addNetworkListener,
-  notifyNetworkListeners,
-  removeNetworkListener,
-} from './listeners'
+import type { NetworkInfo, NetworkQuality } from '../types'
+import { detectNetworkInfo, getFallbackNetworkInfo, hasNetworkChanged } from './info'
+import { addNetworkListener, notifyNetworkListeners, removeNetworkListener } from './listeners'
 import { getNetworkQualityFromInfo } from './quality'
 
 export class NetworkDetector {

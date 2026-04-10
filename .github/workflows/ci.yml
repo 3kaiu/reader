@@ -46,6 +46,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Verify generated route constants match contract
+        run: node scripts/generate-http-route-constants.mjs --check
+
       - name: Validate route contracts
         run: node scripts/validate-contracts.mjs
 

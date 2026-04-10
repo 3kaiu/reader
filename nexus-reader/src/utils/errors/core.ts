@@ -10,10 +10,7 @@ export {
   stringifyError,
   toErrorLike,
 } from './core/helpers'
-export {
-  NexusError,
-  isNexusError,
-} from './core/nexus-error'
+export { NexusError, isNexusError } from './core/nexus-error'
 export {
   ErrorCode,
   ErrorSeverity,

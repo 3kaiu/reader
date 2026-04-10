@@ -1,14 +1,7 @@
 import type { ApiResponse } from '@/api/http/types'
 import { sourceApi } from '@/api/source'
-import type {
-  BookSource,
-  SourceHealthSummary,
-  SourcePolicy,
-} from '@/types/source'
-import {
-  normalizeSource,
-  sortSourcesByBusinessPriority,
-} from '@/utils/sourceStore'
+import type { BookSource, SourceHealthSummary, SourcePolicy } from '@/types/source'
+import { normalizeSource, sortSourcesByBusinessPriority } from '@/utils/sourceStore'
 import type { SourceStoreState } from '../types'
 
 export function createSourceLoadingActions(state: SourceStoreState) {
@@ -24,15 +17,13 @@ export function createSourceLoadingActions(state: SourceStoreState) {
       state.sources.value.map(source => ({
         ...source,
         health: healthMap.get(source.id) || source.health,
-      })),
+      }))
     )
   }
 
   function applySource(source: BookSource): void {
     const normalizedSource = normalizeSource(source)
-    const existingIndex = state.sources.value.findIndex(
-      source => source.id === normalizedSource.id,
-    )
+    const existingIndex = state.sources.value.findIndex(source => source.id === normalizedSource.id)
 
     if (existingIndex >= 0) {
       const next = [...state.sources.value]
@@ -44,10 +35,7 @@ export function createSourceLoadingActions(state: SourceStoreState) {
       return
     }
 
-    state.sources.value = sortSourcesByBusinessPriority([
-      ...state.sources.value,
-      normalizedSource,
-    ])
+    state.sources.value = sortSourcesByBusinessPriority([...state.sources.value, normalizedSource])
   }
 
   async function loadSources(force = false): Promise<ApiResponse<BookSource[]>> {
@@ -87,7 +75,7 @@ export function createSourceLoadingActions(state: SourceStoreState) {
 
   async function updateSourceStatus(
     id: string,
-    enabled: boolean,
+    enabled: boolean
   ): Promise<ApiResponse<BookSource>> {
     const response = await sourceApi.updateSourceStatus(id, enabled)
     if (response.isSuccess && response.data) {
@@ -98,7 +86,7 @@ export function createSourceLoadingActions(state: SourceStoreState) {
 
   async function updateSourcePolicy(
     id: string,
-    policy: SourcePolicy,
+    policy: SourcePolicy
   ): Promise<ApiResponse<BookSource>> {
     const response = await sourceApi.updateSourcePolicy(id, policy)
     if (response.isSuccess && response.data) {
@@ -107,10 +95,7 @@ export function createSourceLoadingActions(state: SourceStoreState) {
     return response
   }
 
-  async function setSourceEnabled(
-    id: string,
-    enabled: boolean,
-  ): Promise<ApiResponse<BookSource>> {
+  async function setSourceEnabled(id: string, enabled: boolean): Promise<ApiResponse<BookSource>> {
     const currentSource = state.sources.value.find(source => source.id === id)
     const previousSource = currentSource ? { ...currentSource } : undefined
 

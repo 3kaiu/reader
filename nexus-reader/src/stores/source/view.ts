@@ -23,10 +23,7 @@ export function createSourceStoreView(state: SourceStoreState): SourceStoreView 
         }).length
     ),
     openCircuitCount: computed(
-      () =>
-        state.sources.value.filter(
-          source => source.health?.circuitState === 'open'
-        ).length
+      () => state.sources.value.filter(source => source.health?.circuitState === 'open').length
     ),
     groups: computed(() => buildSourceGroups(state.sources.value)),
   }

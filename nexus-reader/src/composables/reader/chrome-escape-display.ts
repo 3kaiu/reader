@@ -3,7 +3,7 @@ import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
 
 export function createReaderChromeEscapeDisplayAction(
   layers: ReaderChromeLayerActions,
-  goBack: () => void,
+  goBack: () => void
 ): Pick<ReaderChromeDisplayActions, 'handleEscape'> {
   const handleEscape = () => {
     if (layers.closeActiveLayer()) {

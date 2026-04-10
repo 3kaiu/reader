@@ -14,19 +14,22 @@ interface StatItem {
   color?: string
 }
 
-withDefaults(defineProps<{
-  title: string
-  icon?: IconComponent
-  stats?: StatItem[]
-  count?: number
-  isManageMode?: boolean
-  showManageButton?: boolean
-}>(), {
-  stats: () => [],
-  count: 0,
-  isManageMode: false,
-  showManageButton: true,
-})
+withDefaults(
+  defineProps<{
+    title: string
+    icon?: IconComponent
+    stats?: StatItem[]
+    count?: number
+    isManageMode?: boolean
+    showManageButton?: boolean
+  }>(),
+  {
+    stats: () => [],
+    count: 0,
+    isManageMode: false,
+    showManageButton: true,
+  }
+)
 
 const emit = defineEmits<{
   'toggle-manage': []
@@ -54,10 +57,7 @@ const emit = defineEmits<{
     <div class="flex-1"></div>
 
     <!-- 统计信息 -->
-    <div
-      v-if="stats.length > 0"
-      class="flex items-center gap-3 shrink-0"
-    >
+    <div v-if="stats.length > 0" class="flex items-center gap-3 shrink-0">
       <div
         v-for="(stat, index) in stats"
         :key="index"
@@ -78,15 +78,11 @@ const emit = defineEmits<{
       v-if="showManageButton"
       variant="outline"
       @click="emit('toggle-manage')"
-      :class="
-        isManageMode && 'bg-primary/10 text-primary border-primary/20'
-      "
+      :class="isManageMode && 'bg-primary/10 text-primary border-primary/20'"
       class="shrink-0"
     >
       <CheckSquare class="h-4 w-4 mr-2" />
-      <span class="hidden sm:inline">{{
-        isManageMode ? '退出管理' : '批量管理'
-      }}</span>
+      <span class="hidden sm:inline">{{ isManageMode ? '退出管理' : '批量管理' }}</span>
     </Button>
   </div>
 </template>

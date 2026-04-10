@@ -6,7 +6,6 @@ export const DEFAULT_CONFIG: IntegrationTestConfig = {
     cloudflareWorkers: true,
     kvStorage: true,
     analytics: true,
-    ai: true,
     cdn: true,
     tunnel: true,
   },
@@ -20,7 +19,6 @@ export const DEFAULT_CONFIG: IntegrationTestConfig = {
     api: 5000,
     worker: 3000,
     sync: 10000,
-    ai: 15000,
   },
   limits: {
     maxConcurrentRequests: 50,

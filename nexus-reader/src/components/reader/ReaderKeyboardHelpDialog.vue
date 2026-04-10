@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import ReaderKeyboardHelpHeader from './ReaderKeyboardHelpHeader.vue'
 import ReaderKeyboardShortcutItem from './ReaderKeyboardShortcutItem.vue'
-import type {
-  ReaderKeyboardHelpDialogEmits,
-} from './reader-keyboard-help-dialog-emit-types'
-import type {
-  ReaderKeyboardHelpDialogProps,
-} from './reader-keyboard-help-dialog-prop-types'
+import type { ReaderKeyboardHelpDialogEmits } from './reader-keyboard-help-dialog-emit-types'
+import type { ReaderKeyboardHelpDialogProps } from './reader-keyboard-help-dialog-prop-types'
 
 defineProps<ReaderKeyboardHelpDialogProps>()
 

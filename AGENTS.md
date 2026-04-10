@@ -9,6 +9,7 @@ This repository is a multi-service monorepo.
 - `cf-bypass-service/`: Python FastAPI service for bypass-related backend logic.
 - `contracts/`: Shared API/route contracts (used by frontend and workers).
 - `scripts/validate-contracts.mjs`: Cross-module contract validator used in CI.
+- `scripts/generate-http-route-constants.mjs`: Regenerates `route-policy.constants.generated.ts` and `user-service-prefixes.generated.ts` from `contracts/http-routes.json` (run after editing the contract; CI uses `--check`).
 
 ## Build, Test, and Development Commands
 Run commands from each module directory unless noted.

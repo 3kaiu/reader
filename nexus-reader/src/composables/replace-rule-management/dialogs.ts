@@ -1,9 +1,7 @@
 import type { ReplaceRule } from '@/types/replace'
 import type { ReplaceRuleManagementState } from './types'
 
-export function createReplaceRuleDialogActions(
-  state: ReplaceRuleManagementState,
-) {
+export function createReplaceRuleDialogActions(state: ReplaceRuleManagementState) {
   function openImport() {
     state.showImport.value = true
   }

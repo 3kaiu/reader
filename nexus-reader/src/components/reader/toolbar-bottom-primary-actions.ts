@@ -7,7 +7,7 @@ import { createReaderToolbarBottomThemeActions } from './toolbar-bottom-theme-ac
 
 export function createReaderToolbarBottomPrimaryActions(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
   return [
     ...createReaderToolbarBottomThemeActions(props, emit),

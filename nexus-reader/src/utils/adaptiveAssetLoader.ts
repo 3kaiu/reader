@@ -9,7 +9,7 @@ class AdaptiveAssetLoader {
     }
 
     try {
-      return await this.moduleCache.get(key) as T
+      return (await this.moduleCache.get(key)) as T
     } catch (error) {
       this.moduleCache.delete(key)
       throw error

@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { Loader2 } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 defineProps<{
-  loading: boolean;
-  resultCount: number;
-  errorCount?: number;
-}>();
+  loading: boolean
+  resultCount: number
+  errorCount?: number
+}>()
 
 const emit = defineEmits<{
-  (e: "stop-search"): void;
-}>();
+  (e: 'stop-search'): void
+}>()
 </script>
 
 <template>
@@ -24,9 +24,7 @@ const emit = defineEmits<{
         <Loader2 class="h-3 w-3 animate-spin" />
         搜索中...
       </Badge>
-      <Badge v-else-if="resultCount > 0" variant="secondary">
-        {{ resultCount }} 本
-      </Badge>
+      <Badge v-else-if="resultCount > 0" variant="secondary"> {{ resultCount }} 本 </Badge>
       <Badge
         v-if="(errorCount || 0) > 0"
         variant="outline"

@@ -3,14 +3,14 @@
  * 阅读器页面 - 沉浸式设计 [Refactored v4.0]
  * 已拆分为多个子组件：ReaderToolbar, ReaderContent, ReaderModals, ReaderKeyboard, ReaderGesture
  */
-import { useReaderView } from "@/composables/useReaderView";
+import { useReaderView } from '@/composables/useReaderView'
 
 // 组件导入
-import ReaderErrorState from "@/components/reader/ReaderErrorState.vue";
-import ReaderExperience from "@/components/reader/ReaderExperience.vue";
-import ReaderKeyboard from "@/components/reader/ReaderKeyboard.vue";
-import ReaderGesture from "@/components/reader/ReaderGesture.vue";
-import ReaderLoadingOverlay from "@/components/reader/ReaderLoadingOverlay.vue";
+import ReaderErrorState from '@/components/reader/ReaderErrorState.vue'
+import ReaderExperience from '@/components/reader/ReaderExperience.vue'
+import ReaderKeyboard from '@/components/reader/ReaderKeyboard.vue'
+import ReaderGesture from '@/components/reader/ReaderGesture.vue'
+import ReaderLoadingOverlay from '@/components/reader/ReaderLoadingOverlay.vue'
 
 const {
   readerRef,
@@ -18,7 +18,7 @@ const {
   readerPageActions,
   readerExperienceState,
   readerExperienceActions,
-} = useReaderView();
+} = useReaderView()
 </script>
 
 <template>
@@ -38,9 +38,7 @@ const {
       @escape="readerPageActions.handleEscape"
     />
 
-    <ReaderGesture
-      @toggle-toolbar="readerPageActions.toggleToolbar"
-    >
+    <ReaderGesture @toggle-toolbar="readerPageActions.toggleToolbar">
       <ReaderLoadingOverlay v-if="readerPageState.isLoading" />
 
       <ReaderErrorState
@@ -51,11 +49,7 @@ const {
         @retry-load="readerPageActions.retryCurrentChapter"
       />
 
-      <ReaderExperience
-        v-else
-        :state="readerExperienceState"
-        :actions="readerExperienceActions"
-      />
+      <ReaderExperience v-else :state="readerExperienceState" :actions="readerExperienceActions" />
     </ReaderGesture>
   </div>
 </template>
@@ -63,7 +57,9 @@ const {
 <style scoped>
 /* 核心排版样式：Notion/Linear 极简风 */
 .reader-container {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

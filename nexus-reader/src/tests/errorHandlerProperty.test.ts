@@ -14,8 +14,8 @@ vi.mock('../utils/logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     info: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }))
 
 describe('Error Handler Property Tests', () => {
@@ -29,7 +29,7 @@ describe('Error Handler Property Tests', () => {
      * it SHALL return an ErrorInfo object containing all required fields: message (string),
      * code (string), severity (valid enum value), userMessage (non-empty Chinese string),
      * retryable (boolean), and optionally context.
-     * 
+     *
      * **Validates: Requirements 1.2, 2.4**
      */
     it('should return valid ErrorInfo for any error input', () => {
@@ -44,7 +44,7 @@ describe('Error Handler Property Tests', () => {
             fc.record({
               message: fc.string(),
               error: fc.option(fc.string()),
-              errorMsg: fc.option(fc.string())
+              errorMsg: fc.option(fc.string()),
             }),
             // Unknown types
             fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined))
@@ -53,7 +53,7 @@ describe('Error Handler Property Tests', () => {
             fc.record({
               component: fc.option(fc.string()),
               function: fc.option(fc.string()),
-              userId: fc.option(fc.string())
+              userId: fc.option(fc.string()),
             })
           ),
           (error, context) => {
@@ -97,12 +97,12 @@ describe('Error Handler Property Tests', () => {
         'TimeoutError',
         'Unauthorized',
         'TocEmptyException',
-        'QuotaExceededError'
+        'QuotaExceededError',
       ]
 
       knownErrors.forEach(errorType => {
         const result = processError(errorType)
-        
+
         // Known errors should have specific codes
         expect(result.code).not.toBe('UNKNOWN_ERROR')
         expect(result.userMessage).not.toBe('操作失败，请重试')
@@ -114,7 +114,7 @@ describe('Error Handler Property Tests', () => {
       const testCases = [
         { input: 'NullPointerException: Object is null', expected: 'Object is null' },
         { input: 'IOException: File not found', expected: 'File not found' },
-        { input: 'TimeoutException: Request timed out', expected: 'Request timed out' }
+        { input: 'TimeoutException: Request timed out', expected: 'Request timed out' },
       ]
 
       testCases.forEach(({ input, expected }) => {
@@ -138,7 +138,7 @@ describe('Error Handler Property Tests', () => {
     /**
      * For any operation that fails with a retryable error, when withRetry is called
      * with maxAttempts > 1, the operation SHALL be attempted multiple times before throwing.
-     * 
+     *
      * **Validates: Requirements 4.2**
      */
     it('should retry operations for retryable errors', async () => {
@@ -201,31 +201,28 @@ describe('Error Handler Property Tests', () => {
     /**
      * For any operation that fails with a non-retryable error, when withRetry is called,
      * the function SHALL throw immediately without additional retry attempts.
-     * 
+     *
      * **Validates: Requirements 4.3**
      */
     it('should not retry non-retryable errors', async () => {
       await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 2, max: 5 }),
-          async (maxAttempts) => {
-            let attemptCount = 0
-            const operation = vi.fn(async () => {
-              attemptCount++
-              throw new Error('Unauthorized') // Non-retryable error
-            })
+        fc.asyncProperty(fc.integer({ min: 2, max: 5 }), async maxAttempts => {
+          let attemptCount = 0
+          const operation = vi.fn(async () => {
+            attemptCount++
+            throw new Error('Unauthorized') // Non-retryable error
+          })
 
-            try {
-              await withRetry(operation, { maxAttempts, delay: 1 })
-            } catch (error: any) {
-              // Expected to throw
-            }
-
-            // Should only attempt once
-            expect(attemptCount).toBe(1)
-            expect(operation).toHaveBeenCalledTimes(1)
+          try {
+            await withRetry(operation, { maxAttempts, delay: 1 })
+          } catch (error: any) {
+            // Expected to throw
           }
-        ),
+
+          // Should only attempt once
+          expect(attemptCount).toBe(1)
+          expect(operation).toHaveBeenCalledTimes(1)
+        }),
         { numRuns: 20 }
       )
     })
@@ -235,7 +232,7 @@ describe('Error Handler Property Tests', () => {
     /**
      * For any retry sequence with exponential backoff, the delay between attempt N and N+1
      * SHALL be initialDelay * 2^(N-1). For linear backoff, the delay SHALL be initialDelay * N.
-     * 
+     *
      * **Validates: Requirements 4.4**
      */
     it('should use exponential backoff correctly', async () => {
@@ -253,7 +250,7 @@ describe('Error Handler Property Tests', () => {
         await withRetry(operation, {
           maxAttempts,
           delay: initialDelay,
-          backoff: 'exponential'
+          backoff: 'exponential',
         })
       } catch (error: any) {
         // Expected
@@ -281,7 +278,7 @@ describe('Error Handler Property Tests', () => {
         await withRetry(operation, {
           maxAttempts,
           delay: initialDelay,
-          backoff: 'linear'
+          backoff: 'linear',
         })
       } catch (error: any) {
         // Expected
@@ -300,7 +297,7 @@ describe('Error Handler Property Tests', () => {
      * For any error processed, the log level SHALL be determined by severity:
      * critical/high → error, medium → warn, low → info.
      * The log entry SHALL include the error context when provided.
-     * 
+     *
      * **Validates: Requirements 5.1, 5.2, 5.3**
      */
     it('should map severity to correct log level', () => {
@@ -308,28 +305,25 @@ describe('Error Handler Property Tests', () => {
         critical: 'error',
         high: 'error',
         medium: 'warn',
-        low: 'info'
+        low: 'info',
       }
 
       // Use actual error types that map to each severity
       const errorMap: Record<string, string> = {
         high: 'Unauthorized',
         medium: 'NetworkError',
-        low: 'SyntaxError'
+        low: 'SyntaxError',
       }
 
       fc.assert(
-        fc.property(
-          fc.constantFrom('high', 'medium', 'low'),
-          (severity) => {
-            vi.clearAllMocks()
+        fc.property(fc.constantFrom('high', 'medium', 'low'), severity => {
+          vi.clearAllMocks()
 
-            processError(errorMap[severity])
+          processError(errorMap[severity])
 
-            const expectedLogLevel = severityToLogLevel[severity]
-            expect(logger[expectedLogLevel]).toHaveBeenCalled()
-          }
-        ),
+          const expectedLogLevel = severityToLogLevel[severity]
+          expect(logger[expectedLogLevel]).toHaveBeenCalled()
+        }),
         { numRuns: 50 }
       )
     })
@@ -341,7 +335,7 @@ describe('Error Handler Property Tests', () => {
           fc.record({
             component: fc.string(),
             function: fc.string(),
-            userId: fc.string()
+            userId: fc.string(),
           }),
           (errorMessage, context) => {
             vi.clearAllMocks()
@@ -352,7 +346,7 @@ describe('Error Handler Property Tests', () => {
             const loggerCalls = [
               ...(logger.error as any).mock.calls,
               ...(logger.warn as any).mock.calls,
-              ...(logger.info as any).mock.calls
+              ...(logger.info as any).mock.calls,
             ]
 
             expect(loggerCalls.length).toBeGreaterThan(0)
@@ -360,10 +354,12 @@ describe('Error Handler Property Tests', () => {
             // Find the call with context
             const callWithContext = loggerCalls.find(call => {
               const contextArg = call[2]
-              return contextArg && 
-                     contextArg.component === context.component &&
-                     contextArg.function === context.function &&
-                     contextArg.userId === context.userId
+              return (
+                contextArg &&
+                contextArg.component === context.component &&
+                contextArg.function === context.function &&
+                contextArg.userId === context.userId
+              )
             })
 
             expect(callWithContext).toBeDefined()
@@ -375,7 +371,6 @@ describe('Error Handler Property Tests', () => {
   })
 })
 
-
 describe('useErrorHandler Composable Tests', () => {
   // Mock useMessage - must be defined before vi.mock
   let mockShowError: ReturnType<typeof vi.fn>
@@ -384,16 +379,16 @@ describe('useErrorHandler Composable Tests', () => {
   beforeEach(() => {
     mockShowError = vi.fn()
     mockShowWarning = vi.fn()
-    
+
     // Reset modules to ensure fresh imports
     vi.resetModules()
-    
+
     // Mock useMessage
     vi.doMock('../composables/useMessage', () => ({
       useMessage: () => ({
         error: mockShowError,
-        warning: mockShowWarning
-      })
+        warning: mockShowWarning,
+      }),
     }))
   })
 
@@ -407,29 +402,29 @@ describe('useErrorHandler Composable Tests', () => {
      * For any error handled via useErrorHandler().handleError(), when showToast is true,
      * the toast notification SHALL be displayed with userMessage. When showToast is false,
      * no toast SHALL be displayed.
-     * 
+     *
      * **Validates: Requirements 3.2, 3.4**
      */
     it('should display toast when showToast is true', async () => {
       // Dynamic import to get fresh instance with mocked useMessage
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       await fc.assert(
         fc.asyncProperty(
           fc.oneof(
             fc.string({ minLength: 1 }),
             fc.string().map(msg => new Error(msg))
           ),
-          async (error) => {
+          async error => {
             mockShowError.mockClear()
-            
+
             const { handleError } = useErrorHandler()
             handleError(error, undefined, true)
 
             // Toast should be displayed
             expect(mockShowError).toHaveBeenCalledTimes(1)
             expect(mockShowError).toHaveBeenCalledWith(expect.any(String))
-            
+
             // Message should be non-empty
             const displayedMessage = mockShowError.mock.calls[0][0]
             expect(displayedMessage.length).toBeGreaterThan(0)
@@ -441,16 +436,16 @@ describe('useErrorHandler Composable Tests', () => {
 
     it('should not display toast when showToast is false', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       await fc.assert(
         fc.asyncProperty(
           fc.oneof(
             fc.string({ minLength: 1 }),
             fc.string().map(msg => new Error(msg))
           ),
-          async (error) => {
+          async error => {
             mockShowError.mockClear()
-            
+
             const { handleError } = useErrorHandler()
             handleError(error, undefined, false)
 
@@ -464,9 +459,9 @@ describe('useErrorHandler Composable Tests', () => {
 
     it('should display toast by default (showToast parameter omitted)', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       mockShowError.mockClear()
-      
+
       const { handleError } = useErrorHandler()
       handleError('Test error')
 
@@ -476,16 +471,16 @@ describe('useErrorHandler Composable Tests', () => {
 
     it('should display correct userMessage in toast', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       const knownErrors = [
         { error: 'NetworkError', expectedInMessage: '网络' },
         { error: 'Unauthorized', expectedInMessage: '登录' },
-        { error: 'TocEmptyException', expectedInMessage: '目录' }
+        { error: 'TocEmptyException', expectedInMessage: '目录' },
       ]
 
       for (const { error, expectedInMessage } of knownErrors) {
         mockShowError.mockClear()
-        
+
         const { handleError } = useErrorHandler()
         handleError(error, undefined, true)
 
@@ -499,7 +494,7 @@ describe('useErrorHandler Composable Tests', () => {
   describe('API Compatibility Tests', () => {
     it('should expose all required methods', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       const handler = useErrorHandler()
 
       expect(handler).toHaveProperty('handleError')
@@ -517,7 +512,7 @@ describe('useErrorHandler Composable Tests', () => {
 
     it('should handle API errors correctly', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       const { handleApiError } = useErrorHandler() as any
 
       // Success response
@@ -535,9 +530,9 @@ describe('useErrorHandler Composable Tests', () => {
 
     it('should handle warnings correctly', async () => {
       const { useErrorHandler } = await import('../composables/useErrorHandler')
-      
+
       mockShowWarning.mockClear()
-      
+
       const { handleWarning } = useErrorHandler() as any
       handleWarning('Test warning')
 

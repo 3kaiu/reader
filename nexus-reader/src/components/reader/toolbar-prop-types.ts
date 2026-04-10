@@ -11,5 +11,4 @@ export interface ReaderToolbarProps {
   isFullscreen: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
-  isDecoding?: boolean
 }

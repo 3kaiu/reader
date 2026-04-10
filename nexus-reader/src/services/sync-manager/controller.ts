@@ -1,10 +1,7 @@
 import { logger } from '../../utils/logger'
 import { type SyncTask } from '../../utils/db'
 import type { SyncPriority } from './types'
-import {
-  createSyncTaskId,
-  resolveSyncTaskPriority,
-} from './config'
+import { createSyncTaskId, resolveSyncTaskPriority } from './config'
 import { executeSyncTask } from './execution'
 import { withSyncQueueLock } from './locks'
 import {
@@ -41,7 +38,9 @@ export class SyncManager {
     await saveSyncTask(syncTask)
 
     if (priority === 'CRITICAL') {
-      void this.processQueue().catch(error => logger.error('[Sync] Queue processing error', { error }))
+      void this.processQueue().catch(error =>
+        logger.error('[Sync] Queue processing error', { error })
+      )
     }
 
     return syncTask.id

@@ -52,9 +52,7 @@ type BuildFromSamplesOptions = {
   validationReport: Ref<unknown>
   lastFetchDebug: Ref<SourceFetchDebugInfo | null>
   fetchHtmlPreview: Ref<FetchHtmlResponse | null>
-  pushDebugSnapshot: (
-    snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>
-  ) => void
+  pushDebugSnapshot: (snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>) => void
   success: (message: string) => void
   warning: (message: string) => void
 }
@@ -112,8 +110,12 @@ export async function buildSourceBuilderFromSamples(options: BuildFromSamplesOpt
     ...(options.fetchSessionKey.value.trim()
       ? { fetchSessionKey: options.fetchSessionKey.value.trim() }
       : {}),
-    structuredHints: options.hasStructuredHints.value ? { ...options.structuredHints.value } : undefined,
-    ...(options.freeTextHints.value.trim() ? { freeTextHints: options.freeTextHints.value.trim() } : {}),
+    structuredHints: options.hasStructuredHints.value
+      ? { ...options.structuredHints.value }
+      : undefined,
+    ...(options.freeTextHints.value.trim()
+      ? { freeTextHints: options.freeTextHints.value.trim() }
+      : {}),
     tags: options.tagsText.value
       .split(',')
       .map(item => item.trim())

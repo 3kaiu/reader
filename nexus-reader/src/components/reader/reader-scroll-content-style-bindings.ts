@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import type { ReaderScrollContentProps } from './reader-scroll-content-prop-types'
 
 export function createReaderScrollContentStyleBindings(
-  props: Pick<ReaderScrollContentProps, 'contentStyle' | 'paragraphSpacing'>,
+  props: Pick<ReaderScrollContentProps, 'contentStyle' | 'paragraphSpacing'>
 ) {
   return computed(() => ({
     ...props.contentStyle,

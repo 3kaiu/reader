@@ -1,11 +1,9 @@
 import { computed } from 'vue'
 import type { ReaderScrollChapterProps } from './reader-scroll-chapter-prop-types'
-import type {
-  ReaderScrollChapterViewBindings,
-} from './reader-scroll-chapter-view-binding-types'
+import type { ReaderScrollChapterViewBindings } from './reader-scroll-chapter-view-binding-types'
 
 export function createReaderScrollChapterViewBindings(
-  props: ReaderScrollChapterProps,
+  props: ReaderScrollChapterProps
 ): ReaderScrollChapterViewBindings {
   const chapterContainerStyle = computed(() => {
     const contentLength = props.chapter.formattedContent?.length || 0
@@ -22,9 +20,7 @@ export function createReaderScrollChapterViewBindings(
     chapterTitle: computed(() => props.chapter.title),
     chapterContainerStyle,
     hasFormattedContent: computed(() => Boolean(props.chapter.formattedContent)),
-    renderedContent: computed(() =>
-      props.highlightContent(props.chapter.formattedContent),
-    ),
+    renderedContent: computed(() => props.highlightContent(props.chapter.formattedContent)),
     onContentClick: (event: MouseEvent) => props.handleContentClick(event),
   }
 }

@@ -9,10 +9,7 @@ import {
   normalizeBatchIds,
 } from '@/utils/batchMutation'
 import { parseSourceImportText } from '@/utils/sourceImport'
-import {
-  toImportedSourceText,
-  type SourceDefinition,
-} from '@/utils/sourceStore'
+import { toImportedSourceText, type SourceDefinition } from '@/utils/sourceStore'
 import type {
   DeleteSourcesResult,
   ImportSourceTextResult,
@@ -24,13 +21,8 @@ interface SourceBatchHelpers {
   loadSources: (force?: boolean) => Promise<ApiResponse<unknown>>
 }
 
-export function createSourceBatchActions(
-  state: SourceStoreState,
-  helpers: SourceBatchHelpers,
-) {
-  async function importSources(
-    sourcesToImport: SourceDefinition[],
-  ): Promise<ImportSourcesResult> {
+export function createSourceBatchActions(state: SourceStoreState, helpers: SourceBatchHelpers) {
+  async function importSources(sourcesToImport: SourceDefinition[]): Promise<ImportSourcesResult> {
     const targets = sourcesToImport.filter(source => Boolean(source))
     if (targets.length === 0) {
       return {
@@ -41,9 +33,7 @@ export function createSourceBatchActions(
       }
     }
 
-    const results = await Promise.allSettled(
-      targets.map(source => sourceApi.addSource(source)),
-    )
+    const results = await Promise.allSettled(targets.map(source => sourceApi.addSource(source)))
 
     const successCount = countSettledSuccesses(results)
 
@@ -88,17 +78,13 @@ export function createSourceBatchActions(
       }
     }
 
-    const results = await Promise.allSettled(
-      targetIds.map(id => sourceApi.deleteBookSource(id)),
-    )
+    const results = await Promise.allSettled(targetIds.map(id => sourceApi.deleteBookSource(id)))
 
     const deletedIds = collectSettledSuccessIds(targetIds, results)
 
     if (deletedIds.length > 0) {
       const deletedIdSet = new Set(deletedIds)
-      state.sources.value = state.sources.value.filter(
-        source => !deletedIdSet.has(source.id),
-      )
+      state.sources.value = state.sources.value.filter(source => !deletedIdSet.has(source.id))
     }
 
     return {

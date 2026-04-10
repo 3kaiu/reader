@@ -3,8 +3,7 @@ export type ReaderScrollLoadStateEmits = {
   retryLoad: []
 }
 
-export type ReaderScrollLoadStateEmitFn =
-  <EventName extends keyof ReaderScrollLoadStateEmits>(
-    event: EventName,
-    ...args: ReaderScrollLoadStateEmits[EventName]
-  ) => void
+export type ReaderScrollLoadStateEmitFn = <EventName extends keyof ReaderScrollLoadStateEmits>(
+  event: EventName,
+  ...args: ReaderScrollLoadStateEmits[EventName]
+) => void

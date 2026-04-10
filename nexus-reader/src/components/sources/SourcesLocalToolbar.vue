@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { Server } from "lucide-vue-next";
-import { PageToolbar } from "@/components/common";
+import { Server } from 'lucide-vue-next'
+import { PageToolbar } from '@/components/common'
 
 defineProps<{
-  activeGroup: string;
-  filteredCount: number;
-  enabledCount: number;
-  unhealthyCount: number;
-  openCircuitCount: number;
-  totalCount: number;
-  isManageMode: boolean;
-}>();
+  activeGroup: string
+  filteredCount: number
+  enabledCount: number
+  unhealthyCount: number
+  openCircuitCount: number
+  totalCount: number
+  isManageMode: boolean
+}>()
 
 const emit = defineEmits<{
-  "toggle-manage": [];
-}>();
+  'toggle-manage': []
+}>()
 </script>
 
 <template>

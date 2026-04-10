@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { BookshelfBook } from "@/utils/bookshelf";
-import BookshelfBookTile from "./BookshelfBookTile.vue";
+import type { BookshelfBook } from '@/utils/bookshelf'
+import BookshelfBookTile from './BookshelfBookTile.vue'
 
 const props = defineProps<{
-  books: BookshelfBook[];
-  showProgress: boolean;
-  isManageMode: boolean;
-  selectedBooks: Set<string>;
-}>();
+  books: BookshelfBook[]
+  showProgress: boolean
+  isManageMode: boolean
+  selectedBooks: Set<string>
+}>()
 
 const emit = defineEmits<{
-  open: [book: BookshelfBook];
-  delete: [book: BookshelfBook];
-}>();
+  open: [book: BookshelfBook]
+  delete: [book: BookshelfBook]
+}>()
 
 function isSelected(book: BookshelfBook) {
-  return props.selectedBooks.has(book.id || "");
+  return props.selectedBooks.has(book.id || '')
 }
 </script>
 

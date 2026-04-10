@@ -2,7 +2,7 @@ import type { ReaderChromeActionContext } from './chrome-context-types'
 import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
 
 export function createReaderChromeZenModeDisplayActions(
-  context: ReaderChromeActionContext,
+  context: ReaderChromeActionContext
 ): Pick<ReaderChromeDisplayActions, 'toggleZenMode'> {
   const toggleZenMode = () => {
     const nextState = !context.options.settingsStore.config.zenMode

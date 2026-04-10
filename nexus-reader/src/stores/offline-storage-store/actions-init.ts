@@ -1,14 +1,11 @@
 import { offlineManager } from '@/services/offline/manager'
 import { logger } from '@/utils/logger'
 import type { OfflineStoreState } from './types'
-import type {
-  OfflineStoreActionHelpers,
-  OfflineStoreActionRuntime,
-} from './actions-types'
+import type { OfflineStoreActionHelpers, OfflineStoreActionRuntime } from './actions-types'
 
 function registerOfflineStoreStatusListener(
   runtime: OfflineStoreActionRuntime,
-  helpers: OfflineStoreActionHelpers,
+  helpers: OfflineStoreActionHelpers
 ): void {
   if (runtime.statusListenerRegistered) {
     return
@@ -23,7 +20,7 @@ function registerOfflineStoreStatusListener(
 export function createOfflineStoreInitializer(
   state: OfflineStoreState,
   helpers: OfflineStoreActionHelpers,
-  runtime: OfflineStoreActionRuntime,
+  runtime: OfflineStoreActionRuntime
 ) {
   return async function initialize(): Promise<void> {
     if (runtime.hasInitialized) {

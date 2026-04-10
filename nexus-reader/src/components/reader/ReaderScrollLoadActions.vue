@@ -1,21 +1,14 @@
 <script setup lang="ts">
-import {
-  createReaderScrollLoadActionsViewBindings,
-} from './reader-scroll-load-actions-view-bindings'
-import type {
-  ReaderScrollLoadActionsEmits,
-} from './reader-scroll-load-actions-emit-types'
-import type {
-  ReaderScrollLoadActionsProps,
-} from './reader-scroll-load-actions-prop-types'
+import { createReaderScrollLoadActionsViewBindings } from './reader-scroll-load-actions-view-bindings'
+import type { ReaderScrollLoadActionsEmits } from './reader-scroll-load-actions-emit-types'
+import type { ReaderScrollLoadActionsProps } from './reader-scroll-load-actions-prop-types'
 
 const props = defineProps<ReaderScrollLoadActionsProps>()
 const emit = defineEmits<ReaderScrollLoadActionsEmits>()
-const {
-  hasLoadError,
-  onLoadNextChapter,
-  onRetryLoad,
-} = createReaderScrollLoadActionsViewBindings(props, emit)
+const { hasLoadError, onLoadNextChapter, onRetryLoad } = createReaderScrollLoadActionsViewBindings(
+  props,
+  emit
+)
 </script>
 
 <template>
@@ -31,9 +24,7 @@ const {
     </div>
 
     <div v-else class="space-y-3">
-      <div
-        class="px-4 py-2 bg-red-500/10 rounded-lg text-red-600 dark:text-red-400"
-      >
+      <div class="px-4 py-2 bg-red-500/10 rounded-lg text-red-600 dark:text-red-400">
         <p class="text-sm">⚠️ 自动加载失败</p>
         <p class="text-xs opacity-70 mt-1">{{ loadError }}</p>
         <p v-if="loadErrorDetails" class="text-[11px] opacity-60 mt-1 break-words">

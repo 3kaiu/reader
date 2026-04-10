@@ -1,7 +1,4 @@
-import type {
-  CachedContent,
-  OfflineStatus,
-} from '../../types'
+import type { CachedContent, OfflineStatus } from '../../types'
 import {
   exportOfflineManagerData,
   importOfflineManagerData,
@@ -15,10 +12,7 @@ import {
   notifyOfflineStatusListeners,
   removeOfflineStatusListener,
 } from '../status'
-import type {
-  OfflineExportData,
-  OfflineManagerRuntimeState,
-} from '../types'
+import type { OfflineExportData, OfflineManagerRuntimeState } from '../types'
 import {
   createOfflineManagerCacheCallbacks,
   createOfflineManagerStatusCallbacks,
@@ -26,33 +20,31 @@ import {
 } from './context'
 
 export function getOfflineManagerRuntimeStatus(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): OfflineStatus {
   return getOfflineManagerStatus(context.runtimeState)
 }
 
-export function isOfflineManagerRuntimeOnline(
-  context: OfflineManagerRuntimeContext,
-): boolean {
+export function isOfflineManagerRuntimeOnline(context: OfflineManagerRuntimeContext): boolean {
   return isOfflineManagerOnline(context.runtimeState)
 }
 
 export function addOfflineManagerStatusListener(
   context: OfflineManagerRuntimeContext,
-  listener: (status: OfflineStatus) => void,
+  listener: (status: OfflineStatus) => void
 ): void {
   addOfflineStatusListener(context.runtimeState, listener)
 }
 
 export function removeOfflineManagerStatusListener(
   context: OfflineManagerRuntimeContext,
-  listener: (status: OfflineStatus) => void,
+  listener: (status: OfflineStatus) => void
 ): void {
   removeOfflineStatusListener(context.runtimeState, listener)
 }
 
 export function exportOfflineManagerRuntimeData(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): OfflineExportData {
   return exportOfflineManagerData(context.runtimeState)
 }
@@ -62,32 +54,26 @@ export function importOfflineManagerRuntimeData(
   data: {
     operations?: OfflineManagerRuntimeState['operationQueue']
     content?: CachedContent[]
-  },
+  }
 ): void {
-  importOfflineManagerData(
-    context.runtimeState,
-    data,
-    createOfflineManagerCacheCallbacks(context),
-  )
+  importOfflineManagerData(context.runtimeState, data, createOfflineManagerCacheCallbacks(context))
 }
 
 export async function refreshOfflineManagerRuntimeState(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): Promise<void> {
   await refreshOfflineManagerState(
     context.runtimeState,
-    createOfflineManagerStatusCallbacks(context),
+    createOfflineManagerStatusCallbacks(context)
   )
 }
 
 export async function persistOfflineManagerCachedContent(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): Promise<void> {
   await persistOfflineCachedContent(context.runtimeState)
 }
 
-export function notifyOfflineManagerStatusListeners(
-  context: OfflineManagerRuntimeContext,
-): void {
+export function notifyOfflineManagerStatusListeners(context: OfflineManagerRuntimeContext): void {
   notifyOfflineStatusListeners(context.runtimeState)
 }

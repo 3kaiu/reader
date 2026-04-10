@@ -1,167 +1,167 @@
 <script setup lang="ts">
-import { PageHeader } from "@/components/common";
-import type { AddonRouteEntry } from "@/constants/addons";
-import type { BrowserStorageEstimate } from "@/utils/browserStorage";
-import type { OptionalFeature } from "@/utils/features";
-import type { AgentRouterConfigPatch } from "@/api/sync";
-import SettingsAboutSection from "./SettingsAboutSection.vue";
-import SettingsAddonSection from "./SettingsAddonSection.vue";
-import SettingsMaintenanceSection from "./SettingsMaintenanceSection.vue";
-import SettingsRoutingSection from "./SettingsRoutingSection.vue";
-import SettingsSourcePackagesSection from "./SettingsSourcePackagesSection.vue";
-import SettingsToolboxSection from "./SettingsToolboxSection.vue";
+import { PageHeader } from '@/components/common'
+import type { AddonRouteEntry } from '@/constants/addons'
+import type { BrowserStorageEstimate } from '@/utils/browserStorage'
+import type { OptionalFeature } from '@/utils/features'
+import type { AgentRouterConfigPatch } from '@/api/sync'
+import SettingsAboutSection from './SettingsAboutSection.vue'
+import SettingsAddonSection from './SettingsAddonSection.vue'
+import SettingsMaintenanceSection from './SettingsMaintenanceSection.vue'
+import SettingsRoutingSection from './SettingsRoutingSection.vue'
+import SettingsSourcePackagesSection from './SettingsSourcePackagesSection.vue'
+import SettingsToolboxSection from './SettingsToolboxSection.vue'
 
 type RouteStat = {
-  key: string;
-  label: string;
-  shareLabel: string;
-  p50Label: string;
-  p95Label: string;
-};
+  key: string
+  label: string
+  shareLabel: string
+  p50Label: string
+  p95Label: string
+}
 
 type ClientRoutingSummary = {
-  window: string;
-  note: string;
-  routes: RouteStat[];
-};
+  window: string
+  note: string
+  routes: RouteStat[]
+}
 
 type AgentRoutingSummary = {
-  window: string;
-  totalSelectionsLabel: string;
-  aiAttemptRateLabel: string;
-  fallbackRateLabel: string;
-  aiTimeoutRateLabel: string;
+  window: string
+  totalSelectionsLabel: string
+  aiAttemptRateLabel: string
+  fallbackRateLabel: string
+  aiTimeoutRateLabel: string
   topSkills: Array<{
-    key: string;
-    label: string;
-    countLabel: string;
-    shareLabel: string;
-  }>;
-};
+    key: string
+    label: string
+    countLabel: string
+    shareLabel: string
+  }>
+}
 
 type AgentRoutingConfigSummary = {
-  enabledLabel: string;
-  shadowModeLabel: string;
-  aiEnabledLabel: string;
-  rolloutLabel: string;
-  timeoutLabel: string;
-  confidenceLabel: string;
-  includeRoutesLabel: string;
-  excludeRoutesLabel: string;
-};
+  enabledLabel: string
+  shadowModeLabel: string
+  aiEnabledLabel: string
+  rolloutLabel: string
+  timeoutLabel: string
+  confidenceLabel: string
+  includeRoutesLabel: string
+  excludeRoutesLabel: string
+}
 
 type AgentRoutingConfigRaw = {
-  source: string;
-  overrideUpdatedAt: string;
-  overrideUpdatedBy: string;
-  enabled: boolean;
-  shadowMode: boolean;
-  allowAISelection: boolean;
-  rolloutPercent: number;
-  aiMaxLatencyMs: number;
-  minConfidencePercent: number;
-  includeRoutes: string[];
-  excludeRoutes: string[];
-};
+  source: string
+  overrideUpdatedAt: string
+  overrideUpdatedBy: string
+  enabled: boolean
+  shadowMode: boolean
+  allowAISelection: boolean
+  rolloutPercent: number
+  aiMaxLatencyMs: number
+  minConfidencePercent: number
+  includeRoutes: string[]
+  excludeRoutes: string[]
+}
 
 type AgentRoutingAuditSummary = {
-  hasMore: boolean;
+  hasMore: boolean
   records: Array<{
-    id: string;
-    action: string;
-    actor: string;
-    timestamp: string;
-    changeItems: string[];
-  }>;
-};
+    id: string
+    action: string
+    actor: string
+    timestamp: string
+    changeItems: string[]
+  }>
+}
 
 type SourcePackageSummary = {
-  sourceId: string;
-  sourceName: string;
-  host: string;
-  packageId: string;
-  generatedAtMs: number;
-  enabled: boolean;
-  valid: boolean;
+  sourceId: string
+  sourceName: string
+  host: string
+  packageId: string
+  generatedAtMs: number
+  enabled: boolean
+  valid: boolean
   readinessState:
-    | "draft"
-    | "blocked"
-    | "search_ready"
-    | "catalog_ready"
-    | "reading_ready"
-    | "full_flow_ready";
-  searchable: boolean;
-  detailReady: boolean;
-  tocReady: boolean;
-  readable: boolean;
-  overallHealthScore: number;
-  recommended: boolean;
-  searchStatus: "pass" | "warn" | "fail" | "unknown";
-  bookStatus: "pass" | "warn" | "fail" | "unknown";
-  tocStatus: "pass" | "warn" | "fail" | "unknown";
-  contentStatus: "pass" | "warn" | "fail" | "unknown";
-  tags: string[];
-};
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
+  searchable: boolean
+  detailReady: boolean
+  tocReady: boolean
+  readable: boolean
+  overallHealthScore: number
+  recommended: boolean
+  searchStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  bookStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  tocStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  contentStatus: 'pass' | 'warn' | 'fail' | 'unknown'
+  tags: string[]
+}
 
 type SourcePackageDetailSummary = {
-  packageId: string;
-  sourceLabel: string;
-  generatedAtLabel: string;
-  validationLabel: string;
-  healthLabel: string;
-  healthScoreLabel: string;
-  segmentItems: string[];
-  warningItems: string[];
-  errorItems: string[];
-  capabilityItems: string[];
-  searchStrategyItems: string[];
-  sampleItems: string[];
-  riskItems: string[];
-  readinessBlockers: string[];
-  readinessSuggestedActions: string[];
-};
+  packageId: string
+  sourceLabel: string
+  generatedAtLabel: string
+  validationLabel: string
+  healthLabel: string
+  healthScoreLabel: string
+  segmentItems: string[]
+  warningItems: string[]
+  errorItems: string[]
+  capabilityItems: string[]
+  searchStrategyItems: string[]
+  sampleItems: string[]
+  riskItems: string[]
+  readinessBlockers: string[]
+  readinessSuggestedActions: string[]
+}
 
 defineProps<{
-  addonFeatures: Record<string, boolean>;
-  storageUsage: BrowserStorageEstimate | null;
-  addonEntryCards: AddonRouteEntry[];
-  toolboxMode: boolean;
-  clientRoutingLoading: boolean;
-  clientRoutingSummary: ClientRoutingSummary;
-  agentRoutingLoading: boolean;
-  agentRoutingSummary: AgentRoutingSummary;
-  agentConfigLoading: boolean;
-  agentConfigSaving: boolean;
-  agentConfigAuditLoading: boolean;
-  agentRoutingConfigSummary: AgentRoutingConfigSummary;
-  agentRoutingConfigRaw: AgentRoutingConfigRaw;
-  agentRoutingAuditSummary: AgentRoutingAuditSummary;
-  sourcePackagesLoading: boolean;
-  sourcePackageImporting: boolean;
-  sourcePackageDetailLoading: boolean;
-  sourcePackages: SourcePackageSummary[];
-  sourcePackageDetailSummary: SourcePackageDetailSummary;
-}>();
+  addonFeatures: Record<string, boolean>
+  storageUsage: BrowserStorageEstimate | null
+  addonEntryCards: AddonRouteEntry[]
+  toolboxMode: boolean
+  clientRoutingLoading: boolean
+  clientRoutingSummary: ClientRoutingSummary
+  agentRoutingLoading: boolean
+  agentRoutingSummary: AgentRoutingSummary
+  agentConfigLoading: boolean
+  agentConfigSaving: boolean
+  agentConfigAuditLoading: boolean
+  agentRoutingConfigSummary: AgentRoutingConfigSummary
+  agentRoutingConfigRaw: AgentRoutingConfigRaw
+  agentRoutingAuditSummary: AgentRoutingAuditSummary
+  sourcePackagesLoading: boolean
+  sourcePackageImporting: boolean
+  sourcePackageDetailLoading: boolean
+  sourcePackages: SourcePackageSummary[]
+  sourcePackageDetailSummary: SourcePackageDetailSummary
+}>()
 
 const emit = defineEmits<{
-  back: [];
-  exportData: [];
-  clearCache: [];
-  updateAddonFeature: [feature: OptionalFeature, enabled: boolean];
-  refreshClientRouting: [];
-  setAgentConfigDisabled: [];
-  setAgentConfigShadow: [];
-  setAgentConfigCanary: [];
-  saveAgentConfigCustom: [patch: AgentRouterConfigPatch];
-  resetAgentConfigOverride: [];
-  loadMoreAgentAudit: [];
-  refreshSourcePackages: [];
-  importSourcePackage: [packageJson: string];
-  selectSourcePackage: [sourceId: string];
-  deleteSourcePackage: [sourceId: string];
-  toggleToolboxMode: [enabled: boolean];
-  navigate: [path: string];
-}>();
+  back: []
+  exportData: []
+  clearCache: []
+  updateAddonFeature: [feature: OptionalFeature, enabled: boolean]
+  refreshClientRouting: []
+  setAgentConfigDisabled: []
+  setAgentConfigShadow: []
+  setAgentConfigCanary: []
+  saveAgentConfigCustom: [patch: AgentRouterConfigPatch]
+  resetAgentConfigOverride: []
+  loadMoreAgentAudit: []
+  refreshSourcePackages: []
+  importSourcePackage: [packageJson: string]
+  selectSourcePackage: [sourceId: string]
+  deleteSourcePackage: [sourceId: string]
+  toggleToolboxMode: [enabled: boolean]
+  navigate: [path: string]
+}>()
 </script>
 
 <template>
@@ -170,9 +170,7 @@ const emit = defineEmits<{
 
     <SettingsAddonSection
       :addon-features="addonFeatures"
-      @update-addon-feature="
-        (feature, enabled) => emit('updateAddonFeature', feature, enabled)
-      "
+      @update-addon-feature="(feature, enabled) => emit('updateAddonFeature', feature, enabled)"
     />
 
     <SettingsToolboxSection

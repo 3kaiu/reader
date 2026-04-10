@@ -1,10 +1,8 @@
 import type { ReaderPageModelChromeOptions } from './page-model-chrome-options'
-import type {
-  ReaderPageModelFeatures,
-} from './view-model-page-feature-types'
+import type { ReaderPageModelFeatures } from './view-model-page-feature-types'
 
 export function createReaderPageModelChromeOptions(
-  features: ReaderPageModelFeatures,
+  features: ReaderPageModelFeatures
 ): ReaderPageModelChromeOptions {
   return {
     toggleToolbar: features.chrome.toggleToolbar,

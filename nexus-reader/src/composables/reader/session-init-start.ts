@@ -1,20 +1,14 @@
 import type { ReaderRouteTarget } from '@/utils/readerRoute'
 import type { ReaderSessionInitContext } from './session-init-context-types'
 
-export function createReaderSessionStartAction(
-  context: ReaderSessionInitContext,
-) {
+export function createReaderSessionStartAction(context: ReaderSessionInitContext) {
   return async function startReaderSession(target: ReaderRouteTarget) {
     context.options.settingsStore.applyAutoNightMode()
-
-    if (context.options.decoderAddonEnabled) {
-      context.options.decoderStore.setCurrentBook(target.bookUrl)
-    }
 
     try {
       const response = await context.options.readerStore.startReaderSession(
         target.sourceId,
-        target.bookUrl,
+        target.bookUrl
       )
 
       if (!response.isSuccess) {

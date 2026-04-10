@@ -1,39 +1,37 @@
 <script setup lang="ts">
-import { Library, Sparkles } from "lucide-vue-next";
+import { Library, Sparkles } from 'lucide-vue-next'
 import type { ComponentPublicInstance } from 'vue'
-import type { BookGroup } from "@/types/group";
-import type { BookshelfBook } from "@/utils/bookshelf";
-import type { BookshelfVirtualizer } from "./types";
-import BookshelfBookGrid from "./BookshelfBookGrid.vue";
-import BookshelfEmptyState from "./BookshelfEmptyState.vue";
-import BookshelfGroupTabs from "./BookshelfGroupTabs.vue";
-import BookshelfLoadingGrid from "./BookshelfLoadingGrid.vue";
-import BookshelfVirtualBookGrid from "./BookshelfVirtualBookGrid.vue";
+import type { BookGroup } from '@/types/group'
+import type { BookshelfBook } from '@/utils/bookshelf'
+import type { BookshelfVirtualizer } from './types'
+import BookshelfBookGrid from './BookshelfBookGrid.vue'
+import BookshelfEmptyState from './BookshelfEmptyState.vue'
+import BookshelfGroupTabs from './BookshelfGroupTabs.vue'
+import BookshelfLoadingGrid from './BookshelfLoadingGrid.vue'
+import BookshelfVirtualBookGrid from './BookshelfVirtualBookGrid.vue'
 
 defineProps<{
-  loading: boolean;
-  booksCount: number;
-  nonEmptyGroups: BookGroup[];
-  currentGroupId: string | number;
-  recentBooks: BookshelfBook[];
-  otherBooks: BookshelfBook[];
-  showProgress: boolean;
-  isManageMode: boolean;
-  selectedBooks: Set<string>;
-  shouldUseVirtualScroll: boolean;
-  bindVirtualContainerRef: (
-    element: Element | ComponentPublicInstance | null,
-  ) => void;
-  virtualizer: BookshelfVirtualizer;
-  getVirtualRowItems: (rowIndex: number) => BookshelfBook[];
-}>();
+  loading: boolean
+  booksCount: number
+  nonEmptyGroups: BookGroup[]
+  currentGroupId: string | number
+  recentBooks: BookshelfBook[]
+  otherBooks: BookshelfBook[]
+  showProgress: boolean
+  isManageMode: boolean
+  selectedBooks: Set<string>
+  shouldUseVirtualScroll: boolean
+  bindVirtualContainerRef: (element: Element | ComponentPublicInstance | null) => void
+  virtualizer: BookshelfVirtualizer
+  getVirtualRowItems: (rowIndex: number) => BookshelfBook[]
+}>()
 
 const emit = defineEmits<{
-  "update:currentGroupId": [value: string | number];
-  open: [book: BookshelfBook];
-  delete: [book: BookshelfBook];
-  search: [];
-}>();
+  'update:currentGroupId': [value: string | number]
+  open: [book: BookshelfBook]
+  delete: [book: BookshelfBook]
+  search: []
+}>()
 </script>
 
 <template>
@@ -55,9 +53,7 @@ const emit = defineEmits<{
     >
       <div class="flex items-center gap-2 mb-3 px-1">
         <Sparkles class="w-3.5 h-3.5 text-primary" />
-        <h2
-          class="text-[11px] font-bold text-muted-foreground uppercase tracking-widest"
-        >
+        <h2 class="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
           继续阅读
         </h2>
       </div>
@@ -74,13 +70,9 @@ const emit = defineEmits<{
 
     <div v-if="otherBooks.length > 0" class="mb-4 px-1 flex items-center gap-2">
       <Library class="w-3.5 h-3.5 text-muted-foreground" />
-      <h2
-        class="text-[11px] font-bold text-muted-foreground uppercase tracking-widest"
-      >
+      <h2 class="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
         全部书籍
-        <span
-          class="text-[10px] font-normal text-muted-foreground/60 normal-case ml-1"
-        >
+        <span class="text-[10px] font-normal text-muted-foreground/60 normal-case ml-1">
           ({{ otherBooks.length }})
         </span>
       </h2>

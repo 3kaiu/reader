@@ -1,9 +1,7 @@
 import type { ReaderActionOptions } from './action-types'
 import { scrollReaderToTop } from './action-scroll'
 
-export function createReaderChapterNavigationActions(
-  options: ReaderActionOptions,
-) {
+export function createReaderChapterNavigationActions(options: ReaderActionOptions) {
   const handlePrevChapter = async () => {
     if (!options.readerStore.hasPrevChapter) {
       return

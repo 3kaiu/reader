@@ -13,7 +13,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
         <component :is="Component" :key="route.fullPath" />
       </Transition>
     </router-view>
-    
+
     <!-- 全局确认对话框 -->
     <ConfirmDialog />
   </AuthGuard>

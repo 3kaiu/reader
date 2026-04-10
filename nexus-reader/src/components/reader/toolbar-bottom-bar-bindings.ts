@@ -3,11 +3,9 @@ import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-pr
 import type { ReaderNavigationProps } from './reader-navigation-types'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 
-export function createReaderToolbarBottomBarBindings(
-  props: ReaderToolbarBottomBarProps,
-) {
+export function createReaderToolbarBottomBarBindings(props: ReaderToolbarBottomBarProps) {
   const readingProgress = computed(
-    () => ((props.currentChapterIndex + 1) / (props.totalChapters || 1)) * 100,
+    () => ((props.currentChapterIndex + 1) / (props.totalChapters || 1)) * 100
   )
 
   const navigationProps = computed<ReaderNavigationProps>(() => ({
@@ -21,7 +19,6 @@ export function createReaderToolbarBottomBarBindings(
     isNightMode: props.isNightMode,
     isEyeCareEnabled: props.isEyeCareEnabled,
     contentIssue: props.contentIssue,
-    isDecoding: props.isDecoding,
   }))
 
   return {

@@ -76,7 +76,9 @@ function onNoisePatternsInput(event: Event) {
     <div class="p-5 border-b border-border/50 flex items-start justify-between gap-3">
       <div>
         <p class="text-sm font-medium">Refine With Hints</p>
-        <p class="text-xs text-muted-foreground mt-1">输入结构化提示或自由文本提示，让 AI 修正规则并重新验证。</p>
+        <p class="text-xs text-muted-foreground mt-1">
+          输入结构化提示或自由文本提示，让 AI 修正规则并重新验证。
+        </p>
       </div>
       <div class="flex items-center gap-2">
         <button
@@ -111,26 +113,39 @@ function onNoisePatternsInput(event: Event) {
     >
       <p class="text-xs text-muted-foreground mb-3">AI Feedback Ops Insights (14d)</p>
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <div v-if="props.aiAssistOpsLeaderboard.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+        <div
+          v-if="props.aiAssistOpsLeaderboard.length > 0"
+          class="rounded-xl border border-border/50 bg-muted/20 p-3"
+        >
           <p class="text-xs text-muted-foreground mb-2">Top Sources</p>
           <ul class="space-y-1 text-[11px] break-all">
             <li v-for="item in props.aiAssistOpsLeaderboard" :key="item.sourceId">
-              {{ item.sourceId }} · {{ item.accepted }}/{{ item.count }} ·
-              accept={{ Math.round(item.acceptRate * 100) }}% ·
-              delta={{ Math.round(item.avgDeltaScore * 100) }} ·
-              regressions={{ item.regressionCount }}
+              {{ item.sourceId }} · {{ item.accepted }}/{{ item.count }} · accept={{
+                Math.round(item.acceptRate * 100)
+              }}% · delta={{ Math.round(item.avgDeltaScore * 100) }} · regressions={{
+                item.regressionCount
+              }}
             </li>
           </ul>
         </div>
-        <div v-if="props.aiAssistOpsRegressionTop.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+        <div
+          v-if="props.aiAssistOpsRegressionTop.length > 0"
+          class="rounded-xl border border-border/50 bg-muted/20 p-3"
+        >
           <p class="text-xs text-muted-foreground mb-2">Top Regressions</p>
           <ul class="space-y-1 text-[11px] break-all">
-            <li v-for="item in props.aiAssistOpsRegressionTop" :key="`${item.regression}-${item.count}`">
+            <li
+              v-for="item in props.aiAssistOpsRegressionTop"
+              :key="`${item.regression}-${item.count}`"
+            >
               {{ item.regression }} · {{ item.count }}
             </li>
           </ul>
         </div>
-        <div v-if="props.aiAssistOpsRecommendedActions.length > 0" class="rounded-xl border border-border/50 bg-muted/20 p-3">
+        <div
+          v-if="props.aiAssistOpsRecommendedActions.length > 0"
+          class="rounded-xl border border-border/50 bg-muted/20 p-3"
+        >
           <p class="text-xs text-muted-foreground mb-2">Recommended Actions</p>
           <ul class="space-y-1 text-[11px] break-all">
             <li
@@ -139,10 +154,17 @@ function onNoisePatternsInput(event: Event) {
             >
               <div>{{ item.actionCode }} · p={{ item.priority }} · {{ item.reason }}</div>
               <div class="mt-1 flex gap-1">
-                <button class="h-6 px-2 rounded-full border bg-background hover:bg-muted text-[10px]" @click="emit('applyRecommendedAction', item.actionCode, item.reason)">
+                <button
+                  class="h-6 px-2 rounded-full border bg-background hover:bg-muted text-[10px]"
+                  @click="emit('applyRecommendedAction', item.actionCode, item.reason)"
+                >
                   应用
                 </button>
-                <button class="h-6 px-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 text-[10px] disabled:opacity-50" :disabled="props.refineLoading || !props.hasCurrentPackage" @click="emit('applyRecommendedActionAndRefine', item.actionCode, item.reason)">
+                <button
+                  class="h-6 px-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 text-[10px] disabled:opacity-50"
+                  :disabled="props.refineLoading || !props.hasCurrentPackage"
+                  @click="emit('applyRecommendedActionAndRefine', item.actionCode, item.reason)"
+                >
                   应用并修正
                 </button>
               </div>
@@ -160,10 +182,15 @@ function onNoisePatternsInput(event: Event) {
           class="rounded-xl border border-border/50 bg-muted/20 p-4"
         >
           <p class="text-sm font-medium">{{ item.title }}</p>
-          <p class="text-[11px] text-muted-foreground mt-1">step={{ item.step }} · type={{ item.kind }}</p>
+          <p class="text-[11px] text-muted-foreground mt-1">
+            step={{ item.step }} · type={{ item.kind }}
+          </p>
           <p class="text-xs text-muted-foreground mt-2">{{ item.detail }}</p>
           <div class="mt-3 flex justify-end gap-2">
-            <button class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs" @click="emit('applyRefineSuggestion', item)">
+            <button
+              class="h-8 px-3 rounded-full border bg-background hover:bg-muted text-xs"
+              @click="emit('applyRefineSuggestion', item)"
+            >
               {{ item.applyLabel }}
             </button>
             <button
@@ -178,14 +205,46 @@ function onNoisePatternsInput(event: Event) {
       </div>
     </div>
     <div class="p-5 grid grid-cols-1 xl:grid-cols-2 gap-3">
-      <input v-model="structuredHints.searchEntry" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="search entry / path" />
-      <input v-model="structuredHints.searchResultSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="search result selector" />
-      <input v-model="structuredHints.bookTitleSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="book title selector" />
-      <input v-model="structuredHints.authorSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="author selector" />
-      <input v-model="structuredHints.introSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="intro selector" />
-      <input v-model="structuredHints.tocItemSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="toc item selector" />
-      <input v-model="structuredHints.contentSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="content selector" />
-      <input v-model="structuredHints.paginationSelector" class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm" placeholder="pagination selector" />
+      <input
+        v-model="structuredHints.searchEntry"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="search entry / path"
+      />
+      <input
+        v-model="structuredHints.searchResultSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="search result selector"
+      />
+      <input
+        v-model="structuredHints.bookTitleSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="book title selector"
+      />
+      <input
+        v-model="structuredHints.authorSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="author selector"
+      />
+      <input
+        v-model="structuredHints.introSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="intro selector"
+      />
+      <input
+        v-model="structuredHints.tocItemSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="toc item selector"
+      />
+      <input
+        v-model="structuredHints.contentSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="content selector"
+      />
+      <input
+        v-model="structuredHints.paginationSelector"
+        class="h-10 rounded-xl border border-border/50 bg-background px-3 text-sm"
+        placeholder="pagination selector"
+      />
     </div>
     <div class="px-5 pb-5">
       <input
@@ -204,9 +263,13 @@ function onNoisePatternsInput(event: Event) {
     </div>
     <div class="px-5 pb-5 flex items-center justify-between gap-3">
       <div class="text-xs text-muted-foreground">
-        <span v-if="props.refineAutoActions.length > 0">自动修正: {{ props.refineAutoActions.join(' | ') }}</span>
+        <span v-if="props.refineAutoActions.length > 0"
+          >自动修正: {{ props.refineAutoActions.join(' | ') }}</span
+        >
         <br v-if="props.refineAutoActions.length > 0 && props.refineAppliedHints.length > 0" />
-        <span v-if="props.refineAppliedHints.length > 0">已应用: {{ props.refineAppliedHints.join(' | ') }}</span>
+        <span v-if="props.refineAppliedHints.length > 0"
+          >已应用: {{ props.refineAppliedHints.join(' | ') }}</span
+        >
       </div>
       <button
         class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -220,12 +283,22 @@ function onNoisePatternsInput(event: Event) {
       <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
         <p class="text-xs text-muted-foreground mb-3">Refine Diff</p>
         <div class="space-y-3">
-          <div v-for="change in props.refineChanges" :key="change.path" class="rounded-lg border border-border/40 bg-background p-3">
+          <div
+            v-for="change in props.refineChanges"
+            :key="change.path"
+            class="rounded-lg border border-border/40 bg-background p-3"
+          >
             <p class="text-xs font-medium break-all">{{ change.path }}</p>
             <p class="text-[11px] text-muted-foreground mt-2">before</p>
-            <pre class="mt-1 overflow-auto rounded-md bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-all">{{ change.before || '--' }}</pre>
+            <pre
+              class="mt-1 overflow-auto rounded-md bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-all"
+              >{{ change.before || '--' }}</pre
+            >
             <p class="text-[11px] text-muted-foreground mt-2">after</p>
-            <pre class="mt-1 overflow-auto rounded-md bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-all">{{ change.after || '--' }}</pre>
+            <pre
+              class="mt-1 overflow-auto rounded-md bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-all"
+              >{{ change.after || '--' }}</pre
+            >
           </div>
         </div>
       </div>

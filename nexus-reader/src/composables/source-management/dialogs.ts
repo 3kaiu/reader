@@ -1,9 +1,7 @@
 import type { SourceListItem } from '@/stores/source'
 import type { SourceManagementState } from './types'
 
-export function createSourceDialogActions(
-  state: SourceManagementState,
-) {
+export function createSourceDialogActions(state: SourceManagementState) {
   function openImport() {
     state.showImport.value = true
   }

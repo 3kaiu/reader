@@ -1,9 +1,7 @@
 import type { ReplaceRule } from '@/types/replace'
 import type { ReplaceRuleManagementContext } from './types'
 
-export function createReplaceRuleLoadingActions(
-  context: ReplaceRuleManagementContext,
-) {
+export function createReplaceRuleLoadingActions(context: ReplaceRuleManagementContext) {
   async function loadRules() {
     context.options.clearSelection()
 

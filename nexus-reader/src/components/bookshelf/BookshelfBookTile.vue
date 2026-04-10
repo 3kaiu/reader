@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import BookCard from "@/components/book/BookCard.vue";
-import type { BookshelfBook } from "@/utils/bookshelf";
+import BookCard from '@/components/book/BookCard.vue'
+import type { BookshelfBook } from '@/utils/bookshelf'
 
 defineProps<{
-  book: BookshelfBook;
-  showProgress: boolean;
-  isManageMode: boolean;
-  isSelected: boolean;
-}>();
+  book: BookshelfBook
+  showProgress: boolean
+  isManageMode: boolean
+  isSelected: boolean
+}>()
 
 const emit = defineEmits<{
-  open: [book: BookshelfBook];
-  delete: [book: BookshelfBook];
-}>();
+  open: [book: BookshelfBook]
+  delete: [book: BookshelfBook]
+}>()
 </script>
 
 <template>

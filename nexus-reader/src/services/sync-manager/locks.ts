@@ -3,18 +3,14 @@ type NavigatorWithLocks = Navigator & {
     request(
       name: string,
       options: { ifAvailable: boolean },
-      callback: (lock: Lock | null) => Promise<void>,
+      callback: (lock: Lock | null) => Promise<void>
     ): Promise<void>
   }
 }
 
-export async function withSyncQueueLock(
-  processQueue: () => Promise<void>,
-): Promise<void> {
+export async function withSyncQueueLock(processQueue: () => Promise<void>): Promise<void> {
   const navigatorWithLocks =
-    typeof navigator === 'undefined'
-      ? null
-      : (navigator as NavigatorWithLocks)
+    typeof navigator === 'undefined' ? null : (navigator as NavigatorWithLocks)
 
   if (!navigatorWithLocks?.locks) {
     await processQueue()
@@ -31,7 +27,7 @@ export async function withSyncQueueLock(
         }
 
         await processQueue()
-      },
+      }
     )
   } catch {
     await processQueue()

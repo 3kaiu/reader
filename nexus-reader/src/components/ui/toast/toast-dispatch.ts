@@ -10,7 +10,7 @@ export function dispatchToast(action: ToastAction) {
 
     case 'UPDATE_TOAST':
       toastState.value.toasts = toastState.value.toasts.map(t =>
-        t.id === action.toast.id ? { ...t, ...action.toast } : t,
+        t.id === action.toast.id ? { ...t, ...action.toast } : t
       )
       break
 
@@ -21,7 +21,7 @@ export function dispatchToast(action: ToastAction) {
               ...t,
               open: false,
             }
-          : t,
+          : t
       )
       break
 

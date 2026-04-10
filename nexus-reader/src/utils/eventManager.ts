@@ -87,6 +87,6 @@ export function useEventManager() {
   return {
     addEventListener,
     emitEvent: emit,
-    cleanup
+    cleanup,
   }
 }

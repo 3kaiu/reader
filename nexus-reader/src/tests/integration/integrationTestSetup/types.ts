@@ -79,7 +79,6 @@ export interface IntegrationTestConfig {
     cloudflareWorkers: boolean
     kvStorage: boolean
     analytics: boolean
-    ai: boolean
     cdn: boolean
     tunnel: boolean
   }
@@ -93,7 +92,6 @@ export interface IntegrationTestConfig {
     api: number
     worker: number
     sync: number
-    ai: number
   }
   limits: {
     maxConcurrentRequests: number

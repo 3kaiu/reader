@@ -2,22 +2,15 @@
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import ReaderNavigationButton from './ReaderNavigationButton.vue'
 import ReaderNavigationProgress from './ReaderNavigationProgress.vue'
-import {
-  createReaderNavigationContentViewBindings,
-} from './reader-navigation-content-view-bindings'
-import type {
-  ReaderNavigationContentEmits,
-} from './reader-navigation-content-emit-types'
+import { createReaderNavigationContentViewBindings } from './reader-navigation-content-view-bindings'
+import type { ReaderNavigationContentEmits } from './reader-navigation-content-emit-types'
 import type { ReaderNavigationContentProps } from './reader-navigation-content-prop-types'
 
 const props = defineProps<ReaderNavigationContentProps>()
 
 const emit = defineEmits<ReaderNavigationContentEmits>()
-const {
-  previousButtonBindings,
-  nextButtonBindings,
-  progressProps,
-} = createReaderNavigationContentViewBindings(props, emit)
+const { previousButtonBindings, nextButtonBindings, progressProps } =
+  createReaderNavigationContentViewBindings(props, emit)
 </script>
 
 <template>

@@ -23,7 +23,7 @@ export function shouldSkipSyncProcessing(hasCriticalTasks: boolean): boolean {
 
 export function startSyncPolling(
   currentTimer: ReturnType<typeof setInterval> | null,
-  onTick: () => Promise<void>,
+  onTick: () => Promise<void>
 ): ReturnType<typeof setInterval> {
   if (currentTimer) {
     clearInterval(currentTimer)
@@ -42,7 +42,7 @@ export function startSyncPolling(
 }
 
 export function stopSyncPolling(
-  currentTimer: ReturnType<typeof setInterval> | null,
+  currentTimer: ReturnType<typeof setInterval> | null
 ): ReturnType<typeof setInterval> | null {
   if (currentTimer) {
     clearInterval(currentTimer)

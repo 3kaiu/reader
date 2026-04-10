@@ -57,12 +57,14 @@ export function buildSourceBuilderDiagnosticsItems(
       ? [`ai readability gain: ${Math.round(diagnostics.aiReadabilityGain * 100)}`]
       : []),
     ...(diagnostics.trafilaturaReadabilityGain != null
-      ? [`trafilatura readability gain: ${Math.round(diagnostics.trafilaturaReadabilityGain * 100)}`]
+      ? [
+          `trafilatura readability gain: ${Math.round(diagnostics.trafilaturaReadabilityGain * 100)}`,
+        ]
       : []),
     ...(diagnostics.recommendedContentExtractor
       ? [`recommended extractor: ${diagnostics.recommendedContentExtractor}`]
       : []),
-    ...((diagnostics.contentCandidateSummaries ?? []).map(item => `candidate: ${item}`)),
+    ...(diagnostics.contentCandidateSummaries ?? []).map(item => `candidate: ${item}`),
     ...(diagnostics.jinaSearchUsed ? ['external discovery fallback: jina_search'] : []),
     `generalization: ${Math.round((diagnostics.generalizationScore ?? 0) * 100)}`,
     `same-site candidates: ${diagnostics.sameSiteCandidateCount ?? 0}`,

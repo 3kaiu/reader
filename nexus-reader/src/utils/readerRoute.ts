@@ -6,10 +6,13 @@ export interface ReaderRouteTarget {
 }
 
 type ReaderRouteInput = Partial<ReaderRouteTarget> | null | undefined
-type ReaderRouteLike = {
-  sourceId?: unknown
-  bookUrl?: unknown
-} | null | undefined
+type ReaderRouteLike =
+  | {
+      sourceId?: unknown
+      bookUrl?: unknown
+    }
+  | null
+  | undefined
 
 function normalizeReaderRouteValue(value: unknown): string | null {
   if (typeof value === 'string') {
@@ -43,7 +46,7 @@ export function resolveReaderRouteTarget(target: ReaderRouteLike): ReaderRouteTa
 }
 
 export function parseReaderRouteQuery(
-  query: LocationQuery | Record<string, unknown>,
+  query: LocationQuery | Record<string, unknown>
 ): ReaderRouteTarget | null {
   return resolveReaderRouteTarget({
     sourceId: query.source,
@@ -70,17 +73,14 @@ export function buildReaderRouteLocation(target: ReaderRouteInput): RouteLocatio
   }
 }
 
-export function isSameReaderRouteTarget(
-  left: ReaderRouteInput,
-  right: ReaderRouteInput,
-): boolean {
+export function isSameReaderRouteTarget(left: ReaderRouteInput, right: ReaderRouteInput): boolean {
   const normalizedLeft = resolveReaderRouteTarget(left)
   const normalizedRight = resolveReaderRouteTarget(right)
 
   return Boolean(
     normalizedLeft &&
-      normalizedRight &&
-      normalizedLeft.sourceId === normalizedRight.sourceId &&
-      normalizedLeft.bookUrl === normalizedRight.bookUrl,
+    normalizedRight &&
+    normalizedLeft.sourceId === normalizedRight.sourceId &&
+    normalizedLeft.bookUrl === normalizedRight.bookUrl
   )
 }

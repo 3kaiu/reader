@@ -1,12 +1,6 @@
 import { ofetch } from 'ofetch'
-import {
-  API_TIMEOUT,
-  API_MAX_RETRIES,
-  API_RETRY_DELAY_MULTIPLIER,
-} from '@/constants/api'
-import {
-  isLikelyNetworkOrCorsError,
-} from './errors'
+import { API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
+import { isLikelyNetworkOrCorsError } from './errors'
 import {
   attachAuthHeaders,
   attachMessagePackHeaders,
@@ -41,7 +35,13 @@ const internalFetch = ofetch.create({
     const requestOptions = options as InternalApiFetchOptions
     if (requestOptions._startTime) {
       const responseTime = performance.now() - requestOptions._startTime
-      recordApiMetric(response.url, requestOptions, responseTime, 'api_response_ms', response.status)
+      recordApiMetric(
+        response.url,
+        requestOptions,
+        responseTime,
+        'api_response_ms',
+        response.status
+      )
     }
 
     decodeMessagePackResponse(response as ApiInterceptorResponse<unknown>)
@@ -51,10 +51,20 @@ const internalFetch = ofetch.create({
     const requestOptions = options as InternalApiFetchOptions
     if (response && requestOptions._startTime) {
       const responseTime = performance.now() - requestOptions._startTime
-      recordApiMetric(response.url, requestOptions, responseTime, 'api_error_duration', response.status)
+      recordApiMetric(
+        response.url,
+        requestOptions,
+        responseTime,
+        'api_error_duration',
+        response.status
+      )
     }
 
-    handleHttpResponseError(response as ApiInterceptorResponse<unknown> | undefined, error, requestOptions)
+    handleHttpResponseError(
+      response as ApiInterceptorResponse<unknown> | undefined,
+      error,
+      requestOptions
+    )
   },
 })
 

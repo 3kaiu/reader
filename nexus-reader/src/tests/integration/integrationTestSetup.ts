@@ -124,7 +124,9 @@ export class IntegrationTestEnvironment {
 
 let globalTestEnv: IntegrationTestEnvironment | null = null
 
-export function getIntegrationTestEnvironment(config?: Partial<IntegrationTestConfig>): IntegrationTestEnvironment {
+export function getIntegrationTestEnvironment(
+  config?: Partial<IntegrationTestConfig>
+): IntegrationTestEnvironment {
   if (!globalTestEnv) {
     globalTestEnv = new IntegrationTestEnvironment(config)
   }

@@ -1,24 +1,14 @@
 <script setup lang="ts">
 import ReaderFullscreenTime from './ReaderFullscreenTime.vue'
 import ReaderScrollContent from './ReaderScrollContent.vue'
-import {
-  createReaderContentViewportViewBindings,
-} from './reader-content-viewport-view-bindings'
-import type {
-  ReaderContentViewportEmits,
-} from './reader-content-viewport-emit-types'
-import type {
-  ReaderContentViewportProps,
-} from './reader-content-viewport-prop-types'
+import { createReaderContentViewportViewBindings } from './reader-content-viewport-view-bindings'
+import type { ReaderContentViewportEmits } from './reader-content-viewport-emit-types'
+import type { ReaderContentViewportProps } from './reader-content-viewport-prop-types'
 
 const props = defineProps<ReaderContentViewportProps>()
 const emit = defineEmits<ReaderContentViewportEmits>()
-const {
-  showFullscreenTime,
-  fullscreenTimeProps,
-  onLoadNextChapter,
-  onRetryLoad,
-} = createReaderContentViewportViewBindings(props, emit)
+const { showFullscreenTime, fullscreenTimeProps, onLoadNextChapter, onRetryLoad } =
+  createReaderContentViewportViewBindings(props, emit)
 </script>
 
 <template>
@@ -29,9 +19,6 @@ const {
       @retry-load="onRetryLoad"
     />
 
-    <ReaderFullscreenTime
-      v-if="showFullscreenTime"
-      v-bind="fullscreenTimeProps"
-    />
+    <ReaderFullscreenTime v-if="showFullscreenTime" v-bind="fullscreenTimeProps" />
   </div>
 </template>

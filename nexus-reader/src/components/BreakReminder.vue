@@ -27,19 +27,17 @@ const emit = defineEmits<{
             <Coffee class="h-10 w-10 text-amber-600 dark:text-amber-400" />
           </div>
         </div>
-        
+
         <!-- 标题 -->
-        <h3 class="mb-2 text-center text-lg font-semibold">
-          该休息一下了 👀
-        </h3>
-        
+        <h3 class="mb-2 text-center text-lg font-semibold">该休息一下了 👀</h3>
+
         <!-- 描述 -->
         <p class="mb-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
           您已连续阅读 <span class="font-medium text-amber-600">{{ readingTime }}</span>
           <br />
           让眼睛休息一下，看看远处吧
         </p>
-        
+
         <!-- 按钮 -->
         <div class="flex gap-3">
           <button

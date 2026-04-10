@@ -1,18 +1,13 @@
-import type {
-  ReaderExperienceReadingActions,
-} from './experience-reading-action-types'
-import type {
-  ReaderExperienceModelHandlerOptions,
-} from './experience-model-handler-types'
+import type { ReaderExperienceReadingActions } from './experience-reading-action-types'
+import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
 
-type ReaderExperienceReadingActionOptions =
-  Pick<
-    ReaderExperienceModelHandlerOptions,
-    'handleRefresh' | 'handlePrevChapter' | 'handleNextChapter' | 'handleSelectChapter'
-  >
+type ReaderExperienceReadingActionOptions = Pick<
+  ReaderExperienceModelHandlerOptions,
+  'handleRefresh' | 'handlePrevChapter' | 'handleNextChapter' | 'handleSelectChapter'
+>
 
 export function createReaderExperienceReadingActions(
-  options: ReaderExperienceReadingActionOptions,
+  options: ReaderExperienceReadingActionOptions
 ): ReaderExperienceReadingActions {
   return {
     handleRefresh: options.handleRefresh,

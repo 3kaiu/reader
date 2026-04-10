@@ -1,15 +1,11 @@
-import {
-  Eye,
-  Moon,
-  Sun,
-} from 'lucide-vue-next'
+import { Eye, Moon, Sun } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
 import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
 import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
 
 export function createReaderToolbarBottomThemeActions(
   props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn,
+  emit: ReaderToolbarBottomActionsEmitFn
 ): ReaderToolbarBottomAction[] {
   return [
     {

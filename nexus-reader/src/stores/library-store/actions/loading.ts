@@ -11,7 +11,7 @@ interface LibraryLoadingHelpers {
 
 export function createLibraryLoadingActions(
   state: LibraryStoreState,
-  helpers: LibraryLoadingHelpers,
+  helpers: LibraryLoadingHelpers
 ) {
   let booksLoadPromise: Promise<ApiResponse<Book[]>> | null = null
   let groupsLoadPromise: Promise<ApiResponse<BookGroup[]>> | null = null
@@ -33,7 +33,7 @@ export function createLibraryLoadingActions(
       .listBooks()
       .then(response => {
         helpers.markBooksLoaded(
-          response.isSuccess && Array.isArray(response.data) ? response.data : [],
+          response.isSuccess && Array.isArray(response.data) ? response.data : []
         )
         return response
       })
@@ -62,7 +62,7 @@ export function createLibraryLoadingActions(
       .listGroups()
       .then(response => {
         helpers.markGroupsLoaded(
-          response.isSuccess && Array.isArray(response.data) ? response.data : [],
+          response.isSuccess && Array.isArray(response.data) ? response.data : []
         )
         return response
       })

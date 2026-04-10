@@ -1,12 +1,8 @@
-import type {
-  ReaderExperienceModelVisibilityOptions,
-} from './experience-model-visibility-types'
-import type {
-  ReaderExperienceModelFeatures,
-} from './view-model-experience-feature-types'
+import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
+import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
 
 export function createReaderExperienceModelVisibilityOptions(
-  features: ReaderExperienceModelFeatures,
+  features: ReaderExperienceModelFeatures
 ): ReaderExperienceModelVisibilityOptions {
   return {
     showToolbar: features.chrome.showToolbar,
@@ -15,6 +11,5 @@ export function createReaderExperienceModelVisibilityOptions(
     showSourcePicker: features.chrome.showSourcePicker,
     showBookInfo: features.chrome.showBookInfo,
     showKeyboardHelp: features.chrome.showKeyboardHelp,
-    showDecoderSettings: features.chrome.showDecoderSettings,
   }
 }

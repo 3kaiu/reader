@@ -1,12 +1,8 @@
-import type {
-  ReaderExperienceModalActions,
-} from './experience-modal-action-types'
-import type {
-  ReaderExperienceModelVisibilityOptions,
-} from './experience-model-visibility-types'
+import type { ReaderExperienceModalActions } from './experience-modal-action-types'
+import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
 
 export function createReaderExperienceModalActions(
-  options: ReaderExperienceModelVisibilityOptions,
+  options: ReaderExperienceModelVisibilityOptions
 ): ReaderExperienceModalActions {
   return {
     setShowCatalog(value) {
@@ -23,9 +19,6 @@ export function createReaderExperienceModalActions(
     },
     setShowKeyboardHelp(value) {
       options.showKeyboardHelp.value = value
-    },
-    setShowDecoderSettings(value) {
-      options.showDecoderSettings.value = value
     },
   }
 }

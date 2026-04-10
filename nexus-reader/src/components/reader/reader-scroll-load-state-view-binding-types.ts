@@ -1,13 +1,8 @@
 import type { ComputedRef } from 'vue'
-import type {
-  ReaderScrollLoadActionsProps,
-} from './reader-scroll-load-actions-prop-types'
-import type {
-  ReaderScrollLoadingStateProps,
-} from './reader-scroll-loading-state-prop-types'
+import type { ReaderScrollLoadActionsProps } from './reader-scroll-load-actions-prop-types'
+import type { ReaderScrollLoadingStateProps } from './reader-scroll-loading-state-prop-types'
 
-export interface ReaderScrollLoadActionsBindings
-  extends ReaderScrollLoadActionsProps {
+export interface ReaderScrollLoadActionsBindings extends ReaderScrollLoadActionsProps {
   onLoadNextChapter: () => void
   onRetryLoad: () => void
 }

@@ -3,8 +3,7 @@ export type ReaderErrorStateEmits = {
   retryLoad: []
 }
 
-export type ReaderErrorStateEmitFn =
-  <EventName extends keyof ReaderErrorStateEmits>(
-    event: EventName,
-    ...args: ReaderErrorStateEmits[EventName]
-  ) => void
+export type ReaderErrorStateEmitFn = <EventName extends keyof ReaderErrorStateEmits>(
+  event: EventName,
+  ...args: ReaderErrorStateEmits[EventName]
+) => void

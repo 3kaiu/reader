@@ -1,11 +1,7 @@
 import { onUnmounted } from 'vue'
-import type {
-  ReaderChromeLifecycleActions,
-} from './chrome-lifecycle-action-types'
+import type { ReaderChromeLifecycleActions } from './chrome-lifecycle-action-types'
 
-export function setupReaderChromeLifecycle(
-  actions: ReaderChromeLifecycleActions,
-) {
+export function setupReaderChromeLifecycle(actions: ReaderChromeLifecycleActions) {
   onUnmounted(() => {
     actions.clearHideTimer()
   })

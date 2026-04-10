@@ -18,9 +18,7 @@ function normalizeDraftText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function createReplaceRuleDraft(
-  rule?: Partial<ReplaceRule> | null
-): ReplaceRuleDraft {
+export function createReplaceRuleDraft(rule?: Partial<ReplaceRule> | null): ReplaceRuleDraft {
   return {
     id: typeof rule?.id === 'string' ? rule.id : undefined,
     name: normalizeDraftText(rule?.name),
@@ -42,12 +40,8 @@ export function buildReplaceRuleFromDraft(
     return null
   }
 
-  const replacement = typeof draft?.replacement === 'string'
-    ? draft.replacement.trim()
-    : ''
-  const scope = typeof draft?.scope === 'string'
-    ? draft.scope.trim()
-    : ''
+  const replacement = typeof draft?.replacement === 'string' ? draft.replacement.trim() : ''
+  const scope = typeof draft?.scope === 'string' ? draft.scope.trim() : ''
 
   return {
     id: typeof draft?.id === 'string' ? draft.id : undefined,

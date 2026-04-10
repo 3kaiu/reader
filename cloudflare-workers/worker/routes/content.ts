@@ -2,7 +2,6 @@ import { verifyAuth } from '../../shared/auth.ts'
 
 import type { Progress } from '../../shared/types.ts'
 import type {
-  AnalyticsSystem,
   ContentManagementSystem,
   QueueProcessor,
   UserPreferencesSystem,
@@ -10,6 +9,19 @@ import type {
 import type { EnhancedWorkerEnv } from '../types.ts'
 import { jsonError } from '../http.ts'
 import { corsHeaders, getErrorMessage, isJsonObject } from './shared.ts'
+
+function readRequestId(request: Request): string | null {
+  return (
+    request.headers.get('X-Request-ID') ||
+    request.headers.get('x-request-id') ||
+    request.headers.get('X-Request-Id')
+  )
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
 
 export async function handleUserPreferences(
   request: Request,
@@ -90,7 +102,6 @@ export async function handleUserBackup(
   }), { headers: corsHeaders(request) })
 }
 
-
 export async function handleProgressSync(request: Request, env: EnhancedWorkerEnv, url: URL): Promise<Response> {
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
@@ -104,10 +115,26 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
   if (request.method === 'GET') {
     const value = await env.PROGRESS_KV.get(key)
     if (!value) return jsonError(request, 'NOT_FOUND', 'Not Found', 404)
-    return new Response(value, {
-      status: 200,
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
-    })
+    try {
+      const parsed = JSON.parse(value) as Partial<Progress>
+      const normalized: Progress = {
+        bookId: typeof parsed.bookId === 'string' ? parsed.bookId : bookId,
+        chapterIndex: Math.max(0, Math.trunc(Number(parsed.chapterIndex ?? 0))),
+        scrollPercent: clampNumber(Number(parsed.scrollPercent ?? 0), 0, 100),
+        scrollKind: parsed.scrollKind === 'chapter' ? 'chapter' : 'document',
+        updatedAt: clampNumber(Number(parsed.updatedAt ?? 0), 0, Number.MAX_SAFE_INTEGER),
+        ...(typeof parsed.lastRequestId === 'string' ? { lastRequestId: parsed.lastRequestId } : {}),
+      }
+      return new Response(JSON.stringify(normalized), {
+        status: 200,
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    } catch {
+      return new Response(value, {
+        status: 200,
+        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      })
+    }
   }
 
   if (request.method === 'DELETE') {
@@ -121,16 +148,49 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
     return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
   }
 
-  const body = await request.json() as Partial<Progress>
-  const progress: Progress = {
-    bookId,
-    chapterIndex: Number(body.chapterIndex ?? 0),
-    scrollPercent: Number(body.scrollPercent ?? 0),
-    updatedAt: Date.now(),
-  }
+  try {
+    const body = await request.json() as Partial<Progress>
+    const requestId = readRequestId(request)
 
-  await env.PROGRESS_KV.put(key, JSON.stringify(progress), { expirationTtl: 30 * 24 * 60 * 60 })
-  return new Response(JSON.stringify({ success: true }), {
+    const nextCandidate: Progress = {
+      bookId,
+      chapterIndex: Math.max(0, Math.trunc(Number(body.chapterIndex ?? 0))),
+      scrollPercent: clampNumber(Number(body.scrollPercent ?? 0), 0, 100),
+      scrollKind: body.scrollKind === 'chapter' ? 'chapter' : 'document',
+      // Allow client-provided timestamp for multi-device ordering; fall back to edge clock.
+      updatedAt: clampNumber(Number(body.updatedAt ?? Date.now()), 0, Number.MAX_SAFE_INTEGER),
+      ...(requestId ? { lastRequestId: requestId } : {}),
+    }
+
+    const existingRaw = await env.PROGRESS_KV.get(key)
+    if (existingRaw) {
+      try {
+        const existing = JSON.parse(existingRaw) as Partial<Progress>
+        const existingUpdatedAt = Number(existing.updatedAt ?? 0)
+        const existingLastRequestId =
+          typeof existing.lastRequestId === 'string' ? existing.lastRequestId : null
+
+        if (requestId && existingLastRequestId === requestId) {
+          return new Response(JSON.stringify({ success: true, duplicate: true }), {
+            headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+          })
+        }
+
+        if (Number.isFinite(existingUpdatedAt) && existingUpdatedAt > nextCandidate.updatedAt) {
+          return new Response(JSON.stringify({ success: true, ignored: true }), {
+            headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+          })
+        }
+      } catch {
+        // Ignore invalid existing JSON and overwrite with fresh progress.
+      }
+    }
+
+    await env.PROGRESS_KV.put(key, JSON.stringify(nextCandidate), { expirationTtl: 30 * 24 * 60 * 60 })
+    return new Response(JSON.stringify({ success: true }), {
     headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
-  })
+    })
+  } catch (error: unknown) {
+    return jsonError(request, 'BAD_REQUEST', 'Invalid progress payload', 400, getErrorMessage(error))
+  }
 }

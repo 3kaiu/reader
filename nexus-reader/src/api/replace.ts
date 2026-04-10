@@ -49,9 +49,7 @@ export const replaceApi = {
       }
     }
 
-    const results = await Promise.all(
-      rules.map(rule => $delete<null>(`/replace_rules/${rule.id}`))
-    )
+    const results = await Promise.all(rules.map(rule => $delete<null>(`/replace_rules/${rule.id}`)))
     const deletedRules = rules.filter((_, index) => results[index].isSuccess)
 
     return {

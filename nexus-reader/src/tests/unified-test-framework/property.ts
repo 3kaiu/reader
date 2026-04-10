@@ -16,42 +16,35 @@ export class PropertyTestFramework {
       apiMethods.forEach(methodName => {
         it(`should handle ${methodName} with valid inputs`, async () => {
           await fc.assert(
-            fc.asyncProperty(
-              fc.string(),
-              fc.record({}),
-              async (input, params) => {
-                const mockApi = mockFactory.createApiMock(apiName, {
-                  [methodName]: () => ({ success: true, data: input }),
-                })
+            fc.asyncProperty(fc.string(), fc.record({}), async (input, params) => {
+              const mockApi = mockFactory.createApiMock(apiName, {
+                [methodName]: () => ({ success: true, data: input }),
+              })
 
-                const invoke = getMockMethod<{ success: boolean }>(mockApi, methodName)
-                const result = await invoke(input, params)
-                return result.success === true
-              }
-            )
+              const invoke = getMockMethod<{ success: boolean }>(mockApi, methodName)
+              const result = await invoke(input, params)
+              return result.success === true
+            })
           )
         })
 
         it(`should handle ${methodName} errors gracefully`, async () => {
           await fc.assert(
-            fc.asyncProperty(
-              fc.string(),
-              async (input) => {
-                const mockApi = mockFactory.createApiMock(apiName, {
-                  [methodName]: () => {
-                    throw new NexusError(ErrorCode.NETWORK_ERROR, 'Network error')
-                  },
-                })
+            fc.asyncProperty(fc.string(), async input => {
+              const mockApi = mockFactory.createApiMock(apiName, {
+                [methodName]: () => {
+                  throw new NexusError(ErrorCode.NETWORK_ERROR, 'Network error')
+                },
+              })
 
-                try {
-                  const invoke = getMockMethod(mockApi, methodName)
-                  await invoke(input)
-                  return false
-                } catch (error: unknown) {
-                  return error instanceof NexusError
-                }
+              try {
+                const invoke = getMockMethod(mockApi, methodName)
+                await invoke(input)
+                return false
+              } catch (error: unknown) {
+                return error instanceof NexusError
               }
-            )
+            })
           )
         })
       })
@@ -66,7 +59,7 @@ export class PropertyTestFramework {
     describe(`${structureName} - Data Structure Properties`, () => {
       it('should satisfy all invariants', async () => {
         await fc.assert(
-          fc.property(generator, (data) => invariants.every(invariant => invariant(data)))
+          fc.property(generator, data => invariants.every(invariant => invariant(data)))
         )
       })
     })

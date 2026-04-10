@@ -3,16 +3,13 @@
  * 书源管理页面 - 统一风格版
  * 特性：导入、启停、删除、只读查看定义
  */
-import { Download, FileJson, Save, Upload } from "lucide-vue-next";
-import ImportSource from "@/components/source/ImportSource.vue";
-import EditSource from "@/components/source/EditSource.vue";
-import {
-  PageHeader,
-  ManageModeBar,
-} from "@/components/common";
+import { Download, FileJson, Save, Upload } from 'lucide-vue-next'
+import ImportSource from '@/components/source/ImportSource.vue'
+import EditSource from '@/components/source/EditSource.vue'
+import { PageHeader, ManageModeBar } from '@/components/common'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useSourcesPageView } from "@/composables/useSourcesPageView";
-import SourcesLocalTab from "@/components/sources/SourcesLocalTab.vue";
+import { useSourcesPageView } from '@/composables/useSourcesPageView'
+import SourcesLocalTab from '@/components/sources/SourcesLocalTab.vue'
 
 const {
   searchKeyword,
@@ -43,7 +40,7 @@ const {
   deleteGroupSources,
   loadSources,
   goBack,
-} = useSourcesPageView();
+} = useSourcesPageView()
 </script>
 
 <template>
@@ -57,42 +54,46 @@ const {
         <PageHeader
           :search-value="searchKeyword"
           search-placeholder="搜索书源名称、URL或分组..."
-          :actions="activeTab === 'local' ? [
-            {
-              label: '导出',
-              icon: Download,
-              onClick: exportSources,
-              variant: 'outline',
-              hideLabelOnMobile: true,
-            },
-            {
-              label: '保存快照',
-              icon: Save,
-              onClick: saveRuntimeSnapshot,
-              variant: 'outline',
-              hideLabelOnMobile: true,
-            },
-            {
-              label: '导出治理快照',
-              icon: FileJson,
-              onClick: exportRuntimeSnapshot,
-              variant: 'outline',
-              hideLabelOnMobile: true,
-            },
-            {
-              label: '导入治理快照',
-              icon: Upload,
-              onClick: importRuntimeSnapshot,
-              variant: 'outline',
-              hideLabelOnMobile: true,
-            },
-            {
-              label: '导入书源',
-              icon: Upload,
-              onClick: openImport,
-              variant: 'default',
-            },
-          ] : []"
+          :actions="
+            activeTab === 'local'
+              ? [
+                  {
+                    label: '导出',
+                    icon: Download,
+                    onClick: exportSources,
+                    variant: 'outline',
+                    hideLabelOnMobile: true,
+                  },
+                  {
+                    label: '保存快照',
+                    icon: Save,
+                    onClick: saveRuntimeSnapshot,
+                    variant: 'outline',
+                    hideLabelOnMobile: true,
+                  },
+                  {
+                    label: '导出治理快照',
+                    icon: FileJson,
+                    onClick: exportRuntimeSnapshot,
+                    variant: 'outline',
+                    hideLabelOnMobile: true,
+                  },
+                  {
+                    label: '导入治理快照',
+                    icon: Upload,
+                    onClick: importRuntimeSnapshot,
+                    variant: 'outline',
+                    hideLabelOnMobile: true,
+                  },
+                  {
+                    label: '导入书源',
+                    icon: Upload,
+                    onClick: openImport,
+                    variant: 'default',
+                  },
+                ]
+              : []
+          "
           @update:search-value="searchKeyword = $event"
           @back="goBack"
         >
@@ -127,9 +128,8 @@ const {
               }
             "
           />
-      </TabsContent>
-
-    </Tabs>
+        </TabsContent>
+      </Tabs>
     </main>
 
     <ManageModeBar
@@ -142,11 +142,7 @@ const {
     />
 
     <ImportSource v-model:open="showImport" @success="loadSources" />
-    <EditSource
-      v-model:open="showEdit"
-      :source="currentEditSource"
-      @saved="loadSources"
-    />
+    <EditSource v-model:open="showEdit" :source="currentEditSource" @saved="loadSources" />
   </div>
 </template>
 

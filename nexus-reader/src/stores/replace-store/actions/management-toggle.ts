@@ -5,12 +5,10 @@ import { getReplaceRuleKey } from '@/utils/replaceRules'
 import { upsertRuleList } from '@/utils/replaceStore'
 import type { ReplaceManagementHelpers } from './management-shared'
 
-export function createReplaceManagementToggleActions(
-  helpers: ReplaceManagementHelpers,
-) {
+export function createReplaceManagementToggleActions(helpers: ReplaceManagementHelpers) {
   async function setRuleEnabled(
     rule: ReplaceRule,
-    enabled: boolean,
+    enabled: boolean
   ): Promise<ApiResponse<ReplaceRule>> {
     const ruleKey = getReplaceRuleKey(rule)
     const previousRule = helpers.rules().find(item => getReplaceRuleKey(item) === ruleKey)
@@ -23,8 +21,8 @@ export function createReplaceManagementToggleActions(
               ...item,
               isEnabled: enabled,
             }
-          : item,
-      ),
+          : item
+      )
     )
 
     const response = await replaceApi.saveReplaceRule({
@@ -44,8 +42,8 @@ export function createReplaceManagementToggleActions(
               ...item,
               isEnabled: previousValue,
             }
-          : item,
-      ),
+          : item
+      )
     )
 
     return response

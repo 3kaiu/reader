@@ -5,11 +5,7 @@
 import { logger } from '@/utils/logger'
 import { initializeBatteryMonitoring } from './scheduler/monitoring'
 import { getQuotaForMode, resolvePowerModeFromBattery } from './scheduler/policy'
-import {
-  PowerMode,
-  type BatteryManagerLike,
-  type ResourceQuota,
-} from './scheduler/types'
+import { PowerMode, type BatteryManagerLike, type ResourceQuota } from './scheduler/types'
 
 export { PowerMode } from './scheduler/types'
 
@@ -29,7 +25,7 @@ class HardwareScheduler {
   }
 
   private async initMonitoring() {
-    await initializeBatteryMonitoring((battery) => {
+    await initializeBatteryMonitoring(battery => {
       this.updateModeFromBattery(battery)
     })
 

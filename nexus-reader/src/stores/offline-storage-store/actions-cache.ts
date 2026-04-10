@@ -1,8 +1,5 @@
 import { offlineManager } from '@/services/offline/manager'
-import type {
-  OfflineStoreActions,
-  OfflineStoreState,
-} from './types'
+import type { OfflineStoreActions, OfflineStoreState } from './types'
 import type { OfflineStoreActionHelpers } from './actions-types'
 
 export function createOfflineStoreCacheActions(options: {

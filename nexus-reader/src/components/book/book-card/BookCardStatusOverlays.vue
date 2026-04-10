@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  CheckCircle2,
-  CloudDownload,
-} from 'lucide-vue-next'
+import { CheckCircle2, CloudDownload } from 'lucide-vue-next'
 
 interface Props {
   unreadCount: number
@@ -17,14 +14,9 @@ defineProps<Props>()
 </script>
 
 <template>
-  <div
-    v-if="unreadCount > 0 && !manageMode"
-    class="absolute top-2 right-2 z-20"
-  >
+  <div v-if="unreadCount > 0 && !manageMode" class="absolute top-2 right-2 z-20">
     <span
-      class="min-w-[16px] h-[16px] px-1.5 flex items-center justify-center
-             bg-red-500 text-white text-[9px] font-black rounded-full
-             shadow-premium ring-2 ring-background"
+      class="min-w-[16px] h-[16px] px-1.5 flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full shadow-premium ring-2 ring-background"
     >
       {{ unreadCount > 99 ? '99+' : unreadCount }}
     </span>

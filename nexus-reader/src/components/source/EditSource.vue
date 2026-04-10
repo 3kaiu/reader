@@ -2,26 +2,23 @@
 import { useEditSourceView } from '@/composables/useEditSourceView'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import type { BookSource } from '@/types/source'
 
-const props = withDefaults(defineProps<{
-  open?: boolean
-  source?: BookSource | null
-}>(), {
-  open: false
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    source?: BookSource | null
+  }>(),
+  {
+    open: false,
+  }
+)
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'saved': []
+  saved: []
 }>()
 
 const {
@@ -70,7 +67,15 @@ async function handleSavePolicy() {
                 当前引擎对该源实际使用的抓取链路与治理参数。
               </p>
             </div>
-            <Badge :variant="circuitState === 'open' ? 'destructive' : circuitState === 'closed' ? 'secondary' : 'outline'">
+            <Badge
+              :variant="
+                circuitState === 'open'
+                  ? 'destructive'
+                  : circuitState === 'closed'
+                    ? 'secondary'
+                    : 'outline'
+              "
+            >
               熔断状态: {{ circuitState }}
             </Badge>
           </div>
@@ -87,9 +92,7 @@ async function handleSavePolicy() {
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="rounded-lg border bg-background px-3 py-2">
                 <p class="text-[11px] text-muted-foreground">超时预算</p>
-                <p class="text-sm font-medium mt-1">
-                  {{ runtimeProfile?.timeoutMs ?? 0 }} ms
-                </p>
+                <p class="text-sm font-medium mt-1">{{ runtimeProfile?.timeoutMs ?? 0 }} ms</p>
               </div>
               <div class="rounded-lg border bg-background px-3 py-2">
                 <p class="text-[11px] text-muted-foreground">重试预算</p>
@@ -107,10 +110,7 @@ async function handleSavePolicy() {
 
             <div class="space-y-2">
               <Label>策略链</Label>
-              <div
-                v-if="runtimeProfile?.strategyChain?.length"
-                class="flex flex-wrap gap-2"
-              >
+              <div v-if="runtimeProfile?.strategyChain?.length" class="flex flex-wrap gap-2">
                 <Badge
                   v-for="strategy in runtimeProfile.strategyChain"
                   :key="strategy"
@@ -119,15 +119,10 @@ async function handleSavePolicy() {
                   {{ strategy }}
                 </Badge>
               </div>
-              <p v-else class="text-xs text-muted-foreground">
-                当前没有可用的运行时策略链信息
-              </p>
+              <p v-else class="text-xs text-muted-foreground">当前没有可用的运行时策略链信息</p>
             </div>
 
-            <div
-              v-if="source?.health"
-              class="grid grid-cols-1 sm:grid-cols-2 gap-3"
-            >
+            <div v-if="source?.health" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="rounded-lg border bg-background px-3 py-2">
                 <p class="text-[11px] text-muted-foreground">健康摘要</p>
                 <p class="text-sm font-medium mt-1">
@@ -161,12 +156,10 @@ async function handleSavePolicy() {
                   {{ source.health.primaryFailure || 'none' }}
                 </p>
                 <p class="text-[11px] text-muted-foreground mt-1">
-                  连败 {{ source.health.consecutiveFailures || 0 }} · 延迟 {{ source.health.avgLatencyMs || 0 }} ms
+                  连败 {{ source.health.consecutiveFailures || 0 }} · 延迟
+                  {{ source.health.avgLatencyMs || 0 }} ms
                 </p>
-                <p
-                  v-if="source.health.lowConfidence"
-                  class="text-[11px] text-amber-600 mt-1"
-                >
+                <p v-if="source.health.lowConfidence" class="text-[11px] text-amber-600 mt-1">
                   当前治理诊断置信度偏低，建议继续积累运行样本后再做最终判断。
                 </p>
               </div>
@@ -174,10 +167,7 @@ async function handleSavePolicy() {
 
             <div class="space-y-2">
               <Label>诊断建议</Label>
-              <div
-                v-if="diagnosticSuggestions.length > 0"
-                class="space-y-2"
-              >
+              <div v-if="diagnosticSuggestions.length > 0" class="space-y-2">
                 <div
                   v-for="item in diagnosticSuggestions"
                   :key="item.id"
@@ -238,11 +228,7 @@ async function handleSavePolicy() {
                 class="w-full h-10 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 :disabled="!canEditPolicy || saving"
               >
-                <option
-                  v-for="option in licenseOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
+                <option v-for="option in licenseOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>
@@ -308,9 +294,7 @@ async function handleSavePolicy() {
         >
           {{ saving ? '保存中...' : '保存治理策略' }}
         </Button>
-        <Button class="w-full" variant="outline" @click="emit('update:open', false)">
-          关闭
-        </Button>
+        <Button class="w-full" variant="outline" @click="emit('update:open', false)"> 关闭 </Button>
       </SheetFooter>
     </SheetContent>
   </Sheet>

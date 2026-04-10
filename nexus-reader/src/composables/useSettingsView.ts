@@ -31,15 +31,9 @@ export function useSettingsView() {
     saveAgentConfigCustom,
     resetAgentConfigOverride,
   } = useSettingsAgentRouting()
-  const {
-    refreshSourcePackages,
-    importSourcePackage,
-    selectSourcePackage,
-    deleteSourcePackage,
-  } = useSettingsSourcePackages()
-  const {
-    features: addonFeatures,
-  } = storeToRefs(addonsStore)
+  const { refreshSourcePackages, importSourcePackage, selectSourcePackage, deleteSourcePackage } =
+    useSettingsSourcePackages()
+  const { features: addonFeatures } = storeToRefs(addonsStore)
   const {
     clientRoutingLoading,
     clientRoutingSummary,
@@ -57,12 +51,8 @@ export function useSettingsView() {
     sourcePackages,
     sourcePackageDetailSummary,
   } = storeToRefs(settingsStore)
-  const {
-    storageUsage,
-    exportDataBackup,
-    hydrateSettingsDashboard,
-    clearAppData,
-  } = useSettingsMaintenance()
+  const { storageUsage, exportDataBackup, hydrateSettingsDashboard, clearAppData } =
+    useSettingsMaintenance()
 
   const addonEntryCards = computed(() =>
     ADDON_ENTRY_CARDS.filter(item => addonsStore.isEnabled(item.feature))
@@ -80,8 +70,7 @@ export function useSettingsView() {
   async function handleClearCache() {
     const confirmed = await confirm({
       title: '确认清除缓存',
-      description:
-        '确定清除当前应用的本地缓存与设置吗？不会影响浏览器中其他站点的数据。',
+      description: '确定清除当前应用的本地缓存与设置吗？不会影响浏览器中其他站点的数据。',
       variant: 'destructive',
     })
     if (!confirmed) {
@@ -115,8 +104,7 @@ export function useSettingsView() {
   }
 
   onMounted(async () => {
-    const requestedAddon =
-      typeof route.query.addon === 'string' ? route.query.addon : null
+    const requestedAddon = typeof route.query.addon === 'string' ? route.query.addon : null
 
     if (
       requestedAddon &&

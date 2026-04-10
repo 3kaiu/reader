@@ -74,39 +74,3 @@ html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter
 .reader-content-host .break-inside-avoid {
   break-inside: avoid;
 }
-
-.reader-content-host .reader-text .decoder-entity {
-  cursor: pointer;
-  border-bottom: 2px dotted currentColor;
-  padding-bottom: 1px;
-  transition: all 0.2s ease;
-}
-
-.reader-content-host .reader-text .decoder-entity:hover {
-  background-color: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
-  border-bottom-style: solid;
-}
-
-.reader-content-host .reader-text .decoder-high {
-  border-color: rgb(34, 197, 94);
-}
-
-.reader-content-host .reader-text .decoder-high:hover {
-  background-color: rgba(34, 197, 94, 0.1);
-}
-
-.reader-content-host .reader-text .decoder-medium {
-  border-color: rgb(234, 179, 8);
-}
-
-.reader-content-host .reader-text .decoder-medium:hover {
-  background-color: rgba(234, 179, 8, 0.1);
-}
-
-.reader-content-host .reader-text .decoder-low {
-  border-color: rgb(239, 68, 68);
-}
-
-.reader-content-host .reader-text .decoder-low:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-}

@@ -1,7 +1,4 @@
-import {
-  isNexusError,
-  toErrorLike,
-} from '../core'
+import { isNexusError, toErrorLike } from '../core'
 
 export function normalizeErrorCode(value: string): string {
   const normalized = value
@@ -19,10 +16,7 @@ export function cleanErrorMessage(message: string): string {
     return 'Unknown error'
   }
 
-  const withoutJavaPrefix = trimmed.replace(
-    /^(?:[\w$.]+(?:Exception|Error)):\s+/,
-    '',
-  )
+  const withoutJavaPrefix = trimmed.replace(/^(?:[\w$.]+(?:Exception|Error)):\s+/, '')
 
   return withoutJavaPrefix.trim() || trimmed
 }
@@ -42,11 +36,9 @@ export function extractErrorMessage(error: unknown): string {
 
   if (error && typeof error === 'object') {
     const errorLike = toErrorLike(error)
-    const candidate = [
-      errorLike.errorMsg,
-      errorLike.message,
-      errorLike.error,
-    ].find(value => typeof value === 'string' && value.trim().length > 0)
+    const candidate = [errorLike.errorMsg, errorLike.message, errorLike.error].find(
+      value => typeof value === 'string' && value.trim().length > 0
+    )
     if (candidate) {
       return cleanErrorMessage(candidate)
     }

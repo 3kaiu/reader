@@ -11,9 +11,8 @@ import type { ReaderContentProps } from './reader-content-prop-types'
 
 const props = defineProps<ReaderContentProps>()
 const emit = defineEmits<ReaderContentEmits>()
-const { viewportProps } = createReaderContentBindings(props, {
-  onEntityClick: (entity, event) => emit('entityClick', entity, event),
-})
+void emit
+const { viewportProps } = createReaderContentBindings(props)
 </script>
 
 <template>

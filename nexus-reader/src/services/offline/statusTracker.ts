@@ -52,11 +52,7 @@ export class OfflineStatusTracker {
     }
   }
 
-  notify(
-    queuedOperations: number,
-    cachedContent: number,
-    onError: (error: unknown) => void
-  ): void {
+  notify(queuedOperations: number, cachedContent: number, onError: (error: unknown) => void): void {
     const status = this.getStatus(queuedOperations, cachedContent)
     this.listeners.forEach(listener => {
       try {

@@ -109,7 +109,10 @@ const emit = defineEmits<{
       </div>
     </div>
     <div v-if="props.validationReport" class="px-5 pb-5">
-      <pre class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs">{{ JSON.stringify(props.validationReport, null, 2) }}</pre>
+      <pre
+        class="w-full overflow-auto rounded-xl border border-border/50 bg-background p-4 text-xs"
+        >{{ JSON.stringify(props.validationReport, null, 2) }}</pre
+      >
     </div>
   </section>
 </template>

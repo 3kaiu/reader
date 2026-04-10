@@ -2,9 +2,7 @@ import { nextTick } from 'vue'
 import type { ReaderActionOptions } from './action-types'
 import { restoreReaderRefreshPosition } from './action-scroll'
 
-export function createReaderChapterRefreshAction(
-  options: ReaderActionOptions,
-) {
+export function createReaderChapterRefreshAction(options: ReaderActionOptions) {
   return async function handleRefresh() {
     try {
       const scrollRatio = await options.readerStore.refreshChapter()

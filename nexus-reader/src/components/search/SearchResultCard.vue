@@ -1,94 +1,86 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { BookMarked, Check, Loader2, Radio } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { LazyImage } from "@/components/ui";
+import { computed, ref } from 'vue'
+import { BookMarked, Check, Loader2, Radio } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { LazyImage } from '@/components/ui'
 import type {
   SearchDisplayResult,
   SearchExplain,
   SearchResult,
   SearchResultActionPayload,
-} from "@/types/search";
-import { getSearchResultIdentity } from "@/utils/searchStore";
+} from '@/types/search'
+import { getSearchResultIdentity } from '@/utils/searchStore'
 
 const props = defineProps<{
-  book: SearchDisplayResult;
-  openingBook: string | null;
-  hasBookOnShelf: (book: SearchResult) => boolean;
-}>();
+  book: SearchDisplayResult
+  openingBook: string | null
+  hasBookOnShelf: (book: SearchResult) => boolean
+}>()
 
 const emit = defineEmits<{
-  open: [payload: SearchResultActionPayload];
-  addToShelf: [payload: SearchResultActionPayload];
-}>();
+  open: [payload: SearchResultActionPayload]
+  addToShelf: [payload: SearchResultActionPayload]
+}>()
 
-const showSourceSheet = ref(false);
+const showSourceSheet = ref(false)
 
-const primaryBook = computed<SearchResult>(() => props.book.sourceVariants[0] || props.book);
+const primaryBook = computed<SearchResult>(() => props.book.sourceVariants[0] || props.book)
 const isOpeningAnyVariant = computed(() =>
-  props.book.sourceVariants.some(
-    variant => getSearchResultIdentity(variant) === props.openingBook,
-  ),
-);
+  props.book.sourceVariants.some(variant => getSearchResultIdentity(variant) === props.openingBook)
+)
 
 function isPrimaryVariant(variant: SearchResult): boolean {
   return (
-    variant.sourceId === primaryBook.value.sourceId &&
-    variant.bookUrl === primaryBook.value.bookUrl
-  );
+    variant.sourceId === primaryBook.value.sourceId && variant.bookUrl === primaryBook.value.bookUrl
+  )
 }
 
 function isOpeningVariant(variant: SearchResult): boolean {
-  return getSearchResultIdentity(variant) === props.openingBook;
+  return getSearchResultIdentity(variant) === props.openingBook
 }
 
 function openVariant(variant: SearchResult) {
-  showSourceSheet.value = false;
-  emit("open", {
+  showSourceSheet.value = false
+  emit('open', {
     book: variant,
     rememberPreference: true,
-  });
+  })
 }
 
 function getStrategyLabel(explain?: SearchExplain): string | null {
   if (!explain) {
-    return null;
+    return null
   }
 
-  if (explain.strategy === "direct_detail") {
-    return "直链解析";
+  if (explain.strategy === 'direct_detail') {
+    return '直链解析'
   }
 
-  if (explain.strategy === "external_discovery") {
-    return explain.provider === "jina_search" ? "Jina 发现" : "外部发现";
+  if (explain.strategy === 'external_discovery') {
+    return explain.provider === 'jina_search' ? 'Jina 发现' : '外部发现'
   }
 
-  return "原生搜索";
+  return '原生搜索'
 }
 
 function getRankingHint(explain?: SearchExplain): string | null {
   if (!explain) {
-    return null;
+    return null
   }
 
-  const parts: string[] = [];
+  const parts: string[] = []
 
-  if (typeof explain.packageRank === "number" && explain.packageRank > 0) {
-    parts.push(`源优先级 ${explain.packageRank}`);
+  if (typeof explain.packageRank === 'number' && explain.packageRank > 0) {
+    parts.push(`源优先级 ${explain.packageRank}`)
   }
 
-  if (typeof explain.matchScore === "number" && explain.matchScore > 0) {
-    parts.push(`匹配 ${explain.matchScore}`);
+  if (typeof explain.matchScore === 'number' && explain.matchScore > 0) {
+    parts.push(`匹配 ${explain.matchScore}`)
   }
 
-  return parts.length > 0 ? parts.join(" · ") : explain.note || null;
+  return parts.length > 0 ? parts.join(' · ') : explain.note || null
 }
 </script>
 
@@ -120,7 +112,7 @@ function getRankingHint(explain?: SearchExplain): string | null {
 
       <div class="flex items-center gap-1.5 mb-2">
         <span class="text-xs text-muted-foreground truncate">{{
-          primaryBook.author || "未知作者"
+          primaryBook.author || '未知作者'
         }}</span>
         <span class="text-xs text-muted-foreground/30">•</span>
         <span class="text-[10px] text-muted-foreground/70 truncate max-w-24">{{
@@ -190,7 +182,7 @@ function getRankingHint(explain?: SearchExplain): string | null {
         >
           <Check v-if="hasBookOnShelf(primaryBook)" class="h-3 w-3 mr-1" />
           <span v-else class="mr-1 text-[10px]">+</span>
-          {{ hasBookOnShelf(primaryBook) ? "已添加" : "收藏" }}
+          {{ hasBookOnShelf(primaryBook) ? '已添加' : '收藏' }}
         </Button>
       </div>
     </div>
@@ -256,7 +248,11 @@ function getRankingHint(explain?: SearchExplain): string | null {
           <div class="flex items-start gap-3">
             <div
               class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-              :class="isPrimaryVariant(variant) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"
+              :class="
+                isPrimaryVariant(variant)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              "
             >
               <Check v-if="isPrimaryVariant(variant)" class="h-4 w-4" />
               <Radio v-else class="h-4 w-4" />
@@ -267,7 +263,11 @@ function getRankingHint(explain?: SearchExplain): string | null {
                 <span class="text-sm font-medium text-foreground truncate">
                   {{ variant.sourceName }}
                 </span>
-                <Badge v-if="isPrimaryVariant(variant)" variant="secondary" class="h-5 px-1.5 text-[10px]">
+                <Badge
+                  v-if="isPrimaryVariant(variant)"
+                  variant="secondary"
+                  class="h-5 px-1.5 text-[10px]"
+                >
                   当前主源
                 </Badge>
                 <Badge
@@ -298,10 +298,7 @@ function getRankingHint(explain?: SearchExplain): string | null {
               >
                 {{ variant.latestChapterTitle }}
               </p>
-              <p
-                v-else-if="variant.intro"
-                class="mt-1 text-xs text-muted-foreground line-clamp-2"
-              >
+              <p v-else-if="variant.intro" class="mt-1 text-xs text-muted-foreground line-clamp-2">
                 {{ variant.intro.trim() }}
               </p>
             </div>
@@ -321,10 +318,12 @@ function getRankingHint(explain?: SearchExplain): string | null {
                 variant="ghost"
                 class="h-8 px-3 text-xs"
                 :class="hasBookOnShelf(variant) ? 'text-green-600' : 'text-muted-foreground'"
-                @click.stop="emit('addToShelf', {
-                  book: variant,
-                  rememberPreference: true,
-                })"
+                @click.stop="
+                  emit('addToShelf', {
+                    book: variant,
+                    rememberPreference: true,
+                  })
+                "
               >
                 {{ hasBookOnShelf(variant) ? '已收藏' : '收藏' }}
               </Button>

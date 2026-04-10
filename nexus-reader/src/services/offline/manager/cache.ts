@@ -1,19 +1,13 @@
 import { calculateContentSize } from '../cacheRegistry'
 import { logger } from '../../../utils/logger'
-import {
-  clearPersistedCachedContent,
-  removePersistedCachedContent,
-} from '../persistence'
+import { clearPersistedCachedContent, removePersistedCachedContent } from '../persistence'
 import type { CachedContent } from '../types'
-import type {
-  OfflineManagerCacheOptions,
-  OfflineManagerRuntimeState,
-} from './types'
+import type { OfflineManagerCacheOptions, OfflineManagerRuntimeState } from './types'
 
 export function cacheOfflineContent(
   state: OfflineManagerRuntimeState,
   content: Omit<CachedContent, 'timestamp'>,
-  options: Pick<OfflineManagerCacheOptions, 'persistCachedContent' | 'notifyListeners'>,
+  options: Pick<OfflineManagerCacheOptions, 'persistCachedContent' | 'notifyListeners'>
 ): void {
   state.cacheRegistry.cache(content)
   void options.persistCachedContent()
@@ -23,7 +17,7 @@ export function cacheOfflineContent(
 export async function removeOfflineCachedContent(
   state: OfflineManagerRuntimeState,
   id: string,
-  options: Pick<OfflineManagerCacheOptions, 'persistCachedContent' | 'notifyListeners'>,
+  options: Pick<OfflineManagerCacheOptions, 'persistCachedContent' | 'notifyListeners'>
 ): Promise<void> {
   if (!state.cacheRegistry.has(id)) {
     return
@@ -33,13 +27,10 @@ export async function removeOfflineCachedContent(
   try {
     await removePersistedCachedContent(id)
   } catch (error: unknown) {
-    logger.error(
-      'Failed to delete cached content by key, falling back to snapshot persist',
-      {
-        error,
-        id,
-      },
-    )
+    logger.error('Failed to delete cached content by key, falling back to snapshot persist', {
+      error,
+      id,
+    })
     await options.persistCachedContent()
   }
 
@@ -48,7 +39,7 @@ export async function removeOfflineCachedContent(
 
 export async function clearOfflineCachedContent(
   state: OfflineManagerRuntimeState,
-  options: Pick<OfflineManagerCacheOptions, 'notifyListeners'>,
+  options: Pick<OfflineManagerCacheOptions, 'notifyListeners'>
 ): Promise<void> {
   state.cacheRegistry.clear()
   try {
@@ -62,7 +53,7 @@ export async function clearOfflineCachedContent(
 export function cleanupExpiredOfflineContent(
   state: OfflineManagerRuntimeState,
   options: Pick<OfflineManagerCacheOptions, 'persistCachedContent' | 'notifyListeners'>,
-  maxAge = 7 * 24 * 60 * 60 * 1000,
+  maxAge = 7 * 24 * 60 * 60 * 1000
 ): void {
   const expiredIds = state.cacheRegistry.cleanupExpiredContent(maxAge)
   if (expiredIds.length > 0) {
@@ -74,7 +65,7 @@ export function cleanupExpiredOfflineContent(
 export async function precacheOfflineContent(
   state: OfflineManagerRuntimeState,
   contentIds: string[],
-  options: OfflineManagerCacheOptions,
+  options: OfflineManagerCacheOptions
 ): Promise<void> {
   if (!state.statusTracker.isCurrentlyOnline()) {
     logger.warn('Cannot precache content while offline')
@@ -95,7 +86,7 @@ export async function precacheOfflineContent(
             size: calculateContentSize(content.data),
             priority: 10,
           },
-          options,
+          options
         )
       }
     } catch (error: unknown) {

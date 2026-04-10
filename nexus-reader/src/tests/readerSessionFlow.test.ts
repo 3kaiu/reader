@@ -8,12 +8,14 @@ import { ErrorCode, NexusError } from '@/utils/errors'
 const mockGetBookInfo = vi.fn()
 const mockGetChapters = vi.fn()
 const mockGetContent = vi.fn()
+const mockBatchContent = vi.fn()
 
 vi.mock('@/api/reader', () => ({
   readerApi: {
     getBookInfo: (...args: unknown[]) => mockGetBookInfo(...args),
     getChapters: (...args: unknown[]) => mockGetChapters(...args),
     getContent: (...args: unknown[]) => mockGetContent(...args),
+    batchContent: (...args: unknown[]) => mockBatchContent(...args),
   },
 }))
 
@@ -38,6 +40,8 @@ function createReaderState(): ReaderStoreState {
     loadError: ref(null),
     loadErrorDetails: ref(null),
     progressMap: ref({}),
+    resumeScrollPercent: ref(null),
+    resumeScrollChapterIndex: ref(null),
     chapterContentCache: ref({}),
     contentStageReports: ref([]),
   }
@@ -46,6 +50,7 @@ function createReaderState(): ReaderStoreState {
 describe('Reader Session Flow Guards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockBatchContent.mockResolvedValue({ isSuccess: true, data: { results: [] } })
   })
 
   it('accepts wrapped chapters payload and normalizes invalid chapter entries', async () => {
@@ -379,10 +384,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -415,10 +417,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -445,10 +444,7 @@ describe('Reader Session Flow Guards', () => {
       }),
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -474,10 +470,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -502,10 +495,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -529,10 +519,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -560,10 +547,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -587,10 +571,7 @@ describe('Reader Session Flow Guards', () => {
       },
     })
 
-    const response = await helpers.fetchBookInfo(
-      'caller-source',
-      'https://example.com/caller',
-    )
+    const response = await helpers.fetchBookInfo('caller-source', 'https://example.com/caller')
 
     expect(response.isSuccess).toBe(true)
     expect(response.data).toMatchObject({
@@ -641,7 +622,7 @@ describe('Reader Session Flow Guards', () => {
     })
 
     await expect(helpers.fetchChapterContent(chapter)).rejects.toThrow(
-      '章节内容为空，请重试或切换书源',
+      '章节内容为空，请重试或切换书源'
     )
     expect(state.loadErrorDetails.value).toBe('content_empty')
   })
@@ -789,12 +770,12 @@ describe('Reader Session Flow Guards', () => {
             { stage: 'decode', ok: false, failureCode: 'decode_failed' },
           ],
           failureCode: 'fallback_code',
-        }),
-      ),
+        })
+      )
     )
 
     await expect(helpers.fetchChapterContent(chapter)).rejects.toThrow(
-      '正文解析失败 (阶段: decode · 代码: decode_failed)',
+      '正文解析失败 (阶段: decode · 代码: decode_failed)'
     )
     expect(state.loadErrorDetails.value).toBe('阶段: decode · 代码: decode_failed')
   })

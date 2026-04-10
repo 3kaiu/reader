@@ -1,7 +1,7 @@
-import { $delete, $get, $post, $put } from "./client"
-import type { Book } from "@/types/book"
-import type { BookGroup } from "@/types/group"
-import { groupApi } from "./group"
+import { $delete, $get, $post, $put } from './client'
+import type { Book } from '@/types/book'
+import type { BookGroup } from '@/types/group'
+import { groupApi } from './group'
 
 export interface SaveBookInput {
   sourceId: string
@@ -15,9 +15,9 @@ export interface SaveBookInput {
 export type { Book, BookGroup }
 
 export const libraryApi = {
-  listBooks: () => $get<Book[]>("/bookshelf"),
+  listBooks: () => $get<Book[]>('/bookshelf'),
   saveBook: (book: SaveBookInput) =>
-    $post<Book>("/bookshelf", {
+    $post<Book>('/bookshelf', {
       source_id: book.sourceId,
       book_url: book.bookUrl,
       name: book.name,
@@ -31,13 +31,13 @@ export const libraryApi = {
   moveBooksToGroup: async (groupId: string | null, books: Book[]) => {
     const targets = books.filter((book): book is Book & { id: string } => Boolean(book.id))
     const results = await Promise.all(
-      targets.map((book) => $put(`/bookshelf/${book.id}`, { group_id: groupId })),
+      targets.map(book => $put(`/bookshelf/${book.id}`, { group_id: groupId }))
     )
 
     return {
-      isSuccess: results.every((result) => result.isSuccess),
+      isSuccess: results.every(result => result.isSuccess),
       data: undefined,
-      errorMsg: results.find((result) => !result.isSuccess)?.errorMsg,
+      errorMsg: results.find(result => !result.isSuccess)?.errorMsg,
     }
   },
   listGroups: () => groupApi.getBookGroups(),

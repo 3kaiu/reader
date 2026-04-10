@@ -40,7 +40,7 @@ export function useReaderScrollSync(options: {
   const reportReaderMetric = (
     name: string,
     value: number,
-    context: Record<string, unknown> = {},
+    context: Record<string, unknown> = {}
   ) => {
     if (!shouldSampleMetric()) {
       return
@@ -58,8 +58,7 @@ export function useReaderScrollSync(options: {
     })
   }
   const handleVisibilityChange = () => {
-    const hidden =
-      typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
+    const hidden = typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
     pageActive = !hidden
     if (!pageActive) {
       teardownChapterSyncBindings()
@@ -132,6 +131,42 @@ export function useReaderScrollSync(options: {
   const debouncedChapterSync = useThrottleFn(() => {
     options.readerStore.updateChapterIndexByScroll()
   }, 500)
+
+  const debouncedCloudScrollSync = useThrottleFn(() => {
+    if (typeof document === 'undefined') return
+    const markerSelector = '.chapter-marker[data-chapter-index]'
+    const markers = Array.from(document.querySelectorAll<HTMLElement>(markerSelector))
+      .map(marker => ({
+        el: marker,
+        index: Number(marker.dataset.chapterIndex),
+      }))
+      .filter(item => Number.isFinite(item.index))
+      .sort((a, b) => a.index - b.index)
+
+    if (markers.length === 0) {
+      return
+    }
+
+    const currentIndex = options.readerStore.currentChapterIndex
+    const currentPos = markers.findIndex(m => m.index === currentIndex)
+    const currentMarker = currentPos >= 0 ? markers[currentPos] : null
+    if (!currentMarker) {
+      return
+    }
+
+    const nextMarker = markers.find((m, idx) => idx > currentPos && m.index > currentIndex) || null
+
+    const doc = document.documentElement
+    const viewportH = window.innerHeight || 1
+    const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
+    const chapterStart = Math.max(0, Math.min(maxDocScroll, currentMarker.el.offsetTop))
+    const chapterEndRaw = nextMarker ? nextMarker.el.offsetTop : doc.scrollHeight
+    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw - viewportH * 0.35))
+
+    const y = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
+    const percent = ((y - chapterStart) / Math.max(1, chapterEnd - chapterStart)) * 100
+    options.readerStore.syncScrollPercent(Math.max(0, Math.min(100, percent)))
+  }, 1500)
   const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
   let chapterMarkerObserver: IntersectionObserver | null = null
   const visibleChapterMarkers = new Set<HTMLElement>()
@@ -149,7 +184,7 @@ export function useReaderScrollSync(options: {
 
   const logPerformanceEvent = (
     kind: 'longtask' | 'layout-shift' | 'event',
-    payload: Record<string, unknown>,
+    payload: Record<string, unknown>
   ) => {
     const now = Date.now()
     const lastAt = performanceLogLastAt.get(kind) || 0
@@ -310,10 +345,8 @@ export function useReaderScrollSync(options: {
     }
 
     const mode = options.settingsStore.config.performanceMode
-    const observerRootMargin =
-      mode === 'aggressive' ? '-30% 0px -50% 0px' : '-35% 0px -45% 0px'
-    const observerThreshold =
-      mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
+    const observerRootMargin = mode === 'aggressive' ? '-30% 0px -50% 0px' : '-35% 0px -45% 0px'
+    const observerThreshold = mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
 
     if (!chapterMarkerObserver) {
       chapterMarkerObserver = new IntersectionObserver(
@@ -332,14 +365,12 @@ export function useReaderScrollSync(options: {
           root: null,
           rootMargin: observerRootMargin,
           threshold: observerThreshold,
-        },
+        }
       )
     }
 
     visibleChapterMarkers.clear()
-    const chapterMarkers = Array.from(
-      document.querySelectorAll<HTMLElement>(chapterMarkerSelector),
-    )
+    const chapterMarkers = Array.from(document.querySelectorAll<HTMLElement>(chapterMarkerSelector))
     chapterMarkers.forEach(marker => chapterMarkerObserver?.observe(marker))
     scheduleChapterSyncByVisibleMarkers()
     return true
@@ -363,8 +394,8 @@ export function useReaderScrollSync(options: {
     const supportedEntryTypes = PerformanceObserver.supportedEntryTypes || []
 
     if (supportedEntryTypes.includes('longtask')) {
-      const longTaskObserver = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const longTaskObserver = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
           if (entry.duration >= 50) {
             logPerformanceEvent('longtask', {
               duration: Number(entry.duration.toFixed(1)),
@@ -379,9 +410,12 @@ export function useReaderScrollSync(options: {
     }
 
     if (supportedEntryTypes.includes('layout-shift')) {
-      const layoutShiftObserver = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
-          const shiftEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean }
+      const layoutShiftObserver = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
+          const shiftEntry = entry as PerformanceEntry & {
+            value?: number
+            hadRecentInput?: boolean
+          }
           if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
             logPerformanceEvent('layout-shift', {
               value: Number((shiftEntry.value || 0).toFixed(4)),
@@ -395,8 +429,8 @@ export function useReaderScrollSync(options: {
     }
 
     if (supportedEntryTypes.includes('event')) {
-      const eventObserver = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const eventObserver = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
           if (entry.duration >= 120) {
             logPerformanceEvent('event', {
               name: entry.name,
@@ -456,6 +490,7 @@ export function useReaderScrollSync(options: {
     }
     pendingRebindDefers = 0
     window.removeEventListener('scroll', debouncedChapterSync)
+    window.removeEventListener('scroll', debouncedCloudScrollSync)
   }
 
   const setupChapterSyncBindings = () => {
@@ -470,11 +505,58 @@ export function useReaderScrollSync(options: {
     }
 
     window.addEventListener('scroll', debouncedChapterSync, { passive: true })
+    window.addEventListener('scroll', debouncedCloudScrollSync, { passive: true })
+  }
+
+  const applyPendingScrollResume = async () => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    const percent = options.readerStore.resumeScrollPercent
+    const targetIndex = options.readerStore.resumeScrollChapterIndex
+    if (typeof percent !== 'number' || !Number.isFinite(percent)) return
+    if (typeof targetIndex !== 'number' || !Number.isFinite(targetIndex)) return
+    if (options.readerStore.currentChapterIndex !== targetIndex) return
+
+    // Clear first to avoid re-entrancy loops.
+    options.readerStore.resumeScrollPercent = null
+    options.readerStore.resumeScrollChapterIndex = null
+
+    await nextTick()
+    const markerSelector = '.chapter-marker[data-chapter-index]'
+    const markers = Array.from(document.querySelectorAll<HTMLElement>(markerSelector))
+      .map(marker => ({
+        el: marker,
+        index: Number(marker.dataset.chapterIndex),
+      }))
+      .filter(item => Number.isFinite(item.index))
+      .sort((a, b) => a.index - b.index)
+
+    if (markers.length === 0) {
+      return
+    }
+
+    const currentPos = markers.findIndex(m => m.index === targetIndex)
+    const currentMarker = currentPos >= 0 ? markers[currentPos] : null
+    if (!currentMarker) {
+      return
+    }
+
+    const nextMarker = markers.find((m, idx) => idx > currentPos && m.index > targetIndex) || null
+    const doc = document.documentElement
+    const viewportH = window.innerHeight || 1
+    const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
+
+    const chapterStart = Math.max(0, Math.min(maxDocScroll, currentMarker.el.offsetTop))
+    const chapterEndRaw = nextMarker ? nextMarker.el.offsetTop : doc.scrollHeight
+    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw - viewportH * 0.35))
+
+    const y =
+      chapterStart + (Math.max(0, Math.min(100, percent)) / 100) * Math.max(1, chapterEnd - chapterStart)
+    window.scrollTo({ top: Math.max(0, Math.min(maxDocScroll, y)), behavior: 'auto' })
   }
 
   watch(
     () => arrivedState.bottom,
-    (isBottom) => {
+    isBottom => {
       if (!pageActive) {
         return
       }
@@ -485,6 +567,15 @@ export function useReaderScrollSync(options: {
         }
       }
     }
+  )
+
+  watch(
+    () => options.readerStore.currentChapterIndex,
+    () => {
+      // Best-effort scroll resume for multi-device progress.
+      void applyPendingScrollResume()
+    },
+    { flush: 'post' }
   )
 
   watch(
@@ -503,7 +594,7 @@ export function useReaderScrollSync(options: {
         scheduleMarkerObserverRebind()
       })
     },
-    { flush: 'post' },
+    { flush: 'post' }
   )
 
   watch(
@@ -515,7 +606,7 @@ export function useReaderScrollSync(options: {
       setupChapterSyncBindings()
       setupPerformanceObservers()
     },
-    { flush: 'post' },
+    { flush: 'post' }
   )
 
   watch(
@@ -526,12 +617,11 @@ export function useReaderScrollSync(options: {
         return
       }
       void requestReaderWakeLock()
-    },
+    }
   )
 
   onMounted(() => {
-    pageActive =
-      typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
+    pageActive = typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
     applyReaderPerformanceEnvironment()
     setupChapterSyncBindings()
     setupPerformanceObservers()

@@ -30,7 +30,7 @@ const styles = computed(() => ({
     :class="[
       variant === 'circle' ? 'rounded-full' : 'rounded-lg',
       animated ? 'skeleton-animated' : '',
-      className
+      className,
     ]"
     :style="styles"
   >
@@ -70,7 +70,8 @@ const styles = computed(() => ({
 }
 
 @keyframes skeleton-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

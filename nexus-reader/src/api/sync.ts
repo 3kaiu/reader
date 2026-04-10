@@ -1,4 +1,4 @@
-import { $delete, $get, $patch, $post, type ApiFetchOptions } from "./client"
+import { $delete, $get, $patch, $post, type ApiFetchOptions } from './client'
 
 type RoutingLatencySummary = {
   samples: number
@@ -361,12 +361,7 @@ export type SourceFlowAssistFeedbackStatsResponse = {
   recentRegressions: string[]
 }
 
-export type SourceFlowLifecycleState =
-  | 'new'
-  | 'warming'
-  | 'stable'
-  | 'degraded'
-  | 'quarantined'
+export type SourceFlowLifecycleState = 'new' | 'warming' | 'stable' | 'degraded' | 'quarantined'
 
 export type SourceFlowAssistProfile = {
   sourceId: string
@@ -391,10 +386,7 @@ export type SourceFlowAssistProfileAuditEntry = {
 
 export type SourceSessionState = 'cold' | 'warm' | 'healthy' | 'degraded' | 'blocked'
 
-export type SourceSessionAcquireStrategy =
-  | 'auto_browser_like'
-  | 'auto_api_like'
-  | 'manual_fallback'
+export type SourceSessionAcquireStrategy = 'auto_browser_like' | 'auto_api_like' | 'manual_fallback'
 
 export type SourceSessionProfile = {
   sourceId: string
@@ -543,17 +535,17 @@ export type RunByPackageResponse = {
 
 export const syncApi = {
   getClientRoutingAnalytics: async () => {
-    return await $get<ClientRoutingAnalytics>("/analytics/client-routing", {
+    return await $get<ClientRoutingAnalytics>('/analytics/client-routing', {
       silent: true,
     } satisfies ApiFetchOptions)
   },
   getAgentRouterStats: async () => {
-    return await $get<AgentRouterStats>("/agent/router-stats", {
+    return await $get<AgentRouterStats>('/agent/router-stats', {
       silent: true,
     } satisfies ApiFetchOptions)
   },
   getAgentRouterConfig: async () => {
-    return await $get<AgentRouterConfigSnapshot>("/agent/config", {
+    return await $get<AgentRouterConfigSnapshot>('/agent/config', {
       silent: true,
     } satisfies ApiFetchOptions)
   },
@@ -563,7 +555,7 @@ export const syncApi = {
       updatedAt: string
       updatedBy?: string | null
       config: AgentRouterConfigSnapshot['config']
-    }>("/agent/config", patch, {
+    }>('/agent/config', patch, {
       silent: true,
     } satisfies ApiFetchOptions)
   },
@@ -572,15 +564,15 @@ export const syncApi = {
       success: boolean
       cleared: boolean
       config: AgentRouterConfigSnapshot['config']
-    }>("/agent/config", {
+    }>('/agent/config', {
       silent: true,
     } satisfies ApiFetchOptions)
   },
   getAgentRouterConfigAudit: async (limit = 20, cursor?: string | null) => {
     const params = new URLSearchParams()
-    params.set("limit", String(Math.max(1, Math.min(100, limit))))
+    params.set('limit', String(Math.max(1, Math.min(100, limit))))
     if (cursor) {
-      params.set("cursor", cursor)
+      params.set('cursor', cursor)
     }
     return await $get<{
       window: string
@@ -592,7 +584,7 @@ export const syncApi = {
     } satisfies ApiFetchOptions)
   },
   listSourcePackages: async () => {
-    return await $get<SourcePackageSummary[]>("/source-packages", {
+    return await $get<SourcePackageSummary[]>('/source-packages', {
       silent: true,
     } satisfies ApiFetchOptions)
   },
@@ -603,7 +595,7 @@ export const syncApi = {
   },
   importSourcePackage: async (packageJson: string) => {
     return await $post<ImportSourcePackageResponse>(
-      "/source-packages/import",
+      '/source-packages/import',
       {
         package: JSON.parse(packageJson),
       },
@@ -639,19 +631,16 @@ export const syncApi = {
     freeTextHints?: string
   }) => {
     return await $post<SourceBuildFromSamplesResponse>(
-      "/source-builder/build-from-samples",
+      '/source-builder/build-from-samples',
       payload,
       {
         silent: true,
       } satisfies ApiFetchOptions
     )
   },
-  validateSourcePackage: async (
-    packageDetail: unknown,
-    samples?: SourceDebugPresetInputs
-  ) => {
+  validateSourcePackage: async (packageDetail: unknown, samples?: SourceDebugPresetInputs) => {
     return await $post<ValidateSourcePackageResponse>(
-      "/source-builder/validate",
+      '/source-builder/validate',
       {
         package: packageDetail,
         ...(samples ? { samples } : {}),
@@ -668,13 +657,9 @@ export const syncApi = {
     samples?: SourceDebugPresetInputs
     emitPackageJson?: boolean
   }) => {
-    return await $post<SourceRuleRefineResponse>(
-      "/source-builder/refine",
-      payload,
-      {
-        silent: true,
-      } satisfies ApiFetchOptions
-    )
+    return await $post<SourceRuleRefineResponse>('/source-builder/refine', payload, {
+      silent: true,
+    } satisfies ApiFetchOptions)
   },
   runEngineByPackage: async (payload: {
     package: unknown
@@ -682,7 +667,7 @@ export const syncApi = {
     query?: string
     targetUrl?: string
   }) => {
-    return await $post<RunByPackageResponse>("/engine/run-by-package", payload, {
+    return await $post<RunByPackageResponse>('/engine/run-by-package', payload, {
       silent: true,
     } satisfies ApiFetchOptions)
   },
@@ -806,10 +791,7 @@ export const syncApi = {
       } satisfies ApiFetchOptions
     )
   },
-  recoverSourceSessionProfile: async (payload: {
-    sourceId: string
-    action?: string
-  }) => {
+  recoverSourceSessionProfile: async (payload: { sourceId: string; action?: string }) => {
     return await $post<{ success: boolean; profile: SourceSessionProfile }>(
       '/source-session/profile/recover',
       payload,

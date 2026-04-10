@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useSettingsView } from "@/composables/useSettingsView";
-import SettingsContent from "@/components/settings/SettingsContent.vue";
+import { useSettingsView } from '@/composables/useSettingsView'
+import SettingsContent from '@/components/settings/SettingsContent.vue'
 
 const {
   addonFeatures,
@@ -39,7 +39,7 @@ const {
   toggleToolboxMode,
   navigateTo,
   goBack,
-} = useSettingsView();
+} = useSettingsView()
 </script>
 
 <template>
@@ -69,9 +69,7 @@ const {
       @back="goBack"
       @export-data="handleExportData"
       @clear-cache="handleClearCache"
-      @update-addon-feature="
-        (feature, enabled) => updateAddonFeature(feature, enabled)
-      "
+      @update-addon-feature="(feature, enabled) => updateAddonFeature(feature, enabled)"
       @refresh-client-routing="refreshClientRouting"
       @set-agent-config-disabled="setAgentConfigDisabled"
       @set-agent-config-shadow="setAgentConfigShadow"

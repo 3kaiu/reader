@@ -13,6 +13,6 @@ export interface ReaderModalsProps {
   catalogLoading?: boolean
   isCached?: (index: number) => boolean
   isDownloading?: boolean
-  downloadProgress?: { current: number, total: number }
+  downloadProgress?: { current: number; total: number }
   keyboardShortcuts: ReaderKeyboardShortcut[]
 }

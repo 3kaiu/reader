@@ -4,11 +4,14 @@ import { Check, Globe, ShieldAlert } from 'lucide-vue-next'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { LazyImage } from '@/components/ui'
 
-withDefaults(defineProps<{
-  open?: boolean
-}>(), {
-  open: false,
-})
+withDefaults(
+  defineProps<{
+    open?: boolean
+  }>(),
+  {
+    open: false,
+  }
+)
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -78,7 +81,9 @@ const { currentBook } = useBookSourcePickerView()
                 <span class="font-medium text-sm truncate">
                   {{ currentBook?.originName || currentBook?.sourceName || '当前书源' }}
                 </span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0"
+                >
                   保留
                 </span>
               </div>
@@ -89,7 +94,9 @@ const { currentBook } = useBookSourcePickerView()
           </div>
         </div>
 
-        <div class="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+        <div
+          class="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground"
+        >
           <div class="flex items-start gap-3">
             <ShieldAlert class="h-5 w-5 shrink-0 mt-0.5 text-amber-500" />
             <div>

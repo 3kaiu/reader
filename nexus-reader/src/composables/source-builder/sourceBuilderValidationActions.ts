@@ -182,10 +182,7 @@ export async function requestSourceSessionProfile(options: { sourceId: string })
   return await syncApi.getSourceSessionProfile(options.sourceId)
 }
 
-export async function recoverSourceSessionProfile(options: {
-  sourceId: string
-  action?: string
-}) {
+export async function recoverSourceSessionProfile(options: { sourceId: string; action?: string }) {
   return await syncApi.recoverSourceSessionProfile(options)
 }
 

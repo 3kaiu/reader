@@ -1,4 +1,3 @@
-import type { useDecoderStore } from '@/stores/decoder'
 import type { useOfflineStore } from '@/stores/offlineStorage'
 import type { useReaderStore } from '@/stores/reader'
 import type { useSettingsStore } from '@/stores/settings'
@@ -9,6 +8,4 @@ export interface ReaderSessionOptions {
   readerStore: ReturnType<typeof useReaderStore>
   settingsStore: ReturnType<typeof useSettingsStore>
   offlineStore: ReturnType<typeof useOfflineStore>
-  decoderStore: ReturnType<typeof useDecoderStore>
-  decoderAddonEnabled: boolean
 }

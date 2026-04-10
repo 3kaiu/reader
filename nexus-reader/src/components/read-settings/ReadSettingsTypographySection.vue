@@ -2,11 +2,7 @@
 import ReadSettingsTypographyOptionSection from '@/components/read-settings/ReadSettingsTypographyOptionSection.vue'
 import ReadSettingsTypographySliderSection from '@/components/read-settings/ReadSettingsTypographySliderSection.vue'
 import ReadSettingsTypographyWeightSection from '@/components/read-settings/ReadSettingsTypographyWeightSection.vue'
-import type {
-  ChineseConvert,
-  FontFamily,
-  ReaderConfig,
-} from '@/types/settings'
+import type { ChineseConvert, FontFamily, ReaderConfig } from '@/types/settings'
 
 interface FontOption {
   key: FontFamily

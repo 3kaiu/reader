@@ -38,16 +38,12 @@ export function filterNonEmptyGroups(
   books: readonly Book[]
 ): BookGroup[] {
   const bookGroupIds = new Set(
-    books
-      .map(book => (book.groupId == null ? '' : String(book.groupId)))
-      .filter(Boolean)
+    books.map(book => (book.groupId == null ? '' : String(book.groupId))).filter(Boolean)
   )
   return groups.filter(group => bookGroupIds.has(String(group.groupId)))
 }
 
-export function sortBooksByLastRead<T extends { lastReadTime?: number }>(
-  books: readonly T[]
-): T[] {
+export function sortBooksByLastRead<T extends { lastReadTime?: number }>(books: readonly T[]): T[] {
   return [...books].sort((left, right) => (right.lastReadTime || 0) - (left.lastReadTime || 0))
 }
 

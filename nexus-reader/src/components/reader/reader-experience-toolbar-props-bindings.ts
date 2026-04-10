@@ -1,12 +1,10 @@
-import type {
-  ReaderExperienceToolbarActions,
-} from './reader-experience-toolbar-action-types'
+import type { ReaderExperienceToolbarActions } from './reader-experience-toolbar-action-types'
 import type { ReaderToolbarProps } from './toolbar-prop-types'
 
 export function createReaderExperienceToolbarPropsBindings(
   toolbarProps: ReaderToolbarProps,
   actions: ReaderExperienceToolbarActions,
-  handleToggleEyeCare: () => void,
+  handleToggleEyeCare: () => void
 ) {
   return {
     ...toolbarProps,
@@ -22,6 +20,5 @@ export function createReaderExperienceToolbarPropsBindings(
     onNextChapter: actions.handleNextChapter,
     onOpenSourcePicker: actions.openSourcePicker,
     onOpenBookInfo: actions.openBookInfo,
-    onOpenDecoderSettings: actions.openDecoderSettings,
   }
 }

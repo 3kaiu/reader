@@ -7,8 +7,7 @@ export type ReaderKeyboardEmits = {
   escape: []
 }
 
-export type ReaderKeyboardEmitFn =
-  <EventName extends keyof ReaderKeyboardEmits>(
-    event: EventName,
-    ...args: ReaderKeyboardEmits[EventName]
-  ) => void
+export type ReaderKeyboardEmitFn = <EventName extends keyof ReaderKeyboardEmits>(
+  event: EventName,
+  ...args: ReaderKeyboardEmits[EventName]
+) => void

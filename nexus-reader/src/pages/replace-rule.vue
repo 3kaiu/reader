@@ -1,17 +1,10 @@
 <script setup lang="ts">
-import {
-  Plus,
-  Upload,
-  Download,
-} from "lucide-vue-next";
-import { useReplaceRulePageView } from "@/composables/useReplaceRulePageView";
-import EditRule from "@/components/replace/EditRule.vue";
-import ImportRule from "@/components/replace/ImportRule.vue";
-import {
-  PageHeader,
-  ManageModeBar,
-} from "@/components/common";
-import ReplaceRuleList from "@/components/replace-rules/ReplaceRuleList.vue";
+import { Plus, Upload, Download } from 'lucide-vue-next'
+import { useReplaceRulePageView } from '@/composables/useReplaceRulePageView'
+import EditRule from '@/components/replace/EditRule.vue'
+import ImportRule from '@/components/replace/ImportRule.vue'
+import { PageHeader, ManageModeBar } from '@/components/common'
+import ReplaceRuleList from '@/components/replace-rules/ReplaceRuleList.vue'
 
 const {
   searchKeyword,
@@ -35,7 +28,7 @@ const {
   exportRules,
   loadRules,
   goBack,
-} = useReplaceRulePageView();
+} = useReplaceRulePageView()
 </script>
 
 <template>
@@ -101,11 +94,7 @@ const {
 
     <!-- Modals -->
     <ImportRule v-model:open="showImport" @success="loadRules" />
-    <EditRule
-      v-model:open="showEdit"
-      :rule="currentEditRule"
-      @saved="loadRules"
-    />
+    <EditRule v-model:open="showEdit" :rule="currentEditRule" @saved="loadRules" />
   </div>
 </template>
 

@@ -1,13 +1,6 @@
-import {
-  fetchOfflineManagerContentForCaching,
-} from './cache'
-import {
-  createOfflineManagerRuntimeContext,
-  type OfflineManagerRuntimeContext,
-} from './context'
-import {
-  syncOfflineManagerQueuedOperations,
-} from './queue'
+import { fetchOfflineManagerContentForCaching } from './cache'
+import { createOfflineManagerRuntimeContext, type OfflineManagerRuntimeContext } from './context'
+import { syncOfflineManagerQueuedOperations } from './queue'
 import { initializeOfflineManager } from './setup'
 import { createOfflineManagerRuntimeState } from './state'
 import {

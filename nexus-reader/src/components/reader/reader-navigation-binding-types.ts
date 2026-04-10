@@ -1,9 +1,5 @@
-import type {
-  ComputedRef,
-} from 'vue'
-import type {
-  createReaderNavigationContentBindings,
-} from './reader-navigation-content-bindings'
+import type { ComputedRef } from 'vue'
+import type { createReaderNavigationContentBindings } from './reader-navigation-content-bindings'
 
 export interface ReaderNavigationProgressBindings {
   progressText: ComputedRef<string>

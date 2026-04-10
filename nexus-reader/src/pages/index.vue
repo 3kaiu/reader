@@ -2,13 +2,13 @@
 /**
  * 首页/书架 - Neo-Modern Redesign
  */
-import { computed, type ComponentPublicInstance } from "vue";
-import { useBookshelfView } from "@/composables/useBookshelfView";
-import { useBookshelfVirtualGrid } from "@/composables/useBookshelfVirtualGrid";
-import MoveBookDialog from "@/components/book/MoveBookDialog.vue";
-import BookshelfContent from "@/components/bookshelf/BookshelfContent.vue";
-import BookshelfHeaderBar from "@/components/bookshelf/BookshelfHeaderBar.vue";
-import BookshelfManageBar from "@/components/bookshelf/BookshelfManageBar.vue";
+import { computed, type ComponentPublicInstance } from 'vue'
+import { useBookshelfView } from '@/composables/useBookshelfView'
+import { useBookshelfVirtualGrid } from '@/composables/useBookshelfVirtualGrid'
+import MoveBookDialog from '@/components/book/MoveBookDialog.vue'
+import BookshelfContent from '@/components/bookshelf/BookshelfContent.vue'
+import BookshelfHeaderBar from '@/components/bookshelf/BookshelfHeaderBar.vue'
+import BookshelfManageBar from '@/components/bookshelf/BookshelfManageBar.vue'
 const {
   isDark,
   toggleDark,
@@ -36,18 +36,12 @@ const {
   handleDelete,
   navigateTo,
   goSearch,
-} = useBookshelfView();
-const {
-  virtualContainerRef,
-  shouldUseVirtualScroll,
-  virtualizer,
-  getVirtualRowItems,
-} = useBookshelfVirtualGrid(computed(() => otherBooks.value));
+} = useBookshelfView()
+const { virtualContainerRef, shouldUseVirtualScroll, virtualizer, getVirtualRowItems } =
+  useBookshelfVirtualGrid(computed(() => otherBooks.value))
 
-function bindVirtualContainerRef(
-  element: Element | ComponentPublicInstance | null,
-) {
-  virtualContainerRef.value = element instanceof HTMLElement ? element : null;
+function bindVirtualContainerRef(element: Element | ComponentPublicInstance | null) {
+  virtualContainerRef.value = element instanceof HTMLElement ? element : null
 }
 </script>
 

@@ -31,10 +31,7 @@ export const useSearchStore = defineStore('search', () => {
   const searchRequestId = ref(0)
   const selectedSources = ref<Set<string>>(new Set())
   const searchHistory = useStorage<string[]>('search-history', [])
-  const preferredSourceMap = useStorage<Record<string, string>>(
-    'search-preferred-sources',
-    {},
-  )
+  const preferredSourceMap = useStorage<Record<string, string>>('search-preferred-sources', {})
   let searchAbortController: AbortController | null = null
 
   const filteredResults = computed(() =>
@@ -46,11 +43,7 @@ export const useSearchStore = defineStore('search', () => {
   const availableSources = computed(() => buildAvailableSources(searchResult.value))
 
   function rememberQuery(query: string): void {
-    searchHistory.value = appendSearchHistory(
-      searchHistory.value,
-      query,
-      SEARCH_HISTORY_LIMIT
-    )
+    searchHistory.value = appendSearchHistory(searchHistory.value, query, SEARCH_HISTORY_LIMIT)
   }
 
   function toggleSource(source: string): void {
@@ -61,9 +54,7 @@ export const useSearchStore = defineStore('search', () => {
     selectedSources.value = new Set()
   }
 
-  function rememberPreferredSource(
-    book: Pick<SearchResult, 'name' | 'author' | 'sourceId'>,
-  ): void {
+  function rememberPreferredSource(book: Pick<SearchResult, 'name' | 'author' | 'sourceId'>): void {
     const aggregateKey = getSearchAggregateKey(book)
 
     if (preferredSourceMap.value[aggregateKey] === book.sourceId) {
@@ -76,9 +67,7 @@ export const useSearchStore = defineStore('search', () => {
     }
   }
 
-  function getPreferredSourceId(
-    book: Pick<SearchResult, 'name' | 'author'>,
-  ): string | undefined {
+  function getPreferredSourceId(book: Pick<SearchResult, 'name' | 'author'>): string | undefined {
     return preferredSourceMap.value[getSearchAggregateKey(book)]
   }
 

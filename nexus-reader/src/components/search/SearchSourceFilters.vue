@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
-import type { SearchSourceOption } from "@/types/search";
+import { X } from 'lucide-vue-next'
+import type { SearchSourceOption } from '@/types/search'
 
 withDefaults(
   defineProps<{
-    availableSources: SearchSourceOption[];
-    selectedSources: Set<string>;
-    disabled?: boolean;
+    availableSources: SearchSourceOption[]
+    selectedSources: Set<string>
+    disabled?: boolean
   }>(),
   {
     disabled: false,
   }
-);
+)
 
 const emit = defineEmits<{
-  (e: "toggle-source", source: string): void;
-  (e: "clear"): void;
-}>();
+  (e: 'toggle-source', source: string): void
+  (e: 'clear'): void
+}>()
 </script>
 
 <template>
@@ -27,14 +27,12 @@ const emit = defineEmits<{
       v-for="source in availableSources"
       :key="source.id"
       class="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
-      :class="
-        [
-          selectedSources.has(source.id)
-            ? 'bg-primary text-primary-foreground border-primary'
-            : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground',
-          disabled ? 'opacity-60 cursor-not-allowed' : '',
-        ]
-      "
+      :class="[
+        selectedSources.has(source.id)
+          ? 'bg-primary text-primary-foreground border-primary'
+          : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground',
+        disabled ? 'opacity-60 cursor-not-allowed' : '',
+      ]"
       :disabled="disabled"
       :aria-disabled="disabled"
       :title="disabled ? '搜索中，结束后可切换书源' : undefined"

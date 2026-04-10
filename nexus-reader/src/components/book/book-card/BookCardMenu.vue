@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  MoreVertical,
-  Trash2,
-} from 'lucide-vue-next'
+import { MoreVertical, Trash2 } from 'lucide-vue-next'
 
 interface Props {
   manageMode: boolean
@@ -20,10 +17,7 @@ const emit = defineEmits<{
 <template>
   <button
     v-if="!manageMode"
-    class="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-xl
-           flex items-center justify-center text-white/90
-           opacity-0 group-hover:opacity-100 hover:bg-black/60 hover:scale-110 active:scale-90
-           transition-all duration-300 z-20"
+    class="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white/90 opacity-0 group-hover:opacity-100 hover:bg-black/60 hover:scale-110 active:scale-90 transition-all duration-300 z-20"
     aria-label="更多选项"
     @click.stop="emit('toggle-menu')"
   >

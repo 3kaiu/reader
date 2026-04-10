@@ -9,7 +9,7 @@ interface ReplaceLoadingHelpers {
 
 export function createReplaceLoadingActions(
   state: ReplaceStoreState,
-  helpers: ReplaceLoadingHelpers,
+  helpers: ReplaceLoadingHelpers
 ) {
   let loadPromise: Promise<ApiResponse<ReplaceRule[]>> | null = null
 

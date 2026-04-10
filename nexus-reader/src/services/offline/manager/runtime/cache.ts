@@ -1,7 +1,4 @@
-import type {
-  CacheableContentPayload,
-  CachedContent,
-} from '../../types'
+import type { CacheableContentPayload, CachedContent } from '../../types'
 import {
   cacheOfflineContent,
   cleanupExpiredOfflineContent,
@@ -17,38 +14,34 @@ import {
 
 export function cacheOfflineManagerContent(
   context: OfflineManagerRuntimeContext,
-  content: Omit<CachedContent, 'timestamp'>,
+  content: Omit<CachedContent, 'timestamp'>
 ): void {
-  cacheOfflineContent(
-    context.runtimeState,
-    content,
-    createOfflineManagerCacheCallbacks(context),
-  )
+  cacheOfflineContent(context.runtimeState, content, createOfflineManagerCacheCallbacks(context))
 }
 
 export async function removeOfflineManagerCachedContent(
   context: OfflineManagerRuntimeContext,
-  id: string,
+  id: string
 ): Promise<void> {
   await removeOfflineCachedContent(
     context.runtimeState,
     id,
-    createOfflineManagerCacheCallbacks(context),
+    createOfflineManagerCacheCallbacks(context)
   )
 }
 
 export async function clearOfflineManagerCachedContent(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): Promise<void> {
   await clearOfflineCachedContent(
     context.runtimeState,
-    createOfflineManagerStatusCallbacks(context),
+    createOfflineManagerStatusCallbacks(context)
   )
 }
 
 export function getOfflineManagerCachedContent(
   context: OfflineManagerRuntimeContext,
-  id: string,
+  id: string
 ): CachedContent | null {
   return context.runtimeState.cacheRegistry.get(id)
 }
@@ -56,41 +49,41 @@ export function getOfflineManagerCachedContent(
 export function searchOfflineManagerCachedContent(
   context: OfflineManagerRuntimeContext,
   type?: string,
-  query?: string,
+  query?: string
 ): CachedContent[] {
   return context.runtimeState.cacheRegistry.search(type, query)
 }
 
 export function cleanupOfflineManagerExpiredContent(
   context: OfflineManagerRuntimeContext,
-  maxAge = 7 * 24 * 60 * 60 * 1000,
+  maxAge = 7 * 24 * 60 * 60 * 1000
 ): void {
   cleanupExpiredOfflineContent(
     context.runtimeState,
     createOfflineManagerCacheCallbacks(context),
-    maxAge,
+    maxAge
   )
 }
 
 export function getOfflineManagerAvailableContent(
-  context: OfflineManagerRuntimeContext,
+  context: OfflineManagerRuntimeContext
 ): CachedContent[] {
   return context.runtimeState.cacheRegistry.getOfflineAvailableContent()
 }
 
 export async function precacheOfflineManagerImportantContent(
   context: OfflineManagerRuntimeContext,
-  contentIds: string[],
+  contentIds: string[]
 ): Promise<void> {
   await precacheOfflineContent(
     context.runtimeState,
     contentIds,
-    createOfflineManagerCacheCallbacks(context),
+    createOfflineManagerCacheCallbacks(context)
   )
 }
 
 export async function fetchOfflineManagerContentForCaching(
-  _id: string,
+  _id: string
 ): Promise<CacheableContentPayload | null> {
   return null
 }

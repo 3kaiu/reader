@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { FolderHeart, Trash2 } from "lucide-vue-next";
+import { FolderHeart, Trash2 } from 'lucide-vue-next'
 
 defineProps<{
-  visible: boolean;
-  selectedCount: number;
-  allBooksSelected: boolean;
-}>();
+  visible: boolean
+  selectedCount: number
+  allBooksSelected: boolean
+}>()
 
 const emit = defineEmits<{
-  selectAll: [];
-  move: [];
-  delete: [];
-  exit: [];
-}>();
+  selectAll: []
+  move: []
+  delete: []
+  exit: []
+}>()
 </script>
 
 <template>
@@ -32,7 +32,7 @@ const emit = defineEmits<{
           class="h-8 px-3 rounded-lg flex items-center justify-center text-[11px] sm:text-sm font-bold hover:bg-background/10 transition-all active:scale-95 whitespace-nowrap"
           @click="emit('selectAll')"
         >
-          {{ allBooksSelected ? "取消" : "全选" }}
+          {{ allBooksSelected ? '取消' : '全选' }}
         </button>
       </div>
 

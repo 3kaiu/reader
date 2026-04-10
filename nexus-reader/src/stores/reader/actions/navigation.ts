@@ -1,16 +1,13 @@
 import type { ReaderStoreState, ReaderStoreView } from '../types'
 
 interface ReaderNavigationHelpers {
-  loadChapterAt: (
-    index: number,
-    options?: { replaceLoaded?: boolean },
-  ) => Promise<void>
+  loadChapterAt: (index: number, options?: { replaceLoaded?: boolean }) => Promise<void>
 }
 
 export function createReaderNavigationActions(
   state: ReaderStoreState,
   view: ReaderStoreView,
-  helpers: ReaderNavigationHelpers,
+  helpers: ReaderNavigationHelpers
 ) {
   const goToChapter = async (index: number) => {
     state.isLoading.value = true

@@ -7,6 +7,14 @@ export {
 } from './routes/auth.ts'
 
 export {
+  handleClientRoutingAnalytics,
+  handleClientMetrics,
+  handleAgentRouterStats,
+  handleAgentRouterConfig,
+  handleAgentRouterConfigAudit,
+} from './routes/analytics.ts'
+
+export {
   handleUserPreferences,
   handleContentUpload,
   handleUserBackup,

@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed } from 'vue'
 import {
   CLIENT_ROUTE_KINDS,
   FONT_FAMILY_MAP,
@@ -7,68 +7,67 @@ import {
   formatRouteLatency,
   formatRouteShare,
   persistConfig,
-} from "@/utils/settingsStore";
-import type { ThemeColors } from "@/types/settings";
-import type { SourceHealthSegment, SourceHealthStatus } from "@/api/sync";
-import type {
-  SettingsStoreState,
-  SettingsStoreView,
-} from "./types";
+} from '@/utils/settingsStore'
+import type { ThemeColors } from '@/types/settings'
+import type { SourceHealthSegment, SourceHealthStatus } from '@/api/sync'
+import type { SettingsStoreState, SettingsStoreView } from './types'
 
 function formatHealthStatus(status: SourceHealthStatus | undefined) {
   switch (status) {
-    case "pass":
-      return "通过";
-    case "warn":
-      return "告警";
-    case "fail":
-      return "失败";
+    case 'pass':
+      return '通过'
+    case 'warn':
+      return '告警'
+    case 'fail':
+      return '失败'
     default:
-      return "未知";
+      return '未知'
   }
 }
 
 function formatReadinessState(
   state:
-    | "draft"
-    | "blocked"
-    | "search_ready"
-    | "catalog_ready"
-    | "reading_ready"
-    | "full_flow_ready"
+    | 'draft'
+    | 'blocked'
+    | 'search_ready'
+    | 'catalog_ready'
+    | 'reading_ready'
+    | 'full_flow_ready'
     | undefined
 ) {
   switch (state) {
-    case "full_flow_ready":
-      return "全链路可用"
-    case "reading_ready":
-      return "可读待搜"
-    case "catalog_ready":
-      return "目录就绪"
-    case "search_ready":
-      return "可搜索"
-    case "blocked":
-      return "阻塞"
+    case 'full_flow_ready':
+      return '全链路可用'
+    case 'reading_ready':
+      return '可读待搜'
+    case 'catalog_ready':
+      return '目录就绪'
+    case 'search_ready':
+      return '可搜索'
+    case 'blocked':
+      return '阻塞'
     default:
-      return "草稿"
+      return '草稿'
   }
 }
 
-function buildSegmentItems(health?: {
-  search: SourceHealthSegment
-  book: SourceHealthSegment
-  toc: SourceHealthSegment
-  content: SourceHealthSegment
-} | null) {
+function buildSegmentItems(
+  health?: {
+    search: SourceHealthSegment
+    book: SourceHealthSegment
+    toc: SourceHealthSegment
+    content: SourceHealthSegment
+  } | null
+) {
   if (!health) {
     return []
   }
 
   const segments: Array<[string, SourceHealthSegment]> = [
-    ["搜索", health.search],
-    ["详情", health.book],
-    ["目录", health.toc],
-    ["正文", health.content],
+    ['搜索', health.search],
+    ['详情', health.book],
+    ['目录', health.toc],
+    ['正文', health.content],
   ]
 
   return segments.map(([label, segment]) => {
@@ -82,47 +81,37 @@ function buildSegmentItems(health?: {
     if (segment.warnings.length > 0) {
       parts.push(`warn=${segment.warnings.length}`)
     }
-    return parts.join(" · ")
+    return parts.join(' · ')
   })
 }
 
-export function createSettingsStoreView(
-  state: SettingsStoreState,
-): SettingsStoreView {
+export function createSettingsStoreView(state: SettingsStoreState): SettingsStoreView {
   const currentFontFamily = computed(
-    () => FONT_FAMILY_MAP[state.config.fontFamily] || FONT_FAMILY_MAP.system,
-  );
+    () => FONT_FAMILY_MAP[state.config.fontFamily] || FONT_FAMILY_MAP.system
+  )
 
-  const themeColors = computed<ThemeColors>(() => {
-    if (state.config.theme === "custom") {
-      return {
-        bg: state.config.customColors.bg,
-        text: state.config.customColors.text,
-      };
-    }
-    return THEME_COLORS[state.config.theme];
-  });
+  const themeColors = computed<ThemeColors>(() => THEME_COLORS[state.config.theme])
 
   const clientRoutingSummary = computed(() => {
-    const analytics = state.clientRouting.value;
+    const analytics = state.clientRouting.value
 
     return {
-      window: analytics?.window ?? "",
-      note: analytics?.note ?? "",
-      routes: CLIENT_ROUTE_KINDS.map((route) => ({
+      window: analytics?.window ?? '',
+      note: analytics?.note ?? '',
+      routes: CLIENT_ROUTE_KINDS.map(route => ({
         key: route,
         label: route,
         shareLabel: formatRouteShare(analytics?.routeSharePct?.[route]),
         p50Label: formatRouteLatency(analytics?.latencySummary?.[route]?.p50),
         p95Label: formatRouteLatency(analytics?.latencySummary?.[route]?.p95),
       })),
-    };
-  });
+    }
+  })
 
   const agentRoutingSummary = computed(() => {
-    const analytics = state.agentRouting.value;
-    const totalSelections = Number(analytics?.totalSelections ?? 0);
-    const skillCounts = analytics?.skillCounts ?? {};
+    const analytics = state.agentRouting.value
+    const totalSelections = Number(analytics?.totalSelections ?? 0)
+    const skillCounts = analytics?.skillCounts ?? {}
     const topSkills = Object.entries(skillCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
@@ -130,44 +119,43 @@ export function createSettingsStoreView(
         key: skill,
         label: skill,
         countLabel: `${count}`,
-        shareLabel:
-          totalSelections > 0 ? `${((count / totalSelections) * 100).toFixed(2)}%` : "--",
-      }));
+        shareLabel: totalSelections > 0 ? `${((count / totalSelections) * 100).toFixed(2)}%` : '--',
+      }))
 
     return {
-      window: analytics?.window ?? "",
+      window: analytics?.window ?? '',
       totalSelectionsLabel: `${totalSelections}`,
       aiAttemptRateLabel: formatRouteShare(analytics?.summary?.aiAttemptRatePct),
       fallbackRateLabel: formatRouteShare(analytics?.summary?.fallbackRatePct),
       aiTimeoutRateLabel: formatRouteShare(analytics?.summary?.aiTimeoutRatePct),
       topSkills,
-    };
-  });
+    }
+  })
 
   const agentRoutingConfigSummary = computed(() => {
-    const config = state.agentConfig.value?.config;
-    const includeRoutes = config?.includeRoutes ?? [];
-    const excludeRoutes = config?.excludeRoutes ?? [];
+    const config = state.agentConfig.value?.config
+    const includeRoutes = config?.includeRoutes ?? []
+    const excludeRoutes = config?.excludeRoutes ?? []
 
     return {
-      enabledLabel: config ? (config.enabled ? "Enabled" : "Disabled") : "--",
-      shadowModeLabel: config ? (config.shadowMode ? "Enabled" : "Disabled") : "--",
-      aiEnabledLabel: config ? (config.allowAISelection ? "Enabled" : "Disabled") : "--",
-      rolloutLabel: config ? `${config.rolloutPercent}%` : "--",
-      timeoutLabel: config ? `${config.aiMaxLatencyMs}ms` : "--",
-      confidenceLabel: config ? `${(config.minConfidence * 100).toFixed(0)}%` : "--",
-      includeRoutesLabel: includeRoutes.length > 0 ? includeRoutes.join(", ") : "--",
-      excludeRoutesLabel: excludeRoutes.length > 0 ? excludeRoutes.join(", ") : "--",
-    };
-  });
+      enabledLabel: config ? (config.enabled ? 'Enabled' : 'Disabled') : '--',
+      shadowModeLabel: config ? (config.shadowMode ? 'Enabled' : 'Disabled') : '--',
+      aiEnabledLabel: config ? (config.allowAISelection ? 'Enabled' : 'Disabled') : '--',
+      rolloutLabel: config ? `${config.rolloutPercent}%` : '--',
+      timeoutLabel: config ? `${config.aiMaxLatencyMs}ms` : '--',
+      confidenceLabel: config ? `${(config.minConfidence * 100).toFixed(0)}%` : '--',
+      includeRoutesLabel: includeRoutes.length > 0 ? includeRoutes.join(', ') : '--',
+      excludeRoutesLabel: excludeRoutes.length > 0 ? excludeRoutes.join(', ') : '--',
+    }
+  })
 
   const agentRoutingConfigRaw = computed(() => {
-    const snapshot = state.agentConfig.value;
-    const config = snapshot?.config;
+    const snapshot = state.agentConfig.value
+    const config = snapshot?.config
     return {
-      source: snapshot?.source ?? "--",
-      overrideUpdatedAt: snapshot?.overrideUpdatedAt ?? "--",
-      overrideUpdatedBy: snapshot?.overrideUpdatedBy ?? "--",
+      source: snapshot?.source ?? '--',
+      overrideUpdatedAt: snapshot?.overrideUpdatedAt ?? '--',
+      overrideUpdatedBy: snapshot?.overrideUpdatedBy ?? '--',
       enabled: Boolean(config?.enabled),
       shadowMode: Boolean(config?.shadowMode),
       allowAISelection: Boolean(config?.allowAISelection),
@@ -176,27 +164,29 @@ export function createSettingsStoreView(
       minConfidencePercent: Math.round(Number(config?.minConfidence ?? 0.65) * 100),
       includeRoutes: [...(config?.includeRoutes ?? [])],
       excludeRoutes: [...(config?.excludeRoutes ?? [])],
-    };
-  });
+    }
+  })
 
   const agentRoutingAuditSummary = computed(() => {
-    const records = state.agentConfigAudit.value ?? [];
+    const records = state.agentConfigAudit.value ?? []
 
     return {
       hasMore: state.agentConfigAuditHasMore.value,
-      records: records.map((item) => ({
+      records: records.map(item => ({
         id: item.id,
         action: item.action,
-        actor: item.actorId || "--",
+        actor: item.actorId || '--',
         timestamp: item.timestamp,
-        changeItems: (item.changes || []).map(change => {
-          const before = JSON.stringify(change.before);
-          const after = JSON.stringify(change.after);
-          return `${change.field}: ${before} -> ${after}`;
-        }).slice(0, 5),
+        changeItems: (item.changes || [])
+          .map(change => {
+            const before = JSON.stringify(change.before)
+            const after = JSON.stringify(change.after)
+            return `${change.field}: ${before} -> ${after}`
+          })
+          .slice(0, 5),
       })),
-    };
-  });
+    }
+  })
 
   const sourcePackageDetailSummary = computed(() => {
     const detail = state.sourcePackageDetail.value
@@ -207,17 +197,17 @@ export function createSettingsStoreView(
 
     const capabilityItems = capabilities
       ? [
-          `搜索: ${capabilities.searchSupported ? "支持" : "缺失"}`,
-          `书籍详情: ${capabilities.bookSupported ? "支持" : "缺失"}`,
-          `目录: ${capabilities.tocSupported ? "支持" : "缺失"}`,
-          `正文: ${capabilities.contentSupported ? "支持" : "缺失"}`,
-          `直达详情: ${capabilities.directDetailSupported ? "支持" : "未识别"}`,
-          `外部发现: ${capabilities.externalDiscoverySupported ? "支持" : "未识别"}`,
-          `搜索分页: ${capabilities.searchPaginationSupported ? "支持" : "未识别"}`,
-          `搜索特参: ${capabilities.searchSpecialParamSupported ? "支持" : "未识别"}`,
-          `分页: ${capabilities.paginationSupported ? "支持" : "未识别"}`,
-          `字体解密: ${capabilities.fontDecryptSupported ? "疑似需要" : "未识别"}`,
-          `脚本清洗: ${capabilities.scriptCleanSupported ? "已启用建议" : "未启用"}`,
+          `搜索: ${capabilities.searchSupported ? '支持' : '缺失'}`,
+          `书籍详情: ${capabilities.bookSupported ? '支持' : '缺失'}`,
+          `目录: ${capabilities.tocSupported ? '支持' : '缺失'}`,
+          `正文: ${capabilities.contentSupported ? '支持' : '缺失'}`,
+          `直达详情: ${capabilities.directDetailSupported ? '支持' : '未识别'}`,
+          `外部发现: ${capabilities.externalDiscoverySupported ? '支持' : '未识别'}`,
+          `搜索分页: ${capabilities.searchPaginationSupported ? '支持' : '未识别'}`,
+          `搜索特参: ${capabilities.searchSpecialParamSupported ? '支持' : '未识别'}`,
+          `分页: ${capabilities.paginationSupported ? '支持' : '未识别'}`,
+          `字体解密: ${capabilities.fontDecryptSupported ? '疑似需要' : '未识别'}`,
+          `脚本清洗: ${capabilities.scriptCleanSupported ? '已启用建议' : '未启用'}`,
         ]
       : []
 
@@ -236,35 +226,35 @@ export function createSettingsStoreView(
             strategy.detailUrlTemplate ||
             strategy.resultSelector
 
-          return note ? `${parts.join(" · ")} · ${note}` : parts.join(" · ")
+          return note ? `${parts.join(' · ')} · ${note}` : parts.join(' · ')
         })
       : []
 
     const sampleItems = [
-      samples?.bookSampleUrl ? `书籍样本: ${samples.bookSampleUrl}` : "",
-      samples?.chapterSampleUrl ? `章节样本: ${samples.chapterSampleUrl}` : "",
-      samples?.bookSampleFingerprint ? `书籍指纹: ${samples.bookSampleFingerprint}` : "",
-      samples?.chapterSampleFingerprint ? `章节指纹: ${samples.chapterSampleFingerprint}` : "",
+      samples?.bookSampleUrl ? `书籍样本: ${samples.bookSampleUrl}` : '',
+      samples?.chapterSampleUrl ? `章节样本: ${samples.chapterSampleUrl}` : '',
+      samples?.bookSampleFingerprint ? `书籍指纹: ${samples.bookSampleFingerprint}` : '',
+      samples?.chapterSampleFingerprint ? `章节指纹: ${samples.chapterSampleFingerprint}` : '',
     ].filter(Boolean)
 
     return {
-      packageId: detail?.packageId ?? "--",
-      sourceLabel: detail ? `${detail.source.name} (${detail.source.id})` : "--",
+      packageId: detail?.packageId ?? '--',
+      sourceLabel: detail ? `${detail.source.name} (${detail.source.id})` : '--',
       generatedAtLabel: detail?.generatedAtMs
         ? new Date(detail.generatedAtMs).toLocaleString()
-        : "--",
+        : '--',
       validationLabel: detail?.validation
-        ? `${detail.validation.valid ? "通过" : "失败"} / ${Math.round((detail.validation.score ?? 0) * 100)}`
-        : "--",
+        ? `${detail.validation.valid ? '通过' : '失败'} / ${Math.round((detail.validation.score ?? 0) * 100)}`
+        : '--',
       healthLabel: detail
         ? `${formatReadinessState(detail.readiness?.state)} · ${
-            detail.validation?.health?.recommended ? "推荐" : "需复核"
+            detail.validation?.health?.recommended ? '推荐' : '需复核'
           }`
-        : "--",
+        : '--',
       healthScoreLabel:
         detail?.validation?.health != null
           ? `${Math.round((detail.validation.health.overallScore ?? 0) * 100)}`
-          : "--",
+          : '--',
       segmentItems: buildSegmentItems(detail?.validation?.health),
       warningItems: detail?.validation?.warnings ?? [],
       errorItems: detail?.validation?.errors ?? [],
@@ -274,8 +264,8 @@ export function createSettingsStoreView(
       riskItems: documentation?.knownRisks ?? [],
       readinessBlockers: detail?.readiness?.blockers ?? [],
       readinessSuggestedActions: detail?.readiness?.suggestedActions ?? [],
-    };
-  });
+    }
+  })
 
   const sourceBuildPreviewSummary = computed(() => {
     const preview = state.sourceBuildPreview.value
@@ -284,20 +274,20 @@ export function createSettingsStoreView(
 
     return {
       hasPreview: Boolean(preview),
-      sourceLabel: preview
-        ? `${preview.package.source.name} (${preview.package.source.id})`
-        : "--",
-      packageId: preview?.package.packageId ?? "--",
+      sourceLabel: preview ? `${preview.package.source.name} (${preview.package.source.id})` : '--',
+      packageId: preview?.package.packageId ?? '--',
       validationLabel: validation
-        ? `${validation.valid ? "通过" : "失败"} / ${Math.round((validation.score ?? 0) * 100)}`
-        : "--",
+        ? `${validation.valid ? '通过' : '失败'} / ${Math.round((validation.score ?? 0) * 100)}`
+        : '--',
       healthLabel: preview
         ? `${formatReadinessState(preview.package.readiness?.state)} · ${
-            validation?.health?.recommended ? "推荐" : "需复核"
+            validation?.health?.recommended ? '推荐' : '需复核'
           }`
-        : "--",
+        : '--',
       healthScoreLabel:
-        validation?.health != null ? `${Math.round((validation.health.overallScore ?? 0) * 100)}` : "--",
+        validation?.health != null
+          ? `${Math.round((validation.health.overallScore ?? 0) * 100)}`
+          : '--',
       segmentItems: buildSegmentItems(validation?.health),
       diagnosticsItems: diagnostics
         ? [
@@ -324,29 +314,29 @@ export function createSettingsStoreView(
       riskItems: diagnostics?.riskFlags ?? [],
       readinessBlockers: preview?.package.readiness?.blockers ?? [],
       readinessSuggestedActions: preview?.package.readiness?.suggestedActions ?? [],
-      packageJson: preview?.packageJson ?? "",
+      packageJson: preview?.packageJson ?? '',
     }
   })
 
-  const theme = computed<"light" | "dark" | "auto">({
-    get: () => (state.config.theme === "night" ? "dark" : "light"),
-    set: (value) => {
-      if (value === "dark") {
-        state.config.theme = "night";
-      } else if (value === "light") {
-        state.config.theme = "white";
+  const theme = computed<'light' | 'dark' | 'auto'>({
+    get: () => (state.config.theme === 'night' ? 'dark' : 'light'),
+    set: value => {
+      if (value === 'dark') {
+        state.config.theme = 'night'
+      } else if (value === 'light') {
+        state.config.theme = 'white'
       }
-      persistConfig(state.config, state.language.value);
+      persistConfig(state.config, state.language.value)
     },
-  });
+  })
 
   const fontSize = computed<number>({
     get: () => state.config.fontSize,
-    set: (value) => {
-      state.config.fontSize = clampSettingValue(value, 12, 32);
-      persistConfig(state.config, state.language.value);
+    set: value => {
+      state.config.fontSize = clampSettingValue(value, 12, 32)
+      persistConfig(state.config, state.language.value)
     },
-  });
+  })
 
   return {
     currentFontFamily,
@@ -360,5 +350,5 @@ export function createSettingsStoreView(
     sourceBuildPreviewSummary,
     theme,
     fontSize,
-  };
+  }
 }

@@ -5,37 +5,27 @@ import { createReaderProgressHandlers } from './actions/progress'
 import { createReaderSessionActions } from './actions/session'
 import type { ReaderStoreState, ReaderStoreView } from './types'
 
-export function createReaderStoreActions(
-  state: ReaderStoreState,
-  view: ReaderStoreView
-) {
+export function createReaderStoreActions(state: ReaderStoreState, view: ReaderStoreView) {
   const helpers = createReaderActionHelpers(state)
 
-  const {
-    appendNextChapter,
-    retryLoadNext,
-    refreshChapter,
-    reloadCurrentChapter,
-  } = createReaderChapterOperations(state, view, {
-    fetchChapterContent: helpers.fetchChapterContent,
-    prefetchChapterContent: helpers.prefetchChapterContent,
-    setCurrentChapterContent: helpers.setCurrentChapterContent,
-    updateLoadedChapter: helpers.updateLoadedChapter,
-  })
+  const { appendNextChapter, retryLoadNext, refreshChapter, reloadCurrentChapter } =
+    createReaderChapterOperations(state, view, {
+      fetchChapterContent: helpers.fetchChapterContent,
+      prefetchChapterContent: helpers.prefetchChapterContent,
+      setCurrentChapterContent: helpers.setCurrentChapterContent,
+      updateLoadedChapter: helpers.updateLoadedChapter,
+    })
 
   const {
     syncCurrentChapterByIndex,
     updateChapterIndexByScroll,
     saveProgress,
+    syncScrollPercent,
     reset,
     disposeReader,
   } = createReaderProgressHandlers(state)
 
-  const {
-    ensureReaderSession,
-    startReaderSession,
-    openBook,
-  } = createReaderSessionActions(state, {
+  const { ensureReaderSession, startReaderSession, openBook } = createReaderSessionActions(state, {
     fetchBookInfo: helpers.fetchBookInfo,
     isCurrentBookTarget: helpers.isCurrentBookTarget,
     hasActiveSession: helpers.hasActiveSession,
@@ -43,14 +33,10 @@ export function createReaderStoreActions(
     loadChapterAt: helpers.loadChapterAt,
   })
 
-  const {
-    goToChapter,
-    goToChapterInScroll,
-    nextChapter,
-    prevChapter,
-  } = createReaderNavigationActions(state, view, {
-    loadChapterAt: helpers.loadChapterAt,
-  })
+  const { goToChapter, goToChapterInScroll, nextChapter, prevChapter } =
+    createReaderNavigationActions(state, view, {
+      loadChapterAt: helpers.loadChapterAt,
+    })
 
   return {
     appendNextChapter,
@@ -68,6 +54,7 @@ export function createReaderStoreActions(
     reset,
     retryLoadNext,
     saveProgress,
+    syncScrollPercent,
     syncCurrentChapterByIndex,
     startReaderSession,
     updateChapterIndexByScroll,

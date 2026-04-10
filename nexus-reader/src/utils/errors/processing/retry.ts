@@ -8,7 +8,7 @@ export async function withProcessedRetry<T>(
     maxAttempts?: number
     delay?: number
     backoff?: 'linear' | 'exponential'
-  } = {},
+  } = {}
 ): Promise<T> {
   const { maxAttempts = 3, delay = 1000, backoff = 'exponential' } = options
   let lastError: unknown
@@ -25,9 +25,7 @@ export async function withProcessedRetry<T>(
       }
 
       const waitTime =
-        backoff === 'exponential'
-          ? delay * Math.pow(2, attempt - 1)
-          : delay * attempt
+        backoff === 'exponential' ? delay * Math.pow(2, attempt - 1) : delay * attempt
 
       await new Promise(resolve => setTimeout(resolve, waitTime))
     }

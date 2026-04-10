@@ -5,9 +5,7 @@ import { createReplaceManagementSaveActions } from './management-save'
 import { createReplaceManagementToggleActions } from './management-toggle'
 import type { ReplaceManagementHelpers } from './management-shared'
 
-export function createReplaceManagementActions(
-  helpers: ReplaceManagementHelpers,
-) {
+export function createReplaceManagementActions(helpers: ReplaceManagementHelpers) {
   const saveActions = createReplaceManagementSaveActions(helpers)
   const draftActions = createReplaceManagementDraftActions({
     saveRule: saveActions.saveRule,

@@ -2,17 +2,12 @@ import { createOfflineStoreCacheActions } from './actions-cache'
 import { createOfflineStoreInitializer } from './actions-init'
 import { createOfflineStoreQueryActions } from './actions-query'
 import { createOfflineStoreSyncActions } from './actions-sync'
-import {
-  createOfflineStoreActionRuntime,
-  type OfflineStoreActionHelpers,
-} from './actions-types'
-import type {
-  OfflineStoreState,
-} from './types'
+import { createOfflineStoreActionRuntime, type OfflineStoreActionHelpers } from './actions-types'
+import type { OfflineStoreState } from './types'
 
 export function createOfflineStoreActions(
   state: OfflineStoreState,
-  helpers: OfflineStoreActionHelpers,
+  helpers: OfflineStoreActionHelpers
 ) {
   const runtime = createOfflineStoreActionRuntime()
   const initialize = createOfflineStoreInitializer(state, helpers, runtime)

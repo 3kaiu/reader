@@ -8,6 +8,7 @@ const mockSearchBooks = vi.fn()
 const mockGetBookInfo = vi.fn()
 const mockGetChapters = vi.fn()
 const mockGetContent = vi.fn()
+const mockBatchContent = vi.fn()
 
 vi.mock('@vueuse/core', () => ({
   useStorage: <T>(_key: string, initialValue: T) => ({ value: initialValue }),
@@ -25,12 +26,14 @@ vi.mock('@/api/reader', () => ({
     getBookInfo: (...args: unknown[]) => mockGetBookInfo(...args),
     getChapters: (...args: unknown[]) => mockGetChapters(...args),
     getContent: (...args: unknown[]) => mockGetContent(...args),
+    batchContent: (...args: unknown[]) => mockBatchContent(...args),
   },
 }))
 
 describe('Reading Journey Flow (Search -> Reader Session)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockBatchContent.mockResolvedValue({ isSuccess: true, data: { results: [] } })
     setActivePinia(createPinia())
   })
 
@@ -42,7 +45,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
       async (
         _keyword: string,
         _sources: string[],
-        options: { onResult?: (result: any) => void },
+        options: { onResult?: (result: any) => void }
       ) => {
         options.onResult?.({
           sourceId: 'demo-source',
@@ -52,7 +55,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
           author: '作者A',
           coverUrl: 'https://example.com/cover.jpg',
         })
-      },
+      }
     )
 
     mockGetBookInfo.mockResolvedValue({
@@ -85,7 +88,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
 
     const startOutcome = await readerStore.startReaderSession(
       searchStore.searchResult[0].sourceId,
-      searchStore.searchResult[0].bookUrl,
+      searchStore.searchResult[0].bookUrl
     )
 
     expect(startOutcome.isSuccess).toBe(true)
@@ -105,7 +108,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
       async (
         _keyword: string,
         _sources: string[],
-        options: { onResult?: (result: any) => void },
+        options: { onResult?: (result: any) => void }
       ) => {
         options.onResult?.({
           sourceId: 'demo-source',
@@ -114,7 +117,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
           name: '测试小说',
           author: '作者A',
         })
-      },
+      }
     )
 
     mockGetBookInfo.mockResolvedValue({
@@ -151,8 +154,8 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
     await expect(
       readerStore.startReaderSession(
         searchStore.searchResult[0].sourceId,
-        searchStore.searchResult[0].bookUrl,
-      ),
+        searchStore.searchResult[0].bookUrl
+      )
     ).rejects.toThrow('章节内容为空，请重试或切换书源')
 
     expect(readerStore.error).toBe('章节内容为空，请重试或切换书源')
@@ -169,7 +172,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
 
     const response = await readerStore.startReaderSession(
       'demo-source',
-      'https://example.com/book/failed',
+      'https://example.com/book/failed'
     )
 
     expect(response.isSuccess).toBe(false)

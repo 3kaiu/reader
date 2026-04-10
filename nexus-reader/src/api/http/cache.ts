@@ -64,7 +64,7 @@ export function getOfflineCacheMetadata(
   url: string,
   options?: ApiFetchOptions
 ): OfflineCacheMetadata {
-  const params = ((options?.params as Record<string, unknown> | undefined) ?? {})
+  const params = (options?.params as Record<string, unknown> | undefined) ?? {}
   const bookUrl = typeof params.bookUrl === 'string' ? params.bookUrl : undefined
   const chapterUrl = typeof params.url === 'string' ? params.url : undefined
 

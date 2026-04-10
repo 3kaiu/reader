@@ -2,22 +2,6 @@
  * Common Type Definitions for Nexus Reader Workers
  */
 
-export type {
-  EntityCategory,
-  BookType,
-  DecodeSource,
-  DictionaryLevel,
-  EntrySource,
-  Candidate,
-  DecodedEntity,
-  ChapterContext,
-  BookMeta,
-  DictionaryEntry,
-  EntryConfirmation,
-  DecodeRequest,
-  DecodeResponse,
-} from '../../contracts/decoder.ts';
-
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
 export interface JsonObject {
@@ -142,7 +126,19 @@ export interface Progress {
   bookId: string;
   chapterIndex: number;
   scrollPercent: number;
+  /**
+   * Scroll percentage semantics:
+   * - `chapter`: percentage within current chapter range (preferred)
+   * - `document`: percentage within full document (legacy)
+   */
+  scrollKind?: 'chapter' | 'document';
   updatedAt: number;
+  /**
+   * Idempotency marker for progress writes. The edge gateway and frontend attach
+   * `X-Request-ID` to every request; the progress service persists the last one
+   * it accepted to allow duplicate suppression and "at-least-once" retry safety.
+   */
+  lastRequestId?: string;
 }
 
 export interface ServiceUrls {

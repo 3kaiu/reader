@@ -19,9 +19,7 @@ type UseSourceBuilderFetchSessionOptions = {
   fetchProvider: Ref<string>
   fetchServiceUrl: Ref<string>
   fetchEngine: Ref<string>
-  pushDebugSnapshot: (
-    snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>
-  ) => void
+  pushDebugSnapshot: (snapshot: Omit<SourceBuilderDebugSnapshot, 'id' | 'createdAtMs'>) => void
 }
 
 export function useSourceBuilderFetchSession(options: UseSourceBuilderFetchSessionOptions) {
@@ -93,7 +91,9 @@ export function useSourceBuilderFetchSession(options: UseSourceBuilderFetchSessi
       `final: ${preview.finalUrl}`,
       `cache hit: ${preview.cacheHit ? 'yes' : 'no'}`,
       `cache source: ${preview.cacheSource}`,
-      ...(preview.fetchDebug.respondWith ? [`respond with: ${preview.fetchDebug.respondWith}`] : []),
+      ...(preview.fetchDebug.respondWith
+        ? [`respond with: ${preview.fetchDebug.respondWith}`]
+        : []),
       `html chars: ${preview.html.length}`,
     ]
   })
@@ -165,7 +165,10 @@ export function useSourceBuilderFetchSession(options: UseSourceBuilderFetchSessi
       }, {})
   }
 
-  function applySnapshot(snapshot: SourceBuilderDebugSnapshot, lastFetchDebug: Ref<SourceFetchDebugInfo | null>) {
+  function applySnapshot(
+    snapshot: SourceBuilderDebugSnapshot,
+    lastFetchDebug: Ref<SourceFetchDebugInfo | null>
+  ) {
     if (snapshot.sessionKey != null) {
       fetchSessionKey.value = snapshot.sessionKey
     }
@@ -262,7 +265,9 @@ export function useSourceBuilderFetchSession(options: UseSourceBuilderFetchSessi
         ...(options.fetchServiceUrl.value.trim()
           ? { fetchServiceUrl: options.fetchServiceUrl.value.trim() }
           : {}),
-        ...(options.fetchEngine.value.trim() ? { fetchEngine: options.fetchEngine.value.trim() } : {}),
+        ...(options.fetchEngine.value.trim()
+          ? { fetchEngine: options.fetchEngine.value.trim() }
+          : {}),
       })
       if (!response.isSuccess || !response.data) {
         fetchHtmlError.value = response.errorMsg || '预抓取 HTML 失败'

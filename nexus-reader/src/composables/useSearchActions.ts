@@ -16,20 +16,14 @@ export function useSearchActions(options: {
   success: (message: string) => void
   showError: (message: string) => void
   handleApiError: (response: ApiResponse<unknown>, fallbackMessage?: string) => void
-  handlePromiseError: (
-    cause: unknown,
-    fallbackMessage?: string,
-    showToast?: boolean,
-  ) => void
+  handlePromiseError: (cause: unknown, fallbackMessage?: string, showToast?: boolean) => void
 }) {
   const { openReader } = useOpenReader()
   const openingBook = ref<string | null>(null)
 
   function hasBookOnShelf(book: SearchResult) {
     return options.books.value.some(
-      shelfBook =>
-        shelfBook.sourceId === book.sourceId &&
-        shelfBook.bookUrl === book.bookUrl,
+      shelfBook => shelfBook.sourceId === book.sourceId && shelfBook.bookUrl === book.bookUrl
     )
   }
 
@@ -46,7 +40,7 @@ export function useSearchActions(options: {
   }
 
   function normalizeActionPayload(
-    payload: SearchResult | SearchResultActionPayload,
+    payload: SearchResult | SearchResultActionPayload
   ): SearchResultActionPayload {
     if ('book' in payload) {
       return payload
@@ -166,8 +160,7 @@ export function useSearchActions(options: {
 
       void ensureBookOnShelfInBackground(book)
     } catch (cause) {
-      const causeMessage =
-        cause instanceof Error && cause.message ? cause.message.trim() : ''
+      const causeMessage = cause instanceof Error && cause.message ? cause.message.trim() : ''
       const fallbackMessage = causeMessage
         ? `打开《${book.name}》失败：${causeMessage}`
         : `打开《${book.name}》失败，请重试或切换书源`

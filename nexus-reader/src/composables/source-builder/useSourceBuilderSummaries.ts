@@ -14,9 +14,7 @@ type UseSourceBuilderSummariesOptions = {
   lastFetchDebug: Ref<SourceFetchDebugInfo | null>
 }
 
-export function useSourceBuilderSummaries(
-  options: UseSourceBuilderSummariesOptions
-) {
+export function useSourceBuilderSummaries(options: UseSourceBuilderSummariesOptions) {
   const currentDiagnosticsItems = computed(() => {
     const diagnostics = options.previewDiagnostics.value
     if (!diagnostics) {
@@ -29,12 +27,14 @@ export function useSourceBuilderSummaries(
     const pkg = options.currentPackage.value
     const health = pkg?.validation?.health
     const segmentItems = health
-      ? ([
-          ['搜索', health.search],
-          ['详情', health.book],
-          ['目录', health.toc],
-          ['正文', health.content],
-        ] as Array<[string, SourceHealthSegment]>).map(([label, segment]) => {
+      ? (
+          [
+            ['搜索', health.search],
+            ['详情', health.book],
+            ['目录', health.toc],
+            ['正文', health.content],
+          ] as Array<[string, SourceHealthSegment]>
+        ).map(([label, segment]) => {
           const parts = [label, segment.status]
           if (segment.qualityScore != null) {
             parts.push(`quality=${Math.round(segment.qualityScore * 100)}`)

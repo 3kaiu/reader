@@ -9,34 +9,30 @@ import BookCardMeta from '@/components/book/book-card/BookCardMeta.vue'
 import BookCardStatusOverlays from '@/components/book/book-card/BookCardStatusOverlays.vue'
 import type { Book } from '@/types/book'
 
-const props = withDefaults(defineProps<{
-  book: Book
-  showProgress?: boolean
-  manageMode?: boolean
-  selected?: boolean
-  cachePercent?: number
-  isFullyCached?: boolean
-}>(), {
-  showProgress: true,
-  manageMode: false,
-  selected: false,
-  cachePercent: 0,
-  isFullyCached: false,
-})
+const props = withDefaults(
+  defineProps<{
+    book: Book
+    showProgress?: boolean
+    manageMode?: boolean
+    selected?: boolean
+    cachePercent?: number
+    isFullyCached?: boolean
+  }>(),
+  {
+    showProgress: true,
+    manageMode: false,
+    selected: false,
+    cachePercent: 0,
+    isFullyCached: false,
+  }
+)
 
 const emit = defineEmits<{
   click: [book: Book]
   delete: [book: Book]
 }>()
 
-const {
-  showMenu,
-  progress,
-  unreadCount,
-  coverUrl,
-  toggleMenu,
-  handleDelete,
-} = useBookCardView({
+const { showMenu, progress, unreadCount, coverUrl, toggleMenu, handleDelete } = useBookCardView({
   book: props.book,
   onDelete: book => emit('delete', book),
 })
@@ -54,10 +50,7 @@ const {
   >
     <!-- 封面容器 -->
     <div
-      class="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-premium dark:shadow-none
-             transition-all duration-300 ease-out
-             group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]
-             ring-1 ring-black/5 dark:ring-white/10"
+      class="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-premium dark:shadow-none transition-all duration-300 ease-out group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] ring-1 ring-black/5 dark:ring-white/10"
       :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': selected }"
     >
       <BookCardMedia
@@ -84,10 +77,6 @@ const {
       />
     </div>
 
-    <BookCardMeta
-      :name="book.name"
-      :author="book.author"
-      :progress="progress"
-    />
+    <BookCardMeta :name="book.name" :author="book.author" :progress="progress" />
   </div>
 </template>

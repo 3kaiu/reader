@@ -2,13 +2,9 @@ import type { ReaderPageActions } from './page-action-types'
 import type { ReaderPageModelChromeOptions } from './page-model-chrome-options'
 import type { ReaderPageModelExperienceOptions } from './page-model-experience-options'
 
-type ReaderPageActionOptions =
-  ReaderPageModelChromeOptions &
-  ReaderPageModelExperienceOptions
+type ReaderPageActionOptions = ReaderPageModelChromeOptions & ReaderPageModelExperienceOptions
 
-export function createReaderPageActions(
-  options: ReaderPageActionOptions,
-): ReaderPageActions {
+export function createReaderPageActions(options: ReaderPageActionOptions): ReaderPageActions {
   return {
     toggleToolbar: options.toggleToolbar,
     handlePrevChapter: options.readerExperienceActions.handlePrevChapter,

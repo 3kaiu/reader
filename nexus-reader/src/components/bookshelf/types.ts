@@ -1,9 +1,9 @@
 export type BookshelfVirtualRow = {
-  index: number;
-  start: number;
-};
+  index: number
+  start: number
+}
 
 export type BookshelfVirtualizer = {
-  getTotalSize: () => number;
-  getVirtualItems: () => BookshelfVirtualRow[];
-};
+  getTotalSize: () => number
+  getVirtualItems: () => BookshelfVirtualRow[]
+}

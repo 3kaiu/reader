@@ -3,14 +3,14 @@ import type { NetworkInfo } from '../types'
 
 export function addNetworkListener(
   listeners: Array<(info: NetworkInfo) => void>,
-  listener: (info: NetworkInfo) => void,
+  listener: (info: NetworkInfo) => void
 ): void {
   listeners.push(listener)
 }
 
 export function removeNetworkListener(
   listeners: Array<(info: NetworkInfo) => void>,
-  listener: (info: NetworkInfo) => void,
+  listener: (info: NetworkInfo) => void
 ): void {
   const index = listeners.indexOf(listener)
   if (index > -1) {
@@ -20,7 +20,7 @@ export function removeNetworkListener(
 
 export function notifyNetworkListeners(
   listeners: Array<(info: NetworkInfo) => void>,
-  info: NetworkInfo,
+  info: NetworkInfo
 ): void {
   listeners.forEach(listener => {
     try {

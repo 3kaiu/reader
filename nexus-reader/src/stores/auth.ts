@@ -35,8 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const urlError = params.get('error')
     if (urlError) {
-      error.value =
-        urlError === 'unauthorized' ? '你的账号未被授权访问' : `登录失败: ${urlError}`
+      error.value = urlError === 'unauthorized' ? '你的账号未被授权访问' : `登录失败: ${urlError}`
       window.history.replaceState({}, '', window.location.pathname + window.location.hash)
     }
   }

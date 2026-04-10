@@ -2,9 +2,7 @@
 /**
  * 阅读器进度条组件
  */
-import {
-  createReaderProgressViewBindings,
-} from './reader-progress-view-bindings'
+import { createReaderProgressViewBindings } from './reader-progress-view-bindings'
 import type { ReaderProgressProps } from './reader-progress-prop-types'
 
 const props = defineProps<ReaderProgressProps>()
@@ -13,10 +11,7 @@ const { fillStyle } = createReaderProgressViewBindings(props)
 
 <template>
   <div class="progress-track">
-    <div
-      class="progress-fill"
-      :style="fillStyle"
-    />
+    <div class="progress-fill" :style="fillStyle" />
   </div>
 </template>
 

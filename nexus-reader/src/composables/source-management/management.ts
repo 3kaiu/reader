@@ -2,9 +2,7 @@ import { downloadJsonFile } from '@/utils/download'
 import type { SourceListItem } from '@/stores/source'
 import type { SourceManagementContext } from './types'
 
-export function createSourceManagementActions(
-  context: SourceManagementContext,
-) {
+export function createSourceManagementActions(context: SourceManagementContext) {
   async function deleteSource(source: SourceListItem) {
     const confirmed = await context.confirm({
       title: '确认删除',
@@ -20,8 +18,8 @@ export function createSourceManagementActions(
       if (result.status === 'deleted') {
         context.options.setSelection(
           Array.from(context.options.selectedSourceIds.value).filter(
-            selectedId => selectedId !== source.id,
-          ),
+            selectedId => selectedId !== source.id
+          )
         )
         context.success('删除成功')
         return
@@ -76,7 +74,7 @@ export function createSourceManagementActions(
   function exportSources() {
     const target = context.sourceStore.getExportSources(
       context.options.selectedSourceIds.value,
-      context.options.filteredSources.value,
+      context.options.filteredSources.value
     )
 
     downloadJsonFile(`booksources_${Date.now()}.json`, target)

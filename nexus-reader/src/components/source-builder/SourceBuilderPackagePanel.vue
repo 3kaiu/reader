@@ -84,7 +84,9 @@ const emit = defineEmits<{
       <div class="p-5 border-b border-border/50 flex items-center justify-between">
         <div>
           <p class="text-sm font-medium">当前规则包</p>
-          <p class="text-xs text-muted-foreground mt-1">{{ props.currentPreviewSummary.sourceLabel }}</p>
+          <p class="text-xs text-muted-foreground mt-1">
+            {{ props.currentPreviewSummary.sourceLabel }}
+          </p>
         </div>
         <div class="flex items-center gap-3">
           <p v-if="props.sourcePackageDetailLoading" class="text-xs text-muted-foreground">
@@ -92,7 +94,9 @@ const emit = defineEmits<{
           </p>
           <button
             class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-            :disabled="props.sourcePackageImporting || !props.packageJsonAvailable || props.importBlocked"
+            :disabled="
+              props.sourcePackageImporting || !props.packageJsonAvailable || props.importBlocked
+            "
             @click="emit('importPreviewPackage')"
           >
             {{
@@ -127,9 +131,12 @@ const emit = defineEmits<{
         <div class="rounded-xl border border-border/50 bg-muted/20 p-4">
           <p class="text-xs text-muted-foreground mb-1">packageId</p>
           <p class="text-sm font-medium break-all">{{ props.currentPreviewSummary.packageId }}</p>
-          <p class="text-xs text-muted-foreground mt-2">校验: {{ props.currentPreviewSummary.validationLabel }}</p>
+          <p class="text-xs text-muted-foreground mt-2">
+            校验: {{ props.currentPreviewSummary.validationLabel }}
+          </p>
           <p class="text-xs text-muted-foreground mt-1">
-            健康: {{ props.currentPreviewSummary.healthLabel }} · {{ props.currentPreviewSummary.healthScoreLabel }}
+            健康: {{ props.currentPreviewSummary.healthLabel }} ·
+            {{ props.currentPreviewSummary.healthScoreLabel }}
           </p>
           <p class="text-xs text-muted-foreground mt-1">
             可导入: {{ props.currentPreviewSummary.importable ? '是' : '否' }}
@@ -181,7 +188,9 @@ const emit = defineEmits<{
             >
               <p class="text-xs font-medium">{{ item.id }} · {{ item.mode }}</p>
               <p class="text-xs text-muted-foreground mt-1">
-                enabled={{ item.enabled }} · priority={{ item.priority }} · provider={{ item.provider }}
+                enabled={{ item.enabled }} · priority={{ item.priority }} · provider={{
+                  item.provider
+                }}
               </p>
               <p class="text-xs text-muted-foreground mt-1 break-all">{{ item.note }}</p>
             </div>

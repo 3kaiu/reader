@@ -61,9 +61,9 @@ class PerformanceTestRunner {
           fcp: 800,
           tti: 1200,
           memoryUsage: 50,
-          bundleSize: 300
+          bundleSize: 300,
         },
-        failures: []
+        failures: [],
       }
       results.push(result)
     }

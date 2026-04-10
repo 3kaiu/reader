@@ -2,15 +2,14 @@ import { computed } from 'vue'
 import type { ReaderContentProps } from './reader-content-prop-types'
 import type { ReaderScrollContentProps } from './reader-scroll-content-prop-types'
 
-type ReaderContentScrollBindingOptions =
-  Pick<
-    ReaderScrollContentProps,
-    'highlightContent' | 'handleContentClick'
-  >
+type ReaderContentScrollBindingOptions = Pick<
+  ReaderScrollContentProps,
+  'highlightContent' | 'handleContentClick'
+>
 
 export function createReaderContentScrollBindings(
   props: ReaderContentProps,
-  options: ReaderContentScrollBindingOptions,
+  options: ReaderContentScrollBindingOptions
 ) {
   return computed<ReaderScrollContentProps>(() => ({
     contentStyle: props.contentStyle,

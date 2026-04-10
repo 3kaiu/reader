@@ -8,7 +8,7 @@ export type GovernanceSuggestion = {
 
 export function buildSourceGovernanceSuggestions(
   health?: SourceHealthSummary | null,
-  circuitState?: string | null,
+  circuitState?: string | null
 ): GovernanceSuggestion[] {
   if (!health) {
     return []
@@ -63,7 +63,7 @@ export function buildSourceGovernanceSuggestions(
       title: '重点检查正文容器与分页拼接',
       detail:
         '内容拿到了但正文为空，通常是正文选择器失效、章节跳转落到占位页，或多页正文没有合并完整。',
-      })
+    })
   }
 
   if (primaryFailure === 'low_quality' || avgQualityScore < 0.55) {
@@ -94,6 +94,6 @@ export function buildSourceGovernanceSuggestions(
   }
 
   return suggestions.filter(
-    (item, index, array) => array.findIndex(candidate => candidate.id === item.id) === index,
+    (item, index, array) => array.findIndex(candidate => candidate.id === item.id) === index
   )
 }

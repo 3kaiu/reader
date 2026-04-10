@@ -1,15 +1,10 @@
-import {
-  ErrorSeverity,
-  getErrorStatusValue,
-  toErrorLike,
-} from '../core'
+import { ErrorSeverity, getErrorStatusValue, toErrorLike } from '../core'
 import type { KnownErrorPreset } from './types'
 
 export const KNOWN_ERROR_PRESETS: readonly KnownErrorPreset[] = [
   {
     match: (message: string, error: unknown) =>
-      getErrorStatusValue(error) === 401 ||
-      message.toLowerCase().includes('unauthorized'),
+      getErrorStatusValue(error) === 401 || message.toLowerCase().includes('unauthorized'),
     code: 'UNAUTHORIZED',
     severity: ErrorSeverity.HIGH,
     userMessage: '登录已过期，请重新登录',
@@ -17,8 +12,7 @@ export const KNOWN_ERROR_PRESETS: readonly KnownErrorPreset[] = [
   },
   {
     match: (message: string, error: unknown) =>
-      getErrorStatusValue(error) === 403 ||
-      message.toLowerCase().includes('forbidden'),
+      getErrorStatusValue(error) === 403 || message.toLowerCase().includes('forbidden'),
     code: 'FORBIDDEN',
     severity: ErrorSeverity.HIGH,
     userMessage: '没有权限执行此操作',
@@ -57,16 +51,14 @@ export const KNOWN_ERROR_PRESETS: readonly KnownErrorPreset[] = [
     retryable: true,
   },
   {
-    match: (message: string) =>
-      message.toLowerCase().includes('quotaexceedederror'),
+    match: (message: string) => message.toLowerCase().includes('quotaexceedederror'),
     code: 'QUOTA_EXCEEDED',
     severity: ErrorSeverity.HIGH,
     userMessage: '存储空间已满',
     retryable: false,
   },
   {
-    match: (message: string) =>
-      message.toLowerCase().includes('tocemptyexception'),
+    match: (message: string) => message.toLowerCase().includes('tocemptyexception'),
     code: 'TOC_EMPTY',
     severity: ErrorSeverity.LOW,
     userMessage: '目录为空',
@@ -74,8 +66,7 @@ export const KNOWN_ERROR_PRESETS: readonly KnownErrorPreset[] = [
   },
   {
     match: (message: string, error: unknown) =>
-      error instanceof SyntaxError ||
-      message.toLowerCase().includes('syntaxerror'),
+      error instanceof SyntaxError || message.toLowerCase().includes('syntaxerror'),
     code: 'SYNTAX_ERROR',
     severity: ErrorSeverity.LOW,
     userMessage: '数据格式错误，请重试',

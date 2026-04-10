@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Search } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
+import { Search } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 
 const emit = defineEmits<{
-  retry: [];
-}>();
+  retry: []
+}>()
 </script>
 
 <template>

@@ -1,7 +1,4 @@
-import type {
-  ReaderContentStyle,
-  ReaderKeyboardShortcut,
-} from './shared-types'
+import type { ReaderContentStyle, ReaderKeyboardShortcut } from './shared-types'
 
 export interface ReaderExperienceDisplayState {
   contentStyle: ReaderContentStyle

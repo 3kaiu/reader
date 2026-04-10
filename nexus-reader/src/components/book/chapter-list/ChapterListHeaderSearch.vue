@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  Search,
-  X,
-} from 'lucide-vue-next'
+import { Search, X } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 
 const props = defineProps<{

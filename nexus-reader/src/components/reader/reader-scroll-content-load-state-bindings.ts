@@ -1,7 +1,5 @@
 import { computed } from 'vue'
-import type {
-  ReaderScrollLoadStateProps,
-} from './reader-scroll-load-state-prop-types'
+import type { ReaderScrollLoadStateProps } from './reader-scroll-load-state-prop-types'
 import type { ReaderScrollContentProps } from './reader-scroll-content-prop-types'
 
 export function createReaderScrollContentLoadStateBindings(
@@ -13,7 +11,7 @@ export function createReaderScrollContentLoadStateBindings(
     | 'hasNextChapter'
     | 'loadError'
     | 'loadErrorDetails'
-  >,
+  >
 ) {
   return computed<ReaderScrollLoadStateProps>(() => ({
     hasLoadedChapters: props.loadedChapters.length > 0,

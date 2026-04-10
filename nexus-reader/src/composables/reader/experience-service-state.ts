@@ -1,19 +1,13 @@
-import type {
-  ReaderExperienceModelServiceOptions,
-} from './experience-model-service-types'
-import type {
-  ReaderExperienceServiceState,
-} from './experience-state-service-types'
+import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
+import type { ReaderExperienceServiceState } from './experience-state-service-types'
 
 export function createReaderExperienceServiceState(
-  options: ReaderExperienceModelServiceOptions,
+  options: ReaderExperienceModelServiceOptions
 ): ReaderExperienceServiceState {
   return {
     readerStore: options.readerStore,
     settingsStore: options.settingsStore,
-    decoderStore: options.decoderStore,
     eyeCare: options.eyeCare,
     activeBookUrl: options.activeBookUrl.value,
-    decoderAddonEnabled: options.decoderAddonEnabled,
   }
 }

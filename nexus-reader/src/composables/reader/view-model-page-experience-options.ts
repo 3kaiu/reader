@@ -4,7 +4,7 @@ import type {
 } from './page-model-experience-options'
 
 export function createReaderPageModelExperienceOptions(
-  readerExperienceActions: ReaderPageExperienceActions,
+  readerExperienceActions: ReaderPageExperienceActions
 ): ReaderPageModelExperienceOptions {
   return {
     readerExperienceActions,
