@@ -132,6 +132,16 @@ export interface Progress {
    * - `document`: percentage within full document (legacy)
    */
   scrollKind?: 'chapter' | 'document';
+  /**
+   * Client-provided timestamp (ms). Stored for debugging/telemetry only.
+   * Ordering and conflict resolution uses the server-side `updatedAt`.
+   */
+  clientUpdatedAt?: number;
+  /**
+   * Alias for clarity on the read path. When returned by the progress service,
+   * this equals `updatedAt` (server-side timestamp).
+   */
+  serverUpdatedAt?: number;
   updatedAt: number;
   /**
    * Idempotency marker for progress writes. The edge gateway and frontend attach

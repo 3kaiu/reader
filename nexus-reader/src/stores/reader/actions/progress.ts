@@ -62,10 +62,34 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
           ...(scrollBucket === null ? {} : { scrollKind: 'chapter' as const }),
           updatedAt: lastCloudSyncAt,
         })
-        .then(() => {
+        .then(res => {
+          // Prefer server time + normalized progress snapshot when available.
+          const snapshot = res.isSuccess ? res.data?.progress : null
+          const serverUpdatedAt =
+            snapshot && typeof snapshot.serverUpdatedAt === 'number' && Number.isFinite(snapshot.serverUpdatedAt)
+              ? snapshot.serverUpdatedAt
+              : snapshot && typeof snapshot.updatedAt === 'number' && Number.isFinite(snapshot.updatedAt)
+                ? snapshot.updatedAt
+                : null
+
+          if (serverUpdatedAt !== null) {
+            lastCloudSyncAt = serverUpdatedAt
+          }
+
           lastCloudSyncedBookId = currentBookId
-          lastCloudSyncedIndex = currentIndex
-          lastCloudSyncedScrollBucket = scrollBucket
+          if (snapshot && typeof snapshot.chapterIndex === 'number' && Number.isFinite(snapshot.chapterIndex)) {
+            lastCloudSyncedIndex = Math.max(0, Math.trunc(snapshot.chapterIndex))
+          } else {
+            lastCloudSyncedIndex = currentIndex
+          }
+          if (snapshot && typeof snapshot.scrollPercent === 'number' && Number.isFinite(snapshot.scrollPercent)) {
+            lastCloudSyncedScrollBucket = Math.max(
+              0,
+              Math.min(100, Math.round(snapshot.scrollPercent / 2) * 2)
+            )
+          } else {
+            lastCloudSyncedScrollBucket = scrollBucket
+          }
         })
         .catch(() => undefined)
     }, dueIn)

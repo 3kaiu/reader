@@ -52,7 +52,8 @@ export function attachRequestMetadata(options: InternalApiFetchOptions, requestU
   options._requestUrl = requestUrl
   options._method = options.method || 'GET'
   options._directFallbackTried = options._directFallbackTried === true
-  options._requestId = crypto.randomUUID()
+  // Preserve request id across retries / fallback to make idempotency effective.
+  options._requestId = options._requestId || crypto.randomUUID()
   options.headers = mergeHeaders(options.headers, {
     'X-Request-ID': options._requestId,
   })

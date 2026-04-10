@@ -143,27 +143,28 @@ export function useReaderScrollSync(options: {
       .filter(item => Number.isFinite(item.index))
       .sort((a, b) => a.index - b.index)
 
-    if (markers.length === 0) {
-      return
-    }
+    if (markers.length === 0) return
 
     const currentIndex = options.readerStore.currentChapterIndex
     const currentPos = markers.findIndex(m => m.index === currentIndex)
     const currentMarker = currentPos >= 0 ? markers[currentPos] : null
-    if (!currentMarker) {
-      return
-    }
+    if (!currentMarker) return
 
     const nextMarker = markers.find((m, idx) => idx > currentPos && m.index > currentIndex) || null
+
+    const currentBlock = currentMarker.el.closest<HTMLElement>('.reader-chapter-block')
+    const nextBlock = nextMarker?.el.closest<HTMLElement>('.reader-chapter-block') || null
+    if (!currentBlock) return
 
     const doc = document.documentElement
     const viewportH = window.innerHeight || 1
     const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
-    const chapterStart = Math.max(0, Math.min(maxDocScroll, currentMarker.el.offsetTop))
-    const chapterEndRaw = nextMarker ? nextMarker.el.offsetTop : doc.scrollHeight
-    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw - viewportH * 0.35))
-
     const y = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
+    const chapterStartRaw = currentBlock.getBoundingClientRect().top + y
+    const chapterStart = Math.max(0, Math.min(maxDocScroll, chapterStartRaw))
+    const chapterEndRaw =
+      (nextBlock ? nextBlock.getBoundingClientRect().top + y : doc.scrollHeight) - viewportH * 0.35
+    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw))
     const percent = ((y - chapterStart) / Math.max(1, chapterEnd - chapterStart)) * 100
     options.readerStore.syncScrollPercent(Math.max(0, Math.min(100, percent)))
   }, 1500)
@@ -545,9 +546,18 @@ export function useReaderScrollSync(options: {
     const viewportH = window.innerHeight || 1
     const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
 
-    const chapterStart = Math.max(0, Math.min(maxDocScroll, currentMarker.el.offsetTop))
-    const chapterEndRaw = nextMarker ? nextMarker.el.offsetTop : doc.scrollHeight
-    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw - viewportH * 0.35))
+    const currentBlock = currentMarker.el.closest<HTMLElement>('.reader-chapter-block')
+    const nextBlock = nextMarker?.el.closest<HTMLElement>('.reader-chapter-block') || null
+    if (!currentBlock) {
+      return
+    }
+
+    const currentY = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
+    const chapterStartRaw = currentBlock.getBoundingClientRect().top + currentY
+    const chapterStart = Math.max(0, Math.min(maxDocScroll, chapterStartRaw))
+    const chapterEndRaw =
+      (nextBlock ? nextBlock.getBoundingClientRect().top + currentY : doc.scrollHeight) - viewportH * 0.35
+    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw))
 
     const y =
       chapterStart + (Math.max(0, Math.min(100, percent)) / 100) * Math.max(1, chapterEnd - chapterStart)
