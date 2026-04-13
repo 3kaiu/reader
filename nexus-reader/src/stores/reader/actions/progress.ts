@@ -278,6 +278,8 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
     state.error.value = null
     state.loadError.value = null
     state.loadErrorDetails.value = null
+    state.diagnosticsRequestId.value = null
+    state.diagnosticsPackageId.value = null
     state.chapterContentCache.value = {}
     state.contentStageReports.value = []
   }

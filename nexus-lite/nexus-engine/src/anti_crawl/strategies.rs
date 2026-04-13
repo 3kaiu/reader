@@ -12,6 +12,13 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
+/// Jina Reader Strategy: fetch HTML via r.jina.ai
+///
+/// Useful as a best-effort fallback for targets behind anti-bot protections.
+pub struct JinaReaderStrategy {
+    client: Client,
+}
+
 /// Request body for /fetch endpoint
 #[derive(Debug, Serialize)]
 struct CfFetchRequest {
@@ -50,6 +57,22 @@ pub struct DirectHttpStrategy {
     client: Client,
 }
 
+impl JinaReaderStrategy {
+    pub fn new(timeout_seconds: u64) -> Result<Self, EngineError> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(timeout_seconds))
+            .build()
+            .map_err(|e| EngineError::InvalidConfig {
+                message: format!("Failed to build Jina Reader HTTP client: {}", e),
+            })?;
+        Ok(Self { client })
+    }
+
+    fn jina_url(&self, url: &str) -> String {
+        format!("https://r.jina.ai/{}", url)
+    }
+}
+
 impl CfBypassStrategy {
     pub fn new(config: CloudflareBypassConfig) -> Result<Self, EngineError> {
         let client = Client::builder()
@@ -78,6 +101,55 @@ impl DirectHttpStrategy {
                 message: format!("Failed to build direct HTTP client: {}", e),
             })?;
         Ok(Self { client })
+    }
+}
+
+#[async_trait]
+impl AntiCrawlStrategy for JinaReaderStrategy {
+    fn name(&self) -> &str {
+        "JinaReader"
+    }
+
+    fn level(&self) -> u8 {
+        2
+    }
+
+    fn should_apply(&self, _response: &FetchResponse) -> bool {
+        true
+    }
+
+    fn supports_script(&self) -> bool {
+        false
+    }
+
+    async fn execute(&self, ctx: &mut FetchContext) -> Result<FetchResponse, EngineError> {
+        // Jina Reader is effectively GET-only for our use; for other methods, fall back.
+        if !ctx.method.eq_ignore_ascii_case("GET") {
+            return Err(EngineError::Network {
+                message: "JinaReader only supports GET".to_string(),
+            });
+        }
+
+        let url = self.jina_url(&ctx.url);
+        let mut req = self.client.get(url).header("x-respond-with", "html");
+        // Preserve UA if provided by the source; Jina may use it for upstream fetch.
+        if let Some(ua) = ctx.headers.get("user-agent").or_else(|| ctx.headers.get("User-Agent")) {
+            req = req.header(reqwest::header::USER_AGENT, ua);
+        }
+
+        let response = req.send().await.map_err(|e| EngineError::Network {
+            message: format!("Jina reader request failed: {}", e),
+        })?;
+
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+
+        Ok(FetchResponse {
+            status,
+            headers: HashMap::new(),
+            body,
+            url: ctx.url.clone(),
+        })
     }
 }
 

@@ -39,21 +39,6 @@ export default defineConfig(async () => {
         plugins: [
           ...(analyzerPlugin ? [analyzerPlugin] : []),
         ],
-        // 将大型 AI / TTS 库外部化，从 CDN 加载以避免构建产物过大（如 Cloudflare Pages 25MB 限制）
-        externals: {
-          // 通过全局变量使用，从 HTML 或运行时动态插入的 <script> 中注入
-          '@huggingface/transformers': 'HuggingFaceTransformers',
-          'onnxruntime-web': 'ort',
-
-          // WebLLM：对应 src/config/cdnResources.ts 中的 globalName: 'WebLLM'
-          // 在代码里依然可以使用 import('@mlc-ai/web-llm') / import { ... } from '@mlc-ai/web-llm'
-          // 打包时不会被内联，只会在运行时从全局 WebLLM 读取
-          '@mlc-ai/web-llm': 'WebLLM',
-
-          // Piper TTS：对应 src/config/cdnResources.ts 中的 globalName: 'PiperTTS'
-          // 通过 CDN 动态加载后暴露为 window.PiperTTS，这里同样做 external 以避免把 wasm / 模型打进 bundle
-          'piper-tts-web': 'PiperTTS',
-        },
         optimization: {
           usedExports: true,
           sideEffects: false,
@@ -98,16 +83,6 @@ export default defineConfig(async () => {
             as: "style",
           },
         },
-        // AI 库: ONNX Runtime 从 CDN 加载 (避免超过 Cloudflare Pages 25MB 限制)
-        // Note: @huggingface/transformers v3.x is an ES module that doesn't expose globals,
-        // so we rely on dynamic import() in useEmbedding.ts instead of CDN script tag
-        {
-          tag: "script",
-          attrs: {
-            src: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js",
-            defer: true,
-          },
-        },
       ],
     },
 
@@ -128,27 +103,6 @@ export default defineConfig(async () => {
               name: "lib-ui",
               chunks: "all",
               priority: 20,
-            },
-            ai: {
-              test: /[\\/]node_modules[\\/](onnxruntime-web|@huggingface|@mlc-ai)[\\/]/,
-              name: "lib-ai",
-              chunks: "async",
-              priority: 50,
-              enforce: true,
-            },
-            tts: {
-              test: /[\\/]node_modules[\\/](piper-tts-web)[\\/]/,
-              name: "lib-tts",
-              chunks: "async",
-              priority: 45,
-              enforce: true,
-            },
-            'ai-services': {
-              test: /[\\/]src[\\/](stores[\\/]ai|services[\\/](ai|tts)|pages[\\/]ai-)/,
-              name: 'ai-services',
-              chunks: 'async',
-              priority: 40,
-              enforce: true,
             },
             utils: {
               test: /[\\/]node_modules[\\/](dayjs|clsx|idb|ofetch)[\\/]/,

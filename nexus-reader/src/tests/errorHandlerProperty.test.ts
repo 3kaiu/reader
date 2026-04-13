@@ -489,6 +489,20 @@ describe('useErrorHandler Composable Tests', () => {
         expect(displayedMessage).toContain(expectedInMessage)
       }
     })
+
+    it('should include requestId in toast when available on NexusError', async () => {
+      const { useErrorHandler } = await import('../composables/useErrorHandler')
+      const { NexusError, ErrorCode } = await import('../utils/errors')
+
+      mockShowError.mockClear()
+
+      const err = new NexusError(ErrorCode.INTERNAL_ERROR, 'Boom', 'details', { url: '/api/x' }, 'req-xyz')
+      const { handleError } = useErrorHandler()
+      handleError(err, undefined, true)
+
+      expect(mockShowError).toHaveBeenCalledTimes(1)
+      expect(mockShowError.mock.calls[0][0]).toContain('请求ID: req-xyz')
+    })
   })
 
   describe('API Compatibility Tests', () => {

@@ -10,8 +10,14 @@ import {
 import type { EnhancedWorkerEnv } from './types.ts'
 import { USER_SERVICE_PREFIXES } from './user-service-prefixes.generated.ts'
 
+/** Same semantics as nexus-reader `route-policy.ts` routeMatches (avoid `/api/foo` matching `/api/foobar`). */
+function routeMatchesPath(pathname: string, pattern: string): boolean {
+  if (pattern.endsWith('/')) return pathname.startsWith(pattern)
+  return pathname === pattern || pathname.startsWith(`${pattern}/`)
+}
+
 function isUserServiceRoute(pathname: string): boolean {
-  return USER_SERVICE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix))
+  return USER_SERVICE_PREFIXES.some(pattern => routeMatchesPath(pathname, pattern))
 }
 
 export async function dispatchEdgeGatewayRoute(

@@ -96,6 +96,8 @@ pub struct ChapterContentMeta {
     pub effective_source_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub book_identity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<String>,
 }
 
 impl ChapterContentMeta {
@@ -107,6 +109,7 @@ impl ChapterContentMeta {
             fallback_used: false,
             effective_source_id: None,
             book_identity: None,
+            package_id: None,
         }
     }
 }

@@ -7,6 +7,7 @@ import { errorHandler } from '@/utils/error-handler'
 import { processError, type ErrorContext } from '@/utils/errors'
 
 type HandlerContext = ErrorContext | string | undefined
+type MaybeRequestIdError = { requestId?: string }
 
 interface CapturedErrorRecord {
   id: string
@@ -18,6 +19,14 @@ interface CapturedErrorRecord {
 export function useErrorHandler() {
   const { error: showError, warning: showWarning } = useMessage()
   const errors = ref<CapturedErrorRecord[]>([])
+
+  const getRequestId = (error: unknown): string | undefined => {
+    if (error && typeof error === 'object' && 'requestId' in error) {
+      const value = (error as MaybeRequestIdError).requestId
+      return typeof value === 'string' && value.trim() ? value : undefined
+    }
+    return undefined
+  }
 
   const formatErrorMessage = (error: unknown, fallbackMessage?: string) => {
     const info = processError(error)
@@ -32,6 +41,8 @@ export function useErrorHandler() {
         ? error
         : new Error(typeof error === 'string' && error.trim() ? error : 'Unknown error')
     const userMessage = formatErrorMessage(error)
+    const requestId = getRequestId(error) || getRequestId(normalizedError)
+    const toastMessage = requestId ? `${userMessage}\n请求ID: ${requestId}` : userMessage
 
     const errorInfo: CapturedErrorRecord = {
       id: errorId,
@@ -43,13 +54,16 @@ export function useErrorHandler() {
     errors.value.push(errorInfo)
 
     if (showToast) {
-      showError(userMessage)
+      showError(toastMessage)
     }
 
     // 使用统一的错误处理器
     errorHandler.handle(
       normalizedError,
-      typeof context === 'string' ? { message: context } : context
+      {
+        ...(typeof context === 'string' ? { message: context } : (context || {})),
+        requestId,
+      }
     )
 
     return errorId

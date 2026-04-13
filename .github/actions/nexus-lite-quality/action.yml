@@ -31,6 +31,11 @@ runs:
       with:
         components: rustfmt, clippy
 
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ inputs.working-directory }}
+
     - name: Run cargo fmt check
       if: ${{ inputs.run-fmt == 'true' }}
       shell: bash

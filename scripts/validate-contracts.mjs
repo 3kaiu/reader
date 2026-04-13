@@ -93,10 +93,14 @@ const files = {
 const errors = []
 
 const routePolicyConstantsSource = read(files.routePolicyConstants)
+const expectedEdgeOnly = [
+  ...contract.routing.edgeHandledApiPrefixes,
+  ...contract.routing.edgeHandledPathExtras,
+]
 compareExact(
   'frontend EDGE_ONLY_RULES',
   extractStringArray(routePolicyConstantsSource, 'EDGE_ONLY_RULES'),
-  contract.frontend.edgeOnlyPrefixes,
+  expectedEdgeOnly,
   errors,
 )
 compareExact(
@@ -110,7 +114,7 @@ const workerPrefixesSource = read(files.workerUserServicePrefixes)
 compareExact(
   'worker USER_SERVICE_PREFIXES',
   extractStringArray(workerPrefixesSource, 'USER_SERVICE_PREFIXES'),
-  contract.worker.userServicePrefixes,
+  contract.routing.edgeHandledApiPrefixes,
   errors,
 )
 

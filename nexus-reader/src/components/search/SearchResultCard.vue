@@ -119,6 +119,14 @@ function getRankingHint(explain?: SearchExplain): string | null {
           primaryBook.sourceName
         }}</span>
         <Badge
+          v-if="primaryBook.packageId"
+          variant="outline"
+          class="h-5 rounded-full px-1.5 text-[10px] leading-none font-mono"
+          :title="`packageId: ${primaryBook.packageId}`"
+        >
+          pkg
+        </Badge>
+        <Badge
           v-if="book.sourceCount > 1"
           variant="outline"
           class="h-5 rounded-full px-1.5 text-[10px] leading-none"

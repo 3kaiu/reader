@@ -187,7 +187,7 @@ jobs:
           echo "Required repository secrets:" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`CLOUDFLARE_API_TOKEN\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`CLOUDFLARE_ACCOUNT_ID\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`HF_TOKEN\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`HF_TOKEN\` (optional — only for manual HuggingFace Space upload workflows)" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`VITE_API_URL\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`VITE_NEXUS_LITE_DIRECT_URL\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`VITE_NEXUS_LITE_API_KEY\`" >> "$GITHUB_STEP_SUMMARY"

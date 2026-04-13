@@ -8,6 +8,13 @@ fn build_temp_chain(
 ) -> Result<Arc<FallbackChain>, String> {
     let direct = DirectHttpStrategy::new(30).map_err(|e| e.to_string())?;
     if let Some(profile) = fetch_profile {
+        if profile.provider.eq_ignore_ascii_case("jina_reader") {
+            let jina = JinaReaderStrategy::new(30).map_err(|e| e.to_string())?;
+            return Ok(Arc::new(FallbackChain::with_fallbacks(
+                Arc::new(jina),
+                vec![Arc::new(direct)],
+            )));
+        }
         if profile.mode.eq_ignore_ascii_case("external")
             || profile.provider.eq_ignore_ascii_case("external_service")
         {
@@ -344,10 +351,23 @@ pub(super) async fn run_validation(
         passed_steps as f64 / report.steps.len() as f64
     };
     report.score = (base_score + step_score) / 2.0;
-    report.importable = report.valid
-        && report.compile_ok
+    let strict_all_ok = report.steps.iter().all(|step| step.ok);
+    let has_fallback = has_fallback_search_strategies(package);
+    let relaxed_search_import = validation_relaxed_search_importable(
+        &report.steps,
+        native_search_enabled,
+        has_fallback,
+    );
+    if relaxed_search_import {
+        report.warnings.push(
+            "native_search validation failed; import allowed because searchProfile enables external discovery or direct detail fallback"
+                .to_string(),
+        );
+        report.manual_review_required = true;
+    }
+    report.importable = report.compile_ok
         && !report.steps.is_empty()
-        && report.steps.iter().all(|step| step.ok);
+        && ((report.valid && strict_all_ok) || relaxed_search_import);
     report.health = compute_health_report(report.steps.clone(), validated_at_ms);
     report.last_validated_at_ms = Some(validated_at_ms);
     append_jina_guidance(&mut report, package);

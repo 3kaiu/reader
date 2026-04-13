@@ -806,7 +806,7 @@ export async function handleSourceFlowAssist(
   env: EnhancedWorkerEnv
 ): Promise<Response> {
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   const payload = await verifyAuth(request, env)
@@ -857,7 +857,7 @@ export async function handleSourceFlowAssist(
         }
         await logAssistEvent(env, assistRequest, 'none', true, Date.now() - startedAt)
         return new Response(JSON.stringify(responseBody), {
-          headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
         })
       }
     }
@@ -910,7 +910,7 @@ export async function handleSourceFlowAssist(
     suggestions: parsed.suggestions,
   }
   return new Response(JSON.stringify(responseBody), {
-    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
   })
 }
 
@@ -932,7 +932,7 @@ export async function handleSourceFlowAssistFeedback(
   env: EnhancedWorkerEnv
 ): Promise<Response> {
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   const payload = await verifyAuth(request, env)
@@ -1014,7 +1014,7 @@ export async function handleSourceFlowAssistFeedback(
   }
 
   return new Response(JSON.stringify({ success: true }), {
-    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
   })
 }
 
@@ -1023,7 +1023,7 @@ export async function handleSourceFlowAssistFeedbackStats(
   env: EnhancedWorkerEnv
 ): Promise<Response> {
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   const payload = await verifyAuth(request, env)
@@ -1178,7 +1178,7 @@ export async function handleSourceFlowAssistFeedbackStats(
     }
 
     return new Response(JSON.stringify(responseBody), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1251,7 +1251,7 @@ export async function handleSourceFlowAssistProfile(
         updatedAt: row?.updated_at || new Date().toISOString(),
       }
       return new Response(JSON.stringify({ success: true, profile }), {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     } catch (error) {
       return jsonError(
@@ -1327,7 +1327,7 @@ export async function handleSourceFlowAssistProfile(
         updatedBy: String((payload as { sub?: string }).sub || ''),
       })
       return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     } catch (error) {
       return jsonError(
@@ -1340,7 +1340,7 @@ export async function handleSourceFlowAssistProfile(
     }
   }
 
-  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
 }
 
 export async function handleSourceFlowAssistProfileReset(
@@ -1350,7 +1350,7 @@ export async function handleSourceFlowAssistProfileReset(
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -1420,7 +1420,7 @@ export async function handleSourceFlowAssistProfileReset(
       updatedBy: String((payload as { sub?: string }).sub || ''),
     })
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1440,7 +1440,7 @@ export async function handleSourceFlowAssistProfileAudit(
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -1502,7 +1502,7 @@ export async function handleSourceFlowAssistProfileAudit(
     }))
 
     return new Response(JSON.stringify({ success: true, entries }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1542,7 +1542,7 @@ export async function handleFetchSessionAutoAcquire(
     return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   }
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   let body: unknown
@@ -1601,7 +1601,7 @@ export async function handleFetchSessionAutoAcquire(
       sessionQualityScore: nextProfile.qualityScore,
     }
     return new Response(JSON.stringify(responseBody), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1622,7 +1622,7 @@ export async function handleFetchSessionVerify(
     return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   }
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   let body: unknown
@@ -1741,7 +1741,7 @@ export async function handleFetchSessionVerify(
       profile: nextProfile,
     }
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1762,7 +1762,7 @@ export async function handleSourceSessionProfile(
     return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   }
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
   const url = new URL(request.url)
   const sourceId = normalizeText(url.searchParams.get('sourceId') || '', 120)
@@ -1772,7 +1772,7 @@ export async function handleSourceSessionProfile(
   try {
     const profile = await getSourceSessionProfile(env, sourceId)
     return new Response(JSON.stringify({ success: true, profile }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -1793,7 +1793,7 @@ export async function handleSourceSessionProfileRecover(
     return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   }
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   let body: unknown
@@ -1826,7 +1826,7 @@ export async function handleSourceSessionProfileRecover(
     }
     await saveSourceSessionProfile(env, nextProfile)
     return new Response(JSON.stringify({ success: true, profile: nextProfile }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(

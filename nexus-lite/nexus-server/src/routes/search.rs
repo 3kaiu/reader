@@ -19,8 +19,10 @@ use axum::{
 };
 use futures::stream::Stream;
 use nexus_core::BookItem;
+use nexus_core::types::PipelineStageReport;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
+use std::collections::HashMap;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
@@ -29,7 +31,7 @@ use crate::error::ApiErrorResponse;
 use discovery::{direct_detail_results, external_discovery_results, searchable_source_ids};
 use packages::{build_package_ranks, runtime_search_packages};
 use ranking::{annotate_result_rankings, sort_packages_for_search, sort_results_for_keyword};
-use streaming::{event_done, event_error, event_result};
+use streaming::{event_done, event_error, event_meta, event_result};
 
 #[derive(Deserialize)]
 pub struct SearchRequest {
@@ -49,6 +51,8 @@ pub struct SearchResponse {
     pub results: Vec<BookItem>,
     pub total: usize,
     pub errors: Vec<SearchError>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stage_reports: Vec<PipelineStageReport>,
 }
 
 #[derive(Serialize)]
@@ -63,6 +67,7 @@ pub struct SearchError {
 pub enum SearchEvent {
     Result { data: BookItem },
     Error { source_id: String, error: String },
+    Meta { stage_reports: Vec<PipelineStageReport> },
     Done { total: usize },
 }
 
@@ -76,8 +81,11 @@ pub async fn search(
     Json(req): Json<SearchRequest>,
 ) -> Result<Json<SearchResponse>, ApiErrorResponse> {
     info!("Searching for '{}' in {:?}", req.keyword, req.sources);
+    let started_at = std::time::Instant::now();
 
     let packages = runtime_search_packages(&state, &req.sources).await?;
+    let package_ids: HashMap<String, String> =
+        packages.iter().map(|p| (p.source.id.clone(), p.package_id.clone())).collect();
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut all_results = direct_detail_results(&state, &packages, &req.keyword).await;
@@ -90,6 +98,7 @@ pub async fn search(
             results: vec![],
             total: 0,
             errors: vec![],
+            stage_reports: vec![],
         }));
     }
 
@@ -121,10 +130,36 @@ pub async fn search(
     annotate_result_rankings(&mut all_results, &req.keyword, &package_ranks);
     sort_results_for_keyword(&mut all_results, &req.keyword, &package_ranks);
 
+    for item in all_results.iter_mut() {
+        let sid = item.source_id.as_ref();
+        if let Some(pid) = package_ids.get(sid) {
+            item.package_id = Some(pid.as_str().into());
+        }
+    }
+
+    let mut stage = PipelineStageReport {
+        stage: "search".to_string(),
+        ok: true,
+        strategy: Some("orchestrator".to_string()),
+        failure_code: None,
+        warnings: Vec::new(),
+        metrics: std::collections::HashMap::new(),
+    };
+    stage
+        .metrics
+        .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+    stage
+        .metrics
+        .insert("total".to_string(), total.to_string());
+    stage
+        .metrics
+        .insert("sourcesRequested".to_string(), req.sources.len().to_string());
+
     Ok(Json(SearchResponse {
         results: all_results,
         total,
         errors,
+        stage_reports: vec![stage],
     }))
 }
 
@@ -136,8 +171,11 @@ pub async fn search_stream(
     info!("SSE Search for '{}' in {:?}", req.keyword, req.sources);
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(100);
+    let started_at = std::time::Instant::now();
 
     let packages = runtime_search_packages(&state, &req.sources).await?;
+    let package_ids: HashMap<String, String> =
+        packages.iter().map(|p| (p.source.id.clone(), p.package_id.clone())).collect();
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut direct_items = direct_detail_results(&state, &packages, &req.keyword).await;
@@ -147,9 +185,28 @@ pub async fn search_stream(
     annotate_result_rankings(&mut direct_items, &req.keyword, &package_ranks);
     sort_results_for_keyword(&mut direct_items, &req.keyword, &package_ranks);
 
+    for item in direct_items.iter_mut() {
+        let sid = item.source_id.as_ref();
+        if let Some(pid) = package_ids.get(sid) {
+            item.package_id = Some(pid.as_str().into());
+        }
+    }
+
     // Spawn search task
     tokio::spawn(async move {
         if search_source_ids.is_empty() && direct_items.is_empty() {
+            let mut stage = PipelineStageReport {
+                stage: "search_stream".to_string(),
+                ok: true,
+                strategy: Some("orchestrator".to_string()),
+                failure_code: None,
+                warnings: Vec::new(),
+                metrics: std::collections::HashMap::new(),
+            };
+            stage.metrics.insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+            stage.metrics.insert("total".to_string(), "0".to_string());
+            stage.metrics.insert("sourcesRequested".to_string(), req.sources.len().to_string());
+            let _ = tx.send(Ok(event_meta(vec![stage]))).await;
             let _ = tx.send(Ok(event_done(0))).await;
             return;
         }
@@ -193,6 +250,10 @@ pub async fn search_stream(
                         &req.keyword,
                         &package_ranks,
                     );
+                    let sid = item.source_id.as_ref();
+                    if let Some(pid) = package_ids.get(sid) {
+                        item.package_id = Some(pid.as_str().into());
+                    }
                     total += 1;
                     event_result(item)
                 },
@@ -207,6 +268,19 @@ pub async fn search_stream(
                 break;
             }
         }
+
+        let mut stage = PipelineStageReport {
+            stage: "search_stream".to_string(),
+            ok: true,
+            strategy: Some("orchestrator".to_string()),
+            failure_code: None,
+            warnings: Vec::new(),
+            metrics: std::collections::HashMap::new(),
+        };
+        stage.metrics.insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+        stage.metrics.insert("total".to_string(), total.to_string());
+        stage.metrics.insert("sourcesRequested".to_string(), req.sources.len().to_string());
+        let _ = tx.send(Ok(event_meta(vec![stage]))).await;
     });
 
     Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))

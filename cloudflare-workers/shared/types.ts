@@ -209,9 +209,12 @@ export interface WorkerEnv {
   GITHUB_OWNER: string;
   FRONTEND_URL: string;
   WORKER_URL: string;
+  /** Comma-separated browser origins allowed in addition to localhost + legacy reader + FRONTEND_URL */
+  CORS_EXTRA_ORIGINS?: string;
+  /** Public base URL for user-uploaded content links (e.g. https://content.example.com) */
+  PUBLIC_CONTENT_BASE_URL?: string;
   
   // Optional/AI Config
   GROQ_API_KEY?: string;
-  HF_API_KEY?: string;
   ctx?: ExecutionContextLike;
 }

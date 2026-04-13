@@ -185,6 +185,48 @@ pub(crate) fn has_enabled_search_strategy(
         .unwrap_or(false)
 }
 
+/// Enabled `direct_detail` / `external_discovery` strategies (same notion as search API fallback modes).
+pub(crate) fn has_fallback_search_strategies(package: &SourceRulePackage) -> bool {
+    package
+        .search_profile
+        .as_ref()
+        .map(|profile| {
+            profile.strategies.iter().any(|strategy| {
+                strategy.enabled
+                    && matches!(
+                        strategy.mode,
+                        SourceSearchMode::DirectDetail | SourceSearchMode::ExternalDiscovery
+                    )
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// When native search steps fail but book/toc/content pass and the package declares a search fallback, allow import.
+pub(crate) fn validation_relaxed_search_importable(
+    steps: &[SourceValidationStepReport],
+    native_search_enabled: bool,
+    has_fallback: bool,
+) -> bool {
+    if !native_search_enabled || !has_fallback {
+        return false;
+    }
+    let strict_all_ok = steps.iter().all(|step| step.ok);
+    if strict_all_ok {
+        return false;
+    }
+    let critical_ok = steps
+        .iter()
+        .filter(|step| matches!(step.step.as_str(), "book" | "toc" | "content"))
+        .all(|step| step.ok);
+    if !critical_ok {
+        return false;
+    }
+    steps.iter().all(|step| {
+        step.ok || matches!(step.step.as_str(), "search" | "search_detail")
+    })
+}
+
 pub(crate) fn append_jina_guidance(
     report: &mut SourceRuleValidationReport,
     package: &SourceRulePackage,
@@ -285,4 +327,54 @@ pub(crate) fn select_search_result_for_validation(
         }
     }
     items.first().map(|item| item.book_url.to_string())
+}
+
+#[cfg(test)]
+mod validation_relaxed_tests {
+    use super::*;
+
+    #[test]
+    fn relaxed_import_when_only_native_search_fails() {
+        let steps = vec![
+            make_step("search", false, "failed"),
+            make_step("book", true, "ok"),
+            make_step("toc", true, "ok"),
+            make_step("content", true, "ok"),
+        ];
+        assert!(validation_relaxed_search_importable(&steps, true, true));
+    }
+
+    #[test]
+    fn relaxed_import_when_search_and_detail_fail() {
+        let steps = vec![
+            make_step("search", false, "failed"),
+            make_step("search_detail", false, "failed"),
+            make_step("book", true, "ok"),
+            make_step("toc", true, "ok"),
+            make_step("content", true, "ok"),
+        ];
+        assert!(validation_relaxed_search_importable(&steps, true, true));
+    }
+
+    #[test]
+    fn no_relaxed_import_without_fallback() {
+        let steps = vec![
+            make_step("search", false, "failed"),
+            make_step("book", true, "ok"),
+            make_step("toc", true, "ok"),
+            make_step("content", true, "ok"),
+        ];
+        assert!(!validation_relaxed_search_importable(&steps, true, false));
+    }
+
+    #[test]
+    fn no_relaxed_import_when_book_fails() {
+        let steps = vec![
+            make_step("search", false, "failed"),
+            make_step("book", false, "failed"),
+            make_step("toc", true, "ok"),
+            make_step("content", true, "ok"),
+        ];
+        assert!(!validation_relaxed_search_importable(&steps, true, true));
+    }
 }

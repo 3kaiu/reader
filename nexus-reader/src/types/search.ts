@@ -19,6 +19,7 @@ export interface SearchResult {
   latestChapter?: string
   latestChapterTitle?: string
   searchExplain?: SearchExplain
+  packageId?: string
 }
 
 export interface SearchDisplayResult extends SearchResult {

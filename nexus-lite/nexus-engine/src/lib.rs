@@ -57,3 +57,6 @@ pub use text_cleaner::{
     clean_text, remove_zero_width_chars, CleanConfig as TextCleanConfig, TextCleaner,
 };
 pub use text_dedup::{deduplicate_paragraphs, similarity, DedupConfig, TextDeduplicator};
+
+#[cfg(test)]
+mod tests_69shuba_offline;

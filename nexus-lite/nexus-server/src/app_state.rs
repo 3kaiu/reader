@@ -3,7 +3,7 @@ use chrono::Utc;
 use nexus_core::EngineConfig;
 use nexus_core::{EventBus, SystemControlEvent, SystemEvent};
 use nexus_engine::anti_crawl::{
-    CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain,
+    CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain, JinaReaderStrategy,
 };
 use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::HttpFetcher;
@@ -214,6 +214,9 @@ pub async fn build_app_state(config: &EngineConfig) -> anyhow::Result<AppState> 
     let mut fallback_strategies: Vec<Arc<dyn nexus_core::AntiCrawlStrategy>> = Vec::new();
     if let Ok(cloudscraper) = CloudScraperStrategy::new() {
         fallback_strategies.push(Arc::new(cloudscraper));
+    }
+    if let Ok(jina) = JinaReaderStrategy::new(config.limits.http_timeout_seconds) {
+        fallback_strategies.push(Arc::new(jina));
     }
     if let Ok(direct) = DirectHttpStrategy::new(config.limits.http_timeout_seconds) {
         fallback_strategies.push(Arc::new(direct));

@@ -25,6 +25,8 @@ export interface ReaderStoreState {
   error: Ref<string | null>
   loadError: Ref<string | null>
   loadErrorDetails: Ref<string | null>
+  diagnosticsRequestId: Ref<string | null>
+  diagnosticsPackageId: Ref<string | null>
   progressMap: Ref<Record<string, number>>
   /**
    * Pending scroll resume, sourced from `/progress/{bookId}`. Cleared after applied.

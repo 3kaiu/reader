@@ -65,7 +65,7 @@ export async function handleUserPreferences(
   if (request.method === 'GET') {
     const preferences = await userPrefs.getPreferences(userId)
     return new Response(JSON.stringify(preferences), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   }
 
@@ -75,10 +75,10 @@ export async function handleUserPreferences(
       return jsonError(request, 'BAD_REQUEST', 'Invalid preferences payload', 400)
     }
     await userPrefs.savePreferences(userId, preferences)
-    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders(request) })
+    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders(request, env) })
   }
 
-  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+  return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
 }
 
 export async function handleContentUpload(
@@ -89,7 +89,7 @@ export async function handleContentUpload(
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -105,8 +105,8 @@ export async function handleContentUpload(
     return new Response(JSON.stringify({
       success: true,
       key,
-      url: `https://content.nexus-reader.pages.dev/${key}`,
-    }), { headers: corsHeaders(request) })
+      url: `${(env.PUBLIC_CONTENT_BASE_URL || 'https://content.nexus-reader.pages.dev').replace(/\/$/, '')}/${key}`,
+    }), { headers: corsHeaders(request, env) })
   } catch (error: unknown) {
     return jsonError(request, 'UPLOAD_FAILED', 'Upload failed', 500, getErrorMessage(error))
   }
@@ -129,7 +129,7 @@ export async function handleUserBackup(
     success: true,
     backupKey,
     message: 'Backup queued and initial backup created',
-  }), { headers: corsHeaders(request) })
+  }), { headers: corsHeaders(request, env) })
 }
 
 export async function handleProgressSync(request: Request, env: EnhancedWorkerEnv, url: URL): Promise<Response> {
@@ -149,12 +149,12 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
       const normalized = normalizeProgressRecord(bookId, JSON.parse(value))
       return new Response(JSON.stringify(normalized), {
         status: 200,
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     } catch {
       return new Response(value, {
         status: 200,
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     }
   }
@@ -162,12 +162,12 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
   if (request.method === 'DELETE') {
     await env.PROGRESS_KV.delete(key)
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   }
 
   if (request.method !== 'PUT' && request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -193,7 +193,7 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
               progress: normalizeProgressRecord(bookId, existing),
             }),
             {
-            headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
             }
           )
         }
@@ -263,7 +263,7 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
             progress: normalizeProgressRecord(bookId, existingParsed),
           }),
           {
-            headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
           }
         )
       }
@@ -276,7 +276,7 @@ export async function handleProgressSync(request: Request, env: EnhancedWorkerEn
         progress: normalizeProgressRecord(bookId, nextCandidate),
       }),
       {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       }
     )
   } catch (error: unknown) {

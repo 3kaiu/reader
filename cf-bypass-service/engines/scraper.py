@@ -312,11 +312,9 @@ class ScraperEngine(BaseBypassEngine):
                 'timeout': timeout or domain_config.timeout,
             }
             if headers:
-                filtered_headers = {
-                    k: v for k, v in headers.items() 
-                    if k.lower() not in ['user-agent', 'accept', 'accept-language', 'accept-encoding']
-                }
-                if filtered_headers: req_kwargs['headers'] = filtered_headers
+                # Preserve caller-provided headers (especially User-Agent/Cookie),
+                # as some bypass cookies (e.g. cf_clearance) are UA-bound.
+                req_kwargs['headers'] = headers
             
             if body: req_kwargs['data'] = body
             if proxy: req_kwargs['proxies'] = {'http': proxy, 'https': proxy}

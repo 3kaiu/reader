@@ -175,6 +175,7 @@ pub(super) async fn external_discovery_results(
                         strategy.provider.clone(),
                         Some(format!("external discovery via {}", strategy.provider)),
                     )),
+                    package_id: None,
                 });
             }
         }
@@ -232,6 +233,7 @@ pub(super) async fn direct_detail_results(
             search_explain: Some(build_direct_detail_explain(Some(
                 "matched direct detail URL".to_string(),
             ))),
+            package_id: None,
         });
     }
 

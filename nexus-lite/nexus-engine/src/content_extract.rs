@@ -10,6 +10,7 @@
 //! - Font decryption support
 
 use scraper::{ElementRef, Html, Selector};
+use regex::Regex;
 
 // Import dynamic noise detection and ML scoring
 use crate::dynamic_noise::{DynamicNoiseDetector, ExtractionContext};
@@ -259,20 +260,68 @@ pub fn extract_structured_text_from_root<'a>(
 
     dfs(root, config, &mut paragraphs, false);
 
+    fn extract_from_inner_html_with_br(root: &ElementRef<'_>) -> Option<String> {
+        // Heuristic: for many CN novel sites, content is raw text + <br> separators
+        // inside a wrapper div, with no <p> tags. `scraper` doesn't expose direct
+        // text nodes that sit alongside element children, so we fall back to a
+        // safe-ish string pipeline.
+        let inner = root.inner_html();
+        if !inner.to_ascii_lowercase().contains("<br") {
+            return None;
+        }
+        // Remove script/style blocks entirely.
+        static RE_SCRIPT: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap());
+        static RE_STYLE: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap());
+        static RE_BR: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(?i)<br\\s*/?>").unwrap());
+        static RE_TAG: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").unwrap());
+
+        let without_scripts = RE_SCRIPT.replace_all(&inner, "");
+        let without_styles = RE_STYLE.replace_all(&without_scripts, "");
+        let with_newlines = RE_BR.replace_all(&without_styles, "\n");
+        let stripped = RE_TAG.replace_all(&with_newlines, "");
+        let normalized = normalize_whitespace_keep_newlines(&stripped);
+        if normalized.trim().is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
+    }
+
     if paragraphs.is_empty() {
         // Fallback: inline extraction by leaf text.
         let mut parts = Vec::<String>::new();
         collect_leaf_text(root, config, false, &mut parts);
         let joined = parts.join("");
-        return normalize_whitespace_keep_newlines(&joined);
+        let normalized = normalize_whitespace_keep_newlines(&joined);
+        if !normalized.is_empty() {
+            return normalized;
+        }
+        if let Some(br_text) = extract_from_inner_html_with_br(&root) {
+            return br_text;
+        }
+        return normalized;
     }
 
-    paragraphs
+    let joined = paragraphs
         .into_iter()
         .map(|p| normalize_whitespace_keep_newlines(&p))
         .filter(|p| !p.is_empty())
         .collect::<Vec<_>>()
-        .join("\n\n")
+        .join("\n\n");
+
+    // If we only got a short title-like paragraph but the DOM is br-separated,
+    // prefer the inner_html+br pipeline.
+    if joined.chars().count() < 60 {
+        if let Some(br_text) = extract_from_inner_html_with_br(&root) {
+            return br_text;
+        }
+    }
+
+    joined
 }
 
 /// Post-process extracted content:

@@ -126,7 +126,26 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         api_router
     };
 
-    let app = app.layer(TraceLayer::new_for_http());
+    let app = {
+        use axum::middleware;
+
+        let trace = TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+            let request_id = request
+                .headers()
+                .get("x-request-id")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("-");
+            tracing::info_span!(
+                "http_request",
+                method = %request.method(),
+                uri = %request.uri(),
+                request_id = %request_id
+            )
+        });
+
+        app.layer(middleware::from_fn(crate::request_id::ensure_request_id))
+            .layer(trace)
+    };
 
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(20)

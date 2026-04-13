@@ -19,7 +19,7 @@ import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'
 import { processQueueBatch } from './entry/queue.ts'
 import { validateWorkerEnv } from './entry/validation.ts'
-import { attachRequestId, ensureRequestId } from './worker/http.ts'
+import { attachRequestId, ensureRequestId } from './shared/request-id.ts'
 import { jsonError } from './worker/http.ts'
 import { createUserServiceContainer } from './worker/user-services.ts'
 
@@ -39,7 +39,7 @@ export default {
     const userServices = createUserServiceContainer(env)
 
     if (requestWithId.method === 'OPTIONS') {
-      return attachRequestId(handleCorsPreflightRequest(requestWithId), requestId)
+      return attachRequestId(handleCorsPreflightRequest(requestWithId, env), requestId)
     }
 
     const dispatchStable = createStableDispatcher(env, ctx, userServices)

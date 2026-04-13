@@ -63,7 +63,6 @@ paths-ignore:
   - "**/vite.config.*.ts"
   - "**/vitest.config.ts"
   - "**/playwright.config.ts"
-  - "**/lighthouserc.js"
   - "**/webpack.config.js"
   - "**/rollup.config.js"
 

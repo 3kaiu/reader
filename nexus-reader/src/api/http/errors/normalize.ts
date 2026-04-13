@@ -47,6 +47,7 @@ function parseBackendErrorPayload(response?: ErrorResponseLike): {
   code?: string
   message?: string
   details?: string
+  requestId?: string
 } | null {
   const data = response?._data
   if (!isRecord(data)) {
@@ -62,6 +63,7 @@ function parseBackendErrorPayload(response?: ErrorResponseLike): {
           ? data.error
           : undefined,
     details: typeof data.details === 'string' ? data.details : undefined,
+    requestId: typeof data.requestId === 'string' ? data.requestId : undefined,
   }
 }
 
@@ -74,6 +76,8 @@ export function convertToNexusError(error: unknown, url: string, method: string)
   const backendPayload = parseBackendErrorPayload(normalizedError.response)
   const backendMessage = backendPayload?.message
   const backendDetails = backendPayload?.details
+  const headerRequestId = getHeaderValue(normalizedError.response?.headers, 'x-request-id')
+  const requestId = backendPayload?.requestId || headerRequestId
   const errorMessage = normalizedError.message || '未知错误'
   const errorString = normalizedError.toString?.() || String(error ?? '')
 
@@ -82,7 +86,7 @@ export function convertToNexusError(error: unknown, url: string, method: string)
       url,
       method,
       originalError: errorString,
-    })
+    }, requestId)
   }
 
   if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
@@ -90,7 +94,7 @@ export function convertToNexusError(error: unknown, url: string, method: string)
       url,
       method,
       originalError: errorString,
-    })
+    }, requestId)
   }
 
   if (normalizedError.status === 401) {
@@ -99,7 +103,7 @@ export function convertToNexusError(error: unknown, url: string, method: string)
       method,
       status: normalizedError.status,
       backendCode: backendPayload?.code,
-    })
+    }, requestId)
   }
 
   if (normalizedError.status === 403) {
@@ -108,7 +112,7 @@ export function convertToNexusError(error: unknown, url: string, method: string)
       method,
       status: normalizedError.status,
       backendCode: backendPayload?.code,
-    })
+    }, requestId)
   }
 
   if (normalizedError.status === 429) {
@@ -118,7 +122,7 @@ export function convertToNexusError(error: unknown, url: string, method: string)
       status: normalizedError.status,
       retryAfter: getHeaderValue(normalizedError.response?.headers, 'retry-after'),
       backendCode: backendPayload?.code,
-    })
+    }, requestId)
   }
 
   if ((normalizedError.status || 0) >= 500) {
@@ -132,7 +136,8 @@ export function convertToNexusError(error: unknown, url: string, method: string)
         method,
         status: normalizedError.status,
         backendCode: backendPayload?.code,
-      }
+      },
+      requestId
     )
   }
 
@@ -140,7 +145,8 @@ export function convertToNexusError(error: unknown, url: string, method: string)
     ErrorCode.UNKNOWN_ERROR,
     translateErrorMessage(backendMessage || errorMessage || '未知错误'),
     backendDetails || backendMessage || errorMessage,
-    { url, method, originalError: errorString, backendCode: backendPayload?.code }
+    { url, method, originalError: errorString, backendCode: backendPayload?.code },
+    requestId
   )
 }
 

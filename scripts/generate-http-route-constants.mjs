@@ -62,9 +62,11 @@ function readContract() {
 function main() {
   const check = process.argv.includes('--check')
   const contract = readContract()
-  const edgeOnly = contract.frontend.edgeOnlyPrefixes
+  const api = contract.routing.edgeHandledApiPrefixes
+  const extras = contract.routing.edgeHandledPathExtras
+  const edgeOnly = [...api, ...extras]
   const direct = contract.frontend.directEligiblePrefixes
-  const userPrefixes = contract.worker.userServicePrefixes
+  const userPrefixes = api
 
   const fe = buildFrontendSource(edgeOnly, direct)
   const wk = buildWorkerSource(userPrefixes)

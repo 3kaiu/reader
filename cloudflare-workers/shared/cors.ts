@@ -1,29 +1,50 @@
 /**
- * CORS Utilities
- * Centralized CORS handling for all workers
+ * CORS utilities — centralized handling for all workers.
  */
 
-const ALLOWED_ORIGINS = [
-  'https://nexus-reader.pages.dev',
-  'http://localhost:5173',
-  'http://localhost:4173',
-];
+import type { WorkerEnv } from './types.ts'
 
-export function getCorsHeaders(origin: string, allowedOrigins: string[] = ALLOWED_ORIGINS): Record<string, string> {
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+const LOCAL_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'] as const
+const LEGACY_READER_ORIGIN = 'https://nexus-reader.pages.dev'
+
+export type CorsEnvSlice = Pick<WorkerEnv, 'FRONTEND_URL' | 'CORS_EXTRA_ORIGINS'>
+
+function normalizeOrigin(raw: string): string {
+  return raw.trim().replace(/\/$/, '')
+}
+
+/** Merge localhost, default Pages reader, FRONTEND_URL, and optional comma-separated extras. */
+export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
+  const out: string[] = []
+  const add = (raw: string) => {
+    const o = normalizeOrigin(raw)
+    if (o && !out.includes(o)) out.push(o)
+  }
+  for (const o of LOCAL_ORIGINS) add(o)
+  add(LEGACY_READER_ORIGIN)
+  if (env?.FRONTEND_URL) add(env.FRONTEND_URL)
+  if (env?.CORS_EXTRA_ORIGINS) {
+    for (const part of env.CORS_EXTRA_ORIGINS.split(',')) add(part)
+  }
+  return out
+}
+
+export function getCorsHeaders(origin: string, env?: CorsEnvSlice): Record<string, string> {
+  const allowedOrigins = resolveAllowedOrigins(env)
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
-  };
+  }
 }
 
-export function handleCorsPreflightRequest(request: Request): Response {
-  const origin = request.headers.get('Origin') || '';
+export function handleCorsPreflightRequest(request: Request, env?: CorsEnvSlice): Response {
+  const origin = request.headers.get('Origin') || ''
   return new Response(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
-  });
+    headers: getCorsHeaders(origin, env),
+  })
 }

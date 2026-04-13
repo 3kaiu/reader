@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Database, FileJson, RefreshCw, SquareArrowOutUpRight, Trash2 } from 'lucide-vue-next'
+import {
+  BookOpen,
+  Database,
+  FileJson,
+  RefreshCw,
+  SquareArrowOutUpRight,
+  Trash2,
+} from 'lucide-vue-next'
 
 type SourcePackageSummary = {
   sourceId: string
@@ -122,7 +129,9 @@ function readinessClass(state: SourcePackageSummary['readinessState']) {
   <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
     <div class="flex items-center gap-2 mb-4 px-1">
       <Database class="w-4 h-4 text-primary" />
-      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">源规则包</h2>
+      <h2 class="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+        源规则包（高级）
+      </h2>
       <button
         class="ml-auto h-8 px-3 text-xs rounded-full border bg-background hover:bg-muted transition-colors"
         :disabled="sourcePackagesLoading"
@@ -133,6 +142,25 @@ function readinessClass(state: SourcePackageSummary['readinessState']) {
     </div>
 
     <div class="rounded-2xl border border-border/50 bg-card overflow-hidden">
+      <div class="p-4 mx-4 mt-4 mb-2 rounded-xl border border-border/40 bg-muted/30">
+        <p class="text-xs text-muted-foreground leading-relaxed">
+          <span class="font-medium text-foreground">日常书源</span>
+          请使用纯 NXS：在「书源」页通过「导入书源」粘贴或上传 JSON（与
+          <code class="text-[11px] px-1 rounded bg-muted">.nxs</code>
+          文件内容相同）。此处面向含校验、抓取配置等的完整
+          <code class="text-[11px] px-1 rounded bg-muted">SourceRulePackage</code>
+          与 Source Builder 调试。
+        </p>
+        <button
+          type="button"
+          class="mt-3 h-8 px-3 text-xs rounded-full border border-border bg-background hover:bg-muted transition-colors inline-flex items-center gap-1.5"
+          @click="emit('navigate', '/sources')"
+        >
+          <BookOpen class="w-3.5 h-3.5" />
+          去书源页导入 NXS
+        </button>
+      </div>
+
       <div class="p-5 border-b border-border/50">
         <div class="flex items-center justify-between gap-3">
           <div>
@@ -152,27 +180,37 @@ function readinessClass(state: SourcePackageSummary['readinessState']) {
       </div>
 
       <div class="p-5 border-b border-border/50">
-        <div class="flex items-center gap-2 mb-2">
-          <FileJson class="w-4 h-4 text-primary" />
-          <p class="text-sm font-medium">导入 SourceRulePackage</p>
-        </div>
-        <p class="text-xs text-muted-foreground mb-3">
-          直接粘贴后端 `build-from-samples` 生成的 package JSON。
-        </p>
-        <textarea
-          v-model="importJson"
-          class="w-full min-h-40 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
-          placeholder='{"packageId":"...","source":{...}}'
-        />
-        <div class="flex justify-end mt-3">
-          <button
-            class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-            :disabled="sourcePackageImporting || !importJson.trim()"
-            @click="submitImport"
+        <details class="group">
+          <summary
+            class="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden marker:content-none"
           >
-            {{ sourcePackageImporting ? '导入中...' : '导入规则包' }}
-          </button>
-        </div>
+            <FileJson class="w-4 h-4 text-primary shrink-0" />
+            <span>导入完整 SourceRulePackage（JSON）</span>
+            <span class="text-xs font-normal text-muted-foreground"> — 可选，默认折叠</span>
+          </summary>
+          <p class="text-xs text-muted-foreground mt-2 mb-3 pl-6">
+            用于后端
+            <code class="text-[11px] px-1 rounded bg-muted">build-from-samples</code>
+            等生成的整包；与仅含
+            <code class="text-[11px] px-1 rounded bg-muted">NxsSource</code>
+            的 NXS 导入不同。
+          </p>
+          <textarea
+            v-model="importJson"
+            class="w-full min-h-40 rounded-xl border border-border/50 bg-background px-4 py-3 text-xs font-mono"
+            placeholder='{"packageId":"...","source":{...},"fetchProfile":...}'
+          />
+          <div class="flex justify-end mt-3">
+            <button
+              type="button"
+              class="h-9 px-4 rounded-full text-sm bg-secondary text-secondary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              :disabled="sourcePackageImporting || !importJson.trim()"
+              @click="submitImport"
+            >
+              {{ sourcePackageImporting ? '导入中...' : '导入规则包' }}
+            </button>
+          </div>
+        </details>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">

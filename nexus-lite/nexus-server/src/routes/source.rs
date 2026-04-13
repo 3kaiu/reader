@@ -64,6 +64,8 @@ pub async fn get_source(
     }))
 }
 
+/// Persist a book source from the canonical NXS shape (`NxsSource` JSON).
+/// This is the primary “import NXS” endpoint for personal deployments; see `AGENTS.md`.
 pub async fn add_source(
     State(state): State<AppState>,
     Json(source): Json<NxsSource>,

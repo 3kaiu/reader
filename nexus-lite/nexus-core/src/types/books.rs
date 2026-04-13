@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::types::PipelineStageReport;
+
 /// Book search result item
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -41,6 +43,9 @@ pub struct BookItem {
     pub latest_chapter: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_explain: Option<SearchExplain>,
+    /// Active source rule package id used for this result (if known).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<Arc<str>>,
 }
 
 impl BookItem {
@@ -61,8 +66,18 @@ impl BookItem {
             source_name: source_name.into(),
             latest_chapter: None,
             search_explain: None,
+            package_id: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BookInfoMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<Arc<str>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stage_reports: Vec<PipelineStageReport>,
 }
 
 /// Book detailed information
@@ -87,6 +102,8 @@ pub struct BookInfo {
     pub status: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_time: Option<Arc<str>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<BookInfoMeta>,
 }
 
 /// Table of contents item (chapter entry for TOC listing)

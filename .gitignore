@@ -51,6 +51,7 @@ test-results/
 Thumbs.db
 *~
 *.tmp
+.tmp-*
 *.bak
 
 # Docker

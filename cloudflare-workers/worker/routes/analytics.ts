@@ -47,7 +47,7 @@ export async function handleClientMetrics(request: Request, env: EnhancedWorkerE
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -62,7 +62,7 @@ export async function handleClientMetrics(request: Request, env: EnhancedWorkerE
       .run()
 
     return new Response(JSON.stringify({ success: true, received: metrics.length }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(request, 'CLIENT_METRICS_FAILED', 'Client metrics ingest failed', 500, getErrorMessage(error))
@@ -76,7 +76,7 @@ export async function handleClientRoutingAnalytics(
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -91,7 +91,7 @@ export async function handleClientRoutingAnalytics(
       .run()
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(
@@ -108,13 +108,13 @@ export async function handleAgentRouterStats(request: Request, env: EnhancedWork
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
     const effective = await getEffectiveAgentConfig(env)
     return new Response(JSON.stringify({ success: true, ...effective }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(request, 'AGENT_STATS_FAILED', 'Agent router stats failed', 500, getErrorMessage(error))
@@ -129,7 +129,7 @@ export async function handleAgentRouterConfig(request: Request, env: EnhancedWor
     if (request.method === 'GET') {
       const effective = await getEffectiveAgentConfig(env)
       return new Response(JSON.stringify({ success: true, ...effective }), {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     }
 
@@ -137,18 +137,18 @@ export async function handleAgentRouterConfig(request: Request, env: EnhancedWor
       const body: unknown = await request.json()
       const saved = await saveAgentConfigPatch(env, body, payload.id)
       return new Response(JSON.stringify({ success: true, ...saved }), {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     }
 
     if (request.method === 'DELETE') {
       const config = await clearAgentConfigOverride(env)
       return new Response(JSON.stringify({ success: true, config }), {
-        headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
       })
     }
 
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   } catch (error) {
     return jsonError(request, 'AGENT_CONFIG_FAILED', 'Agent router config failed', 500, getErrorMessage(error))
   }
@@ -161,7 +161,7 @@ export async function handleAgentRouterConfigAudit(
   const payload = await verifyAuth(request, env)
   if (!payload) return jsonError(request, 'UNAUTHORIZED', 'Unauthorized', 401)
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request) })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders(request, env) })
   }
 
   try {
@@ -172,7 +172,7 @@ export async function handleAgentRouterConfigAudit(
       cursor,
     })
     return new Response(JSON.stringify({ success: true, ...page }), {
-      headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
     })
   } catch (error) {
     return jsonError(

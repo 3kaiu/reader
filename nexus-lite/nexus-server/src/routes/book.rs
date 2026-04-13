@@ -1,11 +1,12 @@
 use axum::{
     extract::{Query, State},
+    http::{HeaderMap, HeaderValue},
     Json,
 };
 use futures::stream::{self, StreamExt};
 use nexus_core::{
     types::{Chapter, PipelineStageReport},
-    BookInfo, ChapterContent, ChapterContentMeta, EngineError, HealthFailureKind,
+    BookInfo, BookInfoMeta, ChapterContent, ChapterContentMeta, EngineError, HealthFailureKind,
 };
 use nexus_engine::quality_gate::evaluate_content_quality;
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,35 @@ async fn resolve_engine_for_source(
         .ok_or_else(|| not_found("Source"))
 }
 
+async fn active_package_id(state: &AppState, source_id: &str) -> Option<String> {
+    state
+        .store
+        .get_source_package(source_id.to_string())
+        .await
+        .ok()
+        .flatten()
+        .map(|pkg| pkg.package_id)
+}
+
+fn attach_active_package_headers(headers: &mut HeaderMap, package_id: Option<&str>) {
+    if let Some(id) = package_id {
+        if let Ok(v) = HeaderValue::from_str(id) {
+            headers.insert("x-active-package-id", v);
+        }
+    }
+}
+
+fn attach_stage_reports_header(headers: &mut HeaderMap, reports: &[PipelineStageReport]) {
+    if reports.is_empty() {
+        return;
+    }
+    if let Ok(json) = serde_json::to_string(reports) {
+        if let Ok(v) = HeaderValue::from_str(&json) {
+            headers.insert("x-stage-reports", v);
+        }
+    }
+}
+
 fn build_chapter_content(
     content: Arc<str>,
     chunk_size: Option<usize>,
@@ -54,6 +84,7 @@ fn build_chapter_content(
     source_id: &str,
     book_identity: Option<&str>,
     fallback_used: bool,
+    package_id: Option<&str>,
 ) -> ChapterContent {
     let chunks = chunk_size.map(|sz| nexus_engine::content::chunk_content(&content, sz));
     let mut meta = ChapterContentMeta::new(
@@ -64,6 +95,7 @@ fn build_chapter_content(
     meta.fallback_used = fallback_used;
     meta.effective_source_id = Some(source_id.to_string());
     meta.book_identity = book_identity.map(ToString::to_string);
+    meta.package_id = package_id.map(ToString::to_string);
     ChapterContent {
         content: content.clone(),
         chunks,
@@ -157,28 +189,74 @@ fn classify_content_failure(error: &EngineError) -> HealthFailureKind {
 pub async fn book_info(
     State(state): State<AppState>,
     Query(query): Query<BookQuery>,
-) -> Result<Json<BookInfo>, ApiErrorResponse> {
+) -> Result<(HeaderMap, Json<BookInfo>), ApiErrorResponse> {
     let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
+    let started_at = Instant::now();
+    let package_id = active_package_id(&state, &query.source).await;
 
-    engine
+    let mut info = engine
         .book_info(&query.url)
         .await
-        .map(Json)
-        .map_err(|e| internal_error(e.to_string()))
+        .map_err(|e| internal_error(e.to_string()))?;
+
+    let mut stage = PipelineStageReport {
+        stage: "book_info".to_string(),
+        ok: true,
+        strategy: Some("engine".to_string()),
+        failure_code: None,
+        warnings: Vec::new(),
+        metrics: std::collections::HashMap::new(),
+    };
+    stage.metrics.insert(
+        "elapsedMs".to_string(),
+        started_at.elapsed().as_millis().to_string(),
+    );
+
+    info.meta = Some(BookInfoMeta {
+        package_id: package_id.as_deref().map(Into::into),
+        stage_reports: vec![stage.clone()],
+    });
+
+    let mut headers = HeaderMap::new();
+    attach_active_package_headers(&mut headers, package_id.as_deref());
+    attach_stage_reports_header(&mut headers, &[stage]);
+    Ok((headers, Json(info)))
 }
 
 /// Get chapter list
 pub async fn chapters(
     State(state): State<AppState>,
     Query(query): Query<BookQuery>,
-) -> Result<Json<Vec<Chapter>>, ApiErrorResponse> {
+) -> Result<(HeaderMap, Json<Vec<Chapter>>), ApiErrorResponse> {
     let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
+    let started_at = Instant::now();
+    let package_id = active_package_id(&state, &query.source).await;
 
-    engine
+    let chapters = engine
         .chapters(&query.url)
         .await
         .map(Json)
-        .map_err(|e| internal_error(e.to_string()))
+        .map_err(|e| internal_error(e.to_string()))?;
+
+    let mut stage = PipelineStageReport {
+        stage: "chapters".to_string(),
+        ok: true,
+        strategy: Some("engine".to_string()),
+        failure_code: None,
+        warnings: Vec::new(),
+        metrics: std::collections::HashMap::new(),
+    };
+    stage.metrics.insert(
+        "elapsedMs".to_string(),
+        started_at.elapsed().as_millis().to_string(),
+    );
+    stage.metrics.insert("count".to_string(), chapters.0.len().to_string());
+
+    let mut headers = HeaderMap::new();
+    attach_active_package_headers(&mut headers, package_id.as_deref());
+    attach_stage_reports_header(&mut headers, &[stage]);
+
+    Ok((headers, chapters))
 }
 
 /// Get chapter content
@@ -188,6 +266,7 @@ pub async fn content(
 ) -> Result<Json<ChapterContent>, ApiErrorResponse> {
     let engine = resolve_engine_for_url(&state, &query.source, &query.url).await?;
     let request_started_at = Instant::now();
+    let package_id = active_package_id(&state, &query.source).await;
 
     // 1. Try Cache if book_id and index provided
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {
@@ -204,6 +283,7 @@ pub async fn content(
                 &query.source,
                 query.book_id.as_deref(),
                 true,
+                package_id.as_deref(),
             )));
         }
     }
@@ -248,6 +328,7 @@ pub async fn content(
         &query.source,
         query.book_id.as_deref(),
         false,
+        package_id.as_deref(),
     )))
 }
 

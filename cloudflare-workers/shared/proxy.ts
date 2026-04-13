@@ -3,21 +3,24 @@
  * Centralized proxy logic for forwarding requests to backend services
  */
 
-import { getCorsHeaders } from './cors.ts';
-import { generateCacheKey, getFromCache, saveToCache } from './cache.ts';
+import type { CorsEnvSlice } from './cors.ts'
+import { getCorsHeaders } from './cors.ts'
+import { generateCacheKey, getFromCache, saveToCache } from './cache.ts'
+import { getRequestId } from './request-id.ts'
 import type {
   AnalyticsEngineDatasetLike,
   ExecutionContextLike,
   KVNamespaceLike,
   WorkerEnv,
-} from './types.ts';
+} from './types.ts'
 
 export interface ProxyOptions {
-  useCache?: boolean;
-  cacheTTL?: number;
-  kv?: KVNamespaceLike;
-  ctx?: ExecutionContextLike;
-  analytics?: AnalyticsEngineDatasetLike;
+  useCache?: boolean
+  cacheTTL?: number
+  kv?: KVNamespaceLike
+  ctx?: ExecutionContextLike
+  analytics?: AnalyticsEngineDatasetLike
+  corsEnv?: CorsEnvSlice
 }
 
 function recordCacheMetric(
@@ -48,7 +51,7 @@ export async function proxyRequest(
   path: string,
   options: ProxyOptions = {}
 ): Promise<Response> {
-  const { useCache = false, cacheTTL = 0, kv, ctx } = options;
+  const { useCache = false, cacheTTL = 0, kv, ctx, corsEnv } = options
   const url = new URL(path, targetUrl);
   const origin = request.headers.get('Origin') || '';
   
@@ -78,7 +81,7 @@ export async function proxyRequest(
         headers: {
           'Content-Type': cached.contentType,
           'X-Cache': 'HIT',
-          ...getCorsHeaders(origin),
+          ...getCorsHeaders(origin, corsEnv),
         },
       });
     }
@@ -93,13 +96,12 @@ export async function proxyRequest(
     const response = await fetch(url.toString(), {
       method: request.method,
       headers: headers,
-      body: request.method !== 'GET' && request.method !== 'HEAD' 
-        ? await request.clone().text() 
-        : null,
+      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
+      ...(request.method !== 'GET' && request.method !== 'HEAD' ? { duplex: 'half' } : {}),
     });
     
     const newHeaders = new Headers(response.headers);
-    Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
+    Object.entries(getCorsHeaders(origin, corsEnv)).forEach(([key, value]) => {
       newHeaders.set(key, value);
     });
     newHeaders.set('X-Cache', 'MISS');
@@ -132,17 +134,19 @@ export async function proxyRequest(
       headers: newHeaders,
     });
   } catch (error) {
+    const requestId = getRequestId(request)
     console.error('Proxy error:', error);
-    return new Response(JSON.stringify({ 
-      error: 'Service temporarily unavailable',
-      message: 'Backend service is starting up, please retry in 30 seconds',
-      retryAfter: 30
+    return new Response(JSON.stringify({
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'Service temporarily unavailable',
+      details: 'Backend service is starting up, please retry in 30 seconds',
+      requestId,
     }), {
       status: 503,
       headers: {
         'Content-Type': 'application/json',
         'Retry-After': '30',
-        ...getCorsHeaders(origin),
+        ...getCorsHeaders(origin, corsEnv),
       },
     });
   }
@@ -154,19 +158,27 @@ export async function proxyRequest(
  * - `unified-worker.ts` (compat shim)
  * proxyRequest(request, env)
  */
-type ProxyEnvLike = Pick<WorkerEnv, 'NEXUS_LITE_URL' | 'ENABLE_CACHE' | 'CONTENT_CACHE_KV' | 'ANALYTICS_ENGINE'> & {
-  nexusLiteUrl?: string;
-};
+type ProxyEnvLike = Pick<
+  WorkerEnv,
+  | 'NEXUS_LITE_URL'
+  | 'ENABLE_CACHE'
+  | 'CONTENT_CACHE_KV'
+  | 'ANALYTICS_ENGINE'
+  | 'FRONTEND_URL'
+  | 'CORS_EXTRA_ORIGINS'
+> & {
+  nexusLiteUrl?: string
+}
 
 export async function proxyRequestWithEnv(
   request: Request,
   env: ProxyEnvLike,
   ctx?: ExecutionContextLike
 ): Promise<Response> {
-  const url = new URL(request.url);
-  const targetUrl = env.NEXUS_LITE_URL || env.nexusLiteUrl || '';
-  const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true';
-  const kv = env.CONTENT_CACHE_KV;
+  const url = new URL(request.url)
+  const targetUrl = env.NEXUS_LITE_URL || env.nexusLiteUrl || ''
+  const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true'
+  const kv = env.CONTENT_CACHE_KV
 
   return proxyRequest(request, targetUrl, url.pathname + url.search, {
     useCache,
@@ -174,5 +186,6 @@ export async function proxyRequestWithEnv(
     kv,
     ctx,
     analytics: env.ANALYTICS_ENGINE,
-  });
+    corsEnv: env,
+  })
 }

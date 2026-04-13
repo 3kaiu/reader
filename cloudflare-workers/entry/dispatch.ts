@@ -22,6 +22,6 @@ export function createStableDispatcher(
       return userServiceResponse
     }
 
-    return new Response('Not Found', { status: 404, headers: getCorsHeaders(origin) })
+    return new Response('Not Found', { status: 404, headers: getCorsHeaders(origin, env) })
   }
 }

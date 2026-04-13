@@ -593,6 +593,7 @@ export const syncApi = {
       silent: true,
     } satisfies ApiFetchOptions)
   },
+  /** Full `SourceRulePackage` import (builder/metadata). For plain NXS rules use `sourceApi.addSource`. */
   importSourcePackage: async (packageJson: string) => {
     return await $post<ImportSourcePackageResponse>(
       '/source-packages/import',

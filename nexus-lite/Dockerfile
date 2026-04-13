@@ -1,4 +1,4 @@
-# Nexus-Lite Dockerfile for HuggingFace Spaces
+# Nexus-Lite Dockerfile (GHCR / NAS; port 7860 also matches HuggingFace Spaces if you deploy there)
 # Build context: nexus-lite directory (used when GH Actions uploads this folder to HF)
 
 FROM rust:1.85-slim-bookworm AS builder
@@ -69,7 +69,7 @@ RUN mkdir -p /app/cache
 # Test that binary runs (basic check)
 RUN /app/nexus-server --help || echo "Binary exists but help failed"
 
-# HuggingFace Spaces requires port 7860
+# Default port 7860 matches HuggingFace Spaces; override PORT for NAS/Docker as needed.
 ENV HOST=0.0.0.0
 ENV PORT=7860
 ENV RUST_LOG=info

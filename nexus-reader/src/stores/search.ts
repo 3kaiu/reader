@@ -4,6 +4,7 @@ import { useStorage } from '@vueuse/core'
 import { searchApi } from '@/api/search'
 import type { ApiResponse } from '@/api/http/types'
 import type { SearchError, SearchResponse, SearchResult } from '@/types/search'
+import type { PipelineStageReport } from '@/types/pipeline'
 import {
   appendSearchError,
   appendSearchHistory,
@@ -26,6 +27,8 @@ export const useSearchStore = defineStore('search', () => {
   const searchKeyword = ref('')
   const searchResult = ref<SearchResult[]>([])
   const searchErrors = ref<SearchError[]>([])
+  const searchStageReports = ref<PipelineStageReport[]>([])
+  const searchRequestIdHeader = ref<string | null>(null)
   const loading = ref(false)
   const hasSearched = ref(false)
   const searchRequestId = ref(0)
@@ -90,6 +93,8 @@ export const useSearchStore = defineStore('search', () => {
     searchKeyword.value = normalizedQuery
     searchResult.value = []
     searchErrors.value = []
+    searchStageReports.value = []
+    searchRequestIdHeader.value = null
     loading.value = true
     hasSearched.value = true
     rememberQuery(normalizedQuery)
@@ -110,6 +115,17 @@ export const useSearchStore = defineStore('search', () => {
           }
 
           searchErrors.value = appendSearchError(searchErrors.value, error)
+        },
+        onMeta(meta) {
+          if (requestId !== searchRequestId.value) {
+            return
+          }
+          if (meta.requestId) {
+            searchRequestIdHeader.value = meta.requestId
+          }
+          if (meta.stageReports && meta.stageReports.length > 0) {
+            searchStageReports.value = meta.stageReports
+          }
         },
       })
 
@@ -175,6 +191,8 @@ export const useSearchStore = defineStore('search', () => {
     searchKeyword,
     searchResult,
     searchErrors,
+    searchStageReports,
+    searchRequestIdHeader,
     loading,
     hasSearched,
     searchHistory,

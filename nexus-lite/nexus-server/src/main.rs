@@ -9,6 +9,7 @@ mod error;
 mod metrics;
 mod middleware;
 mod orchestrator;
+mod request_id;
 mod routes;
 mod source_access;
 mod source_builder_state;
@@ -88,7 +89,7 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
         EngineConfig::default()
     };
 
-    // Environment overrides (convenient for Docker/HuggingFace)
+    // Environment overrides (convenient for Docker / NAS)
     if let Ok(host) = std::env::var("HOST") {
         config.server.host = host;
         info!("Overriding HOST from environment");

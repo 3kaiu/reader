@@ -27,6 +27,11 @@ pub(super) async fn validate_search_phase(
     sample_book_url_for_search: Option<String>,
 ) -> ValidationPhaseResult {
     let mut result = ValidationPhaseResult::new();
+    let native_search_enabled =
+        has_enabled_search_strategy(package, SourceSearchMode::NativeSearch, None);
+    if !native_search_enabled {
+        return result;
+    }
     let Some(query) = query else {
         return result;
     };
@@ -133,12 +138,6 @@ pub(super) async fn validate_search_phase(
             result.valid = false;
             result.steps.push(step);
         },
-    }
-
-    let native_search_enabled =
-        has_enabled_search_strategy(package, SourceSearchMode::NativeSearch, None);
-    if !native_search_enabled {
-        return ValidationPhaseResult::new();
     }
 
     result

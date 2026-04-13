@@ -94,8 +94,14 @@ pub(crate) fn compute_health_report(
         .iter()
         .find(|step| step.step == "search_detail")
         .or_else(|| steps.iter().find(|step| step.step == "search"));
-    let book_step = steps.iter().find(|step| step.step == "book_info");
-    let toc_step = steps.iter().find(|step| step.step == "chapters");
+    let book_step = steps
+        .iter()
+        .find(|step| step.step == "book_info")
+        .or_else(|| steps.iter().find(|step| step.step == "book"));
+    let toc_step = steps
+        .iter()
+        .find(|step| step.step == "chapters")
+        .or_else(|| steps.iter().find(|step| step.step == "toc"));
     let content_step = steps.iter().find(|step| step.step == "content");
 
     let search = step_to_health_segment(search_step, validated_at_ms);

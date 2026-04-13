@@ -1,0 +1,207 @@
+# Default deploy for personal + FNOS: Cloudflare Pages + Worker only.
+# Rust API runs on your NAS (GHCR image + Watchtower). See deploy/fnos/ and publish-nexus-server-image.yml.
+name: Deploy personal stack
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: deploy-personal-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CF_PAGES_PROJECT: nexus-reader
+  NODE_VERSION: '20'
+  BUN_VERSION: '1'
+
+jobs:
+  validate-contracts:
+    name: Validate contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/generate-http-route-constants.mjs --check
+      - run: node scripts/validate-contracts.mjs
+      - run: node scripts/repo-hygiene-check.mjs
+      - run: node scripts/cf-bypass-runtime-guard.mjs
+      - run: node scripts/dead-code-report.mjs
+
+  frontend-quality:
+    name: Frontend quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nexus-reader-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          run-lint: 'true'
+          run-type-check: 'true'
+          run-tests: 'true'
+
+  backend-quality:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nexus-lite-quality
+        with:
+          run-check: 'true'
+          run-tests: 'true'
+
+  workers-quality:
+    name: Workers quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: ./.github/actions/cloudflare-workers-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+  deploy-worker:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [validate-contracts, backend-quality, workers-quality]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install dependencies
+        working-directory: ./cloudflare-workers
+        run: npm install
+      - name: Configure Wrangler (replace placeholders)
+        working-directory: ./cloudflare-workers
+        env:
+          CF_ANALYTICS_DB_ID: ${{ secrets.CF_ANALYTICS_DB_ID }}
+          CF_USER_PREFS_DB_ID: ${{ secrets.CF_USER_PREFS_DB_ID }}
+          CF_PROGRESS_KV_ID: ${{ secrets.CF_PROGRESS_KV_ID }}
+          CF_CONTENT_CACHE_KV_ID: ${{ secrets.CF_CONTENT_CACHE_KV_ID }}
+          CF_DECODER_KV_ID: ${{ secrets.CF_DECODER_KV_ID }}
+          CF_AI_CACHE_KV_ID: ${{ secrets.CF_AI_CACHE_KV_ID }}
+          CF_PROD_ANALYTICS_DB_ID: ${{ secrets.CF_PROD_ANALYTICS_DB_ID }}
+          CF_PROD_USER_PREFS_DB_ID: ${{ secrets.CF_PROD_USER_PREFS_DB_ID }}
+          CF_PROD_PROGRESS_KV_ID: ${{ secrets.CF_PROD_PROGRESS_KV_ID }}
+        run: |
+          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" > .dev.vars
+          echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" >> .dev.vars
+          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .dev.vars
+          echo "OAUTH_GITHUB_CLIENT_ID=${{ secrets.OAUTH_GITHUB_CLIENT_ID }}" >> .dev.vars
+          echo "OAUTH_GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" >> .dev.vars
+          node ../scripts/apply-wrangler-placeholders.mjs wrangler.toml
+      - name: Deploy to Cloudflare Workers
+        working-directory: ./cloudflare-workers
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [validate-contracts, frontend-quality]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nexus-reader-quality
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Build
+        working-directory: ./nexus-reader
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_NEXUS_LITE_DIRECT_URL: ${{ secrets.VITE_NEXUS_LITE_DIRECT_URL }}
+          VITE_NEXUS_LITE_API_KEY: ${{ secrets.VITE_NEXUS_LITE_API_KEY }}
+          VITE_PROGRESS_SYNC_URL: ${{ secrets.VITE_PROGRESS_SYNC_URL }}
+          VITE_BACKUP_URL: ${{ secrets.VITE_BACKUP_URL }}
+          VITE_DECODER_URL: ${{ secrets.VITE_DECODER_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          OAUTH_GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+        run: bun run build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: frontend-build
+          path: nexus-reader/dist/
+          retention-days: 7
+
+  deploy-pages:
+    name: Deploy Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-frontend]
+    steps:
+      - name: Validate Cloudflare secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "CLOUDFLARE_ACCOUNT_ID is not set"
+            exit 1
+          fi
+      - uses: actions/download-artifact@v7
+        with:
+          name: frontend-build
+          path: frontend-dist
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ env.CF_PAGES_PROJECT }}
+          directory: frontend-dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-smoke:
+    name: Post-deploy smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [deploy-pages, deploy-worker]
+    if: success()
+    steps:
+      - name: Pages (and optional API health)
+        env:
+          PAGES_URL: ${{ secrets.DEPLOY_SMOKE_PAGES_URL }}
+          API_HEALTH_URL: ${{ secrets.DEPLOY_SMOKE_API_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          pages="${PAGES_URL:-https://nexus-reader.pages.dev}"
+          echo "GET $pages"
+          curl -fsS --max-time 25 "$pages" -o /tmp/pages.html
+          test -s /tmp/pages.html
+          echo "ok: pages returned body"
+          if [ -n "${API_HEALTH_URL}" ]; then
+            echo "GET $API_HEALTH_URL"
+            code=$(curl -sS -o /tmp/health.out -w '%{http_code}' --max-time 25 "$API_HEALTH_URL")
+            echo "HTTP $code"
+            if [ "$code" -ge 500 ]; then
+              cat /tmp/health.out || true
+              exit 1
+            fi
+            echo "ok: API health not 5xx"
+          else
+            echo "skip: set repo secret DEPLOY_SMOKE_API_HEALTH_URL to your origin (e.g. https://api.example.com/api/health)"
+          fi

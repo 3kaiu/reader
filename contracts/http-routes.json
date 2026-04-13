@@ -1,6 +1,6 @@
 {
-  "frontend": {
-    "edgeOnlyPrefixes": [
+  "routing": {
+    "edgeHandledApiPrefixes": [
       "/api/analytics",
       "/api/agent",
       "/api/preferences",
@@ -15,10 +15,11 @@
       "/api/fetch/session/auto-acquire",
       "/api/fetch/session/verify",
       "/api/source-session/profile",
-      "/api/source-session/profile/recover",
-      "/progress/",
-      "/auth/"
+      "/api/source-session/profile/recover"
     ],
+    "edgeHandledPathExtras": ["/progress/", "/auth/"]
+  },
+  "frontend": {
     "directEligiblePrefixes": [
       "/api/search",
       "/api/sources",
@@ -38,23 +39,6 @@
     ]
   },
   "worker": {
-    "userServicePrefixes": [
-      "/api/analytics/",
-      "/api/agent/",
-      "/api/preferences",
-      "/api/content/upload",
-      "/api/backup",
-      "/api/metrics/client",
-      "/api/source/flow-assist",
-      "/api/source/flow-assist/feedback",
-      "/api/source/flow-assist/stats",
-      "/api/source/flow-assist/profile",
-      "/api/source/flow-assist/profile/audit",
-      "/api/fetch/session/auto-acquire",
-      "/api/fetch/session/verify",
-      "/api/source-session/profile",
-      "/api/source-session/profile/recover"
-    ],
     "experimentalRoutes": [],
     "experimentalExcludeRoutes": []
   },

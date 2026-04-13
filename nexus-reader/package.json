@@ -47,7 +47,6 @@
     "vue-router": "^5.0.2"
   },
   "devDependencies": {
-    "@lhci/cli": "^0.15.0",
     "@playwright/test": "^1.57.0",
     "@rsbuild/core": "^1.7.2",
     "@rsbuild/plugin-vue": "^1.2.1",
@@ -63,7 +62,6 @@
     "fast-check": "^4.5.3",
     "gh-pages": "^6.2.0",
     "glob": "^13.0.0",
-    "lighthouse": "^13.0.1",
     "prettier": "^3.0.0",
     "tailwindcss": "^4.1.18",
     "ts-node": "^10.9.2",

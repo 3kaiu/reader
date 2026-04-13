@@ -23,4 +23,4 @@ mod strategies;
 pub use cf_cookie::{CfCookie, CfCookieError, CfCookieManager};
 pub use chain::FallbackChain;
 pub use cloudscraper::CloudScraperStrategy;
-pub use strategies::{CfBypassStrategy, DirectHttpStrategy};
+pub use strategies::{CfBypassStrategy, DirectHttpStrategy, JinaReaderStrategy};

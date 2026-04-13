@@ -5,8 +5,8 @@
  */
 
 export const USER_SERVICE_PREFIXES = [
-  '/api/analytics/',
-  '/api/agent/',
+  '/api/analytics',
+  '/api/agent',
   '/api/preferences',
   '/api/content/upload',
   '/api/backup',

@@ -17,6 +17,8 @@ export function createReaderStoreState(): ReaderStoreState {
     error: ref<string | null>(null),
     loadError: ref<string | null>(null),
     loadErrorDetails: ref<string | null>(null),
+    diagnosticsRequestId: ref<string | null>(null),
+    diagnosticsPackageId: ref<string | null>(null),
     progressMap: ref(loadPersistedReaderProgress()),
     resumeScrollPercent: ref(null),
     resumeScrollChapterIndex: ref(null),

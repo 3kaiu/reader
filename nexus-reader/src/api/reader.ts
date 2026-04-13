@@ -84,7 +84,7 @@ function validateSourceAndUrl(source: string, url: string): string {
 }
 
 export const readerApi = {
-  getBookInfo: (source: string, url: string) => {
+  getBookInfo: (source: string, url: string, requestId?: string) => {
     const decodedUrl = validateSourceAndUrl(source, url)
 
     try {
@@ -99,14 +99,21 @@ export const readerApi = {
       throw error
     }
 
-    return $get<Book>('/book', { params: { source: source.trim(), url: decodedUrl } })
+    return $get<Book>('/book', {
+      params: { source: source.trim(), url: decodedUrl },
+      ...(requestId ? ({ _requestId: requestId } as any) : {}),
+    })
   },
-  getChapters: (source: string, url: string) => {
+  getChapters: (source: string, url: string, requestId?: string) => {
     const decodedUrl = validateSourceAndUrl(source, url)
-    return $get<Chapter[]>('/chapters', { params: { source: source.trim(), url: decodedUrl } })
+    return $get<Chapter[]>('/chapters', {
+      params: { source: source.trim(), url: decodedUrl },
+      ...(requestId ? ({ _requestId: requestId } as any) : {}),
+    })
   },
-  getContent: (source: string, url: string, request?: ReaderContentRequest) => {
+  getContent: (source: string, url: string, request?: ReaderContentRequest & { requestId?: string }) => {
     const decodedUrl = validateSourceAndUrl(source, url)
+    const requestId = request?.requestId
     return $get<ChapterContent>('/content', {
       params: {
         source: source.trim(),
@@ -116,6 +123,7 @@ export const readerApi = {
         ...(typeof request?.index === 'number' ? { index: request.index } : {}),
         ...(typeof request?.chunkSize === 'number' ? { chunk_size: request.chunkSize } : {}),
       },
+      ...(requestId ? ({ _requestId: requestId } as any) : {}),
     })
   },
 

@@ -1,115 +1,98 @@
-# Dependabot Configuration (GitHub免费功能)
-# 自动监控依赖更新，创建PR
-
+# Dependabot: weekly version PRs. Security alerts are separate (Dependabot alerts).
 version: 2
 updates:
-  # 前端依赖更新
-  - package-ecosystem: "npm"
-    directory: "/nexus-reader"
+  - package-ecosystem: 'npm'
+    directory: '/nexus-reader'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 10
-    reviewers:
-      - "your-username"  # 替换为你的GitHub用户名
-    assignees:
-      - "your-username"
     commit-message:
-      prefix: "deps"
-      include: "scope"
+      prefix: 'deps'
+      include: 'scope'
     labels:
-      - "dependencies"
-      - "frontend"
+      - 'dependencies'
+      - 'frontend'
     ignore:
-      # 忽略大版本更新
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
-  # Cloudflare Workers依赖更新
-  - package-ecosystem: "npm"
-    directory: "/cloudflare-workers"
+  - package-ecosystem: 'npm'
+    directory: '/cloudflare-workers'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 5
-    reviewers:
-      - "your-username"
-    assignees:
-      - "your-username"
     commit-message:
-      prefix: "deps"
-      include: "scope"
+      prefix: 'deps'
+      include: 'scope'
     labels:
-      - "dependencies"
-      - "workers"
-      - "cloudflare"
+      - 'dependencies'
+      - 'workers'
+      - 'cloudflare'
 
-  # Python依赖更新 (CF绕过服务)
-  - package-ecosystem: "pip"
-    directory: "/cf-bypass-service"
+  - package-ecosystem: 'pip'
+    directory: '/cf-bypass-service'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 5
-    reviewers:
-      - "your-username"
-    assignees:
-      - "your-username"
     commit-message:
-      prefix: "deps"
-      include: "scope"
+      prefix: 'deps'
+      include: 'scope'
     labels:
-      - "dependencies"
-      - "python"
-      - "backend"
+      - 'dependencies'
+      - 'python'
+      - 'backend'
 
-  # Rust依赖更新 (如果有Cargo.toml的话)
-  - package-ecosystem: "cargo"
-    directory: "/nexus-lite"
+  - package-ecosystem: 'cargo'
+    directory: '/nexus-lite'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 5
-    reviewers:
-      - "your-username"
-    assignees:
-      - "your-username"
     commit-message:
-      prefix: "deps"
-      include: "scope"
+      prefix: 'deps'
+      include: 'scope'
     labels:
-      - "dependencies"
-      - "rust"
-      - "backend"
+      - 'dependencies'
+      - 'rust'
+      - 'backend'
 
-  # Docker镜像更新
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: 'docker'
+    directory: '/nexus-lite'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "your-username"
-    assignees:
-      - "your-username"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 2
     commit-message:
-      prefix: "docker"
-      include: "scope"
+      prefix: 'docker'
+      include: 'scope'
     labels:
-      - "docker"
-      - "infrastructure"
+      - 'docker'
+      - 'nexus-lite'
 
-# 说明：
-# Dependabot 的安全更新由 GitHub Dependabot alerts 驱动，不需要在同一目录重复配置
-# 第二个 /nexus-reader npm daily 配置会导致重复 PR/噪音，这里移除。
+  - package-ecosystem: 'docker'
+    directory: '/cf-bypass-service'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: 'docker'
+      include: 'scope'
+    labels:
+      - 'docker'
+      - 'cf-bypass-service'

@@ -410,6 +410,7 @@ impl NxsEngine {
             update_time: None,
             status: None,
             category: None,
+            meta: None,
         })
     }
 

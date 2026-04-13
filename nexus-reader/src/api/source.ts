@@ -51,7 +51,7 @@ export const sourceApi = {
   resetSourceRuntimeState: (id: string, mode: 'full' | 'circuit_only' = 'full') =>
     $post<SourceRuntimeResetResponse>(`/sources/${id}/runtime-state/reset`, { mode }),
 
-  // 添加/修改书源 (导入)
+  // 添加/修改书源：请求体为 NXS（与后端 NxsSource 一致），即主线的「导入源规则」
   addSource: (source: Partial<BookSource> & Record<string, unknown>) => $post('/sources', source),
 
   // 删除书源

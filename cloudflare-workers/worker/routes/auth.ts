@@ -104,6 +104,6 @@ export async function handleAuthVerify(request: Request, env: EnhancedWorkerEnv)
     valid: Boolean(payload),
     user: payload || null,
   }), {
-    headers: { ...corsHeaders(request), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(request, env), 'Content-Type': 'application/json' },
   })
 }

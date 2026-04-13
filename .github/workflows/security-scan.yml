@@ -1,11 +1,20 @@
+# PR: dependency audit + custom rg checks only (faster). CodeQL runs on schedule + workflow_dispatch
+# (and weekly schedule skips CodeQL for private repos — same as before).
 name: 🔒 Security Scan & Audit
 
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
+    paths:
+      - "nexus-reader/**"
+      - "nexus-lite/**"
+      - "cloudflare-workers/**"
+      - "cf-bypass-service/**"
+      - "contracts/**"
+      - "scripts/**"
+      - ".github/workflows/security-scan.yml"
+      - ".github/codeql-config.yml"
+      - ".github/codeql-queries/**"
   schedule:
     # Run weekly security scan
     - cron: '0 9 * * 1'
@@ -20,12 +29,12 @@ permissions:
   security-events: write
 
 jobs:
-  # ===== 代码安全扫描 =====
+  # ===== 代码安全扫描（不在 PR 上运行，见文件头说明） =====
   codeql-scan:
     name: 🔍 CodeQL Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name != 'schedule' || github.repository_visibility == 'public'
+    if: github.event_name != 'pull_request' && (github.event_name != 'schedule' || github.repository_visibility == 'public')
 
     steps:
       - name: Checkout code
@@ -56,14 +65,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "18"
+          node-version: "20"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Install Rust audit tool
+      - name: Rust cache (nexus-lite)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: nexus-lite
+
+      - name: Cache cargo-audit binary
+        uses: actions/cache@v4
+        id: cargo-audit-tool
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit-bin-v1
+
+      - name: Install cargo-audit
+        if: steps.cargo-audit-tool.outputs.cache-hit != 'true'
         run: cargo install cargo-audit --locked
 
       - name: Audit Rust dependencies
@@ -90,6 +112,13 @@ jobs:
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
+
+      - name: Cache workers node_modules
+        uses: actions/cache@v4
+        id: workers-modules
+        with:
+          path: cloudflare-workers/node_modules
+          key: ${{ runner.os }}-workers-npm-${{ hashFiles('cloudflare-workers/package.json') }}
 
       - name: Setup workers dependencies
         working-directory: cloudflare-workers
@@ -262,7 +291,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "18"
+          node-version: "20"
 
       - name: Run custom security checks
         run: |
@@ -313,8 +342,6 @@ jobs:
             --glob '!**/__tests__/**' \
             --glob '!**/*.test.*' \
             --glob '!**/*.spec.*' \
-            --glob '!lighthouse-config.json' \
-            --glob '!**/lighthouserc.js' \
             --glob '!**/playwright.config.*' \
             --glob '!**/docker-compose*.yml' \
             '(?i)(url|origin|endpoint|base_?url|baseURL|target)\s*[:=].*http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|example\.com)' \
@@ -361,7 +388,7 @@ jobs:
           echo "## 🔒 Security Scan Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Scan Results:" >> $GITHUB_STEP_SUMMARY
-          echo "- **CodeQL Scan**: ${{ needs.codeql-scan.result == 'success' && '✅ Passed' || needs.codeql-scan.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeQL Scan**: ${{ needs.codeql-scan.result == 'success' && '✅ Passed' || needs.codeql-scan.result == 'failure' && '❌ Failed' || '⏭️ Skipped (PR runs audit + custom checks only; CodeQL on schedule/manual)' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Dependency Audit**: ${{ needs.dependency-audit.result == 'success' && '✅ Passed' || needs.dependency-audit.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Custom Security Checks**: ${{ needs.custom-security-check.result == 'success' && '✅ Passed' || needs.custom-security-check.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

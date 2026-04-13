@@ -3,6 +3,7 @@ import { isLikelyNetworkOrCorsError } from './http/errors'
 import { mergeHeaders, resolveBaseUrl, attachAuthHeaders } from './http/transport/request'
 import type { InternalApiFetchOptions } from './http/types'
 import type { SearchError, SearchResponse, SearchResult } from '@/types/search'
+import type { PipelineStageReport } from '@/types/pipeline'
 
 export type { SearchError, SearchResponse, SearchResult }
 
@@ -16,6 +17,7 @@ type SearchStreamOptions = {
   onResult?: (result: SearchResult) => void
   onError?: (error: SearchError) => void
   onDone?: (total: number) => void
+  onMeta?: (meta: { requestId?: string; stageReports?: PipelineStageReport[] }) => void
 }
 
 function isAbortError(error: unknown): boolean {
@@ -65,7 +67,7 @@ async function toRequestError(response: Response): Promise<Error> {
 
 function processSseEventBlock(
   block: string,
-  handlers: Required<Pick<SearchStreamOptions, 'onResult' | 'onError' | 'onDone'>>
+  handlers: Required<Pick<SearchStreamOptions, 'onResult' | 'onError' | 'onDone' | 'onMeta'>>
 ): void {
   const normalizedBlock = block.replace(/\r/g, '').trim()
   if (!normalizedBlock || normalizedBlock.startsWith(':')) {
@@ -92,7 +94,13 @@ function processSseEventBlock(
 
   const dataText = dataLines.join('\n')
   const payload = JSON.parse(dataText) as
-    | { data?: SearchResult; source_id?: string; error?: string; total?: number }
+    | {
+        data?: SearchResult
+        source_id?: string
+        error?: string
+        total?: number
+        stage_reports?: PipelineStageReport[]
+      }
     | undefined
 
   if (eventName === 'result' && payload?.data) {
@@ -110,6 +118,11 @@ function processSseEventBlock(
 
   if (eventName === 'done') {
     handlers.onDone(typeof payload?.total === 'number' ? payload.total : 0)
+    return
+  }
+
+  if (eventName === 'meta') {
+    handlers.onMeta({ stageReports: payload?.stage_reports })
   }
 }
 
@@ -129,6 +142,7 @@ async function consumeSearchStream(
     onResult: options.onResult || (() => undefined),
     onError: options.onError || (() => undefined),
     onDone: options.onDone || (() => undefined),
+    onMeta: options.onMeta || (() => undefined),
   }
 
   while (true) {
@@ -189,6 +203,11 @@ async function requestSearchStream(
 
   if (!response.ok) {
     throw await toRequestError(response)
+  }
+
+  const requestId = response.headers.get('X-Request-ID') || response.headers.get('x-request-id') || undefined
+  if (requestId && options.onMeta) {
+    options.onMeta({ requestId })
   }
 
   await consumeSearchStream(response, options)

@@ -228,6 +228,7 @@ function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] 
 
 type NormalizedContentPayload = {
   content: string
+  packageId?: string | null
   stageReports: Array<{
     stage: string
     ok: boolean
@@ -335,6 +336,12 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
         ? record.text
         : chunksContent
   const metaValue = tryParseJsonPayload(record.meta)
+  const packageId =
+    metaValue && typeof metaValue === 'object'
+      ? (toOptionalString((metaValue as Record<string, unknown>).packageId) ??
+          toOptionalString((metaValue as Record<string, unknown>).package_id) ??
+          null)
+      : null
   const stageReportsValue =
     metaValue && typeof metaValue === 'object'
       ? tryParseJsonPayload(
@@ -350,6 +357,7 @@ function normalizeContentPayload(payload: unknown): NormalizedContentPayload {
 
   return {
     content,
+    packageId,
     stageReports,
   }
 }
@@ -578,7 +586,9 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     sourceId: string,
     bookUrl: string
   ): Promise<ApiResponse<ReaderBook>> => {
-    const response = await readerApi.getBookInfo(sourceId, bookUrl)
+    const requestId = crypto.randomUUID()
+    state.diagnosticsRequestId.value = requestId
+    const response = await readerApi.getBookInfo(sourceId, bookUrl, requestId)
 
     if (!response.isSuccess || !response.data) {
       return response as ApiResponse<ReaderBook>
@@ -614,7 +624,8 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
 
     const res = await readerApi.getChapters(
       state.currentBook.value.sourceId,
-      state.currentBook.value.bookUrl
+      state.currentBook.value.bookUrl,
+      state.diagnosticsRequestId.value || undefined
     )
 
     if (!res.isSuccess) {
@@ -675,6 +686,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
         bookUrl: currentBook.bookUrl,
         bookId: buildReaderContentBookId(currentBook),
         index: chapter.index,
+        requestId: state.diagnosticsRequestId.value || undefined,
       })
 
       if (!res.isSuccess) {
@@ -684,6 +696,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       const normalizedContent = normalizeContentPayload(res.data)
       const chapterContent = normalizedContent.content || ''
       state.contentStageReports.value = normalizedContent.stageReports
+      state.diagnosticsPackageId.value = normalizedContent.packageId ?? null
       if (!chapterContent.trim()) {
         state.loadErrorDetails.value =
           state.contentStageReports.value.find(report => report.ok === false)?.failureCode || null

@@ -10,6 +10,8 @@ const {
   searchKeyword,
   searchResult,
   searchErrors,
+  searchStageReports,
+  searchRequestIdHeader,
   loading,
   hasSearched,
   showHeroState,
@@ -57,6 +59,8 @@ const {
       v-model:search-keyword="searchKeyword"
       :loading="loading"
       :result-count="resultCount"
+      :search-request-id="searchRequestIdHeader"
+      :search-stage-reports="searchStageReports"
       :show-source-filters="showSourceFilters"
       :available-sources="availableSources"
       :selected-sources="selectedSources"

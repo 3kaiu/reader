@@ -1,5 +1,6 @@
 import { getCorsHeaders } from '../../shared/cors.ts'
 import type { JsonObject } from '../../shared/types.ts'
+import type { EnhancedWorkerEnv } from '../types.ts'
 
 export type AnalyticsQueryRow = Record<string, unknown>
 
@@ -14,8 +15,8 @@ export interface GitHubUserPayload {
   avatarUrl?: string
 }
 
-export function corsHeaders(request: Request): Record<string, string> {
-  return getCorsHeaders(request.headers.get('Origin') || '')
+export function corsHeaders(request: Request, env: EnhancedWorkerEnv): Record<string, string> {
+  return getCorsHeaders(request.headers.get('Origin') || '', env)
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

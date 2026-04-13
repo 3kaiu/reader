@@ -202,6 +202,25 @@ pub(crate) async fn fetch_seed_html(seed_url: &str) -> Result<String, String> {
         .send()
         .await
         .map_err(|e| e.to_string())?;
+
+    // Many targets are behind anti-bot (e.g. Cloudflare challenge) and return 403/503
+    // for non-browser clients. If so, fall back to Jina Reader which often succeeds.
+    if !resp.status().is_success() {
+        // Prefer HTML response for probing selectors.
+        let replay = client
+            .get(build_jina_reader_url(seed_url))
+            .header("x-respond-with", "html")
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if replay.status().is_success() {
+            let body = replay.text().await.map_err(|e| e.to_string())?;
+            if !body.trim().is_empty() {
+                return Ok(body);
+            }
+        }
+    }
+
     resp.text().await.map_err(|e| e.to_string())
 }
 
@@ -327,14 +346,22 @@ async fn fetch_via_external_service(
             .to_string());
     };
     let client = source_builder_http_client()?;
+    let mut headers = parsed.headers.clone();
+    if !parsed.cookies.is_empty() && !headers.contains_key("cookie") && !headers.contains_key("Cookie")
+    {
+        let cookie_header = parsed
+            .cookies
+            .iter()
+            .map(|(name, value)| format!("{name}={value}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        headers.insert("cookie".to_string(), cookie_header);
+    }
+
     let payload = ExternalFetchRequest {
         url: parsed.url.clone(),
         method: parsed.method.clone(),
-        headers: if parsed.headers.is_empty() {
-            None
-        } else {
-            Some(parsed.headers.clone())
-        },
+        headers: if headers.is_empty() { None } else { Some(headers) },
         body: parsed.body.clone(),
         timeout: 30,
         proxy: None,

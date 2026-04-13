@@ -12,7 +12,7 @@ use nexus_core::{
     SourceRulePackage, SourceRuleRefineRequest, SourceRuleRefineResponse,
     SourceRuleValidationReport, SourceSearchMode, SourceSearchProfile, SourceValidationStepReport,
 };
-use nexus_engine::anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain};
+use nexus_engine::anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain, JinaReaderStrategy};
 use nexus_engine::quality_gate::evaluate_content_quality;
 use nexus_engine::NxsEngine;
 use scraper::{Html, Selector};
@@ -95,8 +95,9 @@ use types_support::{
 };
 use validation_support::{
     append_jina_guidance, build_fetch_profile, classify_fetch_error, extract_free_text_hints,
-    has_enabled_search_strategy, make_step, package_default_samples,
-    select_search_result_for_validation, suggested_actions_for,
+    has_enabled_search_strategy, has_fallback_search_strategies, make_step,
+    package_default_samples, select_search_result_for_validation, suggested_actions_for,
+    validation_relaxed_search_importable,
 };
 
 pub fn router<S>() -> Router<S>
