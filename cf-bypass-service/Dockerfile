@@ -3,7 +3,7 @@
 # Optimized for HuggingFace Spaces with Camoufox (Hardened Firefox) support
 # =============================================================================
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
