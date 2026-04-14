@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Core traits, error types, and data models for NexusLite"
+description = "Core traits, error types, and data models for Nexus"
 
 [dependencies]
 serde.workspace = true

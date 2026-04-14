@@ -1,6 +1,6 @@
-# Build and push nexus-server to GHCR on every push to main (when nexus-lite changes).
+# Build and push the Nexus API image to GHCR on every push to main (legacy image name: nexus-server).
 # FNOS / NAS: run deploy/fnos/docker-compose.yml + Watchtower for hands-off updates.
-name: Publish nexus-server (GHCR)
+name: Publish Nexus API image (GHCR)
 
 on:
   push:

@@ -1,4 +1,4 @@
-//! Lean business-oriented module surface for NexusLite.
+//! Lean business-oriented module surface for Nexus.
 //!
 //! These modules mirror the current product focus:
 //! 1) source management

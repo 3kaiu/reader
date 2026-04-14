@@ -1,6 +1,6 @@
-# Default deploy for personal + FNOS: Cloudflare Pages + Worker only.
-# Rust API runs on your NAS (GHCR image + Watchtower). See deploy/fnos/ and publish-nexus-server-image.yml.
-name: Deploy personal stack
+# Default deploy for a personal Nexus stack: Cloudflare Pages + Worker only.
+# Nexus API runs on your NAS (GHCR image + Watchtower). See deploy/fnos/ and publish-nexus-server-image.yml.
+name: Deploy Nexus personal stack
 
 on:
   push:
@@ -43,7 +43,7 @@ jobs:
       - run: node scripts/dead-code-report.mjs
 
   frontend-quality:
-    name: Frontend quality
+    name: Nexus Web quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -56,7 +56,7 @@ jobs:
           run-tests: 'true'
 
   backend-quality:
-    name: Backend quality
+    name: Nexus API quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -67,7 +67,7 @@ jobs:
           run-tests: 'true'
 
   workers-quality:
-    name: Workers quality
+    name: Nexus Edge quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -119,7 +119,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   build-frontend:
-    name: Build frontend
+    name: Build Nexus Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [validate-contracts, frontend-quality]
@@ -148,7 +148,7 @@ jobs:
           retention-days: 7
 
   deploy-pages:
-    name: Deploy Pages
+    name: Deploy Nexus Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build-frontend]
@@ -176,7 +176,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-smoke:
-    name: Post-deploy smoke
+    name: Nexus smoke check
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [deploy-pages, deploy-worker]

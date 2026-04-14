@@ -54,7 +54,7 @@ impl HttpFetcher {
             .brotli(true)
             // Session management
             .cookie_store(true)
-            .user_agent("Mozilla/5.0 (compatible; NexusLite/1.0)")
+            .user_agent("Mozilla/5.0 (compatible; Nexus/1.0)")
             .build()
             .map_err(|e: reqwest::Error| EngineError::Network {
                 message: e.to_string(),

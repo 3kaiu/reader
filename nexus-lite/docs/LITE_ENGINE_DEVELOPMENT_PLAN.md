@@ -1,7 +1,7 @@
 # Lite 引擎后续开发方案
 
 ## 0. 当前架构基线（已落地）
-本轮收敛后，`nexus-lite` 的引擎主链路已经明确分成三层：
+本轮收敛后，Nexus 后端（当前目录仍为 `nexus-lite`）的引擎主链路已经明确分成三层：
 
 1. `nexus-core`
    - 主契约入口是 `book_engine.rs`、`traits.rs`、`types.rs`

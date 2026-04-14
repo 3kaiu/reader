@@ -1,4 +1,4 @@
-//! Configuration structures for NexusLite
+//! Configuration structures for Nexus
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

@@ -1,4 +1,4 @@
-//! NexusLite Storage Layer - 存储模块
+//! Nexus Storage Layer - 存储模块
 //!
 //! 提供存储实现：
 //! - 基于sled的持久化存储

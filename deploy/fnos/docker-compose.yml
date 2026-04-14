@@ -1,7 +1,7 @@
-# Flyio / FNOS NAS: nexus-server from GHCR + auto-updates (Watchtower).
+# Flyio / FNOS NAS: Nexus API image from GHCR + auto-updates (Watchtower).
 #
 # One-time setup:
-# 1. In GitHub: ensure Actions "Publish nexus-server (GHCR)" has run so the image exists.
+# 1. In GitHub: ensure Actions "Publish Nexus API image (GHCR)" has run so the image exists.
 # 2. Replace YOUR_GITHUB_USER below (or set COMPOSE_PROJECT_NAME / image via .env).
 # 3. mkdir -p data sources && copy .nxs into sources/
 # 4. If the package is private: create a PAT (read:packages) and set WATCHTOWER_REPO_USER / WATCHTOWER_REPO_PASS.

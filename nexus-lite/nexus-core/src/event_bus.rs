@@ -1,4 +1,4 @@
-//! Event Bus for NexusLite system-wide messaging
+//! Event bus for Nexus system-wide messaging
 //!
 //! Uses tokio::sync::broadcast to dispatch events to subscribers.
 

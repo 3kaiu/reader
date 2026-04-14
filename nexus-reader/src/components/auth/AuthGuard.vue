@@ -29,7 +29,7 @@ const { isChecking, isAuthenticated, error, loginWithGitHub } = useAuthGuardView
         <div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
           <ShieldAlert class="h-8 w-8 text-primary" />
         </div>
-        <h1 class="text-2xl font-bold">Nexus Reader</h1>
+        <h1 class="text-2xl font-bold">Nexus</h1>
         <p class="text-sm text-muted-foreground">仅限授权用户访问</p>
       </div>
 

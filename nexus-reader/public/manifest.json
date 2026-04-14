@@ -1,7 +1,7 @@
 {
-  "name": "Nexus Reader",
-  "short_name": "阅读",
-  "description": "智能小说阅读器",
+  "name": "Nexus",
+  "short_name": "Nexus",
+  "description": "自托管小说阅读工作台",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

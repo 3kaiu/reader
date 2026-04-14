@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: Nexus CI
 
 on:
   pull_request:
@@ -62,14 +62,14 @@ jobs:
         run: node scripts/dead-code-report.mjs
 
   frontend-quality:
-    name: Frontend Quality
+    name: Nexus Web Quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Run frontend lint and type check
+      - name: Run Nexus Web lint and type check
         uses: ./.github/actions/nexus-reader-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
@@ -77,7 +77,7 @@ jobs:
           run-type-check: "true"
 
   backend-quality:
-    name: Backend Quality
+    name: Nexus API Quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -92,7 +92,7 @@ jobs:
           run-clippy: "true"
 
   workers-quality:
-    name: Workers Quality
+    name: Nexus Edge Quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -104,13 +104,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Run Cloudflare Workers type check
+      - name: Run Nexus Edge type check
         uses: ./.github/actions/cloudflare-workers-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
   backend-tests:
-    name: Backend Cargo Test
+    name: Nexus API Cargo Test
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs:
@@ -125,7 +125,7 @@ jobs:
           run-tests: "true"
 
   frontend-tests:
-    name: Frontend Tests
+    name: Nexus Web Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs:
@@ -134,7 +134,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Run frontend tests
+      - name: Run Nexus Web tests
         uses: ./.github/actions/nexus-reader-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}

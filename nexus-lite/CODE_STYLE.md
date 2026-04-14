@@ -1,4 +1,4 @@
-# NexusLite 代码规范
+# Nexus 代码规范
 
 ## 命名规范
 

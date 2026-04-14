@@ -1,4 +1,4 @@
-//! NexusLite Source Builder API Server
+//! Nexus Source Builder API Server
 
 mod api_response;
 mod source_builder_state;

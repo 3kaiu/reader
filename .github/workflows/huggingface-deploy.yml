@@ -1,11 +1,11 @@
-# Optional: push nexus-lite/ to a HuggingFace Docker Space. Default backend path: GHCR + NAS.
-name: Deploy nexus-lite to HuggingFace Space
+# Optional: push the Nexus API workspace to a HuggingFace Docker Space. Default backend path: GHCR + NAS.
+name: Deploy Nexus API to HuggingFace Space
 
 on:
   workflow_dispatch:
     inputs:
       space_name:
-        description: 'HuggingFace Space name (under your account)'
+        description: 'HuggingFace Space name for Nexus API (under your account)'
         required: false
         default: 'nexus-lite'
         type: string
@@ -67,7 +67,7 @@ jobs:
           if not os.path.isfile(readme):
               with open(readme, 'w', encoding='utf-8') as f:
                   f.write('''---
-          title: Nexus-Lite
+          title: Nexus API
           emoji: book
           colorFrom: green
           colorTo: blue
@@ -76,9 +76,9 @@ jobs:
           pinned: false
           ---
 
-          # Nexus-Lite
+          # Nexus API
 
-          Rust API — see repo for API docs.
+          Rust backend for Nexus. See repo for API docs.
           ''')
 
           sha = os.environ.get('GITHUB_SHA', '')[:8]
@@ -88,7 +88,7 @@ jobs:
                       upload,
                       repo_id,
                       repo_type='space',
-                      commit_message=f'Deploy nexus-lite {sha or "manual"}',
+                      commit_message=f'Deploy Nexus API {sha or "manual"}',
                   )
                   break
               except Exception as e:

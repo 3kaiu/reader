@@ -12,7 +12,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["3kaiu"]
 license = "MIT"
-description = "A lightweight, plugin-based book source aggregation engine for Chinese web novels"
+description = "Rust backend workspace for Nexus"
 
 [workspace.dependencies]
 # Async runtime

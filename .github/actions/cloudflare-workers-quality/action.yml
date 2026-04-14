@@ -3,7 +3,7 @@ description: Install dependencies required for cloudflare-workers and run its ty
 
 inputs:
   bun-version:
-    description: Bun version to install for the nexus-reader workspace.
+    description: Bun version to install for the Nexus Web toolchain.
     required: false
     default: "1"
   working-directory:
@@ -14,7 +14,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install frontend toolchain
+    - name: Install Nexus Web toolchain
       uses: ./.github/actions/nexus-reader-quality
       with:
         bun-version: ${{ inputs.bun-version }}

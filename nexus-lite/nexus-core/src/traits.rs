@@ -1,4 +1,4 @@
-//! Core trait definitions for NexusLite
+//! Core trait definitions for Nexus
 //!
 //! These traits define the plugin interfaces for the engine.
 

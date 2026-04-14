@@ -1,5 +1,5 @@
-name: Nexus Reader Quality
-description: Setup Bun, install nexus-reader dependencies, and run selected quality checks.
+name: Nexus Web Quality
+description: Setup Bun, install Nexus Web dependencies, and run selected quality checks.
 
 inputs:
   bun-version:
@@ -7,7 +7,7 @@ inputs:
     required: false
     default: "1"
   working-directory:
-    description: Path to the nexus-reader workspace.
+    description: Path to the Nexus Web workspace (legacy directory: nexus-reader).
     required: false
     default: nexus-reader
   run-lint:

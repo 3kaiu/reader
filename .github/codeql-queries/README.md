@@ -1,6 +1,6 @@
-# NexusLite CodeQL Custom Security Queries
+# Nexus CodeQL Custom Security Queries
 
-This directory contains custom CodeQL queries specifically designed for NexusLite project security analysis.
+This directory contains custom CodeQL queries specifically designed for Nexus security analysis.
 
 ## Structure
 

@@ -1,4 +1,4 @@
-//! NexusLite HTTP API Server
+//! Nexus API Server
 
 mod api_response;
 mod app;
@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!("Starting NexusLite Server...");
+    info!("Starting Nexus API Server...");
 
     // Load configuration
     let config = load_config().await?;

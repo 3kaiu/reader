@@ -1,6 +1,6 @@
 /**
- * @name Nexus Reader Security Rules
- * @description Custom security rules for Nexus Reader frontend
+ * @name Nexus Web Security Rules
+ * @description Custom security rules for the Nexus web frontend
  * @kind problem
  * @problem.severity warning
  * @id nexus/javascript/security-rules

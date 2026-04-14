@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Core book source execution engine for NexusLite"
+description = "Book source execution engine for Nexus"
 
 [dependencies]
 nexus-core = { path = "../nexus-core" }

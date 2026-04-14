@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Storage layer for NexusLite (sled + file cache)"
+description = "Storage layer for Nexus (sled + file cache)"
 
 [dependencies]
 nexus-core = { path = "../nexus-core" }

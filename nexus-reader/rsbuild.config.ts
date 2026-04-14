@@ -55,11 +55,11 @@ export default defineConfig(async () => {
     },
 
     html: {
-      title: "Nexus Reader",
+      title: "Nexus",
       meta: {
         viewport:
           "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",
-        description: "AI-powered novel reader for self-hosted NAS",
+        description: "Self-hosted reading workspace powered by Nexus",
         "theme-color": "#ffffff",
       },
       tags: [

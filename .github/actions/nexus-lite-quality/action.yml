@@ -1,9 +1,9 @@
-name: Nexus Lite Quality
-description: Setup Rust and run selected nexus-lite cargo quality checks.
+name: Nexus API Quality
+description: Setup Rust and run selected Nexus API cargo quality checks.
 
 inputs:
   working-directory:
-    description: Path to the nexus-lite workspace.
+    description: Path to the Nexus API workspace (legacy directory: nexus-lite).
     required: false
     default: nexus-lite
   run-fmt:

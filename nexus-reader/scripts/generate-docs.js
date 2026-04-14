@@ -3,7 +3,7 @@
 /**
  * Documentation Generation Script
  * 
- * This script generates comprehensive documentation for Nexus Reader,
+ * This script generates comprehensive documentation for Nexus,
  * including API docs, component docs, and performance reports.
  */
 

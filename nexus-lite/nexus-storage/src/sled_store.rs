@@ -1,4 +1,4 @@
-//! sled-based storage for NexusLite
+//! sled-based storage for Nexus
 //!
 //! Pure Rust embedded key-value store replacing SQLite.
 //! Provides high-concurrency, lock-free reads/writes.

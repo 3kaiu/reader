@@ -1,5 +1,5 @@
-//! Unified error types for NexusLite with standardized error codes
-//! Implements cross-language error protocol compatible with CF Bypass and Nexus Reader
+//! Unified error types for Nexus with standardized error codes
+//! Implements cross-language error protocol compatible with CF Bypass and Nexus Web
 
 use crate::health_tracker::HealthFailureKind;
 use serde::{Deserialize, Serialize};
