@@ -5,7 +5,7 @@
 import type { WorkerEnv } from './types.ts'
 
 const LOCAL_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'] as const
-const LEGACY_READER_ORIGIN = 'https://nexus-reader.pages.dev'
+const DEFAULT_PAGES_ORIGINS = ['https://nexus.pages.dev', 'https://nexus-reader.pages.dev'] as const
 
 export type CorsEnvSlice = Pick<WorkerEnv, 'FRONTEND_URL' | 'CORS_EXTRA_ORIGINS'>
 
@@ -13,7 +13,7 @@ function normalizeOrigin(raw: string): string {
   return raw.trim().replace(/\/$/, '')
 }
 
-/** Merge localhost, default Pages reader, FRONTEND_URL, and optional comma-separated extras. */
+/** Merge localhost, default Nexus Pages origins, FRONTEND_URL, and optional comma-separated extras. */
 export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
   const out: string[] = []
   const add = (raw: string) => {
@@ -21,7 +21,7 @@ export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
     if (o && !out.includes(o)) out.push(o)
   }
   for (const o of LOCAL_ORIGINS) add(o)
-  add(LEGACY_READER_ORIGIN)
+  for (const o of DEFAULT_PAGES_ORIGINS) add(o)
   if (env?.FRONTEND_URL) add(env.FRONTEND_URL)
   if (env?.CORS_EXTRA_ORIGINS) {
     for (const part of env.CORS_EXTRA_ORIGINS.split(',')) add(part)

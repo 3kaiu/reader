@@ -14,8 +14,8 @@ ENABLE_CACHE = "true"
 SOURCE_FLOW_ASSIST_CACHE_TTL_SEC = "3600"
 CF_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
 # Optional (production / custom domain): set via dashboard or env.production.vars
-# CORS_EXTRA_ORIGINS = "https://your.pages.dev"
-# PUBLIC_CONTENT_BASE_URL = "https://content.your.pages.dev"
+# CORS_EXTRA_ORIGINS = "https://nexus.pages.dev,https://nexus-reader.pages.dev"
+# PUBLIC_CONTENT_BASE_URL = "https://content.nexus.pages.dev"
 
 [[d1_databases]]
 binding = "USER_PREFERENCES_DB"
@@ -44,6 +44,7 @@ binding = "AI"
 [env.production]
 name = "nexus-reader-prod"
 vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
+# Keep the legacy Pages route until the new Nexus domain is provisioned.
 routes = [
     { pattern = "api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
 ]
@@ -60,6 +61,7 @@ id = "YOUR_PROD_PROGRESS_KV_ID_HERE"
 [env.staging]
 name = "nexus-reader-staging"
 vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
+# Keep the legacy Pages route until the new Nexus staging domain is provisioned.
 routes = [
     { pattern = "staging-api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
 ]
