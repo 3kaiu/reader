@@ -37,7 +37,7 @@
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
     "idb": "^8.0.3",
-    "lucide-vue-next": "^0.564.0",
+    "lucide-vue-next": "^0.577.0",
     "ofetch": "^1.5.1",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
