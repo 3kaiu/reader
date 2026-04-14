@@ -1,6 +1,7 @@
 //! Unified error types for NexusLite with standardized error codes
 //! Implements cross-language error protocol compatible with CF Bypass and Nexus Reader
 
+use crate::health_tracker::HealthFailureKind;
 use serde::{Deserialize, Serialize};
 
 /// Standardized error codes across all Nexus components
@@ -378,6 +379,29 @@ impl EngineError {
             Self::Network { .. } | Self::ConnectionRefused { .. } => Some(2),
             Self::ScriptTimeout => Some(3),
             _ => None,
+        }
+    }
+
+    /// Map transport/runtime failures onto the health tracker taxonomy.
+    pub fn health_failure_kind(&self) -> HealthFailureKind {
+        match self {
+            Self::Timeout => HealthFailureKind::Timeout,
+            Self::Network { .. }
+            | Self::DnsError { .. }
+            | Self::ConnectionRefused { .. }
+            | Self::TlsHandshakeFailed { .. }
+            | Self::RateLimited { .. }
+            | Self::CloudflareChallenge
+            | Self::CloudflareChallengeFailed
+            | Self::IpBanned
+            | Self::AllStrategiesFailed => HealthFailureKind::Network,
+            Self::CircuitOpen { .. } => HealthFailureKind::CircuitOpen,
+            Self::RuleMismatch { rule } => match rule.as_str() {
+                "content.quality_gate" | "content.validation" => HealthFailureKind::LowQuality,
+                _ => HealthFailureKind::RuleMismatch,
+            },
+            Self::EmptyContent => HealthFailureKind::EmptyContent,
+            _ => HealthFailureKind::Unknown,
         }
     }
 

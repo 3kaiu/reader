@@ -1,6 +1,6 @@
 use crate::engine_registry::EngineRegistry;
 use futures::{stream, StreamExt};
-use nexus_core::{BookItem, EngineError, HealthFailureKind, HealthTracker};
+use nexus_core::{BookItem, HealthFailureKind, HealthTracker};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -26,25 +26,6 @@ pub struct SearchOrchestrator {
 }
 
 impl SearchOrchestrator {
-    fn classify_failure(error: &EngineError) -> HealthFailureKind {
-        match error {
-            EngineError::Timeout => HealthFailureKind::Timeout,
-            EngineError::Network { .. }
-            | EngineError::DnsError { .. }
-            | EngineError::ConnectionRefused { .. }
-            | EngineError::TlsHandshakeFailed { .. }
-            | EngineError::RateLimited { .. }
-            | EngineError::CloudflareChallenge
-            | EngineError::CloudflareChallengeFailed
-            | EngineError::IpBanned
-            | EngineError::AllStrategiesFailed => HealthFailureKind::Network,
-            EngineError::CircuitOpen { .. } => HealthFailureKind::CircuitOpen,
-            EngineError::RuleMismatch { .. } => HealthFailureKind::RuleMismatch,
-            EngineError::EmptyContent => HealthFailureKind::EmptyContent,
-            _ => HealthFailureKind::Unknown,
-        }
-    }
-
     pub fn new(
         registry: Arc<EngineRegistry>,
         health: Arc<HealthTracker>,
@@ -94,7 +75,7 @@ impl SearchOrchestrator {
                     }
 
                     // Get engine from registry
-                    let engine = match registry.get_engine(&id) {
+                    let engine = match registry.get_book_engine(&id) {
                         Some(e) => e,
                         None => {
                             let _ = tx_clone
@@ -152,7 +133,7 @@ impl SearchOrchestrator {
                                 }
 
                                 health_clone
-                                    .record_failure_kind(&source_id, Self::classify_failure(&e));
+                                    .record_failure_kind(&source_id, e.health_failure_kind());
                                 warn!(
                                     "Source {} error (attempt {}/{}): {}",
                                     source_id, attempt, max_attempts, e

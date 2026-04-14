@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use nexus_core::{BookEngine, BookEngineRuntime};
 use nexus_engine::anti_crawl::FallbackChain;
 use nexus_engine::NxsEngine;
 use nexus_storage::SourceStore;
@@ -46,6 +47,18 @@ impl EngineRegistry {
                 None
             },
         }
+    }
+
+    /// Get a book-engine trait object for callers that should not depend on NXS internals.
+    pub fn get_book_engine(&self, source_id: &str) -> Option<Arc<dyn BookEngine>> {
+        self.get_engine(source_id)
+            .map(|engine| -> Arc<dyn BookEngine> { engine })
+    }
+
+    /// Get a runtime-capable engine trait object for diagnostics/content pipelines.
+    pub fn get_runtime_engine(&self, source_id: &str) -> Option<Arc<dyn BookEngineRuntime>> {
+        self.get_engine(source_id)
+            .map(|engine| -> Arc<dyn BookEngineRuntime> { engine })
     }
 
     /// Invalidate cache for a specific source

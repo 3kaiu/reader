@@ -21,7 +21,7 @@ pub mod source_management {
 pub mod fetch_anti_crawl {
     pub use crate::config::CloudflareBypassConfig;
     pub use crate::error::EngineError;
-    pub use crate::interfaces::Fetcher;
+    pub use crate::traits::{Fetcher, FetcherStatistics};
     pub use crate::types::{FetchContext, FetchResponse};
 }
 

@@ -5,6 +5,7 @@
 use crate::error::EngineError;
 use crate::types::*;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// HTTP fetcher interface
@@ -24,6 +25,9 @@ pub trait Fetcher: Send + Sync {
         body: &str,
         headers: Option<HashMap<String, String>>,
     ) -> Result<FetchResponse, EngineError>;
+
+    /// Runtime statistics for the fetcher implementation.
+    fn statistics(&self) -> FetcherStatistics;
 }
 
 /// Anti-crawl strategy interface (simplified - CF bypass only)
@@ -47,4 +51,15 @@ pub trait AntiCrawlStrategy: Send + Sync {
 
     /// Execute the strategy
     async fn execute(&self, ctx: &mut FetchContext) -> Result<FetchResponse, EngineError>;
+}
+
+/// Fetcher statistics shared by engine/server observability paths.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FetcherStatistics {
+    pub total_requests: u64,
+    pub successful_requests: u64,
+    pub failed_requests: u64,
+    pub total_bytes_downloaded: u64,
+    pub average_response_time_ms: f64,
+    pub active_connections: u32,
 }

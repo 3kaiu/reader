@@ -1,8 +1,7 @@
 //! HTTP client implementation
 
 use async_trait::async_trait;
-use nexus_core::interfaces::{Fetcher, FetcherStatistics};
-use nexus_core::{EngineError, FetchResponse};
+use nexus_core::{EngineError, FetchResponse, Fetcher, FetcherStatistics};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,

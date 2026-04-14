@@ -6,7 +6,7 @@ use axum::{
 use futures::stream::{self, StreamExt};
 use nexus_core::{
     types::{Chapter, PipelineStageReport},
-    BookInfo, BookInfoMeta, ChapterContent, ChapterContentMeta, EngineError, HealthFailureKind,
+    BookEngineRuntime, BookInfo, BookInfoMeta, ChapterContent, ChapterContentMeta, EngineError,
 };
 use nexus_engine::quality_gate::evaluate_content_quality;
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ async fn resolve_engine_for_url(
     state: &AppState,
     source_id: &str,
     url: &str,
-) -> Result<Arc<nexus_engine::NxsEngine>, ApiErrorResponse> {
+) -> Result<Arc<dyn BookEngineRuntime>, ApiErrorResponse> {
     validate_url(url).map_err(|e| bad_request(e.to_string()))?;
     resolve_engine_for_source(state, source_id).await
 }
@@ -39,11 +39,11 @@ async fn resolve_engine_for_url(
 async fn resolve_engine_for_source(
     state: &AppState,
     source_id: &str,
-) -> Result<Arc<nexus_engine::NxsEngine>, ApiErrorResponse> {
+) -> Result<Arc<dyn BookEngineRuntime>, ApiErrorResponse> {
     ensure_source_public_access(state, source_id).await?;
     state
         .engine_registry
-        .get_engine(source_id)
+        .get_runtime_engine(source_id)
         .ok_or_else(|| not_found("Source"))
 }
 
@@ -162,29 +162,6 @@ fn content_error_response(error: EngineError) -> ApiErrorResponse {
     internal_error(error.to_string()).with_details(details.to_string())
 }
 
-fn classify_content_failure(error: &EngineError) -> HealthFailureKind {
-    match error {
-        EngineError::Timeout => HealthFailureKind::Timeout,
-        EngineError::Network { .. }
-        | EngineError::DnsError { .. }
-        | EngineError::ConnectionRefused { .. }
-        | EngineError::TlsHandshakeFailed { .. }
-        | EngineError::RateLimited { .. }
-        | EngineError::CloudflareChallenge
-        | EngineError::CloudflareChallengeFailed
-        | EngineError::IpBanned
-        | EngineError::AllStrategiesFailed => HealthFailureKind::Network,
-        EngineError::CircuitOpen { .. } => HealthFailureKind::CircuitOpen,
-        EngineError::RuleMismatch { rule } => match rule.as_str() {
-            "content.quality_gate" => HealthFailureKind::LowQuality,
-            "content.validation" => HealthFailureKind::LowQuality,
-            _ => HealthFailureKind::RuleMismatch,
-        },
-        EngineError::EmptyContent => HealthFailureKind::EmptyContent,
-        _ => HealthFailureKind::Unknown,
-    }
-}
-
 /// Get book information
 pub async fn book_info(
     State(state): State<AppState>,
@@ -207,10 +184,9 @@ pub async fn book_info(
         warnings: Vec::new(),
         metrics: std::collections::HashMap::new(),
     };
-    stage.metrics.insert(
-        "elapsedMs".to_string(),
-        started_at.elapsed().as_millis().to_string(),
-    );
+    stage
+        .metrics
+        .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
 
     info.meta = Some(BookInfoMeta {
         package_id: package_id.as_deref().map(Into::into),
@@ -246,11 +222,12 @@ pub async fn chapters(
         warnings: Vec::new(),
         metrics: std::collections::HashMap::new(),
     };
-    stage.metrics.insert(
-        "elapsedMs".to_string(),
-        started_at.elapsed().as_millis().to_string(),
-    );
-    stage.metrics.insert("count".to_string(), chapters.0.len().to_string());
+    stage
+        .metrics
+        .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+    stage
+        .metrics
+        .insert("count".to_string(), chapters.0.len().to_string());
 
     let mut headers = HeaderMap::new();
     attach_active_package_headers(&mut headers, package_id.as_deref());
@@ -301,7 +278,7 @@ pub async fn content(
             state
                 .orchestrator
                 .health_tracker()
-                .record_failure_kind(&query.source, classify_content_failure(&error));
+                .record_failure_kind(&query.source, error.health_failure_kind());
             content_error_response(error)
         })?;
 

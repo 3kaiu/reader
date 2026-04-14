@@ -16,7 +16,7 @@
 - 结构体字段：`snake_case`
 
 ### 接口命名
-- Trait 名：`PascalCase`（如 `BookSourceEngine`）
+- Trait 名：`PascalCase`（如 `BookEngine`、`BookEngineRuntime`、`Fetcher`）
 - 异步 trait：使用 `async_trait`
 - trait 方法：`snake_case`
 
@@ -31,7 +31,7 @@
 //!
 //! # 使用示例
 //! ```rust
-//! use nexus_core::BookSourceEngine;
+//! use nexus_core::BookEngine;
 //! ```
 //!
 //! # 性能考虑
@@ -115,8 +115,8 @@ async fn convert_error() -> Result<(), EngineError> {
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait BookSourceEngine: Send + Sync {
-    async fn search(&self, query: &str, page: Option<u32>) -> Result<Vec<BookItem>, EngineError>;
+pub trait BookEngine: Send + Sync {
+    async fn search(&self, query: &str) -> Result<Vec<BookItem>, EngineError>;
 }
 ```
 
@@ -380,11 +380,11 @@ pub fn important_function(param1: Type) -> Result<ReturnType, ErrorType> {
 
 ### 示例
 ```
-feat(core): add unified interface definitions
+refactor(engine): split nxs engine into smaller execution components
 
-- Create core/interfaces.rs with simplified interfaces
-- Implement BookSourceEngine, HttpClient, Cache, Storage traits
-- Deprecate DDD modules in favor of core modules
+- extract parser, content pipeline, and paginated fetch helpers
+- keep BookEngine and BookEngineRuntime as the runtime contract surface
+- preserve compatibility shims for legacy interfaces
 
 Closes #123
 ```

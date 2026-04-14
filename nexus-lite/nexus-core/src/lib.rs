@@ -13,17 +13,18 @@ pub mod config; // 配置处理
 pub mod error; // 错误定义
 pub mod event_bus; // 事件总线
 pub mod health_tracker;
-pub mod interfaces; // 接口定义
+pub mod interfaces; // 兼容层，保留旧接口导出
+pub mod legacy_interfaces; // 历史接口定义，非主架构入口
 pub mod traits; // 特质定义
 pub mod types; // 类型定义
 
 // ===== 核心导出 =====
-pub use business_modules::parse_cache;
 pub use book_engine::*;
+pub use business_modules::parse_cache;
 pub use config::*;
 pub use error::EngineError;
 pub use event_bus::{EngineEvent, EventBus, StorageEvent, SystemControlEvent, SystemEvent};
 pub use health_tracker::*;
 pub use nxs::NxsSource;
-pub use traits::AntiCrawlStrategy;
+pub use traits::{AntiCrawlStrategy, Fetcher, FetcherStatistics};
 pub use types::*;

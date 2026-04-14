@@ -114,7 +114,7 @@ pub(super) async fn external_discovery_results(
     let mut seen_urls = HashSet::new();
 
     for package in packages {
-        let Some(engine) = state.engine_registry.get_engine(&package.source.id) else {
+        let Some(engine) = state.engine_registry.get_book_engine(&package.source.id) else {
             continue;
         };
         for strategy in external_discovery_strategies(package) {
@@ -214,7 +214,7 @@ pub(super) async fn direct_detail_results(
             continue;
         }
 
-        let Some(engine) = state.engine_registry.get_engine(&package.source.id) else {
+        let Some(engine) = state.engine_registry.get_book_engine(&package.source.id) else {
             continue;
         };
         let info: BookInfo = match engine.book_info(parsed.as_str()).await {

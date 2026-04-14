@@ -7,53 +7,53 @@
 //! - Clean async interface
 
 use nexus_core::types::{Chapter, FetchJob, PipelineStageReport};
-use nexus_core::{BookInfo, BookItem, EngineError, NxsSource, ReplaceRule, SourceRuntimeProfile};
-use scraper::{Html, Selector};
-use std::collections::HashSet;
+use nexus_core::{
+    BookEngineRuntime, BookInfo, BookItem, ContentPipelineOutput, EngineError, NxsSource,
+    ReplaceRule, SourceRuntimeProfile,
+};
+use scraper::Selector;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info, instrument, warn};
 
 use crate::anti_crawl::FallbackChain;
-use crate::content::apply_replace_rules;
-use crate::content_extract::{
-    extract_structured_text_from_root, post_clean_content_enhanced, readability_like_extract,
-    ContentExtractConfig,
-};
+use crate::content_fetch::PaginatedContentFetch;
+use crate::content_pipeline::NxsContentPipeline;
 use crate::extraction_metrics;
-use crate::font_decryptor::FontDecryptor;
-use crate::selector_cache::{extract_attr, FallbackSelector};
+use crate::nxs_ops::{BookInfoOperation, ChaptersOperation, SearchOperation};
+use crate::nxs_parser::NxsParser;
+use crate::selector_cache::FallbackSelector;
 use crate::skill_telemetry;
 use crate::skills::{ContentJudgeSkill, StrategyPlannerSkill};
 use crate::uri::{encode_query, resolve_url};
 use uuid::Uuid;
 
 /// Compiled selectors for a NXS source (uses global cache)
-struct CompiledNxs {
+pub(crate) struct CompiledNxs {
     // Search
-    search_list: Arc<FallbackSelector>,
-    search_name: Arc<FallbackSelector>,
-    search_author: Arc<FallbackSelector>,
-    search_url: Arc<FallbackSelector>,
-    search_cover: Arc<FallbackSelector>,
-    search_intro: Arc<FallbackSelector>,
+    pub(crate) search_list: Arc<FallbackSelector>,
+    pub(crate) search_name: Arc<FallbackSelector>,
+    pub(crate) search_author: Arc<FallbackSelector>,
+    pub(crate) search_url: Arc<FallbackSelector>,
+    pub(crate) search_cover: Arc<FallbackSelector>,
+    pub(crate) search_intro: Arc<FallbackSelector>,
 
     // Book info
-    book_name: Arc<FallbackSelector>,
-    book_author: Arc<FallbackSelector>,
-    book_intro: Arc<FallbackSelector>,
-    book_cover: Arc<FallbackSelector>,
-    book_toc: Arc<FallbackSelector>,
+    pub(crate) book_name: Arc<FallbackSelector>,
+    pub(crate) book_author: Arc<FallbackSelector>,
+    pub(crate) book_intro: Arc<FallbackSelector>,
+    pub(crate) book_cover: Arc<FallbackSelector>,
+    pub(crate) book_toc: Arc<FallbackSelector>,
 
     // TOC
-    toc_list: Arc<FallbackSelector>,
-    toc_name: Arc<FallbackSelector>,
-    toc_url: Arc<FallbackSelector>,
+    pub(crate) toc_list: Arc<FallbackSelector>,
+    pub(crate) toc_name: Arc<FallbackSelector>,
+    pub(crate) toc_url: Arc<FallbackSelector>,
 
     // Content
-    content_body: Arc<FallbackSelector>,
-    content_filter: Vec<Selector>,
-    content_visible_only: bool,
+    pub(crate) content_body: Arc<FallbackSelector>,
+    pub(crate) content_filter: Vec<Selector>,
+    pub(crate) content_visible_only: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +62,7 @@ pub struct ContentPipelineRun {
     pub stage_reports: Vec<PipelineStageReport>,
 }
 
-fn stage_report(stage: &str, ok: bool) -> PipelineStageReport {
+pub(crate) fn stage_report(stage: &str, ok: bool) -> PipelineStageReport {
     PipelineStageReport {
         stage: stage.to_string(),
         ok,
@@ -74,7 +74,7 @@ fn stage_report(stage: &str, ok: bool) -> PipelineStageReport {
 }
 
 impl CompiledNxs {
-    fn compile(source: &NxsSource) -> Result<Self, EngineError> {
+    pub(crate) fn compile(source: &NxsSource) -> Result<Self, EngineError> {
         // Use global selector cache for cross-engine sharing
         let compile = |rule: &str| -> Result<Arc<FallbackSelector>, EngineError> {
             FallbackSelector::get_or_compile_global(rule).map_err(|e| {
@@ -163,6 +163,10 @@ impl NxsEngine {
         &self.source.name
     }
 
+    pub(crate) fn source(&self) -> &NxsSource {
+        &self.source
+    }
+
     pub fn runtime_profile(&self) -> SourceRuntimeProfile {
         crate::skills::runtime_profile_for(&self.source.id)
     }
@@ -175,18 +179,8 @@ impl NxsEngine {
         self.anti_crawl.reset_circuit(&self.source.id);
     }
 
-    fn content_stats(text: &str) -> (usize, usize) {
-        let trimmed = text.trim();
-        let chars = trimmed.chars().count();
-        let paragraphs = trimmed
-            .split("\n\n")
-            .filter(|p| !p.trim().is_empty())
-            .count();
-        (chars, paragraphs)
-    }
-
     /// Fetch content via CF bypass service
-    async fn fetch(
+    pub(crate) async fn fetch(
         &self,
         url: &str,
         method: Option<&str>,
@@ -273,227 +267,26 @@ impl NxsEngine {
     }
 
     /// Make URL absolute
-    fn abs_url(&self, url: &str) -> String {
+    pub(crate) fn abs_url(&self, url: &str) -> String {
         resolve_url(url, &self.source.url)
     }
 
     /// Search for books
     #[instrument(skip(self), fields(source = %self.source.id))]
     pub async fn search(&self, query: &str) -> Result<Vec<BookItem>, EngineError> {
-        let method = &self.source.search.method;
-        let is_post = method.to_uppercase() == "POST";
-
-        // 1. Handle encoding
-        let encoded_query = self.get_encoded_query(query);
-
-        // 2. Build URL
-        let url_path = self.source.search.path.replace("{q}", &encoded_query);
-        let url = if url_path.starts_with("http") {
-            url_path
-        } else {
-            format!("{}{}", self.source.url.trim_end_matches('/'), url_path)
-        };
-
-        // 3. Build Body for POST
-        let body = if is_post {
-            self.source
-                .search
-                .body
-                .as_ref()
-                .map(|b| b.replace("{q}", &encoded_query))
-        } else {
-            None
-        };
-
-        let html = self.fetch(&url, Some(method), body, None).await?;
-        let doc = Html::parse_document(&html);
-
-        let items = self.compiled.search_list.select_all(&doc);
-
-        // Pre-calculate domain for filtering
-        let source_domain = self
-            .source
-            .url
-            .strip_prefix("https://")
-            .or_else(|| self.source.url.strip_prefix("http://"))
-            .unwrap_or(&self.source.url)
-            .trim_end_matches('/');
-
-        let source_id: Arc<str> = self.source.id.as_str().into();
-        let source_name: Arc<str> = self.source.name.as_str().into();
-
-        let results: Vec<BookItem> = items
-            .iter()
-            .filter_map(|el| {
-                let name = self.compiled.search_name.select_from_and_extract(el)?;
-                let url = self.compiled.search_url.select_from_and_extract(el)?;
-                let book_url = self.abs_url(&url);
-
-                // 1. Filter by domain if it's an external search
-                let is_external = !url.starts_with('/') && !url.contains(source_domain);
-
-                if is_external && !book_url.contains(source_domain) {
-                    return None;
-                }
-
-                // 2. Filter by path if result_filter is provided
-                if let Some(filter) = &self.source.search.result_filter {
-                    if !book_url.contains(filter) {
-                        return None;
-                    }
-                }
-
-                let mut item =
-                    BookItem::new(name, book_url, source_id.clone(), source_name.clone());
-                item.author = self
-                    .compiled
-                    .search_author
-                    .select_from_and_extract(el)
-                    .map(|s| s.into());
-                item.cover_url = self
-                    .compiled
-                    .search_cover
-                    .select_from_and_extract(el)
-                    .map(|u| self.abs_url(&u).into());
-                item.intro = self
-                    .compiled
-                    .search_intro
-                    .select_from_and_extract(el)
-                    .map(|s| s.into());
-                Some(item)
-            })
-            .collect();
-
-        Ok(results)
+        SearchOperation::new(self).execute(query).await
     }
 
     /// Get book information
     #[instrument(skip(self), fields(source = %self.source.id))]
     pub async fn book_info(&self, book_url: &str) -> Result<BookInfo, EngineError> {
-        let url = self.abs_url(book_url);
-        let html = self.fetch(&url, None, None, None).await?;
-        let doc = Html::parse_document(&html);
-
-        let name =
-            self.compiled
-                .book_name
-                .select_and_extract(&doc)
-                .ok_or(EngineError::RuleMismatch {
-                    rule: "book.name".to_string(),
-                })?;
-
-        Ok(BookInfo {
-            name: name.into(),
-            author: self
-                .compiled
-                .book_author
-                .select_and_extract(&doc)
-                .unwrap_or_default()
-                .into(),
-            intro: self
-                .compiled
-                .book_intro
-                .select_and_extract(&doc)
-                .map(|s| s.into()),
-            cover_url: self
-                .compiled
-                .book_cover
-                .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u).into()),
-            toc_url: self
-                .compiled
-                .book_toc
-                .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u).into()),
-            last_chapter: None,
-            word_count: None,
-            update_time: None,
-            status: None,
-            category: None,
-            meta: None,
-        })
+        BookInfoOperation::new(self).execute(book_url).await
     }
 
     /// Get chapters list
     #[instrument(skip(self), fields(source = %self.source.id))]
     pub async fn chapters(&self, toc_url: &str) -> Result<Vec<Chapter>, EngineError> {
-        let url = self.abs_url(toc_url);
-        let html = self.fetch(&url, None, None, None).await?;
-
-        // 1. Check for redirect (Sync operation)
-        // Parse doc locally in this block so it drops before we ever await
-        let redirect_url = {
-            let doc = Html::parse_document(&html);
-            self.compiled
-                .book_toc
-                .select_and_extract(&doc)
-                .map(|u| self.abs_url(&u))
-        };
-
-        // 2. Decide if we need to fetch (Sync/Async boundary)
-        let final_doc = if let Some(real_url) = redirect_url {
-            if real_url != url && !real_url.contains('#') {
-                // Fetch new content
-                let new_html = self.fetch(&real_url, None, None, None).await?;
-                Html::parse_document(&new_html)
-            } else {
-                // No valid redirect, use original
-                Html::parse_document(&html)
-            }
-        } else {
-            // No redirect found, use original
-            Html::parse_document(&html)
-        };
-
-        let items = self.compiled.toc_list.select_all(&final_doc);
-
-        let mut chapters: Vec<Chapter> = items
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, el)| {
-                let name = if self.compiled.toc_name.is_empty() {
-                    extract_attr(*el, "text")
-                } else {
-                    self.compiled
-                        .toc_name
-                        .select_from_and_extract(el)
-                        .or_else(|| extract_attr(*el, "text"))
-                };
-
-                let url = if self.compiled.toc_url.is_empty() {
-                    el.value().attr("href").map(|s| s.to_string())
-                } else {
-                    self.compiled
-                        .toc_url
-                        .select_from_and_extract(el)
-                        .or_else(|| el.value().attr("href").map(|s| s.to_string()))
-                };
-
-                let url = url?;
-                let name = name?;
-                if name.is_empty() {
-                    return None;
-                }
-
-                Some(Chapter {
-                    title: name.into(),
-                    url: self.abs_url(&url).into(),
-                    index: idx,
-                    is_vip: false,
-                    word_count: None,
-                })
-            })
-            .collect();
-
-        if self.source.toc.reverse {
-            chapters.reverse();
-            // Re-index after reverse
-            for (idx, chapter) in chapters.iter_mut().enumerate() {
-                chapter.index = idx;
-            }
-        }
-
-        Ok(chapters)
+        ChaptersOperation::new(self).execute(toc_url).await
     }
 
     /// Get chapter content with replacement rules
@@ -515,8 +308,7 @@ impl NxsEngine {
         rules: &[ReplaceRule],
     ) -> Result<ContentPipelineRun, EngineError> {
         let initial_url = self.abs_url(chapter_url);
-        let pagination = self.source.content.pagination.clone();
-        let validation = self.source.content.validation.clone().unwrap_or_default();
+        let content_pipeline = self.content_pipeline();
 
         if self.source.content.script.is_some() {
             if !self.source.content.script_enabled {
@@ -532,376 +324,62 @@ impl NxsEngine {
             }
         }
 
-        if let Some(pagination) = pagination {
-            let next_selector = Selector::parse(&pagination.next_selector).map_err(|_| {
-                EngineError::InvalidSelector {
-                    selector: pagination.next_selector.clone(),
-                }
-            })?;
-            let mut visited = HashSet::new();
+        if let Some(mut pagination_fetch) = PaginatedContentFetch::new(&self.source)? {
             let mut current_url = initial_url;
-            let mut merged = Vec::new();
-            let mut all_stage_reports = Vec::new();
 
-            for idx in 0..pagination.max_pages.max(1) {
-                if !visited.insert(current_url.clone()) {
+            for idx in 0..pagination_fetch.max_pages() {
+                if !pagination_fetch.mark_visited(&current_url) {
                     break;
                 }
 
                 let html = self.fetch(&current_url, None, None, None).await?;
-                let mut fetch_stage = stage_report("fetch", true);
-                fetch_stage.strategy = Some("anti_crawl_chain".to_string());
-                fetch_stage
-                    .metrics
-                    .insert("pageIndex".to_string(), idx.to_string());
-                fetch_stage
-                    .metrics
-                    .insert("url".to_string(), current_url.clone());
-                let mut page_run =
-                    self.execute_content_pipeline_from_html(&html, rules, idx == 0)?;
-                page_run.stage_reports.insert(0, fetch_stage);
-                let extracted = page_run.content.clone();
-                if let Some(stop_text) = &pagination.stop_text {
-                    if extracted.contains(stop_text) {
-                        merged.push(extracted);
-                        all_stage_reports.extend(page_run.stage_reports);
-                        break;
-                    }
-                }
-                merged.push(extracted);
-                all_stage_reports.extend(page_run.stage_reports);
-
-                let next = {
-                    let doc = Html::parse_document(&html);
-                    doc.select(&next_selector)
-                        .next()
-                        .and_then(|el| el.value().attr("href"))
-                        .map(|s| self.abs_url(s))
-                };
-
-                let Some(next_url) = next else { break };
-                if visited.contains(&next_url) {
+                let page_run = content_pipeline.execute_from_html(&html, rules, idx == 0)?;
+                if pagination_fetch.record_page(&current_url, idx, page_run) {
                     break;
                 }
 
-                current_url = next_url;
-                if pagination.delay_ms > 0 {
-                    tokio::time::sleep(Duration::from_millis(pagination.delay_ms)).await;
+                let Some(next_url) = pagination_fetch.next_url(&html, |value| self.abs_url(value))
+                else {
+                    break;
+                };
+
+                if !pagination_fetch.should_follow(&next_url) {
+                    break;
                 }
+                current_url = next_url;
+                pagination_fetch.maybe_delay().await;
             }
 
-            let separator = pagination.separator;
-            let combined = merged.join(&separator);
-            let mut validation_stage = stage_report("validation", true);
-            validation_stage
-                .metrics
-                .insert("chars".to_string(), combined.chars().count().to_string());
-            validation_stage
-                .metrics
-                .insert("paragraphs".to_string(), Self::content_stats(&combined).1.to_string());
-            if self.looks_like_content(&combined, &validation) {
-                all_stage_reports.push(validation_stage);
-                return Ok(ContentPipelineRun {
-                    content: combined,
-                    stage_reports: all_stage_reports,
-                });
-            }
-
-            return Err(EngineError::RuleMismatch {
-                rule: "content.pagination".to_string(),
-            });
+            return pagination_fetch.finish(&content_pipeline);
         }
 
         let html = self.fetch(&initial_url, None, None, None).await?;
         let mut fetch_stage = stage_report("fetch", true);
         fetch_stage.strategy = Some("anti_crawl_chain".to_string());
         fetch_stage.metrics.insert("url".to_string(), initial_url);
-        let mut run = self.execute_content_pipeline_from_html(&html, rules, true)?;
+        let mut run = content_pipeline.execute_from_html(&html, rules, true)?;
         run.stage_reports.insert(0, fetch_stage);
         Ok(run)
     }
 
-    fn looks_like_content(
-        &self,
-        text: &str,
-        validation: &nexus_core::nxs::ContentValidationConfig,
-    ) -> bool {
-        let trimmed = text.trim();
-        if trimmed.is_empty() {
-            return false;
-        }
-
-        let (chars, paragraphs) = Self::content_stats(trimmed);
-
-        if chars < validation.min_chars {
-            if validation.allow_short_chapter {
-                return chars >= 20 && paragraphs >= 1;
-            }
-            return false;
-        }
-
-        paragraphs >= validation.min_paragraphs
-    }
-
-    fn apply_content_script(&self, mut content: String) -> Result<String, EngineError> {
-        let Some(script) = self.source.content.script.as_ref() else {
-            return Ok(content);
-        };
-        if !self.source.content.script_enabled {
-            return Ok(content);
-        }
-        if script.trim().is_empty() {
-            return Ok(content);
-        }
-        if script.len() > 16 * 1024 {
-            return Err(EngineError::ScriptMemoryExceeded);
-        }
-
-        for line in script.lines() {
-            let cmd = line.trim();
-            if cmd.is_empty() || cmd.starts_with('#') || cmd.starts_with("//") {
-                continue;
-            }
-
-            if cmd.eq_ignore_ascii_case("trim") {
-                content = content.trim().to_string();
-                continue;
-            }
-            if cmd.eq_ignore_ascii_case("collapse_blank_lines") {
-                while content.contains("\n\n\n") {
-                    content = content.replace("\n\n\n", "\n\n");
-                }
-                continue;
-            }
-
-            if let Some(payload) = cmd.strip_prefix("replace::") {
-                let mut parts = payload.splitn(2, "::");
-                let pattern = parts.next().unwrap_or_default();
-                let replacement = parts.next().unwrap_or_default();
-                let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
-                    message: format!("invalid replace regex: {}", e),
-                })?;
-                content = re.replace_all(&content, replacement).to_string();
-                continue;
-            }
-
-            if let Some(pattern) = cmd.strip_prefix("remove::") {
-                let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
-                    message: format!("invalid remove regex: {}", e),
-                })?;
-                content = re.replace_all(&content, "").to_string();
-                continue;
-            }
-
-            warn!("Unsupported script command for source {}: {}", self.source.id, cmd);
-        }
-
-        Ok(content)
-    }
-
-    fn apply_font_decrypt(&self, content: String) -> String {
-        let Some(cfg) = self.source.content.font_decrypt.as_ref() else {
-            return content;
-        };
-
-        if let Some(mapping) = cfg.mapping.as_ref() {
-            let decryptor = FontDecryptor::new();
-            return decryptor.decrypt(&content, mapping);
-        }
-
-        if cfg.auto_decrypt {
-            warn!(
-                "font_decrypt.auto_decrypt is enabled for source {}, but no mapping is provided",
-                self.source.id
-            );
-        }
-
-        content
-    }
-
-    fn execute_content_pipeline_from_html(
-        &self,
-        html: &str,
-        rules: &[ReplaceRule],
-        strict_validate: bool,
-    ) -> Result<ContentPipelineRun, EngineError> {
-        let doc = Html::parse_document(html);
-        let extract_cfg = ContentExtractConfig {
-            filter_selectors: &self.compiled.content_filter,
-            visible_only: self.compiled.content_visible_only,
-        };
-        let validation = self.source.content.validation.clone().unwrap_or_default();
-        let mut stage_reports = Vec::new();
-
-        // 1) Selector extraction first
-        let mut used_fallback = false;
-        let mut extracted = if self.compiled.content_body.attr == "text" {
-            self.compiled
-                .content_body
-                .select_first(&doc)
-                .map(|root| extract_structured_text_from_root(root, &extract_cfg))
-        } else {
-            self.compiled.content_body.select_and_extract(&doc)
-        }
-        .unwrap_or_default();
-
-        // 2) Fallback extraction
-        if extracted.trim().is_empty() && self.compiled.content_body.attr == "text" {
-            if let Some(fallback) = readability_like_extract(&doc, &extract_cfg) {
-                used_fallback = true;
-                extracted = fallback;
-            }
-        }
-
-        if used_fallback {
-            debug!("content extraction fallback triggered for source {}", self.source.id);
-        }
-        let mut extract_stage = stage_report("rule_extract", true);
-        extract_stage.strategy = Some(if used_fallback {
-            "readability_fallback".to_string()
-        } else {
-            "selector_extract".to_string()
-        });
-        extract_stage
-            .metrics
-            .insert("chars".to_string(), extracted.chars().count().to_string());
-        stage_reports.push(extract_stage);
-
-        if extracted.trim().is_empty() {
-            extraction_metrics::record_rule_mismatch_failure(&self.source.id);
-            return Err(EngineError::RuleMismatch {
-                rule: "content.body".to_string(),
-            });
-        }
-
-        // 3) Global + source replacement rules
-        extracted = apply_replace_rules(extracted, rules, &self.source.id);
-        extracted = apply_replace_rules(extracted, &self.source.content.replace, &self.source.id);
-        let mut replace_stage = stage_report("replace", true);
-        replace_stage
-            .metrics
-            .insert("chars".to_string(), extracted.chars().count().to_string());
-        stage_reports.push(replace_stage);
-
-        // 4) Optional restricted script post-processing
-        extracted = self.apply_content_script(extracted)?;
-        let mut script_stage = stage_report("script", true);
-        script_stage.strategy = self
-            .source
-            .content
-            .script
-            .as_ref()
-            .map(|_| "restricted_script".to_string());
-        script_stage
-            .metrics
-            .insert("enabled".to_string(), self.source.content.script_enabled.to_string());
-        stage_reports.push(script_stage);
-
-        // 5) Optional font decryption
-        extracted = self.apply_font_decrypt(extracted);
-        let mut font_stage = stage_report("font_decrypt", true);
-        font_stage.strategy = self.source.content.font_decrypt.as_ref().map(|cfg| {
-            if cfg.mapping.is_some() {
-                "known_mapping".to_string()
-            } else if cfg.auto_decrypt {
-                "auto_decrypt_hint".to_string()
-            } else {
-                "disabled".to_string()
-            }
-        });
-        stage_reports.push(font_stage);
-
-        // 6) Enhanced content cleaning
-        let cleaned = post_clean_content_enhanced(extracted, self.source.content.clean.as_ref());
-        let mut clean_stage = stage_report("clean", true);
-        clean_stage.strategy = Some("engine_cleaned".to_string());
-        clean_stage
-            .metrics
-            .insert("chars".to_string(), cleaned.chars().count().to_string());
-        clean_stage
-            .metrics
-            .insert("paragraphs".to_string(), Self::content_stats(&cleaned).1.to_string());
-        stage_reports.push(clean_stage);
-        let strategy_path = stage_reports
-            .iter()
-            .filter_map(|stage| stage.strategy.clone())
-            .collect::<Vec<_>>();
-        let judge = self
-            .content_judge_skill
-            .judge(&self.source.id, &strategy_path, &cleaned);
-        extraction_metrics::record_quality_score(&self.source.id, judge.quality.score);
-        let mut quality_stage = stage_report("quality_gate", true);
-        quality_stage.strategy = Some(judge.decision.decision_id.clone());
-        quality_stage
-            .metrics
-            .insert("score".to_string(), format!("{:.3}", judge.quality.score));
-        quality_stage
-            .metrics
-            .insert("label".to_string(), format!("{:?}", judge.quality.label));
-        stage_reports.push(quality_stage);
-
-        if !judge.passed {
-            warn!(
-                "content quality gate failed for source {} (score={:.3}, label={:?}, chars={}, paragraphs={}, noise={:.3}, dup={:.3})",
-                self.source.id,
-                judge.quality.score,
-                judge.quality.label,
-                judge.quality.char_count,
-                judge.quality.paragraph_count,
-                judge.quality.noise_ratio,
-                judge.quality.duplicate_ratio
-            );
-            debug!(
-                "content judge decision source={} decision={} confidence={:.2}",
-                self.source.id, judge.decision.decision_id, judge.decision.confidence
-            );
-            skill_telemetry::record(&self.source.id, None, judge.decision.clone());
-            extraction_metrics::record_low_quality_failure(&self.source.id);
-            return Err(EngineError::RuleMismatch {
-                rule: "content.quality_gate".to_string(),
-            });
-        }
-        skill_telemetry::record(&self.source.id, None, judge.decision.clone());
-
-        if strict_validate && !self.looks_like_content(&cleaned, &validation) {
-            let (chars, paragraphs) = Self::content_stats(&cleaned);
-            warn!(
-                "content validation failed for source {} (chars={}, paragraphs={}, min_chars={}, min_paragraphs={}, allow_short={})",
-                self.source.id,
-                chars,
-                paragraphs,
-                validation.min_chars,
-                validation.min_paragraphs,
-                validation.allow_short_chapter
-            );
-            extraction_metrics::record_validation_failure(&self.source.id);
-            return Err(EngineError::RuleMismatch {
-                rule: "content.validation".to_string(),
-            });
-        }
-        let mut validation_stage = stage_report("validation", true);
-        validation_stage
-            .metrics
-            .insert("chars".to_string(), judge.quality.char_count.to_string());
-        validation_stage
-            .metrics
-            .insert("paragraphs".to_string(), judge.quality.paragraph_count.to_string());
-        stage_reports.push(validation_stage);
-        if cleaned.trim().is_empty() {
-            extraction_metrics::record_empty_content_failure(&self.source.id);
-            return Err(EngineError::EmptyContent);
-        }
-
-        extraction_metrics::record_success(&self.source.id, used_fallback);
-        Ok(ContentPipelineRun {
-            content: cleaned,
-            stage_reports,
-        })
-    }
-
     /// Helper to encode query based on source configuration
-    fn get_encoded_query(&self, query: &str) -> String {
+    pub(crate) fn get_encoded_query(&self, query: &str) -> String {
         encode_query(query, self.source.search.encoding.as_deref())
+    }
+
+    pub(crate) fn parser(&self) -> NxsParser<'_> {
+        NxsParser {
+            source: &self.source,
+            compiled: &self.compiled,
+        }
+    }
+
+    fn content_pipeline(&self) -> NxsContentPipeline<'_> {
+        NxsContentPipeline {
+            source: &self.source,
+            compiled: &self.compiled,
+            judge_skill: &self.content_judge_skill,
+        }
     }
 }
 
@@ -957,5 +435,35 @@ impl BookEngine for NxsEngine {
             version: Some(self.source.version.to_string()),
             custom_headers: self.source.headers.is_some(),
         }
+    }
+}
+
+#[async_trait]
+impl BookEngineRuntime for NxsEngine {
+    async fn content_with_report(
+        &self,
+        chapter_url: &str,
+        rules: &[ReplaceRule],
+    ) -> Result<ContentPipelineOutput, EngineError> {
+        NxsEngine::content_with_report(self, chapter_url, rules)
+            .await
+            .map(|run| ContentPipelineOutput {
+                content: run.content,
+                stage_reports: run.stage_reports,
+            })
+    }
+
+    fn runtime_profile(&self) -> SourceRuntimeProfile {
+        NxsEngine::runtime_profile(self)
+    }
+
+    fn circuit_state_label(&self) -> String {
+        self.circuit_state()
+            .map(|state| format!("{state:?}").to_ascii_lowercase())
+            .unwrap_or_else(|| "closed".to_string())
+    }
+
+    fn reset_runtime_state(&self) {
+        self.reset_circuit();
     }
 }

@@ -88,7 +88,7 @@ pub async fn add(
         group_id: req.group_id,
     };
 
-    if let Some(engine) = state.engine_registry.get_engine(&req.source_id) {
+    if let Some(engine) = state.engine_registry.get_book_engine(&req.source_id) {
         // Log info
         tracing::info!("Fetching book info for: {} (source: {})", item.book_url, item.source_id);
 

@@ -6,7 +6,9 @@
 use async_trait::async_trait;
 
 use crate::error::EngineError;
-use crate::types::{BookInfo, BookItem, Chapter, ReplaceRule};
+use crate::types::{
+    BookInfo, BookItem, Chapter, PipelineStageReport, ReplaceRule, SourceRuntimeProfile,
+};
 
 /// Abstract interface for book source engines
 ///
@@ -50,6 +52,26 @@ pub trait BookEngine: Send + Sync {
     }
 }
 
+/// Runtime-only engine capabilities used by server orchestration and diagnostics.
+#[async_trait]
+pub trait BookEngineRuntime: BookEngine {
+    /// Get chapter content plus pipeline stage reports.
+    async fn content_with_report(
+        &self,
+        chapter_url: &str,
+        rules: &[ReplaceRule],
+    ) -> Result<ContentPipelineOutput, EngineError>;
+
+    /// Current runtime strategy/circuit profile for this engine.
+    fn runtime_profile(&self) -> SourceRuntimeProfile;
+
+    /// Circuit state label for diagnostics.
+    fn circuit_state_label(&self) -> String;
+
+    /// Reset runtime state owned by the engine.
+    fn reset_runtime_state(&self);
+}
+
 /// Engine metadata for monitoring and debugging
 #[derive(Debug, Clone, Default)]
 pub struct EngineMetadata {
@@ -76,4 +98,10 @@ pub trait ExploreEngine: BookEngine {
 pub struct ExploreCategory {
     pub name: String,
     pub url: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ContentPipelineOutput {
+    pub content: String,
+    pub stage_reports: Vec<PipelineStageReport>,
 }
