@@ -5,6 +5,7 @@ import { useReplaceStore } from '@/stores/replace'
 import { useSourceStore } from '@/stores/source'
 import { useSettingsStore } from '@/stores/settings'
 import { AUTH_TOKEN_STORAGE_KEY } from '@/utils/authStorage'
+import { LEGACY_NEXUS_DB_NAMES, NEXUS_DB_NAME } from '@/utils/db/config'
 import {
   clearCachesByPatterns,
   deleteIndexedDatabases,
@@ -31,7 +32,7 @@ const LEGACY_LOCAL_STORAGE_KEYS = [
   'offline_content',
 ] as const
 
-const APP_INDEXED_DB_NAMES = ['nexus-reader', 'nexus-ai-models'] as const
+const APP_INDEXED_DB_NAMES = [NEXUS_DB_NAME, ...LEGACY_NEXUS_DB_NAMES, 'nexus-ai-models'] as const
 
 export function useSettingsMaintenance() {
   const addonsStore = useAddonsStore()

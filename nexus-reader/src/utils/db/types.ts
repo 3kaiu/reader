@@ -23,6 +23,7 @@ export interface StoreConfig {
 
 export interface DBConfig {
   name: string
+  legacyNames?: string[]
   version: number
   stores: StoreConfig[]
 }

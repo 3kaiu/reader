@@ -1,5 +1,8 @@
 import type { DBConfig } from './types'
 
+export const NEXUS_DB_NAME = 'nexus'
+export const LEGACY_NEXUS_DB_NAMES = ['nexus-reader'] as const
+
 export enum StoreNames {
   PROGRESS = 'progress',
   SYNC_QUEUE = 'syncQueue',
@@ -11,7 +14,8 @@ export enum StoreNames {
 }
 
 export const nexusDBConfig: DBConfig = {
-  name: 'nexus-reader',
+  name: NEXUS_DB_NAME,
+  legacyNames: [...LEGACY_NEXUS_DB_NAMES],
   version: 2,
   stores: [
     {
