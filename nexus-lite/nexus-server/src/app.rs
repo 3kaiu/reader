@@ -6,7 +6,7 @@ use axum::{
 };
 use nexus_core::EngineConfig;
 use tower_governor::GovernorLayer;
-use tower_governor::{governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor};
+use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor};
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -87,7 +87,6 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .merge(routes::source_builder::router())
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))
-
         .route("/api/book", get(routes::book::book_info))
         .route("/api/chapters", get(routes::book::chapters))
         .route("/api/content", get(routes::book::content))
@@ -100,12 +99,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/bookshelf/{id}", patch(routes::bookshelf::update_progress))
         .route("/api/bookshelf/{id}", put(routes::bookshelf::move_to_group))
         .route("/api/bookshelf/{id}", delete(routes::bookshelf::remove))
-
         .route("/api/replace_rules", get(routes::replace_rules::list_rules))
         .route("/api/replace_rules", post(routes::replace_rules::save_rule))
         .route("/api/replace_rules/{id}", delete(routes::replace_rules::delete_rule))
         .route("/api/discovery", get(routes::discovery::list_discovery))
-
         .with_state(state.clone());
 
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());
@@ -129,19 +126,20 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let app = {
         use axum::middleware;
 
-        let trace = TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
-            let request_id = request
-                .headers()
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("-");
-            tracing::info_span!(
-                "http_request",
-                method = %request.method(),
-                uri = %request.uri(),
-                request_id = %request_id
-            )
-        });
+        let trace =
+            TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+                let request_id = request
+                    .headers()
+                    .get("x-request-id")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("-");
+                tracing::info_span!(
+                    "http_request",
+                    method = %request.method(),
+                    uri = %request.uri(),
+                    request_id = %request_id
+                )
+            });
 
         app.layer(middleware::from_fn(crate::request_id::ensure_request_id))
             .layer(trace)
@@ -150,7 +148,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(20)
         .burst_size(50)
-        .key_extractor(PeerIpKeyExtractor)
+        .key_extractor(SmartIpKeyExtractor)
         .finish()
         .expect("valid governor config");
 
