@@ -6,7 +6,7 @@ FastAPI service used by the monorepo to fetch and extract HTML behind anti-bot p
 
 - Provides `/fetch`, `/fetch/batch`, `/extract`, `/health` and optional admin endpoints.
 - Engines are selected via `core/engine_factory.py` (currently `scraper` and `mesh`).
-- This service is an infrastructure dependency for `nexus-lite` fetching paths.
+- This service is an infrastructure dependency for the Nexus API fetching paths.
 
 ## Development
 
@@ -17,5 +17,5 @@ uvicorn main:app --reload --port 8000
 ## Notes
 
 - `app.py` is only a compatibility entrypoint re-exporting `main:app`.
-- Keep endpoint behavior stable for upstream callers in `nexus-lite` and workers.
+- Keep endpoint behavior stable for upstream callers in the Nexus API and workers.
 - Runtime and legacy module boundaries are documented in `LEGACY_MODULES.md`.

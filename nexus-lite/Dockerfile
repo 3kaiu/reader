@@ -1,5 +1,5 @@
-# Nexus-Lite Dockerfile (GHCR / NAS; port 7860 also matches HuggingFace Spaces if you deploy there)
-# Build context: nexus-lite directory (used when GH Actions uploads this folder to HF)
+# Nexus API Dockerfile (GHCR / NAS; port 7860 also matches HuggingFace Spaces if you deploy there)
+# Build context: legacy `nexus-lite` directory (used when GH Actions uploads this folder to HF)
 
 FROM rust:1.85-slim-bookworm AS builder
 

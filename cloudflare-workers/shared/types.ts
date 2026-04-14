@@ -1,5 +1,5 @@
 /**
- * Common Type Definitions for Nexus Reader Workers
+ * Common Type Definitions for Nexus Edge Workers
  */
 
 export type JsonPrimitive = string | number | boolean | null;

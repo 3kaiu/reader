@@ -10,7 +10,7 @@ import {
 import type { EnhancedWorkerEnv } from './types.ts'
 import { USER_SERVICE_PREFIXES } from './user-service-prefixes.generated.ts'
 
-/** Same semantics as nexus-reader `route-policy.ts` routeMatches (avoid `/api/foo` matching `/api/foobar`). */
+/** Same semantics as the Nexus Web `route-policy.ts` matcher (avoid `/api/foo` matching `/api/foobar`). */
 function routeMatchesPath(pathname: string, pattern: string): boolean {
   if (pattern.endsWith('/')) return pathname.startsWith(pattern)
   return pathname === pattern || pathname.startsWith(`${pattern}/`)

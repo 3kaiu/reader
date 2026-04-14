@@ -1,4 +1,4 @@
--- Nexus Reader D1 Database Schema v2.0
+-- Nexus D1 Database Schema v2.0
 -- 优化后的SQLite数据库，专门为Cloudflare D1设计
 -- 500k reads/month, 50k writes/month, 1GB storage
 
