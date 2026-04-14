@@ -353,11 +353,8 @@ pub(super) async fn run_validation(
     report.score = (base_score + step_score) / 2.0;
     let strict_all_ok = report.steps.iter().all(|step| step.ok);
     let has_fallback = has_fallback_search_strategies(package);
-    let relaxed_search_import = validation_relaxed_search_importable(
-        &report.steps,
-        native_search_enabled,
-        has_fallback,
-    );
+    let relaxed_search_import =
+        validation_relaxed_search_importable(&report.steps, native_search_enabled, has_fallback);
     if relaxed_search_import {
         report.warnings.push(
             "native_search validation failed; import allowed because searchProfile enables external discovery or direct detail fallback"

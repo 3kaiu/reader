@@ -347,7 +347,9 @@ async fn fetch_via_external_service(
     };
     let client = source_builder_http_client()?;
     let mut headers = parsed.headers.clone();
-    if !parsed.cookies.is_empty() && !headers.contains_key("cookie") && !headers.contains_key("Cookie")
+    if !parsed.cookies.is_empty()
+        && !headers.contains_key("cookie")
+        && !headers.contains_key("Cookie")
     {
         let cookie_header = parsed
             .cookies
@@ -361,7 +363,11 @@ async fn fetch_via_external_service(
     let payload = ExternalFetchRequest {
         url: parsed.url.clone(),
         method: parsed.method.clone(),
-        headers: if headers.is_empty() { None } else { Some(headers) },
+        headers: if headers.is_empty() {
+            None
+        } else {
+            Some(headers)
+        },
         body: parsed.body.clone(),
         timeout: 30,
         proxy: None,

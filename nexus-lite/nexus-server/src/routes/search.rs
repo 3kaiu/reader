@@ -18,11 +18,11 @@ use axum::{
     Json,
 };
 use futures::stream::Stream;
-use nexus_core::BookItem;
 use nexus_core::types::PipelineStageReport;
+use nexus_core::BookItem;
 use serde::{Deserialize, Serialize};
-use std::convert::Infallible;
 use std::collections::HashMap;
+use std::convert::Infallible;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
@@ -65,10 +65,19 @@ pub struct SearchError {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SearchEvent {
-    Result { data: BookItem },
-    Error { source_id: String, error: String },
-    Meta { stage_reports: Vec<PipelineStageReport> },
-    Done { total: usize },
+    Result {
+        data: BookItem,
+    },
+    Error {
+        source_id: String,
+        error: String,
+    },
+    Meta {
+        stage_reports: Vec<PipelineStageReport>,
+    },
+    Done {
+        total: usize,
+    },
 }
 
 fn keyword_looks_like_url(keyword: &str) -> bool {
@@ -84,8 +93,10 @@ pub async fn search(
     let started_at = std::time::Instant::now();
 
     let packages = runtime_search_packages(&state, &req.sources).await?;
-    let package_ids: HashMap<String, String> =
-        packages.iter().map(|p| (p.source.id.clone(), p.package_id.clone())).collect();
+    let package_ids: HashMap<String, String> = packages
+        .iter()
+        .map(|p| (p.source.id.clone(), p.package_id.clone()))
+        .collect();
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut all_results = direct_detail_results(&state, &packages, &req.keyword).await;
@@ -148,9 +159,7 @@ pub async fn search(
     stage
         .metrics
         .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
-    stage
-        .metrics
-        .insert("total".to_string(), total.to_string());
+    stage.metrics.insert("total".to_string(), total.to_string());
     stage
         .metrics
         .insert("sourcesRequested".to_string(), req.sources.len().to_string());
@@ -174,8 +183,10 @@ pub async fn search_stream(
     let started_at = std::time::Instant::now();
 
     let packages = runtime_search_packages(&state, &req.sources).await?;
-    let package_ids: HashMap<String, String> =
-        packages.iter().map(|p| (p.source.id.clone(), p.package_id.clone())).collect();
+    let package_ids: HashMap<String, String> = packages
+        .iter()
+        .map(|p| (p.source.id.clone(), p.package_id.clone()))
+        .collect();
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut direct_items = direct_detail_results(&state, &packages, &req.keyword).await;
@@ -203,9 +214,13 @@ pub async fn search_stream(
                 warnings: Vec::new(),
                 metrics: std::collections::HashMap::new(),
             };
-            stage.metrics.insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+            stage
+                .metrics
+                .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
             stage.metrics.insert("total".to_string(), "0".to_string());
-            stage.metrics.insert("sourcesRequested".to_string(), req.sources.len().to_string());
+            stage
+                .metrics
+                .insert("sourcesRequested".to_string(), req.sources.len().to_string());
             let _ = tx.send(Ok(event_meta(vec![stage]))).await;
             let _ = tx.send(Ok(event_done(0))).await;
             return;
@@ -277,9 +292,13 @@ pub async fn search_stream(
             warnings: Vec::new(),
             metrics: std::collections::HashMap::new(),
         };
-        stage.metrics.insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
+        stage
+            .metrics
+            .insert("elapsedMs".to_string(), started_at.elapsed().as_millis().to_string());
         stage.metrics.insert("total".to_string(), total.to_string());
-        stage.metrics.insert("sourcesRequested".to_string(), req.sources.len().to_string());
+        stage
+            .metrics
+            .insert("sourcesRequested".to_string(), req.sources.len().to_string());
         let _ = tx.send(Ok(event_meta(vec![stage]))).await;
     });
 

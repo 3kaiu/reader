@@ -44,4 +44,3 @@ pub async fn ensure_request_id(mut request: Request<Body>, next: Next) -> Respon
 
     response
 }
-

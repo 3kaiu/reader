@@ -9,8 +9,8 @@
 //! - Text deduplication
 //! - Font decryption support
 
-use scraper::{ElementRef, Html, Selector};
 use regex::Regex;
+use scraper::{ElementRef, Html, Selector};
 
 // Import dynamic noise detection and ML scoring
 use crate::dynamic_noise::{DynamicNoiseDetector, ExtractionContext};

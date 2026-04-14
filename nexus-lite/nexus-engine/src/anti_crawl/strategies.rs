@@ -133,7 +133,11 @@ impl AntiCrawlStrategy for JinaReaderStrategy {
         let url = self.jina_url(&ctx.url);
         let mut req = self.client.get(url).header("x-respond-with", "html");
         // Preserve UA if provided by the source; Jina may use it for upstream fetch.
-        if let Some(ua) = ctx.headers.get("user-agent").or_else(|| ctx.headers.get("User-Agent")) {
+        if let Some(ua) = ctx
+            .headers
+            .get("user-agent")
+            .or_else(|| ctx.headers.get("User-Agent"))
+        {
             req = req.header(reqwest::header::USER_AGENT, ua);
         }
 

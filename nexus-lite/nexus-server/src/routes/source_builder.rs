@@ -12,7 +12,9 @@ use nexus_core::{
     SourceRulePackage, SourceRuleRefineRequest, SourceRuleRefineResponse,
     SourceRuleValidationReport, SourceSearchMode, SourceSearchProfile, SourceValidationStepReport,
 };
-use nexus_engine::anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain, JinaReaderStrategy};
+use nexus_engine::anti_crawl::{
+    CfBypassStrategy, DirectHttpStrategy, FallbackChain, JinaReaderStrategy,
+};
 use nexus_engine::quality_gate::evaluate_content_quality;
 use nexus_engine::NxsEngine;
 use scraper::{Html, Selector};

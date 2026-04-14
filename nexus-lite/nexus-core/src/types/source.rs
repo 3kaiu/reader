@@ -286,7 +286,10 @@ impl SourceReadinessReport {
             },
         });
         let mut suggested_actions = Vec::new();
-        if blockers.iter().any(|item| item == "validation_import_blocked") {
+        if blockers
+            .iter()
+            .any(|item| item == "validation_import_blocked")
+        {
             suggested_actions.push("run_validation_with_samples".to_string());
         }
         if blockers.iter().any(|item| item == "package_compile_failed") {

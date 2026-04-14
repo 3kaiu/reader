@@ -222,9 +222,9 @@ pub(crate) fn validation_relaxed_search_importable(
     if !critical_ok {
         return false;
     }
-    steps.iter().all(|step| {
-        step.ok || matches!(step.step.as_str(), "search" | "search_detail")
-    })
+    steps
+        .iter()
+        .all(|step| step.ok || matches!(step.step.as_str(), "search" | "search_detail"))
 }
 
 pub(crate) fn append_jina_guidance(

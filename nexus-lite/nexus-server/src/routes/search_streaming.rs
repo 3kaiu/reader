@@ -1,6 +1,6 @@
 use axum::response::sse::Event;
-use nexus_core::BookItem;
 use nexus_core::types::PipelineStageReport;
+use nexus_core::BookItem;
 
 use super::SearchEvent;
 
