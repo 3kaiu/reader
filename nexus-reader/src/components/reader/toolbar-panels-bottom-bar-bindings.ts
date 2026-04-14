@@ -1,7 +1,19 @@
 import { computed } from 'vue'
-import type { ReaderToolbarPanelsBottomBarBindings } from './toolbar-panels-binding-types'
 import type { ReaderToolbarPanelsEmitFn } from './toolbar-panels-emit-types'
 import type { ReaderToolbarPanelsProps } from './toolbar-panels-prop-types'
+import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
+
+export interface ReaderToolbarPanelsBottomBarBindings extends ReaderToolbarBottomBarProps {
+  onToggleDayNight: () => void
+  onToggleSettings: () => void
+  onToggleEyeCare: () => void
+  onToggleZenMode: () => void
+  onRefresh: () => void
+  onPrevChapter: () => void
+  onNextChapter: () => void
+  onOpenSourcePicker: () => void
+  onOpenBookInfo: () => void
+}
 
 export function createReaderToolbarPanelsBottomBarBindings(
   props: ReaderToolbarPanelsProps,

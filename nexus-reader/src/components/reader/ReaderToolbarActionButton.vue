@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { createReaderToolbarActionButtonViewBindings } from './reader-toolbar-action-button-view-bindings'
-import type { ReaderToolbarActionButtonEmits } from './reader-toolbar-action-button-emit-types'
-import type { ReaderToolbarActionButtonProps } from './reader-toolbar-action-button-prop-types'
+import type { ReaderToolbarActionButtonProps } from './reader-toolbar-action-button-view-bindings'
 
 const props = defineProps<ReaderToolbarActionButtonProps>()
-
-const emit = defineEmits<ReaderToolbarActionButtonEmits>()
-const { buttonClass, onClick, onContextmenu } = createReaderToolbarActionButtonViewBindings(
-  props,
-  emit
-)
+const { buttonClass, onClick, onContextmenu } = createReaderToolbarActionButtonViewBindings(props)
 </script>
 
 <template>

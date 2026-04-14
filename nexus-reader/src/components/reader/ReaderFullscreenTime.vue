@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createReaderFullscreenTimeViewBindings } from './reader-fullscreen-time-view-bindings'
-import type { ReaderFullscreenTimeProps } from './reader-fullscreen-time-prop-types'
+import type { ReaderFullscreenTimeProps } from './reader-fullscreen-time-view-bindings'
 
 const props = defineProps<ReaderFullscreenTimeProps>()
 const { displayTime } = createReaderFullscreenTimeViewBindings(props)

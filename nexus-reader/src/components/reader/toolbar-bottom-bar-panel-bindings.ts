@@ -1,11 +1,26 @@
 import { computed } from 'vue'
-import type {
-  ReaderToolbarBottomBarBindingResult,
-  ReaderToolbarBottomBarPanelBindings,
-} from './toolbar-bottom-bar-binding-types'
+import type { ComputedRef } from 'vue'
 import { createReaderToolbarBottomBarBindings } from './toolbar-bottom-bar-bindings'
 import type { ReaderToolbarBottomBarEmitFn } from './toolbar-bottom-bar-emit-types'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
+import type { ReaderToolbarBottomPanelProps } from './toolbar-bottom-panel-prop-types'
+
+export interface ReaderToolbarBottomBarPanelBindings extends ReaderToolbarBottomPanelProps {
+  onToggleDayNight: () => void
+  onToggleSettings: () => void
+  onToggleEyeCare: () => void
+  onToggleZenMode: () => void
+  onRefresh: () => void
+  onPrevChapter: () => void
+  onNextChapter: () => void
+  onOpenSourcePicker: () => void
+  onOpenBookInfo: () => void
+}
+
+export interface ReaderToolbarBottomBarBindingResult {
+  panelBindings: ComputedRef<ReaderToolbarBottomBarPanelBindings>
+  isVisible: ComputedRef<boolean>
+}
 
 export function createReaderToolbarBottomBarPanelBindings(
   props: ReaderToolbarBottomBarProps,

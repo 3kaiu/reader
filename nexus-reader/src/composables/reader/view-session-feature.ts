@@ -1,11 +1,16 @@
 import { useReaderSession } from '@/composables/useReaderSession'
-import { createReaderSessionFeatureOptions } from './view-feature-session-options'
-import type { ReaderViewLayout, ReaderViewServices } from './view-dependencies'
-import type { ReaderViewSessionFeature } from './view-session-feature-types'
+import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewLayout } from './view-layout'
+import type { ReaderViewServices } from './view-services'
 
 export function createReaderViewSessionFeature(
   services: ReaderViewServices,
   _layout: ReaderViewLayout
-): ReaderViewSessionFeature {
-  return useReaderSession(createReaderSessionFeatureOptions(services))
+): ReaderViewFeatures['session'] {
+  return useReaderSession({
+    toast: services.toast,
+    readerStore: services.readerStore,
+    settingsStore: services.settingsStore,
+    offlineStore: services.offlineStore,
+  })
 }

@@ -1,9 +1,9 @@
 import { computed, unref } from 'vue'
 import type { ReaderPageModelStateOptions } from './page-model-state-options'
-import type { ReaderViewServices } from './view-dependencies'
 import type { ReaderPageModelFeatures } from './view-model-page-feature-types'
+import type { ReaderViewServices } from './view-services'
 
-export function createReaderPageModelStateOptions(
+export function createReaderViewPageStateOptions(
   services: ReaderViewServices,
   features: ReaderPageModelFeatures
 ): ReaderPageModelStateOptions {

@@ -12,5 +12,3 @@ export interface ReaderExperienceLayoutBindings {
 export interface ReaderExperienceLayoutBindingOptions extends ReaderExperienceLayoutBindings {
   contentRef: ReaderExperienceViewActions['bindContentRef']
 }
-
-export type ReaderExperienceLayoutProps = ReaderExperienceLayoutBindingOptions

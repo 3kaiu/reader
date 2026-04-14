@@ -1,18 +1,19 @@
 import type { ReaderExperienceModelOptions } from './experience-model-option-types'
-import { createReaderExperienceModelHandlerOptions } from './view-model-experience-handler-options'
-import { createReaderExperienceModelServiceOptions } from './view-model-experience-service-options'
-import { createReaderExperienceModelVisibilityOptions } from './view-model-experience-visibility-options'
-import type { ReaderViewLayout, ReaderViewServices } from './view-dependencies'
+import { createReaderViewExperienceHandlerOptions } from './view-model-experience-handler-options'
+import { createReaderViewExperienceServiceOptions } from './view-model-experience-service-options'
+import { createReaderViewExperienceVisibilityOptions } from './view-model-experience-visibility-options'
+import type { ReaderViewLayout } from './view-layout'
 import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
+import type { ReaderViewServices } from './view-services'
 
-export function createReaderExperienceModelOptions(
+export function createReaderViewExperienceOptions(
   services: ReaderViewServices,
   layout: ReaderViewLayout,
   features: ReaderExperienceModelFeatures
 ): ReaderExperienceModelOptions {
   return {
-    ...createReaderExperienceModelServiceOptions(services, layout, features),
-    ...createReaderExperienceModelVisibilityOptions(features),
-    ...createReaderExperienceModelHandlerOptions(layout, features),
+    ...createReaderViewExperienceServiceOptions(services, layout, features),
+    ...createReaderViewExperienceVisibilityOptions(features),
+    ...createReaderViewExperienceHandlerOptions(layout, features),
   }
 }

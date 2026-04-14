@@ -40,7 +40,6 @@ export default defineConfig({
       reportsDirectory: './coverage/integration',
       include: [
         'src/utils/**',
-        'src/hooks/**',
         'src/components/**',
         'src/api/**',
         'src/services/**'

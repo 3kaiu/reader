@@ -1,8 +1,8 @@
 import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
-import type { ReaderViewLayout } from './view-dependencies'
+import type { ReaderViewLayout } from './view-layout'
 import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
 
-export function createReaderExperienceModelHandlerOptions(
+export function createReaderViewExperienceHandlerOptions(
   layout: ReaderViewLayout,
   features: ReaderExperienceModelFeatures
 ): ReaderExperienceModelHandlerOptions {

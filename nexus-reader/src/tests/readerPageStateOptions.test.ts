@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { createReaderPageModelStateOptions } from '@/composables/reader/view-model-page-state-options'
+import { createReaderViewPageStateOptions } from '@/composables/reader/view-model-page-state-options'
 
 describe('Reader Page State Options', () => {
   it('uses loadError when top-level error is empty and preserves error details', () => {
@@ -24,7 +24,7 @@ describe('Reader Page State Options', () => {
       },
     } as any
 
-    const options = createReaderPageModelStateOptions(services, features)
+    const options = createReaderViewPageStateOptions(services, features)
 
     expect(options.error.value).toBe('章节内容为空，请重试或切换书源')
     expect(options.errorDetails.value).toBe('content_empty')

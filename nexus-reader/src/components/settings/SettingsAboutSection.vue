@@ -23,6 +23,9 @@ import { Info, Settings } from 'lucide-vue-next'
         <div class="space-y-2">
           <h3 class="text-2xl font-bold tracking-tight">Reader Web v3</h3>
           <p class="text-sm text-muted-foreground">Modern Web Reader powered by Shadcn Vue</p>
+          <p class="text-xs text-muted-foreground">
+            设置页已按“日常设置 / 高级治理”进行分层展示。
+          </p>
         </div>
         <div class="pt-2 flex items-center justify-center gap-4 text-sm">
           <a

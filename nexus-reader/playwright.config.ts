@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-    testDir: './tests',
+    testDir: './src/tests/e2e',
     /* 每个测试的最长运行时间 */
     timeout: 30 * 1000,
     expect: {
@@ -20,7 +20,7 @@ export default defineConfig({
     reporter: 'html',
     /* 基础路径和浏览器配置 */
     use: {
-        baseURL: 'http://localhost:3000',
+        baseURL: 'http://localhost:5173',
         /* 捕获痕迹 (只在第一次失败重试时执行) */
         trace: 'on-first-retry',
         /* 自动截屏 */
@@ -46,7 +46,7 @@ export default defineConfig({
     /* 运行测试前先启动本地服务器 */
     webServer: {
         command: 'bun run dev',
-        url: 'http://localhost:3000',
+        url: 'http://localhost:5173',
         reuseExistingServer: !process.env.CI,
     },
 });

@@ -1,7 +1,10 @@
-import type { ReaderViewActionFeature } from './view-action-feature-types'
-import type { ReaderViewChromeFeature } from './view-chrome-feature-types'
+import type { useReaderActions } from '@/composables/useReaderActions'
+import type { useReaderChrome } from '@/composables/useReaderChrome'
+import type { useReaderSession } from '@/composables/useReaderSession'
 
-import type { ReaderViewSessionFeature } from './view-session-feature-types'
+export type ReaderViewActionFeature = ReturnType<typeof useReaderActions>
+export type ReaderViewChromeFeature = ReturnType<typeof useReaderChrome>
+export type ReaderViewSessionFeature = ReturnType<typeof useReaderSession>
 
 export interface ReaderViewFeatures {
   session: ReaderViewSessionFeature

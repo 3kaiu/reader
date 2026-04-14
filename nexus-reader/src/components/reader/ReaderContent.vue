@@ -11,7 +11,6 @@ import type { ReaderContentProps } from './reader-content-prop-types'
 
 const props = defineProps<ReaderContentProps>()
 const emit = defineEmits<ReaderContentEmits>()
-void emit
 const { viewportProps } = createReaderContentBindings(props)
 </script>
 

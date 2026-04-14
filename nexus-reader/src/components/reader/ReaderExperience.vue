@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import ReaderExperienceLayout from './ReaderExperienceLayout.vue'
 import { createReaderExperienceComponentBindings } from './reader-experience-bindings'
-import type { ReaderExperienceProps } from './reader-experience-prop-types'
+import type { ReaderExperienceBindingProps } from '@/composables/reader/experience-binding-prop-types'
 
-const props = defineProps<ReaderExperienceProps>()
+const props = defineProps<ReaderExperienceBindingProps>()
 
 const { layoutProps } = createReaderExperienceComponentBindings(props)
 </script>

@@ -8,6 +8,8 @@ import { performanceTestRunner, type PerformanceTestSuite } from '../utils/perfo
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
+const APP_BASE_URL = 'http://localhost:5173'
+
 // 扩展的测试套件
 const comprehensiveTestSuite: PerformanceTestSuite = {
   name: 'Comprehensive Performance Tests',
@@ -24,7 +26,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
     // 首页性能测试
     {
       name: 'Homepage Desktop Performance',
-      url: 'http://localhost:3000',
+      url: APP_BASE_URL,
       device: 'desktop',
       networkCondition: 'fast3g',
       iterations: 3,
@@ -39,7 +41,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
     // 移动端性能测试
     {
       name: 'Homepage Mobile Performance',
-      url: 'http://localhost:3000',
+      url: APP_BASE_URL,
       device: 'mobile',
       networkCondition: 'slow3g',
       iterations: 3,
@@ -54,7 +56,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
     // 阅读器性能测试
     {
       name: 'Reader Page Performance',
-      url: 'http://localhost:3000/reader',
+      url: `${APP_BASE_URL}/#/reader`,
       device: 'desktop',
       networkCondition: 'fast3g',
       iterations: 3,
@@ -67,7 +69,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
     // 图书馆页面性能测试
     {
       name: 'Library Page Performance',
-      url: 'http://localhost:3000/library',
+      url: `${APP_BASE_URL}/#/`,
       device: 'desktop',
       networkCondition: 'online',
       iterations: 2,
@@ -120,7 +122,7 @@ const comprehensiveTestSuite: PerformanceTestSuite = {
 
     // 预热应用
     try {
-      const response = await fetch('http://localhost:3000')
+      const response = await fetch(APP_BASE_URL)
       if (!response.ok) {
         throw new Error(`Server not ready: ${response.status}`)
       }

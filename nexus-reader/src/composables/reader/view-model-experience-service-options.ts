@@ -1,8 +1,9 @@
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
-import type { ReaderViewLayout, ReaderViewServices } from './view-dependencies'
+import type { ReaderViewLayout } from './view-layout'
 import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
+import type { ReaderViewServices } from './view-services'
 
-export function createReaderExperienceModelServiceOptions(
+export function createReaderViewExperienceServiceOptions(
   services: ReaderViewServices,
   layout: ReaderViewLayout,
   features: ReaderExperienceModelFeatures

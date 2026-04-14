@@ -1,7 +1,7 @@
 import type { ReaderPageModelChromeOptions } from './page-model-chrome-options'
 import type { ReaderPageModelFeatures } from './view-model-page-feature-types'
 
-export function createReaderPageModelChromeOptions(
+export function createReaderViewPageChromeOptions(
   features: ReaderPageModelFeatures
 ): ReaderPageModelChromeOptions {
   return {

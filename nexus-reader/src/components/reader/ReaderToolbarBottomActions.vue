@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import ReaderToolbarActionButton from './ReaderToolbarActionButton.vue'
-import { createReaderToolbarBottomActions } from './toolbar-bottom-actions'
-import type { ReaderToolbarBottomActionsEmits } from './toolbar-bottom-action-emit-types'
-import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
+import {
+  createReaderToolbarBottomActions,
+  type ReaderToolbarBottomActionsBindings,
+} from './toolbar-bottom-actions'
 
-const props = defineProps<ReaderToolbarBottomActionsProps>()
-const emit = defineEmits<ReaderToolbarBottomActionsEmits>()
-const { actionButtons } = createReaderToolbarBottomActions(props, emit)
+const props = defineProps<ReaderToolbarBottomActionsBindings>()
+const { actionButtons } = createReaderToolbarBottomActions(props)
 </script>
 
 <template>
@@ -21,8 +21,8 @@ const { actionButtons } = createReaderToolbarBottomActions(props, emit)
       :is-active="action.isActive"
       :show-indicator="action.showIndicator"
       :indicator-class="action.indicatorClass"
-      @click="action.onClick"
-      @contextmenu="action.onContextmenu?.($event)"
+      :on-click="action.onClick"
+      :on-contextmenu="action.onContextmenu"
     >
       <template #icon>
         <component :is="action.icon" :class="action.iconClass" />

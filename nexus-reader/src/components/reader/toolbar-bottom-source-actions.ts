@@ -1,11 +1,9 @@
 import { ArrowLeftRight } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
-import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
-import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
+import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-actions'
 
 export function createReaderToolbarBottomSourceActions(
-  props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn
+  props: ReaderToolbarBottomActionsBindings
 ): ReaderToolbarBottomAction[] {
   return [
     {
@@ -17,7 +15,7 @@ export function createReaderToolbarBottomSourceActions(
       isActive: Boolean(props.contentIssue),
       showIndicator: Boolean(props.contentIssue),
       indicatorClass: 'bg-amber-500',
-      onClick: () => emit('openSourcePicker'),
+      onClick: props.onOpenSourcePicker,
     },
   ]
 }

@@ -1,12 +1,10 @@
 import { createReaderToolbarBottomStaticActions } from './toolbar-bottom-static-actions'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
-import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
-import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
+import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-actions'
 
 export function createReaderToolbarBottomActionList(
-  props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn
+  props: ReaderToolbarBottomActionsBindings
 ): ReaderToolbarBottomAction[] {
-  const { primaryActions, trailingActions } = createReaderToolbarBottomStaticActions(props, emit)
+  const { primaryActions, trailingActions } = createReaderToolbarBottomStaticActions(props)
   return [...primaryActions, ...trailingActions]
 }

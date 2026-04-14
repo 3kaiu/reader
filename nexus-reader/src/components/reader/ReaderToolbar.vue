@@ -25,6 +25,7 @@ const { panelsProps } = createReaderToolbarBindings(props)
       @toggle-day-night="emit('toggleDayNight')"
       @toggle-settings="emit('toggleSettings')"
       @toggle-eye-care="emit('toggleEyeCare')"
+      @toggle-zen-mode="emit('toggleZenMode')"
       @refresh="emit('refresh')"
       @prev-chapter="emit('prevChapter')"
       @next-chapter="emit('nextChapter')"

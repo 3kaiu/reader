@@ -1,18 +1,17 @@
 import { computed } from 'vue'
-import type { ReaderNavigationButtonEmitFn } from './reader-navigation-button-emit-types'
-import type { ReaderNavigationButtonProps } from './reader-navigation-button-prop-types'
-import type { ReaderNavigationButtonViewBindings } from './reader-navigation-button-view-binding-types'
 
-export function createReaderNavigationButtonViewBindings(
-  props: ReaderNavigationButtonProps,
-  emit: ReaderNavigationButtonEmitFn
-): ReaderNavigationButtonViewBindings {
+export interface ReaderNavigationButtonProps {
+  disabled: boolean
+  onClick: () => void
+}
+
+export function createReaderNavigationButtonViewBindings(props: ReaderNavigationButtonProps) {
   const buttonClass = computed(() => ({
     disabled: props.disabled,
   }))
 
   return {
     buttonClass,
-    onClick: () => emit('click'),
+    onClick: props.onClick,
   }
 }

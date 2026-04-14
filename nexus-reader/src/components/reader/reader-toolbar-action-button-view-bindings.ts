@@ -1,17 +1,21 @@
 import { computed } from 'vue'
-import type { ReaderToolbarActionButtonEmitFn } from './reader-toolbar-action-button-emit-types'
-import type { ReaderToolbarActionButtonProps } from './reader-toolbar-action-button-prop-types'
-import type { ReaderToolbarActionButtonViewBindings } from './reader-toolbar-action-button-view-binding-types'
 
-export function createReaderToolbarActionButtonViewBindings(
-  props: ReaderToolbarActionButtonProps,
-  emit: ReaderToolbarActionButtonEmitFn
-): ReaderToolbarActionButtonViewBindings {
+export interface ReaderToolbarActionButtonProps {
+  label: string
+  activeClass?: string
+  isActive?: boolean
+  showIndicator?: boolean
+  indicatorClass?: string
+  onClick: () => void
+  onContextmenu?: (event: MouseEvent) => void
+}
+
+export function createReaderToolbarActionButtonViewBindings(props: ReaderToolbarActionButtonProps) {
   const buttonClass = computed(() => (props.isActive ? (props.activeClass ?? '') : ''))
 
   return {
     buttonClass,
-    onClick: () => emit('click'),
-    onContextmenu: (event: MouseEvent) => emit('contextmenu', event),
+    onClick: props.onClick,
+    onContextmenu: props.onContextmenu,
   }
 }

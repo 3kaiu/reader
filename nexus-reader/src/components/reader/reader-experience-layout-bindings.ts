@@ -1,11 +1,8 @@
-import type {
-  ReaderExperienceLayoutBindingOptions,
-  ReaderExperienceLayoutProps,
-} from './reader-experience-layout-binding-types'
+import type { ReaderExperienceLayoutBindingOptions } from './reader-experience-layout-binding-types'
 
 export function createReaderExperienceLayoutBindings(
   options: ReaderExperienceLayoutBindingOptions
-): ReaderExperienceLayoutProps {
+): ReaderExperienceLayoutBindingOptions {
   return {
     toolbarBindings: options.toolbarBindings,
     contentBindings: options.contentBindings,

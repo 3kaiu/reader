@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { createReaderFullscreenIconViewBindings } from './reader-fullscreen-icon-view-bindings'
-import type { ReaderFullscreenIconProps } from './reader-fullscreen-icon-prop-types'
 
-const props = defineProps<ReaderFullscreenIconProps>()
+const props = defineProps<{
+  isFullscreen: boolean
+}>()
 const { pathData } = createReaderFullscreenIconViewBindings(props)
 </script>
 

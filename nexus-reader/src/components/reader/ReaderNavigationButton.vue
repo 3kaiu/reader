@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { createReaderNavigationButtonViewBindings } from './reader-navigation-button-view-bindings'
-import type { ReaderNavigationButtonEmits } from './reader-navigation-button-emit-types'
-import type { ReaderNavigationButtonEmitFn } from './reader-navigation-button-emit-types'
-import type { ReaderNavigationButtonProps } from './reader-navigation-button-prop-types'
+import type { ReaderNavigationButtonProps } from './reader-navigation-button-view-bindings'
 
 const props = defineProps<ReaderNavigationButtonProps>()
-const emit = defineEmits<ReaderNavigationButtonEmits>()
-const { buttonClass, onClick } = createReaderNavigationButtonViewBindings(
-  props,
-  emit as unknown as ReaderNavigationButtonEmitFn
-)
+const { buttonClass, onClick } = createReaderNavigationButtonViewBindings(props)
 </script>
 
 <template>

@@ -48,7 +48,7 @@ const staticEntries: ToolboxEntry[] = [
         <div>
           <p class="text-sm font-semibold">个人工具箱</p>
           <p class="text-xs text-muted-foreground mt-1">
-            默认隐藏非日常入口，按需打开高级调试和扩展能力。
+            默认隐藏高级治理与调试入口，按需展开，不打断日常阅读设置。
           </p>
         </div>
         <button

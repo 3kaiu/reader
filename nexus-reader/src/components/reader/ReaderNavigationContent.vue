@@ -4,7 +4,7 @@ import ReaderNavigationButton from './ReaderNavigationButton.vue'
 import ReaderNavigationProgress from './ReaderNavigationProgress.vue'
 import { createReaderNavigationContentViewBindings } from './reader-navigation-content-view-bindings'
 import type { ReaderNavigationContentEmits } from './reader-navigation-content-emit-types'
-import type { ReaderNavigationContentProps } from './reader-navigation-content-prop-types'
+import type { ReaderNavigationContentProps } from './reader-navigation-content-view-bindings'
 
 const props = defineProps<ReaderNavigationContentProps>()
 

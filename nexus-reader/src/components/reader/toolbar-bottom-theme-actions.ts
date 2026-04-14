@@ -1,11 +1,9 @@
 import { Eye, Moon, Sun } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
-import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
-import type { ReaderToolbarBottomActionsProps } from './toolbar-bottom-action-prop-types'
+import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-actions'
 
 export function createReaderToolbarBottomThemeActions(
-  props: ReaderToolbarBottomActionsProps,
-  emit: ReaderToolbarBottomActionsEmitFn
+  props: ReaderToolbarBottomActionsBindings
 ): ReaderToolbarBottomAction[] {
   return [
     {
@@ -13,7 +11,7 @@ export function createReaderToolbarBottomThemeActions(
       label: props.isNightMode ? '夜间' : '日间',
       icon: props.isNightMode ? Moon : Sun,
       iconClass: 'w-5 h-5',
-      onClick: () => emit('toggleDayNight'),
+      onClick: props.onToggleDayNight,
     },
     {
       key: 'eye-care',
@@ -22,7 +20,7 @@ export function createReaderToolbarBottomThemeActions(
       iconClass: 'w-5 h-5',
       activeClass: 'text-green-500',
       isActive: props.isEyeCareEnabled,
-      onClick: () => emit('toggleEyeCare'),
+      onClick: props.onToggleEyeCare,
     },
   ]
 }

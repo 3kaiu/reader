@@ -1,8 +1,9 @@
 import { createReaderViewExperienceModel } from './view-model-experience'
 import { createReaderViewPageModel } from './view-model-page'
-import type { ReaderViewLayout, ReaderViewServices } from './view-dependencies'
 import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewModelResult } from './view-model-result-types'
+import type { ReaderViewServices } from './view-services'
 
 export function createReaderViewModels(
   services: ReaderViewServices,

@@ -1,9 +1,9 @@
 import { RotateCcw, Type } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
-import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
+import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-actions'
 
 export function createReaderToolbarBottomReaderActions(
-  emit: ReaderToolbarBottomActionsEmitFn
+  props: ReaderToolbarBottomActionsBindings
 ): ReaderToolbarBottomAction[] {
   return [
     {
@@ -11,14 +11,14 @@ export function createReaderToolbarBottomReaderActions(
       label: '设置',
       icon: Type,
       iconClass: 'w-5 h-5',
-      onClick: () => emit('toggleSettings'),
+      onClick: props.onToggleSettings,
     },
     {
       key: 'refresh',
       label: '刷新',
       icon: RotateCcw,
       iconClass: 'w-5 h-5',
-      onClick: () => emit('refresh'),
+      onClick: props.onRefresh,
     },
   ]
 }

@@ -3,7 +3,7 @@
  * 阅读器进度条组件
  */
 import { createReaderProgressViewBindings } from './reader-progress-view-bindings'
-import type { ReaderProgressProps } from './reader-progress-prop-types'
+import type { ReaderProgressProps } from './reader-progress-view-bindings'
 
 const props = defineProps<ReaderProgressProps>()
 const { fillStyle } = createReaderProgressViewBindings(props)

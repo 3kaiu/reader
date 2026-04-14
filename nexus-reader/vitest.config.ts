@@ -41,7 +41,6 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: [
         'src/utils/**',
-        'src/hooks/**',
         'src/components/**',
         'src/api/**',
         'src/services/**'
@@ -72,11 +71,9 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@tests': resolve(__dirname, './src/tests'),
       '@utils': resolve(__dirname, './src/utils'),
-      '@hooks': resolve(__dirname, './src/hooks'),
       '@components': resolve(__dirname, './src/components'),
       '@api': resolve(__dirname, './src/api'),
-      '@services': resolve(__dirname, './src/services'),
-      '@config': resolve(__dirname, './src/config')
+      '@services': resolve(__dirname, './src/services')
     }
   },
   

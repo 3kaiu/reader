@@ -1,9 +1,9 @@
 import { BookOpen, Settings } from 'lucide-vue-next'
 import type { ReaderToolbarBottomAction } from './toolbar-bottom-action-contract-types'
-import type { ReaderToolbarBottomActionsEmitFn } from './toolbar-bottom-action-emit-types'
+import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-actions'
 
 export function createReaderToolbarBottomTrailingActions(
-  emit: ReaderToolbarBottomActionsEmitFn
+  props: ReaderToolbarBottomActionsBindings
 ): ReaderToolbarBottomAction[] {
   return [
     {
@@ -11,14 +11,14 @@ export function createReaderToolbarBottomTrailingActions(
       label: '禅模式',
       icon: Settings,
       iconClass: 'w-5 h-5 text-primary',
-      onClick: () => emit('toggleZenMode'),
+      onClick: props.onToggleZenMode,
     },
     {
       key: 'book-info',
       label: '详情',
       icon: BookOpen,
       iconClass: 'w-5 h-5',
-      onClick: () => emit('openBookInfo'),
+      onClick: props.onOpenBookInfo,
     },
   ]
 }

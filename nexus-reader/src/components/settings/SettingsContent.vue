@@ -5,7 +5,10 @@ import type { BrowserStorageEstimate } from '@/utils/browserStorage'
 import type { OptionalFeature } from '@/utils/features'
 import type { AgentRouterConfigPatch } from '@/api/sync'
 import SettingsAboutSection from './SettingsAboutSection.vue'
+import SettingsAdvancedSection from './SettingsAdvancedSection.vue'
+import SettingsAdvancedPanel from './SettingsAdvancedPanel.vue'
 import SettingsAddonSection from './SettingsAddonSection.vue'
+import SettingsGeneralSection from './SettingsGeneralSection.vue'
 import SettingsMaintenanceSection from './SettingsMaintenanceSection.vue'
 import SettingsRoutingSection from './SettingsRoutingSection.vue'
 import SettingsSourcePackagesSection from './SettingsSourcePackagesSection.vue'
@@ -168,57 +171,62 @@ const emit = defineEmits<{
   <main class="px-5 max-w-7xl mx-auto pt-6 sm:pt-8 pb-32">
     <PageHeader @back="emit('back')" />
 
-    <SettingsAddonSection
-      :addon-features="addonFeatures"
-      @update-addon-feature="(feature, enabled) => emit('updateAddonFeature', feature, enabled)"
-    />
+    <SettingsGeneralSection>
+      <SettingsAddonSection
+        :addon-features="addonFeatures"
+        @update-addon-feature="(feature, enabled) => emit('updateAddonFeature', feature, enabled)"
+      />
 
-    <SettingsToolboxSection
-      :toolbox-mode="toolboxMode"
-      :addon-entry-cards="addonEntryCards"
-      @toggle-toolbox-mode="emit('toggleToolboxMode', $event)"
-      @navigate="emit('navigate', $event)"
-    />
+      <SettingsToolboxSection
+        :toolbox-mode="toolboxMode"
+        :addon-entry-cards="addonEntryCards"
+        @toggle-toolbox-mode="emit('toggleToolboxMode', $event)"
+        @navigate="emit('navigate', $event)"
+      />
 
-    <SettingsMaintenanceSection
-      :storage-usage="storageUsage"
-      @export-data="emit('exportData')"
-      @clear-cache="emit('clearCache')"
-    />
+      <SettingsMaintenanceSection
+        :storage-usage="storageUsage"
+        @export-data="emit('exportData')"
+        @clear-cache="emit('clearCache')"
+      />
+    </SettingsGeneralSection>
 
-    <SettingsRoutingSection
-      v-if="toolboxMode"
-      :client-routing-loading="clientRoutingLoading"
-      :client-routing-summary="clientRoutingSummary"
-      :agent-routing-loading="agentRoutingLoading"
-      :agent-routing-summary="agentRoutingSummary"
-      :agent-config-loading="agentConfigLoading"
-      :agent-config-saving="agentConfigSaving"
-      :agent-config-audit-loading="agentConfigAuditLoading"
-      :agent-routing-config-summary="agentRoutingConfigSummary"
-      :agent-routing-config-raw="agentRoutingConfigRaw"
-      :agent-routing-audit-summary="agentRoutingAuditSummary"
-      @refresh="emit('refreshClientRouting')"
-      @set-agent-config-disabled="emit('setAgentConfigDisabled')"
-      @set-agent-config-shadow="emit('setAgentConfigShadow')"
-      @set-agent-config-canary="emit('setAgentConfigCanary')"
-      @save-agent-config-custom="emit('saveAgentConfigCustom', $event)"
-      @reset-agent-config-override="emit('resetAgentConfigOverride')"
-      @load-more-agent-audit="emit('loadMoreAgentAudit')"
-    />
+    <SettingsAdvancedSection :visible="toolboxMode" />
 
-    <SettingsSourcePackagesSection
-      :source-packages-loading="sourcePackagesLoading"
-      :source-package-importing="sourcePackageImporting"
-      :source-package-detail-loading="sourcePackageDetailLoading"
-      :source-packages="sourcePackages"
-      :source-package-detail-summary="sourcePackageDetailSummary"
-      @refresh-source-packages="emit('refreshSourcePackages')"
-      @import-source-package="emit('importSourcePackage', $event)"
-      @select-source-package="emit('selectSourcePackage', $event)"
-      @delete-source-package="emit('deleteSourcePackage', $event)"
-      @navigate="emit('navigate', $event)"
-    />
+    <SettingsAdvancedPanel v-if="toolboxMode">
+      <SettingsRoutingSection
+        :client-routing-loading="clientRoutingLoading"
+        :client-routing-summary="clientRoutingSummary"
+        :agent-routing-loading="agentRoutingLoading"
+        :agent-routing-summary="agentRoutingSummary"
+        :agent-config-loading="agentConfigLoading"
+        :agent-config-saving="agentConfigSaving"
+        :agent-config-audit-loading="agentConfigAuditLoading"
+        :agent-routing-config-summary="agentRoutingConfigSummary"
+        :agent-routing-config-raw="agentRoutingConfigRaw"
+        :agent-routing-audit-summary="agentRoutingAuditSummary"
+        @refresh="emit('refreshClientRouting')"
+        @set-agent-config-disabled="emit('setAgentConfigDisabled')"
+        @set-agent-config-shadow="emit('setAgentConfigShadow')"
+        @set-agent-config-canary="emit('setAgentConfigCanary')"
+        @save-agent-config-custom="emit('saveAgentConfigCustom', $event)"
+        @reset-agent-config-override="emit('resetAgentConfigOverride')"
+        @load-more-agent-audit="emit('loadMoreAgentAudit')"
+      />
+
+      <SettingsSourcePackagesSection
+        :source-packages-loading="sourcePackagesLoading"
+        :source-package-importing="sourcePackageImporting"
+        :source-package-detail-loading="sourcePackageDetailLoading"
+        :source-packages="sourcePackages"
+        :source-package-detail-summary="sourcePackageDetailSummary"
+        @refresh-source-packages="emit('refreshSourcePackages')"
+        @import-source-package="emit('importSourcePackage', $event)"
+        @select-source-package="emit('selectSourcePackage', $event)"
+        @delete-source-package="emit('deleteSourcePackage', $event)"
+        @navigate="emit('navigate', $event)"
+      />
+    </SettingsAdvancedPanel>
 
     <SettingsAboutSection />
   </main>

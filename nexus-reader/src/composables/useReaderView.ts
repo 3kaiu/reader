@@ -1,7 +1,5 @@
-import {
-  createReaderViewLayout,
-  createReaderViewServices,
-} from '@/composables/reader/view-dependencies'
+import { createReaderViewServices } from '@/composables/reader/view-services'
+import { createReaderViewLayout } from '@/composables/reader/view-layout'
 import { createReaderViewFeatures } from '@/composables/reader/view-features'
 import { createReaderViewModels } from '@/composables/reader/view-models'
 

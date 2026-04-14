@@ -1,6 +1,11 @@
 import { computed } from 'vue'
-import type { ReaderNavigationProgressBindings } from './reader-navigation-binding-types'
+import type { ComputedRef } from 'vue'
 import type { ReaderNavigationProps } from './reader-navigation-types'
+
+export interface ReaderNavigationProgressBindings {
+  progressText: ComputedRef<string>
+  progressPercent: ComputedRef<number>
+}
 
 export function createReaderNavigationProgressBindings(
   props: ReaderNavigationProps

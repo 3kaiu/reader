@@ -1,5 +1,5 @@
 import type { ReaderLoadedChapter } from './content-chapter-types'
-import type { ReaderContentStyle } from './content-style-types'
+import type { ReaderContentStyle } from '@/composables/reader/shared-types'
 
 export interface ReaderScrollContentProps {
   contentStyle: ReaderContentStyle

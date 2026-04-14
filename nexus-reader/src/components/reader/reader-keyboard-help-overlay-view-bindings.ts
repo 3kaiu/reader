@@ -1,8 +1,14 @@
 import { computed } from 'vue'
+import type { ComputedRef } from 'vue'
 import type { ReaderKeyboardHelpDialogProps } from './reader-keyboard-help-dialog-prop-types'
 import type { ReaderKeyboardHelpOverlayEmitFn } from './reader-keyboard-help-overlay-emit-types'
 import type { ReaderKeyboardHelpOverlayProps } from './reader-keyboard-help-overlay-prop-types'
-import type { ReaderKeyboardHelpOverlayViewBindings } from './reader-keyboard-help-overlay-view-binding-types'
+
+export interface ReaderKeyboardHelpOverlayViewBindings {
+  isOpen: ComputedRef<boolean>
+  dialogProps: ComputedRef<ReaderKeyboardHelpDialogProps>
+  onClose: () => void
+}
 
 export function createReaderKeyboardHelpOverlayViewBindings(
   props: ReaderKeyboardHelpOverlayProps,

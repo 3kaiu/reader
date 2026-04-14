@@ -3,7 +3,7 @@ import type {
   ReaderPageModelExperienceOptions,
 } from './page-model-experience-options'
 
-export function createReaderPageModelExperienceOptions(
+export function createReaderViewPageExperienceOptions(
   readerExperienceActions: ReaderPageExperienceActions
 ): ReaderPageModelExperienceOptions {
   return {

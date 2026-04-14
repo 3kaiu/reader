@@ -1,15 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ArrowLeft, List } from 'lucide-vue-next'
 import ReaderFullscreenIcon from './ReaderFullscreenIcon.vue'
-import { createReaderToolbarTopBarContentViewBindings } from './toolbar-top-bar-content-view-bindings'
-import type { ReaderToolbarTopBarEmits } from './toolbar-top-bar-emit-types'
-import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
+import type { ReaderToolbarTopBarContentBindings } from './toolbar-top-bar-content-bindings'
 
-const props = defineProps<ReaderToolbarTopBarProps>()
+const props = defineProps<ReaderToolbarTopBarContentBindings>()
 
-const emit = defineEmits<ReaderToolbarTopBarEmits>()
-const { fullscreenIconProps, onBack, onToggleCatalog, onToggleFullscreen } =
-  createReaderToolbarTopBarContentViewBindings(props, emit)
+const fullscreenIconProps = computed(() => ({
+  isFullscreen: props.isFullscreen,
+}))
 </script>
 
 <template>
@@ -19,7 +18,7 @@ const { fullscreenIconProps, onBack, onToggleCatalog, onToggleFullscreen } =
     <div class="flex items-center justify-between">
       <button
         class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-        @click="onBack"
+        @click="props.onBack"
       >
         <ArrowLeft class="w-5 h-5" />
       </button>
@@ -36,13 +35,13 @@ const { fullscreenIconProps, onBack, onToggleCatalog, onToggleFullscreen } =
       <div class="flex items-center gap-1">
         <button
           class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          @click="onToggleCatalog"
+          @click="props.onToggleCatalog"
         >
           <List class="w-5 h-5" />
         </button>
         <button
           class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          @click="onToggleFullscreen"
+          @click="props.onToggleFullscreen"
         >
           <ReaderFullscreenIcon v-bind="fullscreenIconProps" />
         </button>

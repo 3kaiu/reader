@@ -1,7 +1,6 @@
-import type { ReaderViewActionFeature } from './view-action-feature-types'
-import type { ReaderViewChromeFeature } from './view-chrome-feature-types'
+import type { ReaderViewFeatures } from './view-feature-types'
 
 export interface ReaderPageModelFeatures {
-  chrome: ReaderViewChromeFeature
-  actions: ReaderViewActionFeature
+  chrome: ReaderViewFeatures['chrome']
+  actions: ReaderViewFeatures['actions']
 }

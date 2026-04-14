@@ -2,7 +2,8 @@ import { setupReaderViewFeatureEffects } from './view-feature-effects'
 import { createReaderViewActionFeature } from './view-action-feature'
 import { createReaderViewChromeFeature } from './view-chrome-feature'
 
-import type { ReaderViewLayout, ReaderViewServices } from './view-dependencies'
+import type { ReaderViewLayout } from './view-layout'
+import type { ReaderViewServices } from './view-services'
 import { createReaderViewSessionFeature } from './view-session-feature'
 import type { ReaderViewFeatures } from './view-feature-types'
 

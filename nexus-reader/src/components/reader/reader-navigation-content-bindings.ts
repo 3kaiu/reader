@@ -1,6 +1,6 @@
 import { computed } from 'vue'
-import type { ReaderNavigationProgressBindings } from './reader-navigation-binding-types'
-import type { ReaderNavigationContentProps } from './reader-navigation-content-prop-types'
+import type { ReaderNavigationProgressBindings } from './reader-navigation-progress-bindings'
+import type { ReaderNavigationContentProps } from './reader-navigation-content-view-bindings'
 import type { ReaderNavigationProps } from './reader-navigation-types'
 
 export function createReaderNavigationContentBindings(

@@ -2,9 +2,9 @@
 import ReaderContent from '@/components/reader/ReaderContent.vue'
 import ReaderModals from '@/components/reader/ReaderModals.vue'
 import ReaderToolbar from '@/components/reader/ReaderToolbar.vue'
-import type { ReaderExperienceLayoutProps } from './reader-experience-layout-prop-types'
+import type { ReaderExperienceLayoutBindingOptions } from './reader-experience-layout-binding-types'
 
-defineProps<ReaderExperienceLayoutProps>()
+defineProps<ReaderExperienceLayoutBindingOptions>()
 </script>
 
 <template>

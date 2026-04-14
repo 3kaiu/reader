@@ -1,6 +1,16 @@
 import { computed } from 'vue'
+import type { ComputedRef } from 'vue'
 import type { ReaderScrollChapterProps } from './reader-scroll-chapter-prop-types'
-import type { ReaderScrollChapterViewBindings } from './reader-scroll-chapter-view-binding-types'
+
+export interface ReaderScrollChapterViewBindings {
+  chapterIndex: ComputedRef<number>
+  chapterOrder: ComputedRef<number>
+  chapterTitle: ComputedRef<string>
+  chapterContainerStyle: ComputedRef<Record<string, string>>
+  hasFormattedContent: ComputedRef<boolean>
+  renderedContent: ComputedRef<string>
+  onContentClick: (event: MouseEvent) => void
+}
 
 export function createReaderScrollChapterViewBindings(
   props: ReaderScrollChapterProps
