@@ -6,6 +6,8 @@
 # Dist
 node_modules
 dist/
+playwright-report/
+test-results/
 
 # Profile
 .rspack-profile-*/
