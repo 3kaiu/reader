@@ -40,7 +40,7 @@ http = "1"
 # Utilities
 parking_lot = "0.12"
 dashmap = "6"
-rand = "0.9"
+rand = "0.10"
 aho-corasick = "1.1"
 
 # Content Cleaning
