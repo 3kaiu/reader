@@ -163,11 +163,10 @@ type ProxyEnvLike = Pick<
   | 'NEXUS_LITE_URL'
   | 'ENABLE_CACHE'
   | 'CONTENT_CACHE_KV'
-  | 'ANALYTICS_ENGINE'
-  | 'FRONTEND_URL'
   | 'CORS_EXTRA_ORIGINS'
 > & {
   nexusLiteUrl?: string
+  FRONTEND_URL?: string
 }
 
 export async function proxyRequestWithEnv(
@@ -185,7 +184,6 @@ export async function proxyRequestWithEnv(
     cacheTTL: 300,
     kv,
     ctx,
-    analytics: env.ANALYTICS_ENGINE,
     corsEnv: env,
   })
 }

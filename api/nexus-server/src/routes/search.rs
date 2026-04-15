@@ -1,6 +1,6 @@
 //! Search routes
 
-#[path = "search_discovery.rs"]
+#[path = "search_discovery_min.rs"]
 mod discovery;
 #[path = "search_packages.rs"]
 mod packages;
@@ -28,7 +28,7 @@ use tracing::{error, info};
 
 use crate::app::AppState;
 use crate::error::ApiErrorResponse;
-use discovery::{direct_detail_results, external_discovery_results, searchable_source_ids};
+use discovery::{direct_detail_results, searchable_source_ids};
 use packages::{build_package_ranks, runtime_search_packages};
 use ranking::{annotate_result_rankings, sort_packages_for_search, sort_results_for_keyword};
 use streaming::{event_done, event_error, event_meta, event_result};
@@ -100,9 +100,6 @@ pub async fn search(
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut all_results = direct_detail_results(&state, &packages, &req.keyword).await;
-    let (external_results, mut external_errors) =
-        external_discovery_results(&state, &packages, &req.keyword).await;
-    all_results.extend(external_results);
 
     if search_source_ids.is_empty() && all_results.is_empty() {
         return Ok(Json(SearchResponse {
@@ -114,7 +111,6 @@ pub async fn search(
     }
 
     let mut errors = vec![];
-    errors.append(&mut external_errors);
 
     if !search_source_ids.is_empty() {
         let mut rx = state
@@ -190,9 +186,6 @@ pub async fn search_stream(
     let package_ranks = build_package_ranks(&packages);
     let search_source_ids = searchable_source_ids(&packages);
     let mut direct_items = direct_detail_results(&state, &packages, &req.keyword).await;
-    let (external_items, external_errors) =
-        external_discovery_results(&state, &packages, &req.keyword).await;
-    direct_items.extend(external_items);
     annotate_result_rankings(&mut direct_items, &req.keyword, &package_ranks);
     sort_results_for_keyword(&mut direct_items, &req.keyword, &package_ranks);
 
@@ -227,15 +220,6 @@ pub async fn search_stream(
         }
 
         let mut total = 0usize;
-        for error in external_errors {
-            if tx
-                .send(Ok(event_error(error.source_id, error.error)))
-                .await
-                .is_err()
-            {
-                return;
-            }
-        }
         for item in direct_items {
             total += 1;
             if tx.send(Ok(event_result(item))).await.is_err() {

@@ -34,34 +34,6 @@ export function useSettingsSourcePackages() {
     await settingsStore.loadSourcePackageDetail(sourceId)
   }
 
-  async function buildFromSamples(payload: {
-    bookCurl: string
-    chapterCurl: string
-    sourceId?: string
-    sourceName?: string
-    tags?: string[]
-  }) {
-    const ok = await settingsStore.buildSourcePackageFromSamples(payload)
-    if (ok) {
-      success('源规则包预览已生成')
-    } else {
-      warning('样本构建失败')
-    }
-  }
-
-  async function importPreviewPackage() {
-    const packageJson = settingsStore.sourceBuildPreviewSummary.packageJson
-    if (!packageJson) {
-      warning('当前没有可导入的预览包')
-      return
-    }
-    await importSourcePackage(packageJson)
-  }
-
-  function clearBuildPreview() {
-    settingsStore.clearSourceBuildPreview()
-  }
-
   async function deleteSourcePackage(sourceId: string) {
     const confirmed = await confirm({
       title: '删除源规则包',
@@ -85,9 +57,6 @@ export function useSettingsSourcePackages() {
     refreshSourcePackages,
     importSourcePackage,
     selectSourcePackage,
-    buildFromSamples,
-    importPreviewPackage,
-    clearBuildPreview,
     deleteSourcePackage,
   }
 }

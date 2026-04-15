@@ -49,9 +49,6 @@ impl HttpFetcher {
             // Advanced TCP optimization
             .tcp_keepalive(Duration::from_secs(60))
             .tcp_nodelay(true)
-            // Enhanced compression
-            .gzip(true)
-            .brotli(true)
             // Session management
             .cookie_store(true)
             .user_agent("Mozilla/5.0 (compatible; Nexus/1.0)")

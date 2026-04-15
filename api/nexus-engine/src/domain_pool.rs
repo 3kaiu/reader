@@ -87,9 +87,6 @@ impl DomainPooledClient {
                 .pool_idle_timeout(self.pool_idle_timeout)
                 .tcp_keepalive(Duration::from_secs(60))
                 .tcp_nodelay(true)
-                .gzip(true) // Enable compression
-                .no_deflate()
-                .brotli(true)
                 .build()
                 .unwrap_or_default(),
         );

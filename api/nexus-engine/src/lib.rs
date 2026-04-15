@@ -49,7 +49,7 @@ mod text_cleaner;
 mod text_dedup;
 
 // Public exports - 保持向后兼容
-pub use anti_crawl::{CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain};
+pub use anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 pub use domain_pool::{DomainPooledClient, PoolStats};
 pub use nxs_engine::NxsEngine;

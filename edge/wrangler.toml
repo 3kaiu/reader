@@ -11,35 +11,13 @@ compatibility_flags = ["nodejs_compat"]
 ENVIRONMENT = "development"
 LOG_LEVEL = "debug"
 ENABLE_CACHE = "true"
-SOURCE_FLOW_ASSIST_CACHE_TTL_SEC = "3600"
-CF_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+NEXUS_LITE_URL = "YOUR_NEXUS_LITE_URL_HERE"
 # Optional (production / custom domain): set via dashboard or env.production.vars
 # CORS_EXTRA_ORIGINS = "https://nexus.pages.dev,https://nexus-reader.pages.dev"
-# PUBLIC_CONTENT_BASE_URL = "https://content.nexus.pages.dev"
-
-[[d1_databases]]
-binding = "USER_PREFERENCES_DB"
-database_name = "nexus_user_prefs"
-database_id = "YOUR_USER_PREFS_DB_ID_HERE"
-
-[[r2_buckets]]
-binding = "USER_CONTENT_R2"
-bucket_name = "nexus-user-content"
-
-[[r2_buckets]]
-binding = "BACKUP_R2"
-bucket_name = "nexus-backup"
-
-[[kv_namespaces]]
-binding = "PROGRESS_KV"
-id = "YOUR_PROGRESS_KV_ID_HERE"
 
 [[kv_namespaces]]
 binding = "CONTENT_CACHE_KV"
 id = "YOUR_CONTENT_CACHE_KV_ID_HERE"
-
-[ai]
-binding = "AI"
 
 [env.production]
 name = "nexus-edge-prod"
@@ -48,15 +26,6 @@ vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
 routes = [
     { pattern = "api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
 ]
-
-[[env.production.d1_databases]]
-binding = "USER_PREFERENCES_DB"
-database_name = "nexus_user_prefs_prod"
-database_id = "YOUR_PROD_USER_PREFS_DB_ID_HERE"
-
-[[env.production.kv_namespaces]]
-binding = "PROGRESS_KV"
-id = "YOUR_PROD_PROGRESS_KV_ID_HERE"
 
 [env.staging]
 name = "nexus-edge-staging"

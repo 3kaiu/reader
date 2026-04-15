@@ -79,15 +79,6 @@ const files = {
     'user-service-prefixes.generated.ts',
   ),
   backendApp: path.join(rootDir, 'api', 'nexus-server', 'src', 'app.rs'),
-  backendSourceBuilder: path.join(rootDir, 'api', 'nexus-server', 'src', 'source_builder_main.rs'),
-  backendSourceBuilderRoutes: path.join(
-    rootDir,
-    'api',
-    'nexus-server',
-    'src',
-    'routes',
-    'source_builder.rs',
-  ),
 }
 
 const errors = []
@@ -121,8 +112,6 @@ compareExact(
 const backendRoutes = [
   ...new Set([
     ...extractRustRoutes(read(files.backendApp)),
-    ...extractRustRoutes(read(files.backendSourceBuilder)),
-    ...extractRustRoutes(read(files.backendSourceBuilderRoutes)),
   ]),
 ]
 compareContains('backend app routes', backendRoutes, contract.backend.requiredRoutes, errors)

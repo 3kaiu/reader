@@ -1,11 +1,8 @@
 import { computed, ref } from 'vue'
 import { breakpointsTailwind, useBreakpoints, useDark, useStorage, useToggle } from '@vueuse/core'
 import { buildBookshelfMenuGroups } from '@/constants/bookshelf'
-import type { OptionalFeature } from '@/utils/features'
 
-export function useBookshelfUiState(options: {
-  isFeatureAvailable: (feature: OptionalFeature) => boolean
-}) {
+export function useBookshelfUiState() {
   const isDark = useDark()
   const toggleDark = useToggle(isDark)
   const showProgress = useStorage('bookshelf-progress', true)
@@ -15,7 +12,7 @@ export function useBookshelfUiState(options: {
 
   const breakpoints = useBreakpoints(breakpointsTailwind)
   const isDesktop = breakpoints.greater('sm')
-  const menuGroups = computed(() => buildBookshelfMenuGroups(options.isFeatureAvailable))
+  const menuGroups = computed(() => buildBookshelfMenuGroups())
 
   return {
     isDark,

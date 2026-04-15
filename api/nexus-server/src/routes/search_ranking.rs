@@ -143,13 +143,6 @@ pub(super) fn sort_results_for_keyword(
     });
 }
 
-pub(super) fn build_external_search_explain(
-    provider: impl Into<String>,
-    note: Option<String>,
-) -> SearchExplain {
-    build_search_explain(SearchExplainStrategy::ExternalDiscovery, provider, note)
-}
-
 pub(super) fn build_direct_detail_explain(note: Option<String>) -> SearchExplain {
     build_search_explain(SearchExplainStrategy::DirectDetail, "book_info", note)
 }

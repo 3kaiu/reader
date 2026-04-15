@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Compass, Library, Moon, Search, Settings, Sun } from 'lucide-vue-next'
+import { Library, Moon, Search, Settings, Sun } from 'lucide-vue-next'
 import type { BookshelfMenuGroup } from '@/constants/bookshelf'
 import BookshelfMenuPanel from './BookshelfMenuPanel.vue'
 
 defineProps<{
   isDark: boolean
-  showDiscovery: boolean
   hasBooks: boolean
   isManageMode: boolean
   menuOpen: boolean
@@ -16,7 +15,6 @@ defineProps<{
 const emit = defineEmits<{
   'update:menuOpen': [value: boolean]
   toggleDark: []
-  discovery: []
   search: []
   toggleManageMode: []
   navigate: [path: string]
@@ -39,15 +37,6 @@ const emit = defineEmits<{
         >
           <Sun v-if="!isDark" class="h-5 w-5 text-foreground" />
           <Moon v-else class="h-5 w-5 text-foreground" />
-        </button>
-
-        <button
-          v-if="showDiscovery"
-          class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
-          @click="emit('discovery')"
-          aria-label="发现"
-        >
-          <Compass class="h-5 w-5 text-foreground" />
         </button>
 
         <button

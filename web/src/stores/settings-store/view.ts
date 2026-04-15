@@ -1,11 +1,8 @@
 import { computed } from 'vue'
 import {
-  CLIENT_ROUTE_KINDS,
   FONT_FAMILY_MAP,
   THEME_COLORS,
   clampSettingValue,
-  formatRouteLatency,
-  formatRouteShare,
   persistConfig,
 } from '@/utils/settingsStore'
 import type { ThemeColors } from '@/types/settings'
@@ -92,102 +89,6 @@ export function createSettingsStoreView(state: SettingsStoreState): SettingsStor
 
   const themeColors = computed<ThemeColors>(() => THEME_COLORS[state.config.theme])
 
-  const clientRoutingSummary = computed(() => {
-    const analytics = state.clientRouting.value
-
-    return {
-      window: analytics?.window ?? '',
-      note: analytics?.note ?? '',
-      routes: CLIENT_ROUTE_KINDS.map(route => ({
-        key: route,
-        label: route,
-        shareLabel: formatRouteShare(analytics?.routeSharePct?.[route]),
-        p50Label: formatRouteLatency(analytics?.latencySummary?.[route]?.p50),
-        p95Label: formatRouteLatency(analytics?.latencySummary?.[route]?.p95),
-      })),
-    }
-  })
-
-  const agentRoutingSummary = computed(() => {
-    const analytics = state.agentRouting.value
-    const totalSelections = Number(analytics?.totalSelections ?? 0)
-    const skillCounts = analytics?.skillCounts ?? {}
-    const topSkills = Object.entries(skillCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([skill, count]) => ({
-        key: skill,
-        label: skill,
-        countLabel: `${count}`,
-        shareLabel: totalSelections > 0 ? `${((count / totalSelections) * 100).toFixed(2)}%` : '--',
-      }))
-
-    return {
-      window: analytics?.window ?? '',
-      totalSelectionsLabel: `${totalSelections}`,
-      aiAttemptRateLabel: formatRouteShare(analytics?.summary?.aiAttemptRatePct),
-      fallbackRateLabel: formatRouteShare(analytics?.summary?.fallbackRatePct),
-      aiTimeoutRateLabel: formatRouteShare(analytics?.summary?.aiTimeoutRatePct),
-      topSkills,
-    }
-  })
-
-  const agentRoutingConfigSummary = computed(() => {
-    const config = state.agentConfig.value?.config
-    const includeRoutes = config?.includeRoutes ?? []
-    const excludeRoutes = config?.excludeRoutes ?? []
-
-    return {
-      enabledLabel: config ? (config.enabled ? 'Enabled' : 'Disabled') : '--',
-      shadowModeLabel: config ? (config.shadowMode ? 'Enabled' : 'Disabled') : '--',
-      aiEnabledLabel: config ? (config.allowAISelection ? 'Enabled' : 'Disabled') : '--',
-      rolloutLabel: config ? `${config.rolloutPercent}%` : '--',
-      timeoutLabel: config ? `${config.aiMaxLatencyMs}ms` : '--',
-      confidenceLabel: config ? `${(config.minConfidence * 100).toFixed(0)}%` : '--',
-      includeRoutesLabel: includeRoutes.length > 0 ? includeRoutes.join(', ') : '--',
-      excludeRoutesLabel: excludeRoutes.length > 0 ? excludeRoutes.join(', ') : '--',
-    }
-  })
-
-  const agentRoutingConfigRaw = computed(() => {
-    const snapshot = state.agentConfig.value
-    const config = snapshot?.config
-    return {
-      source: snapshot?.source ?? '--',
-      overrideUpdatedAt: snapshot?.overrideUpdatedAt ?? '--',
-      overrideUpdatedBy: snapshot?.overrideUpdatedBy ?? '--',
-      enabled: Boolean(config?.enabled),
-      shadowMode: Boolean(config?.shadowMode),
-      allowAISelection: Boolean(config?.allowAISelection),
-      rolloutPercent: Number(config?.rolloutPercent ?? 0),
-      aiMaxLatencyMs: Number(config?.aiMaxLatencyMs ?? 300),
-      minConfidencePercent: Math.round(Number(config?.minConfidence ?? 0.65) * 100),
-      includeRoutes: [...(config?.includeRoutes ?? [])],
-      excludeRoutes: [...(config?.excludeRoutes ?? [])],
-    }
-  })
-
-  const agentRoutingAuditSummary = computed(() => {
-    const records = state.agentConfigAudit.value ?? []
-
-    return {
-      hasMore: state.agentConfigAuditHasMore.value,
-      records: records.map(item => ({
-        id: item.id,
-        action: item.action,
-        actor: item.actorId || '--',
-        timestamp: item.timestamp,
-        changeItems: (item.changes || [])
-          .map(change => {
-            const before = JSON.stringify(change.before)
-            const after = JSON.stringify(change.after)
-            return `${change.field}: ${before} -> ${after}`
-          })
-          .slice(0, 5),
-      })),
-    }
-  })
-
   const sourcePackageDetailSummary = computed(() => {
     const detail = state.sourcePackageDetail.value
     const capabilities = detail?.capabilities
@@ -267,57 +168,6 @@ export function createSettingsStoreView(state: SettingsStoreState): SettingsStor
     }
   })
 
-  const sourceBuildPreviewSummary = computed(() => {
-    const preview = state.sourceBuildPreview.value
-    const diagnostics = preview?.diagnostics
-    const validation = preview?.package.validation
-
-    return {
-      hasPreview: Boolean(preview),
-      sourceLabel: preview ? `${preview.package.source.name} (${preview.package.source.id})` : '--',
-      packageId: preview?.package.packageId ?? '--',
-      validationLabel: validation
-        ? `${validation.valid ? '通过' : '失败'} / ${Math.round((validation.score ?? 0) * 100)}`
-        : '--',
-      healthLabel: preview
-        ? `${formatReadinessState(preview.package.readiness?.state)} · ${
-            validation?.health?.recommended ? '推荐' : '需复核'
-          }`
-        : '--',
-      healthScoreLabel:
-        validation?.health != null
-          ? `${Math.round((validation.health.overallScore ?? 0) * 100)}`
-          : '--',
-      segmentItems: buildSegmentItems(validation?.health),
-      diagnosticsItems: diagnostics
-        ? [
-            `host: ${diagnostics.host}`,
-            `book sample: ${diagnostics.bookSampleUrl}`,
-            `chapter sample: ${diagnostics.chapterSampleUrl}`,
-            `search strategy: ${diagnostics.searchStrategy}`,
-            `generalization: ${Math.round((diagnostics.generalizationScore ?? 0) * 100)}`,
-            ...(diagnostics.preferredProbeInput
-              ? [`preferred probe: ${diagnostics.preferredProbeInput}`]
-              : []),
-            ...(diagnostics.rawProbeScore != null
-              ? [`raw probe: ${Math.round(diagnostics.rawProbeScore * 100)}`]
-              : []),
-            ...(diagnostics.jinaProbeScore != null
-              ? [`jina probe: ${Math.round(diagnostics.jinaProbeScore * 100)}`]
-              : []),
-            ...(diagnostics.aiReadabilityGain != null
-              ? [`ai gain: ${Math.round(diagnostics.aiReadabilityGain * 100)}`]
-              : []),
-          ]
-        : [],
-      warningItems: validation?.warnings ?? [],
-      riskItems: diagnostics?.riskFlags ?? [],
-      readinessBlockers: preview?.package.readiness?.blockers ?? [],
-      readinessSuggestedActions: preview?.package.readiness?.suggestedActions ?? [],
-      packageJson: preview?.packageJson ?? '',
-    }
-  })
-
   const theme = computed<'light' | 'dark' | 'auto'>({
     get: () => (state.config.theme === 'night' ? 'dark' : 'light'),
     set: value => {
@@ -341,13 +191,7 @@ export function createSettingsStoreView(state: SettingsStoreState): SettingsStor
   return {
     currentFontFamily,
     themeColors,
-    clientRoutingSummary,
-    agentRoutingSummary,
-    agentRoutingConfigSummary,
-    agentRoutingConfigRaw,
-    agentRoutingAuditSummary,
     sourcePackageDetailSummary,
-    sourceBuildPreviewSummary,
     theme,
     fontSize,
   }

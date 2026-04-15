@@ -153,7 +153,6 @@ export interface Progress {
 
 export interface ServiceUrls {
   nexusLiteUrl: string;
-  cfBypassUrl: string;
 }
 
 // Fallback types for Cloudflare-specific globals to resolve build errors
@@ -166,55 +165,14 @@ export type AnalyticsEngineDatasetFallback = AnalyticsEngineDatasetLike;
 
 export interface WorkerEnv {
   NEXUS_LITE_URL: string;
-  CF_BYPASS_URL: string;
-  CF_API_KEY?: string;
   ENVIRONMENT?: 'development' | 'staging' | 'production' | string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error' | string;
-  ENABLE_ANALYTICS?: string;
   ENABLE_CACHE?: string;
-  ENABLE_EDGE_EXPERIMENTAL?: string;
-  EDGE_EXPERIMENTAL_ROUTES?: string;
-  EDGE_EXPERIMENTAL_EXCLUDE_ROUTES?: string;
-  EDGE_EXPERIMENTAL_ROLLOUT?: string;
-  AGENT_ENABLED?: string;
-  AGENT_SHADOW_MODE?: string;
-  AGENT_AI_ENABLED?: string;
-  AGENT_AI_MAX_LATENCY_MS?: string;
-  AGENT_MIN_CONFIDENCE?: string;
-  AGENT_ROLLOUT?: string;
-  AGENT_INCLUDE_ROUTES?: string;
-  AGENT_EXCLUDE_ROUTES?: string;
-  SOURCE_FLOW_ASSIST_CACHE_TTL_SEC?: string;
-  CF_WORKERS_AI_MODEL?: string;
-  CF_AI_GATEWAY_BASE_URL?: string;
-  CF_AI_GATEWAY_TOKEN?: string;
 
   // Storage bindings (matched with wrangler.toml)
-  ANALYTICS_DB: D1DatabaseLike;
-  USER_PREFERENCES_DB: D1DatabaseLike;
-  USER_CONTENT_R2: R2BucketLike;
-  BACKUP_R2: R2BucketLike;
-  PROGRESS_KV: KVNamespaceLike;
   CONTENT_CACHE_KV: KVNamespaceLike;
-  DECODER_KV: KVNamespaceLike;
-  AI_CACHE_KV: KVNamespaceLike;
-  ANALYTICS_QUEUE: QueueLike;
-  ANALYTICS_ENGINE: AnalyticsEngineDatasetLike;
-  AI?: AiBindingLike;
-
-  // Secrets and Config
-  AUTH_SECRET: string;
-  GITHUB_CLIENT_ID: string;
-  GITHUB_CLIENT_SECRET: string;
-  GITHUB_OWNER: string;
-  FRONTEND_URL: string;
-  WORKER_URL: string;
+  /** Optional frontend origin to allow for CORS (in addition to localhost + legacy Pages + extras). */
+  FRONTEND_URL?: string;
   /** Comma-separated browser origins allowed in addition to localhost + legacy reader + FRONTEND_URL */
   CORS_EXTRA_ORIGINS?: string;
-  /** Public base URL for user-uploaded content links (e.g. https://content.example.com) */
-  PUBLIC_CONTENT_BASE_URL?: string;
-  
-  // Optional/AI Config
-  GROQ_API_KEY?: string;
-  ctx?: ExecutionContextLike;
 }

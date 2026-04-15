@@ -32,59 +32,8 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/source-packages/{id}", delete(routes::source::delete_source_package))
         .route("/api/sources/{id}", get(routes::source::get_source))
         .route("/api/sources/{id}", delete(routes::source::delete_source))
-        .route(
-            "/api/sources/{id}/runtime-profile",
-            get(routes::source_runtime::source_runtime_profile),
-        )
-        .route(
-            "/api/sources/runtime-state/snapshot",
-            post(routes::source_runtime::save_runtime_snapshot),
-        )
-        .route(
-            "/api/sources/runtime-state/export",
-            get(routes::source_runtime::export_runtime_snapshot),
-        )
-        .route(
-            "/api/sources/runtime-state/import",
-            post(routes::source_runtime::import_runtime_snapshot),
-        )
-        .route(
-            "/api/sources/{id}/circuit-state",
-            get(routes::source_runtime::source_circuit_state),
-        )
-        .route(
-            "/api/sources/{id}/runtime-state/reset",
-            post(routes::source_runtime::reset_source_runtime_state),
-        )
         .route("/api/sources/{id}/status", put(routes::source::update_source_status))
         .route("/api/sources/{id}/policy", put(routes::source::update_source_policy))
-        .route("/api/sources/health", get(routes::source_runtime::source_health))
-        .route(
-            "/api/sources/runtime-state/overview",
-            get(routes::source_runtime::runtime_state_overview),
-        )
-        .route(
-            "/api/sources/extraction",
-            get(routes::source_diagnosis::source_extraction_metrics),
-        )
-        .route(
-            "/api/sources/extraction/summary",
-            get(routes::source_diagnosis::source_extraction_summary),
-        )
-        .route(
-            "/api/sources/diagnosis",
-            get(routes::source_diagnosis::source_diagnosis_overview),
-        )
-        .route(
-            "/api/sources/skills/decisions",
-            get(routes::source_diagnosis::source_skill_decisions),
-        )
-        .route(
-            "/api/sources/skills/decisions/history",
-            get(routes::source_diagnosis::source_skill_decisions_history),
-        )
-        .route("/api/sources/{id}/diagnosis", get(routes::source_diagnosis::source_diagnosis))
-        .merge(routes::source_builder::router())
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))
         .route("/api/book", get(routes::book::book_info))
@@ -102,7 +51,6 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/replace_rules", get(routes::replace_rules::list_rules))
         .route("/api/replace_rules", post(routes::replace_rules::save_rule))
         .route("/api/replace_rules/{id}", delete(routes::replace_rules::delete_rule))
-        .route("/api/discovery", get(routes::discovery::list_discovery))
         .with_state(state.clone());
 
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());

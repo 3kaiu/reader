@@ -1,5 +1,4 @@
 import { ref } from 'vue'
-import { useAddonsStore } from '@/stores/addons'
 import { useLibraryStore } from '@/stores/library'
 import { useReplaceStore } from '@/stores/replace'
 import { useSourceStore } from '@/stores/source'
@@ -35,7 +34,6 @@ const LEGACY_LOCAL_STORAGE_KEYS = [
 const APP_INDEXED_DB_NAMES = [NEXUS_DB_NAME, ...LEGACY_NEXUS_DB_NAMES, 'nexus-ai-models'] as const
 
 export function useSettingsMaintenance() {
-  const addonsStore = useAddonsStore()
   const libraryStore = useLibraryStore()
   const replaceStore = useReplaceStore()
   const sourceStore = useSourceStore()
@@ -70,24 +68,14 @@ export function useSettingsMaintenance() {
   }
 
   async function hydrateSettingsDashboard(): Promise<void> {
-    addonsStore.refresh()
     await Promise.allSettled([
       refreshStorageUsage(),
-      settingsStore.refreshClientRouting(),
-      settingsStore.refreshAgentRouting(),
-      settingsStore.refreshAgentConfig(),
-      settingsStore.refreshAgentConfigAudit(20),
       settingsStore.refreshSourcePackages(),
     ])
   }
 
   async function clearAppData(): Promise<void> {
     await clearAppCache()
-    addonsStore.refresh()
-    settingsStore.clearClientRouting()
-    settingsStore.clearAgentRouting()
-    settingsStore.clearAgentConfig()
-    settingsStore.clearAgentConfigAudit()
     settingsStore.clearSourcePackages()
     settingsStore.clearSourcePackageDetail()
     await refreshStorageUsage()

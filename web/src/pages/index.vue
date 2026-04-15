@@ -63,7 +63,6 @@ function bindVirtualContainerRef(element: Element | ComponentPublicInstance | nu
     <BookshelfHeaderBar
       v-model:menu-open="menuOpen"
       :is-dark="isDark"
-      :show-discovery="false"
       :has-books="hasBooks"
       :is-manage-mode="isManageMode"
       :is-desktop="isDesktop"

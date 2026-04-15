@@ -1,5 +1,4 @@
-import { Server, Settings, Wrench } from 'lucide-vue-next'
-import type { OptionalFeature } from '@/utils/features'
+import { Server, Settings, Wand2 } from 'lucide-vue-next'
 
 export type BookshelfMenuItem = {
   label: string
@@ -15,9 +14,7 @@ export type BookshelfMenuGroup = {
   items: BookshelfMenuItem[]
 }
 
-export function buildBookshelfMenuGroups(
-  _isFeatureEnabled: (feature: OptionalFeature) => boolean
-): BookshelfMenuGroup[] {
+export function buildBookshelfMenuGroups(): BookshelfMenuGroup[] {
   return [
     {
       title: '内容管理',
@@ -31,12 +28,12 @@ export function buildBookshelfMenuGroups(
           bg: 'bg-blue-500/10',
         },
         {
-          label: '书源工厂',
-          desc: '封装、验证和自动修正规则包',
-          icon: Wrench,
-          path: '/source-builder-debug',
-          color: 'text-emerald-500',
-          bg: 'bg-emerald-500/10',
+          label: '替换规则',
+          desc: '正文净化和规则替换',
+          icon: Wand2,
+          path: '/replace-rule',
+          color: 'text-purple-500',
+          bg: 'bg-purple-500/10',
         },
       ],
     },

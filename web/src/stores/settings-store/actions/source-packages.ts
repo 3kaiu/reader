@@ -10,8 +10,6 @@ type SettingsSourcePackageActions = Pick<
   | 'deleteSourcePackage'
   | 'loadSourcePackageDetail'
   | 'clearSourcePackageDetail'
-  | 'buildSourcePackageFromSamples'
-  | 'clearSourceBuildPreview'
 >
 
 export function createSettingsSourcePackageActions(
@@ -86,47 +84,6 @@ export function createSettingsSourcePackageActions(
     state.sourcePackageDetail.value = null
   }
 
-  const buildSourcePackageFromSamples = async (payload: {
-    bookCurl: string
-    chapterCurl: string
-    searchCurl?: string
-    siteEntryCurl?: string
-    searchKeyword?: string
-    sourceId?: string
-    sourceName?: string
-    tags?: string[]
-    fetchMode?: string
-    fetchProvider?: string
-    fetchServiceUrl?: string
-    fetchEngine?: string
-    fetchSessionKey?: string
-    structuredHints?: import('@/api/sync').SourceRuleHints
-    freeTextHints?: string
-  }) => {
-    state.sourceBuildRunning.value = true
-    try {
-      const response = await syncApi.buildSourcePackageFromSamples({
-        ...payload,
-        emitPackageJson: true,
-      })
-      if (!response.isSuccess || !response.data) {
-        state.sourceBuildPreview.value = null
-        return false
-      }
-      state.sourceBuildPreview.value = response.data
-      return true
-    } catch {
-      state.sourceBuildPreview.value = null
-      return false
-    } finally {
-      state.sourceBuildRunning.value = false
-    }
-  }
-
-  const clearSourceBuildPreview = () => {
-    state.sourceBuildPreview.value = null
-  }
-
   return {
     refreshSourcePackages,
     clearSourcePackages,
@@ -134,7 +91,5 @@ export function createSettingsSourcePackageActions(
     deleteSourcePackage,
     loadSourcePackageDetail,
     clearSourcePackageDetail,
-    buildSourcePackageFromSamples,
-    clearSourceBuildPreview,
   }
 }

@@ -5,7 +5,6 @@ import {
   Database,
   FileJson,
   RefreshCw,
-  SquareArrowOutUpRight,
   Trash2,
 } from 'lucide-vue-next'
 
@@ -162,21 +161,9 @@ function readinessClass(state: SourcePackageSummary['readinessState']) {
       </div>
 
       <div class="p-5 border-b border-border/50">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <p class="text-sm font-medium">Source Builder Debug</p>
-            <p class="text-xs text-muted-foreground mt-1">
-              样本 curl 建站、session 导入、规则验证与 refine 已迁移到独立工作台。
-            </p>
-          </div>
-          <button
-            class="h-9 px-4 rounded-full text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-            @click="emit('navigate', '/source-builder-debug')"
-          >
-            <SquareArrowOutUpRight class="w-4 h-4 inline-block mr-1" />
-            打开工作台
-          </button>
-        </div>
+        <p class="text-xs text-muted-foreground leading-relaxed">
+          Source Builder 调试工作台已移除。此处仅保留规则包导入、查看与管理。
+        </p>
       </div>
 
       <div class="p-5 border-b border-border/50">

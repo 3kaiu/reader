@@ -1,12 +1,10 @@
 use chrono::Utc;
 use nexus_core::EngineConfig;
-use nexus_core::{EventBus, SystemControlEvent, SystemEvent};
 use nexus_engine::anti_crawl::{
-    CfBypassStrategy, CloudScraperStrategy, DirectHttpStrategy, FallbackChain, JinaReaderStrategy,
+    CfBypassStrategy, DirectHttpStrategy, FallbackChain,
 };
 use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::HttpFetcher;
-use nexus_engine::skill_telemetry;
 use nexus_storage::{ChapterCache, SledStore, SourceStore};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,7 +23,6 @@ pub struct RuntimeServices {
     pub fetcher: Arc<HttpFetcher>,
     pub anti_crawl: Arc<FallbackChain>,
     pub orchestrator: Arc<SearchOrchestrator>,
-    pub event_bus: Arc<EventBus>,
 }
 
 pub async fn build_runtime_services(
@@ -40,10 +37,8 @@ pub async fn build_runtime_services(
 
     let store = Arc::new(SledStore::new(&config.storage.db_path)?);
     restore_runtime_state(store.clone(), snapshot_status.clone()).await?;
-    configure_skill_telemetry(config, store.clone());
 
-    let content_rules =
-        Arc::new(ContentRuleResolver::new(store.clone(), config.features.enable_ai_content_rules));
+    let content_rules = Arc::new(ContentRuleResolver::new(store.clone()));
     content_rules.refresh().await?;
 
     let chapter_cache =
@@ -62,9 +57,6 @@ pub async fn build_runtime_services(
 
     spawn_snapshot_persist_loop(store.clone(), snapshot_status);
 
-    let event_bus = Arc::new(EventBus::new(1024));
-    event_bus.publish(SystemEvent::System(SystemControlEvent::Startup));
-
     Ok(RuntimeServices {
         engine_registry,
         store,
@@ -73,7 +65,6 @@ pub async fn build_runtime_services(
         fetcher,
         anti_crawl,
         orchestrator,
-        event_bus,
     })
 }
 
@@ -104,22 +95,6 @@ async fn restore_runtime_state(
     Ok(())
 }
 
-fn configure_skill_telemetry(config: &EngineConfig, store: Arc<SledStore>) {
-    skill_telemetry::configure(
-        config
-            .limits
-            .max_extraction_metrics_sources
-            .saturating_mul(3),
-    );
-
-    skill_telemetry::set_persist_hook(Some(Arc::new(move |event| {
-        let store = store.clone();
-        tokio::spawn(async move {
-            let _ = store.save_skill_decision(event.to_log_entry()).await;
-        });
-    })));
-}
-
 fn spawn_cache_cleanup(chapter_cache: Arc<ChapterCache>) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
@@ -136,12 +111,6 @@ fn build_anti_crawl_chain(config: &EngineConfig) -> anyhow::Result<FallbackChain
     let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone())?);
     let mut fallback_strategies: Vec<Arc<dyn nexus_core::AntiCrawlStrategy>> = Vec::new();
 
-    if let Ok(cloudscraper) = CloudScraperStrategy::new() {
-        fallback_strategies.push(Arc::new(cloudscraper));
-    }
-    if let Ok(jina) = JinaReaderStrategy::new(config.limits.http_timeout_seconds) {
-        fallback_strategies.push(Arc::new(jina));
-    }
     if let Ok(direct) = DirectHttpStrategy::new(config.limits.http_timeout_seconds) {
         fallback_strategies.push(Arc::new(direct));
     }

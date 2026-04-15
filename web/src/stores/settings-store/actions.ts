@@ -1,5 +1,4 @@
 import type { SettingsStoreActions, SettingsStoreState, SettingsStoreView } from './types'
-import { createSettingsClientRoutingActions } from './actions/client-routing'
 import { createSettingsConfigActions } from './actions/config'
 import { createSettingsStoreActionContext } from './actions/helpers'
 import { createSettingsPersistenceActions } from './actions/persistence'
@@ -13,14 +12,12 @@ export function createSettingsStoreActions(
   const context = createSettingsStoreActionContext(state, view)
   const configActions = createSettingsConfigActions(context)
   const uiActions = createSettingsUiActions(context)
-  const clientRoutingActions = createSettingsClientRoutingActions(context)
   const sourcePackageActions = createSettingsSourcePackageActions(context)
   const persistenceActions = createSettingsPersistenceActions(context)
 
   return {
     ...configActions,
     ...uiActions,
-    ...clientRoutingActions,
     ...sourcePackageActions,
     ...persistenceActions,
   }

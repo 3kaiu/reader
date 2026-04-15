@@ -1,32 +1,13 @@
 {
   "routing": {
-    "edgeHandledApiPrefixes": [
-      "/api/analytics",
-      "/api/agent",
-      "/api/preferences",
-      "/api/content/upload",
-      "/api/backup",
-      "/api/metrics/client",
-      "/api/source/flow-assist",
-      "/api/source/flow-assist/feedback",
-      "/api/source/flow-assist/stats",
-      "/api/source/flow-assist/profile",
-      "/api/source/flow-assist/profile/audit",
-      "/api/fetch/session/auto-acquire",
-      "/api/fetch/session/verify",
-      "/api/source-session/profile",
-      "/api/source-session/profile/recover"
-    ],
-    "edgeHandledPathExtras": ["/progress/", "/auth/"]
+    "edgeHandledApiPrefixes": [],
+    "edgeHandledPathExtras": []
   },
   "frontend": {
     "directEligiblePrefixes": [
       "/api/search",
       "/api/sources",
       "/api/source-packages",
-      "/api/source-builder",
-      "/api/engine",
-      "/api/fetch",
       "/api/book",
       "/api/chapters",
       "/api/content",
@@ -34,7 +15,6 @@
       "/api/bookshelf",
       "/api/groups",
       "/api/replace_rules",
-      "/api/discovery",
       "/ws/"
     ]
   },
@@ -51,9 +31,6 @@
       "/api/source-packages",
       "/api/source-packages/import",
       "/api/source-packages/{id}",
-      "/api/source-builder/build",
-      "/api/source-builder/validate",
-      "/api/engine/run-by-package",
       "/api/search",
       "/api/search/stream",
       "/api/book",
@@ -65,8 +42,7 @@
       "/api/groups",
       "/api/groups/{id}",
       "/api/replace_rules",
-      "/api/replace_rules/{id}",
-      "/api/discovery"
+      "/api/replace_rules/{id}"
     ]
   }
 }

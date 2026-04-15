@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import { isOptionalFeature, isOptionalFeatureEnabled } from '@/utils/features'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -24,13 +23,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '搜索' },
   },
   {
-    path: '/discovery',
-    name: 'discovery',
-    // 可选发现页按需加载
-    component: () => import('@/pages/discovery.vue'),
-    meta: { title: '发现', feature: 'discovery' },
-  },
-  {
     path: '/sources',
     name: 'sources',
     // 书源管理页面预取
@@ -52,12 +44,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackPrefetch: true */ '@/pages/settings.vue'),
     meta: { title: '设置' },
   },
-  {
-    path: '/source-builder-debug',
-    name: 'source-builder-debug',
-    component: () => import(/* webpackPrefetch: true */ '@/pages/source-builder-debug.vue'),
-    meta: { title: 'Source Builder Debug' },
-  },
 ]
 
 const router = createRouter({
@@ -69,13 +55,6 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   if (to.meta?.title) {
     document.title = `${to.meta.title} - Reader`
-  }
-
-  if (typeof to.meta?.feature === 'string' && isOptionalFeature(to.meta.feature)) {
-    if (!isOptionalFeatureEnabled(to.meta.feature)) {
-      next({ name: 'settings', query: { addon: to.meta.feature } })
-      return
-    }
   }
 
   next()

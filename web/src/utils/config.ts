@@ -33,7 +33,6 @@ class UnifiedConfig {
     this.config.set('api.timeout', 10000)
     this.config.set('cache.enabled', true)
     this.config.set('cache.ttl', 5 * 60 * 1000)
-    this.config.set('features.discovery', false)
     this.config.set('ui.theme', 'auto')
     this.config.set('ui.language', 'zh-CN')
     this.loadPersistedConfig()

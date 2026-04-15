@@ -17,11 +17,9 @@ import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from '.
 import type { EnhancedWorkerEnv } from './worker/types.ts'
 import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'
-import { processQueueBatch } from './entry/queue.ts'
 import { validateWorkerEnv } from './entry/validation.ts'
 import { attachRequestId, ensureRequestId } from './shared/request-id.ts'
 import { jsonError } from './worker/http.ts'
-import { createUserServiceContainer } from './worker/user-services.ts'
 
 export default {
   async fetch(request: Request, env: EnhancedWorkerEnv, ctx: ExecutionContextLike): Promise<Response> {
@@ -36,13 +34,11 @@ export default {
       return jsonError(requestWithId, 'MISCONFIGURED', 'Misconfigured worker', 500, errorMessage)
     }
 
-    const userServices = createUserServiceContainer(env)
-
     if (requestWithId.method === 'OPTIONS') {
       return attachRequestId(handleCorsPreflightRequest(requestWithId, env), requestId)
     }
 
-    const dispatchStable = createStableDispatcher(env, ctx, userServices)
+    const dispatchStable = createStableDispatcher(env, ctx)
 
     try {
       const response = await dispatchStable(requestWithId)
@@ -59,8 +55,4 @@ export default {
       )
     }
   },
-
-  async queue(batch: QueueBatchLike<WorkerQueueMessage>, env: EnhancedWorkerEnv): Promise<void> {
-    await processQueueBatch(batch, env)
-  }
 }

@@ -1,50 +1,22 @@
-import { computed, onMounted } from 'vue'
-import { useStorage } from '@vueuse/core'
+import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
-import { ADDON_ENTRY_CARDS } from '@/constants/addons'
+import { useRouter } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useMessage } from '@/composables/useMessage'
-import { useSettingsAgentRouting } from '@/composables/useSettingsAgentRouting'
 import { useSettingsMaintenance } from '@/composables/useSettingsMaintenance'
 import { useSettingsSourcePackages } from '@/composables/useSettingsSourcePackages'
-import { useAddonsStore } from '@/stores/addons'
 import { useSettingsStore } from '@/stores/settings'
-import { isOptionalFeature, type OptionalFeature } from '@/utils/features'
 
 export function useSettingsView() {
   const router = useRouter()
-  const route = useRoute()
   const { confirm } = useConfirm()
-  const { success, warning } = useMessage()
+  const { success } = useMessage()
   const { handlePromiseError } = useErrorHandler()
-  const addonsStore = useAddonsStore()
-  const toolboxMode = useStorage('settings-toolbox-mode', false)
   const settingsStore = useSettingsStore()
-  const {
-    refreshClientRouting,
-    loadMoreAgentAudit,
-    setAgentConfigDisabled,
-    setAgentConfigShadow,
-    setAgentConfigCanary,
-    saveAgentConfigCustom,
-    resetAgentConfigOverride,
-  } = useSettingsAgentRouting()
   const { refreshSourcePackages, importSourcePackage, selectSourcePackage, deleteSourcePackage } =
     useSettingsSourcePackages()
-  const { features: addonFeatures } = storeToRefs(addonsStore)
   const {
-    clientRoutingLoading,
-    clientRoutingSummary,
-    agentRoutingLoading,
-    agentRoutingSummary,
-    agentConfigLoading,
-    agentConfigSaving,
-    agentConfigAuditLoading,
-    agentRoutingConfigSummary,
-    agentRoutingConfigRaw,
-    agentRoutingAuditSummary,
     sourcePackagesLoading,
     sourcePackageImporting,
     sourcePackageDetailLoading,
@@ -53,10 +25,6 @@ export function useSettingsView() {
   } = storeToRefs(settingsStore)
   const { storageUsage, exportDataBackup, hydrateSettingsDashboard, clearAppData } =
     useSettingsMaintenance()
-
-  const addonEntryCards = computed(() =>
-    ADDON_ENTRY_CARDS.filter(item => addonsStore.isEnabled(item.feature))
-  )
 
   async function handleExportData() {
     try {
@@ -85,18 +53,8 @@ export function useSettingsView() {
     }
   }
 
-  function updateAddonFeature(feature: OptionalFeature, enabled: boolean) {
-    addonsStore.setFeatureEnabled(feature, enabled)
-    success(enabled ? `已启用${feature}附属模块` : `已关闭${feature}附属模块`)
-  }
-
   function navigateTo(path: string) {
     void router.push(path)
-  }
-
-  function toggleToolboxMode(enabled: boolean) {
-    toolboxMode.value = enabled
-    success(enabled ? '已开启个人工具箱模式' : '已隐藏个人工具箱模式')
   }
 
   function goBack() {
@@ -104,34 +62,11 @@ export function useSettingsView() {
   }
 
   onMounted(async () => {
-    const requestedAddon = typeof route.query.addon === 'string' ? route.query.addon : null
-
-    if (
-      requestedAddon &&
-      isOptionalFeature(requestedAddon) &&
-      !addonFeatures.value[requestedAddon]
-    ) {
-      warning('该功能已从主阅读链路下沉为可选模块，可在设置页手动启用。')
-    }
-
     await hydrateSettingsDashboard()
   })
 
   return {
-    addonFeatures,
     storageUsage,
-    addonEntryCards,
-    toolboxMode,
-    clientRoutingLoading,
-    clientRoutingSummary,
-    agentRoutingLoading,
-    agentRoutingSummary,
-    agentConfigLoading,
-    agentConfigSaving,
-    agentConfigAuditLoading,
-    agentRoutingConfigSummary,
-    agentRoutingConfigRaw,
-    agentRoutingAuditSummary,
     sourcePackagesLoading,
     sourcePackageImporting,
     sourcePackageDetailLoading,
@@ -139,19 +74,10 @@ export function useSettingsView() {
     sourcePackageDetailSummary,
     handleExportData,
     handleClearCache,
-    updateAddonFeature,
-    refreshClientRouting,
     refreshSourcePackages,
-    setAgentConfigDisabled,
-    setAgentConfigShadow,
-    setAgentConfigCanary,
-    saveAgentConfigCustom,
-    resetAgentConfigOverride,
-    loadMoreAgentAudit,
     importSourcePackage,
     selectSourcePackage,
     deleteSourcePackage,
-    toggleToolboxMode,
     navigateTo,
     goBack,
   }

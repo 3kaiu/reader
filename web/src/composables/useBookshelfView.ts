@@ -7,17 +7,14 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useManageSelection } from '@/composables/useManageSelection'
 import { useMessage } from '@/composables/useMessage'
-import { useAddonsStore } from '@/stores/addons'
 import { useLibraryStore } from '@/stores/library'
 import { useOfflineStore } from '@/stores/offlineStorage'
 import type { BookshelfBook } from '@/utils/bookshelf'
 
 export function useBookshelfView() {
   const offlineStore = useOfflineStore()
-  const addonsStore = useAddonsStore()
   const libraryStore = useLibraryStore()
   const { books, groups, isInitialLoading } = storeToRefs(libraryStore)
-  const { features: optionalFeatures } = storeToRefs(addonsStore)
   const { success, warning } = useMessage()
   const { confirm } = useConfirm()
   const { handlePromiseError } = useErrorHandler()
@@ -30,9 +27,7 @@ export function useBookshelfView() {
     currentGroupId,
     isDesktop,
     menuGroups,
-  } = useBookshelfUiState({
-    isFeatureAvailable: feature => optionalFeatures.value[feature],
-  })
+  } = useBookshelfUiState()
 
   const { booksWithStatus, nonEmptyGroups, recentBooks, otherBooks, hasBooks } =
     useBookshelfCollections({
@@ -53,13 +48,11 @@ export function useBookshelfView() {
     () => booksWithStatus.value
   )
   const {
-    isFeatureEnabled,
     openBook,
     batchDelete,
     handleMoveConfirm,
     handleDelete,
     navigateTo,
-    goDiscovery,
     goSearch,
     hydrateBookshelf,
   } = useBookshelfActions({
@@ -72,7 +65,6 @@ export function useBookshelfView() {
     warning,
     confirm,
     handlePromiseError,
-    addonsStore,
     libraryStore,
     offlineStore,
   })
@@ -93,7 +85,6 @@ export function useBookshelfView() {
     menuOpen,
     isDesktop,
     menuGroups,
-    isFeatureEnabled,
     loading,
     books,
     groups,
@@ -114,7 +105,6 @@ export function useBookshelfView() {
     handleMoveConfirm,
     handleDelete,
     navigateTo,
-    goDiscovery,
     goSearch,
   }
 }

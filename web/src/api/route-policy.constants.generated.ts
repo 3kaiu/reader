@@ -5,32 +5,13 @@
  */
 
 export const EDGE_ONLY_RULES = [
-  '/api/analytics',
-  '/api/agent',
-  '/api/preferences',
-  '/api/content/upload',
-  '/api/backup',
-  '/api/metrics/client',
-  '/api/source/flow-assist',
-  '/api/source/flow-assist/feedback',
-  '/api/source/flow-assist/stats',
-  '/api/source/flow-assist/profile',
-  '/api/source/flow-assist/profile/audit',
-  '/api/fetch/session/auto-acquire',
-  '/api/fetch/session/verify',
-  '/api/source-session/profile',
-  '/api/source-session/profile/recover',
-  '/progress/',
-  '/auth/',
+
 ] as const
 
 export const DIRECT_RULES = [
   '/api/search',
   '/api/sources',
   '/api/source-packages',
-  '/api/source-builder',
-  '/api/engine',
-  '/api/fetch',
   '/api/book',
   '/api/chapters',
   '/api/content',
@@ -38,6 +19,5 @@ export const DIRECT_RULES = [
   '/api/bookshelf',
   '/api/groups',
   '/api/replace_rules',
-  '/api/discovery',
   '/ws/',
 ] as const

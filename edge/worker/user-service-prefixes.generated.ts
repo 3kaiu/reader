@@ -5,19 +5,5 @@
  */
 
 export const USER_SERVICE_PREFIXES = [
-  '/api/analytics',
-  '/api/agent',
-  '/api/preferences',
-  '/api/content/upload',
-  '/api/backup',
-  '/api/metrics/client',
-  '/api/source/flow-assist',
-  '/api/source/flow-assist/feedback',
-  '/api/source/flow-assist/stats',
-  '/api/source/flow-assist/profile',
-  '/api/source/flow-assist/profile/audit',
-  '/api/fetch/session/auto-acquire',
-  '/api/fetch/session/verify',
-  '/api/source-session/profile',
-  '/api/source-session/profile/recover',
+
 ] as const

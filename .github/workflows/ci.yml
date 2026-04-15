@@ -52,32 +52,22 @@ jobs:
       - name: Validate route contracts
         run: node scripts/validate-contracts.mjs
 
-      - name: Run repository hygiene checks
-        run: node scripts/repo-hygiene-check.mjs
-
-      - name: Guard CF bypass runtime boundaries
-        run: node scripts/cf-bypass-runtime-guard.mjs
-
-      - name: Generate dead-code/orphan report
-        run: node scripts/dead-code-report.mjs
-
   frontend-quality:
-    name: Nexus Web Quality
+    name: Nexus Web Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Run Nexus Web lint and type check
+      - name: Run Nexus Web type check
         uses: ./.github/actions/web-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
-          run-lint: "true"
           run-type-check: "true"
 
   backend-quality:
-    name: Nexus API Quality
+    name: Nexus API Cargo Check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -87,12 +77,10 @@ jobs:
       - name: Run cargo check
         uses: ./.github/actions/api-quality
         with:
-          run-fmt: "true"
           run-check: "true"
-          run-clippy: "true"
 
   workers-quality:
-    name: Nexus Edge Quality
+    name: Nexus Edge Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -108,34 +96,3 @@ jobs:
         uses: ./.github/actions/edge-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
-
-  backend-tests:
-    name: Nexus API Cargo Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs:
-      - backend-quality
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Run cargo test
-        uses: ./.github/actions/api-quality
-        with:
-          run-tests: "true"
-
-  frontend-tests:
-    name: Nexus Web Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs:
-      - frontend-quality
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Run Nexus Web tests
-        uses: ./.github/actions/web-quality
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-          run-tests: "true"

@@ -10,15 +10,8 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(scriptDir, '..')
 
 const pairs = [
-  ['YOUR_ANALYTICS_DB_ID_HERE', 'CF_ANALYTICS_DB_ID'],
-  ['YOUR_USER_PREFS_DB_ID_HERE', 'CF_USER_PREFS_DB_ID'],
-  ['YOUR_PROGRESS_KV_ID_HERE', 'CF_PROGRESS_KV_ID'],
   ['YOUR_CONTENT_CACHE_KV_ID_HERE', 'CF_CONTENT_CACHE_KV_ID'],
-  ['YOUR_DECODER_KV_ID_HERE', 'CF_DECODER_KV_ID'],
-  ['YOUR_AI_CACHE_KV_ID_HERE', 'CF_AI_CACHE_KV_ID'],
-  ['YOUR_PROD_ANALYTICS_DB_ID_HERE', 'CF_PROD_ANALYTICS_DB_ID'],
-  ['YOUR_PROD_USER_PREFS_DB_ID_HERE', 'CF_PROD_USER_PREFS_DB_ID'],
-  ['YOUR_PROD_PROGRESS_KV_ID_HERE', 'CF_PROD_PROGRESS_KV_ID'],
+  ['YOUR_NEXUS_LITE_URL_HERE', 'NEXUS_LITE_URL'],
 ]
 
 const wranglerPath = path.resolve(process.argv[2] || path.join(rootDir, 'edge', 'wrangler.toml'))

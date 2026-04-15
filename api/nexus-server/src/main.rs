@@ -6,24 +6,17 @@ mod app_state;
 mod content_rules;
 mod engine_registry;
 mod error;
-mod metrics;
 mod middleware;
 mod orchestrator;
 mod request_id;
 mod routes;
 mod runtime_bootstrap;
-mod runtime_state_service;
 mod source_access;
-mod source_builder_state;
 mod validation;
 
 use nexus_core::EngineConfig;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-fn is_true_flag(value: &str) -> bool {
-    matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -58,11 +51,6 @@ async fn main() -> anyhow::Result<()> {
         .await
     {
         tracing::warn!("Failed to initialize cache manager: {}", e);
-    }
-
-    // Initialize Prometheus metrics (port 9090)
-    if let Err(e) = metrics::init_metrics(9090) {
-        tracing::warn!("Failed to initialize metrics: {}", e);
     }
 
     // Build and run app
@@ -117,11 +105,6 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     if let Ok(origins) = std::env::var("ALLOWED_ORIGINS") {
         config.server.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
         info!("Overriding ALLOWED_ORIGINS from environment");
-    }
-
-    if let Ok(enabled) = std::env::var("ENABLE_AI_CONTENT_RULES") {
-        config.features.enable_ai_content_rules = is_true_flag(&enabled);
-        info!("Overriding ENABLE_AI_CONTENT_RULES from environment");
     }
 
     Ok(config)

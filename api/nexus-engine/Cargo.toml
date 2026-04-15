@@ -20,7 +20,7 @@ chrono.workspace = true
 
 # HTTP Client
 reqwest = { version = "0.12", default-features = false, features = [
-    "json", "rustls-tls", "cookies", "gzip", "brotli"
+    "json", "rustls-tls", "cookies"
 ] }
 
 # HTML Parsing
@@ -58,11 +58,7 @@ ttf-parser = "0.25"           # Font parsing for font decryption
 strsim = "0.11"               # String similarity for deduplication
 unicode-normalization = "0.1" # Unicode normalization
 
-# Cloudflare Bypass (unified solution for all CF challenges)
-cloudscraper-rs = "0.2"       # CF v1/v2/v3/Turnstile bypass
-
-# Headless browser for CF cookie extraction
-headless_chrome = { version = "1.0", features = ["fetch"] }
+# Cloudflare bypass is handled by the external `bypass/` service in this repo.
 
 [features]
 default = []
