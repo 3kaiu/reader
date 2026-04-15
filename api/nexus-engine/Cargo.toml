@@ -45,7 +45,7 @@ http = "1"
 # Utilities
 parking_lot = "0.12"
 dashmap = "6"
-lru = "0.16"
+lru = "0.17"
 futures-util = "0.3.32"
 rand = "0.9"
 aho-corasick = "1.1"
