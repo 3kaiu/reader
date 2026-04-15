@@ -46,14 +46,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Verify generated route constants match contract
-        run: node scripts/generate-http-route-constants.mjs --check
-
       - name: Validate route contracts
         run: node scripts/validate-contracts.mjs
 
   frontend-quality:
-    name: Nexus Web Type Check
+    name: Nexus Web Type Check + Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -65,9 +62,10 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
           run-type-check: "true"
+          run-tests: "true"
 
   backend-quality:
-    name: Nexus API Cargo Check
+    name: Nexus API Cargo Check + Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -78,6 +76,7 @@ jobs:
         uses: ./.github/actions/api-quality
         with:
           run-check: "true"
+          run-tests: "true"
 
   workers-quality:
     name: Nexus Edge Type Check

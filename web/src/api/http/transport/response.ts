@@ -1,4 +1,3 @@
-import { clearAuthToken } from '@/utils/authStorage'
 import { reportError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 import { decode } from '@/utils/msgpack'
@@ -76,10 +75,6 @@ export function handleHttpResponseError(
 ): void {
   if (!response) {
     return
-  }
-
-  if (response.status === 401) {
-    clearAuthToken()
   }
 
   if (response.status < 400 || options.silent === true) {

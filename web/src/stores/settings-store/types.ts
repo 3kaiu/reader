@@ -5,18 +5,6 @@ import type {
 } from '@/api/sync'
 import type { ReaderConfig, ThemeColors } from '@/types/settings'
 
-export type NotificationSettings = {
-  enabled: boolean
-  sound: boolean
-  desktop: boolean
-}
-
-export type PrivacySettings = {
-  analytics: boolean
-  crashReports: boolean
-  usageData: boolean
-}
-
 export type SourcePackageDetailSummary = {
   packageId: string
   sourceLabel: string
@@ -38,8 +26,6 @@ export type SourcePackageDetailSummary = {
 export interface SettingsStoreState {
   config: ReaderConfig
   language: Ref<string>
-  notifications: Ref<NotificationSettings>
-  privacy: Ref<PrivacySettings>
   sourcePackages: Ref<SourcePackageSummary[]>
   sourcePackagesLoading: Ref<boolean>
   sourcePackageImporting: Ref<boolean>
@@ -67,8 +53,6 @@ export interface SettingsStoreActions {
   updateTheme(newTheme: 'light' | 'dark' | 'auto'): void
   updateLanguage(newLanguage: string): Promise<void>
   updateFontSize(newSize: number): void
-  updateNotifications(settings: Partial<NotificationSettings>): void
-  updatePrivacy(settings: Partial<PrivacySettings>): void
   refreshSourcePackages(): Promise<void>
   clearSourcePackages(): void
   importSourcePackage(packageJson: string): Promise<boolean>

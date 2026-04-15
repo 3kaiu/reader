@@ -17,23 +17,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install uv
 
 # Copy dependency files
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies with uv
-RUN uv pip install --system --no-cache \
-    fastapi uvicorn cloudscraper pydantic
+# Install runtime dependencies from lockfile (reproducible)
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy source code
 COPY *.py ./
 COPY core ./core
 COPY engines ./engines
 
-# Create data directories
-RUN mkdir -p /app/data
-
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

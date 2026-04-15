@@ -42,8 +42,6 @@ function createReaderState(): ReaderStoreState {
     diagnosticsRequestId: ref<string | null>(null),
     diagnosticsPackageId: ref<string | null>(null),
     progressMap: ref({}),
-    resumeScrollPercent: ref(null),
-    resumeScrollChapterIndex: ref(null),
     chapterContentCache: ref({}),
     contentStageReports: ref([]),
   }

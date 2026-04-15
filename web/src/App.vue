@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/toast'
 
-import AuthGuard from '@/components/auth/AuthGuard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 </script>
 
 <template>
-  <AuthGuard>
-    <Toaster />
-    <router-view v-slot="{ Component, route }">
-      <Transition name="page-slide" mode="out-in">
-        <component :is="Component" :key="route.fullPath" />
-      </Transition>
-    </router-view>
+  <Toaster />
+  <router-view v-slot="{ Component, route }">
+    <Transition name="page-slide" mode="out-in">
+      <component :is="Component" :key="route.fullPath" />
+    </Transition>
+  </router-view>
 
-    <!-- 全局确认对话框 -->
-    <ConfirmDialog />
-  </AuthGuard>
+  <!-- 全局确认对话框 -->
+  <ConfirmDialog />
 </template>
 
 <style>

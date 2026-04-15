@@ -41,9 +41,6 @@ url = "2"
 
 # Rate limiting
 tower_governor = "0.8"
-governor = "0.10"
 
 # HTTP types (for extracting client IP)
 http = "1"
-
-# Metrics

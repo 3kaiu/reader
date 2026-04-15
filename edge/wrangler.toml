@@ -9,7 +9,6 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "development"
-LOG_LEVEL = "debug"
 ENABLE_CACHE = "true"
 NEXUS_LITE_URL = "YOUR_NEXUS_LITE_URL_HERE"
 # Optional (production / custom domain): set via dashboard or env.production.vars
@@ -21,7 +20,7 @@ id = "YOUR_CONTENT_CACHE_KV_ID_HERE"
 
 [env.production]
 name = "nexus-edge-prod"
-vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
+vars = { ENVIRONMENT = "production" }
 # Keep the legacy Pages route until the new Nexus domain is provisioned.
 routes = [
     { pattern = "api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }
@@ -29,7 +28,7 @@ routes = [
 
 [env.staging]
 name = "nexus-edge-staging"
-vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
+vars = { ENVIRONMENT = "staging" }
 # Keep the legacy Pages route until the new Nexus staging domain is provisioned.
 routes = [
     { pattern = "staging-api.nexus-reader.pages.dev/*", zone_name = "nexus-reader.pages.dev" }

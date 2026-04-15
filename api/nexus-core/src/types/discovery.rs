@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Discovery item (book representation in discovery feeds)
+/// Catalog item (book representation in curated feeds)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryItem {
@@ -14,7 +14,7 @@ pub struct DiscoveryItem {
     pub position: u32,
 }
 
-/// Discovery section (Carousel, List, etc.)
+/// Catalog section (Carousel, List, etc.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverySection {
@@ -22,7 +22,7 @@ pub struct DiscoverySection {
     pub items: Vec<DiscoveryItem>,
 }
 
-/// Discovery response (aggregated for a period)
+/// Catalog response (aggregated for a period)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryResponse {

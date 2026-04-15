@@ -73,7 +73,7 @@ pub struct SourceRuleValidationReport {
 }
 
 impl SourceRuleValidationReport {
-    /// Draft report used by source-builder flows before runtime validation.
+    /// Draft report used by source-package authoring flows before runtime validation.
     pub fn draft(score: f64) -> Self {
         Self {
             score,

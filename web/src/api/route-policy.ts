@@ -8,8 +8,6 @@ function normalizePath(path: string): string {
 
   if (pathname === '/api' || pathname.startsWith('/api/')) return pathname
   if (pathname.startsWith('/ws/')) return pathname
-  if (pathname.startsWith('/progress/')) return pathname
-  if (pathname.startsWith('/auth/')) return pathname
 
   return `/api${pathname}`
 }

@@ -15,10 +15,10 @@ This repository is a multi-service monorepo.
 
 - **Source rules live in NXS**: the runtime type is `NxsSource` (`nexus-core`), serialized as JSON in a `*.nxs` file (for example under `api/sources/`). The engine and search orchestrator use this; treat it as the single source of truth for selectors, encoding, and content rules.
 - **Primary import API**: `POST /api/sources` with a JSON body that matches `NxsSource` — persists via `SourceStore` to `{sources_dir}/{id}.nxs` and invalidates the engine cache. This is the path aligned with personal deployments and “import = NXS”.
-- **Optional package import**: `POST /api/source-packages/import` accepts a full `SourceRulePackage` (includes the same `source` field plus metadata such as `fetchProfile`, `searchProfile`, validation reports). Use it for source-builder flows and storage of richer metadata; it is not required for reading if you only maintain `.nxs` files.
+- **Optional package import**: `POST /api/source-packages/import` accepts a full `SourceRulePackage` (includes the same `source` field plus metadata such as `fetchProfile`, `searchProfile`, validation reports). Use it for package-authoring pipelines and storage of richer metadata; it is not required for reading if you only maintain `.nxs` files.
 - **Cloudflare**: typically hosts the static reader and/or the Worker edge proxy (`edge/`); the Rust API that loads `.nxs` runs wherever you deploy `nexus-server` (not the Worker itself).
 - **Offline HTML fixtures** (e.g. 69shuba regression): `nexus-engine/tests/fixtures/69shuba/`; selectors are validated against `api/sources/69shuba.nxs`, not a duplicate package JSON.
-- **FNOS / NAS automation (optional)**: pushing to `main` runs `.github/workflows/publish-nexus-server-image.yml` (when `api/**` changes), which publishes `ghcr.io/<lowercase-owner>/nexus-server` (multi-arch). The default edge deploy is `.github/workflows/deploy-personal.yml` (Cloudflare Pages + Worker, plus a short smoke: Pages always; optional repo secrets `DEPLOY_SMOKE_PAGES_URL`, `DEPLOY_SMOKE_API_HEALTH_URL` for your Tunnel origin). On the NAS, use `deploy/fnos/docker-compose.yml` + `deploy/fnos/.env.example` (copy to `.env`): bind-mount `./data` and `./sources`, enable Watchtower for automatic image pulls. Cloudflare Tunnel still needs a one-time token on the NAS; after that, day-to-day updates are push-to-Git only.
+- **FNOS / NAS automation (optional)**: image publish and personal deploy workflows are manual (`workflow_dispatch`) and can be run when you are ready to ship. On the NAS, use `deploy/fnos/docker-compose.yml` + `deploy/fnos/.env.example` (copy to `.env`): bind-mount `./data` and `./sources`, enable Watchtower for automatic image pulls. Cloudflare Tunnel still needs a one-time token on the NAS; after that, day-to-day updates are push-to-Git only.
 
 ## Build, Test, and Development Commands
 Run commands from each module directory unless noted.
@@ -50,7 +50,7 @@ Run commands from each module directory unless noted.
 - Frontend tests use Vitest; place tests in `web/src/tests` and name as `*.test.ts`.
 - Rust tests run via Cargo (`cargo test --workspace`), including module and integration tests.
 - Workers include `npm run test` (optimization checks) and must pass `npm run type-check`.
-- `.github/workflows/security-scan.yml`: on **pull requests**, CodeQL is skipped (dependency audits + custom `rg` checks only); full CodeQL runs on **weekly schedule** and **workflow_dispatch** (private repos: schedule still skips CodeQL per GitHub policy in this workflow).
+- `.github/workflows/security-scan.yml`: security scan is manual (`workflow_dispatch`) and not part of PR required gates.
 - Run `node scripts/validate-contracts.mjs` for any API shape or route changes.
 
 ## Commit & Pull Request Guidelines

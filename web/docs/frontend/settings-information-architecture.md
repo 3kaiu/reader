@@ -1,29 +1,20 @@
 # Settings Information Architecture
 
-## Default Layer
+## Current Scope
 
-The default settings experience should stay focused on daily reader maintenance:
+The settings page is now intentionally minimal and serves two goals only:
 
-- addon feature toggles
-- personal toolbox visibility toggle
-- storage usage
-- export / clear local data
-- product/about information
+- source package import / inspection / delete for runtime rule maintenance
+- product/about information for app context
 
-This layer must remain safe for ordinary reading users and should avoid operational jargon.
+## Design Principles
 
-## Advanced Layer
-
-Advanced controls stay hidden behind toolbox mode and include:
-
-- agent routing metrics and runtime overrides
-- source package import and diagnostics
-- debugging workbench entry points such as source builder and replace rules
-
-These controls are intentionally grouped together because they are operational surfaces, not reading preferences.
+- No toolbox mode, addon toggles, or hidden advanced layer.
+- No operational routing/debug panels inside reader settings.
+- Keep wording focused on reading/runtime maintenance, avoid platform-infra jargon.
 
 ## Placement Rules
 
-- New day-to-day reader preferences belong in the default layer.
-- New debugging, governance, or rollout controls belong in the advanced layer.
-- Avoid adding advanced panels directly between maintenance and about sections in the default view.
+- New source maintenance controls belong in `SettingsSourcePackagesSection`.
+- Product/legal/version content belongs in `SettingsAboutSection`.
+- Do not reintroduce hidden "advanced" layers or toolbox gating in settings.

@@ -20,7 +20,6 @@ export function createReaderStoreActions(state: ReaderStoreState, view: ReaderSt
     syncCurrentChapterByIndex,
     updateChapterIndexByScroll,
     saveProgress,
-    syncScrollPercent,
     reset,
     disposeReader,
   } = createReaderProgressHandlers(state)
@@ -54,7 +53,6 @@ export function createReaderStoreActions(state: ReaderStoreState, view: ReaderSt
     reset,
     retryLoadNext,
     saveProgress,
-    syncScrollPercent,
     syncCurrentChapterByIndex,
     startReaderSession,
     updateChapterIndexByScroll,

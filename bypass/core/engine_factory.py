@@ -30,7 +30,7 @@ class EngineFactory:
 
     def _create_engine(self, name: str) -> BaseBypassEngine:
         if name == "scraper" or name == "cloudscraper":
-            logger.info("Creating ScraperEngine (CloudScraper)")
+            logger.info("Creating ScraperEngine")
             return ScraperEngine()
         else:
             logger.warning(f"Unknown engine: {name}, falling back to scraper")

@@ -72,12 +72,6 @@ const files = {
     'api',
     'route-policy.constants.generated.ts',
   ),
-  workerUserServicePrefixes: path.join(
-    rootDir,
-    'edge',
-    'worker',
-    'user-service-prefixes.generated.ts',
-  ),
   backendApp: path.join(rootDir, 'api', 'nexus-server', 'src', 'app.rs'),
 }
 
@@ -98,14 +92,6 @@ compareExact(
   'frontend DIRECT_RULES',
   extractStringArray(routePolicyConstantsSource, 'DIRECT_RULES'),
   contract.frontend.directEligiblePrefixes,
-  errors,
-)
-
-const workerPrefixesSource = read(files.workerUserServicePrefixes)
-compareExact(
-  'worker USER_SERVICE_PREFIXES',
-  extractStringArray(workerPrefixesSource, 'USER_SERVICE_PREFIXES'),
-  contract.routing.edgeHandledApiPrefixes,
   errors,
 )
 

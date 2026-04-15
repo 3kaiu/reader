@@ -36,9 +36,10 @@ pub mod parse_cache {
 
 /// Reader-facing library models and engine capabilities.
 pub mod reader_library {
-    pub use crate::book_engine::{BookEngine, EngineMetadata, ExploreCategory, ExploreEngine};
-    pub use crate::types::{
-        BookGroup, BookInfo, BookItem, BookshelfItem, Chapter, ChapterContent, DiscoveryItem,
-        DiscoveryResponse, DiscoverySection,
-    };
+    pub use crate::book_engine::{BookEngine, EngineMetadata};
+    #[cfg(feature = "discovery")]
+    pub use crate::book_engine::{ExploreCategory, ExploreEngine};
+    pub use crate::types::{BookGroup, BookInfo, BookItem, BookshelfItem, Chapter, ChapterContent};
+    #[cfg(feature = "discovery")]
+    pub use crate::types::{DiscoveryItem, DiscoveryResponse, DiscoverySection};
 }

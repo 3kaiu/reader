@@ -1,8 +1,6 @@
 import type { ApiResponse } from '@/api/http/types'
 import type { Chapter } from '@/types/book'
-import { progressApi } from '@/api/progress'
 import { resolveInitialChapterIndex, type ReaderBook } from '@/utils/readerStore'
-import { buildReaderContentBookId, savePersistedReaderProgress } from '@/utils/readerStore'
 import { loadPersistedReaderProgressMeta, savePersistedReaderProgressMeta } from '@/utils/readerStore'
 import type { ReaderStoreState, ReaderTarget } from '../types'
 
@@ -53,64 +51,6 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
         }
       }
 
-      // Cloud resume (best-effort). If it fails or user is not logged in, fall back to local.
-      const cloudBookId = buildReaderContentBookId(book)
-      let cloudIndex: number | undefined
-      let cloudScrollPercent: number | undefined
-      let cloudScrollKind: 'chapter' | 'document' = 'document'
-      let cloudServerUpdatedAt: number | undefined
-      let cloudApplied = false
-      if (typeof window !== 'undefined') {
-        try {
-          const cloud = await progressApi.get(cloudBookId)
-          if (cloud.isSuccess && cloud.data && typeof cloud.data.chapterIndex === 'number') {
-            cloudIndex = Math.max(0, Math.trunc(cloud.data.chapterIndex))
-          }
-          if (cloud.isSuccess && cloud.data && typeof cloud.data.serverUpdatedAt === 'number') {
-            const ts = cloud.data.serverUpdatedAt
-            if (Number.isFinite(ts)) {
-              cloudServerUpdatedAt = ts
-            }
-          }
-          if (cloud.isSuccess && cloud.data?.scrollKind === 'chapter') {
-            cloudScrollKind = 'chapter'
-          }
-          if (cloud.isSuccess && cloud.data && typeof cloud.data.scrollPercent === 'number') {
-            const value = cloud.data.scrollPercent
-            if (Number.isFinite(value)) {
-              cloudScrollPercent = Math.max(0, Math.min(100, value))
-            }
-          }
-        } catch {
-          // ignore cloud progress failures
-        }
-      }
-
-      if (typeof cloudIndex === 'number') {
-        // Only override local if cloud is newer than last local save.
-        const meta = loadPersistedReaderProgressMeta()
-        const localMeta = meta[book.bookUrl]
-        const localUpdatedAt =
-          localMeta && typeof localMeta.updatedAt === 'number' && Number.isFinite(localMeta.updatedAt)
-            ? localMeta.updatedAt
-            : 0
-        const cloudTs = typeof cloudServerUpdatedAt === 'number' ? cloudServerUpdatedAt : 0
-
-        if (cloudTs >= localUpdatedAt) {
-          state.progressMap.value = {
-            ...state.progressMap.value,
-            [book.bookUrl]: cloudIndex,
-          }
-          savePersistedReaderProgress(state.progressMap.value)
-          meta[book.bookUrl] = {
-            index: cloudIndex,
-            updatedAt: cloudTs || Date.now(),
-          }
-          savePersistedReaderProgressMeta(meta)
-          cloudApplied = true
-        }
-      }
-
       const initialIndex = resolveInitialChapterIndex({
         catalogLength: state.catalog.value.length,
         persistedIndex: state.progressMap.value[book.bookUrl],
@@ -119,18 +59,6 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
       })
 
       await helpers.loadChapterAt(initialIndex, { replaceLoaded: true })
-
-      // Defer applying scroll resume until DOM content is ready. The scroll sync composable will consume it.
-      if (
-        cloudApplied &&
-        cloudScrollKind === 'chapter' &&
-        typeof cloudScrollPercent === 'number' &&
-        typeof cloudIndex === 'number' &&
-        initialIndex === cloudIndex
-      ) {
-        state.resumeScrollPercent.value = cloudScrollPercent
-        state.resumeScrollChapterIndex.value = initialIndex
-      }
     } catch (err) {
       state.error.value = err instanceof Error ? err.message : '打开书籍失败'
       throw err

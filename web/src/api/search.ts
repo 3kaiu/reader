@@ -1,6 +1,6 @@
 import { $post } from './client'
 import { isLikelyNetworkOrCorsError } from './http/errors'
-import { mergeHeaders, resolveBaseUrl, attachAuthHeaders } from './http/transport/request'
+import { mergeHeaders, resolveBaseUrl } from './http/transport/request'
 import type { InternalApiFetchOptions } from './http/types'
 import type { SearchError, SearchResponse, SearchResult } from '@/types/search'
 import type { PipelineStageReport } from '@/types/pipeline'
@@ -185,7 +185,6 @@ async function requestSearchStream(
   } as InternalApiFetchOptions
 
   resolveBaseUrl(requestOptions, requestUrl)
-  attachAuthHeaders(requestOptions)
   requestOptions.headers = mergeHeaders(requestOptions.headers, {
     Accept: 'text/event-stream',
     'Content-Type': 'application/json',

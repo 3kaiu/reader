@@ -1,5 +1,3 @@
-import { progressApi } from '@/api/progress'
-import { buildReaderContentBookId } from '@/utils/readerStore'
 import { savePersistedReaderProgress } from '@/utils/readerStore'
 import {
   loadPersistedReaderProgressMeta,
@@ -10,14 +8,6 @@ import type { ReaderStoreState } from '../types'
 export function createReaderProgressHandlers(state: ReaderStoreState) {
   let cachedMarkers: HTMLElement[] = []
   let cachedMarkerToken = ''
-  let pendingCloudSyncTimer: number | null = null
-  let lastCloudSyncAt = 0
-  let lastCloudSyncedIndex = -1
-  let lastCloudSyncedScrollBucket: number | null = null
-  let lastCloudSyncedBookId = ''
-  let lastLocalMetaTouchAt = 0
-  let lastLocalMetaTouchedIndex = -1
-  let lastLocalMetaTouchedScrollBucket: number | null = null
 
   const touchLocalProgressMeta = () => {
     if (!state.currentBook.value) return
@@ -28,137 +18,6 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
       updatedAt: Date.now(),
     }
     savePersistedReaderProgressMeta(meta)
-  }
-
-  const touchLocalProgressMetaWithTimestamp = (updatedAt: number) => {
-    if (!state.currentBook.value) return
-    if (!Number.isFinite(updatedAt)) return
-    const bookUrl = state.currentBook.value.bookUrl
-    const meta = loadPersistedReaderProgressMeta()
-    const existing = meta[bookUrl]
-    const existingUpdatedAt =
-      existing && typeof existing.updatedAt === 'number' && Number.isFinite(existing.updatedAt)
-        ? existing.updatedAt
-        : 0
-    const nextUpdatedAt = Math.max(existingUpdatedAt, updatedAt)
-    meta[bookUrl] = {
-      index: state.currentChapterIndex.value,
-      updatedAt: nextUpdatedAt,
-    }
-    savePersistedReaderProgressMeta(meta)
-  }
-
-  const touchLocalProgressMetaThrottled = (options: {
-    scrollBucket: number | null
-    minIntervalMs: number
-  }) => {
-    const now = Date.now()
-    const index = state.currentChapterIndex.value
-    const scrollBucket = options.scrollBucket
-    if (
-      now - lastLocalMetaTouchAt < options.minIntervalMs &&
-      index === lastLocalMetaTouchedIndex &&
-      scrollBucket === lastLocalMetaTouchedScrollBucket
-    ) {
-      return
-    }
-    lastLocalMetaTouchAt = now
-    lastLocalMetaTouchedIndex = index
-    lastLocalMetaTouchedScrollBucket = scrollBucket
-    touchLocalProgressMeta()
-  }
-
-  const scheduleCloudProgressSync = (options?: {
-    reason?: string
-    scrollPercent?: number
-  }) => {
-    if (typeof window === 'undefined') {
-      return
-    }
-    if (!state.currentBook.value) {
-      return
-    }
-    // Read current state when the timer fires to avoid syncing stale chapters.
-
-    // Avoid spamming writes while scrolling; keep a small throttle window.
-    const now = Date.now()
-    const minIntervalMs = 2500
-    const dueIn = Math.max(0, minIntervalMs - (now - lastCloudSyncAt))
-
-    if (pendingCloudSyncTimer !== null && pendingCloudSyncTimer >= 0) {
-      window.clearTimeout(pendingCloudSyncTimer)
-      pendingCloudSyncTimer = null
-    }
-
-    pendingCloudSyncTimer = window.setTimeout(() => {
-      pendingCloudSyncTimer = null
-      if (!state.currentBook.value) return
-
-      const currentBookId = buildReaderContentBookId(state.currentBook.value)
-      const currentIndex = state.currentChapterIndex.value
-      const scrollPercent = options?.scrollPercent
-      const scrollBucket =
-        typeof scrollPercent === 'number' && Number.isFinite(scrollPercent)
-          ? Math.max(0, Math.min(100, Math.round(scrollPercent / 2) * 2))
-          : null
-
-      // Keep local "newness" aligned with our cloud sync throttle and semantic buckets.
-      touchLocalProgressMetaThrottled({
-        scrollBucket,
-        minIntervalMs,
-      })
-
-      if (
-        currentBookId === lastCloudSyncedBookId &&
-        currentIndex === lastCloudSyncedIndex &&
-        (scrollBucket === null || scrollBucket === lastCloudSyncedScrollBucket)
-      ) {
-        return
-      }
-
-      lastCloudSyncAt = Date.now()
-      void progressApi
-        .put(currentBookId, {
-          chapterIndex: currentIndex,
-          ...(scrollBucket === null ? {} : { scrollPercent: scrollBucket }),
-          ...(scrollBucket === null ? {} : { scrollKind: 'chapter' as const }),
-          updatedAt: lastCloudSyncAt,
-        })
-        .then(res => {
-          // Prefer server time + normalized progress snapshot when available.
-          const snapshot = res.isSuccess ? res.data?.progress : null
-          const serverUpdatedAt =
-            snapshot && typeof snapshot.serverUpdatedAt === 'number' && Number.isFinite(snapshot.serverUpdatedAt)
-              ? snapshot.serverUpdatedAt
-              : snapshot && typeof snapshot.updatedAt === 'number' && Number.isFinite(snapshot.updatedAt)
-                ? snapshot.updatedAt
-                : null
-
-          if (serverUpdatedAt !== null) {
-            lastCloudSyncAt = serverUpdatedAt
-            // Align local "newness" with server time without regressing timestamps.
-            touchLocalProgressMetaWithTimestamp(serverUpdatedAt)
-          }
-
-          lastCloudSyncedBookId = currentBookId
-          if (snapshot && typeof snapshot.chapterIndex === 'number' && Number.isFinite(snapshot.chapterIndex)) {
-            lastCloudSyncedIndex = Math.max(0, Math.trunc(snapshot.chapterIndex))
-          } else {
-            lastCloudSyncedIndex = currentIndex
-          }
-          if (snapshot && typeof snapshot.scrollPercent === 'number' && Number.isFinite(snapshot.scrollPercent)) {
-            lastCloudSyncedScrollBucket = Math.max(
-              0,
-              Math.min(100, Math.round(snapshot.scrollPercent / 2) * 2)
-            )
-          } else {
-            lastCloudSyncedScrollBucket = scrollBucket
-          }
-        })
-        .catch(() => undefined)
-    }, dueIn)
-
-    void options
   }
 
   const resolveMarkerToken = () => {
@@ -252,14 +111,6 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
     }
     savePersistedReaderProgress(state.progressMap.value)
     touchLocalProgressMeta()
-
-    scheduleCloudProgressSync({ reason: 'saveProgress' })
-  }
-
-  const syncScrollPercent = (scrollPercent: number) => {
-    if (!state.currentBook.value) return
-    if (!Number.isFinite(scrollPercent)) return
-    scheduleCloudProgressSync({ reason: 'scroll', scrollPercent })
   }
 
   const reset = () => {
@@ -293,7 +144,6 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
     syncCurrentChapterByIndex,
     updateChapterIndexByScroll,
     saveProgress,
-    syncScrollPercent,
     reset,
     disposeReader,
   }

@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { PageHeader } from '@/components/common'
-import type { BrowserStorageEstimate } from '@/utils/browserStorage'
 import SettingsAboutSection from './SettingsAboutSection.vue'
 import SettingsGeneralSection from './SettingsGeneralSection.vue'
-import SettingsMaintenanceSection from './SettingsMaintenanceSection.vue'
 import SettingsSourcePackagesSection from './SettingsSourcePackagesSection.vue'
 
 type SourcePackageSummary = {
@@ -53,7 +51,6 @@ type SourcePackageDetailSummary = {
 }
 
 defineProps<{
-  storageUsage: BrowserStorageEstimate | null
   sourcePackagesLoading: boolean
   sourcePackageImporting: boolean
   sourcePackageDetailLoading: boolean
@@ -63,8 +60,6 @@ defineProps<{
 
 const emit = defineEmits<{
   back: []
-  exportData: []
-  clearCache: []
   refreshSourcePackages: []
   importSourcePackage: [packageJson: string]
   selectSourcePackage: [sourceId: string]
@@ -77,13 +72,7 @@ const emit = defineEmits<{
   <main class="px-5 max-w-7xl mx-auto pt-6 sm:pt-8 pb-32">
     <PageHeader @back="emit('back')" />
 
-    <SettingsGeneralSection>
-      <SettingsMaintenanceSection
-        :storage-usage="storageUsage"
-        @export-data="emit('exportData')"
-        @clear-cache="emit('clearCache')"
-      />
-    </SettingsGeneralSection>
+    <SettingsGeneralSection />
 
     <SettingsSourcePackagesSection
       :source-packages-loading="sourcePackagesLoading"

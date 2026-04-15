@@ -28,12 +28,6 @@ export interface ReaderStoreState {
   diagnosticsRequestId: Ref<string | null>
   diagnosticsPackageId: Ref<string | null>
   progressMap: Ref<Record<string, number>>
-  /**
-   * Pending scroll resume, sourced from `/progress/{bookId}`. Cleared after applied.
-   * Percent is 0..100 for the document scroll position in scroll-reader mode.
-   */
-  resumeScrollPercent: Ref<number | null>
-  resumeScrollChapterIndex: Ref<number | null>
   chapterContentCache: Ref<Record<string, string>>
   contentStageReports: Ref<ReaderStageReport[]>
 }

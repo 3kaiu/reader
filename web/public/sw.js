@@ -3,8 +3,7 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`
 const API_CACHE = `${CACHE_VERSION}-api`
 const CHAPTER_CACHE = `${CACHE_VERSION}-chapters`
 const CHAPTER_META_CACHE = `${CACHE_VERSION}-chapters-meta`
-const MODEL_CACHE = `${CACHE_VERSION}-models`
-const ACTIVE_CACHES = [STATIC_CACHE, API_CACHE, CHAPTER_CACHE, CHAPTER_META_CACHE, MODEL_CACHE]
+const ACTIVE_CACHES = [STATIC_CACHE, API_CACHE, CHAPTER_CACHE, CHAPTER_META_CACHE]
 let CHAPTER_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7
 let CHAPTER_CACHE_MAX_ENTRIES = 600
 const CHAPTER_CACHE_PRUNE_INTERVAL_MS = 1000 * 60 * 3
@@ -38,21 +37,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url)
 
   if (url.origin !== self.location.origin) {
-    if (isModelAsset(url)) {
-      event.respondWith(cacheFirst(request, MODEL_CACHE))
-    }
     return
   }
 
   if (request.method !== 'GET') {
-    if (isRuntimeRequest(url)) {
-      event.respondWith(fetch(request))
-    }
-    return
-  }
-
-  if (isModelAsset(url)) {
-    event.respondWith(cacheFirst(request, MODEL_CACHE))
     return
   }
 
@@ -63,11 +51,6 @@ self.addEventListener('fetch', event => {
 
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request, API_CACHE))
-    return
-  }
-
-  if (isEdgeAddonRequest(url)) {
-    event.respondWith(fetch(request).catch(() => caches.match(request)))
     return
   }
 
@@ -127,31 +110,8 @@ self.addEventListener('message', event => {
   }
 })
 
-function isModelAsset(url) {
-  return (
-    url.pathname.endsWith('.onnx') ||
-    url.pathname.endsWith('.wasm') ||
-    url.pathname.endsWith('.bin') ||
-    url.pathname.endsWith('.data') ||
-    url.hostname.includes('huggingface.co') ||
-    url.pathname.includes('/onnx/') ||
-    url.pathname.includes('/piper/')
-  )
-}
-
 function isChapterRequest(url) {
   return url.pathname === '/api/content'
-}
-
-function isEdgeAddonRequest(url) {
-  return (
-    url.pathname.startsWith('/auth/') ||
-    url.pathname.startsWith('/progress/')
-  )
-}
-
-function isRuntimeRequest(url) {
-  return url.pathname.startsWith('/api/') || isEdgeAddonRequest(url)
 }
 
 async function cacheFirst(request, cacheName) {

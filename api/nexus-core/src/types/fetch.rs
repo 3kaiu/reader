@@ -85,11 +85,7 @@ pub struct SourceRuntimeProfile {
 impl Default for SourceRuntimeProfile {
     fn default() -> Self {
         Self {
-            strategy_chain: vec![
-                "CF-Bypass".to_string(),
-                "CloudScraper".to_string(),
-                "DirectHTTP".to_string(),
-            ],
+            strategy_chain: vec!["CF-Bypass".to_string(), "DirectHTTP".to_string()],
             timeout_ms: 30_000,
             retry_budget: 2,
             concurrency_limit: 4,

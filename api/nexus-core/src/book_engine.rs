@@ -83,7 +83,8 @@ pub struct EngineMetadata {
     pub custom_headers: bool,
 }
 
-/// Extension trait for engines that support exploration/discovery
+/// Extension trait for engines that support curated catalog exploration.
+#[cfg(feature = "discovery")]
 #[async_trait]
 pub trait ExploreEngine: BookEngine {
     /// Get available explore categories
@@ -93,7 +94,8 @@ pub trait ExploreEngine: BookEngine {
     async fn explore(&self, category_url: &str) -> Result<Vec<BookItem>, EngineError>;
 }
 
-/// Explore category definition
+/// Catalog category definition
+#[cfg(feature = "discovery")]
 #[derive(Debug, Clone)]
 pub struct ExploreCategory {
     pub name: String,

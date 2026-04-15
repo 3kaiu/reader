@@ -217,7 +217,7 @@ class BypassError(Exception):
 
     @classmethod
     def from_cloudscraper_error(cls, error: Exception, url: Optional[str] = None) -> 'BypassError':
-        """Convert CloudScraper errors to BypassError"""
+        """Convert cloudscraper exceptions to BypassError"""
         import cloudscraper
 
         if isinstance(error, cloudscraper.exceptions.CloudflareChallengeError):

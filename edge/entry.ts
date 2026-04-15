@@ -6,14 +6,12 @@
  * - wire dependencies
  * - dispatch routes
  *
- * See `MODULE_BOUNDARIES.md` for dependency and ownership rules.
- *
  * Implementations live in `edge/worker/*`.
  */
 
 import { handleCorsPreflightRequest } from './shared/cors.ts'
 import { createLogger } from './shared/logger.ts'
-import type { ExecutionContextLike, QueueBatchLike, WorkerQueueMessage } from './shared/types.ts'
+import type { ExecutionContextLike } from './shared/types.ts'
 import type { EnhancedWorkerEnv } from './worker/types.ts'
 import { createStableDispatcher } from './entry/dispatch.ts'
 import { getErrorMessage } from './entry/errors.ts'

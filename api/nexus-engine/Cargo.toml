@@ -26,12 +26,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 # HTML Parsing
 scraper = "0.25"
 readability-rust = "0.1"
-lol_html = "1.1"
-kuchiki = "0.8"
 ego-tree = "0.6"
-
-# JSON Path
-jsonpath-rust = "1.0"
 
 # Regex
 regex = "1"
@@ -45,13 +40,8 @@ http = "1"
 # Utilities
 parking_lot = "0.12"
 dashmap = "6"
-lru = "0.16"
-futures-util = "0.3.32"
 rand = "0.9"
 aho-corasick = "1.1"
-rayon = "1.10"
-memmap2 = "0.9"
-wasm-bindgen = "0.2"
 
 # Content Cleaning
 ttf-parser = "0.25"           # Font parsing for font decryption
@@ -63,5 +53,10 @@ unicode-normalization = "0.1" # Unicode normalization
 [features]
 default = []
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+lol_html = "1.1"
+kuchiki = "0.8"

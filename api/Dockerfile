@@ -1,5 +1,5 @@
-# Nexus API Dockerfile (GHCR / NAS; port 7860 also matches HuggingFace Spaces if you deploy there)
-# Build context: `api` directory (used when GH Actions uploads this folder to HF)
+# Nexus API Dockerfile (GHCR / NAS; default runtime port 7860)
+# Build context: `api` directory
 
 FROM rust:1.85-slim-bookworm AS builder
 
@@ -69,7 +69,7 @@ RUN mkdir -p /app/cache
 # Test that binary runs (basic check)
 RUN /app/nexus-server --help || echo "Binary exists but help failed"
 
-# Default port 7860 matches HuggingFace Spaces; override PORT for NAS/Docker as needed.
+# Default port 7860; override PORT for NAS/Docker as needed.
 ENV HOST=0.0.0.0
 ENV PORT=7860
 ENV RUST_LOG=info

@@ -4,6 +4,7 @@ mod ai;
 mod books;
 #[path = "types/content.rs"]
 mod content;
+#[cfg(feature = "discovery")]
 #[path = "types/discovery.rs"]
 mod discovery;
 #[path = "types/fetch.rs"]
@@ -18,6 +19,7 @@ mod voice;
 pub use ai::*;
 pub use books::*;
 pub use content::*;
+#[cfg(feature = "discovery")]
 pub use discovery::*;
 pub use fetch::*;
 pub use library::*;

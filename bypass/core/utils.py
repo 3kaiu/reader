@@ -69,7 +69,7 @@ class LogLevel(Enum):
     CACHE = 15
 
 
-class CloudScraperFormatter(logging.Formatter):
+class ScraperLogFormatter(logging.Formatter):
     """Custom formatter with CRLF sanitization"""
     
     def __init__(self, use_json: bool = False):
@@ -141,7 +141,7 @@ class CloudScraperFormatter(logging.Formatter):
 
 
 class EnhancedLogger:
-    """Enhanced logger with CloudScraper-specific functionality"""
+    """Enhanced logger with scraper-specific functionality"""
     
     def __init__(self, name: str = "cf-bypass", use_json: bool = False):
         self.logger = logging.getLogger(name)
@@ -155,7 +155,7 @@ class EnhancedLogger:
         # Set up handler if not configured
         if not self.logger.handlers:
             handler = logging.StreamHandler(sys.stdout)
-            handler.setFormatter(CloudScraperFormatter(use_json=use_json))
+            handler.setFormatter(ScraperLogFormatter(use_json=use_json))
             self.logger.addHandler(handler)
             self.logger.setLevel(logging.INFO)
     

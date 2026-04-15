@@ -1,8 +1,10 @@
 """
-Scraper Engine - CloudScraper Implementation
+Scraper Engine - HTTP scraper implementation
 Inherits from BaseBypassEngine for unified interface.
 """
 import json
+import asyncio
+from functools import partial
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -124,7 +126,6 @@ class ScraperEngine(BaseBypassEngine):
         **kwargs
     ) -> BypassResult:
         domain = self._get_domain(url)
-        start_time_dt = datetime.now()
         start_perf = datetime.now()
 
         cache_key = json.dumps(
@@ -150,7 +151,10 @@ class ScraperEngine(BaseBypassEngine):
             if body: req_kwargs['data'] = body
             if proxy: req_kwargs['proxies'] = {'http': proxy, 'https': proxy}
             
-            response = scraper.request(method, url, **req_kwargs)
+            # cloudscraper/requests is sync I/O; offload to a worker thread to avoid
+            # blocking the event loop under concurrent FastAPI traffic.
+            request_call = partial(scraper.request, method, url, **req_kwargs)
+            response = await asyncio.to_thread(request_call)
             duration = (datetime.now() - start_perf).total_seconds()
             
             cf_bypassed = True

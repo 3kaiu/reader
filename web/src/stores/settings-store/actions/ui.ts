@@ -3,7 +3,7 @@ import type { SettingsStoreActionContext } from './helpers'
 
 type SettingsUiActions = Pick<
   SettingsStoreActions,
-  'updateTheme' | 'updateLanguage' | 'updateFontSize' | 'updateNotifications' | 'updatePrivacy'
+  'updateTheme' | 'updateLanguage' | 'updateFontSize'
 >
 
 export function createSettingsUiActions(context: SettingsStoreActionContext): SettingsUiActions {
@@ -23,19 +23,9 @@ export function createSettingsUiActions(context: SettingsStoreActionContext): Se
     view.fontSize.value = newSize
   }
 
-  const updateNotifications = (settings: Partial<typeof state.notifications.value>) => {
-    Object.assign(state.notifications.value, settings)
-  }
-
-  const updatePrivacy = (settings: Partial<typeof state.privacy.value>) => {
-    Object.assign(state.privacy.value, settings)
-  }
-
   return {
     updateTheme,
     updateLanguage,
     updateFontSize,
-    updateNotifications,
-    updatePrivacy,
   }
 }

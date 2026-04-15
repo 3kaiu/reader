@@ -24,7 +24,7 @@ fn stable_hash(input: &str) -> String {
 fn normalize_strategy(name: &str) -> &'static str {
     match name.to_ascii_lowercase().as_str() {
         "cf-bypass" | "cfbypass" => "CF-Bypass",
-        "cloudscraper" | "cloud-scraper" => "CloudScraper",
+        "cloudscraper" | "cloud-scraper" => "DirectHTTP",
         "directhttp" | "direct-http" => "DirectHTTP",
         _ => "DirectHTTP",
     }
@@ -39,7 +39,7 @@ fn normalize_chain(raw: &[String]) -> Vec<String> {
             chain.push(normalized);
         }
     }
-    for fallback in ["CF-Bypass", "CloudScraper", "DirectHTTP"] {
+    for fallback in ["CF-Bypass", "DirectHTTP"] {
         if dedup.insert(fallback.to_string()) {
             chain.push(fallback.to_string());
         }
@@ -112,7 +112,6 @@ impl StrategyPlannerSkill {
             {
                 profile.strategy_chain = vec![
                     "DirectHTTP".to_string(),
-                    "CloudScraper".to_string(),
                     "CF-Bypass".to_string(),
                 ];
                 reason = "quality_regression".to_string();
@@ -122,7 +121,6 @@ impl StrategyPlannerSkill {
                 && stats.rule_mismatch_failures >= 3
             {
                 profile.strategy_chain = vec![
-                    "CloudScraper".to_string(),
                     "CF-Bypass".to_string(),
                     "DirectHTTP".to_string(),
                 ];

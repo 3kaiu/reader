@@ -1,5 +1,4 @@
 import { resolveRoutePolicy } from '@/api/route-policy'
-import { getAuthToken } from '@/utils/authStorage'
 import { encode } from '@/utils/msgpack'
 import type { InternalApiFetchOptions } from '../types'
 
@@ -56,17 +55,6 @@ export function attachRequestMetadata(options: InternalApiFetchOptions, requestU
   options._requestId = options._requestId || crypto.randomUUID()
   options.headers = mergeHeaders(options.headers, {
     'X-Request-ID': options._requestId,
-  })
-}
-
-export function attachAuthHeaders(options: InternalApiFetchOptions): void {
-  const token = getAuthToken()
-  if (!token) {
-    return
-  }
-
-  options.headers = mergeHeaders(options.headers, {
-    Authorization: `Bearer ${token}`,
   })
 }
 

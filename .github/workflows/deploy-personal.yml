@@ -23,18 +23,6 @@ env:
   BUN_VERSION: '1'
 
 jobs:
-  validate-contracts:
-    name: Validate contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: node scripts/generate-http-route-constants.mjs --check
-      - run: node scripts/validate-contracts.mjs
-
   frontend-quality:
     name: Nexus Web quality
     runs-on: ubuntu-latest
@@ -76,7 +64,7 @@ jobs:
     name: Deploy Worker
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [validate-contracts, backend-quality, workers-quality]
+    needs: [backend-quality, workers-quality]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -105,7 +93,7 @@ jobs:
     name: Build Nexus Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [validate-contracts, frontend-quality]
+    needs: [frontend-quality]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/web-quality

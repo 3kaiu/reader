@@ -98,42 +98,6 @@ export function useReaderScrollSync(options: {
     options.readerStore.updateChapterIndexByScroll()
   }, 500)
 
-  const debouncedCloudScrollSync = useThrottleFn(() => {
-    if (typeof document === 'undefined') return
-    const markerSelector = '.chapter-marker[data-chapter-index]'
-    const markers = Array.from(document.querySelectorAll<HTMLElement>(markerSelector))
-      .map(marker => ({
-        el: marker,
-        index: Number(marker.dataset.chapterIndex),
-      }))
-      .filter(item => Number.isFinite(item.index))
-      .sort((a, b) => a.index - b.index)
-
-    if (markers.length === 0) return
-
-    const currentIndex = options.readerStore.currentChapterIndex
-    const currentPos = markers.findIndex(m => m.index === currentIndex)
-    const currentMarker = currentPos >= 0 ? markers[currentPos] : null
-    if (!currentMarker) return
-
-    const nextMarker = markers.find((m, idx) => idx > currentPos && m.index > currentIndex) || null
-
-    const currentBlock = currentMarker.el.closest<HTMLElement>('.reader-chapter-block')
-    const nextBlock = nextMarker?.el.closest<HTMLElement>('.reader-chapter-block') || null
-    if (!currentBlock) return
-
-    const doc = document.documentElement
-    const viewportH = window.innerHeight || 1
-    const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
-    const y = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
-    const chapterStartRaw = currentBlock.getBoundingClientRect().top + y
-    const chapterStart = Math.max(0, Math.min(maxDocScroll, chapterStartRaw))
-    const chapterEndRaw =
-      (nextBlock ? nextBlock.getBoundingClientRect().top + y : doc.scrollHeight) - viewportH * 0.35
-    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw))
-    const percent = ((y - chapterStart) / Math.max(1, chapterEnd - chapterStart)) * 100
-    options.readerStore.syncScrollPercent(Math.max(0, Math.min(100, percent)))
-  }, 1500)
   const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
   let chapterMarkerObserver: IntersectionObserver | null = null
   const visibleChapterMarkers = new Set<HTMLElement>()
@@ -457,7 +421,6 @@ export function useReaderScrollSync(options: {
     }
     pendingRebindDefers = 0
     window.removeEventListener('scroll', debouncedChapterSync)
-    window.removeEventListener('scroll', debouncedCloudScrollSync)
   }
 
   const setupChapterSyncBindings = () => {
@@ -472,94 +435,6 @@ export function useReaderScrollSync(options: {
     }
 
     window.addEventListener('scroll', debouncedChapterSync, { passive: true })
-    window.addEventListener('scroll', debouncedCloudScrollSync, { passive: true })
-  }
-
-  const applyPendingScrollResume = async () => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return
-    const percent = options.readerStore.resumeScrollPercent
-    const targetIndex = options.readerStore.resumeScrollChapterIndex
-    if (typeof percent !== 'number' || !Number.isFinite(percent)) return
-    if (typeof targetIndex !== 'number' || !Number.isFinite(targetIndex)) return
-    if (options.readerStore.currentChapterIndex !== targetIndex) return
-
-    // Clear first to avoid re-entrancy loops.
-    options.readerStore.resumeScrollPercent = null
-    options.readerStore.resumeScrollChapterIndex = null
-
-    await nextTick()
-    const markerSelector = '.chapter-marker[data-chapter-index]'
-    const markers = Array.from(document.querySelectorAll<HTMLElement>(markerSelector))
-      .map(marker => ({
-        el: marker,
-        index: Number(marker.dataset.chapterIndex),
-      }))
-      .filter(item => Number.isFinite(item.index))
-      .sort((a, b) => a.index - b.index)
-
-    if (markers.length === 0) {
-      return
-    }
-
-    const currentPos = markers.findIndex(m => m.index === targetIndex)
-    const currentMarker = currentPos >= 0 ? markers[currentPos] : null
-    if (!currentMarker) {
-      return
-    }
-
-    const nextMarker = markers.find((m, idx) => idx > currentPos && m.index > targetIndex) || null
-    const doc = document.documentElement
-    const viewportH = window.innerHeight || 1
-    const maxDocScroll = Math.max(1, doc.scrollHeight - viewportH)
-
-    const currentBlock = currentMarker.el.closest<HTMLElement>('.reader-chapter-block')
-    const nextBlock = nextMarker?.el.closest<HTMLElement>('.reader-chapter-block') || null
-    if (!currentBlock) {
-      return
-    }
-
-    const currentY = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
-    const chapterStartRaw = currentBlock.getBoundingClientRect().top + currentY
-    const chapterStart = Math.max(0, Math.min(maxDocScroll, chapterStartRaw))
-    const chapterEndRaw =
-      (nextBlock ? nextBlock.getBoundingClientRect().top + currentY : doc.scrollHeight) - viewportH * 0.35
-    const chapterEnd = Math.max(chapterStart + 1, Math.min(maxDocScroll, chapterEndRaw))
-
-    const y =
-      chapterStart + (Math.max(0, Math.min(100, percent)) / 100) * Math.max(1, chapterEnd - chapterStart)
-    window.scrollTo({ top: Math.max(0, Math.min(maxDocScroll, y)), behavior: 'auto' })
-
-    // Best-effort correction: layout/virtualization can cause resume landing in wrong chapter.
-    requestAnimationFrame(() => {
-      const line = window.innerHeight * 0.35
-      let resolved: number | null = null
-      for (const marker of markers) {
-        const rect = marker.el.getBoundingClientRect()
-        if (rect.top <= line && rect.bottom >= 0) {
-          resolved = marker.index
-          break
-        }
-        if (rect.top <= line) {
-          resolved = marker.index
-        }
-        if (rect.top > line && resolved !== null) {
-          break
-        }
-      }
-
-      if (resolved === null || resolved === targetIndex) {
-        return
-      }
-
-      const targetMarker = markers.find(m => m.index === targetIndex) || null
-      const targetBlock = targetMarker?.el.closest<HTMLElement>('.reader-chapter-block') || null
-      if (!targetBlock) {
-        return
-      }
-      const currY = Math.max(0, Math.min(maxDocScroll, window.scrollY || doc.scrollTop || 0))
-      const top = Math.max(0, Math.min(maxDocScroll, targetBlock.getBoundingClientRect().top + currY))
-      window.scrollTo({ top, behavior: 'auto' })
-    })
   }
 
   watch(
@@ -580,8 +455,6 @@ export function useReaderScrollSync(options: {
   watch(
     () => options.readerStore.currentChapterIndex,
     () => {
-      // Best-effort scroll resume for multi-device progress.
-      void applyPendingScrollResume()
     },
     { flush: 'post' }
   )
