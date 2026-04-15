@@ -35,7 +35,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-cache-${{ hashFiles(format('{0}/package.json', inputs.working-directory)) }}
+        key: ${{ runner.os }}-bun-cache-${{ hashFiles(format('{0}/bun.lock', inputs.working-directory), format('{0}/bun.lockb', inputs.working-directory), format('{0}/package-lock.json', inputs.working-directory), format('{0}/package.json', inputs.working-directory)) }}
 
     - name: Install dependencies
       shell: bash

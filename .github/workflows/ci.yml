@@ -22,10 +22,50 @@ env:
   BUN_VERSION: "1"
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      workflow: ${{ steps.filter.outputs.workflow }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }}
+      edge: ${{ steps.filter.outputs.edge }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            workflow:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            contracts:
+              - 'contracts/**'
+              - 'scripts/validate-contracts.mjs'
+              - 'scripts/generate-http-route-constants.mjs'
+            web:
+              - 'web/**'
+              - 'contracts/**'
+              - 'scripts/validate-contracts.mjs'
+            api:
+              - 'api/**'
+              - 'contracts/**'
+              - 'scripts/validate-contracts.mjs'
+            edge:
+              - 'edge/**'
+              - 'contracts/**'
+              - 'scripts/validate-contracts.mjs'
+
   workflow-quality:
     name: Workflow Quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.workflow == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,6 +77,8 @@ jobs:
     name: Validate Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.contracts == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -53,6 +95,8 @@ jobs:
     name: Nexus Web Type Check + Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -68,6 +112,8 @@ jobs:
     name: Nexus API Cargo Check + Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -82,6 +128,8 @@ jobs:
     name: Nexus Edge Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.edge == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -93,5 +141,3 @@ jobs:
 
       - name: Run Nexus Edge type check
         uses: ./.github/actions/edge-quality
-        with:
-          bun-version: ${{ env.BUN_VERSION }}

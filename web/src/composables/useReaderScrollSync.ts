@@ -262,7 +262,7 @@ export function useReaderScrollSync(options: {
       }
       pendingRebindDefers = 0
       pendingMarkerRebindRafId = null
-      if (chapterMarkerObserver && options.settingsStore.config.performanceMode !== 'compat') {
+      if (chapterMarkerObserver) {
         chapterMarkerObserver.disconnect()
         visibleChapterMarkers.clear()
         setupChapterMarkerObserver()
@@ -428,9 +428,7 @@ export function useReaderScrollSync(options: {
       return
     }
 
-    const mode = options.settingsStore.config.performanceMode
-    const shouldUseObserver = mode !== 'compat'
-    if (shouldUseObserver && setupChapterMarkerObserver()) {
+    if (setupChapterMarkerObserver()) {
       return
     }
 
@@ -450,13 +448,6 @@ export function useReaderScrollSync(options: {
         }
       }
     }
-  )
-
-  watch(
-    () => options.readerStore.currentChapterIndex,
-    () => {
-    },
-    { flush: 'post' }
   )
 
   watch(

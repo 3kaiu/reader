@@ -4,6 +4,7 @@ Focused infrastructure service for fetching target HTML via bypass engines.
 """
 import logging
 import os
+import asyncio
 from datetime import datetime
 from typing import Optional, Dict
 from urllib.parse import urlparse
@@ -24,6 +25,8 @@ class Config:
 config = Config()
 logging.basicConfig(level=config.log_level)
 logger = logging.getLogger("cf-bypass")
+MAX_CONCURRENCY = max(1, int(os.getenv("BYPASS_MAX_CONCURRENCY", "20")))
+FETCH_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENCY)
 
 # Helper function for API key validation
 def validate_api_key(x_api_key: str = Header(None)):
@@ -82,19 +85,19 @@ async def health():
 @app.post("/fetch", response_model=FetchResponse)
 async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     validate_api_key(x_api_key)
-    
-    url_str = str(request.url)
-    domain = urlparse(url_str).netloc
-    engine = engine_factory.get_engine(name=request.engine, domain=domain)
-    
-    result = await engine.fetch(
-        url=url_str,
-        method=request.method,
-        headers=request.headers,
-        body=request.body,
-        timeout=request.timeout,
-        proxy=request.proxy,
-    )
+    async with FETCH_SEMAPHORE:
+        url_str = str(request.url)
+        domain = urlparse(url_str).netloc
+        engine = engine_factory.get_engine(name=request.engine, domain=domain)
+        
+        result = await engine.fetch(
+            url=url_str,
+            method=request.method,
+            headers=request.headers,
+            body=request.body,
+            timeout=request.timeout,
+            proxy=request.proxy,
+        )
     
     return FetchResponse(
         status=result.status,

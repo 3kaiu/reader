@@ -4,10 +4,12 @@ import type { ExecutionContextLike } from '../shared/types.ts'
 import type { EnhancedWorkerEnv } from '../worker/types.ts'
 
 export function createStableDispatcher(
-  env: EnhancedWorkerEnv,
-  ctx: ExecutionContextLike
+  env: EnhancedWorkerEnv
 ) {
-  return async function dispatchStable(incomingRequest: Request): Promise<Response> {
+  return async function dispatchStable(
+    incomingRequest: Request,
+    ctx: ExecutionContextLike
+  ): Promise<Response> {
     const origin = incomingRequest.headers.get('Origin') || ''
     const url = new URL(incomingRequest.url)
 

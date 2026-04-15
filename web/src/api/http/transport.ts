@@ -92,6 +92,8 @@ export async function requestWithDirectFallback<T>(
       ...requestOptions,
       forceEdge: true,
       _directFallbackTried: true,
+      // Avoid retry x fallback amplification on degraded networks.
+      retry: 0,
     }
 
     return await internalFetch<T>(url, fallbackOptions)

@@ -40,10 +40,16 @@ pub struct SearchRequest {
     pub sources: Vec<String>, // Empty = all enabled sources
     #[serde(default = "default_page")]
     pub _page: u32,
+    #[serde(default = "default_light_mode")]
+    pub light_mode: bool,
 }
 
 fn default_page() -> u32 {
     1
+}
+
+fn default_light_mode() -> bool {
+    true
 }
 
 #[derive(Serialize)]
@@ -80,8 +86,36 @@ pub enum SearchEvent {
     },
 }
 
+struct PreparedSearchContext {
+    package_ids: HashMap<String, String>,
+    package_ranks: HashMap<String, i64>,
+    search_source_ids: Vec<String>,
+    direct_items: Vec<BookItem>,
+}
+
 fn keyword_looks_like_url(keyword: &str) -> bool {
     keyword.starts_with("http://") || keyword.starts_with("https://")
+}
+
+async fn prepare_search_context(
+    state: &AppState,
+    req: &SearchRequest,
+) -> Result<PreparedSearchContext, ApiErrorResponse> {
+    let packages = runtime_search_packages(state, &req.sources, req.light_mode).await?;
+    let package_ids: HashMap<String, String> = packages
+        .iter()
+        .map(|p| (p.source.id.clone(), p.package_id.clone()))
+        .collect();
+    let package_ranks = build_package_ranks(&packages);
+    let search_source_ids = searchable_source_ids(&packages);
+    let direct_items = direct_detail_results(state, &packages, &req.keyword).await;
+
+    Ok(PreparedSearchContext {
+        package_ids,
+        package_ranks,
+        search_source_ids,
+        direct_items,
+    })
 }
 
 /// Search across multiple sources (returns all results at once)
@@ -92,16 +126,10 @@ pub async fn search(
     info!("Searching for '{}' in {:?}", req.keyword, req.sources);
     let started_at = std::time::Instant::now();
 
-    let packages = runtime_search_packages(&state, &req.sources).await?;
-    let package_ids: HashMap<String, String> = packages
-        .iter()
-        .map(|p| (p.source.id.clone(), p.package_id.clone()))
-        .collect();
-    let package_ranks = build_package_ranks(&packages);
-    let search_source_ids = searchable_source_ids(&packages);
-    let mut all_results = direct_detail_results(&state, &packages, &req.keyword).await;
+    let mut context = prepare_search_context(&state, &req).await?;
+    let mut all_results = std::mem::take(&mut context.direct_items);
 
-    if search_source_ids.is_empty() && all_results.is_empty() {
+    if context.search_source_ids.is_empty() && all_results.is_empty() {
         return Ok(Json(SearchResponse {
             results: vec![],
             total: 0,
@@ -112,10 +140,10 @@ pub async fn search(
 
     let mut errors = vec![];
 
-    if !search_source_ids.is_empty() {
+    if !context.search_source_ids.is_empty() {
         let mut rx = state
             .orchestrator
-            .search(search_source_ids, req.keyword.clone());
+            .search(context.search_source_ids, req.keyword.clone());
 
         while let Some(result) = rx.recv().await {
             match result {
@@ -134,12 +162,12 @@ pub async fn search(
     }
 
     let total = all_results.len();
-    annotate_result_rankings(&mut all_results, &req.keyword, &package_ranks);
-    sort_results_for_keyword(&mut all_results, &req.keyword, &package_ranks);
+    annotate_result_rankings(&mut all_results, &req.keyword, &context.package_ranks);
+    sort_results_for_keyword(&mut all_results, &req.keyword, &context.package_ranks);
 
     for item in all_results.iter_mut() {
         let sid = item.source_id.as_ref();
-        if let Some(pid) = package_ids.get(sid) {
+        if let Some(pid) = context.package_ids.get(sid) {
             item.package_id = Some(pid.as_str().into());
         }
     }
@@ -178,23 +206,21 @@ pub async fn search_stream(
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(100);
     let started_at = std::time::Instant::now();
 
-    let packages = runtime_search_packages(&state, &req.sources).await?;
-    let package_ids: HashMap<String, String> = packages
-        .iter()
-        .map(|p| (p.source.id.clone(), p.package_id.clone()))
-        .collect();
-    let package_ranks = build_package_ranks(&packages);
-    let search_source_ids = searchable_source_ids(&packages);
-    let mut direct_items = direct_detail_results(&state, &packages, &req.keyword).await;
-    annotate_result_rankings(&mut direct_items, &req.keyword, &package_ranks);
-    sort_results_for_keyword(&mut direct_items, &req.keyword, &package_ranks);
+    let mut context = prepare_search_context(&state, &req).await?;
+    let mut direct_items = std::mem::take(&mut context.direct_items);
+    annotate_result_rankings(&mut direct_items, &req.keyword, &context.package_ranks);
+    sort_results_for_keyword(&mut direct_items, &req.keyword, &context.package_ranks);
 
     for item in direct_items.iter_mut() {
         let sid = item.source_id.as_ref();
-        if let Some(pid) = package_ids.get(sid) {
+        if let Some(pid) = context.package_ids.get(sid) {
             item.package_id = Some(pid.as_str().into());
         }
     }
+
+    let package_ids = context.package_ids;
+    let package_ranks = context.package_ranks;
+    let search_source_ids = context.search_source_ids;
 
     // Spawn search task
     tokio::spawn(async move {

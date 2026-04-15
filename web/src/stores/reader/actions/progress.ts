@@ -55,8 +55,6 @@ export function createReaderProgressHandlers(state: ReaderStoreState) {
 
     state.currentChapterIndex.value = chapterIndex
     state.currentChapter.value = state.catalog.value[chapterIndex] || state.currentChapter.value
-    // Best-effort: persist and sync for multi-device resume.
-    saveProgress()
   }
 
   const updateChapterIndexByScroll = () => {

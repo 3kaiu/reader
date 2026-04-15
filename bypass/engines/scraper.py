@@ -84,7 +84,6 @@ class CacheManager:
 class ScraperEngine(BaseBypassEngine):
     def __init__(self):
         super().__init__("scraper")
-        self.scrapers: Dict[str, cloudscraper.CloudScraper] = {}
         self.cache_manager = CacheManager()
         self._metrics = defaultdict(float)
         logger.info("ScraperEngine initialized")
@@ -110,9 +109,7 @@ class ScraperEngine(BaseBypassEngine):
             return cloudscraper.create_scraper()
     
     async def _get_scraper(self, domain: str) -> cloudscraper.CloudScraper:
-        if domain not in self.scrapers:
-            self.scrapers[domain] = self._create_scraper(domain)
-        return self.scrapers[domain]
+        return self._create_scraper(domain)
     
     @error_handler
     async def fetch(
@@ -128,14 +125,16 @@ class ScraperEngine(BaseBypassEngine):
         domain = self._get_domain(url)
         start_perf = datetime.now()
 
+        allow_cache = method.upper() == "GET" and not body
         cache_key = json.dumps(
-            {"url": url, "method": method, "headers": headers or {}, "body": body or ""},
+            {"url": url, "method": method.upper(), "headers": headers or {}},
             sort_keys=True,
         )
-        
-        cached_result = await self.cache_manager.get(cache_key)
-        if cached_result:
-            return cached_result
+
+        if allow_cache:
+            cached_result = await self.cache_manager.get(cache_key)
+            if cached_result:
+                return cached_result
 
         scraper = await self._get_scraper(domain)
         
@@ -186,8 +185,8 @@ class ScraperEngine(BaseBypassEngine):
                 engine=self.name
             )
             
-            if response.status_code == 200:
-                await self.cache_manager.set(cache_key, result, ttl=900)
+            if response.status_code == 200 and allow_cache:
+                await self.cache_manager.set(cache_key, result, ttl=120)
             self._metrics["success"] += 1
             self._metrics["duration_ms_sum"] += duration * 1000
             self._metrics["duration_count"] += 1
@@ -239,7 +238,7 @@ class ScraperEngine(BaseBypassEngine):
         duration_count = self._metrics.get("duration_count", 0) or 0
         avg_duration_ms = (self._metrics.get("duration_ms_sum", 0) / duration_count) if duration_count else 0
         stats.update({
-            "active_sessions": len(self.scrapers),
+            "active_sessions": 0,
             "avg_duration_ms": avg_duration_ms,
             "counters": dict(self._metrics),
             "cache": self.cache_manager.get_stats(),
@@ -247,11 +246,6 @@ class ScraperEngine(BaseBypassEngine):
         return stats
 
     async def shutdown(self):
-        for _, s in list(self.scrapers.items()):
-            try:
-                s.close()
-            except Exception:
-                pass
-        self.scrapers.clear()
+        return None
 
  

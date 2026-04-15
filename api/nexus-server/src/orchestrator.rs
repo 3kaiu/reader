@@ -6,6 +6,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
+const SEARCH_TIMEOUT_SECS: u64 = 20;
+const SEARCH_MAX_ATTEMPTS: u8 = 1;
+
 /// Search result stream item
 #[derive(Debug, Clone)]
 pub enum SearchResult {
@@ -92,13 +95,12 @@ impl SearchOrchestrator {
                     let start = Instant::now();
                     let source_id = engine.id().to_string();
 
-                    // 45s timeout per source + one controlled retry for retryable errors/timeouts
+                    // Keep per-source budget tight to avoid tail-latency amplification.
                     let mut attempt: u8 = 0;
-                    let max_attempts: u8 = 2;
                     loop {
                         attempt += 1;
                         let result = tokio::time::timeout(
-                            Duration::from_secs(45),
+                            Duration::from_secs(SEARCH_TIMEOUT_SECS),
                             engine.search(&keyword_clone),
                         )
                         .await;
@@ -121,12 +123,13 @@ impl SearchOrchestrator {
                                 break;
                             },
                             Ok(Err(e)) => {
-                                let can_retry = e.is_retryable() && attempt < max_attempts;
+                                let can_retry =
+                                    e.is_retryable() && attempt < SEARCH_MAX_ATTEMPTS;
                                 if can_retry {
                                     let delay = e.retry_delay().unwrap_or(1);
                                     warn!(
                                         "Source {} retryable error (attempt {}/{}): {} (sleep {}s)",
-                                        source_id, attempt, max_attempts, e, delay
+                                        source_id, attempt, SEARCH_MAX_ATTEMPTS, e, delay
                                     );
                                     tokio::time::sleep(Duration::from_secs(delay)).await;
                                     continue;
@@ -136,7 +139,7 @@ impl SearchOrchestrator {
                                     .record_failure_kind(&source_id, e.health_failure_kind());
                                 warn!(
                                     "Source {} error (attempt {}/{}): {}",
-                                    source_id, attempt, max_attempts, e
+                                    source_id, attempt, SEARCH_MAX_ATTEMPTS, e
                                 );
                                 let _ = tx_clone
                                     .send(SearchResult::Error {
@@ -147,11 +150,11 @@ impl SearchOrchestrator {
                                 break;
                             },
                             Err(_) => {
-                                let can_retry = attempt < max_attempts;
+                                let can_retry = attempt < SEARCH_MAX_ATTEMPTS;
                                 if can_retry {
                                     warn!(
                                         "Source {} timeout (attempt {}/{}), retrying after 1s",
-                                        source_id, attempt, max_attempts
+                                        source_id, attempt, SEARCH_MAX_ATTEMPTS
                                     );
                                     tokio::time::sleep(Duration::from_secs(1)).await;
                                     continue;
@@ -161,7 +164,7 @@ impl SearchOrchestrator {
                                     .record_failure_kind(&source_id, HealthFailureKind::Timeout);
                                 warn!(
                                     "Source {} timeout (attempt {}/{}), giving up",
-                                    source_id, attempt, max_attempts
+                                    source_id, attempt, SEARCH_MAX_ATTEMPTS
                                 );
                                 let _ = tx_clone
                                     .send(SearchResult::Error {

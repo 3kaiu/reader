@@ -6,7 +6,7 @@
 import type { CorsEnvSlice } from './cors.ts'
 import { getCorsHeaders } from './cors.ts'
 import { generateCacheKey, getFromCache, saveToCache } from './cache.ts'
-import { getRequestId } from './request-id.ts'
+import { getRequestId, REQUEST_ID_HEADER } from './request-id.ts'
 import type {
   AnalyticsEngineDatasetLike,
   ExecutionContextLike,
@@ -54,6 +54,7 @@ export async function proxyRequest(
   const { useCache = false, cacheTTL = 0, kv, ctx, corsEnv } = options
   const url = new URL(path, targetUrl);
   const origin = request.headers.get('Origin') || '';
+  const requestId = getRequestId(request)
   
   // Fix double-encoding issue for URL parameters
   if (url.searchParams.has('url')) {
@@ -81,6 +82,7 @@ export async function proxyRequest(
         headers: {
           'Content-Type': cached.contentType,
           'X-Cache': 'HIT',
+          [REQUEST_ID_HEADER]: requestId,
           ...getCorsHeaders(origin, corsEnv),
         },
       });
@@ -105,6 +107,7 @@ export async function proxyRequest(
       newHeaders.set(key, value);
     });
     newHeaders.set('X-Cache', 'MISS');
+    newHeaders.set(REQUEST_ID_HEADER, requestId);
     
     // SSE responses - stream directly without caching
     const contentType = response.headers.get('Content-Type') || '';
@@ -134,7 +137,6 @@ export async function proxyRequest(
       headers: newHeaders,
     });
   } catch (error) {
-    const requestId = getRequestId(request)
     console.error('Proxy error:', error);
     return new Response(JSON.stringify({
       code: 'SERVICE_UNAVAILABLE',
