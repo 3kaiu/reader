@@ -141,7 +141,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cf-bypass-service"
+name = "bypass-service"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
