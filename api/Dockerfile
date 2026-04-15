@@ -1,7 +1,7 @@
 # Nexus API Dockerfile (GHCR / NAS; default runtime port 7860)
 # Build context: `api` directory
 
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:1.94-slim-bookworm AS builder
 
 WORKDIR /app
 
