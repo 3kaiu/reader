@@ -12,13 +12,13 @@ function gitFiles() {
 }
 
 function scanCfBypassPython(files) {
-  const pyFiles = files.filter(f => f.startsWith('cf-bypass-service/') && f.endsWith('.py'))
-  const relFiles = pyFiles.map(f => f.replace('cf-bypass-service/', ''))
+  const pyFiles = files.filter(f => f.startsWith('bypass/') && f.endsWith('.py'))
+  const relFiles = pyFiles.map(f => f.replace('bypass/', ''))
   const fileSet = new Set(relFiles)
 
   const sourceMap = new Map()
   for (const rel of relFiles) {
-    const abs = path.join(root, 'cf-bypass-service', rel)
+    const abs = path.join(root, 'bypass', rel)
     sourceMap.set(rel, fs.readFileSync(abs, 'utf8'))
   }
 
@@ -61,7 +61,7 @@ function scanCfBypassPython(files) {
   return relFiles
     .filter(rel => (inbound.get(rel) || 0) === 0 && !ignore.has(rel))
     .sort()
-    .map(rel => `cf-bypass-service/${rel}`)
+    .map(rel => `bypass/${rel}`)
 }
 
 function scanMarkdownOrphans(files) {

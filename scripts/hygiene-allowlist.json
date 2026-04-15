@@ -1,6 +1,6 @@
 {
   "trackedGeneratedArtifacts": {
-    "nexus-lite/browsers.json": "Pinned browser metadata for deterministic cloudscraper/camoufox runtime behavior.",
-    "nexus-lite/nexus-server/data/nexus.db": "Seed SQLite data used by local server bootstrap and compatibility checks."
+    "api/browsers.json": "Pinned browser metadata for deterministic cloudscraper/camoufox runtime behavior.",
+    "api/nexus-server/data/nexus.db": "Seed SQLite data used by local server bootstrap and compatibility checks."
   }
 }

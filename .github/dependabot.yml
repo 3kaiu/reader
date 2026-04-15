@@ -2,7 +2,7 @@
 version: 2
 updates:
   - package-ecosystem: 'npm'
-    directory: '/nexus-reader'
+    directory: '/web'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -20,7 +20,7 @@ updates:
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: 'npm'
-    directory: '/cloudflare-workers'
+    directory: '/edge'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -36,7 +36,7 @@ updates:
       - 'cloudflare'
 
   - package-ecosystem: 'pip'
-    directory: '/cf-bypass-service'
+    directory: '/bypass'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -52,7 +52,7 @@ updates:
       - 'backend'
 
   - package-ecosystem: 'cargo'
-    directory: '/nexus-lite'
+    directory: '/api'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -68,7 +68,7 @@ updates:
       - 'backend'
 
   - package-ecosystem: 'docker'
-    directory: '/nexus-lite'
+    directory: '/api'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -80,10 +80,10 @@ updates:
       include: 'scope'
     labels:
       - 'docker'
-      - 'nexus-lite'
+      - 'api'
 
   - package-ecosystem: 'docker'
-    directory: '/cf-bypass-service'
+    directory: '/bypass'
     schedule:
       interval: 'weekly'
       day: 'monday'
@@ -95,4 +95,4 @@ updates:
       include: 'scope'
     labels:
       - 'docker'
-      - 'cf-bypass-service'
+      - 'bypass'

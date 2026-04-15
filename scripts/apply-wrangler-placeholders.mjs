@@ -1,5 +1,5 @@
 /**
- * Replace YOUR_*_HERE placeholders in cloudflare-workers/wrangler.toml from env vars.
+ * Replace YOUR_*_HERE placeholders in edge/wrangler.toml from env vars.
  * Used by deploy-personal CI. Only substitutes when the env var is non-empty.
  */
 import fs from 'node:fs'
@@ -21,7 +21,7 @@ const pairs = [
   ['YOUR_PROD_PROGRESS_KV_ID_HERE', 'CF_PROD_PROGRESS_KV_ID'],
 ]
 
-const wranglerPath = path.resolve(process.argv[2] || path.join(rootDir, 'cloudflare-workers', 'wrangler.toml'))
+const wranglerPath = path.resolve(process.argv[2] || path.join(rootDir, 'edge', 'wrangler.toml'))
 
 let text = fs.readFileSync(wranglerPath, 'utf8')
 for (const [placeholder, envKey] of pairs) {

@@ -1,4 +1,4 @@
-# Optional: upload cf-bypass-service/ to a HuggingFace Space (Docker SDK).
+# Optional: upload bypass/ to a HuggingFace Space (Docker SDK).
 # Does not deploy Pages/Worker; use deploy-personal.yml for edge. Requires HF_TOKEN.
 name: Deploy cf-bypass to HuggingFace Space
 
@@ -56,7 +56,7 @@ jobs:
 
           if os.path.exists("hf-upload"):
               shutil.rmtree("hf-upload")
-          shutil.copytree("cf-bypass-service", "hf-upload", dirs_exist_ok=True)
+          shutil.copytree("bypass", "hf-upload", dirs_exist_ok=True)
 
           readme = """---
           title: CF Bypass Service
@@ -72,7 +72,7 @@ jobs:
               f.write(readme)
 
           api.upload_folder("hf-upload", space_repo, repo_type="space")
-          print("Uploaded cf-bypass-service to", space_url)
+          print("Uploaded bypass service to", space_url)
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"space_url={space_url}\n")

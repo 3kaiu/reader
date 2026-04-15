@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "nexus-reader/**"
-      - "nexus-lite/**"
-      - "cloudflare-workers/**"
-      - "cf-bypass-service/**"
+      - "web/**"
+      - "api/**"
+      - "edge/**"
+      - "bypass/**"
       - "contracts/**"
       - "scripts/**"
       - ".github/workflows/security-scan.yml"
@@ -72,10 +72,10 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Rust cache (nexus-lite)
+      - name: Rust cache (api)
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: nexus-lite
+          workspaces: api
 
       - name: Cache cargo-audit binary
         uses: actions/cache@v4
@@ -90,7 +90,7 @@ jobs:
 
       - name: Audit Rust dependencies
         id: rust-audit
-        working-directory: nexus-lite
+        working-directory: api
         run: |
           set +e
           cargo audit --format json > ../rust-audit-results.json
@@ -99,13 +99,13 @@ jobs:
           exit 0
 
       - name: Setup Nexus Web toolchain
-        uses: ./.github/actions/nexus-reader-quality
+        uses: ./.github/actions/web-quality
         with:
           bun-version: latest
 
       - name: Audit frontend dependencies
         id: frontend-audit
-        working-directory: nexus-reader
+        working-directory: web
         run: |
           set +e
           bun audit --json > ../bun-audit-results.json
@@ -117,16 +117,16 @@ jobs:
         uses: actions/cache@v4
         id: workers-modules
         with:
-          path: cloudflare-workers/node_modules
-          key: ${{ runner.os }}-workers-npm-${{ hashFiles('cloudflare-workers/package.json') }}
+          path: edge/node_modules
+          key: ${{ runner.os }}-workers-npm-${{ hashFiles('edge/package.json') }}
 
       - name: Setup workers dependencies
-        working-directory: cloudflare-workers
+        working-directory: edge
         run: npm install
 
       - name: Audit workers dependencies
         id: workers-audit
-        working-directory: cloudflare-workers
+        working-directory: edge
         run: |
           set +e
           npm audit --json > ../npm-audit-results.json

@@ -67,22 +67,22 @@ function compareContains(label, actual, expectedSubset, errors) {
 const files = {
   routePolicyConstants: path.join(
     rootDir,
-    'nexus-reader',
+    'web',
     'src',
     'api',
     'route-policy.constants.generated.ts',
   ),
   workerUserServicePrefixes: path.join(
     rootDir,
-    'cloudflare-workers',
+    'edge',
     'worker',
     'user-service-prefixes.generated.ts',
   ),
-  backendApp: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'app.rs'),
-  backendSourceBuilder: path.join(rootDir, 'nexus-lite', 'nexus-server', 'src', 'source_builder_main.rs'),
+  backendApp: path.join(rootDir, 'api', 'nexus-server', 'src', 'app.rs'),
+  backendSourceBuilder: path.join(rootDir, 'api', 'nexus-server', 'src', 'source_builder_main.rs'),
   backendSourceBuilderRoutes: path.join(
     rootDir,
-    'nexus-lite',
+    'api',
     'nexus-server',
     'src',
     'routes',

@@ -61,7 +61,7 @@ jobs:
           upload = 'hf-deploy'
           if os.path.isdir(upload):
               shutil.rmtree(upload)
-          shutil.copytree('nexus-lite', upload, dirs_exist_ok=True)
+          shutil.copytree('api', upload, dirs_exist_ok=True)
 
           readme = os.path.join(upload, 'README.md')
           if not os.path.isfile(readme):
@@ -115,4 +115,4 @@ jobs:
           echo "## HuggingFace Space" >> "$GITHUB_STEP_SUMMARY"
           echo "- Space: ${{ steps.upload.outputs.space_url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- API (after build): ${{ steps.upload.outputs.api_url }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Optional: in Space **Settings**, connect GitHub to this repo and path \`nexus-lite/\` for auto-sync." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Optional: in Space **Settings**, connect GitHub to this repo and path \`api/\` for auto-sync." >> "$GITHUB_STEP_SUMMARY"

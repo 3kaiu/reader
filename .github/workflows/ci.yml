@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run Nexus Web lint and type check
-        uses: ./.github/actions/nexus-reader-quality
+        uses: ./.github/actions/web-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
           run-lint: "true"
@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run cargo check
-        uses: ./.github/actions/nexus-lite-quality
+        uses: ./.github/actions/api-quality
         with:
           run-fmt: "true"
           run-check: "true"
@@ -105,7 +105,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Run Nexus Edge type check
-        uses: ./.github/actions/cloudflare-workers-quality
+        uses: ./.github/actions/edge-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
@@ -120,7 +120,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run cargo test
-        uses: ./.github/actions/nexus-lite-quality
+        uses: ./.github/actions/api-quality
         with:
           run-tests: "true"
 
@@ -135,7 +135,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run Nexus Web tests
-        uses: ./.github/actions/nexus-reader-quality
+        uses: ./.github/actions/web-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
           run-tests: "true"

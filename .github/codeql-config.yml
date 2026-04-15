@@ -28,7 +28,7 @@ paths-ignore:
   # Build outputs
   - dist/**
   - build/**
-  - nexus-reader/dist/**
+  - web/dist/**
 
   # Generated code
   - "**/generated/**"
@@ -56,7 +56,7 @@ paths-ignore:
   - "CHANGELOG.md"
 
   # Cloudflare Workers
-  - "cloudflare-workers/node_modules/**"
+  - "edge/node_modules/**"
 
   # Complex configuration files that may cause parsing issues
   - "**/rsbuild.config.ts"

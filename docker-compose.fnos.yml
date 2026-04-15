@@ -1,7 +1,7 @@
 services:
-  nexus-lite:
-    image: ghcr.io/3kaiu/nexus-lite:latest
-    container_name: nexus-lite
+  api:
+    image: ghcr.io/3kaiu/nexus-server:latest
+    container_name: api
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -17,10 +17,10 @@ services:
       - ./data/cache:/cache
       - ./data/logs:/logs
 
-  cf-bypass:
+  bypass:
     build:
-      context: ./cf-bypass-service
-    container_name: cf-bypass
+      context: ./bypass
+    container_name: bypass
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -31,4 +31,3 @@ services:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./data/cf-bypass:/data
-

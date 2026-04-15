@@ -1,0 +1,66 @@
+name: Nexus Web Quality
+description: Setup Bun, install Nexus Web dependencies, and run selected quality checks.
+
+inputs:
+  bun-version:
+    description: Bun version to install.
+    required: false
+    default: "1"
+  working-directory:
+    description: Path to the Nexus Web workspace.
+    required: false
+    default: web
+  run-lint:
+    description: Whether to run lint:check.
+    required: false
+    default: "false"
+  run-type-check:
+    description: Whether to run the frontend type check.
+    required: false
+    default: "false"
+  run-tests:
+    description: Whether to run frontend tests.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - name: Cache Bun install cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-bun-cache-${{ hashFiles(format('{0}/package.json', inputs.working-directory)) }}
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [ -f bun.lock ] || [ -f bun.lockb ]; then
+          bun install --frozen-lockfile
+        else
+          bun install
+        fi
+
+    - name: Run lint
+      if: ${{ inputs.run-lint == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bun run lint:check
+
+    - name: Run type check
+      if: ${{ inputs.run-type-check == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bun run type-check
+
+    - name: Run tests
+      if: ${{ inputs.run-tests == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bun run test

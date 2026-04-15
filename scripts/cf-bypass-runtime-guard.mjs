@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const root = process.cwd()
-const serviceRoot = path.join(root, 'cf-bypass-service')
+const serviceRoot = path.join(root, 'bypass')
 
 const forbiddenLegacyModules = [
   'core/config_manager.py',

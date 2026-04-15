@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/nexus-reader-quality
+      - uses: ./.github/actions/web-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
           run-lint: 'true'
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/nexus-lite-quality
+      - uses: ./.github/actions/api-quality
         with:
           run-check: 'true'
           run-tests: 'true'
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: ./.github/actions/cloudflare-workers-quality
+      - uses: ./.github/actions/edge-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
@@ -90,10 +90,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install dependencies
-        working-directory: ./cloudflare-workers
+        working-directory: ./edge
         run: npm install
       - name: Configure Wrangler (replace placeholders)
-        working-directory: ./cloudflare-workers
+        working-directory: ./edge
         env:
           CF_ANALYTICS_DB_ID: ${{ secrets.CF_ANALYTICS_DB_ID }}
           CF_USER_PREFS_DB_ID: ${{ secrets.CF_USER_PREFS_DB_ID }}
@@ -112,7 +112,7 @@ jobs:
           echo "OAUTH_GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" >> .dev.vars
           node ../scripts/apply-wrangler-placeholders.mjs wrangler.toml
       - name: Deploy to Cloudflare Workers
-        working-directory: ./cloudflare-workers
+        working-directory: ./edge
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -125,11 +125,11 @@ jobs:
     needs: [validate-contracts, frontend-quality]
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/nexus-reader-quality
+      - uses: ./.github/actions/web-quality
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - name: Build
-        working-directory: ./nexus-reader
+        working-directory: ./web
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_NEXUS_LITE_DIRECT_URL: ${{ secrets.VITE_NEXUS_LITE_DIRECT_URL }}
@@ -144,7 +144,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: frontend-build
-          path: nexus-reader/dist/
+          path: web/dist/
           retention-days: 7
 
   deploy-pages:

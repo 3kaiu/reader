@@ -8,14 +8,14 @@ const contractPath = path.join(rootDir, 'contracts', 'http-routes.json')
 
 const frontendOut = path.join(
   rootDir,
-  'nexus-reader',
+  'web',
   'src',
   'api',
   'route-policy.constants.generated.ts',
 )
 const workerOut = path.join(
   rootDir,
-  'cloudflare-workers',
+  'edge',
   'worker',
   'user-service-prefixes.generated.ts',
 )
