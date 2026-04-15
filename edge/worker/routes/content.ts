@@ -10,6 +10,28 @@ import type { EnhancedWorkerEnv } from '../types.ts'
 import { jsonError } from '../http.ts'
 import { corsHeaders, getErrorMessage, isJsonObject } from './shared.ts'
 
+function deriveDefaultContentBaseUrl(env: EnhancedWorkerEnv): string {
+  if (env.PUBLIC_CONTENT_BASE_URL) {
+    return env.PUBLIC_CONTENT_BASE_URL.replace(/\/$/, '')
+  }
+
+  try {
+    const frontendUrl = new URL(env.FRONTEND_URL)
+    const host = frontendUrl.hostname
+
+    if (host === 'nexus.pages.dev') {
+      return 'https://content.nexus.pages.dev'
+    }
+    if (host === 'nexus-reader.pages.dev') {
+      return 'https://content.nexus-reader.pages.dev'
+    }
+  } catch {
+    // Ignore malformed FRONTEND_URL and fall back to the legacy content host.
+  }
+
+  return 'https://content.nexus-reader.pages.dev'
+}
+
 function readRequestId(request: Request): string | null {
   return (
     request.headers.get('X-Request-ID') ||
@@ -105,7 +127,7 @@ export async function handleContentUpload(
     return new Response(JSON.stringify({
       success: true,
       key,
-      url: `${(env.PUBLIC_CONTENT_BASE_URL || 'https://content.nexus-reader.pages.dev').replace(/\/$/, '')}/${key}`,
+      url: `${deriveDefaultContentBaseUrl(env)}/${key}`,
     }), { headers: corsHeaders(request, env) })
   } catch (error: unknown) {
     return jsonError(request, 'UPLOAD_FAILED', 'Upload failed', 500, getErrorMessage(error))

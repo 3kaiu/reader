@@ -22,7 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CF_PAGES_PROJECT: nexus-reader
+  CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || 'nexus-reader' }}
+  DEFAULT_PAGES_URL: ${{ vars.NEXUS_PAGES_URL || 'https://nexus-reader.pages.dev' }}
   NODE_VERSION: '20'
   BUN_VERSION: '1'
 
@@ -188,7 +189,7 @@ jobs:
           API_HEALTH_URL: ${{ secrets.DEPLOY_SMOKE_API_HEALTH_URL }}
         run: |
           set -euo pipefail
-          pages="${PAGES_URL:-https://nexus-reader.pages.dev}"
+          pages="${PAGES_URL:-${DEFAULT_PAGES_URL}}"
           echo "GET $pages"
           curl -fsS --max-time 25 "$pages" -o /tmp/pages.html
           test -s /tmp/pages.html
