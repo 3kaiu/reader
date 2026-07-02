@@ -1749,7 +1749,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "dashmap",
- "ego-tree 0.6.3",
+ "ego-tree 0.10.0",
  "encoding_rs",
  "http",
  "kuchiki",
