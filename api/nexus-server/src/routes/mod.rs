@@ -2,6 +2,7 @@
 
 pub mod book;
 pub mod bookshelf;
+pub mod explore;
 
 pub mod replace_rules;
 pub mod search;

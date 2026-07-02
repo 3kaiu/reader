@@ -19,6 +19,8 @@ use nexus_core::{
     BookEngine, BookEngineRuntime, BookInfo, BookItem, Chapter, ContentPipelineOutput,
     EngineError, LegadoSource, ReplaceRule, SourceRuntimeProfile,
 };
+#[cfg(feature = "discovery")]
+use nexus_core::{ExploreCategory, ExploreEngine};
 use scraper::Html;
 
 use crate::anti_crawl::FallbackChain;
@@ -706,5 +708,236 @@ impl BookEngineRuntime for LegadoEngine {
 
     fn reset_runtime_state(&self) {
         self.anti_crawl.reset_circuit(&self.source_id);
+    }
+}
+
+// ============================================================================
+// ExploreEngine Trait Implementation (feature-gated)
+// ============================================================================
+
+#[cfg(feature = "discovery")]
+#[async_trait]
+impl ExploreEngine for LegadoEngine {
+    async fn explore_categories(&self) -> Result<Vec<ExploreCategory>, EngineError> {
+        let explore_url = self.source.explore_url.as_deref().unwrap_or("");
+        if explore_url.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Fetch the explore page
+        let html_str = self.fetch(explore_url, "GET", None).await?;
+
+        // Check if the response is JSON or HTML
+        let trimmed = html_str.trim();
+        if trimmed.starts_with('[') || trimmed.starts_with('{') {
+            // JSON response — try to parse as category list
+            // Legado expects: array of { name: "...", url: "..." } or plain strings
+            if let Ok(json) = serde_json::from_str::<Vec<String>>(&html_str) {
+                return Ok(json
+                    .into_iter()
+                    .map(|name| ExploreCategory {
+                        name: name.clone(),
+                        url: name,
+                    })
+                    .collect());
+            }
+            if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&html_str) {
+                let mut categories = Vec::new();
+                for item in arr {
+                    let name = item
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let url = item
+                        .get("url")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(&name)
+                        .to_string();
+                    if !name.is_empty() {
+                        categories.push(ExploreCategory { name, url });
+                    }
+                }
+                return Ok(categories);
+            }
+        }
+
+        // HTML response — use title_rule from rule_explore
+        let doc = Html::parse_document(&html_str);
+        let rules = self.source.rule_explore.as_ref();
+
+        // Try to extract category links from the page
+        // Use title_rule if present, otherwise try common patterns
+        let title_rule = rules.and_then(|r| r.title_rule.as_ref());
+        let style = rules.and_then(|r| r.style.as_ref());
+
+        if let Some(rule) = title_rule {
+            // title_rule is a CSS selector to extract category names
+            let names = selector::css::extract_all_css(&doc, rule);
+            if !names.is_empty() {
+                return Ok(names
+                    .into_iter()
+                    .map(|n| ExploreCategory {
+                        name: n.clone(),
+                        url: n,
+                    })
+                    .collect());
+            }
+        }
+
+        // Fallback: look for links in the page
+        let fallback_categories = vec![
+            ExploreCategory {
+                name: "默认".to_string(),
+                url: explore_url.to_string(),
+            },
+        ];
+        Ok(fallback_categories)
+    }
+
+    async fn explore(&self, category_url: &str) -> Result<Vec<BookItem>, EngineError> {
+        let rules = match &self.source.rule_explore {
+            Some(r) => r,
+            None => {
+                // No explore rules — try to use the category URL directly
+                // as a page that contains book items
+                return Ok(Vec::new());
+            }
+        };
+
+        // Determine the URL to fetch
+        let fetch_url = if category_url.is_empty() || category_url == "GETALL" {
+            match &self.source.explore_url {
+                Some(u) => u.clone(),
+                None => return Ok(Vec::new()),
+            }
+        } else {
+            category_url.to_string()
+        };
+
+        let html_str = self.fetch(&fetch_url, "GET", None).await?;
+
+        // Check if response is JSON or HTML
+        let trimmed = html_str.trim();
+        let is_json = trimmed.starts_with('[') || trimmed.starts_with('{');
+
+        if is_json {
+            // JSON response
+            let json: serde_json::Value = serde_json::from_str(&html_str)
+                .map_err(|e| EngineError::JsonParse {
+                    message: format!("explore JSON parse failed: {}", e),
+                })?;
+
+            let book_list_rule = self.compile_optional(&rules.base.book_list);
+
+            let items = if let Some(list_rule) = &book_list_rule {
+                let list_result = self.execute_json_rule(list_rule, &json);
+                match list_result {
+                    Some(list_str) => {
+                        serde_json::from_str::<Vec<serde_json::Value>>(&list_str)
+                            .unwrap_or_default()
+                    }
+                    None => vec![json.clone()],
+                }
+            } else {
+                vec![json.clone()]
+            };
+
+            let mut results = Vec::new();
+            for item in items {
+                let name = self
+                    .exec_json_rule_str(&rules.base.name, &item)
+                    .unwrap_or_default();
+                if name.is_empty() {
+                    continue;
+                }
+                let book_url = self
+                    .exec_json_rule_str(&rules.base.book_url, &item)
+                    .unwrap_or_default();
+                if book_url.is_empty() {
+                    continue;
+                }
+                let abs_book_url = self.abs_url(&book_url);
+
+                let mut book = BookItem::new(
+                    name,
+                    abs_book_url,
+                    Arc::<str>::from(self.source_id.clone()),
+                    Arc::<str>::from(self.source.book_source_name.clone()),
+                );
+                book.author = self
+                    .exec_json_rule_str(&rules.base.author, &item)
+                    .map(|s| Arc::<str>::from(s));
+                book.cover_url = self
+                    .exec_json_rule_str(&rules.base.cover_url, &item)
+                    .map(|s| self.abs_url(&s))
+                    .map(|s| Arc::<str>::from(s));
+                book.intro = self
+                    .exec_json_rule_str(&rules.base.intro, &item)
+                    .map(|s| Arc::<str>::from(s));
+                book.latest_chapter = self
+                    .exec_json_rule_str(&rules.base.last_chapter, &item)
+                    .map(|s| Arc::<str>::from(s));
+                results.push(book);
+            }
+            Ok(results)
+        } else {
+            // HTML response
+            let doc = Html::parse_document(&html_str);
+            let book_list_rule = self.compile_optional(&rules.base.book_list);
+
+            let root_elements = if let Some(list_rule) = &book_list_rule {
+                let all_html = selector::css::extract_all_css(&doc, &list_rule.original);
+                if all_html.is_empty() {
+                    vec![doc.clone()]
+                } else {
+                    all_html
+                        .into_iter()
+                        .map(|h| Html::parse_fragment(&h))
+                        .collect()
+                }
+            } else {
+                vec![doc.clone()]
+            };
+
+            let mut results = Vec::new();
+            for root in &root_elements {
+                let name = self
+                    .exec_rule_str(&rules.base.name, root, &fetch_url)
+                    .unwrap_or_default();
+                if name.is_empty() {
+                    continue;
+                }
+                let book_url = self
+                    .exec_rule_str(&rules.base.book_url, root, &fetch_url)
+                    .unwrap_or_default();
+                if book_url.is_empty() {
+                    continue;
+                }
+                let abs_book_url = self.abs_url(&book_url);
+
+                let mut book = BookItem::new(
+                    name,
+                    abs_book_url,
+                    Arc::<str>::from(self.source_id.clone()),
+                    Arc::<str>::from(self.source.book_source_name.clone()),
+                );
+                book.author = self
+                    .exec_rule_str(&rules.base.author, root, &fetch_url)
+                    .map(|s| Arc::<str>::from(s));
+                book.cover_url = self
+                    .exec_rule_str(&rules.base.cover_url, root, &fetch_url)
+                    .map(|s| self.abs_url(&s))
+                    .map(|s| Arc::<str>::from(s));
+                book.intro = self
+                    .exec_rule_str(&rules.base.intro, root, &fetch_url)
+                    .map(|s| Arc::<str>::from(s));
+                book.latest_chapter = self
+                    .exec_rule_str(&rules.base.last_chapter, root, &fetch_url)
+                    .map(|s| Arc::<str>::from(s));
+                results.push(book);
+            }
+            Ok(results)
+        }
     }
 }

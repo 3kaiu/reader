@@ -97,6 +97,7 @@ pub trait ExploreEngine: BookEngine {
 /// Catalog category definition
 #[cfg(feature = "discovery")]
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "discovery", derive(serde::Serialize))]
 pub struct ExploreCategory {
     pub name: String,
     pub url: String,

@@ -1,5 +1,7 @@
 use dashmap::DashMap;
 use nexus_core::{BookEngine, BookEngineRuntime};
+#[cfg(feature = "discovery")]
+use nexus_core::ExploreEngine;
 use nexus_engine::anti_crawl::FallbackChain;
 use nexus_engine::legado::LegadoEngine;
 use nexus_engine::NxsEngine;
@@ -118,6 +120,19 @@ impl EngineRegistry {
         {
             self.get_legado_engine(source_id)
                 .map(|e| -> Arc<dyn BookEngineRuntime> { e })
+        } else {
+            None
+        }
+    }
+
+    /// Get an explore-capable engine trait object.
+    #[cfg(feature = "discovery")]
+    pub fn get_explore_engine(&self, source_id: &str) -> Option<Arc<dyn ExploreEngine>> {
+        if self.legado_store.get(source_id).is_some()
+            || self.legado_cache.contains_key(source_id)
+        {
+            self.get_legado_engine(source_id)
+                .map(|e| -> Arc<dyn ExploreEngine> { e })
         } else {
             None
         }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use nexus_core::EngineConfig;
 use nexus_engine::anti_crawl::{
-    CfBypassStrategy, DirectHttpStrategy, FallbackChain,
+    BrowserProbeStrategy, CfBypassStrategy, DirectHttpStrategy, FallbackChain,
 };
 use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::HttpFetcher;
@@ -124,6 +124,11 @@ fn build_anti_crawl_chain(config: &EngineConfig) -> anyhow::Result<FallbackChain
 
     if let Ok(direct) = DirectHttpStrategy::new(config.limits.http_timeout_seconds) {
         fallback_strategies.push(Arc::new(direct));
+    }
+
+    // Browser probe as final fallback when both regular bypass and direct HTTP fail
+    if let Ok(browser) = BrowserProbeStrategy::new(config.cf_bypass.clone()) {
+        fallback_strategies.push(Arc::new(browser));
     }
 
     Ok(FallbackChain::with_fallbacks(cf_strategy, fallback_strategies))

@@ -6,6 +6,7 @@ from typing import Dict
 from core.engine import BaseBypassEngine
 # Import actual engines from new engines/ package
 from engines.scraper import ScraperEngine
+from engines.browser_probe import BrowserProbeEngine
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ class EngineFactory:
         if name == "scraper" or name == "cloudscraper":
             logger.info("Creating ScraperEngine")
             return ScraperEngine()
+        elif name == "browser-probe" or name == "browser":
+            logger.info("Creating BrowserProbeEngine")
+            return BrowserProbeEngine()
         else:
             logger.warning(f"Unknown engine: {name}, falling back to scraper")
             return ScraperEngine()

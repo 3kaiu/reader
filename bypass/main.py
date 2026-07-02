@@ -53,6 +53,14 @@ class FetchResponse(BaseModel):
     engine_used: str = ""
     cached: bool = False
 
+class BrowserProbeRequest(BaseModel):
+    url: HttpUrl
+    js_code: Optional[str] = None
+    wait_until: str = "load"
+    timeout_ms: int = 30000
+    visible: bool = False
+    poll_cf: bool = False  # if true, run ensureCfPassed flow
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("CF Bypass Service started")
@@ -109,3 +117,54 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
         engine_used=result.engine,
         cached=result.cached
     )
+
+
+@app.post("/api/browser-probe")
+async def browser_probe(request: BrowserProbeRequest, x_api_key: str = Header(None)):
+    """Browser probe endpoint: navigate, execute JS, or complete CF challenges."""
+    validate_api_key(x_api_key)
+    url_str = str(request.url)
+
+    engine = engine_factory.get_engine(name="browser-probe")
+
+    if request.poll_cf:
+        # Full CF ensure-passed flow
+        result = await engine.ensure_cf_passed(
+            url=url_str,
+            original_html="",
+            max_attempts=60,
+        )
+    elif request.js_code:
+        # One-shot JS execution
+        result = await engine.run_js_and_return_html(
+            url=url_str,
+            js_code=request.js_code,
+            visible=request.visible,
+            wait_until=request.wait_until,
+            timeout_ms=request.timeout_ms,
+        )
+    else:
+        # Simple navigation + return HTML
+        session_id = await engine.acquire_session(visible=request.visible)
+        try:
+            nav_result = await engine.navigate(session_id, url_str, request.wait_until, request.timeout_ms)
+            cookies = await engine.get_cookies(session_id)
+            cookie_dict = {c["name"]: c["value"] for c in cookies}
+            return {
+                "status": 200,
+                "html": nav_result["html"],
+                "cookies": cookie_dict,
+                "cf_bypassed": not is_cf_blocked(nav_result["html"]),
+                "title": nav_result["title"],
+                "final_url": nav_result["url"],
+            }
+        finally:
+            await engine.release_session(session_id)
+
+    return {
+        "status": result.status,
+        "html": result.html,
+        "cookies": result.cookies,
+        "cf_bypassed": result.cf_bypassed,
+        "error": result.error,
+    }

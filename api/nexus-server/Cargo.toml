@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 nexus-core = { path = "../nexus-core" }
-nexus-engine = { path = "../nexus-engine" }
+nexus-engine = { path = "../nexus-engine", features = ["discovery"] }
 nexus-storage = { path = "../nexus-storage" }
 
 tokio.workspace = true
@@ -44,3 +44,7 @@ tower_governor = "0.8"
 
 # HTTP types (for extracting client IP)
 http = "1"
+
+[features]
+default = ["discovery"]
+discovery = ["nexus-core/discovery"]

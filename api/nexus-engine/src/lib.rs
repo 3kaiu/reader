@@ -22,6 +22,7 @@ mod domain_pool;
 mod dynamic_noise;
 pub mod extraction_metrics;
 pub mod fetcher;
+pub mod image_processing;
 #[cfg(test)]
 mod incremental_parser;
 #[cfg(test)]
