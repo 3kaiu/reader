@@ -1,0 +1,60 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "🎉 零零小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.00shu.com",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "customOrder": 1205,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"玄幻奇幻\",\"url\":\"/xuanhuan/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"武侠仙侠\",\"url\":\"/wuxia/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"都市言情\",\"url\":\"/dushi/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"历史军事\",\"url\":\"/lishi/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"游戏竞技\",\"url\":\"/youxi/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"科幻灵异\",\"url\":\"/kehuan/{{page}}/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "header": "",
+  "lastUpdateTime": 1690914888701,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 8759,
+  "ruleBookInfo": {
+    "author": "#info p.0@text##.*：",
+    "coverUrl": "#fmimg img@src",
+    "init": "",
+    "intro": "[property$=description]@content##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".con_top a.2@text&&#info p.1:2@text##.*：|\\s.*",
+    "lastChapter": "#info a@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": "#info h1@text",
+    "tocUrl": "text.在线阅读@href"
+  },
+  "ruleContent": {
+    "content": "#content@html"
+  },
+  "ruleExplore": {
+    "author": ".s5@text",
+    "bookList": ".l li",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'https://www.00shu.com/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "kind": ".s3@textNodes##\\(|\\)",
+    "lastChapter": "a.1@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": "a.0@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "td.2@text",
+    "bookList": "tbody tr!0",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'https://www.00shu.com/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "kind": "td.5:4@text",
+    "lastChapter": "a.1@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": "a.0@text",
+    "wordCount": "td.3@text"
+  },
+  "ruleToc": {
+    "chapterList": "#list dd a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/modules/article/search.php?q={{key}}",
+  "weight": 0
+}

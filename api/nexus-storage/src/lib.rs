@@ -8,11 +8,13 @@
 // ===== 基础设施层 (Infrastructure Layer) =====
 // 外部接口实现
 pub mod cache;
+pub mod legado_source_store;
 pub mod sled_store;
 pub mod source_store;
 
 // Public exports - 保持向后兼容
 pub use cache::ChapterCache;
+pub use legado_source_store::LegadoSourceStore;
 pub use sled_store::SledStore;
 pub use source_store::SourceStore;
 

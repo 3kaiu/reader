@@ -1,0 +1,37 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "精选书源",
+  "bookSourceName": "🎉 疯读小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://touchlife.cootekservice.com",
+  "customOrder": 1342,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1678687684184,
+  "respondTime": 1181,
+  "ruleBookInfo": {},
+  "ruleContent": {
+    "content": "@js:result"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "$.bookAuthor",
+    "bookList": "$.result[*]",
+    "bookUrl": "/doReader/enter_bookinfo_index?_token=869b9667-c66c-44d1-bba4-73e82cf2daee&bookId={{$.bookId}}",
+    "coverUrl": "$.bookCoverImage",
+    "intro": "$.bookDesc",
+    "kind": "$.c_class_name&&{$.crazy_rating}分",
+    "lastChapter": "$.chapters_update_time##[\\(（].*[求更谢乐发推].*[）\\)]",
+    "name": "$.bookTitle",
+    "wordCount": "{$.book_words_num}字"
+  },
+  "ruleToc": {
+    "chapterList": "$..detailedBookInfo.bookChapterAllInfo[*]",
+    "chapterName": "$.chapterTitle##[\\(（].*[求更谢乐发推].*[）\\)]",
+    "chapterUrl": "$.content_url"
+  },
+  "searchUrl": "/doReader/search_book?_token=869b9667-c66c-44d1-bba4-73e82cf2daee&action=search_book&search_keyword={{key}}",
+  "weight": 0
+}

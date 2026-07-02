@@ -1,0 +1,42 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "⭐️自用",
+  "bookSourceName": "刺猬猫备用™💯",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.ciweimao.com",
+  "bookUrlPattern": "",
+  "customOrder": 1684,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\"\n}",
+  "lastUpdateTime": 0,
+  "loginUrl": "",
+  "respondTime": 4020,
+  "ruleBookInfo": {
+    "author": "class.book-title.0@tag.span.0@tag.a.0@text",
+    "coverUrl": "tag.img.0@src",
+    "intro": "class.book-desc.0@text",
+    "name": "tag.h1.0@text",
+    "tocUrl": "class.btn-more ly-fr@herf"
+  },
+  "ruleContent": {
+    "content": "id.J_BookRead@textNodes||class.chapter@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "class.cnt.0@tag.p.1@tag.a.0@text",
+    "bookList": "class.rank-book-list@tag.li",
+    "bookUrl": "class.cnt.0@class.tit.0@tag.a.0@href",
+    "coverUrl": "tag.img.0@src",
+    "lastChapter": "class.cnt.0@tag.p.2@text##.*/",
+    "name": "class.cnt.0@class.tit.0@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.book-chapter-list@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://www.ciweimao.com/get-search-book-list/{{key}}/1",
+  "weight": 0
+}

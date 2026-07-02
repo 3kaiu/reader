@@ -7,6 +7,7 @@ pub mod cache; // 统一缓存系统
 // ===== 核心业务模块 =====
 pub mod book_engine; // 书籍引擎
 pub mod nxs; // NXS格式处理
+pub mod legado; // Legado书源数据模型
 
 // ===== 基础支撑模块 =====
 pub mod config; // 配置处理
@@ -26,5 +27,6 @@ pub use error::EngineError;
 pub use event_bus::{EngineEvent, EventBus, StorageEvent, SystemControlEvent, SystemEvent};
 pub use health_tracker::*;
 pub use nxs::NxsSource;
+pub use legado::LegadoSource;
 pub use traits::{AntiCrawlStrategy, Fetcher, FetcherStatistics};
 pub use types::*;

@@ -1,0 +1,37 @@
+{
+  "bookSourceGroup": "0905校验",
+  "bookSourceName": "文学吧",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.wenxue88.com/",
+  "customOrder": 232,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1691726138005,
+  "respondTime": 537,
+  "ruleBookInfo": {
+    "author": "class.jj izz@a@text",
+    "coverUrl": "img.1@src",
+    "intro": "<js>\njava.ajax(baseUrl.replace(/index/,'js'))\n</js>\ntag.p!0:1@html",
+    "name": "h1@text",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "class.hycolor.-1@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "bookList": "class.zw_txt\n<js>\nkey = java.get(\"key\");\nlist = result.toArray();\nre = new RegExp(key);\nhtml = \"\";\nfor(i in list){\n\tre.test(list[i])?html+=list[i]:\"\"\n\t}\nresult = String(html)\n</js>\na",
+    "bookUrl": "href",
+    "coverUrl": "",
+    "name": "text"
+  },
+  "ruleToc": {
+    "chapterList": "class.b_bor@children@tr!0:1:2:3@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://www.wenxue88.com#{{java.put(\"key\",key)}}",
+  "weight": 0
+}

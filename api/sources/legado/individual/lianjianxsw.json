@@ -1,0 +1,57 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "2023.7.20效验",
+  "bookSourceName": "⚡️读书阁",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.lianjianxsw.com/download.html",
+  "bookUrlPattern": "",
+  "customOrder": 1524,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"全部小说\",\"url\":\"/rankList?type=全部&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"玄幻小说\",\"url\":\"/rankList?type=玄幻&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"修真小说\",\"url\":\"/rankList?type=修真&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"都市小说\",\"url\":\"/rankList?type=都市&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"科幻小说\",\"url\":\"/rankList?type=科幻&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"网游小说\",\"url\":\"/rankList?type=网游&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"女频小说\",\"url\":\"/rankList?type=女频&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"历史小说\",\"url\":\"/rankList?type=历史&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"其他小说\",\"url\":\"/rankList?type=其他&page={{page}}&state=0\",\"style\":{\"layout_flexGrow\":0.25}}]",
+  "header": "",
+  "lastUpdateTime": 1680033296524,
+  "loginUrl": "",
+  "respondTime": 6137,
+  "ruleBookInfo": {
+    "author": "$.author",
+    "coverUrl": "/pic/{{$._id}}.jpg",
+    "init": "$.data.book",
+    "intro": "<p>{{$.intro}}</p>",
+    "kind": "{{$.type}}\n{{$.update_state}}\n{{$.updatetime##\\s.*}}",
+    "lastChapter": "{{$.last_chapter_name}} • {{$.updatetime##\\s.*}}",
+    "name": "$.name",
+    "tocUrl": "/getCataLogs?page=1&bookid={{$._id}}&limit={{$.total_num}}"
+  },
+  "ruleContent": {
+    "content": "$.data.chapterInfo.content\n@js:java.aesBase64DecodeToString(result,\"6CE93717FBEA3E4F\",\"AES/CBC/NoPadding\",\"6CE93717FBEA3E4F\")\n##^|\\#{3,}\\${3,}##<p>"
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "name": ""
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "$.author",
+    "bookList": "$.data",
+    "bookUrl": "/bookInfo?bookid={{$._id}}",
+    "checkKeyWord": "我的治愈系游戏",
+    "coverUrl": "/pic/{{$._id}}.jpg",
+    "intro": "$.intro",
+    "kind": "",
+    "lastChapter": "{{baseUrl.match(/(^.*?com)/)[1]}}/bookInfo?bookid={{$._id}}\n@js:\n$=JSON.parse(java.ajax(result)).data.book\n$.last_chapter_name+\" • \"+String($.updatetime).replace(/\\s.*/,'')",
+    "name": "$.name @put:{bid:$._id}"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.list",
+    "chapterName": "$.name",
+    "chapterUrl": "/getContent?bookid=@get:{bid}&chapterid={{$._id}}"
+  },
+  "searchUrl": "@js:\nurl='http://www.zmtt.net/checkUpdate,{\"method\":\"POST\",\"body\":{\"version\":\"2.0\"}}'\nurl=JSON.parse(java.ajax(url)).data.url\n\n'http://'+url+'search,{\"method\":\"POST\",\"body\":{\"keyword\":\"{{key}}\"}}'",
+  "weight": 61
+}

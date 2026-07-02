@@ -1,0 +1,45 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "已检验",
+  "bookSourceName": "Ⓢ 海棠搜书",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.haitangsoushu.com#未月十八改",
+  "customOrder": 1432,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "lastUpdateTime": 1660728630991,
+  "respondTime": 47296,
+  "ruleBookInfo": {
+    "coverUrl": "img.1@src",
+    "intro": "id.intro@html",
+    "lastChapter": "class.newestChapter@a@text",
+    "tocUrl": "class.site.0@tag.a.1@href##.*u=\n<js>\nstr = String(result);\nresult = str.replace(/%3A/g, ':')\n.replace(/%2F/g, '/')\n</js>",
+    "wordCount": ""
+  },
+  "ruleContent": {
+    "content": "id.C0NTENT@html"
+  },
+  "ruleExplore": {
+    "coverUrl": "@js:'https://m.kanshujun.com/style/noimg.jpg'"
+  },
+  "ruleSearch": {
+    "author": "tag.a.1@text",
+    "bookList": "class.SHsectionThree-middle@tag.p",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.a.0@href<js>java.ajax(\"https://www.haitangsoushu.com\"+result)</js>img.1@src",
+    "intro": "tag.a.0@href<js>java.ajax(\"https://www.haitangsoushu.com\"+result)</js>id.intro@html",
+    "kind": "tag.a.2@text",
+    "lastChapter": "tag.a.0@href<js>java.ajax(\"https://www.haitangsoushu.com\"+result)</js>class.newestChapter@a@text",
+    "name": "tag.a.0@text##《|》"
+  },
+  "ruleToc": {
+    "chapterList": "class.BCsectionTwo-top@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href<js>result + \",{\\\"webView\\\": true}\"</js>",
+    "nextTocUrl": "text.下一页@href"
+  },
+  "searchUrl": "https://www.haitangsoushu.com/s/{{key}}/{{page}}/",
+  "weight": 0
+}

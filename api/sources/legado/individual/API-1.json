@@ -1,0 +1,56 @@
+{
+  "bookSourceComment": "                    \"error:Unable to resolve host \"souxs.leeyegy.com\": No address associated with hostname\n                                        \"error:Failed to allocate a 16396 byte allocation with 7152 free bytes and 6KB until OOM\n                    error:timeout",
+  "bookSourceGroup": "2023.7.20效验",
+  "bookSourceName": "🌸 笔趣阁 API-1",
+  "bookSourceType": 0,
+  "bookSourceUrl": "API-1",
+  "bookUrlPattern": "",
+  "customOrder": 1486,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "推荐 · 周榜::https://scxs.pysmei.com/top/man/top/commend/week/{{page}}.html\n推荐 · 月榜::https://scxs.pysmei.com/top/man/top/commend/month/{{page}}.html\n💠推荐 · 总榜::https://scxs.pysmei.com/top/man/top/commend/total/{{page}}.html\n收藏 · 周榜::https://scxs.pysmei.com/top/man/top/collect/week/{{page}}.html\n收藏 · 月榜::https://scxs.pysmei.com/top/man/top/collect/month/{{page}}.html\n💠收藏 · 总榜::https://scxs.pysmei.com/top/man/top/collect/total/{{page}}.html\n评分 · 周榜::https://scxs.pysmei.com/top/man/top/vote/week/{{page}}.html\n评分 · 月榜::https://scxs.pysmei.com/top/man/top/vote/month/{{page}}.html\n💠评分 · 总榜::https://scxs.pysmei.com/top/man/top/vote/total/{{page}}.html\n完结 · 周榜::https://scxs.pysmei.com/top/man/top/over/week/{{page}}.html\n完结 · 月榜::https://scxs.pysmei.com/top/man/top/over/month/{{page}}.html\n💠完结 · 总榜::https://scxs.pysmei.com/top/man/top/over/total/{{page}}.html\n最热 · 周榜::https://scxs.pysmei.com/top/man/top/hot/week/{{page}}.html\n最热 · 月榜::https://scxs.pysmei.com/top/man/top/hot/month/{{page}}.html\n💠最热 · 总榜::https://scxs.pysmei.com/top/man/top/hot/total/{{page}}.html",
+  "header": "",
+  "lastUpdateTime": 1682222884115,
+  "loginUrl": "",
+  "respondTime": 2812,
+  "ruleBookInfo": {
+    "author": "Author",
+    "coverUrl": "https://imgapi.jiaston.com/BookFiles/Bookimages/{{$.Img}}",
+    "init": "data",
+    "intro": "Desc",
+    "kind": "CName",
+    "lastChapter": "LastChapter",
+    "name": "Name",
+    "tocUrl": "https://infosxs.pysmei.com/BookFiles/Html/@get:{cid}/@get:{id}/index.html"
+  },
+  "ruleContent": {
+    "content": "data.content##第.*|<!---->.*"
+  },
+  "ruleExplore": {
+    "author": "Author",
+    "bookList": "data.BookList",
+    "bookUrl": "<js>java.put('cid',Math.floor({{$.Id}}/1000)+1)</js>https://infosxs.pysmei.com/BookFiles/Html/{{result}}/{{$.Id}}/info.html",
+    "coverUrl": "https://imgapixs.pysmei.com/BookFiles/BookImages/{{$.Img}}",
+    "intro": "Desc",
+    "kind": "CName",
+    "name": "Name@put:{id:$.Id}"
+  },
+  "ruleSearch": {
+    "author": "Author",
+    "bookList": "data",
+    "bookUrl": "<js>java.put('cid',Math.floor({{$.Id}}/1000)+1)</js>https://infosxs.pysmei.com/BookFiles/Html/{{result}}/{{$.Id}}/info.html",
+    "coverUrl": "Img",
+    "intro": "Desc",
+    "kind": "CName",
+    "lastChapter": "LastChapter",
+    "name": "Name@put:{id:$.Id}"
+  },
+  "ruleToc": {
+    "chapterList": "data.list[*].list[*]",
+    "chapterName": "name",
+    "chapterUrl": "https://contentxs.pysmei.com/BookFiles/Html/@get:{cid}/@get:{id}/{{$.id}}.html"
+  },
+  "searchUrl": "https://souxs.leeyegy.com/search.aspx?key={{key}}&siteid=app2",
+  "weight": 0
+}

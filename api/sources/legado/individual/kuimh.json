@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "🎨 C漫画,0-🏜️ 图片",
+  "bookSourceName": "✐ 酷爱漫画 #Haxc1107",
+  "bookSourceType": 2,
+  "bookSourceUrl": "https://www.kuimh.com#Haxc1107",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 5928,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "连载::https://www.kuimh.com/booklist?end=0&page={{page}}\n完结::https://www.kuimh.com/booklist?end=1&page={{page}}\n恋爱::https://www.kuimh.com/booklist?tag=恋爱&area=-1&end=0&page={{page}}\n国产::https://www.kuimh.com/booklist?tag=%E5%85%A8%E9%83%A8&area=1&end=0&page={{page}}\n日本::https://www.kuimh.com/booklist?tag=%E5%85%A8%E9%83%A8&area=2&end=0&page={{page}}\n欧美::https://www.kuimh.com/booklist?tag=%E5%85%A8%E9%83%A8&area=5&end=0&page={{page}}",
+  "exploreScreen": "",
+  "header": "",
+  "lastUpdateTime": 1641126706891,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "https://www.kuimh.com/login.html",
+  "respondTime": 1252,
+  "ruleBookInfo": {
+    "init": "",
+    "author": "class.info.0@tag.p.1@text##作者：",
+    "coverUrl": "class.banner_detail_bg@src",
+    "intro": "class.content@text",
+    "kind": "class.block.3@a@text",
+    "lastChapter": "",
+    "name": "tag.h1@text",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": ".comicpage@html##\\\"https:\\/\\/static.aiquanjian.com\\/static\\/images\\/grey.gif\\\" data-echo=",
+    "nextContentUrl": "",
+    "imageStyle": "FULL",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "",
+    "bookList": "class.mh-item",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "tag.p@style@js:result.match(/\\((.*?)\\)/)[1]",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "class.chapter@tag.a@text",
+    "name": "tag.a@title",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "id.detail-list-select@li@tag.a.-1",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "https://www.kuimh.com/search?keyword={{key}}",
+  "variableComment": "",
+  "weight": -5
+}

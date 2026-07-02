@@ -1,0 +1,39 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "水幽临渊0905",
+  "bookSourceName": "五二书库",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.po5.net/",
+  "customOrder": 836,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1692081317037,
+  "respondTime": 2311,
+  "ruleBookInfo": {
+    "intro": ".article-content@p.1@text##.*文案：　"
+  },
+  "ruleContent": {
+    "content": ".article-content@p@all##目录\\s+上一页.*|Tips.*|传送门：.*",
+    "nextContentUrl": ""
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "header@h2@h4@text##\\d+\\.\\s.*_(.*)【.*##$1",
+    "bookList": "div@.excerpt",
+    "bookUrl": "header@h2@a@href",
+    "checkKeyWord": "红楼梦",
+    "intro": ".note@text##.*文案：　|\\(所属栏目：.*",
+    "kind": ".auth-span@.muted@a@text",
+    "name": "header@h2@h4@text##\\d+\\.\\s|_.*",
+    "wordCount": "header@h2@h4@text##\\d+\\.\\s.*_.*【(.*)】##$1"
+  },
+  "ruleToc": {
+    "chapterList": ".clearfix@.mulu@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "so/search.php?q={{key}}",
+  "weight": 0
+}

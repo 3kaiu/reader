@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use nexus_core::{NxsSource, SourcePolicy, SourceRulePackage};
+use nexus_core::{LegadoSource, NxsSource, SourcePolicy, SourceRulePackage};
 use serde::{Deserialize, Serialize};
 
 use crate::app::AppState;
@@ -343,6 +343,131 @@ pub async fn delete_source_package(
     let _ = state.engine_registry.source_store().delete(&id).await;
     state.engine_registry.invalidate(&id);
 
+    Json(ApiResponse::success(serde_json::json!({
+        "sourceId": id,
+        "deleted": true
+    })))
+}
+
+// ============================================================
+// Legado Source Import API
+// ============================================================
+
+/// Response for a single imported Legado source
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LegadoImportResult {
+    pub source_id: String,
+    pub source_name: String,
+    pub classification: String,
+    pub fully_automatable: bool,
+    pub imported: bool,
+}
+
+/// Import one or more Legado book sources (accepts single or array)
+pub async fn import_legado_sources(
+    State(state): State<AppState>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<ApiResponse<Vec<LegadoImportResult>>> {
+    // Accept both single object and array
+    let sources: Vec<LegadoSource> = if let Ok(arr) = serde_json::from_value::<Vec<LegadoSource>>(body.clone()) {
+        arr
+    } else if let Ok(single) = serde_json::from_value::<LegadoSource>(body) {
+        vec![single]
+    } else {
+        return Json(ApiResponse::error("Expected LegadoSource or Vec<LegadoSource>"));
+    };
+
+    let mut results = Vec::with_capacity(sources.len());
+    for source in &sources {
+        let classification = source.classification();
+        let fully_automatable = source.is_fully_automatable();
+        let source_id = match state.engine_registry.legado_store().save(source).await {
+            Ok(id) => id,
+            Err(e) => {
+                results.push(LegadoImportResult {
+                    source_id: source.infer_id(),
+                    source_name: source.book_source_name.clone(),
+                    classification: classification.to_string(),
+                    fully_automatable,
+                    imported: false,
+                });
+                tracing::warn!("Failed to save legado source '{}': {}", source.book_source_name, e);
+                continue;
+            }
+        };
+        state.engine_registry.invalidate(&source_id);
+        results.push(LegadoImportResult {
+            source_id,
+            source_name: source.book_source_name.clone(),
+            classification: classification.to_string(),
+            fully_automatable,
+            imported: true,
+        });
+    }
+
+    Json(ApiResponse::success(results))
+}
+
+/// List all imported Legado sources
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LegadoSourceSummary {
+    pub source_id: String,
+    pub source_name: String,
+    pub source_url: String,
+    pub group: Option<String>,
+    pub classification: String,
+    pub fully_automatable: bool,
+    pub has_js: bool,
+    pub has_web_js: bool,
+}
+
+pub async fn list_legado_sources(
+    State(state): State<AppState>,
+) -> Json<ApiResponse<Vec<LegadoSourceSummary>>> {
+    let sources = state.engine_registry.legado_store().get_all();
+    let items: Vec<LegadoSourceSummary> = sources
+        .into_iter()
+        .map(|s| {
+            let source_id = s.infer_id();
+            let classification = s.classification().to_string();
+            let fully_automatable = s.is_fully_automatable();
+            let has_js = s.has_js_rules();
+            let has_web_js = s.has_web_js();
+            LegadoSourceSummary {
+                source_id,
+                source_name: s.book_source_name,
+                source_url: s.book_source_url,
+                group: s.book_source_group,
+                classification,
+                fully_automatable,
+                has_js,
+                has_web_js,
+            }
+        })
+        .collect();
+    Json(ApiResponse::success(items))
+}
+
+/// Delete a Legado source by ID
+pub async fn delete_legado_source(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<ApiResponse<serde_json::Value>> {
+    state
+        .engine_registry
+        .legado_store()
+        .delete(&id)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                e.to_string(),
+            )
+        })
+        .ok();
+    state.engine_registry.invalidate(&id);
     Json(ApiResponse::success(serde_json::json!({
         "sourceId": id,
         "deleted": true

@@ -1,0 +1,60 @@
+{
+  "bookSourceComment": "暂停搜索",
+  "bookSourceGroup": "②🌸  常用",
+  "bookSourceName": "🌸和图书",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://hetushu.com",
+  "customOrder": -2085959009,
+  "enabled": false,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "enabledReview": false,
+  "exploreUrl": "网游小说::/book/index.php?type=网游小说&page={{page}}\n玄幻小说::/book/index.php?type=玄幻小说&page={{page}}\n穿越小说::/book/index.php?type=穿越小说&page={{page}}\n科幻小说::/book/index.php?type=科幻小说&page={{page}}\n仙侠小说::/book/index.php?type=仙侠小说&page={{page}}\n都市小说::/book/index.php?type=都市小说&page={{page}}\n武侠小说::/book/index.php?type=武侠小说&page={{page}}\n历史小说::/book/index.php?type=历史小说&page={{page}}\n竞技小说::/book/index.php?type=竞技小说&page={{page}}\n言情小说::/book/index.php?type=言情小说&page={{page}}\n悬疑小说::/book/index.php?type=悬疑小说&page={{page}}\n军事小说::/book/index.php?type=军事小说&page={{page}}\n灵异小说::/book/index.php?type=灵异小说&page={{page}}",
+  "lastUpdateTime": 1682086525082,
+  "loginUrl": "",
+  "respondTime": 190806,
+  "ruleBookInfo": {
+    "author": "class.book_info@tag.a.0@text",
+    "canReName": "true",
+    "coverUrl": "class.book_info@img@src",
+    "init": "",
+    "intro": "class.intro@html",
+    "kind": "<js>result=String(result).replace(/<h2>.*<\\/h2>/,String(result).match(/continue/)?\"<h2>连载中<\\/h2>\":\"<h2>已完结<\\/h2>\").replace(/<\\/a><a[^>]*>/g,\" / \")</js>\nclass.book_info@h2@text&&\nclass.book_info@tag.div.2@text&&\nclass.tag@text##类型：|小说标签|/##,",
+    "lastChapter": "id.dir@tag.dd.-1@a@text",
+    "name": "class.book_info@h2@text",
+    "wordCount": "class.book_info@tag.div.3@text##字数："
+  },
+  "ruleContent": {
+    "content": "<js>\n loadDocType=\"{{@@body@data-doctype}}\";\n loadType=\"{{@@body@data-randomtype}}\";\nsid=baseUrl.match(/(\\d+).html/)[1];\nurl=baseUrl.replace(/\\d+.html/,'')\n\nvar section = {\n    loadDocType: loadDocType,\n    loadType: loadType,\n    sid:sid,\n    content: {\n        childNode: [],\n        \n        init: function(c){\n            this.body=c\n            if (section.loadType == 'normal') {\n      this.load(String(java.base64Decode(java.getString('//*[@name=\"client\"]/@content'))))\n            } else if (section.loadType == 'substep') {\n                var d = 'r' + section.sid;\n                var f = false;\n                if (section.loadDocType == 'xml') {\n                    d += '.xml'\n                } else if (section.loadDocType == 'json') {\n                    d += '.json';\n                    f = true\n                } else {\n                    return false\n                };        \n             cookie=\"PHPSESSID=\"+java.get(baseUrl,{}).cookie(\"PHPSESSID\");\n            token= java.get(url+d,{\"X-Requested-With\": \"XMLHttpRequest\",\"referer\":baseUrl,\"cookie\":String(cookie)}).header(\"token\")                \n                \tthis.load(token)      \t\n            } else {\n                return false\n            };               \n        },\n        load: function(a) {         \n            a = String(java.base64Decode(a)).split(/[A-Z]+%/);      \n            var b = 0,\n            start = 0;\n            for (var i = 0; i < this.body.length; i++) {\n                if (String(this.body[i]).match(/h2/i)) {\n                    start = i + 1\n                };\n                if (String(this.body[i]).match(/div/i)&& this.body[i].attr(\"class\") != 'chapter') {\n                    break\n                }\n            };\n          \n            for (var i = 0; i < a.length; i++) {\n                if (a[i] < 5) {\n                    this.childNode[a[i]] = this.body[i + start];\n                      b++\n                } else {\n                    this.childNode[a[i] - b] = this.body[i + start]                 \n                }\n            };\n  }\n}\n}\nsection.content.init(java.getElement(\"@@id.content@children!0\").toArray());\nsection.content.childNode.join(\"\")\n</js>\ntag.div@ownText",
+    "imageStyle": "FULL",
+    "nextContentUrl": "",
+    "replaceRegex": "",
+    "webJs": ""
+  },
+  "ruleExplore": {
+    "author": "class.author@text",
+    "bookList": "class.book_list@tag.li",
+    "bookUrl": "a@href",
+    "coverUrl": "img@src",
+    "kind": "class.author_box@tag.span.0@text",
+    "name": "class.name@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "h4@tag.span@text##\\/",
+    "bookList": "id.body@tag.dd",
+    "bookUrl": "a@href",
+    "coverUrl": "img@src",
+    "intro": "class.intro@html",
+    "kind": "<js>result=String(result).match(/continue/)?\"连载中\":\"已完结\"</js>",
+    "name": "h4@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "//dl[@id=\"dir\"]/*<js>\n//按卷分隔\nsub=String(result).slice(1,-1).split(/, (?=<dt)/);\nsm=java.getString(\"class.book_info@h2@text\");\nsm=String(sm).replace(/\\s/g,' ');\n//显示卷名\nvar opts = {\n  showVolName: false\n};\n\nfor(var i=0;i<sub.length;i++){\n//捕获卷名\njm=sub[i].match(/\\s*([^<>\\n]+)\\s*<\\/dt/);\nif(!jm)continue;\nsub[i]=sub[i].replace(/\">(.*)<\\/a/g,(opts.showVolName ? '\">📑['+jm[1]+']📑$1<\\/a':'\">'+ ('').padStart(3, \"\\u2000\")+'$1<\\/a'));\n\n//按卷分块\nsub[i]='<dd><a>☯['+jm[1]+']☯</dd></a>'+sub[i];\n}\n//合并结果\nsub.join(\"\")\n</js>a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVolume": "text\n<js>\nresult=result.match(/☯/)?true:false\n</js>"
+  },
+  "searchUrl": "https://hetushu.com/book/search.php?word={{key}}",
+  "weight": 0
+}

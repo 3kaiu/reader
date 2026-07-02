@@ -1,0 +1,39 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "⚡️ 1.1次,0-1文本",
+  "bookSourceName": "🔖168小说天堂",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.168txt.cc",
+  "customOrder": 822,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1678678017530,
+  "respondTime": 3151,
+  "ruleBookInfo": {
+    "author": "dt.1@text##.*\\：",
+    "init": "",
+    "intro": ".mh_js@text",
+    "kind": "dt a.0@text",
+    "name": ".mh h1@text",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "#ml_imgs@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "a.1@text",
+    "bookList": ".mh_list li",
+    "bookUrl": "a@href",
+    "intro": "dd@text",
+    "name": "label@text"
+  },
+  "ruleToc": {
+    "chapterList": "#mlbox@li@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/s/,{\n  \"body\": \"s= &s={{key}}\",\n  \"method\": \"POST\"\n}",
+  "weight": 0
+}

@@ -1,0 +1,42 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "有声",
+  "bookSourceName": "♬ 喜马拉雅 #破冰1025",
+  "bookSourceType": 1,
+  "bookSourceUrl": "http://search.ximalaya.com#pb1025",
+  "customOrder": 1590,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "玄幻::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=玄幻&page={{page}}&rows=20&spellchecker=true\n大剧::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=大剧&page={{page}}&rows=20&spellchecker=true\n仙侠::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=仙侠&page={{page}}&rows=20&spellchecker=true\n都市::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=都市&page={{page}}&rows=20&spellchecker=true\n经典::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=经典&page={{page}}&rows=20&spellchecker=true\n幻想::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=幻想&page={{page}}&rows=20&spellchecker=true\n武侠::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=武侠&page={{page}}&rows=20&spellchecker=true\n历史::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=历史小说&page={{page}}&rows=20&spellchecker=true\n教材::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=教材&page={{page}}&rows=20&spellchecker=true\n多人::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=多人剧&page={{page}}&rows=20&spellchecker=true\n相声::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=相声&page={{page}}&rows=20&spellchecker=true\n英文::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=英文原版&page={{page}}&rows=20&spellchecker=true\n名著::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=名著&page={{page}}&rows=20&spellchecker=true\n乡村::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=乡村&page={{page}}&rows=20&spellchecker=true\n广播::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=广播剧&page={{page}}&rows=20&spellchecker=true\n游戏::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=游戏&page={{page}}&rows=20&spellchecker=true\n无限::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=无限&page={{page}}&rows=20&spellchecker=true\n魔幻::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw=魔法&page={{page}}&rows=20&spellchecker=true\n☆                  音 乐                  ☆::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=音乐&page={{page}}&rows=20&spellchecker=true\n乡村::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=乡村&page={{page}}&rows=20&spellchecker=true\n流行::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=流行Top&page={{page}}&rows=20&spellchecker=true\n老歌::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=老歌&page={{page}}&rows=20&spellchecker=true\n榜单::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=榜单&page={{page}}&rows=20&spellchecker=true\n巅峰::http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:2&kw=巅峰榜&page={{page}}&rows=20&spellchecker=true",
+  "lastUpdateTime": 1621792840925,
+  "loginUrl": "",
+  "respondTime": 2677,
+  "ruleBookInfo": {
+    "tocUrl": "http://mobile.ximalaya.com/fmobile-album/album/track/ts-1576706285548?ac=4G&albumId=@get:{book}&device=android&isAsc=true&isQueryInvitationBrand=true&isVideoAsc=true&pageSize=200&source=3&supportWebp=true&pageId=1"
+  },
+  "ruleContent": {
+    "content": "",
+    "imageStyle": "0"
+  },
+  "ruleExplore": {
+    "bookList": ""
+  },
+  "ruleSearch": {
+    "author": "nickname",
+    "bookList": "$.response.docs",
+    "bookUrl": "http://mobile.ximalaya.com/fmobile-album/album/track/ts-1576706285548?ac=4G&albumId={$.id}&device=android&isAsc=true&isQueryInvitationBrand=true&isVideoAsc=true&pageSize=200&source=3&supportWebp=true&pageId=1",
+    "coverUrl": "cover_path",
+    "intro": "$..intro",
+    "kind": "category_title",
+    "name": "title@put:{book:id}"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.list",
+    "chapterName": "title",
+    "chapterUrl": "playPathAacv224",
+    "nextTocUrl": "<js>\nvar a = 'http://mobile.ximalaya.com/fmobile-album/album/track/ts-1576706285548?ac=4G&albumId=@get:{book}&device=android&isAsc=true&isQueryInvitationBrand=true&isVideoAsc=true&pageSize=200&source=3&supportWebp=true&pageId=';\nvar r = [];\nfor(var i=1;i<40;i++){\n    r.push(a + parseInt(i*1));\n}\nr\n</js>"
+  },
+  "searchUrl": "http://search.ximalaya.com/speed/album/v1/list?condition=relation&core=album&device=android&fq=categoryId:3&kw={{key}}&page={{page}}&rows=20&spellchecker=true",
+  "weight": 0
+}

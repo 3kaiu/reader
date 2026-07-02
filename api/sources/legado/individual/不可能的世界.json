@@ -1,0 +1,48 @@
+{
+  "bookSourceComment": "网页源,有些书只能看前50章\n比如《少年歌行》(恼)\n有没有大佬搞API源(可怜)(无助)🌹🌹🌹",
+  "bookSourceGroup": "普通",
+  "bookSourceName": "必然",
+  "bookSourceType": 0,
+  "bookSourceUrl": "不可能的世界",
+  "customOrder": 1709,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1680939157555,
+  "loginUrl": "",
+  "respondTime": 801,
+  "ruleBookInfo": {
+    "author": ".bookContainBox@li.0@text",
+    "coverUrl": "class.left bookContainImgBox@img@src",
+    "intro": "#li_booknote@html",
+    "kind": ".bookInfoNum.1:0@text&&.bookContainBox@span.1@text##.*：\\s",
+    "lastChapter": ".bookContainBox@a.0@text",
+    "name": "h2@text",
+    "wordCount": ".bookInfoNum.2@text##中|已"
+  },
+  "ruleContent": {
+    "content": ".myContent@p@text"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "a.2@text",
+    "bookList": ".results_details1",
+    "bookUrl": "a.0@href",
+    "coverUrl": "img@src",
+    "intro": "p@text",
+    "kind": "{{@@span.3@text##.*：}}字,{{@@span.2@text##\\[|\\]}},{{@@span.5@text##\\s\\d.*}}",
+    "lastChapter": "",
+    "name": "span.0@text",
+    "wordCount": "a.3@text##中|已"
+  },
+  "ruleToc": {
+    "chapterList": ".informList@span,li",
+    "chapterName": "text",
+    "chapterUrl": "a@href",
+    "isVolume": "@js:result.toString().includes('span')",
+    "updateTime": ""
+  },
+  "searchUrl": "https://wenxue.bkneng.com/www/search?keyword={{key}}&page={{page}}",
+  "weight": 0
+}

@@ -1,0 +1,57 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "水幽临渊0905",
+  "bookSourceName": "达文小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.dawensk.com/",
+  "customOrder": 858,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"榜单\",\"url\":\"\",\"style\":{\"layout_flexBasisPercent\":1,\"layout_flexGrow\":1}},\n{\"title\":\"日点击榜\",\"url\":\"/good/dayvisit_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"周点击榜\",\"url\":\"/good/weekvisit_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"月点击榜\",\"url\":\"/good/monthvisit_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"总点击榜\",\"url\":\"/good/allvisit_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"总收藏榜\",\"url\":\"/good/goodnum_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"字数排行\",\"url\":\"/good/size_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"日推荐榜\",\"url\":\"/good/dayvote_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"周推荐榜\",\"url\":\"/good/weekvote_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"月推荐榜\",\"url\":\"/good/monthvote_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"总推荐榜\",\"url\":\"/good/allvote_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"最新入库\",\"url\":\"/good/postdate_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"最近更新\",\"url\":\"/good/lastupdate_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"分类\",\"url\":\"\",\"style\":{\"layout_flexBasisPercent\":1,\"layout_flexGrow\":1}},\n{\"title\":\"玄幻魔法\",\"url\":\"/xiaoshuo/1_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"武侠修真\",\"url\":\"/xiaoshuo/2_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"都市言情\",\"url\":\"/xiaoshuo/3_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"历史军事\",\"url\":\"/xiaoshuo/4_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"网游动漫\",\"url\":\"/xiaoshuo/5_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"科幻小说\",\"url\":\"/xiaoshuo/6_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"恐怖灵异\",\"url\":\"/xiaoshuo/7_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"其他类型\",\"url\":\"/xiaoshuo/8_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"完结小说\",\"url\":\"/quanben/{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "lastUpdateTime": 1690590453311,
+  "respondTime": 18118,
+  "ruleBookInfo": {
+    "author": "[property$=author]@content",
+    "coverUrl": "[property$=image]@content",
+    "init": "",
+    "intro": "#book_desc@html##(^|[。！？]+[”」）】]?)##$1<br>@js:result.replace(/阅读.*最新章节.*/g,'')",
+    "kind": "[property~=category|status|update_time]@content##\\s.*",
+    "lastChapter": "[property$=latest_chapter_name]@content##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "name": "[property$=book_name]@content",
+    "tocUrl": "a.mulu@href##$##,{'webView': true}",
+    "wordCount": ".inf02 p.1@text##.*："
+  },
+  "ruleContent": {
+    "content": "dd@p!-1@html",
+    "replaceRegex": "##小÷说◎网】，♂小÷说◎网】，|e看p正sm版章节上‘…w0|nj.*0u|正.*版.*首.*发|"
+  },
+  "ruleExplore": {
+    "author": ".zz@text",
+    "bookList": "ol ul!0",
+    "bookUrl": "a.1@href",
+    "coverUrl": "",
+    "intro": "",
+    "kind": ".lb@text&&.rq@text",
+    "lastChapter": ".gx@text##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "name": ".sm@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "a.2@text",
+    "bookList": ".result li",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@data-original",
+    "kind": "span.1:2:4@text##.*：|\\s..:.*",
+    "lastChapter": "a.4@text##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "name": "a.1@text",
+    "wordCount": "span.3@text##.*："
+  },
+  "ruleToc": {
+    "chapterList": "#chapter a",
+    "chapterName": "text##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "chapterUrl": "href##$##,{'webView': true}"
+  },
+  "searchUrl": "/search.php,{\n  'method': 'POST',\n  'body': 'key={{key}}'\n}",
+  "weight": 0
+}

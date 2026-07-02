@@ -1,0 +1,55 @@
+{
+  "bookSourceGroup": "合集0905",
+  "bookSourceName": "三优小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.3uxiaoshuo.com/",
+  "customOrder": 1011,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "最近更新::/xiaoshuo/1-{{page}}.html\n热门小说::/xiaoshuo/2-{{page}}.html",
+  "lastUpdateTime": 1691994909690,
+  "respondTime": 2593,
+  "ruleBookInfo": {
+    "author": "class.itemtxt@p.1@text",
+    "coverUrl": "class.item@img@src",
+    "intro": "class.des bb.0@text",
+    "kind": "class.itemtxt@p.0@span@text",
+    "lastChapter": "class.itemtxt@ul@li.0@a@text",
+    "name": "class.itemtxt@h3@a@text",
+    "wordCount": "class.itemtxth3@i@text"
+  },
+  "ruleContent": {
+    "content": "class.con@p@text",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##请.?必.?应.*?(弹.窗。|感激不尽！)"
+  },
+  "ruleExplore": {
+    "author": "p.1@a@text",
+    "bookList": "class.container@class.item",
+    "bookUrl": "h3@a@href",
+    "coverUrl": "img@src",
+    "kind": "p.0@span@text",
+    "lastChapter": "ul@li.0@a@text",
+    "name": "h3@a@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "p.1@a@text",
+    "bookList": "class.container@class.item",
+    "bookUrl": "h3@a@href",
+    "checkKeyWord": "光阴之外",
+    "coverUrl": "img@src",
+    "kind": "p.0@span@text",
+    "lastChapter": "ul@li.0@a@text",
+    "name": "h3@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@ul@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "nextTocUrl": "option@value||text.下一页@href"
+  },
+  "searchUrl": "https://www.3uxiaoshuo.com/tag/?key={{key}}",
+  "weight": 0
+}

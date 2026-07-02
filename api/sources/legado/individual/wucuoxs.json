@@ -1,0 +1,44 @@
+{
+  "bookSourceComment": "//同库(二Ｋ小说)：https://www.sdhear.com",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "🎉 无错小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.wucuoxs.com",
+  "customOrder": 1131,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1693415422023,
+  "respondTime": 37987,
+  "ruleBookInfo": {
+    "author": "[property$=author]@content",
+    "coverUrl": "[property$=image]@content",
+    "intro": "[property$=description]@content##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": "[property~=category|status|update_time]@content##小说|\\s..:.*",
+    "lastChapter": "[property$=latest_chapter_name]@content##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": "[property$=book_name]@content",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "#htmlContent@p@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".author",
+    "bookList": ".search[*]",
+    "bookUrl": ".book_list_url",
+    "coverUrl": ".cover",
+    "intro": ".intro",
+    "kind": ".cate_name&&.status_str&&.uptime",
+    "lastChapter": ".latest_chapter_name##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": ".book_name"
+  },
+  "ruleToc": {
+    "chapterList": "#at@td@a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/api/search?q={{key}}",
+  "weight": 0
+}

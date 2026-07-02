@@ -1,0 +1,40 @@
+{
+  "bookSourceComment": "\"error:Unable to resolve host \"www.kptxt.com\": No address associated with hostname\n\"",
+  "bookSourceGroup": "🔞 小说,🪜 梯子,0-1文本",
+  "bookSourceName": "🔞 靠谱小说 🪜",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.kptxt.com/",
+  "bookUrlPattern": "http://www.kptxt.com/.+A-Za-z/\\d*.html",
+  "customOrder": 1452,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "header": "",
+  "lastUpdateTime": 1678613736145,
+  "loginUrl": "",
+  "respondTime": 29321,
+  "ruleBookInfo": {
+    "coverUrl": "class.fm@tag.img.0@src",
+    "intro": "id.jj@tag.p@text",
+    "name": "id.submenu@tag.a.2@text"
+  },
+  "ruleContent": {
+    "content": "class.chapter@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "bookList": "class.book",
+    "bookUrl": "class.name@tag.a@href",
+    "coverUrl": "class.cover@tag.img@src",
+    "intro": "class.intro@text",
+    "name": "class.name@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.list-item@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "http://www.kptxt.com/search.php?keyword={{key}}&submit=,{\n  \"charset\": \"gbk\"\n}",
+  "weight": 0
+}

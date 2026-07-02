@@ -1,0 +1,42 @@
+{
+  "bookSourceComment": "by ash",
+  "bookSourceGroup": "笔趣阁0905",
+  "bookSourceName": "笔趣阁8",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.bbiquge8.net",
+  "customOrder": 1481,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1688436853554,
+  "respondTime": 3205,
+  "ruleBookInfo": {
+    "author": ".novelinfo-l@ul@li.0@a@text",
+    "coverUrl": ".novelinfo-r@a@img@src",
+    "intro": ".novelintro@text",
+    "kind": ".novelinfo-l@ul@li.1@a@text",
+    "lastChapter": ".novelinfo-l@ul@li.5@a@text",
+    "name": ".header@h1@text"
+  },
+  "ruleContent": {
+    "content": "#chaptercontent@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".info@span.1@a@text",
+    "bookList": ".librarylist@li",
+    "bookUrl": ".info@span.0@a@href",
+    "checkKeyWord": "深海余烬",
+    "kind": ".info@span.2@a@text",
+    "lastChapter": ".last@a@text",
+    "name": ".info@span.0@a@text"
+  },
+  "ruleToc": {
+    "chapterList": ".dirlist.1@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href##$##,{'webView': true}"
+  },
+  "searchUrl": "http://www.bbiquge8.net/search.html?searchtype=novelname&searchkey={{key}}",
+  "weight": 0
+}

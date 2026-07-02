@@ -1,0 +1,57 @@
+{
+  "bookSourceComment": "scxs.pysmei.com\n渊呀ID9113\nQD♥♥♥ ZH♥♥  17K♥♥\n9--5+||🅰️💯笔趣阁🅰API-1🅰️🅱️💜💜💜🅰️🔎leeyegy.com#渊呀81\n##第.*|<!---->.*",
+  "bookSourceGroup": "2023.7.20效验",
+  "bookSourceName": "笔趣阁",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://souxs.leeyegy.com#渊呀81",
+  "bookUrlPattern": "",
+  "customOrder": 1496,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "推荐 · 周榜::https://scxs.pysmei.com/top/man/top/commend/week/{{page}}.html\n推荐 · 月榜::https://scxs.pysmei.com/top/man/top/commend/month/{{page}}.html\n💠推荐 · 总榜::https://scxs.pysmei.com/top/man/top/commend/total/{{page}}.html\n收藏 · 周榜::https://scxs.pysmei.com/top/man/top/collect/week/{{page}}.html\n收藏 · 月榜::https://scxs.pysmei.com/top/man/top/collect/month/{{page}}.html\n💠收藏 · 总榜::https://scxs.pysmei.com/top/man/top/collect/total/{{page}}.html\n评分 · 周榜::https://scxs.pysmei.com/top/man/top/vote/week/{{page}}.html\n评分 · 月榜::https://scxs.pysmei.com/top/man/top/vote/month/{{page}}.html\n💠评分 · 总榜::https://scxs.pysmei.com/top/man/top/vote/total/{{page}}.html\n完结 · 周榜::https://scxs.pysmei.com/top/man/top/over/week/{{page}}.html\n完结 · 月榜::https://scxs.pysmei.com/top/man/top/over/month/{{page}}.html\n💠完结 · 总榜::https://scxs.pysmei.com/top/man/top/over/total/{{page}}.html\n最热 · 周榜::https://scxs.pysmei.com/top/man/top/hot/week/{{page}}.html\n最热 · 月榜::https://scxs.pysmei.com/top/man/top/hot/month/{{page}}.html\n💠最热 · 总榜::https://scxs.pysmei.com/top/man/top/hot/total/{{page}}.html",
+  "header": "",
+  "lastUpdateTime": 1681943230452,
+  "loginUrl": "",
+  "respondTime": 3132,
+  "ruleBookInfo": {
+    "author": "Author",
+    "coverUrl": "https://imgapi.jiaston.com/BookFiles/Bookimages/{{$.Img}}",
+    "init": "data",
+    "intro": "Desc",
+    "kind": "CName",
+    "lastChapter": "LastChapter",
+    "name": "Name",
+    "tocUrl": "https://infosxs.pysmei.com/BookFiles/Html/@get:{cid}/@get:{id}/index.html"
+  },
+  "ruleContent": {
+    "content": "data.content"
+  },
+  "ruleExplore": {
+    "author": "Author",
+    "bookList": "data.BookList",
+    "bookUrl": "<js>java.put('cid',Math.floor({{$.Id}}/1000)+1)</js>https://infosxs.pysmei.com/BookFiles/Html/{{result}}/{{$.Id}}/info.html",
+    "coverUrl": "https://imgapixs.pysmei.com/BookFiles/BookImages/{{$.Img}}",
+    "intro": "Desc",
+    "kind": "CName",
+    "name": "Name@put:{id:$.Id}"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "Author",
+    "bookList": "data",
+    "bookUrl": "<js>java.put('cid',Math.floor({{$.Id}}/1000)+1)</js>https://infosxs.pysmei.com/BookFiles/Html/{{result}}/{{$.Id}}/info.html",
+    "coverUrl": "Img",
+    "intro": "Desc",
+    "kind": "CName",
+    "lastChapter": "LastChapter",
+    "name": "Name@put:{id:$.Id}"
+  },
+  "ruleToc": {
+    "chapterList": "data.list[*].list[*]",
+    "chapterName": "name",
+    "chapterUrl": "https://contentxs.pysmei.com/BookFiles/Html/@get:{cid}/@get:{id}/{{$.id}}.html"
+  },
+  "searchUrl": "/search.aspx?key={{key}}&siteid=app2",
+  "weight": 0
+}

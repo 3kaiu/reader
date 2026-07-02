@@ -1,0 +1,41 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": " 爱下电子书",
+  "bookSourceType": 0,
+  "bookSourceUrl": "\nhttps://m.aixdzs.com",
+  "customOrder": 1009,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 5044,
+  "ruleBookInfo": {
+    "author": "class.ix-list-info.0@tag.a.0@text",
+    "coverUrl": "class.ix-list-img-square@img@src",
+    "intro": "id.intro@textNodes##内容简介.",
+    "kind": "class.ix-list-info.0@tag.a.1@text",
+    "lastChapter": "class.ix-list-info.0@tag.a.2@text",
+    "name": "class.ix-header@h1@text"
+  },
+  "ruleContent": {
+    "content": "tag.section@tag.p@text"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "tag.a.3@text",
+    "bookList": "class.ix-list@tag.li",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "tag.img@src",
+    "kind": "tag.span.0@text&&tag.em.0@text",
+    "lastChapter": "tag.a.2@text",
+    "name": "tag.a.1@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.chapter@tag.li@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://m.aixdzs.com/search?k={{key}}&page={{page}}",
+  "weight": 0
+}

@@ -1,0 +1,39 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "d,2023.7.4验证777书源",
+  "bookSourceName": "🎉 绾书文学",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://app.wanshu.com",
+  "bookUrlPattern": "",
+  "customOrder": 1668,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "lastUpdateTime": 1681264309423,
+  "loginUrl": "",
+  "respondTime": 882,
+  "ruleBookInfo": {
+    "intro": "description"
+  },
+  "ruleContent": {
+    "content": "@JSon:$..content@js:result.replace(/\\<|\\/|\\p|\\>/g,\"\\n\")"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "author",
+    "bookList": "@JSon:$.data",
+    "bookUrl": "https://api.wanshu.com/novel/chapterList?novel_id={$.novel_id}",
+    "coverUrl": "cover",
+    "kind": "category_name",
+    "lastChapter": "latest_chapter",
+    "name": "name"
+  },
+  "ruleToc": {
+    "chapterList": "@JSon:$.data",
+    "chapterName": "name",
+    "chapterUrl": "https://api.wanshu.com/novel/chapterInfo?novel_chapter_id={$.id}"
+  },
+  "searchUrl": "https://api.wanshu.com/novel/search?page={{page}}&pageSize=20&kw={{key}}",
+  "weight": 0
+}

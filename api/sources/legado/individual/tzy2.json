@@ -1,0 +1,39 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "精选",
+  "bookSourceName": "太子爷小说网",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.tzy2.com",
+  "bookUrlPattern": "",
+  "customOrder": 981,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "lastUpdateTime": 0,
+  "loginUrl": "",
+  "respondTime": 8593,
+  "ruleBookInfo": {
+    "coverUrl": "class.fm@img@src",
+    "intro": "id.jj@p@text||class.item@p@text",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content"
+  },
+  "ruleContent": {
+    "content": "class.chapter@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "class.size@text||class.ranktitle@tag.a.1@text||class.tj@tag.label.0@tag.font@text##.*上传:|赞.*",
+    "bookList": "class.list@table||class.rankcontent||class.sort_list",
+    "bookUrl": "a@href",
+    "coverUrl": "img@src",
+    "kind": "class.tj@tag.label.3@font@text||class.size@a@title",
+    "name": "class.name@a@text||class.ranktitle@tag.strong.0@a@text||class.title@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.list-item@li@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.tzy2.com/search.php?keyword={{key}}&submit=搜索,{\n  \"charset\": \"gbk\"\n}",
+  "weight": 0
+}

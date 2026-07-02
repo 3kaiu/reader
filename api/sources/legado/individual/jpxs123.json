@@ -1,0 +1,54 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "精品小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.jpxs123.cc/",
+  "customOrder": 1297,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"精品小说\",\"url\":\"/book/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"都市小说\",\"url\":\"/dsxs/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"玄幻小说\",\"url\":\"/xuanhuan/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"历史小说\",\"url\":\"/lishi/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"科幻竞技\",\"url\":\"/khjj/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"穿越架空\",\"url\":\"/cyjk/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"鬼话小说\",\"url\":\"/guihua/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":0,\"layout_flexBasisPercent\":0.295}},{\"title\":\"同人小说\",\"url\":\"/tongren/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":0,\"layout_flexBasisPercent\":0.295}}]",
+  "lastUpdateTime": 1686059627981,
+  "respondTime": 3428,
+  "ruleBookInfo": {
+    "author": ".infos@a.0@text",
+    "coverUrl": ".book_info.clearfix@img.0@src",
+    "init": "",
+    "intro": ".infos@p.0@text",
+    "kind": ".menNav.readTop@a.1@text&&.infos@.date@textNodes&&div.date@span.1@text##.*：",
+    "lastChapter": ".book_list.clearfix@li.-1@text",
+    "name": ".infos@h1@text"
+  },
+  "ruleContent": {
+    "content": "class.read_chapterDetail@html",
+    "nextContentUrl": "text.下一页@href"
+  },
+  "ruleExplore": {
+    "author": "class.booknews@text##\\d+\\-\\d+\\-\\d+|\\d+.|MB|KB",
+    "bookList": "class.bk",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "img@src",
+    "intro": "tag.p@text",
+    "lastChapter": "class.date@text",
+    "name": "tag.h3@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "class.booknews.0@text##\\d+\\-\\d+\\-\\d+",
+    "bookList": "class.books m-cols@div[1:10]",
+    "bookUrl": "tag.a@href",
+    "checkKeyWord": "",
+    "coverUrl": "img.0@src",
+    "intro": "tag.p.0@text##简介：",
+    "kind": "",
+    "name": "class.bk_right.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.clearfix@li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "/e/search/indexsearch.php,{\n  \"body\": \"keyboard={{key}}&show=title&classid=0\",\n  \"charset\": \"gbk\",\n  \"method\": \"POST\"\n}",
+  "weight": 0
+}

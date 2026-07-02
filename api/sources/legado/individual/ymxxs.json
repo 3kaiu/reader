@@ -1,0 +1,47 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "🍅    衍 墨 轩",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.ymxxs.com",
+  "bookUrlPattern": "",
+  "customOrder": 1494,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko, By Black Prism) Chrome/99.0 Safari/537.36\"\n}",
+  "lastUpdateTime": 1606661079116,
+  "loginUrl": "",
+  "respondTime": 569,
+  "ruleBookInfo": {
+    "author": "class.detail pt20@tag.a.0@text",
+    "coverUrl": "class.cover@tag.img@src",
+    "intro": "class.info@tag.p.3@textNodes",
+    "kind": "class.detail pt20@tag.a.1@text",
+    "lastChapter": "class.detail.2@tag.a@text",
+    "name": "class.line@text",
+    "tocUrl": "class.operate@tag.a.2@href",
+    "wordCount": "class.info@tag.p.1@tag.i@text"
+  },
+  "ruleContent": {
+    "content": "class.content@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "class.a2@tag.a@text",
+    "bookList": "class.lastest@tag.li!0",
+    "bookUrl": "class.n2@tag.a@href",
+    "kind": "class.nt@text",
+    "lastChapter": "class.c2@tag.a@text",
+    "name": "class.n2@tag.a@text",
+    "wordCount": "class.t@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.col3!0:1:2:3:4:5:6:7:8",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "http://www.ymxxs.com/search.htm?keyword={{key}}",
+  "weight": 0
+}

@@ -1,0 +1,44 @@
+{
+  "bookSourceComment": "精华书阁",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "神仙书阁",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.shenxianfaka.top/",
+  "customOrder": 715,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1690616949548,
+  "respondTime": 4035,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "intro": "[property=\"og:description\"]@content",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:update_time\"]@content&&[property=\"og:novel:status\"]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "wordCount": ""
+  },
+  "ruleContent": {
+    "content": "@js:\nnum=result.split('\"_').length-1\nfor (var i=0;i<num;i++){\nstr=result.match(/(<span class=\"(_.*?)\".*?span>)/)\nstr2=result.match(str[2]+':.*?\"(.*?)\"')[1].replace(/\\\\/,'%u')\nresult=result.replace(str[1],unescape(str2))\n}\nresult.replace(/[\\r\\n]/g,'').replace(/.*最新章节！/,'').replace(/([^>]+)最快更新.*/,'')",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##精华书阁.*|.*免费阅读.*https.*com.*|为您提供.*请务必保存好书签.|最新章节！|（本章未完，请点击下一页继续阅读）|@|具体最快.*|最快更新.*|看《.*》|[\\(（]本章完[\\)）]|www.*|</a.*|温馨提示.*|域名更换.*|本章未完！|『章节有误？登录后点此报错~』|最快更请.*|神仙书阁.*|@神仙书阁"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".p3@text",
+    "bookList": "class.list_ul@li",
+    "bookUrl": "a.0@href",
+    "kind": ".p6@text",
+    "lastChapter": "a.1@text",
+    "name": "a.0@text",
+    "wordCount": "{{@@.p4@text}}k"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@dl.1@dd",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "searchUrl": "search.html?searchkey={{key}}",
+  "weight": 0
+}

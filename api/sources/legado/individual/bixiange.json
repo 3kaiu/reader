@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "笔趣阁⁵",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.bixiange.top",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 3269,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"都市言情\",\"url\":\"/dsyq/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"武侠修真\",\"url\":\"/wxxz/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"玄幻奇幻\",\"url\":\"/xhqh/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"穿越架空\",\"url\":\"/cyjk/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"科幻竞技\",\"url\":\"/khjj/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"鬼话悬疑\",\"url\":\"/ghxy/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"军事历史\",\"url\":\"/jsls/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"官场商战\",\"url\":\"/guanchang/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"乡土风情\",\"url\":\"/xtfq/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"耽美小说\",\"url\":\"/dmtr/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"同人小说\",\"url\":\"/trxs/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"精品小说\",\"url\":\"/jqxs/index<,_{{page}}>.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}}]",
+  "exploreScreen": "",
+  "header": "",
+  "lastUpdateTime": 1769602539908,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 812,
+  "ruleBookInfo": {
+    "init": "",
+    "author": ".descTip@p.1@span@text##作者：",
+    "coverUrl": ".info-left@img.0@src",
+    "intro": ".descInfo@p.0@html",
+    "kind": ".descTip@span.0:3@text##.*：",
+    "lastChapter": ".catalog@.clearfix@li.-1@a@text",
+    "name": ".info-right@h1@text",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": ".descTip@p.0@span.1@text##.*：",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": ".content@html",
+    "nextContentUrl": "",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": ".tips@span.0@text",
+    "bookList": "[class=\"clearfix\"]@li",
+    "bookUrl": "strong a@href",
+    "coverUrl": "img@src",
+    "intro": ".descript a@html",
+    "kind": ".tips@span!0@text",
+    "lastChapter": "",
+    "name": "img@alt",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "",
+    "bookList": ".clearfix li",
+    "bookUrl": ".cover a@href",
+    "coverUrl": "img@src",
+    "intro": ".descript a@html",
+    "kind": ".tips span.1@text##大小：|时间：",
+    "lastChapter": "",
+    "name": "img@alt",
+    "wordCount": ".tips span.0@text##大小：|时间："
+  },
+  "ruleToc": {
+    "chapterList": "[class=\"clearfix\"]@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "/e/search/indexpage.php,{\n  \"body\": \"keyboard={{key}}&show=title&classid=0\",\n  \"charset\": \"GB2312\",\n  \"method\": \"POST\"\n}",
+  "variableComment": "",
+  "weight": 1
+}

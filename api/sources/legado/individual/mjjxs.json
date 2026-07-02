@@ -1,0 +1,44 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "②🌸  常用",
+  "bookSourceName": "🌸mjj",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://mjjxs.net/",
+  "bookUrlPattern": "",
+  "customOrder": -2085959037,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": false,
+  "enabledReview": true,
+  "header": "{\n\t\"Cookie\":\"user_key=981985189731687400;t=t20230309;t=t20230309\"\n\t}",
+  "lastUpdateTime": 1682082686565,
+  "respondTime": 180000,
+  "ruleBookInfo": {
+    "author": "p.0@text##作者：",
+    "intro": ".intro@text",
+    "kind": "",
+    "lastChapter": "p.1@a@text",
+    "name": "h1@text"
+  },
+  "ruleContent": {
+    "content": "<js>\na = result.match(/data_show_str=\"([\\s\\S]+?)\"/)[1];\nresult = decodeURIComponent(java.base64Decode(a));\n</js>\n$.content_html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "$.author",
+    "bookList": "<js>\nresult.match(/var book_list=([\\s\\S]+?);/)[1];\n</js>\n$.[*]",
+    "bookUrl": "https://mjjxs.net/{{$.book_id}}.html?t=20230309,{\"headers\":{\"referer\":\"{{baseUrl}}\"}}",
+    "checkKeyWord": "斗破苍穹",
+    "kind": "",
+    "lastChapter": "https://mjjxs.net/141518151.html?t=20230301",
+    "name": "$.book_name"
+  },
+  "ruleToc": {
+    "chapterList": "<js>\na = result.match(/data_show_str=\"([\\s\\S]+?)\"/)[1];\nresult = decodeURIComponent(java.base64Decode(a));\n</js>\n$.chapter_list[*]",
+    "chapterName": "$.name",
+    "chapterUrl": "https://mjjxs.net/chapter/{{baseUrl.match(/(\\d+)\\.html/)[1]}}/{{$.i}}.html?len={{$.len}},{\"headers\":{\"referer\":\"https://mjjxs.net/{{baseUrl.match(/(\\d+)\\.html/)[1]}}.html\"}}"
+  },
+  "searchUrl": "https://mjjxs.net/search/s312t20230309?keyword={{key}},{\"headers\":{\"referer\":\"https://mjjxs.net/?t=302_from_search\"}}",
+  "weight": 0
+}

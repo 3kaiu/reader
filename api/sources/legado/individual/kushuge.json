@@ -1,0 +1,53 @@
+{
+  "bookSourceComment": "注：发现页资源较少，可用于搜索。",
+  "bookSourceGroup": "0905校验",
+  "bookSourceName": "酷书阁网",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.kushuge.com/",
+  "customOrder": 1104,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "玄幻魔法::xuanhuan/\n武侠修真::xiuzhen/\n都市言情::dushi/\n历史军事::lishi/\n网游动漫::wangyou/\n科幻小说::kehuan/\n恐怖灵异::lingyi/\n其他小说::qita/\n全本小说::quanben/",
+  "lastUpdateTime": 1687880408763,
+  "respondTime": 4846,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "🔔 更新时间：{{@@[property=\"og:novel:update_time\"]@content}}\n\n📂 内容简介：{{@@[property=\"og:description\"]@content##([a-zA-Z0-9])+(\\.)([a-z]{2,4})}}##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": "[property~=category|status|update_time]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "#content@html"
+  },
+  "ruleExplore": {
+    "author": ".s4@text",
+    "bookList": ".l li",
+    "bookUrl": ".s2 a@href",
+    "coverUrl": ".s2 a@href\n<js>result</js>\n[property=\"og:image\"]@content",
+    "intro": ".s2 a@href\n<js>result</js>\n🔔 更新时间：{{@@[property=\"og:novel:update_time\"]@content}}\n\n📂 内容简介：{{@@[property=\"og:description\"]@content##([a-zA-Z0-9])+(\\.)([a-z]{2,4})}}##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".s1@text##\\[|\\]",
+    "lastChapter": ".s2 a@href\n<js>result</js>\n[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": ".s2 a@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "div.author@text",
+    "bookList": "div.p10",
+    "bookUrl": ".bookname a@href",
+    "coverUrl": "img@src",
+    "kind": "div.cat@text##.*：",
+    "lastChapter": ".update a@text",
+    "name": ".bookname a@text"
+  },
+  "ruleToc": {
+    "chapterList": "dd a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "dfhgdfihio.php?ie=gbk&q={{key}}",
+  "weight": 0
+}

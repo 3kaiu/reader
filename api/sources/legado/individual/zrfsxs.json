@@ -1,0 +1,44 @@
+{
+  "bookSourceGroup": "合集0905",
+  "bookSourceName": "择日小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.zrfsxs.com",
+  "customOrder": 1300,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "最近更新::https://www.zrfsxs.com/xiaoshuo/1-{{page}}.html\n热门小说::https://www.zrfsxs.com/xiaoshuo/2-{{page}}.html",
+  "lastUpdateTime": 1691994897856,
+  "respondTime": 2473,
+  "ruleBookInfo": {
+    "author": "p.1@text",
+    "coverUrl": "img.0@src",
+    "intro": ".des.0@html",
+    "kind": "p.0@span!-1@text&&i.2@text",
+    "lastChapter": "#list@li.-1@text",
+    "name": "h3@a@text",
+    "wordCount": "i.0@text"
+  },
+  "ruleContent": {
+    "content": ".con@html",
+    "replaceRegex": "##{{[\"必应搜择日网\",\"更新快无弹窗\",\"zrfsxscom\",\"全网最快\"].map(v=>('\\\\s*[\\\\.\\\\\\\\*，。\\\\|]?'+v.split('').join('.{0,4}?')+'[\\\\.\\\\\\\\*，。\\\\|]?\\\\s*')).join('|');}}"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "p.1@text",
+    "bookList": ".item",
+    "bookUrl": "a.0@href",
+    "coverUrl": "img@src",
+    "kind": "p.0@span!-1@text&&i.1@text",
+    "lastChapter": "li.0@a@text",
+    "name": "h3@text"
+  },
+  "ruleToc": {
+    "chapterList": "#list@li@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://www.zrfsxs.com/tag/?key={{key}}",
+  "weight": 0
+}

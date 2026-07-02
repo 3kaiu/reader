@@ -1,0 +1,45 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "123言情网",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.123yqw.com/",
+  "bookUrlPattern": "",
+  "customOrder": 1664,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1686056760534,
+  "loginUrl": "",
+  "respondTime": 3615,
+  "ruleBookInfo": {
+    "author": "#info@p.0@a@text",
+    "coverUrl": "img@src",
+    "intro": "id.intro@html",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content",
+    "lastChapter": "id.info@tag.p.3@a@text",
+    "name": "#info@h1@text",
+    "wordCount": ""
+  },
+  "ruleContent": {
+    "content": "id.content@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "class.s4@text",
+    "bookList": "class.l@li",
+    "bookUrl": "class.s2@a@href",
+    "checkKeyWord": "我有一剑",
+    "kind": "class.s1@text##\\[|]",
+    "lastChapter": "class.s3@a@text",
+    "name": "class.s2@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@dd@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.123yqw.com/search/{{key}}",
+  "weight": 0
+}

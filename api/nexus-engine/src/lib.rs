@@ -30,6 +30,7 @@ mod kuchiki_wrapper;
 pub mod library_integration_test;
 #[cfg(test)]
 mod lol_html_parser;
+pub mod legado;
 mod ml_scorer;
 pub mod nxs_engine;
 mod nxs_ops;
@@ -52,6 +53,7 @@ mod text_dedup;
 pub use anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 pub use domain_pool::{DomainPooledClient, PoolStats};
+pub use legado::LegadoEngine;
 pub use nxs_engine::NxsEngine;
 pub use selector_cache::FallbackSelector;
 

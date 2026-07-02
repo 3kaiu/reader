@@ -1,0 +1,57 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "校验可用",
+  "bookSourceName": "👍 悠久小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.ujxs.com",
+  "bookUrlPattern": "",
+  "customOrder": 524,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "玄幻奇幻::/xuanhuan/{{page}}/\n仙侠修真::/wuxia/{{page}}/\n都市青春::/dushi/{{page}}/\n历史军事::/lishi/{{page}}/\n游戏动漫::/youxi/{{page}}/\n科幻灵异::/kehuan/{{page}}/\n女生言情::/yanqing/{{page}}/",
+  "lastUpdateTime": 1627405602685,
+  "loginUrl": "",
+  "respondTime": 3256,
+  "ruleBookInfo": {
+    "author": ".d_title@tag.a.0@text",
+    "coverUrl": "#bookimg img@src",
+    "intro": "#bookintro div@text##【展开】|【收起】",
+    "kind": "#count@tag.span.0@text&&.new@tag.span.1@text##更新时间.",
+    "lastChapter": ".new@tag.a.0@text##正文.|正文卷.|VIP章节.|免费章节.|VIP卷.|默认卷.|章节目录.",
+    "name": ".d_title h1@text##作者.*|\\s",
+    "tocUrl": ".motion@tag.a.0@href",
+    "wordCount": "#count@tag.span.4@text"
+  },
+  "ruleContent": {
+    "content": ".read-content@html",
+    "imageStyle": "0",
+    "replaceRegex": "##.*免费阅读！|佰度搜索.*|.*悠久小说.*|"
+  },
+  "ruleExplore": {
+    "author": "tag.a.2@text",
+    "bookList": "#sitembox dl",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "img@src",
+    "intro": "tag.dd.2@text",
+    "kind": "tag.span.1:-1@text##\\s.*",
+    "lastChapter": "tag.a.3@text##正文卷\\s|正文\\s",
+    "name": "tag.a.1@text"
+  },
+  "ruleSearch": {
+    "author": "tag.a.2@text",
+    "bookList": ".shulist ul",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.a.0@href##.+\\D((\\d+)\\d{3})\\D##http://www.ujxs.com/files/article/image/$2/$1/$1s.jpg###",
+    "kind": "tag.li.1:5:4@text",
+    "lastChapter": "tag.a.1@text##正文卷\\s|正文\\s",
+    "name": "tag.a.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "#readerlist li a",
+    "chapterName": "text##正文卷\\s|正文\\s",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/searchbooks.php?searchkey={{key}}",
+  "weight": 0
+}

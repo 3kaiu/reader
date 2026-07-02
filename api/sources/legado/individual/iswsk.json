@@ -1,0 +1,55 @@
+{
+  "bookSourceComment": "www.iswsk.com\nhttps://www.yeban360.com",
+  "bookSourceGroup": "👀小说",
+  "bookSourceName": "圣武书库 下载",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.iswsk.com#",
+  "customOrder": 1528,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "我的::/plus/search.php?q=我的",
+  "header": "<js>\n(()=>{\n\tvar ua = \"navigator.userAgent.toLowerCase(); \t\t\treturn { \t\t\t\t'mobile': !!(ua.match(/applewebkit.*mobile.*/) || ua.match(/iemobile/) || ua.match(/windows phone/) || ua.match(/android/) || ua.match(/iphone/) || ua.match(/ipad/)), \t\t\t\t'weixin': ua.indexOf('micromessenger') > -1 \t\t\t};\";\n\tvar heders = {\"User-Agent\": ua};\n\treturn JSON.stringify(heders);\n})()\n</js>",
+  "lastUpdateTime": 1672228943699,
+  "loginUrl": "",
+  "respondTime": 16279,
+  "ruleBookInfo": {
+    "author": "",
+    "canReName": "true",
+    "coverUrl": "class.panel-info.0@class.media-right@tag.img@src",
+    "init": "",
+    "intro": "class.panel-info.1@class.panel-body@html##集下载",
+    "kind": "@js:\"密码：210831\"",
+    "lastChapter": "",
+    "name": "",
+    "tocUrl": "class.col-xs-5 btn btn-info@href"
+  },
+  "ruleContent": {
+    "content": "",
+    "nextContentUrl": ""
+  },
+  "ruleExplore": {
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "name": ""
+  },
+  "ruleSearch": {
+    "author": "tag.td.1@text",
+    "bookList": "@css:.panel-body tbody tr",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "{{🎗️'点击地址栏下载'}}",
+    "name": "tag.a.0@text##《|》"
+  },
+  "ruleToc": {
+    "chapterList": "class.col-md-6 text-center@tag.a.0||",
+    "chapterName": "{{'🎗️点击地址栏下载'}}",
+    "chapterUrl": "{{'https://www.iswsk.com'}}{{@@href}}"
+  },
+  "searchUrl": "/plus/search.php?q={{key}}",
+  "weight": 0
+}

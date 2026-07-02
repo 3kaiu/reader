@@ -1,0 +1,51 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "👀小说",
+  "bookSourceName": "⚠️乡土小说 #一程",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.xiangtxsw.com#yc1101",
+  "bookUrlPattern": "",
+  "customOrder": 1581,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"最近更新\",\"url\":\"/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"乡土排行\",\"url\":\"/book/<,index_{{page}}.html>\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"风云榜单\",\"url\":\"/top/\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"都市言情\",\"url\":\"/dsyq/<,index_{{page}}.html>\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"现代言情\",\"url\":\"/xdyq/<,index_{{page}}.html>\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"古代言情\",\"url\":\"/gdyq/<,index_{{page}}.html>\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "lastUpdateTime": 1674201460071,
+  "loginUrl": "",
+  "respondTime": 4015,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": ".m-summary@html",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content##\\s.*",
+    "lastChapter": "#booklist a.-1@text",
+    "name": "[property=\"og:novel:book_name\"]@content"
+  },
+  "ruleContent": {
+    "content": "#content@html",
+    "imageStyle": "0"
+  },
+  "ruleExplore": {
+    "author": "td.1@text",
+    "bookList": "tbody tr||.list-group-item",
+    "bookUrl": "a.0@href",
+    "kind": "td.2@text",
+    "lastChapter": "",
+    "name": "a.0@text"
+  },
+  "ruleSearch": {
+    "author": "td.2@text",
+    "bookList": "tbody tr",
+    "bookUrl": "a.0@href",
+    "kind": "td.3@text",
+    "lastChapter": "td.1@text",
+    "name": "a.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "#booklist li a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/e/search/index.php,{\n  \"method\": \"POST\",\n  \"body\": \"page={{page}}&tbname=bookname&show=title,writer&tempid=1&keyboard={{key}}\"\n}",
+  "weight": 0
+}

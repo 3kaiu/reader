@@ -1,0 +1,40 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "💥优质",
+  "bookSourceName": "南山书院3",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.szyangxiao.com#南笙21.0101",
+  "bookUrlPattern": "",
+  "customOrder": 1703,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1680944272644,
+  "loginUrl": "",
+  "respondTime": 3492,
+  "ruleBookInfo": {
+    "intro": "@js:'<br>'+java.get('intro')"
+  },
+  "ruleContent": {
+    "content": "id.content@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "tag.a.-1@href@js:\nresult=java.ajax('https:'+result);\nvar author=result.match(/作者是([^，]*)/);\nvar tag=result.match(/类型是([^，]*)/);\nvar cover=result.match(/src=\"([^\"]*?jpg)/);\nvar intro=result.match(/<br>([^<]*)/);\njava.put('tag',(tag) ? tag[1]:'');\njava.put('cover',(cover) ? cover[1]:'');\njava.put('intro',(intro) ? intro[1]:'');\n(author) ? author[1]:'';",
+    "bookList": "[class=nav clearfix] span:lt(2)",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "@js:java.get('cover')",
+    "intro": "@js:java.get('intro')",
+    "kind": "@js:java.get('tag')",
+    "lastChapter": "##<\\/a>：([^<]+?)<\\/span>##$1###",
+    "name": "tag.a.-1@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.nav clearfix@span!0@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/modules/article/search.php?searchkey={{key}}",
+  "weight": 0
+}

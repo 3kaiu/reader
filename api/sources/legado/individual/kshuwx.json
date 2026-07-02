@@ -1,0 +1,38 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "笔趣阁0905",
+  "bookSourceName": "笔趣阁⑨④",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.kshuwx.com",
+  "bookUrlPattern": "",
+  "customOrder": 891,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "loginUrl": "",
+  "respondTime": 2314,
+  "ruleBookInfo": {
+    "coverUrl": "id.fmimg@tag.img@src",
+    "intro": "id.intro@tag.p.0@textNodes||id.list.0@tag.p@text"
+  },
+  "ruleContent": {
+    "content": "id.booktext@html||class.content@html"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "tag.td.2@text",
+    "bookList": "class.grid@tag.tr!0",
+    "bookUrl": "tag.td.0@tag.a@href",
+    "coverUrl": "tag.td.0@tag.a@href##.*/(\\d+)(\\d{3})/##http://www.kshuwx.com/files/article/image/$1/$1$2/$1$2s.jpg",
+    "lastChapter": "tag.td.1@tag.a@text",
+    "name": "tag.td.0@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.box_con@id.list@dd@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.kshuwx.com/modules/article/search.php?searchkey={{key}}",
+  "weight": 0
+}

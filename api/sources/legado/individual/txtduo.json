@@ -1,0 +1,46 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "小说",
+  "bookSourceName": "🔖多多书院①",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.txtduo.com#♤guaner",
+  "bookUrlPattern": "",
+  "customOrder": 1649,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1678687199942,
+  "loginUrl": "",
+  "respondTime": 4380,
+  "ruleBookInfo": {
+    "author": "//*[@class=\"bookinfo\"]/p[1]/i/text()",
+    "coverUrl": "//*[@class=\"bookcover\"]/a/img/@src",
+    "intro": "class.uc_cont.1@text",
+    "kind": "//*[@class=\"bookinfo\"]/p[2]/a/text()",
+    "lastChapter": "//*[@class=\"uctitle\"]/span/a/text()",
+    "name": "//*[@class=\"bookcover\"]/a/img/@alt",
+    "tocUrl": "class.fl.3@tag.a@href"
+  },
+  "ruleContent": {
+    "content": "id.content@p@html",
+    "imageStyle": "0"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "##作者：([^<]+)<##$1###",
+    "bookList": "id.alistbox",
+    "bookUrl": "h2@tag.a@href",
+    "coverUrl": "img@src",
+    "intro": "class.intro@text",
+    "kind": "",
+    "lastChapter": "class.sys@a@text",
+    "name": "h2@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@tag.dd@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.txtduo.com/search.html,{\n'method': 'POST',\n'body': 'searchkey={{key}}&s=articlename'\n}",
+  "weight": 0
+}

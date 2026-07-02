@@ -1,0 +1,55 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "👀小说",
+  "bookSourceName": "✾♜ 八一中文② #一程  ",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.zwduxs.com#♤yc",
+  "bookUrlPattern": "http?://www\\.zwduxs\\.com(/html)?/\\d+_\\d+/?",
+  "customOrder": 1425,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"玄幻\",\"url\":\"/xuanhuanxiaoshuo/1_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"修真\",\"url\":\"/xiuzhenxiaoshuo/2_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"都市\",\"url\":\"/dushixiaoshuo/3_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"穿越\",\"url\":\"/chuanyuexiaoshuo/4_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"网游\",\"url\":\"/wangyouxiaoshuo/5_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"科幻\",\"url\":\"/kehuanxiaoshuo/6_{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "lastUpdateTime": 1677658766547,
+  "loginUrl": "",
+  "respondTime": 4586,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "[property=\"og:description\"]@content",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content##小说|\\s.*",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "name": "[property=\"og:novel:book_name\"]@content##\\（.*|\\(.*|免费阅读|全文.*阅读|最新章节|笔趣阁|小说"
+  },
+  "ruleContent": {
+    "content": "#content@html",
+    "nextContentUrl": "",
+    "replaceRegex": "##您可以在百.*最新章节."
+  },
+  "ruleExplore": {
+    "author": ".s5@text",
+    "bookList": ".l li",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'http://www.zwduxs.com/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "kind": ".s3@textNodes##\\(|\\)",
+    "lastChapter": "a.1@text",
+    "name": "a.0@text"
+  },
+  "ruleSearch": {
+    "author": "td.2@text",
+    "bookList": "#nr",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'http://www.zwduxs.com/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "kind": "td.5:4@text",
+    "lastChapter": "td.1@text##[\\(（【].*?[求更谢乐发订合补加].*?[】）\\)]",
+    "name": "td.0@text##\\（.*|\\(.*|免费阅读|全文.*阅读|最新章节|笔趣阁|小说",
+    "wordCount": "td.3@text"
+  },
+  "ruleToc": {
+    "chapterList": "#list dd a",
+    "chapterName": "text##正文卷.|正文.|VIP章节.|免费章节.|VIP卷.|默认卷.|章节目录.|免费章节.",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "/modules/article/search.php,{\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}&searchtype=articlename\"\n}",
+  "weight": 0
+}

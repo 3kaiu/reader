@@ -1,0 +1,44 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "👀小说",
+  "bookSourceName": "晋江榜单",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://android.jjwxc.net#myself",
+  "bookUrlPattern": "",
+  "customOrder": 1567,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": " 纯爱 ——VIP金榜 ::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%222900002%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n 言情 ——VIP金榜 ::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%222900001%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n 古言——频道金榜 ::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%221%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n 百合——频道金榜 ::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%229%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D       　　            \n古纯--金榜::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%228%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n现纯--金榜::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%227%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n幻纯--金榜::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2213%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n古纯--月度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2221000004%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n现纯--月度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220000004%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n幻纯--月度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220100009%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n古纯--季度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2221000005%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n现纯--季度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220000005%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n幻纯--季度::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220100010%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n古纯--半年::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2221000006%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n现纯--半年::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220000006%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D\n幻纯--半年::http://android.jjwxc.net/bookstore/getFullPage?channelBody=%7B%2220100011%22%3A%7B%22offset%22%3A%22<0,150,300>%22%2C%22limit%22%3A%22150%22%7D%7D 　        ",
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Linux; U; Android 8.0.0; zh-cn; MIX 2 Build/OPR1.170623.027) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1\"\n}",
+  "lastUpdateTime": 1600012664654,
+  "loginUrl": "",
+  "respondTime": 1655,
+  "ruleBookInfo": {
+    "intro": "@JSon:{$.novelIntro}@js:result.replace(/(&.{3}br.{3,4};)+|[\\n\\s]+/g,\"\\n\").replace(/\\n\\s*\\n/g,\"\\n\").replace(/^\\s*\\n/g,\"\").replace(/\\n\\s*/g,\"\\n\\u3000\\u3000\").replace(/^\\s*/g,\"\\u3000\\u3000\")",
+    "lastChapter": "@JSon:$.renewChapterName",
+    "tocUrl": "http://app-cdn.jjwxc.net/androidapi/chapterList?novelId={$.novelId}&more=0&whole=1"
+  },
+  "ruleContent": {
+    "content": "@JSon:$..content@js:result.replace(/(&.{3}br\\/?&.{3})+/g,\"\\n\")",
+    "imageStyle": "0.0"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "@JSon:$.authorname||$.authorName",
+    "bookList": "@JSon:$.*[?(@.novelName)]&&$.*[?(@.novelname)]",
+    "bookUrl": "@JSon:$.novelid||$.novelId@js:'http://android.jjwxc.net/androidapi/novelbasicinfo?novelId='+result",
+    "coverUrl": "@JSon:$.cover",
+    "kind": "@JSon:$.tags&&{$.novelsize}字&&{$.novelSize}字",
+    "lastChapter": "@JSon:第{$.maxChapterId}章@js:result.replace(\"第章\",\"\")",
+    "name": "@JSon:$.novelname||$.novelName"
+  },
+  "ruleToc": {
+    "chapterList": "@JSon:$.chapterlist",
+    "chapterName": "@JSon:{$.chaptername}、{$.chapterintro}",
+    "chapterUrl": "http://app-cdn.jjwxc.net/androidapi/chapterContent?novelId={$.novelid}&chapterId={$.chapterid}",
+    "isVip": "$.isvip"
+  },
+  "searchUrl": "http://android.jjwxc.net/androidapi/search?keyword={{key}}&type=1&page={{page}}&searchType=1&sortMode=DESC",
+  "weight": 0
+}

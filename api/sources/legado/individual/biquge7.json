@@ -1,0 +1,42 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "💥优质",
+  "bookSourceName": "笔趣阁77",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.biquge7.top/",
+  "customOrder": 1698,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1680939275282,
+  "respondTime": 1646,
+  "ruleBookInfo": {
+    "author": "class.author@text##作者：",
+    "coverUrl": "img@src",
+    "intro": "class.des.p.1@text",
+    "lastChapter": "class.upd.a@text##最新章节：",
+    "name": "class.tits.h1@text",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "class.text@text##\\【看书.*|交流好书.*",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "class.author@text",
+    "bookList": "class.tui_1_item",
+    "bookUrl": "a@href",
+    "coverUrl": "img@src",
+    "intro": "",
+    "name": "img@alt"
+  },
+  "ruleToc": {
+    "chapterList": "class.list.ul@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "searchUrl": "https://www.biquge7.top/search?keyword={{key}}",
+  "weight": 0
+}

@@ -1,0 +1,59 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "💵 塔读文学",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.tadu.com",
+  "bookUrlPattern": "",
+  "customOrder": 1720,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "exploreUrl": "",
+  "header": "",
+  "lastUpdateTime": 1633694405258,
+  "loginUrl": "http://www.tadu.com/",
+  "respondTime": 613,
+  "ruleBookInfo": {
+    "author": "class.bookNm@tag.span.0@text##\\s.*",
+    "coverUrl": "class.bookImg@data-src",
+    "intro": "tag.p.0@html",
+    "kind": "class.sortList@tag.a.0@text&&class.newUpdate@tag.span.0@text##更新时间.",
+    "lastChapter": "class.newUpdate@tag.a.0@text",
+    "name": "class.bookNm@tag.a.0@text",
+    "wordCount": "class.datum@tag.span.0@text"
+  },
+  "ruleContent": {
+    "content": "id.bookPartResourceUrl@value\n<js>\nvar J = java.ajax(result);\nresult = String(J).replace(/callback\\(\\{content:\\'(.*)\\'\\}\\)/g, '$1')\n</js>\n",
+    "imageStyle": "0"
+  },
+  "ruleExplore": {
+    "author": "tag.a.3@text",
+    "bookList": "class.bookList bookBgList@tag.li",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "tag.img@data-src",
+    "intro": "class.bookIntro@text",
+    "kind": "tag.a.4@text&&tag.a.6@text",
+    "lastChapter": "tag.a.5@text##最新更新.",
+    "name": "tag.a.1@text",
+    "wordCount": "class.condition@tag.span.1@text"
+  },
+  "ruleSearch": {
+    "author": "author",
+    "bookList": ".bookList li\n<js>\nresult.toArray().map(o=>{\n    var detail = String(o.select('a:eq(0)').attr('href')).replace(/^\\//, 'http://www.tadu.com/');\n    java.log(detail)\n    return {\n       name: String(o.select('.bookNm').text()).replace(/\\（.*\\）/,''),\n       author:o.select('.authorNm').text(),\n       tags:  String(o.select('span:eq(2)').text()).replace(' • ',','),\n       num: String(o.select('span:eq(6)').text()).replace(/\\s+/g,''),\n\n       intro: String(o.select('.bookIntro').text()).trim(),     \n       cover:o.select('img').attr('data-src').includes('webPic')?'http://suo.im/6mlA9F':o.select('img').attr('data-src'),\n       catalogUrl:o.select('.look_readBtn').attr('href')\n    }\n});\n</js>",
+    "bookUrl": "catalogUrl",
+    "coverUrl": "cover",
+    "intro": "intro",
+    "kind": "tags",
+    "name": "name",
+    "wordCount": "num"
+  },
+  "ruleToc": {
+    "chapterList": "class.lf lfT hidden@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVip": "tag.i@text"
+  },
+  "searchUrl": "/search?&pageSize=10&pageNum={{page}}&query={{key}}",
+  "weight": 0
+}

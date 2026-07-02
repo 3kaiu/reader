@@ -1,0 +1,47 @@
+{
+  "bookSourceComment": "未月十八净化",
+  "bookSourceGroup": "普通",
+  "bookSourceName": "梦想者3",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.mxz.cc/qb#未月十八净化",
+  "customOrder": 1713,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1680891824716,
+  "respondTime": 1617,
+  "ruleBookInfo": {
+    "author": ".p_author@a@text",
+    "coverUrl": "#bookimg@img@src",
+    "intro": "#bookintro@p@text",
+    "kind": "#count@span.0:2:3@text",
+    "lastChapter": ".chaw@li.0@a@text",
+    "name": ".d_title@h1@text",
+    "wordCount": "#count@span.1@text"
+  },
+  "ruleContent": {
+    "content": "#TextContent p@html##如果.*朋友吧！|为您提供精彩小说。",
+    "nextContentUrl": "#next_url@href",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "span.2@text",
+    "bookList": "#nr",
+    "bookUrl": "h3@a@href",
+    "coverUrl": "img@data-original",
+    "intro": "dd.2@text",
+    "kind": "span.1:3@text",
+    "lastChapter": "dd.3@a@text",
+    "name": "h3@a@text",
+    "wordCount": "span.4@text"
+  },
+  "ruleToc": {
+    "chapterList": ".chaw_c li a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.mxz.cc/search/,{\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}\"\n}",
+  "weight": 0
+}

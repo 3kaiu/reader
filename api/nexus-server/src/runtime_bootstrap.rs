@@ -5,7 +5,7 @@ use nexus_engine::anti_crawl::{
 };
 use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::HttpFetcher;
-use nexus_storage::{ChapterCache, SledStore, SourceStore};
+use nexus_storage::{ChapterCache, LegadoSourceStore, SledStore, SourceStore};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::info;
@@ -33,7 +33,18 @@ pub async fn build_runtime_services(
 
     let source_store = Arc::new(SourceStore::new(&config.storage.sources_dir));
     source_store.load_all().await?;
-    info!("Loaded {} book sources", source_store.count());
+    info!("Loaded {} NXS book sources", source_store.count());
+
+    // Load Legado sources from a separate directory (e.g. sources/legado)
+    let legado_sources_dir = config.storage.sources_dir.join("legado");
+    if !legado_sources_dir.exists() {
+        tokio::fs::create_dir_all(&legado_sources_dir)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create legado sources dir: {}", e))?;
+    }
+    let legado_store = Arc::new(LegadoSourceStore::new(&legado_sources_dir));
+    let legado_count = legado_store.load_all();
+    info!("Loaded {} Legado book sources", legado_count);
 
     let store = Arc::new(SledStore::new(&config.storage.db_path)?);
     restore_runtime_state(store.clone(), snapshot_status.clone()).await?;
@@ -48,7 +59,7 @@ pub async fn build_runtime_services(
     let fetcher = Arc::new(HttpFetcher::new(config.limits.http_timeout_seconds)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
 
-    let engine_registry = Arc::new(EngineRegistry::new(source_store, anti_crawl.clone()));
+    let engine_registry = Arc::new(EngineRegistry::new(source_store, legado_store, anti_crawl.clone()));
     let orchestrator = Arc::new(SearchOrchestrator::new(
         engine_registry.clone(),
         store.health_tracker().clone(),

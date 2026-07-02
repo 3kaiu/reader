@@ -1,0 +1,57 @@
+{
+  "bookSourceComment": "\n@遇知",
+  "bookSourceGroup": "合集0905",
+  "bookSourceName": "精华书阁",
+  "bookSourceType": 0,
+  "bookSourceUrl": "读书无嗜好，就能尽其多。不先泛览群书，则会无所适从或失之偏好，广然后深，博然后专。                    \n                                           ——鲁迅",
+  "customOrder": 693,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[\n{\"title\":\"🔖分类🔖\",\"url\":\"\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"玄幻\",\"url\":\"https://m.richvv.com/list/1_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"修真\",\"url\":\"https://m.richvv.com/list/2_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"都市\",\"url\":\"https://m.richvv.com/list/3_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"穿越\",\"url\":\"https://m.richvv.com/list/4_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"网游\",\"url\":\"https://m.richvv.com/list/5_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"科幻\",\"url\":\"https://m.richvv.com/list/6_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"灵异\",\"url\":\"https://m.richvv.com/list/7_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"女生\",\"url\":\"https://m.richvv.com/list/8_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"其它\",\"url\":\"https://m.richvv.com/list/9_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n\n{\"title\":\"🔖榜单🔖\",\"url\":\"\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"日点击榜\",\"url\":\"https://m.richvv.com/Ranking_dayvisit/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"周点击榜\",\"url\":\"https://m.richvv.com/Ranking_weekvisit/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"月点击榜\",\"url\":\"https://m.richvv.com/Ranking_monthvisit/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"总点击榜\",\"url\":\"https://m.richvv.com/Ranking_allvisit/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"周推荐榜\",\"url\":\"https://m.richvv.com/Ranking_weekvote/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"月推荐榜\",\"url\":\"https://m.richvv.com/Ranking_monthvote/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"总推荐榜\",\"url\":\"https://m.richvv.com/Ranking_allvote/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"收藏推荐\",\"url\":\"https://m.richvv.com/Ranking_goodnum/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"字数排行\",\"url\":\"https://m.richvv.com/Ranking_size/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"最新入库\",\"url\":\"https://m.richvv.com/Ranking_postdate/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"最近更新\",\"url\":\"https://m.richvv.com/Ranking_lastupdate/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"新书榜单\",\"url\":\"https://m.richvv.com/Ranking_goodnew/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n\n{\"title\":\"🔖完结🔖\",\"url\":\"https://m.richvv.com/wanben_{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}}\n]",
+  "lastUpdateTime": 1693404247892,
+  "respondTime": 3497,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "🔔 更新时间：{{@@[property=\"og:novel:update_time\"]@content}}\n\n📂 内容简介：{{@@[property=\"og:description\"]@content}}##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": "[property~=category|status|update_time]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "wordCount": ".small span.3@text##.*："
+  },
+  "ruleContent": {
+    "content": "#nr1@html@js:result+'下一页标识'",
+    "imageStyle": "",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##精华书阁 .*最新章节！|\\(|\\本章未完，请点击下一页继续阅读\\)|.*紧急通知：精华书阁.*|.*请重新收藏书签！|.*请务必保存好书签！|.*免费阅读.*"
+  },
+  "ruleExplore": {
+    "author": "{{@@.xsm.0@textNodes##\\(|\\)}}\n{{@@.p3@text}}",
+    "bookList": ".xbk!0||.list_ul li",
+    "bookUrl": "a.0@href\n@js:var id = result.match(/(\\d+)\\/$/)[1];\n     'https://m.richvv.com/'+id+'/';",
+    "coverUrl": "a.0@href\n@js:var id = result.match(/(\\d+)\\/$/)[1]-167;\n      var iid = parseInt(id/1000);\n'https://m.richvv.com/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';",
+    "intro": ".tjxs span.1@text",
+    "kind": "{{@@.tjrs i@text}}\n{{@@.pa@text##\\[|\\]}}\n{{@@.p6@text}}\n{{@@.p5@text##\\s.*}}",
+    "lastChapter": "{{@@.xsm a.1@text}}\n{{@@.p2@text}}",
+    "name": "{{@@.xsm a.0@text}}\n{{@@.p1@text}}",
+    "wordCount": ".p4@text##(?i)(\\d+)字##$1"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".author@text",
+    "bookList": ".searchbook",
+    "bookUrl": "a.0@href##^##https://m.richvv.com",
+    "coverUrl": ".bookimg img@src",
+    "kind": ".cat@text##.*：",
+    "lastChapter": ".update a@text",
+    "name": ".bookname@text"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter li a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://m.richvv.com/search.html?ie=utf-8&word={{key}}&page={{page}}",
+  "weight": 0
+}

@@ -1,0 +1,43 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "0905校验",
+  "bookSourceName": "顶点小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.anshuge.com",
+  "customOrder": 837,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1687758583237,
+  "loginUrl": "",
+  "respondTime": 3089,
+  "ruleBookInfo": {
+    "coverUrl": "id.content@class.fl.0@tag.img@src",
+    "intro": "id.content@tag.dd.3@tag.p.1@textNodes",
+    "kind": "tag.tbody@tag.a.0@text",
+    "name": "",
+    "tocUrl": "class.btnlinks@tag.a.0@href"
+  },
+  "ruleContent": {
+    "content": "id.contents@html",
+    "nextContentUrl": "id.footlink@tag.a.2@href"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "tag.td.2@text",
+    "bookList": "id.content@tag.tr!0",
+    "bookUrl": "tag.td.0@tag.a.0@href<js>result.replace(/files\\/article\\/html\\/(\\d+)\\/(\\d+)\\/index/,\"xiaoshuo/$2\")</js>",
+    "kind": "",
+    "lastChapter": "tag.td.1@tag.a.0@text",
+    "name": "tag.td.0@tag.a.0@text",
+    "wordCount": "tag.td.3@text"
+  },
+  "ruleToc": {
+    "chapterList": "tag.tbody@tag.tr@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "http://www.anshuge.com/search/?searchkey={{key}}",
+  "weight": 0
+}

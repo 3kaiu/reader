@@ -1,0 +1,54 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "🍺 抖音小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.douyinxs.com",
+  "bookUrlPattern": "https://www.douyinxs.com/bqg/\\d+/",
+  "customOrder": 1347,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "lastUpdateTime": 1648244137321,
+  "loginUrl": "",
+  "respondTime": 2064,
+  "ruleBookInfo": {
+    "author": "[property=og:novel:author]@content",
+    "coverUrl": "[property=og:image]@content",
+    "init": "",
+    "intro": "[property=og:description]@content",
+    "kind": "[property=og:novel:update_time]@content&&\n[property=og:novel:category]@content&&\n[property=og:novel:status]@content",
+    "lastChapter": "[property=og:novel:lastest_chapter_name]@content##免费章节 |正文卷 |正文 |VIP章节 ",
+    "name": "[property=og:novel:book_name]@content##\\（.*|\\(.*|免费阅读|全文.*阅读|最新章节|小说|笔趣阁",
+    "wordCount": ""
+  },
+  "ruleContent": {
+    "content": "id.content@html##一秒记住.*无弹窗免费阅读！|神马小说网.*最新章节！|神马小说网.*最快更新.*",
+    "nextContentUrl": "text.下一页@href"
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "name": ""
+  },
+  "ruleSearch": {
+    "author": "class.s4@text||id.info@tag.p.0@tag.a@text",
+    "bookList": "class.novelslist2@tag.li!0||class.box_con",
+    "bookUrl": "class.s2@tag.a@href",
+    "coverUrl": "class.s2@tag.a@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'https://img.douyinxs.com/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "kind": "class.s1@text&&\nclass.s5@text&&\nclass.s7@text",
+    "lastChapter": "class.s3@tag.a@text||id.info@tag.p.3@tag.a@text##章节目录|免费章节 |正文卷 |正文 |VIP章节 |卷1",
+    "name": "class.s2@tag.a@text||id.info@tag.h1@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@tag.dd",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "https://www.douyinxs.com/search/,{\n'method': 'POST',\n'body': 'searchkey={{key}}&Submit='\n}",
+  "weight": 0
+}

@@ -1,0 +1,35 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "2",
+  "bookSourceName": "🔖笔尖中文",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.biquge.info",
+  "customOrder": 1603,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1668973504791,
+  "respondTime": 2712,
+  "ruleBookInfo": {
+    "coverUrl": "id.fmimg@tag.img@src",
+    "intro": "id.intro@tag.p.0@text"
+  },
+  "ruleContent": {
+    "content": "id.content@textNodes"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "class.odd.1@text",
+    "bookList": "class.grid@tag.tr!0",
+    "bookUrl": "class.odd.0@tag.a@href",
+    "lastChapter": "class.even.0@tag.a@text",
+    "name": "class.odd.0@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@tag.dd",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "https://www.biquge.info/modules/article/search.php?searchkey={{key}}",
+  "weight": 0
+}

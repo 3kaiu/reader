@@ -1,0 +1,53 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "✐   布咕阅读",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.bgwxc.com#",
+  "bookUrlPattern": "",
+  "customOrder": 1289,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "header": "{\"Cookie\":\"user_account=F76A5O7ZdGuH3Ey2Frt34k3p9WBtdKheC3N%2Bk85WDanWB4lQx42C5q136iNFIafAJdQ8ESdj2TBFTB772Djd03teGEtg\"}",
+  "lastUpdateTime": 1667911413965,
+  "loginUrl": "",
+  "respondTime": 1346,
+  "ruleBookInfo": {
+    "author": "",
+    "coverUrl": "",
+    "init": "",
+    "intro": ".txtinfobox@html",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "tocUrl": "class.tabs-menus@tag.a.0@href",
+    "wordCount": ""
+  },
+  "ruleContent": {
+    "content": "class.read-content@html"
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".author@text",
+    "bookList": "class.res-item",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "img@src",
+    "intro": "class.search-alt@html\n<js>result.replace(/(.*)/,' ○○○STORY:\\n$1')</js>",
+    "kind": "class.t-row t-row-2@span@text",
+    "lastChapter": "class.chapter-span@text",
+    "name": "h4@text",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "class.chapter-item",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "text##(VIP)##$1###",
+    "isVolume": ""
+  },
+  "searchUrl": "http://www.bgwxc.com/module/novel/search.php?keyword={{key}}",
+  "weight": 0
+}

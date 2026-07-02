@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "🎃涩涩小说🎃",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://sesebooks.com#🎃",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 2411,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "exploreScreen": "",
+  "header": "{\"User-Agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.3240.64\"}",
+  "lastUpdateTime": 0,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 908,
+  "ruleBookInfo": {
+    "init": "",
+    "author": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "#source@html",
+    "nextContentUrl": "",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "",
+    "bookList": "ul li a",
+    "bookUrl": "href",
+    "coverUrl": "img@src",
+    "intro": ".decs@text",
+    "kind": "span.-1@text",
+    "lastChapter": "",
+    "name": ".name@text",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "#chapterlsit@a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "/book/search/{{key}}<,/{{page}}>",
+  "variableComment": "",
+  "weight": 1
+}

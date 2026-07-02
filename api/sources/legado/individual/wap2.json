@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "笔趣阁#32",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://wap2.xinbiquge.org#",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 3502,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "exploreScreen": "",
+  "header": "{ \"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
+  "lastUpdateTime": 1717303807542,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 1861,
+  "ruleBookInfo": {
+    "init": "",
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "[property=\"og:description\"]@content",
+    "kind": "[property~=category|status|update_time]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "class.name@text",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "class.dd_box.1@span.1@text##字数：",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "id.chaptercontent@html",
+    "nextContentUrl": "text.下一@href",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": "##.*\\(.*\\).*\\s|\\s.*新笔趣阁.*|.*本章未完.*\\s|.*继续阅读.*\\s|.*阅读完毕，更多请搜索.*\\s"
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "class.author@span@text",
+    "bookList": "class.hot_sale hot_saleEm",
+    "bookUrl": "a@href",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "class.title@text",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "class.book_last.2@dl@dd",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "https://wap2.xinbiquge.org/book/search.aspx?ie=utf-8&siteid=xinbiquge.org&s=000&key={{key}}",
+  "variableComment": "",
+  "weight": -5
+}

@@ -1,0 +1,56 @@
+{
+  "bookSourceComment": " \n有🔞相关",
+  "bookSourceGroup": "🔞",
+  "bookSourceName": "🔞 笔趣阁",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.qu-la.com",
+  "customOrder": 517,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"༺ˇ»`ʚ分类ɞ´«ˇ༻\",\"url\":\"\",\"style\":{\"layout_flexBasisPercent\":1}},{\"title\":\"玄幻小说\",\"url\":\"http://www.qu-la.com/class1/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"修真小说\",\"url\":\"http://www.qu-la.com/class2/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"都市小说\",\"url\":\"http://www.qu-la.com/class3/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"穿越小说\",\"url\":\"http://www.qu-la.com/class4/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"网游小说\",\"url\":\"http://www.qu-la.com/class5/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"科幻小说\",\"url\":\"http://www.qu-la.com/class6/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"其他小说\",\"url\":\"http://www.qu-la.com/class7/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"完本小说\",\"url\":\"http://www.qu-la.com/finish/?page={{page}}\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"༺ˇ»`ʚ排行ɞ´«ˇ༻\",\"url\":\"\",\"style\":{\"layout_flexBasisPercent\":1}},{\"title\":\"日排行榜\",\"url\":\"http://www.qu-la.com/dayvisit/p{{page}}.html\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"周排行榜\",\"url\":\"http://www.qu-la.com/weekvisit/p{{page}}.html\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"月排行榜\",\"url\":\"http://www.qu-la.com/monthvisit/p{{page}}.html\",\"style\":{\"layout_flexGrow\":1}},{\"title\":\"总排行榜\",\"url\":\"http://www.qu-la.com/allvisit/p{{page}}.html\",\"style\":{\"layout_flexGrow\":1}}]",
+  "lastUpdateTime": 1643120434827,
+  "respondTime": 4465,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "init": "",
+    "intro": "class.intro@html",
+    "kind": "[property=\"og:novel:category\"]@content&&\n[property=\"og:novel:status\"]@content&&\n[property=\"og:novel:update_time\"]@content",
+    "lastChapter": "{{@@class.update-text@tag.a@text\n##更新至 }}▪️{{@@[property=\"og:novel:update_time\"]@content}}",
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "tocUrl": ""
+  },
+  "ruleContent": {
+    "content": "id.txt@textNodes"
+  },
+  "ruleExplore": {
+    "author": "class.author@text\n##\\|.+\\|.+$",
+    "bookList": "class.book-view-box||class.rank-view-box",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.img@src",
+    "intro": "class.intro@html",
+    "kind": "{{@@class.tag@tag.span@text||class.author@text\n##^.+?\\|}}##\\|##,",
+    "lastChapter": "class.update@tag.a@text",
+    "name": "tag.h4@text",
+    "wordCount": ""
+  },
+  "ruleSearch": {
+    "author": "tag.span.2@text",
+    "bookList": "class.search-list@tag.li!0",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.a.0@href\n@js:\nid=result.match(/((\\/\\d+)\\d{3})$/)\nurl='http://www.qu-la.com/files'+id[2]+id[1]+id[1]+'.jpg'",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "tag.span.1@text",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "class.book-chapter-list@tag.ul.1@tag.li@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://so.biqusoso.com/s2.php?ie=utf-8&siteid=qu-la.com&q={{key}}",
+  "weight": 0
+}

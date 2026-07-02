@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "bl书阁🎃",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.blshuge.com#🎃",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 1586,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "玄幻::https://www.blshuge.com/sort/1/{{page}}.html\n穿越::https://www.blshuge.com/sort/2/{{page}}.html\n架空::https://www.blshuge.com/sort/3/{{page}}.html\n都市::https://www.blshuge.com/sort/4/{{page}}.html\n言情::https://www.blshuge.com/sort/5/{{page}}.html\n网游::https://www.blshuge.com/sort/6/{{page}}.html\n科幻::https://www.blshuge.com/sort/7/{{page}}.html\n精品::https://www.blshuge.com/sort/8/{{page}}.html\n耽美::https://www.blshuge.com/sort/9/{{page}}.html",
+  "exploreScreen": "",
+  "header": "",
+  "lastUpdateTime": 0,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 688,
+  "ruleBookInfo": {
+    "init": "",
+    "author": "class.p_author@a@text",
+    "coverUrl": "id.bookimg@img@src",
+    "intro": "id.bookintro@text",
+    "kind": "id.count@li.0@span@",
+    "lastChapter": "class.chaw@li.0@text",
+    "name": "class.d_title@text",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "id.count@li.1@span@text",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "id.TextContent@html",
+    "nextContentUrl": "",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "id.sitebox@dl",
+    "bookUrl": "dt@a@href",
+    "coverUrl": "dt@img@src",
+    "intro": "dd.2@text",
+    "kind": "dd.1@span.0@text",
+    "lastChapter": "dd.3@a@text",
+    "name": "h3@a@text",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "",
+    "bookList": "id.nr",
+    "bookUrl": "dt@a@href",
+    "coverUrl": "dt@a@img@src",
+    "intro": "dd.2@text",
+    "kind": "dt@span@text",
+    "lastChapter": "dd.3@a@text",
+    "name": "h3@a@text",
+    "wordCount": "df.1@span.2@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.chapterList@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "https://www.blshuge.com/modules/article/search.php,{\n  \"body\": \"searchkey={{key}}&searchtype=articlename\",\n  \"charset\": \"UTF-8\",\n  \"method\": \"POST\"\n}",
+  "variableComment": "",
+  "weight": 1
+}

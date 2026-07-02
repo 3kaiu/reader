@@ -1,0 +1,46 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "天龙",
+  "bookSourceName": "大米小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.damixs.biz/",
+  "customOrder": 80,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1685874776305,
+  "respondTime": 3242,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "#bookIntro@html",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content"
+  },
+  "ruleContent": {
+    "content": "#htmlContent@html##<p id=\"contentTip\"[\\s\\S]+##❎\n<js>\nlist = java.getElement(\"@@id.subFrom@input\").toArray()\nif(list.length){\nbody=\"\";\nfor(i=0;i<list.length;i++){\n\tbody += list[i].attr(\"name\")+\"=\"+java.encodeURI(list[i].attr(\"value\"))+\"&\"\n\t}\nurl = \"https://www.damixs.co/get-page-data?\"+Math.random();\noption = {\n\t\"method\":\"POST\",\n\t\"body\":String(body).replace(/&$/,'')\n\t}\nurl = url+\",\"+JSON.stringify(option)\nj = java.ajax(url);\nresult = result + JSON.parse(j).data+\"❎\"\n}else{\n\tresult = result\n\t}\n</js>",
+    "imageStyle": "",
+    "nextContentUrl": "<js>\nif(/\"\\/get-page-next\\?\"/.test(String(result))){\nurl = \"https://www.damixs.co/get-page-next?\"+Math.random();\n\npost = result.match(/data: {'v1':'([^']+)','v2':'([^']+)','v3':'([^']+)','v4':'([^']+)'},/);\n\nbody =\"v1=\"+java.encodeURI(post[1])+\"&v2=\"+java.encodeURI(post[2])+\"&v3=\"+java.encodeURI(post[3])+\"&v4=\"+java.encodeURI(post[4]);\n\noption = {\n\t\"method\":\"POST\",\n\t\"body\":body\n\t}\n\tj = java.ajax(url+\",\"+JSON.stringify(option))\n\nJSON.parse(j).url.replace(/\\s+/g,'+')\n}\n</js>",
+    "replaceRegex": "##.*向你推荐他的其他作品[\\s\\S]+|.*看最新章节.*|\\s*❎\\s*|\\s*.*?(.{0,8}#){3,}.*\\s*",
+    "webJs": ""
+  },
+  "ruleExplore": {},
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": ".booktag@text",
+    "bookList": "class.col-md-10",
+    "bookUrl": "a.0@href",
+    "intro": "#bookIntro@text",
+    "lastChapter": ".text-danger@text",
+    "name": "h4@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.panel-chapterlist.-1@dd@a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "preUpdateJs": ""
+  },
+  "searchUrl": "search,{\"method\":\"POST\",\"body\":\"keyword={{key}}\"}",
+  "weight": 0
+}

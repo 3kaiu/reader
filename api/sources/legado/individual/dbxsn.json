@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "轩1",
+  "bookSourceName": "独步小说🎃",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.dbxsn.com#🎃",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 172,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"玄幻奇幻\",\"url\":\"/nav/xh-qh-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"科幻游戏\",\"url\":\"/nav/kh-yx-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"仙侠武侠\",\"url\":\"/nav/xx-wx-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"女生言情\",\"url\":\"/nav/ns-yq-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"都市娱乐\",\"url\":\"/nav/ds-yl-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"历史军事\",\"url\":\"/nav/ls-js-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"悬疑灵异\",\"url\":\"/nav/xy-ly-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"耽美纯爱\",\"url\":\"/nav/dm-ca-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"成长励志\",\"url\":\"/nav/cz-lz-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"散文随笔\",\"url\":\"/nav/sw-sb-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"轻の小说\",\"url\":\"/nav/qxs-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"国外文学\",\"url\":\"/nav/gwwx-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"文学名著\",\"url\":\"/nav/wxmz-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"现代当代\",\"url\":\"/nav/xddwx-{{page}}.html\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},{\"title\":\"\",\"url\":\"\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "exploreScreen": "",
+  "header": "{\n  'User-Agent': 'Mozilla/5.0 (Linux; Android 9; PDBM00 Build/PPR1.180610.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/70.0.3538.110 Mobile Safari/537.36'\n}",
+  "lastUpdateTime": 0,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 2346,
+  "ruleBookInfo": {
+    "init": "",
+    "author": ".media-body@a.1@text",
+    "coverUrl": ".book-img-middel@src",
+    "intro": ".book-detail@text##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".col-md-4@text##.*：|\\s..:.*",
+    "lastChapter": ".media-body@a.2@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "name": ".book-name@a@text",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "id.cont-body@html  ",
+    "nextContentUrl": ".page@a@href",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": ".media",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src",
+    "intro": ".media-info@text",
+    "kind": "",
+    "lastChapter": "",
+    "name": "a.1@text",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "td.1@text",
+    "bookList": ".table@tbody@tr",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\n'/uploads/cover/'+id+'s.jpg';\n</js>",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "a.0@text##《|》",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "id.all-chapter@div@a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "/plus/search.php?q={{key}}",
+  "variableComment": "",
+  "weight": 2
+}

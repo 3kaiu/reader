@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "🎃风险小说🎃",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.txt86w.com#🎃",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 1387,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "exploreScreen": "",
+  "header": "",
+  "lastUpdateTime": 0,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 406,
+  "ruleBookInfo": {
+    "init": "",
+    "author": ".book-title em@text",
+    "coverUrl": "img@src",
+    "intro": ".book-intro@text##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".book-stats@textNodes##\\s##,",
+    "lastChapter": ".item-index a.0@text",
+    "name": "h1@text",
+    "canReName": "",
+    "tocUrl": ".book-link a.0@href",
+    "wordCount": "",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "#BookText@html",
+    "nextContentUrl": "",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": ".s3@text",
+    "bookList": ".item-con li",
+    "bookUrl": "a.0@href##.+\\D(\\d+)\\D##http://www.txt86w.com/$1/xiazai.html",
+    "coverUrl": "",
+    "intro": "",
+    "kind": ".s1@text&&.s5@text&&.s4@text##\\[|\\]",
+    "lastChapter": "i a@text",
+    "name": ".s2 a.0@text",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": ".chapterlist dd a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "http://www.txt86w.com/search?wd={{key}}&page={{page}}",
+  "variableComment": "",
+  "weight": 1
+}

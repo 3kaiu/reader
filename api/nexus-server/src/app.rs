@@ -51,6 +51,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/replace_rules", get(routes::replace_rules::list_rules))
         .route("/api/replace_rules", post(routes::replace_rules::save_rule))
         .route("/api/replace_rules/{id}", delete(routes::replace_rules::delete_rule))
+        // Legado source management
+        .route("/api/sources/legado/import", post(routes::source::import_legado_sources))
+        .route("/api/sources/legado", get(routes::source::list_legado_sources))
+        .route("/api/sources/legado/{id}", delete(routes::source::delete_legado_source))
         .with_state(state.clone());
 
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());

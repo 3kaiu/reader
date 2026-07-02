@@ -1,0 +1,80 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "独步小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.dbxsd.com#",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "coverDecodeJs": "",
+  "customOrder": 1671,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "exploreUrl": "",
+  "exploreScreen": "",
+  "header": "{\n\t'User-Agent': \"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari\\/537.36 EdgA/125.0.0.0\"\n}",
+  "lastUpdateTime": 1734432069048,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 1285,
+  "ruleBookInfo": {
+    "init": "",
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "[property=\"og:description\"]@content",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "canReName": "",
+    "tocUrl": "",
+    "wordCount": "",
+    "ttsDice": ""
+  },
+  "ruleContent": {
+    "content": "#cont-body@p@text",
+    "nextContentUrl": "class.col-md-6 text-center@a.-1@href",
+    "imageStyle": "",
+    "webJs": "",
+    "sourceRegex": "",
+    "replaceRegex": ""
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "",
+    "wordCount": ""
+  },
+  "ruleReview": {
+    "review": ""
+  },
+  "ruleSearch": {
+    "author": "td.1@text",
+    "bookList": "tbody@tr",
+    "bookUrl": "a@href##$##,{'webView': true}",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "lastChapter": "",
+    "name": "a.0@text##\\《|\\》",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": "class.col-md-6 item@a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "isVip": "",
+    "isVolume": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "https://www.dbxsd.com/plus/search.php?q={{key}}",
+  "variableComment": "",
+  "weight": -5
+}

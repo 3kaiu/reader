@@ -1,0 +1,54 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "🌸 特殊",
+  "bookSourceName": "友漫",
+  "bookSourceType": 2,
+  "bookSourceUrl": "UAA·漫画",
+  "customOrder": 1181,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "@js:\nlista=JSON.parse(java.ajax('https://api.uaa.com/comic/app/comic/categories?type=1')).model;\nprea='';\nlena=lista.length;\nfor(i=0;i<lena;i++){\nprea+=\"{'title':'\"+lista[i].name+\"','url':'https://api.uaa.com/comic/app/comic/search?category=\"+lista[i].name+\"&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.25}},\"\n}\nlistb=JSON.parse(java.ajax('https://api.uaa.com/comic/app/comic/categories?type=2')).model;\npreb='';\nlenb=listb.length;\nfor(i=0;i<lenb;i++){\npreb+=\"{'title':'\"+listb[i].name+\"','url':'https://api.uaa.com/comic/app/comic/search?category=\"+listb[i].name+\"&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},\"\n}\nlistc=JSON.parse(java.ajax('https://api.uaa.com/comic/app/comic/tags?type=1')).model;\nprec='';\nlenc=listc.length;\nfor(i=0;i<lenc;i++){\nprec+=\"{'title':'\"+listc[i].name+\"','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&tag=\"+listc[i].name+\"'},\"\n}\nlistd=JSON.parse(java.ajax('https://api.uaa.com/comic/app/comic/tags?type=2')).model;\npred='';\nlend=listd.length;\nfor(i=0;i<lend;i++){\npred+=\"{'title':'\"+listd[i].name+\"','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&tag=\"+listd[i].name+\"'},\"\n}\nresult=\"[{'title':'分类 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'日本H漫','url':'https://api.uaa.com/comic/app/comic/search?origin=1&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},\"+prea+prec+\"{'title':'韩国H漫','url':'https://api.uaa.com/comic/app/comic/search?origin=2&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},\"+preb+pred+\"{'title':'色彩 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'彩色','url':'https://api.uaa.com/comic/app/comic/search?color=2&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'黑白','url':'https://api.uaa.com/comic/app/comic/search?color=1&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'篇幅 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'单话','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&space=1','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'多话','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&space=3','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'取向 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'直男','url':'https://api.uaa.com/comic/app/comic/search?orientation=1&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'女主','url':'https://api.uaa.com/comic/app/comic/search?orientation=2&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'男男','url':'https://api.uaa.com/comic/app/comic/search?orientation=3&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'女女','url':'https://api.uaa.com/comic/app/comic/search?orientation=4&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'来源 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'原创首发','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&source=1','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'会员上传','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25&source=2','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'状态 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'已完结','url':'https://api.uaa.com/comic/app/comic/search?finished=1&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'连载中','url':'https://api.uaa.com/comic/app/comic/search?finished=0&page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.4}},{'title':'时段 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'今日','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&period=1&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.25}},{'title':'本周','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&period=2&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.25}},{'title':'本月','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&period=3&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.25}},{'title':'评分 • 全部','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:1}},{'title':'＞4','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&score=4&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'＞3','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&score=3&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'＞2','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&score=2&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}},{'title':'＞1','url':'https://api.uaa.com/comic/app/comic/search?page={{page}}&score=1&size=25','style':{layout_flexGrow:1,layout_flexBasisPercent:0.2}}]\"",
+  "header": "{\"cookie\":\"_ga=GA1.1.316026359.1685377249; _ga_4BC3P9JVX3=GS1.1.1685401323.2.1.1685401938.60.0.0\",\n\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJpZCI6ODYwNzIxNzA0MDMxMzU4OTc2LCJ0eXBlIjoiY3VzdG9tZXIiLCJ0aW1lc3RhbXAiOjE2ODUzNzg1MTE1NzQsImV4cCI6MTY4NTk4MzMxMX0.-FX7rOJP7I10ApjeM5NVaGj57aeYnkVyopniC7U_Dv8\"}",
+  "lastUpdateTime": 1686054507658,
+  "respondTime": 5238,
+  "ruleBookInfo": {
+    "author": "authors",
+    "coverUrl": "coverUrl",
+    "init": "model",
+    "intro": "tags##^|,##&nbsp;",
+    "kind": "categories&&updateTimeFormat",
+    "lastChapter": "latestUpdate",
+    "name": "title",
+    "tocUrl": "/comic/app/comic/catalog/{{$.id}}",
+    "wordCount": "@js:{{$.finished}}=='0'?'连载':'完结';"
+  },
+  "ruleContent": {
+    "content": "model.images\n@js:\nresult='<img\\ssrc=\"'+String(result).replace(/\\n/g,'\">\\n<img\\ssrc=\"')+'\">'",
+    "imageStyle": ""
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "authors",
+    "bookList": ".[?(@.title)]",
+    "bookUrl": "/comic/app/comic/intro?id={{$.id}}",
+    "checkKeyWord": "",
+    "coverUrl": "coverUrl",
+    "intro": "tags",
+    "kind": "categories&&updateTimeFormat",
+    "lastChapter": "latestUpdate",
+    "name": "title",
+    "wordCount": "@js:{{$.finished}}=='0'?'连载':'完结';"
+  },
+  "ruleToc": {
+    "chapterList": ".[?(@.title)]",
+    "chapterName": "title",
+    "chapterUrl": "/comic/app/comic/chapter?id={{$.id}}&viewId=16755023882598961",
+    "isVip": "",
+    "isVolume": "",
+    "preUpdateJs": "",
+    "updateTime": "onlineTime##T.*"
+  },
+  "searchUrl": "https://api.uaa.com/comic/app/comic/search?keyword={{key}}&page={{page}}&size=10",
+  "weight": 0
+}

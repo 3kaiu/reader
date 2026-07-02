@@ -1,0 +1,47 @@
+{
+  "bookSourceComment": "搜索全名",
+  "bookSourceGroup": "2023.7.20效验",
+  "bookSourceName": "♛ 读书阁 #渊呀",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.zmtt.net#yuan1107",
+  "bookUrlPattern": "",
+  "customOrder": 1563,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "exploreUrl": "",
+  "header": "",
+  "lastUpdateTime": 1627904531646,
+  "loginUrl": "",
+  "respondTime": 50854,
+  "ruleBookInfo": {
+    "author": "author",
+    "init": "data.book",
+    "intro": "intro",
+    "kind": "type&&update_state",
+    "lastChapter": "last_chapter_name&&last_chapter_updatetime##\\n##·",
+    "name": "name",
+    "tocUrl": "/getCataLogs?bookid={{$._id}}&page=1&limit={{$.total_num}}"
+  },
+  "ruleContent": {
+    "content": "data.chapterInfo.content<js>java.aesBase64DecodeToString(result,\"6CE93717FBEA3E4F\",\"AES/CBC/NoPadding\",\"6CE93717FBEA3E4F\")</js>##\\#\\#\\#\\$\\$\\$##<br>"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": "author",
+    "bookList": "data",
+    "bookUrl": "/bookInfo?bookid={{$._id}}",
+    "coverUrl": "image_url",
+    "intro": "intro",
+    "kind": "type",
+    "lastChapter": "last_chapter_name&&last_chapter_updatetime##\\n##·",
+    "name": "name@put:{bid:_id}"
+  },
+  "ruleToc": {
+    "chapterList": "data.list",
+    "chapterName": "name",
+    "chapterUrl": "/getContent?bookid=@get:{bid}&chapterid={{$._id}}"
+  },
+  "searchUrl": "@js:\noption={\"method\":\"POST\",\"body\":{\"version\":\"2.0\"}}\nurl=\"http://\"+JSON.parse(java.ajax(\"http://www.zmtt.net/checkUpdate,\"+JSON.stringify(option))).data.url\n//java.put(\"url\",url)\noption={\"method\":\"POST\",\"body\":{\"keyword\":key}}\nurl+\"search,\"+JSON.stringify(option)",
+  "weight": 60
+}

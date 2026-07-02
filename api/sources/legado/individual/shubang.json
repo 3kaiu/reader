@@ -1,0 +1,43 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "💬双语小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.shubang.net/book/",
+  "customOrder": 1531,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "lastUpdateTime": 1675321595933,
+  "respondTime": 413,
+  "ruleBookInfo": {
+    "init": "",
+    "kind": "class.tags@a@text",
+    "lastChapter": "tr.-1@td@a@text"
+  },
+  "ruleContent": {
+    "content": ".line_en@text%%.line_cn@title",
+    "nextContentUrl": "class.pagebar@a.-1@href"
+  },
+  "ruleExplore": {
+    "bookList": ""
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "class.cont@p@text",
+    "bookList": "class.mcon@a",
+    "bookUrl": "a@href",
+    "checkKeyWord": "哈利",
+    "coverUrl": "class.cover@img@src",
+    "intro": "class.cont@ownText",
+    "kind": "",
+    "name": "h3@text"
+  },
+  "ruleToc": {
+    "chapterList": "tr@td",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "searchUrl": "http://www.shubang.net/book/?q={{key}}",
+  "weight": 0
+}

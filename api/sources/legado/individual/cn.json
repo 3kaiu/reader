@@ -1,0 +1,58 @@
+{
+  "bookSourceComment": "移动打不开，联通可以，电信不知，梯",
+  "bookSourceGroup": "合集0905",
+  "bookSourceName": "天天看",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://cn.ttkan.co/",
+  "bookUrlPattern": "",
+  "concurrentRate": "",
+  "customOrder": 1511,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"连载\",\"url\":\"/novel/class/lianzai\"},{\"title\":\"随选\",\"url\":\"/novel/class/suixuan\"},{\"title\":\"玄幻\",\"url\":\"/novel/class/xuanhuan\"},{\"title\":\"都市\",\"url\":\"/novel/class/dushi\"},{\"title\":\"仙侠\",\"url\":\"/novel/class/xianxia\"},{\"title\":\"言情\",\"url\":\"/novel/class/gudaiyanqing\"},{\"title\":\"穿越\",\"url\":\"/novel/class/chuanyuechongsheng\"},{\"title\":\"游戏\",\"url\":\"/novel/class/youxi\"},{\"title\":\"科幻\",\"url\":\"/novel/class/kehuan\"},{\"title\":\"悬疑\",\"url\":\"/novel/class/xuanyi\"},{\"title\":\"灵异\",\"url\":\"/novel/class/lingyi\"},{\"title\":\"历史\",\"url\":\"/novel/class/lishi\"},{\"title\":\"青春\",\"url\":\"/novel/class/qingchun\"},{\"title\":\"军事\",\"url\":\"/novel/class/junshi\"},{\"title\":\"竞技\",\"url\":\"/novel/class/jingji\"},{\"title\":\"现言\",\"url\":\"/novel/class/yanqing\"},{\"title\":\"其它\",\"url\":\"/novel/class/qita\"}]",
+  "header": "",
+  "lastUpdateTime": 1691994882340,
+  "loginCheckJs": "",
+  "loginUi": "",
+  "loginUrl": "",
+  "respondTime": 1956,
+  "ruleBookInfo": {
+    "author": "class.novel_info@tag.div.2@tag.ul@tag.li.1@tag.a@text",
+    "coverUrl": "class.novel_info@tag.div.1@tag.a@tag.amp-img@src",
+    "intro": "class.description@text",
+    "kind": "class.novel_info@tag.div.2@tag.ul@tag.li.2@text##类别：",
+    "lastChapter": "class.full_chapters@tag.div.1@tag.a.-1@text",
+    "name": "class.novel_info@tag.div.2@tag.ul@tag.li.0@text"
+  },
+  "ruleContent": {
+    "content": "class.content@tag.p@text##\\(.*|\\)",
+    "replaceRegex": "##交流好书.*|关注.*"
+  },
+  "ruleExplore": {
+    "author": "",
+    "bookList": "",
+    "bookUrl": "",
+    "coverUrl": "",
+    "intro": "",
+    "kind": "",
+    "name": ""
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "tag.ul@tag.li.1@text",
+    "bookList": "class.novel_cell",
+    "bookUrl": "tag.ul@tag.li.0@tag.a@href",
+    "coverUrl": "tag.a@tag.amp-img@src",
+    "intro": "tag.ul@tag.li.2@text",
+    "kind": "",
+    "name": "tag.ul@tag.li.0@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.full_chapters@tag.div.1@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://cn.ttkan.co/novel/search?q={{java.encodeURI(key)}}",
+  "weight": 0
+}

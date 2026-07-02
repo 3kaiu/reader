@@ -1,0 +1,42 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "",
+  "bookSourceName": "小刀阅读#🎊 笔趣阁⑩",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.yingsx.com",
+  "bookUrlPattern": "",
+  "customOrder": 1520,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": false,
+  "exploreUrl": "",
+  "header": "",
+  "lastUpdateTime": 1627898060839,
+  "loginUrl": "",
+  "respondTime": 2923,
+  "ruleBookInfo": {
+    "coverUrl": "[property=\"og:image\"]@content",
+    "intro": "id.intro@tag.p.0@textNodes##.*无弹窗广告.*",
+    "lastChapter": "id.list@tag.dd.0@a@text"
+  },
+  "ruleContent": {
+    "content": "id.content@html"
+  },
+  "ruleExplore": {},
+  "ruleSearch": {
+    "author": ".s4@text",
+    "bookList": "id.main@li!0",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.a@href<js>'/files/article/image'+String(result).replace(/.*?(\\d*?)(\\d{1,3})\\//,'/$1/$1$2/$1$2s.jpg').replace('//','/0/')</js>",
+    "kind": "class.s1@text##\\[|$",
+    "lastChapter": "tag.a.1@text",
+    "name": "tag.a.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@dl@dd@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "https://www.yingsx.com/cse/search?q={{key}}&s=,{\n  \"charset\": \"utf-8\"\n}",
+  "weight": 0
+}

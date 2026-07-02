@@ -1,0 +1,67 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "水幽临渊0905",
+  "bookSourceName": "连尚读书[app]",
+  "bookSourceType": 0,
+  "bookSourceUrl": "http://www.lsds.cn/",
+  "bookUrlPattern": "",
+  "customOrder": 1620,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"男生\",\"url\":\"\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"现实\",\"url\":\"/all-0-283.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"仙武\",\"url\":\"/all-0-1.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"玄幻\",\"url\":\"/all-0-6.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"历史\",\"url\":\"/all-0-22.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"军事\",\"url\":\"/all-0-26.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"都市\",\"url\":\"/all-0-30.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"科幻\",\"url\":\"/all-0-37.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"网游\",\"url\":\"/all-0-44.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"推理\",\"url\":\"/all-0-50.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"竞技\",\"url\":\"/all-0-56.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"短篇\",\"url\":\"/all-0-167.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"其他\",\"url\":\"/all-0-159.html\",\"style\":\n{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},\n{\"title\":\"女生\",\"url\":\"http://www.fbook.net/all/nansheng?page={{page}}\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"现实\",\"url\":\"/all-1-285.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"现代\",\"url\":\"/all-1-61.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"古代\",\"url\":\"/all-1-68.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"青春\",\"url\":\"/all-1-75.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"玄幻\",\"url\":\"/all-1-81.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"悬疑\",\"url\":\"/all-1-84.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"仙武\",\"url\":\"/all-1-90.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"短篇\",\"url\":\"/all-1-175.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.2}},{\"title\":\"其他\",\"url\":\"/all-1-161.html\",\"style\":{\"layout_flexBasisPercent\":0.211}}]",
+  "header": "",
+  "lastUpdateTime": 1692440670784,
+  "loginUrl": "",
+  "respondTime": 718,
+  "ruleBookInfo": {
+    "author": "[name=\"author\"]@content",
+    "coverUrl": ".book-info-cover img@src",
+    "init": "",
+    "intro": ".info-describe p@html##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".tag@text##小说",
+    "lastChapter": "[name=\"last_chapter_name\"]@content",
+    "name": ".book-info-title@text",
+    "tocUrl": "<js>result = baseUrl.replace(\"bookinfo\",\"catalog\");</js>",
+    "wordCount": ".word-count@text"
+  },
+  "ruleContent": {
+    "content": ".reader-contents@html",
+    "nextContentUrl": "",
+    "sourceRegex": "",
+    "webJs": ""
+  },
+  "ruleExplore": {
+    "author": "tag.span.0@text",
+    "bookList": ".book-a",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "tag.img.0@src",
+    "intro": "tag.p.0@text##\\s",
+    "kind": "tag.span.1:2@text##小说",
+    "lastChapter": "",
+    "name": "tag.a.1@text",
+    "wordCount": "tag.p.1@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "tag.span.0@text",
+    "bookList": ".res-book-item",
+    "bookUrl": "tag.a@href##reader/(\\d+)-(\\d+)##bookinfo/$1",
+    "coverUrl": "tag.img.0@src",
+    "intro": "tag.p.1@text##\\s",
+    "kind": "tag.span.1:2@text##小说",
+    "lastChapter": "",
+    "name": "tag.a.1@text",
+    "wordCount": "tag.span.3@text"
+  },
+  "ruleToc": {
+    "chapterList": "#test a",
+    "chapterName": "title",
+    "chapterUrl": "href",
+    "isVip": "",
+    "nextTocUrl": "",
+    "updateTime": ""
+  },
+  "searchUrl": "/booksearch/result-{{key}}-{{page}}.html",
+  "weight": 0
+}

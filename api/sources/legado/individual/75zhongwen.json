@@ -1,0 +1,63 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "②🌸  常用",
+  "bookSourceName": "🌸起舞中文",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.75zhongwen.com",
+  "bookUrlPattern": "",
+  "customOrder": -2085959029,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": false,
+  "enabledReview": false,
+  "exploreUrl": "",
+  "header": "",
+  "lastUpdateTime": 1682084587306,
+  "loginUrl": "https://www.75zhongwen.com",
+  "respondTime": 22734,
+  "ruleBookInfo": {
+    "author": "[property=\"og:novel:author\"]@content",
+    "coverUrl": "[property=\"og:image\"]@content",
+    "init": "",
+    "intro": "#intro@tag.p.0@html",
+    "kind": "[property=\"og:novel:category\"]@content&&[property=\"og:novel:status\"]@content&&[property=\"og:novel:update_time\"]@content##\\s.*",
+    "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+    "name": "[property=\"og:novel:book_name\"]@content"
+  },
+  "ruleContent": {
+    "content": "#content@html",
+    "imageStyle": "0",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##喜欢.*速度最快。|本章未完.*"
+  },
+  "ruleExplore": {
+    "author": "tag.span.1@text",
+    "bookList": ".sitebox dl",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "img@src",
+    "intro": "tag.dd.2@text",
+    "kind": "tag.span.0@text",
+    "lastChapter": "tag.a.2@text",
+    "name": "tag.a.1@text"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "tag.span.0@text",
+    "bookList": "\n#sitembox dl",
+    "bookUrl": "tag.a.1@href",
+    "checkKeyWord": "系统",
+    "coverUrl": "img@src",
+    "intro": "tag.dd.2@text",
+    "kind": "tag.span.1:2:-1@text##\\s.*",
+    "lastChapter": "tag.a.-1@text",
+    "name": "tag.a.1@text",
+    "wordCount": "tag.span.3@text"
+  },
+  "ruleToc": {
+    "chapterList": "#list dd a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "searchUrl": "<js>\njava.post(\"https://www.75zw.com/search.html\",\"searchtype=all&searchkey=\"+key,{\"referer\":\"https://www.75zw.com/\",\"cookie\":\"sex=boy\"}).header(\"Location\");\n</js>",
+  "weight": 0
+}

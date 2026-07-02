@@ -1,0 +1,53 @@
+{
+  "bookSourceComment": "",
+  "bookSourceGroup": "2023.7.20效验",
+  "bookSourceName": "♛-笔趣阁③",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.xsbiquge.net#♤guaner1",
+  "bookUrlPattern": "https://www.biqugexx.net/\\d+_\\d+/",
+  "customOrder": 1488,
+  "enabled": true,
+  "enabledCookieJar": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 1673270946923,
+  "loginUrl": "",
+  "respondTime": 2300,
+  "ruleBookInfo": {
+    "author": "//meta[@property=\"og:novel:author\"]/@content",
+    "coverUrl": "//meta[@property=\"og:image\"]/@content",
+    "intro": "id.intro@text",
+    "kind": "//meta[@property=\"og:novel:category\"]/@content",
+    "lastChapter": "//meta[@property=\"og:novel:latest_chapter_name\"]/@content##章节目录",
+    "name": "//meta[@property=\"og:title\"]/@content",
+    "tocUrl": "text.章节目录@href"
+  },
+  "ruleContent": {
+    "content": "id.content@html##----更新快，无防盗上------|热门\\*小说txt下载|.*www.biqugexx.net.*|biqu.*net",
+    "imageStyle": "0",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##\\s*.*?本章未完.*\\s*|章节报错\\(免登录\\)"
+  },
+  "ruleExplore": {
+    "coverUrl": "\nvar id = result.match(/_(\\d+)/)[1];\nvar iid = parseInt(id/1000);\n'/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>"
+  },
+  "ruleReview": {},
+  "ruleSearch": {
+    "author": "class.btm@tag.a.0@text",
+    "bookList": "class.item",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "img@data-original",
+    "intro": "tag.dt.0@dd@text",
+    "kind": "",
+    "lastChapter": "tag.td.1@text",
+    "name": "tag.dt.0@a@text",
+    "wordCount": "tag.em.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.content_1@a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "nextTocUrl": "select@option@value"
+  },
+  "searchUrl": "https://www.xsbiquge.net/search/?searchkey={{key}}",
+  "weight": 0
+}
