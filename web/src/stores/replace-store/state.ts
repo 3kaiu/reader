@@ -1,9 +1,9 @@
-import { ref } from 'vue'
+import { shallowRef, ref } from 'vue'
 import type { ReplaceStoreState } from './types'
 
 export function createReplaceStoreState(): ReplaceStoreState {
   return {
-    rules: ref([]),
+    rules: shallowRef([]),
     loading: ref(false),
     loaded: ref(false),
   }

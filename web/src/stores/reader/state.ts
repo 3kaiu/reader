@@ -19,7 +19,7 @@ export function createReaderStoreState(): ReaderStoreState {
     loadErrorDetails: ref<string | null>(null),
     diagnosticsRequestId: ref<string | null>(null),
     diagnosticsPackageId: ref<string | null>(null),
-    progressMap: ref(loadPersistedReaderProgress()),
+    progressMap: shallowRef(loadPersistedReaderProgress()),
     chapterContentCache: shallowRef<Record<string, string>>({}),
     contentStageReports: shallowRef<ReaderStageReport[]>([]),
   }
