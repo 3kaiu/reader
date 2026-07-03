@@ -49,10 +49,19 @@ mod font_decryptor;
 mod text_cleaner;
 mod text_dedup;
 
-// Public exports
+// Public exports — engine types
 pub use anti_crawl::{CfBypassStrategy, DirectHttpStrategy, FallbackChain};
 pub use legado::LegadoEngine;
 pub use nxs_engine::NxsEngine;
+
+// Application-layer modules (internal pub mod — server accesses via nexus_engine::*)
+pub use extraction_metrics::{
+    configure_max_tracked_sources, record_empty_content_failure, record_low_quality_failure,
+    record_quality_score, record_rule_mismatch_failure, record_success,
+    record_validation_failure, reset_source, restore_from_snapshot, snapshot,
+    snapshot_persisted, stats_for, summary, ExtractionSummary, SourceExtractionStats,
+};
+pub use quality_gate::{evaluate_content_quality, passes_quality_gate};
 
 #[cfg(test)]
 mod tests_69shuba_offline;

@@ -1,16 +1,9 @@
 import type { ReaderChromeActionContext } from './chrome-types'
 import type { ReaderChromeTimerActions } from './chrome-types'
-import { createReaderChromeHideTimerClearAction } from './chrome-hide-timer-clear'
-import { createReaderChromeHideTimerStartAction } from './chrome-hide-timer-start'
+import { createReaderChromeHideTimerActions } from './chrome-hide-timer'
 
 export function createReaderChromeTimerActions(
   context: ReaderChromeActionContext
 ): ReaderChromeTimerActions {
-  const clearHideTimer = createReaderChromeHideTimerClearAction(context)
-  const startHideTimer = createReaderChromeHideTimerStartAction(context, clearHideTimer)
-
-  return {
-    clearHideTimer,
-    startHideTimer,
-  }
+  return createReaderChromeHideTimerActions(context)
 }

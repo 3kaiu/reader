@@ -1,5 +1,5 @@
 import { createReaderChromeDisplayActions } from './chrome-display'
-import { createReaderChromeLayerActions } from './chrome-layers'
+import { createReaderChromeLayerActions } from './chrome-display'
 import { createReaderChromeTimerActions } from './chrome-timers'
 import type { ReaderChromeActionsResult } from './chrome-types'
 import type { ReaderChromeActionOptions } from './chrome-option-types'

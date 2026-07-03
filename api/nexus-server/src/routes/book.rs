@@ -8,7 +8,7 @@ use nexus_core::{
     types::{Chapter, PipelineStageReport},
     BookEngineRuntime, BookInfo, BookInfoMeta, ChapterContent, ChapterContentMeta, EngineError,
 };
-use nexus_engine::quality_gate::evaluate_content_quality;
+use nexus_engine::evaluate_content_quality;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
