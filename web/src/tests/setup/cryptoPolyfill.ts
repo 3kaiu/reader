@@ -154,7 +154,7 @@ try {
   if (!globalThis.crypto || !globalThis.crypto.subtle || !globalThis.crypto.subtle.deriveKey) {
     defineGlobalValue('crypto', cryptoPolyfill)
   }
-} catch (error: unknown) {
+} catch (_error: unknown) {
   // If we can't override crypto, try to patch the specific methods we need
   if (globalThis.crypto && !globalThis.crypto.subtle) {
     Object.defineProperty(globalThis.crypto, 'subtle', {
@@ -183,7 +183,7 @@ if (!globalThis.btoa) {
   defineGlobalValue('btoa', (str: string) => {
     try {
       return Buffer.from(str, 'binary').toString('base64')
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // Fallback for invalid characters
       // `\x00` control character range triggers `no-control-regex` in this lint setup.
       // We only use it for test polyfill sanitization.
@@ -198,7 +198,7 @@ if (!globalThis.atob) {
   defineGlobalValue('atob', (str: string) => {
     try {
       return Buffer.from(str, 'base64').toString('binary')
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // Fallback for invalid base64
       console.warn('Invalid base64 string:', str)
       return ''

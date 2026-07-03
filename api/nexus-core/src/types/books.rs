@@ -106,15 +106,6 @@ pub struct BookInfo {
     pub meta: Option<BookInfoMeta>,
 }
 
-/// Table of contents item (chapter entry for TOC listing)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TocItem {
-    pub title: Arc<str>,
-    pub url: Arc<str>,
-    pub index: usize,
-}
-
 /// Chapter information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

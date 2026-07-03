@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Agent skill plane (rule-based v1).
 //!
 //! This module provides deterministic "skill" decisions that can run in

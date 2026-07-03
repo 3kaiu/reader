@@ -34,12 +34,8 @@ parking_lot = "0.12"
 # Hashing
 md5 = "0.7"
 
-# File watching (optional)
-notify = { version = "8", optional = true }
-
 [features]
 default = []
-watch = ["notify"]
 
 [dev-dependencies]
 tempfile = "3"

@@ -287,7 +287,19 @@ pub async fn content(
         .health_tracker()
         .record_success(&query.source, request_started_at.elapsed());
 
-    let content_arc: Arc<str> = Arc::from(content_run.content.as_str());
+    // Enforce maximum chapter content size (5 MB default)
+    const MAX_CHAPTER_BYTES: usize = 5_000_000;
+    let content = if content_run.content.len() > MAX_CHAPTER_BYTES {
+        tracing::warn!(
+            "Chapter content too large ({} bytes), truncating to {} bytes",
+            content_run.content.len(),
+            MAX_CHAPTER_BYTES
+        );
+        content_run.content[..MAX_CHAPTER_BYTES].to_string()
+    } else {
+        content_run.content
+    };
+    let content_arc: Arc<str> = Arc::from(content.as_str());
 
     // 2. Store in cache if possible
     if let (Some(book_id), Some(index)) = (&query.book_id, query.index) {

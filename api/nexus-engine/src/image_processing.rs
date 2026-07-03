@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Image processing pipeline for comic book sources
 //!
 //! Implements Legado-style `prepareImage` and `processImage` hooks:
@@ -52,40 +53,7 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
-    fn from_mime(mime: &str) -> Self {
-        match mime {
-            "image/jpeg" | "image/jpg" => ImageFormat::Jpeg,
-            "image/png" => ImageFormat::Png,
-            "image/gif" => ImageFormat::Gif,
-            "image/webp" => ImageFormat::WebP,
-            _ => ImageFormat::Unknown,
-        }
-    }
-
-    fn from_extension(path: &str) -> Self {
-        let lower = path.to_lowercase();
-        if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
-            ImageFormat::Jpeg
-        } else if lower.ends_with(".png") {
-            ImageFormat::Png
-        } else if lower.ends_with(".gif") {
-            ImageFormat::Gif
-        } else if lower.ends_with(".webp") {
-            ImageFormat::WebP
-        } else {
-            ImageFormat::Unknown
-        }
-    }
-
-    fn to_mime(&self) -> &'static str {
-        match self {
-            ImageFormat::Jpeg => "image/jpeg",
-            ImageFormat::Png => "image/png",
-            ImageFormat::Gif => "image/gif",
-            ImageFormat::WebP => "image/webp",
-            ImageFormat::Unknown => "application/octet-stream",
-        }
-    }
+    // No public methods currently needed; format is determined at runtime
 }
 
 /// Build default image request headers (matching Legado Tauri behavior)
@@ -201,7 +169,7 @@ pub fn reassemble_strips(img: &DynamicImage, order: &[usize]) -> Result<DynamicI
 
     // Create destination image
     let mut dest = DynamicImage::new_rgba8(width, height);
-    let dest_rgba = dest.as_mut_rgba8().ok_or("Failed to get RGBA mut buffer")?;
+    let _dest_rgba = dest.as_mut_rgba8().ok_or("Failed to get RGBA mut buffer")?;
 
     for (dest_idx, &src_idx) in order.iter().enumerate() {
         let src_y = src_idx as u32 * strip_height;
@@ -399,23 +367,5 @@ mod tests {
         let result = apply_image_style(&img, "unknown_style").unwrap();
         assert_eq!(result.width(), 10);
         assert_eq!(result.height(), 10);
-    }
-
-    #[test]
-    fn test_format_from_mime() {
-        assert_eq!(ImageFormat::from_mime("image/jpeg"), ImageFormat::Jpeg);
-        assert_eq!(ImageFormat::from_mime("image/png"), ImageFormat::Png);
-        assert_eq!(ImageFormat::from_mime("image/gif"), ImageFormat::Gif);
-        assert_eq!(ImageFormat::from_mime("image/webp"), ImageFormat::WebP);
-        assert_eq!(ImageFormat::from_mime("application/octet-stream"), ImageFormat::Unknown);
-    }
-
-    #[test]
-    fn test_format_from_extension() {
-        assert_eq!(ImageFormat::from_extension("image.jpg"), ImageFormat::Jpeg);
-        assert_eq!(ImageFormat::from_extension("image.png"), ImageFormat::Png);
-        assert_eq!(ImageFormat::from_extension("image.gif"), ImageFormat::Gif);
-        assert_eq!(ImageFormat::from_extension("image.webp"), ImageFormat::WebP);
-        assert_eq!(ImageFormat::from_extension("image.avif"), ImageFormat::Unknown);
     }
 }

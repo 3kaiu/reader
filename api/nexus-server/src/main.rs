@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "nexus_server=debug,nexus_engine=debug,tower_http=debug".into()
+                "nexus_server=info,nexus_engine=info,tower_http=info".into()
             }),
         )
         .with(tracing_subscriber::fmt::layer())
@@ -38,20 +38,8 @@ async fn main() -> anyhow::Result<()> {
     // Initialize storage
     nexus_storage::init_storage(&config).await?;
 
-    // Initialize unified cache system
-    if let Err(e) =
-        nexus_core::parse_cache::init_cache_manager(nexus_core::parse_cache::CacheConfig {
-            memory_capacity: 64 * 1024 * 1024, // 64MB
-            disk_capacity: 512 * 1024 * 1024,  // 512MB
-            redis_url: None,
-            ttl_default: std::time::Duration::from_secs(3600),
-            enable_compression: true,
-            enable_encryption: false,
-        })
-        .await
-    {
-        tracing::warn!("Failed to initialize cache manager: {}", e);
-    }
+    // Initialize unified cache system (deprecated - no-op)
+    tracing::info!("Cache system: no-op (legacy MultiLevelCache removed)");
 
     // Build and run app
     let app = app::create_app(&config).await?;
@@ -105,6 +93,11 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
     if let Ok(origins) = std::env::var("ALLOWED_ORIGINS") {
         config.server.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
         info!("Overriding ALLOWED_ORIGINS from environment");
+    }
+
+    if let Ok(api_key) = std::env::var("API_KEY") {
+        config.server.api_key = Some(api_key);
+        info!("Overriding API_KEY from environment");
     }
 
     Ok(config)

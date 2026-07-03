@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use dashmap::DashMap;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::{Arc, LazyLock};

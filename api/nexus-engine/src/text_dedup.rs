@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Text Deduplication Module
 //!
 //! Provides text deduplication utilities based on string similarity:

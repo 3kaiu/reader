@@ -1,3 +1,4 @@
+import { triggerRef } from 'vue'
 import type { ApiResponse } from '@/api/http/types'
 import { readerApi } from '@/api/reader'
 import type { Chapter } from '@/types/book'
@@ -483,6 +484,11 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
     return globalThis.setTimeout(callback, 120)
   }
 
+  const chapterCacheKey = (chapterUrl: string) => {
+    const book = state.currentBook.value
+    return book ? `${book.sourceId}::${book.bookUrl}::${chapterUrl}` : chapterUrl
+  }
+
   const syncChapterContentCacheOrder = () => {
     if (chapterContentCacheRef === state.chapterContentCache.value) {
       return
@@ -493,32 +499,37 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
   }
 
   const touchChapterCacheEntry = (chapterUrl: string) => {
-    const existingIndex = chapterContentCacheOrder.indexOf(chapterUrl)
+    const key = chapterCacheKey(chapterUrl)
+    const existingIndex = chapterContentCacheOrder.indexOf(key)
     if (existingIndex >= 0) {
       chapterContentCacheOrder.splice(existingIndex, 1)
     }
-    chapterContentCacheOrder.push(chapterUrl)
+    chapterContentCacheOrder.push(key)
   }
 
   const cacheChapterContent = (chapterUrl: string, chapterContent: string) => {
     syncChapterContentCacheOrder()
     const cache = state.chapterContentCache.value
+    const key = chapterCacheKey(chapterUrl)
 
-    cache[chapterUrl] = chapterContent
+    cache[key] = chapterContent
     touchChapterCacheEntry(chapterUrl)
 
     while (chapterContentCacheOrder.length > CHAPTER_CONTENT_CACHE_MAX_ENTRIES) {
-      const evictedChapterUrl = chapterContentCacheOrder.shift()
-      if (!evictedChapterUrl) {
+      const evictedKey = chapterContentCacheOrder.shift()
+      if (!evictedKey) {
         continue
       }
-      delete cache[evictedChapterUrl]
+      delete cache[evictedKey]
     }
+
+    triggerRef(state.chapterContentCache)
   }
 
   const getCachedChapterContent = (chapterUrl: string) => {
     syncChapterContentCacheOrder()
-    const cached = state.chapterContentCache.value[chapterUrl]
+    const key = chapterCacheKey(chapterUrl)
+    const cached = state.chapterContentCache.value[key]
     if (typeof cached === 'string') {
       touchChapterCacheEntry(chapterUrl)
     }

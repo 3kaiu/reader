@@ -1,4 +1,4 @@
-import type { ComputedRef, Ref } from 'vue'
+import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type { Chapter } from '@/types/book'
 import type { ReaderBook, ReaderLoadedChapter as LoadedChapter } from '@/utils/readerStore'
 
@@ -28,8 +28,8 @@ export interface ReaderStoreState {
   diagnosticsRequestId: Ref<string | null>
   diagnosticsPackageId: Ref<string | null>
   progressMap: Ref<Record<string, number>>
-  chapterContentCache: Ref<Record<string, string>>
-  contentStageReports: Ref<ReaderStageReport[]>
+  chapterContentCache: ShallowRef<Record<string, string>>
+  contentStageReports: ShallowRef<ReaderStageReport[]>
 }
 
 export interface ReaderStoreView {

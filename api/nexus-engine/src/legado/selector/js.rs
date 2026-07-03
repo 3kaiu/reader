@@ -10,9 +10,9 @@
 //! - No system call / I/O access from JS
 //! - Only explicitly injected globals are available
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
+use std::time::Duration;
+
+const JS_EXECUTION_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Execute a Legado JS expression with injected context variables.
 ///
@@ -59,7 +59,7 @@ pub fn execute_js(
     // For now, use a polyfill approach: execute via Node.js as a fallback
     // This avoids build-time dependency on rquickjs C compilation
     // TODO: Replace with native rquickjs when we set up the C build deps
-    execute_via_node_fallback(code, result, base_url)
+    execute_via_node_fallback(&wrapped, result, base_url)
 }
 
 /// Fallback: execute JS via a lightweight Node.js child process
@@ -84,11 +84,30 @@ try {{
         code
     );
 
-    let output = std::process::Command::new("node")
-        .arg("-e")
-        .arg(&wrapped)
-        .output()
-        .ok()?;
+    use std::sync::mpsc;
+
+    let (tx, rx) = mpsc::channel();
+
+    let wrapped_clone = wrapped.clone();
+    std::thread::spawn(move || {
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&wrapped_clone)
+            .output();
+        let _ = tx.send(output); // receiver may have dropped if timed out
+    });
+
+    let output = match rx.recv_timeout(JS_EXECUTION_TIMEOUT) {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            tracing::warn!("JS process failed to start: {}", e);
+            return None;
+        }
+        Err(_) => {
+            tracing::warn!("JS execution timed out after 10s");
+            return None;
+        }
+    };
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -101,49 +120,6 @@ try {{
         let stderr = String::from_utf8_lossy(&output.stderr);
         tracing::warn!("JS execution failed: {}", stderr);
         None
-    }
-}
-
-/// Injected host functions for the QuickJS runtime
-///
-/// These are the Rust functions that will be callable from JS when using
-/// the native rquickjs integration.
-#[cfg(feature = "rquickjs")]
-pub mod host_functions {
-    use rquickjs::{Context, Function, Object, Runtime};
-
-    /// Set up the host API in a QuickJS context
-    pub fn setup_host_api(ctx: &Context, result: &str, base_url: &str) -> Result<(), rquickjs::Error> {
-        ctx.with(|ctx| {
-            let global = ctx.globals();
-
-            // Inject result and baseUrl
-            global.set("result", result)?;
-            global.set("baseUrl", base_url)?;
-
-            // Inject encodeURIComponent
-            let encode_fn = Function::new(ctx.clone(), |s: String| -> String {
-                urlencoding::encode(&s).into_owned()
-            })?;
-            global.set("encodeURIComponent", encode_fn)?;
-
-            // Inject decodeURIComponent
-            let decode_fn = Function::new(ctx.clone(), |s: String| -> String {
-                urlencoding::decode(&s)
-                    .map(|c| c.into_owned())
-                    .unwrap_or(s)
-            })?;
-            global.set("decodeURIComponent", decode_fn)?;
-
-            Ok(())
-        })
-    }
-
-    /// Create a sandboxed runtime
-    pub fn create_sandboxed_runtime() -> Result<Runtime, rquickjs::Error> {
-        let runtime = Runtime::new()?;
-        runtime.set_memory_limit(Some(1024 * 1024))?; // 1 MB
-        Ok(runtime)
     }
 }
 

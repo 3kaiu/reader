@@ -115,6 +115,16 @@ impl LegadoSourceStore {
     /// Save a source (or multiple) to a JSON file
     pub async fn save(&self, source: &LegadoSource) -> Result<String, nexus_core::EngineError> {
         let id = source.infer_id();
+        // Validate ID to prevent directory traversal
+        if id.contains("..")
+            || id.contains('/')
+            || id.contains('\\')
+            || id.contains('\0')
+        {
+            return Err(nexus_core::EngineError::FileIo {
+                message: format!("Invalid source ID (contains path separators): {}", id),
+            });
+        }
         // Avoid collisions with NXS sources
         let path = self.sources_dir.join(format!("{}.json", id));
         let content = serde_json::to_string_pretty(source)?;
@@ -141,6 +151,16 @@ impl LegadoSourceStore {
 
     /// Delete a source
     pub async fn delete(&self, id: &str) -> Result<(), nexus_core::EngineError> {
+        // Validate ID to prevent directory traversal
+        if id.contains("..")
+            || id.contains('/')
+            || id.contains('\\')
+            || id.contains('\0')
+        {
+            return Err(nexus_core::EngineError::FileIo {
+                message: format!("Invalid source ID (contains path separators): {}", id),
+            });
+        }
         let path = self.sources_dir.join(format!("{}.json", id));
 
         if path.exists() {

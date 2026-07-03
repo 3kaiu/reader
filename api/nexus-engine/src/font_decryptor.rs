@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Font Decryption Module
 //!
 //! Provides font parsing and decryption for anti-crawl font encryption:

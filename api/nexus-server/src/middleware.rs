@@ -10,6 +10,18 @@ use axum::{
 
 use crate::app::AppState;
 
+/// Constant-time string comparison to prevent timing side-channel attacks.
+/// Returns `true` if both strings have equal length and content.
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.bytes()
+        .zip(b.bytes())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
+}
+
 /// API Key authentication middleware
 ///
 /// Validates the `X-API-Key` header against the configured API key.
@@ -31,7 +43,7 @@ pub async fn api_key_auth(
         .and_then(|v| v.to_str().ok());
 
     match provided_key {
-        Some(key) if key == expected_key => {
+        Some(key) if constant_time_eq(key, expected_key) => {
             // Valid API key, proceed
             Ok(next.run(request).await)
         },

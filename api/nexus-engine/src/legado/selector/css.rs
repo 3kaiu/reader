@@ -5,7 +5,6 @@
 //! The `|` fallback in NXS corresponds to Legado's `||` (handled at rule_parser level).
 
 use scraper::Html;
-use std::sync::Arc;
 
 use crate::selector_cache::FallbackSelector;
 

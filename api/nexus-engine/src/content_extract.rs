@@ -511,221 +511,15 @@ fn ends_with_sentence(text: &str) -> bool {
 /// Remove noise paragraphs with enhanced detection
 fn remove_noise_paragraphs(text: &str) -> String {
     let paragraphs: Vec<&str> = text.split("\n\n").collect();
-    let noise_keywords = [
-        // 导航类
-        "下一章",
-        "上一章",
-        "下一页",
-        "上一页",
-        "下一回",
-        "上一回",
-        "目录",
-        "章节目录",
-        "返回",
-        "返回顶部",
-        "返回首页",
-        "首页",
-        "书页",
-        "书签",
-        // 营销类
-        "广告",
-        "会员",
-        "VIP",
-        "订阅",
-        "打赏",
-        "充值",
-        "付费",
-        "付费章节",
-        "VIP章节",
-        "会员章节",
-        // 操作类
-        "点击",
-        "下载",
-        "加入书架",
-        "收藏",
-        "分享",
-        "评论",
-        "举报",
-        "举报内容",
-        "投诉",
-        "反馈",
-        // 提示类
-        "温馨提示",
-        "精彩继续",
-        "立即阅读",
-        "继续阅读",
-        "本章未完",
-        "未完待续",
-        "请继续阅读",
-        "请点击",
-        "点击继续",
-        // 推广类
-        "推荐阅读",
-        "热门推荐",
-        "相关推荐",
-        "猜你喜欢",
-        "同类推荐",
-        "好书推荐",
-        "精选推荐",
-        // 社交类
-        "点赞",
-        "收藏本站",
-        "加入收藏",
-        "设为首页",
-        "手机阅读",
-        "APP下载",
-        "扫码阅读",
-        // 版权类
-        "版权声明",
-        "免责声明",
-        "侵权举报",
-        "联系方式",
-        "联系我们",
-        // 技术类
-        "正在加载",
-        "加载中",
-        "刷新页面",
-        "刷新",
-        "重新加载",
-        // 常见小说网站噪音
-        "本章完",
-        "本章结束",
-        "完",
-        "全本完",
-        "全文完",
-        "完本",
-        "完结",
-        "已完结",
-        // 广告相关
-        "赞助商",
-        "赞助商链接",
-        "广告位",
-        "广告合作",
-        "商务合作",
-        // 域名/推广
-        "www.",
-        "http://",
-        "https://",
-        ".com",
-        ".cn",
-        ".net",
-        ".org",
-        // 常见按钮文本
-        "确定",
-        "取消",
-        "关闭",
-        "提交",
-        "发送",
-        "搜索",
-        "登录",
-        "注册",
-    ];
 
-    let lowered_keywords: Vec<String> = noise_keywords
+    let lowered_keywords: Vec<String> = NOISE_KEYWORDS
         .iter()
         .map(|k| k.to_ascii_lowercase())
         .collect();
 
-    // Initialize dynamic noise detector
     let noise_detector = DynamicNoiseDetector::new();
 
-    fn strip_zero_width_chars(s: &str) -> String {
-        // Remove common zero-width / formatting characters without new deps.
-        // Keep '\n' intact (we rely on it as delimiter upstream).
-        s.chars()
-            .filter(|&ch| {
-                !matches!(ch, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}')
-            })
-            .collect()
-    }
-
-    fn normalize_para(s: &str) -> String {
-        let cleaned = strip_zero_width_chars(s);
-        let s = cleaned.trim();
-        let mut out = String::with_capacity(s.len());
-        let mut last_was_space = false;
-        for ch in s.chars() {
-            if ch.is_whitespace() {
-                if !last_was_space {
-                    out.push(' ');
-                    last_was_space = true;
-                }
-            } else {
-                out.push(ch);
-                last_was_space = false;
-            }
-        }
-        out.trim().to_string()
-    }
-
-    fn dedup_key(s: &str) -> String {
-        // Remove leading bullet/quote markers for better equality.
-        let x = s.trim().trim_start_matches(['•', '-', '*', '>', ' ']);
-        normalize_para(x)
-    }
-
-    fn punctuation_count(s: &str) -> usize {
-        s.chars()
-            .filter(|c| {
-                matches!(
-                    c,
-                    '。' | '！'
-                        | '？'
-                        | '；'
-                        | '，'
-                        | '、'
-                        | '!'
-                        | '?'
-                        | ';'
-                        | ','
-                        | '.'
-                        | ':'
-                        | '—'
-                        | '-'
-                )
-            })
-            .count()
-    }
-
-    fn classify_noise(len_chars: usize, noise_hits: usize) -> u8 {
-        // 0=keep, 1=maybe-delete (use context), 2=aggressively delete
-        if noise_hits == 0 {
-            return 0;
-        }
-        if (noise_hits >= 2 && len_chars < 200) || (noise_hits >= 1 && len_chars < 90) {
-            2
-        } else {
-            // Even if it is longer, single noise hits are often wrapper text.
-            // We only delete after applying context constraints.
-            1
-        }
-    }
-
-    fn starts_with_noise<'a>(s: &str, keywords: &'a [&'a str]) -> Option<&'a str> {
-        let t = s.trim_start();
-        for k in keywords {
-            if t.starts_with(k) {
-                return Some(*k);
-            }
-        }
-        None
-    }
-
-    fn is_long_content(len_chars: usize, punct: usize, noise_hits: usize) -> bool {
-        // Avoid over-deleting: if neighbors look like real reading text,
-        // keep level-1 noise paragraphs with light trimming.
-        len_chars > 250 && punct > 10 && noise_hits == 0
-    }
-
-    fn strip_noise_prefix(mut s: String, keywords: &[&str]) -> String {
-        if let Some(k) = starts_with_noise(&s, keywords) {
-            s = s.trim_start_matches(k).trim().to_string();
-        }
-        s
-    }
-
     // Precompute paragraph features.
-    // tuple: (len_chars, punct_count, noise_hits, noise_level)
     let mut features: Vec<(usize, usize, usize, u8)> = Vec::with_capacity(paragraphs.len());
     for para in paragraphs.iter() {
         let p = normalize_para(para);
@@ -738,7 +532,7 @@ fn remove_noise_paragraphs(text: &str) -> String {
         let lower = p.to_ascii_lowercase();
         let mut noise_hits = 0usize;
         for (i, k_lower) in lowered_keywords.iter().enumerate() {
-            let k = noise_keywords[i];
+            let k = NOISE_KEYWORDS[i];
             if p.contains(k) || lower.contains(k_lower.as_str()) {
                 noise_hits += 1;
             }
@@ -766,7 +560,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         let dynamic_result = noise_detector.is_noise(&p, &context);
 
         if dynamic_result.is_noise && dynamic_result.score > 4.0 {
-            // High confidence noise from dynamic detector
             continue;
         }
 
@@ -775,7 +568,6 @@ fn remove_noise_paragraphs(text: &str) -> String {
         }
 
         if level == 1 {
-            // Context constraints for conservative deletion.
             let left = idx.saturating_sub(1);
             let right = (idx + 1).min(features.len().saturating_sub(1));
             let (llen, lp, lnoise, _) = features[left];
@@ -784,27 +576,23 @@ fn remove_noise_paragraphs(text: &str) -> String {
             let neighbors_are_long =
                 is_long_content(llen, lp, lnoise) && is_long_content(rlen, rp, rnoise);
 
-            // If both neighbors are very likely real content: keep but trim a leading noise prefix.
             if neighbors_are_long {
-                p = strip_noise_prefix(p, &noise_keywords);
+                p = strip_noise_prefix(p, &NOISE_KEYWORDS);
                 if p.is_empty() {
                     continue;
                 }
             } else {
-                // Otherwise: only keep if this paragraph looks sentence-rich enough.
                 let sentence_rich = punct >= 6 || len > 180;
                 if !sentence_rich {
                     continue;
                 }
-
-                // If it's still very likely wrapper/marketing: drop.
                 if noise_hits >= 2 && len < 160 {
                     continue;
                 }
             }
         }
 
-        let key = dedup_key(&p);
+        let key = dedup_key_str(&p);
         if !seen.contains(&key) {
             kept.push(p);
             seen.insert(key);
@@ -812,6 +600,127 @@ fn remove_noise_paragraphs(text: &str) -> String {
     }
 
     kept.join("\n\n")
+}
+
+// ===== Noise paragraph helper functions =====
+
+const NOISE_KEYWORDS: &[&str] = &[
+    // 导航类
+    "下一章", "上一章", "下一页", "上一页", "下一回", "上一回",
+    "目录", "章节目录", "返回", "返回顶部", "返回首页", "首页",
+    "书页", "书签",
+    // 营销类
+    "广告", "会员", "VIP", "订阅", "打赏", "充值", "付费",
+    "付费章节", "VIP章节", "会员章节",
+    // 操作类
+    "点击", "下载", "加入书架", "收藏", "分享", "评论", "举报",
+    "举报内容", "投诉", "反馈",
+    // 提示类
+    "温馨提示", "精彩继续", "立即阅读", "继续阅读", "本章未完",
+    "未完待续", "请继续阅读", "请点击", "点击继续",
+    // 推广类
+    "推荐阅读", "热门推荐", "相关推荐", "猜你喜欢", "同类推荐",
+    "好书推荐", "精选推荐",
+    // 社交类
+    "点赞", "收藏本站", "加入收藏", "设为首页", "手机阅读",
+    "APP下载", "扫码阅读",
+    // 版权类
+    "版权声明", "免责声明", "侵权举报", "联系方式", "联系我们",
+    // 技术类
+    "正在加载", "加载中", "刷新页面", "刷新", "重新加载",
+    // 常见小说网站噪音
+    "本章完", "本章结束", "完", "全本完", "全文完", "完本",
+    "完结", "已完结",
+    // 广告相关
+    "赞助商", "赞助商链接", "广告位", "广告合作", "商务合作",
+    // 域名/推广
+    "www.", "http://", "https://", ".com", ".cn", ".net", ".org",
+    // 常见按钮文本
+    "确定", "取消", "关闭", "提交", "发送", "搜索", "登录", "注册",
+];
+
+/// Remove zero-width / formatting characters, keeping '\n' intact.
+fn strip_zero_width_chars(s: &str) -> String {
+    s.chars()
+        .filter(|&ch| {
+            !matches!(ch, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}')
+        })
+        .collect()
+}
+
+/// Normalize whitespace in a paragraph: collapse runs, trim.
+fn normalize_para(s: &str) -> String {
+    let cleaned = strip_zero_width_chars(s);
+    let s = cleaned.trim();
+    let mut out = String::with_capacity(s.len());
+    let mut last_was_space = false;
+    for ch in s.chars() {
+        if ch.is_whitespace() {
+            if !last_was_space {
+                out.push(' ');
+                last_was_space = true;
+            }
+        } else {
+            out.push(ch);
+            last_was_space = false;
+        }
+    }
+    out.trim().to_string()
+}
+
+/// Deduplication key: strip bullet/quote markers, then normalize.
+fn dedup_key_str(s: &str) -> String {
+    let x = s.trim().trim_start_matches(['•', '-', '*', '>', ' ']);
+    normalize_para(x)
+}
+
+/// Count sentence-ending punctuation characters.
+fn punctuation_count(s: &str) -> usize {
+    s.chars()
+        .filter(|c| {
+            matches!(
+                c,
+                '。' | '！' | '？' | '；' | '，' | '、'
+                    | '!' | '?' | ';' | ',' | '.' | ':' | '—' | '-'
+            )
+        })
+        .count()
+}
+
+/// Classify a paragraph by noise level: 0=keep, 1=maybe-delete, 2=aggressively delete.
+fn classify_noise(len_chars: usize, noise_hits: usize) -> u8 {
+    if noise_hits == 0 {
+        return 0;
+    }
+    if (noise_hits >= 2 && len_chars < 200) || (noise_hits >= 1 && len_chars < 90) {
+        2
+    } else {
+        1
+    }
+}
+
+/// Check if a paragraph starts with a known noise keyword.
+fn starts_with_noise<'a>(s: &str, keywords: &'a [&'a str]) -> Option<&'a str> {
+    let t = s.trim_start();
+    for k in keywords {
+        if t.starts_with(k) {
+            return Some(*k);
+        }
+    }
+    None
+}
+
+/// Check if a paragraph looks like real reading content (long, well-punctuated, no noise).
+fn is_long_content(len_chars: usize, punct: usize, noise_hits: usize) -> bool {
+    len_chars > 250 && punct > 10 && noise_hits == 0
+}
+
+/// Strip a leading noise keyword prefix from a paragraph.
+fn strip_noise_prefix(mut s: String, keywords: &[&str]) -> String {
+    if let Some(k) = starts_with_noise(&s, keywords) {
+        s = s.trim_start_matches(k).trim().to_string();
+    }
+    s
 }
 
 /// Readability-like fallback (static HTML heuristics).

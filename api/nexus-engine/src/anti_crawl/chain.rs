@@ -129,13 +129,10 @@ impl FallbackChain {
     fn get_breaker(
         &self,
         source_id: &str,
-    ) -> dashmap::mapref::one::Ref<'_, String, CircuitBreaker> {
-        // Use entry API to avoid TOCTOU race condition
+    ) -> dashmap::mapref::one::RefMut<'_, String, CircuitBreaker> {
         self.breakers
             .entry(source_id.to_string())
-            .or_insert_with(|| CircuitBreaker::new(self.breaker_config.clone()));
-        // Safe: entry above guarantees key exists
-        self.breakers.get(source_id).expect("breaker just inserted")
+            .or_insert_with(|| CircuitBreaker::new(self.breaker_config.clone()))
     }
 
     /// Execute fetch with circuit breaker

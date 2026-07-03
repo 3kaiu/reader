@@ -56,7 +56,7 @@ pub async fn build_runtime_services(
         Arc::new(ChapterCache::new(&config.storage.cache_dir, config.limits.chapter_cache_mb));
     spawn_cache_cleanup(chapter_cache.clone());
 
-    let fetcher = Arc::new(HttpFetcher::new(config.limits.http_timeout_seconds)?);
+    let fetcher = Arc::new(HttpFetcher::from_config(&config.limits)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
 
     let engine_registry = Arc::new(EngineRegistry::new(source_store, legado_store, anti_crawl.clone()));

@@ -27,7 +27,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 use crate::app::AppState;
-use crate::error::ApiErrorResponse;
+use crate::error::{bad_request, ApiErrorResponse};
 use discovery::{direct_detail_results, searchable_source_ids};
 use packages::{build_package_ranks, runtime_search_packages};
 use ranking::{annotate_result_rankings, sort_packages_for_search, sort_results_for_keyword};
@@ -37,11 +37,29 @@ use streaming::{event_done, event_error, event_meta, event_result};
 pub struct SearchRequest {
     pub keyword: String,
     #[serde(default)]
-    pub sources: Vec<String>, // Empty = all enabled sources
+    pub sources: Vec<String>, // Empty = all enabled sources, max 50 entries
     #[serde(default = "default_page")]
     pub _page: u32,
     #[serde(default = "default_light_mode")]
     pub light_mode: bool,
+}
+
+impl SearchRequest {
+    /// Validate request constraints, returning an error response if violated.
+    pub fn validate(&self) -> Result<(), ApiErrorResponse> {
+        if self.keyword.len() > 256 {
+            return Err(bad_request("keyword too long (max 256 chars)"));
+        }
+        if self.sources.len() > 50 {
+            return Err(bad_request("too many sources (max 50)"));
+        }
+        for src in &self.sources {
+            if src.len() > 256 {
+                return Err(bad_request("source ID too long (max 256 chars)"));
+            }
+        }
+        Ok(())
+    }
 }
 
 fn default_page() -> u32 {
@@ -123,6 +141,7 @@ pub async fn search(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
 ) -> Result<Json<SearchResponse>, ApiErrorResponse> {
+    req.validate()?;
     info!("Searching for '{}' in {:?}", req.keyword, req.sources);
     let started_at = std::time::Instant::now();
 
@@ -201,6 +220,7 @@ pub async fn search_stream(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiErrorResponse> {
+    req.validate()?;
     info!("SSE Search for '{}' in {:?}", req.keyword, req.sources);
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(100);

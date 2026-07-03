@@ -1,6 +1,6 @@
 name = "nexus-edge"
 main = "entry.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-06-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Custom hostname: under [env.production] / [env.staging], set routes[].pattern and zone_name to your

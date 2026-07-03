@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import { loadPersistedReaderProgress } from '@/utils/readerStore'
 import type { ReaderStoreState } from './types'
 
@@ -9,8 +9,8 @@ export function createReaderStoreState(): ReaderStoreState {
     currentChapterIndex: ref(0),
     content: ref(''),
     formattedContent: ref(''),
-    catalog: ref([]),
-    loadedChapters: ref([]),
+    catalog: shallowRef([]),
+    loadedChapters: shallowRef([]),
     isLoading: ref(false),
     isLoadingMore: ref(false),
     isParsing: ref(false),
@@ -20,7 +20,7 @@ export function createReaderStoreState(): ReaderStoreState {
     diagnosticsRequestId: ref<string | null>(null),
     diagnosticsPackageId: ref<string | null>(null),
     progressMap: ref(loadPersistedReaderProgress()),
-    chapterContentCache: ref({}),
-    contentStageReports: ref([]),
+    chapterContentCache: shallowRef<Record<string, string>>({}),
+    contentStageReports: shallowRef<ReaderStageReport[]>([]),
   }
 }

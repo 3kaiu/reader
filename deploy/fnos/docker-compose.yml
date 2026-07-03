@@ -12,7 +12,7 @@
 services:
   nexus-server:
     # Must match lowercase GitHub username/org used by workflow "Publish nexus-server (GHCR)".
-    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-server:latest
+    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-server:0.1.0
     container_name: nexus-server
     restart: unless-stopped
     ports:
@@ -21,6 +21,8 @@ services:
       HOST: 0.0.0.0
       PORT: "7860"
       RUST_LOG: ${RUST_LOG:-info}
+      # Optional: API key (uncomment if server config has api_key set)
+      # - API_KEY=${API_KEY:-}
     volumes:
       - ./data:/app/data
       - ./sources:/app/sources

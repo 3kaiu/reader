@@ -97,6 +97,16 @@ impl SourceStore {
 
     /// Save a source to .nxs file
     pub async fn save(&self, source: &NxsSource) -> Result<(), EngineError> {
+        // Validate ID to prevent directory traversal
+        if source.id.contains("..")
+            || source.id.contains('/')
+            || source.id.contains('\\')
+            || source.id.contains('\0')
+        {
+            return Err(EngineError::FileIo {
+                message: format!("Invalid source ID (contains path separators): {}", source.id),
+            });
+        }
         let path = self.sources_dir.join(format!("{}.nxs", source.id));
         let content = serde_json::to_string_pretty(source)?;
 
@@ -112,6 +122,16 @@ impl SourceStore {
 
     /// Delete a source
     pub async fn delete(&self, id: &str) -> Result<(), EngineError> {
+        // Validate ID to prevent directory traversal
+        if id.contains("..")
+            || id.contains('/')
+            || id.contains('\\')
+            || id.contains('\0')
+        {
+            return Err(EngineError::FileIo {
+                message: format!("Invalid source ID (contains path separators): {}", id),
+            });
+        }
         let path = self.sources_dir.join(format!("{}.nxs", id));
 
         if path.exists() {

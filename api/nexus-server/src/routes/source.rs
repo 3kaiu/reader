@@ -10,6 +10,19 @@ use crate::app::AppState;
 use crate::routes::ApiResponse;
 use crate::source_access::{is_source_publicly_available, load_source_availability};
 
+/// Validate a source ID to prevent directory traversal attacks.
+/// Rejects IDs containing `..`, `/`, `\\`, or null bytes.
+fn sanitize_source_id(id: &str) -> Result<&str, StatusCode> {
+    if id.contains("..")
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains('\0')
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    Ok(id)
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceWithStatus {
@@ -43,6 +56,7 @@ pub async fn get_source(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<SourceWithStatus>, StatusCode> {
+    sanitize_source_id(&id)?;
     let source = state
         .engine_registry
         .source_store()
@@ -87,6 +101,7 @@ pub async fn delete_source(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
+    sanitize_source_id(&id)?;
     state
         .engine_registry
         .source_store()
@@ -166,6 +181,7 @@ pub async fn update_source_status(
     Path(id): Path<String>,
     Json(body): Json<UpdateStatusRequest>,
 ) -> Result<Json<SourceWithStatus>, (StatusCode, String)> {
+    sanitize_source_id(&id).map_err(|e| (e, "Invalid source ID".to_string()))?;
     let source = state
         .engine_registry
         .source_store()
@@ -197,6 +213,7 @@ pub async fn update_source_policy(
     Path(id): Path<String>,
     Json(policy): Json<SourcePolicy>,
 ) -> Result<Json<SourceWithStatus>, (StatusCode, String)> {
+    sanitize_source_id(&id).map_err(|e| (e, "Invalid source ID".to_string()))?;
     let source = state
         .engine_registry
         .source_store()
@@ -323,6 +340,7 @@ pub async fn get_source_package(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Json<ApiResponse<SourceRulePackage>> {
+    let _ = sanitize_source_id(&id);
     match state.store.get_source_package(id).await {
         Ok(Some(mut package)) => {
             package.refresh_readiness();
@@ -337,6 +355,7 @@ pub async fn delete_source_package(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Json<ApiResponse<serde_json::Value>> {
+    let _ = sanitize_source_id(&id);
     if let Err(error) = state.store.delete_source_package(id.clone()).await {
         return Json(ApiResponse::error(&format!("delete source package failed: {error}")));
     }
@@ -455,6 +474,10 @@ pub async fn delete_legado_source(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Json<ApiResponse<serde_json::Value>> {
+    let id = match sanitize_source_id(&id) {
+        Ok(valid) => valid,
+        Err(e) => return Json(ApiResponse::error(&format!("Invalid source ID: {e}"))),
+    };
     state
         .engine_registry
         .legado_store()

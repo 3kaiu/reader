@@ -2,14 +2,12 @@
 //!
 //! Handles Legado's `@regex:` prefixed rules and `##pattern##replacement` clean logic.
 
+use dashmap::DashMap;
 use regex::Regex;
-use std::num::NonZeroUsize;
 use std::sync::LazyLock;
-use std::sync::Mutex;
 
-/// Simple thread-local regex cache
-static REGEX_CACHE: LazyLock<Mutex<lru::LruCache<String, Regex>>> =
-    LazyLock::new(|| Mutex::new(lru::LruCache::new(NonZeroUsize::new(32).unwrap())));
+/// Simple thread-safe regex cache (DashMap, no mutex contention)
+static REGEX_CACHE: LazyLock<DashMap<String, Regex>> = LazyLock::new(DashMap::new);
 
 /// Extract text using a regex match
 ///
@@ -38,19 +36,15 @@ pub fn replace_regex(text: &str, pattern: &str, replacement: &str) -> String {
 
 /// Compile a regex with caching
 fn compile_regex(pattern: &str) -> Option<Regex> {
-    // Check cache
-    if let Ok(mut cache) = REGEX_CACHE.lock() {
-        if let Some(re) = cache.get(pattern) {
-            return Some(re.clone());
-        }
+    // Check cache with zero-cost read
+    if let Some(re) = REGEX_CACHE.get(pattern) {
+        return Some(re.value().clone());
     }
 
     // Compile
     match Regex::new(pattern) {
         Ok(re) => {
-            if let Ok(mut cache) = REGEX_CACHE.lock() {
-                cache.put(pattern.to_string(), re.clone());
-            }
+            REGEX_CACHE.insert(pattern.to_string(), re.clone());
             Some(re)
         },
         Err(e) => {

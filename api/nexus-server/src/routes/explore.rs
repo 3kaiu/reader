@@ -7,14 +7,11 @@ use axum::{
     extract::State,
     Json,
 };
-use nexus_core::{BookEngine, ExploreCategory, ExploreEngine};
+use nexus_core::ExploreCategory;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::time::Instant;
 
 use crate::app::AppState;
-use crate::error::{bad_request, internal_error, not_found, ApiErrorResponse};
-use crate::source_access::ensure_source_public_access;
+use crate::error::{internal_error, not_found, ApiErrorResponse};
 
 #[derive(Deserialize)]
 pub struct ExploreCategoriesQuery {
@@ -25,6 +22,7 @@ pub struct ExploreCategoriesQuery {
 pub struct ExploreQuery {
     pub source: String,
     pub category_url: String,
+    #[allow(dead_code)]
     pub page: Option<usize>,
 }
 

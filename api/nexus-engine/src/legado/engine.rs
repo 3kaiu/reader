@@ -769,7 +769,7 @@ impl ExploreEngine for LegadoEngine {
         // Try to extract category links from the page
         // Use title_rule if present, otherwise try common patterns
         let title_rule = rules.and_then(|r| r.title_rule.as_ref());
-        let style = rules.and_then(|r| r.style.as_ref());
+        let _style = rules.and_then(|r| r.style.as_ref());
 
         if let Some(rule) = title_rule {
             // title_rule is a CSS selector to extract category names

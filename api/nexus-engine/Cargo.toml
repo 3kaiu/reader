@@ -45,7 +45,6 @@ parking_lot = "0.12"
 dashmap = "6"
 rand = "0.9"
 aho-corasick = "1.1"
-lru = "0.12"
 
 # Content Cleaning
 ttf-parser = "0.25"           # Font parsing for font decryption

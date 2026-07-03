@@ -41,15 +41,6 @@ pub struct ExtractionQuality {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractedContentCandidate {
-    pub text: Arc<str>,
-    pub extractor_type: String,
-    pub strategy_path: Vec<String>,
-    pub quality: ExtractionQuality,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SkillDecisionEnvelope {
     pub decision_id: String,
     pub skill_name: String,

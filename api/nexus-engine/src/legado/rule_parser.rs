@@ -6,7 +6,6 @@
 //! Matches the Android app's `AnalyzeRule.splitSourceRule()` logic.
 
 use std::sync::Arc;
-use tracing::warn;
 
 /// Selector mode — mirrors Legado's SourceRule.Mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

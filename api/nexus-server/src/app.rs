@@ -101,8 +101,8 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
     };
 
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(20)
-        .burst_size(50)
+        .per_second(config.server.rate_limit.per_second)
+        .burst_size(config.server.rate_limit.burst_size)
         .key_extractor(SmartIpKeyExtractor)
         .finish()
         .expect("valid governor config");

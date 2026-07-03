@@ -57,6 +57,10 @@ pub struct ServerConfig {
     /// API Key for authentication (optional, None = no auth required)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
+
+    /// Rate limiting configuration
+    #[serde(default)]
+    pub rate_limit: RateLimitConfig,
 }
 
 fn default_host() -> String {
@@ -77,6 +81,36 @@ impl Default for ServerConfig {
             enable_cors: true,
             allowed_origins: vec![],
             api_key: None, // Default: no authentication
+            rate_limit: RateLimitConfig::default(),
+        }
+    }
+}
+
+/// Rate limiting configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RateLimitConfig {
+    /// Requests per second per client
+    #[serde(default = "default_rate_per_second")]
+    pub per_second: u64,
+
+    /// Burst size (maximum number of requests allowed in a short burst)
+    #[serde(default = "default_burst_size")]
+    pub burst_size: u32,
+}
+
+fn default_rate_per_second() -> u64 {
+    20
+}
+fn default_burst_size() -> u32 {
+    50
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            per_second: default_rate_per_second(),
+            burst_size: default_burst_size(),
         }
     }
 }
@@ -112,6 +146,22 @@ pub struct ResourceLimits {
     /// Maximum number of source IDs tracked in extraction quality counters
     #[serde(default = "default_max_extraction_metrics_sources")]
     pub max_extraction_metrics_sources: usize,
+
+    /// HTTP connection pool — max idle connections per host
+    #[serde(default = "default_pool_max_idle_per_host")]
+    pub pool_max_idle_per_host: usize,
+
+    /// HTTP connection pool — idle timeout in seconds
+    #[serde(default = "default_pool_idle_timeout_secs")]
+    pub pool_idle_timeout_secs: u64,
+
+    /// TCP keepalive in seconds
+    #[serde(default = "default_tcp_keepalive_secs")]
+    pub tcp_keepalive_secs: u64,
+
+    /// Maximum concurrent HTTP requests across all sources
+    #[serde(default = "default_http_max_concurrent")]
+    pub http_max_concurrent: usize,
 }
 
 fn default_concurrent_searches() -> usize {
@@ -135,6 +185,18 @@ fn default_max_batch_content_urls() -> usize {
 fn default_max_extraction_metrics_sources() -> usize {
     10_000
 }
+fn default_pool_max_idle_per_host() -> usize {
+    100
+}
+fn default_pool_idle_timeout_secs() -> u64 {
+    120
+}
+fn default_tcp_keepalive_secs() -> u64 {
+    60
+}
+fn default_http_max_concurrent() -> usize {
+    10
+}
 
 impl Default for ResourceLimits {
     fn default() -> Self {
@@ -146,6 +208,10 @@ impl Default for ResourceLimits {
             http_timeout_seconds: default_http_timeout(),
             max_batch_content_urls: default_max_batch_content_urls(),
             max_extraction_metrics_sources: default_max_extraction_metrics_sources(),
+            pool_max_idle_per_host: default_pool_max_idle_per_host(),
+            pool_idle_timeout_secs: default_pool_idle_timeout_secs(),
+            tcp_keepalive_secs: default_tcp_keepalive_secs(),
+            http_max_concurrent: default_http_max_concurrent(),
         }
     }
 }

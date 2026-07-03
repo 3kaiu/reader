@@ -44,7 +44,6 @@ lto = "thin"
 codegen-units = 16
 opt-level = "z"
 strip = true
-panic = "abort"
 
 [profile.dev]
 opt-level = 0

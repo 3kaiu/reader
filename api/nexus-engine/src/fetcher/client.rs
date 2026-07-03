@@ -8,22 +8,25 @@ use reqwest::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tracing::debug;
 
 /// HTTP fetcher using reqwest with optimized async handling
 pub struct HttpFetcher {
     client: Arc<Client>,
-    #[allow(dead_code)]
-    timeout: Duration,
     max_concurrent_requests: usize,
     semaphore: Arc<tokio::sync::Semaphore>,
-    // Statistics
-    total_requests: std::sync::atomic::AtomicU64,
-    successful_requests: std::sync::atomic::AtomicU64,
-    failed_requests: std::sync::atomic::AtomicU64,
-    total_bytes_downloaded: std::sync::atomic::AtomicU64,
-    response_times: Arc<std::sync::Mutex<Vec<u128>>>,
+    // Lock-free statistics counters
+    total_requests: AtomicU64,
+    successful_requests: AtomicU64,
+    failed_requests: AtomicU64,
+    total_bytes_downloaded: AtomicU64,
+    // Response time tracking (lock-free, approximate)
+    response_time_min_ns: AtomicU64,
+    response_time_max_ns: AtomicU64,
+    response_time_sum_ns: AtomicU64,
+    response_time_count: AtomicU64,
 }
 
 impl HttpFetcher {
@@ -32,13 +35,44 @@ impl HttpFetcher {
         Self::with_concurrency(timeout_seconds, 10) // Default 10 concurrent requests
     }
 
+    /// Create from `ResourceLimits` configuration (all params externalized)
+    pub fn from_config(limits: &nexus_core::config::ResourceLimits) -> Result<Self, EngineError> {
+        let max_concurrent = limits.http_max_concurrent;
+        let client = Client::builder()
+            .timeout(Duration::from_secs(limits.http_timeout_seconds))
+            .connect_timeout(Duration::from_secs(10))
+            .read_timeout(Duration::from_secs(limits.http_timeout_seconds))
+            .pool_max_idle_per_host(limits.pool_max_idle_per_host)
+            .pool_idle_timeout(Duration::from_secs(limits.pool_idle_timeout_secs))
+            .tcp_keepalive(Duration::from_secs(limits.tcp_keepalive_secs))
+            .tcp_nodelay(true)
+            .cookie_store(true)
+            .user_agent("Mozilla/5.0 (compatible; Nexus/1.0)")
+            .build()
+            .map_err(|e: reqwest::Error| EngineError::Network {
+                message: e.to_string(),
+            })?;
+
+        Ok(Self {
+            client: Arc::new(client),
+            max_concurrent_requests: max_concurrent,
+            semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
+            total_requests: AtomicU64::new(0),
+            successful_requests: AtomicU64::new(0),
+            failed_requests: AtomicU64::new(0),
+            total_bytes_downloaded: AtomicU64::new(0),
+            response_time_min_ns: AtomicU64::new(u64::MAX),
+            response_time_max_ns: AtomicU64::new(0),
+            response_time_sum_ns: AtomicU64::new(0),
+            response_time_count: AtomicU64::new(0),
+        })
+    }
+
     /// Create with custom concurrency limit
     pub fn with_concurrency(
         timeout_seconds: u64,
         max_concurrent: usize,
     ) -> Result<Self, EngineError> {
-        use std::sync::atomic::AtomicU64;
-
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
@@ -59,14 +93,16 @@ impl HttpFetcher {
 
         Ok(Self {
             client: Arc::new(client),
-            timeout: Duration::from_secs(timeout_seconds),
             max_concurrent_requests: max_concurrent,
             semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
             total_requests: AtomicU64::new(0),
             successful_requests: AtomicU64::new(0),
             failed_requests: AtomicU64::new(0),
             total_bytes_downloaded: AtomicU64::new(0),
-            response_times: Arc::new(std::sync::Mutex::new(Vec::new())),
+            response_time_min_ns: AtomicU64::new(u64::MAX),
+            response_time_max_ns: AtomicU64::new(0),
+            response_time_sum_ns: AtomicU64::new(0),
+            response_time_count: AtomicU64::new(0),
         })
     }
 
@@ -76,19 +112,19 @@ impl HttpFetcher {
     }
 
     /// Create with custom client
-    pub fn with_client(client: Arc<Client>, timeout_seconds: u64) -> Self {
-        use std::sync::atomic::AtomicU64;
-
+    pub fn with_client(client: Arc<Client>) -> Self {
         Self {
             client,
-            timeout: Duration::from_secs(timeout_seconds),
             max_concurrent_requests: 10, // Default concurrency
             semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
             total_requests: AtomicU64::new(0),
             successful_requests: AtomicU64::new(0),
             failed_requests: AtomicU64::new(0),
             total_bytes_downloaded: AtomicU64::new(0),
-            response_times: Arc::new(std::sync::Mutex::new(Vec::new())),
+            response_time_min_ns: AtomicU64::new(u64::MAX),
+            response_time_max_ns: AtomicU64::new(0),
+            response_time_sum_ns: AtomicU64::new(0),
+            response_time_count: AtomicU64::new(0),
         }
     }
 
@@ -219,16 +255,38 @@ impl Fetcher for HttpFetcher {
         self.total_bytes_downloaded
             .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
-        // Track response time
-        let elapsed = start_time.elapsed().as_nanos();
-        {
-            let mut times = self.response_times.lock().unwrap();
-            times.push(elapsed);
-            // Keep only last 1000 measurements
-            if times.len() > 1000 {
-                times.remove(0);
+        // Track response time (lock-free)
+        let elapsed = start_time.elapsed().as_nanos() as u64;
+        // Update min, max, sum, count atomically
+        loop {
+            let current = self.response_time_min_ns.load(Ordering::Relaxed);
+            if elapsed >= current {
+                break;
+            }
+            if self
+                .response_time_min_ns
+                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
             }
         }
+        loop {
+            let current = self.response_time_max_ns.load(Ordering::Relaxed);
+            if elapsed <= current {
+                break;
+            }
+            if self
+                .response_time_max_ns
+                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
+        }
+        self.response_time_sum_ns
+            .fetch_add(elapsed, Ordering::Relaxed);
+        self.response_time_count.fetch_add(1, Ordering::Relaxed);
 
         Ok(response)
     }
@@ -288,29 +346,32 @@ impl Fetcher for HttpFetcher {
         self.total_bytes_downloaded
             .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
-        // Track response time
-        let elapsed = start_time.elapsed().as_nanos();
-        {
-            let mut times = self.response_times.lock().unwrap();
-            times.push(elapsed);
-            // Keep only last 1000 measurements
-            if times.len() > 1000 {
-                times.remove(0);
-            }
+        // Track response time (lock-free)
+        let elapsed = start_time.elapsed().as_nanos() as u64;
+        loop {
+            let current = self.response_time_min_ns.load(Ordering::Relaxed);
+            if elapsed >= current { break; }
+            if self.response_time_min_ns.compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed).is_ok() { break; }
         }
+        loop {
+            let current = self.response_time_max_ns.load(Ordering::Relaxed);
+            if elapsed <= current { break; }
+            if self.response_time_max_ns.compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed).is_ok() { break; }
+        }
+        self.response_time_sum_ns.fetch_add(elapsed, Ordering::Relaxed);
+        self.response_time_count.fetch_add(1, Ordering::Relaxed);
 
         Ok(response)
     }
 
     fn statistics(&self) -> FetcherStatistics {
-        use std::sync::atomic::Ordering;
-
-        let response_times = self.response_times.lock().unwrap();
-        let average_response_time_ms = if response_times.is_empty() {
-            0.0
+        let count = self.response_time_count.load(Ordering::Relaxed);
+        let average_response_time_ms = if count > 0 {
+            self.response_time_sum_ns.load(Ordering::Relaxed) as f64
+                / count as f64
+                / 1_000_000.0
         } else {
-            response_times.iter().sum::<u128>() as f64 / response_times.len() as f64 / 1_000_000.0
-            // Convert to ms
+            0.0
         };
 
         FetcherStatistics {

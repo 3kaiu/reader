@@ -89,7 +89,7 @@ fn json_path_to_pointer(path: &str) -> Option<String> {
                 // Parse bracket index: [0], ['key']
                 if chars.peek() == Some(&'\'') || chars.peek() == Some(&'"') {
                     // String key: ['key']
-                    let quote = chars.next().unwrap();
+                    let quote = chars.next().unwrap_or('"');
                     let mut key = String::new();
                     loop {
                         match chars.next() {

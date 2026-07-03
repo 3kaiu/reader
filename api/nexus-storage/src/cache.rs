@@ -102,6 +102,12 @@ impl ChapterCache {
             let path_clone = path.clone();
             let content = tokio::task::spawn_blocking::<_, Option<Arc<str>>>(move || {
                 let file = File::open(&path_clone).ok()?;
+                // SAFETY: file is opened read-only and not concurrently mutated
+                // (two-level cache only writes via atomic rename, so the mapped
+                // region won't SIGBUS due to truncation by another writer).
+                // memmap2::Mmap::map is safe under these conditions because the
+                // underlying file descriptor remains valid for the mapping's lifetime
+                // and we never write to the mapping.
                 let mmap = unsafe { Mmap::map(&file).ok()? };
                 // Optimized: from_utf8_lossy on slice, then into Arc<str>
                 let s = String::from_utf8_lossy(&mmap);

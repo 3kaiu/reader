@@ -4,7 +4,7 @@ use nexus_core::NxsSource;
 use scraper::{Html, Selector};
 
 use crate::content_extract::{extract_structured_text_from_root, ContentExtractConfig};
-use crate::FallbackSelector;
+use crate::selector_cache::FallbackSelector;
 
 fn fixture_path(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel)

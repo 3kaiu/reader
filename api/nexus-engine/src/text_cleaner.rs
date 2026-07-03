@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Text Cleaning Module
 //!
 //! Provides text cleaning utilities for content extraction:

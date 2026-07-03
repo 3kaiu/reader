@@ -106,8 +106,6 @@ fn make_package(
         readiness: SourceReadinessReport::default(),
         tags: Vec::new(),
         metadata: HashMap::new(),
-        documentation: None,
-        samples: None,
         capabilities: None,
         import_policy: Some(SourceImportPolicy {
             enabled_by_default: true,
@@ -117,7 +115,6 @@ fn make_package(
             visibility: "private".to_string(),
         }),
         search_profile: None,
-        fetch_profile: None,
     }
 }
 

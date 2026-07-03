@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Skill decision telemetry recorder.
 //!
 //! Keeps a bounded in-memory timeline of skill decisions for diagnosis and replay.
@@ -46,25 +47,25 @@ fn now_ms() -> i64 {
 pub fn configure(max_events: usize) {
     let mut cfg = CONFIG
         .lock()
-        .expect("skill telemetry config mutex poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     cfg.max_events = max_events.max(100);
 }
 
 pub fn set_persist_hook(hook: Option<PersistHook>) {
     let mut slot = PERSIST_HOOK
         .lock()
-        .expect("skill telemetry persist hook mutex poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     *slot = hook;
 }
 
 pub fn record(source_id: &str, trace_id: Option<&str>, decision: SkillDecisionEnvelope) {
     let cfg = CONFIG
         .lock()
-        .expect("skill telemetry config mutex poisoned")
+        .unwrap_or_else(|e| e.into_inner())
         .clone();
     let mut events = EVENTS
         .lock()
-        .expect("skill telemetry events mutex poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     events.push_back(SkillDecisionEvent {
         occurred_at_ms: now_ms(),
         source_id: source_id.to_string(),
@@ -80,7 +81,7 @@ pub fn record(source_id: &str, trace_id: Option<&str>, decision: SkillDecisionEn
 
     let hook = PERSIST_HOOK
         .lock()
-        .expect("skill telemetry persist hook mutex poisoned")
+        .unwrap_or_else(|e| e.into_inner())
         .clone();
     if let (Some(hook), Some(event)) = (hook, latest) {
         hook(event);
@@ -94,7 +95,7 @@ pub fn snapshot(
 ) -> Vec<SkillDecisionEvent> {
     let events = EVENTS
         .lock()
-        .expect("skill telemetry events mutex poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     let source_filter = source_id.map(str::to_string);
     let skill_filter = skill_name.map(|s| s.to_ascii_lowercase());
 
@@ -137,7 +138,7 @@ impl SkillDecisionEvent {
 pub fn reset_for_tests() {
     let mut events = EVENTS
         .lock()
-        .expect("skill telemetry events mutex poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     events.clear();
 }
 
