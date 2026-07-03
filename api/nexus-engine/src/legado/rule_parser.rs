@@ -352,6 +352,7 @@ fn find_top_level(s: &str, sep: &str) -> Option<usize> {
 }
 
 /// Strip mode prefix from a rule expression (e.g. "@js:foo" -> "foo")
+#[allow(dead_code)]
 pub fn strip_prefix(expr: &str) -> &str {
     let trimmed = expr.trim();
     if let Some(stripped) = trimmed

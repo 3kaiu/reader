@@ -11,6 +11,7 @@ use crate::legado::selector::regex;
 ///
 /// `pattern` is the regex to match
 /// `replacement` is the replacement string (may contain $1, $2 capture references)
+#[allow(dead_code)]
 pub fn clean_text(text: &str, pattern: &str, replacement: &str) -> String {
     if text.is_empty() || pattern.is_empty() {
         return text.to_string();
