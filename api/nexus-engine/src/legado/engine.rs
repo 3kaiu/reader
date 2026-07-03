@@ -254,14 +254,16 @@ impl LegadoEngine {
                 Some(list_str) => {
                     serde_json::from_str::<Vec<serde_json::Value>>(&list_str).unwrap_or_default()
                 }
-                None => vec![json.clone()],
+                None => vec![json],
             }
         } else {
-            vec![json.clone()]
+            vec![json]
         };
 
         let check_keyword = rules.check_key_word.as_deref().unwrap_or("");
         let mut results = Vec::new();
+        let src_id = Arc::<str>::from(self.source_id.as_str());
+        let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
 
         for item in items {
             let name = self.exec_json_rule_str(&rules.base.name, &item)
@@ -288,8 +290,8 @@ impl LegadoEngine {
             let mut book = BookItem::new(
                 name,
                 abs_book_url,
-                Arc::<str>::from(self.source_id.clone()),
-                Arc::<str>::from(self.source.book_source_name.clone()),
+                Arc::clone(&src_id),
+                Arc::clone(&src_name),
             );
             book.author = self.exec_json_rule_str(&rules.base.author, &item)
                 .map(|s| Arc::<str>::from(s));
@@ -320,7 +322,7 @@ impl LegadoEngine {
             let all_html = selector::css::extract_all_css(&doc, &list_rule.original);
             if all_html.is_empty() {
                 // Fallback: treat whole doc as the list
-                vec![doc.clone()]
+                vec![doc]
             } else {
                 // Each matched element is a root for sub-rules
                 // We need to re-parse each selection as its own Html for sub-rule evaluation
@@ -330,11 +332,13 @@ impl LegadoEngine {
                     .collect()
             }
         } else {
-            vec![doc.clone()]
+            vec![doc]
         };
 
         let check_keyword = rules.check_key_word.as_deref().unwrap_or("");
         let mut results = Vec::new();
+        let src_id = Arc::<str>::from(self.source_id.as_str());
+        let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
 
         for root in &root_elements {
             let name = self.exec_rule_str(&rules.base.name, root, base_url)
@@ -361,8 +365,8 @@ impl LegadoEngine {
             let mut book = BookItem::new(
                 name,
                 abs_book_url,
-                Arc::<str>::from(self.source_id.clone()),
-                Arc::<str>::from(self.source.book_source_name.clone()),
+                Arc::clone(&src_id),
+                Arc::clone(&src_name),
             );
             book.author = self.exec_rule_str(&rules.base.author, root, base_url)
                 .map(|s| Arc::<str>::from(s));
@@ -594,14 +598,13 @@ impl BookEngine for LegadoEngine {
                     // Use CSS selector to find individual items
                     if let Some(name_rule) = &chapter_name_rule {
                         if let Some(url_rule) = &chapter_url_rule {
-                            // Try to extract multiple items
+                            // Try to extract multiple items — zip avoids clone
                             let names = selector::css::extract_all_css(&fragment, &name_rule.original);
                             let urls = selector::css::extract_all_css(&fragment, &url_rule.original);
-                            let count = names.len().min(urls.len());
-                            for i in 0..count {
+                            for (i, (name, url)) in names.into_iter().zip(urls.into_iter()).enumerate() {
                                 chaps.push(Chapter {
-                                    title: Arc::<str>::from(names[i].clone()),
-                                    url: Arc::<str>::from(self.abs_url(&urls[i])),
+                                    title: Arc::<str>::from(name),
+                                    url: Arc::<str>::from(self.abs_url(&url)),
                                     index: i,
                                     is_vip: false,
                                     word_count: None,
@@ -837,13 +840,15 @@ impl ExploreEngine for LegadoEngine {
                         serde_json::from_str::<Vec<serde_json::Value>>(&list_str)
                             .unwrap_or_default()
                     }
-                    None => vec![json.clone()],
+                    None => vec![json],
                 }
             } else {
-                vec![json.clone()]
+                vec![json]
             };
 
             let mut results = Vec::new();
+            let src_id = Arc::<str>::from(self.source_id.as_str());
+            let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
             for item in items {
                 let name = self
                     .exec_json_rule_str(&rules.base.name, &item)
@@ -862,8 +867,8 @@ impl ExploreEngine for LegadoEngine {
                 let mut book = BookItem::new(
                     name,
                     abs_book_url,
-                    Arc::<str>::from(self.source_id.clone()),
-                    Arc::<str>::from(self.source.book_source_name.clone()),
+                    Arc::clone(&src_id),
+                    Arc::clone(&src_name),
                 );
                 book.author = self
                     .exec_json_rule_str(&rules.base.author, &item)
@@ -889,7 +894,7 @@ impl ExploreEngine for LegadoEngine {
             let root_elements = if let Some(list_rule) = &book_list_rule {
                 let all_html = selector::css::extract_all_css(&doc, &list_rule.original);
                 if all_html.is_empty() {
-                    vec![doc.clone()]
+                    vec![doc]
                 } else {
                     all_html
                         .into_iter()
@@ -897,10 +902,12 @@ impl ExploreEngine for LegadoEngine {
                         .collect()
                 }
             } else {
-                vec![doc.clone()]
+                vec![doc]
             };
 
             let mut results = Vec::new();
+            let src_id = Arc::<str>::from(self.source_id.as_str());
+            let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
             for root in &root_elements {
                 let name = self
                     .exec_rule_str(&rules.base.name, root, &fetch_url)
@@ -919,8 +926,8 @@ impl ExploreEngine for LegadoEngine {
                 let mut book = BookItem::new(
                     name,
                     abs_book_url,
-                    Arc::<str>::from(self.source_id.clone()),
-                    Arc::<str>::from(self.source.book_source_name.clone()),
+                    Arc::clone(&src_id),
+                    Arc::clone(&src_name),
                 );
                 book.author = self
                     .exec_rule_str(&rules.base.author, root, &fetch_url)

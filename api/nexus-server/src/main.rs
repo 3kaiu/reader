@@ -100,5 +100,39 @@ async fn load_config() -> anyhow::Result<EngineConfig> {
         info!("Overriding API_KEY from environment");
     }
 
+    // Rate limit env overrides (convenient for Docker / NAS tuning)
+    if let Ok(val) = std::env::var("RATE_LIMIT_PER_SECOND") {
+        if let Ok(v) = val.parse::<u64>() {
+            config.server.rate_limit.per_second = v;
+            info!("Overriding RATE_LIMIT_PER_SECOND from environment: {}", v);
+        }
+    }
+    if let Ok(val) = std::env::var("RATE_LIMIT_BURST") {
+        if let Ok(v) = val.parse::<u32>() {
+            config.server.rate_limit.burst_size = v;
+            info!("Overriding RATE_LIMIT_BURST from environment: {}", v);
+        }
+    }
+
+    // HTTP connection pool env overrides
+    if let Ok(val) = std::env::var("HTTP_TIMEOUT_SECONDS") {
+        if let Ok(v) = val.parse::<u64>() {
+            config.limits.http_timeout_seconds = v;
+            info!("Overriding HTTP_TIMEOUT_SECONDS from environment: {}", v);
+        }
+    }
+    if let Ok(val) = std::env::var("HTTP_MAX_CONCURRENT") {
+        if let Ok(v) = val.parse::<usize>() {
+            config.limits.http_max_concurrent = v;
+            info!("Overriding HTTP_MAX_CONCURRENT from environment: {}", v);
+        }
+    }
+    if let Ok(val) = std::env::var("POOL_MAX_IDLE_PER_HOST") {
+        if let Ok(v) = val.parse::<usize>() {
+            config.limits.pool_max_idle_per_host = v;
+            info!("Overriding POOL_MAX_IDLE_PER_HOST from environment: {}", v);
+        }
+    }
+
     Ok(config)
 }

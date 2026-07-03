@@ -33,7 +33,7 @@ export default defineConfig({
     threads: false, // Disable threading for integration tests to avoid conflicts
     maxConcurrency: 1, // Run integration tests sequentially
     
-    // Coverage settings
+    // Coverage settings — thresholds disabled until integration tests exist
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -49,7 +49,9 @@ export default defineConfig({
         'src/**/*.test.ts',
         'src/**/*.spec.ts',
         'node_modules/**'
-      ]
+      ],
+      // TODO: re-enable when integration test suite is populated
+      // thresholds: { lines: 70, branches: 70, functions: 70, statements: 70 }
     },
     
     // Reporter configuration
