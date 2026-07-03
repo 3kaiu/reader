@@ -28,6 +28,10 @@
       "/api/sources",
       "/api/sources/{id}",
       "/api/sources/{id}/status",
+      "/api/sources/{id}/policy",
+      "/api/sources/legado",
+      "/api/sources/legado/import",
+      "/api/sources/legado/{id}",
       "/api/source-packages",
       "/api/source-packages/import",
       "/api/source-packages/{id}",
@@ -42,7 +46,9 @@
       "/api/groups",
       "/api/groups/{id}",
       "/api/replace_rules",
-      "/api/replace_rules/{id}"
+      "/api/replace_rules/{id}",
+      "/api/explore",
+      "/api/explore/categories"
     ]
   }
 }

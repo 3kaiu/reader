@@ -51,7 +51,7 @@ pub enum ErrorCode {
     InvalidBookFormat = 6003,
     UnsupportedBookType = 6004,
 
-    // Authentication Layer (7000-7999)
+    // Auth Layer (7000-7999)
     Unauthorized = 7000,
     Forbidden = 7001,
     InvalidToken = 7002,
@@ -63,7 +63,7 @@ pub enum ErrorCode {
     ConfigNotFound = 8001,
     ConfigValidationFailed = 8002,
 
-    // AI/ML Layer (9000-9999)
+    // AI/ML Layer (9000-9999) — speculative, no runtime yet
     ModelLoadFailed = 9000,
     InferenceFailed = 9001,
     UnsupportedModelType = 9002,
@@ -141,6 +141,7 @@ pub enum EngineError {
     #[error("Strategy is disabled")]
     StrategyDisabled,
 
+    // ============== Auth Layer ==============
     #[error("Unauthorized access")]
     Unauthorized,
 
@@ -218,7 +219,9 @@ pub enum EngineError {
     #[error("Configuration validation failed: {details}")]
     ConfigValidationFailed { details: String },
 
-    // ============== AI/ML Layer ==============
+    // ============== AI/ML Layer (speculative generality — no runtime yet) ==============
+    // TODO: Remove when AI integration lands; these variants exist only for
+    //       forward-compatibility with planned NLP/NLG pipelines.
     #[error("Model load failed: {model_id}")]
     ModelLoadFailed { model_id: String },
 

@@ -6,7 +6,7 @@
 //! - Zero-copy extraction where possible
 //! - Clean async interface
 
-use nexus_core::types::{Chapter, FetchJob, PipelineStageReport};
+use nexus_core::types::{Chapter, PipelineStageReport};
 use nexus_core::{
     BookEngineRuntime, BookInfo, BookItem, ContentPipelineOutput, EngineError, NxsSource,
     ReplaceRule, SourceRuntimeProfile,
@@ -189,23 +189,19 @@ impl NxsEngine {
     ) -> Result<String, EngineError> {
         use nexus_core::FetchContext;
 
-        let job = FetchJob {
-            source_id: self.source.id.clone(),
-            target_url: url.to_string(),
-            chapter_id: None,
-            trace_id: Uuid::new_v4().to_string(),
-            request_meta: std::collections::HashMap::new(),
-        };
-        let source_stats = extraction_metrics::stats_for(&self.source.id);
-        let (profile, planner_decision) = self
-            .strategy_planner_skill
-            .plan(&job, source_stats.as_ref());
-
         let mut ctx = FetchContext::new(url, &self.source.id);
+        ctx.trace_id = Some(Uuid::new_v4().to_string());
         if let Some(m) = method {
             ctx.method = m.to_string();
         }
         ctx.body = body;
+        ctx.timeout_secs = 30; // default, will be overridden by planner
+
+        // Plan anti-crawl strategy before executing
+        let source_stats = extraction_metrics::stats_for(&self.source.id);
+        let (profile, planner_decision) = self
+            .strategy_planner_skill
+            .plan(&ctx, source_stats.as_ref());
         ctx.timeout_secs = profile.timeout_ms.max(1).div_ceil(1000).max(1);
 
         if let Some(headers) = &self.source.headers {
@@ -227,7 +223,7 @@ impl NxsEngine {
             planner_decision.confidence,
             profile.strategy_chain
         );
-        skill_telemetry::record(&self.source.id, Some(&job.trace_id), planner_decision.clone());
+        skill_telemetry::record(&self.source.id, ctx.trace_id.as_deref(), planner_decision.clone());
 
         let mut last_error = None;
         let max_attempts = profile.retry_budget.saturating_add(1);

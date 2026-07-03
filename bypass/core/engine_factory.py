@@ -35,7 +35,9 @@ class EngineFactory:
             return ScraperEngine()
         elif name == "browser-probe" or name == "browser":
             logger.info("Creating BrowserProbeEngine")
-            return BrowserProbeEngine()
+            scraper = self._engines.get("scraper") or ScraperEngine()
+            self._engines.setdefault("scraper", scraper)
+            return BrowserProbeEngine(scraper_engine=scraper)
         else:
             logger.warning(f"Unknown engine: {name}, falling back to scraper")
             return ScraperEngine()

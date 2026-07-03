@@ -80,14 +80,6 @@ class BrowserProbeEngine(BaseBypassEngine):
     - Return the real rendered HTML after challenge completion
     """
 
-    def __init__(self):
-        super().__init__("browser-probe")
-        self._playwright = None
-        self._browser = None
-        self._browser_lock = asyncio.Lock()
-        self._contexts: Dict[str, Any] = {}  # session_id -> browser context
-        self._metrics: Dict[str, float] = defaultdict(float)
-        self._session_counter = 0
 
     async def _get_browser(self):
         """Lazy-init headless Chromium (shared across sessions)."""
@@ -365,6 +357,18 @@ class BrowserProbeEngine(BaseBypassEngine):
 
     # ─── BaseBypassEngine Interface ────────────────────────────────────────
 
+    def __init__(self, scraper_engine=None):
+        super().__init__("browser-probe")
+        self._playwright = None
+        self._browser = None
+        self._browser_lock = asyncio.Lock()
+        self._contexts: Dict[str, Any] = {}
+        self._metrics: Dict[str, float] = defaultdict(float)
+        self._session_counter = 0
+        # Accept an injected ScraperEngine (from factory) instead of creating one internally.
+        # Falls back to lazy import for backward compatibility.
+        self._scraper = scraper_engine
+
     async def fetch(
         self,
         url: str,
@@ -376,11 +380,14 @@ class BrowserProbeEngine(BaseBypassEngine):
         **kwargs,
     ) -> BypassResult:
         """
-        Two-phase fetch: first try a lightweight HTTP request (via ScraperEngine),
+        Two-phase fetch: first try a lightweight HTTP request (via injected ScraperEngine),
         detect CF challenge, then fall back to browser probe if needed.
         """
-        from engines.scraper import ScraperEngine
-        scraper = ScraperEngine()
+        scraper = self._scraper
+        if scraper is None:
+            # Lazy fallback — only when no factory-injected instance available
+            from engines.scraper import ScraperEngine
+            scraper = ScraperEngine()
         result = await scraper.fetch(url, method, headers, body, timeout, proxy)
 
         if result.cf_bypassed and result.status == 200:

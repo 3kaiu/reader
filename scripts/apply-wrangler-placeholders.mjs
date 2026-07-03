@@ -11,7 +11,7 @@ const rootDir = path.resolve(scriptDir, '..')
 
 const pairs = [
   ['YOUR_CONTENT_CACHE_KV_ID_HERE', 'CF_CONTENT_CACHE_KV_ID'],
-  ['YOUR_NEXUS_LITE_URL_HERE', 'NEXUS_LITE_URL'],
+  ['YOUR_NEXUS_API_URL_HERE', 'NEXUS_API_URL'],
 ]
 
 const wranglerPath = path.resolve(process.argv[2] || path.join(rootDir, 'edge', 'wrangler.toml'))

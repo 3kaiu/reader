@@ -289,32 +289,6 @@ pub struct ReviewRule {
     pub delete_url: Option<String>,
 }
 
-// === Helper: Legado ReplaceRule (standalone entity or embedded) ===
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct LegadoReplaceRule {
-    pub pattern: String,
-    #[serde(default)]
-    pub replacement: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub scope: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub exclude_scope: Option<String>,
-    #[serde(default = "default_true")]
-    pub scope_title: bool,
-    #[serde(default = "default_true")]
-    pub scope_content: bool,
-    #[serde(default = "default_true")]
-    pub is_enabled: bool,
-    #[serde(default = "default_true")]
-    pub is_regex: bool,
-    #[serde(default)]
-    pub timeout_millisecond: i64,
-    #[serde(default)]
-    pub order: i32,
-}
-
 // === Helper: LegadoSource analysis and metadata ===
 
 impl LegadoSource {

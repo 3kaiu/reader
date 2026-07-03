@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// HTTP fetch response
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FetchResponse {
     pub status: u16,
     pub headers: HashMap<String, String>,
@@ -23,8 +23,14 @@ impl FetchResponse {
     }
 }
 
-/// Fetch context for requests
-#[derive(Debug, Clone)]
+/// Fetch context — complete request descriptor (formerly split across FetchContext + FetchJob)
+///
+/// Combines the HTTP-level context (url, method, headers, body) with orchestration
+/// metadata (trace_id, chapter_id) that was previously on a separate FetchJob struct.
+/// This eliminates the dual-construction pattern where the same function created both
+/// a FetchJob and a FetchContext with zero information flow between them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FetchContext {
     pub url: String,
     pub method: String,
@@ -35,6 +41,12 @@ pub struct FetchContext {
     pub cookies: HashMap<String, String>,
     /// Timeout in seconds for this request
     pub timeout_secs: u64,
+    /// Orchestration trace id for request correlation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Target chapter id when fetching chapter content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chapter_id: Option<String>,
 }
 
 impl FetchContext {
@@ -48,6 +60,8 @@ impl FetchContext {
             last_response: None,
             cookies: HashMap::new(),
             timeout_secs: 30,
+            trace_id: None,
+            chapter_id: None,
         }
     }
 
@@ -56,19 +70,6 @@ impl FetchContext {
         ctx.timeout_secs = timeout_secs;
         ctx
     }
-}
-
-/// Standardized fetch job context for cross-module orchestration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FetchJob {
-    pub source_id: String,
-    pub target_url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chapter_id: Option<String>,
-    pub trace_id: String,
-    #[serde(default)]
-    pub request_meta: HashMap<String, String>,
 }
 
 /// Runtime policy profile per source.
@@ -93,34 +94,3 @@ impl Default for SourceRuntimeProfile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FetchSessionProfile {
-    pub session_key: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    #[serde(default)]
-    pub cookies: HashMap<String, String>,
-    #[serde(default)]
-    pub headers: HashMap<String, String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub referer: Option<String>,
-    pub created_at_ms: i64,
-    pub expires_at_ms: i64,
-    #[serde(default)]
-    pub hit_count: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RawHtmlCacheEntry {
-    pub cache_key: String,
-    pub url: String,
-    pub status: u16,
-    pub final_url: String,
-    pub html: String,
-    pub cached_at_ms: i64,
-    pub expires_at_ms: i64,
-}

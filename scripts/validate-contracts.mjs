@@ -100,7 +100,10 @@ const backendRoutes = [
     ...extractRustRoutes(read(files.backendApp)),
   ]),
 ]
-compareContains('backend app routes', backendRoutes, contract.backend.requiredRoutes, errors)
+// Use exact comparison — every route in the app MUST be declared in the contract.
+const backendSorted = [...backendRoutes].sort()
+const contractSorted = [...contract.backend.requiredRoutes].sort()
+compareExact('backend app routes', backendSorted, contractSorted, errors)
 
 if (errors.length > 0) {
   console.error('Route contract validation failed:\n')

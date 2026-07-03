@@ -7,7 +7,7 @@
 use crate::extraction_metrics::SourceExtractionStats;
 use crate::quality_gate::{evaluate_content_quality, passes_quality_gate, QualityGateConfig};
 use dashmap::DashMap;
-use nexus_core::types::{ExtractionQuality, FetchJob, SkillDecisionEnvelope, SourceRuntimeProfile};
+use nexus_core::types::{ExtractionQuality, FetchContext, SkillDecisionEnvelope, SourceRuntimeProfile};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::LazyLock;
@@ -93,10 +93,10 @@ impl Default for StrategyPlannerSkill {
 impl StrategyPlannerSkill {
     pub fn plan(
         &self,
-        job: &FetchJob,
+        ctx: &FetchContext,
         stats: Option<&SourceExtractionStats>,
     ) -> (SourceRuntimeProfile, SkillDecisionEnvelope) {
-        let mut profile = runtime_profile_for(&job.source_id);
+        let mut profile = runtime_profile_for(&ctx.source_id);
         let mut reason = "default".to_string();
         let mut confidence = 0.55;
 
@@ -140,10 +140,10 @@ impl StrategyPlannerSkill {
         }
 
         profile.strategy_chain = normalize_chain(&profile.strategy_chain);
-        upsert_runtime_profile(&job.source_id, profile.clone());
+        upsert_runtime_profile(&ctx.source_id, profile.clone());
 
         let mut output = HashMap::new();
-        output.insert("sourceId".to_string(), job.source_id.clone());
+        output.insert("sourceId".to_string(), ctx.source_id.clone());
         output.insert("strategyChain".to_string(), profile.strategy_chain.join(" -> "));
         output.insert("timeoutMs".to_string(), profile.timeout_ms.to_string());
         output.insert("retryBudget".to_string(), profile.retry_budget.to_string());
@@ -154,9 +154,9 @@ impl StrategyPlannerSkill {
             self.mode,
             &format!(
                 "{}|{}|{}",
-                job.source_id,
-                job.target_url,
-                job.chapter_id.clone().unwrap_or_default()
+                ctx.source_id,
+                ctx.url,
+                ctx.chapter_id.clone().unwrap_or_default()
             ),
             confidence,
             output,
@@ -292,13 +292,8 @@ mod tests {
     #[test]
     fn planner_prioritizes_direct_http_for_quality_regression() {
         let skill = StrategyPlannerSkill::default();
-        let job = FetchJob {
-            source_id: "s1".to_string(),
-            target_url: "https://x.test/chapter-1".to_string(),
-            chapter_id: None,
-            trace_id: "t-1".to_string(),
-            request_meta: HashMap::new(),
-        };
+        let mut ctx = FetchContext::new("https://x.test/chapter-1", "s1");
+        ctx.trace_id = Some("t-1".to_string());
         let stats = SourceExtractionStats {
             source_id: "s1".to_string(),
             success: 10,
@@ -314,7 +309,7 @@ mod tests {
             quality_success_rate: 0.5,
         };
 
-        let (profile, _) = skill.plan(&job, Some(&stats));
+        let (profile, _) = skill.plan(&ctx, Some(&stats));
         assert_eq!(profile.strategy_chain.first().map(String::as_str), Some("DirectHTTP"));
     }
 

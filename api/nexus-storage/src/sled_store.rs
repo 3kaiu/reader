@@ -7,9 +7,10 @@
 //! All operations are wrapped in `tokio::task::spawn_blocking` to offload
 //! synchronous disk I/O from the async runtime.
 
+use crate::cache_model::{FetchSessionProfile, RawHtmlCacheEntry};
 use nexus_core::{
-    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, FetchSessionProfile,
-    HealthTracker, PersistedExtractionMetrics, PersistedSourceHealth, RawHtmlCacheEntry,
+    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError,
+    HealthTracker, PersistedExtractionMetrics, PersistedSourceHealth,
     ReplaceRule, SkillDecisionLogEntry, SourcePolicy, SourceRulePackage, VoiceModelMetadata,
 };
 use serde::{de::DeserializeOwned, Serialize};

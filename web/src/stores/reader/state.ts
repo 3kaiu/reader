@@ -1,6 +1,6 @@
 import { ref, shallowRef } from 'vue'
 import { loadPersistedReaderProgress } from '@/utils/readerStore'
-import type { ReaderStoreState } from './types'
+import type { ReaderStageReport, ReaderStoreState } from './types'
 
 export function createReaderStoreState(): ReaderStoreState {
   return {

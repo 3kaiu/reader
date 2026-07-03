@@ -8,20 +8,22 @@
 // ===== 基础设施层 (Infrastructure Layer) =====
 // 外部接口实现
 pub mod cache;
+pub mod cache_model;
 pub mod legado_source_store;
 pub mod sled_store;
 pub mod source_store;
 
 // Public exports - 保持向后兼容
 pub use cache::ChapterCache;
+pub use cache_model::{FetchSessionProfile, RawHtmlCacheEntry};
 pub use legado_source_store::LegadoSourceStore;
 pub use sled_store::SledStore;
 pub use source_store::SourceStore;
 
-// Error type re-export
-pub use nexus_core::EngineError;
+// Error type re-export — removed. Downstream should use `nexus_core::EngineError` directly.
+// pub use nexus_core::EngineError;
 
-use nexus_core::EngineConfig;
+use nexus_core::{EngineConfig, EngineError};
 use tracing::info;
 
 /// Initialize storage directories

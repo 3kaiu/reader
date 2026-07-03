@@ -10,7 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "development"
 ENABLE_CACHE = "true"
-NEXUS_LITE_URL = "YOUR_NEXUS_LITE_URL_HERE"
+NEXUS_API_URL = "YOUR_NEXUS_API_URL_HERE"
 # Optional (production / custom domain): set via dashboard or env.production.vars
 # CORS_EXTRA_ORIGINS = "https://nexus.pages.dev,https://nexus-reader.pages.dev"
 

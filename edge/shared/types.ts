@@ -44,7 +44,7 @@ export interface ServiceUrls {
 }
 
 export interface WorkerEnv {
-  NEXUS_LITE_URL: string;
+  NEXUS_API_URL: string;
   ENVIRONMENT?: 'development' | 'staging' | 'production' | string;
   ENABLE_CACHE?: string;
 

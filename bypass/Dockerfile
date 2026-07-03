@@ -20,12 +20,12 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 
 # Install runtime dependencies from lockfile (reproducible)
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project && chown -R nexus:nexus /app
 
 # Copy source code
-COPY *.py ./
-COPY core ./core
-COPY engines ./engines
+COPY --chown=nexus:nexus *.py ./
+COPY --chown=nexus:nexus core ./core
+COPY --chown=nexus:nexus engines ./engines
 
 ENV HOST=0.0.0.0
 ENV PORT=8000

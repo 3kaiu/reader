@@ -162,12 +162,12 @@ export async function proxyRequest(
  */
 type ProxyEnvLike = Pick<
   WorkerEnv,
-  | 'NEXUS_LITE_URL'
+  | 'NEXUS_API_URL'
   | 'ENABLE_CACHE'
   | 'CONTENT_CACHE_KV'
   | 'CORS_EXTRA_ORIGINS'
 > & {
-  nexusLiteUrl?: string
+  nexusApiUrl?: string
   FRONTEND_URL?: string
 }
 
@@ -177,13 +177,13 @@ export async function proxyRequestWithEnv(
   ctx?: ExecutionContextLike
 ): Promise<Response> {
   const url = new URL(request.url)
-  const targetUrl = env.NEXUS_LITE_URL || env.nexusLiteUrl || ''
+  const targetUrl = env.NEXUS_API_URL || env.nexusApiUrl || ''
   const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true'
   const kv = env.CONTENT_CACHE_KV
 
   return proxyRequest(request, targetUrl, url.pathname + url.search, {
     useCache,
-    cacheTTL: 300,
+    cacheTTL: 120,
     kv,
     ctx,
     corsEnv: env,

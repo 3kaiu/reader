@@ -1,10 +1,11 @@
 /**
  * 错误处理组合函数
  */
-import { ref, readonly } from 'vue'
+import { ref, readonly, onUnmounted } from 'vue'
 import { useMessage } from './useMessage'
 import { errorHandler } from '@/utils/error-handler'
 import { processError, type ErrorContext } from '@/utils/errors'
+import { subscribeToErrors } from '@/utils/error-reporter'
 
 type HandlerContext = ErrorContext | string | undefined
 type MaybeRequestIdError = { requestId?: string }
@@ -105,6 +106,15 @@ export function useErrorHandler() {
     }
 
     return showWarning(message)
+  }
+
+  // Bridge standalone error-reporter events into the Vue composable.
+  // This replaces the old pattern of importing useErrorHandler from api/ layer.
+  const unsubErrors = subscribeToErrors((payload) => {
+    handleError(new Error(payload.message), { source: 'error-reporter', details: payload.details }, true)
+  })
+  if (typeof onUnmounted === 'function') {
+    onUnmounted(unsubErrors)
   }
 
   return {

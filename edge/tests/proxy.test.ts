@@ -50,7 +50,7 @@ describe('shared/proxy proxyRequest', () => {
       // First request populates KV (MISS + set)
       const res1 = await proxyRequest(req, 'https://backend.example', '/api/content?x=1', {
         useCache: true,
-        cacheTTL: 300,
+        cacheTTL: 120,
         kv: kv as unknown as never,
         ctx: { waitUntil: (p: Promise<unknown>) => void p } as never,
       })
@@ -59,7 +59,7 @@ describe('shared/proxy proxyRequest', () => {
       // Second request should HIT cache and must not call fetch again
       const res2 = await proxyRequest(req, 'https://backend.example', '/api/content?x=1', {
         useCache: true,
-        cacheTTL: 300,
+        cacheTTL: 120,
         kv: kv as unknown as never,
         ctx: { waitUntil: (p: Promise<unknown>) => void p } as never,
       })
@@ -157,7 +157,7 @@ describe('shared/proxy proxyRequest', () => {
 
       const res1 = await proxyRequest(req, 'https://backend.example', '/api/search/stream', {
         useCache: true,
-        cacheTTL: 300,
+        cacheTTL: 120,
         kv: kv as unknown as never,
         ctx: { waitUntil: (p: Promise<unknown>) => void p } as never,
       })
@@ -167,7 +167,7 @@ describe('shared/proxy proxyRequest', () => {
 
       const res2 = await proxyRequest(req, 'https://backend.example', '/api/search/stream', {
         useCache: true,
-        cacheTTL: 300,
+        cacheTTL: 120,
         kv: kv as unknown as never,
         ctx: { waitUntil: (p: Promise<unknown>) => void p } as never,
       })
