@@ -1,6 +1,6 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
-import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeDisplayActions } from './chrome-types'
+import type { ReaderChromeLayerActions } from './chrome-types'
 import { createReaderChromeEscapeDisplayAction } from './chrome-escape-display'
 import { createReaderChromeGoBackDisplayAction } from './chrome-go-back-display'
 

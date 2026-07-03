@@ -1,8 +1,8 @@
 import { createReaderPageActions } from '@/composables/reader/page-actions'
 import { createReaderPageState } from '@/composables/reader/page-state'
-import type { ReaderPageExperienceActions } from './page-model-experience-options'
+import type { ReaderPageExperienceActions } from './page-model-types'
 import { createReaderViewPageOptions } from './view-model-page-options'
-import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewFeatures } from './view-model-types'
 import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewServices } from './view-services'
 

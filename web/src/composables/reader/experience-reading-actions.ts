@@ -1,5 +1,5 @@
-import type { ReaderExperienceReadingActions } from './experience-reading-action-types'
-import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
+import type { ReaderExperienceReadingActions } from './experience-types'
+import type { ReaderExperienceModelHandlerOptions } from './experience-types'
 
 type ReaderExperienceReadingActionOptions = Pick<
   ReaderExperienceModelHandlerOptions,

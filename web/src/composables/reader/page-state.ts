@@ -1,6 +1,6 @@
 import { computed } from 'vue'
-import type { ReaderPageModelStateOptions } from './page-model-state-options'
-import type { ReaderPageState } from './page-state-types'
+import type { ReaderPageModelStateOptions } from './page-model-types'
+import type { ReaderPageState } from './page-model-types'
 
 export function createReaderPageState(options: ReaderPageModelStateOptions) {
   return computed<ReaderPageState>(() => ({

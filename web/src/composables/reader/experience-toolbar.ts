@@ -1,7 +1,7 @@
 import { computed } from 'vue'
-import type { ReaderExperienceDisplayState } from './experience-state-display-types'
+import type { ReaderExperienceDisplayState } from './experience-types'
 import type { ReaderExperienceServiceState } from './experience-state-service-types'
-import type { ReaderExperienceVisibilityState } from './experience-state-visibility-types'
+import type { ReaderExperienceVisibilityState } from './experience-types'
 
 type ReaderExperienceToolbarState = ReaderExperienceServiceState &
   ReaderExperienceVisibilityState &

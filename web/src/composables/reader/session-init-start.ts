@@ -1,5 +1,5 @@
 import type { ReaderRouteTarget } from '@/utils/readerRoute'
-import type { ReaderSessionInitContext } from './session-init-context-types'
+import type { ReaderSessionInitContext } from './session-types'
 
 export function createReaderSessionStartAction(context: ReaderSessionInitContext) {
   return async function startReaderSession(target: ReaderRouteTarget) {

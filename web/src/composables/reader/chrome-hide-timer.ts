@@ -3,8 +3,8 @@
  *
  * Merged from chrome-hide-timer-clear.ts + chrome-hide-timer-start.ts
  */
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeTimerActions } from './chrome-timer-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeTimerActions } from './chrome-types'
 
 export function createReaderChromeHideTimerActions(
   context: ReaderChromeActionContext

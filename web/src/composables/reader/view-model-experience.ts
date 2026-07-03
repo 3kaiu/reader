@@ -1,7 +1,7 @@
 import { createReaderExperienceActions } from '@/composables/reader/experience-actions'
 import { createReaderExperienceState } from '@/composables/reader/experience-state'
 import { createReaderViewExperienceOptions } from './view-model-experience-options'
-import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewFeatures } from './view-model-types'
 import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewServices } from './view-services'
 

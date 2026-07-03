@@ -3,7 +3,7 @@ import { createReaderViewExperienceHandlerOptions } from './view-model-experienc
 import { createReaderViewExperienceServiceOptions } from './view-model-experience-service-options'
 import { createReaderViewExperienceVisibilityOptions } from './view-model-experience-visibility-options'
 import type { ReaderViewLayout } from './view-layout'
-import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
+import type { ReaderExperienceModelFeatures } from './view-model-types'
 import type { ReaderViewServices } from './view-services'
 
 export function createReaderViewExperienceOptions(

@@ -5,9 +5,9 @@ import { createReaderViewChromeFeature } from './view-chrome-feature'
 import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewServices } from './view-services'
 import { createReaderViewSessionFeature } from './view-session-feature'
-import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewFeatures } from './view-model-types'
 
-export type { ReaderViewFeatures } from './view-feature-types'
+export type { ReaderViewFeatures } from './view-model-types'
 
 export function createReaderViewFeatures(
   services: ReaderViewServices,

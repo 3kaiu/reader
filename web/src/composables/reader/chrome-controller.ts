@@ -1,6 +1,6 @@
 import { createReaderChromeActions } from './chrome-actions'
 import { createReaderChromeState } from './chrome-state'
-import type { ReaderChromeController } from './chrome-controller-types'
+import type { ReaderChromeController } from './chrome-types'
 import type { ReaderChromeActionOptions } from './chrome-option-types'
 
 export function createReaderChromeController(

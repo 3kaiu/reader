@@ -1,5 +1,5 @@
-import type { ReaderExperienceBindingResult } from '@/composables/reader/experience-binding-result-types'
-import type { ReaderExperienceBindingProps } from '@/composables/reader/experience-binding-prop-types'
+import type { ReaderExperienceBindingResult } from '@/composables/reader/experience-types'
+import type { ReaderExperienceBindingProps } from '@/composables/reader/experience-types'
 import { createReaderExperienceContentBindings } from './reader-experience-content-bindings'
 import type { ReaderExperienceLayoutBindings } from './reader-experience-layout-binding-types'
 import { createReaderExperienceModalBindings } from './reader-experience-modal-bindings'

@@ -1,5 +1,5 @@
-import type { ReaderExperienceModalActions } from '@/composables/reader/experience-modal-action-types'
-import type { ReaderExperienceReadingActions } from '@/composables/reader/experience-reading-action-types'
+import type { ReaderExperienceModalActions } from '@/composables/reader/experience-types'
+import type { ReaderExperienceReadingActions } from '@/composables/reader/experience-types'
 
 export type ReaderExperienceModalBindingActions = Pick<
   ReaderExperienceModalActions,

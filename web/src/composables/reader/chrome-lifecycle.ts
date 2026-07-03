@@ -1,5 +1,5 @@
 import { onUnmounted } from 'vue'
-import type { ReaderChromeLifecycleActions } from './chrome-lifecycle-action-types'
+import type { ReaderChromeLifecycleActions } from './chrome-types'
 
 export function setupReaderChromeLifecycle(actions: ReaderChromeLifecycleActions) {
   onUnmounted(() => {

@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { createReaderExperienceDisplayState } from './experience-display-state'
 import { createReaderExperienceServiceState } from './experience-service-state'
-import type { ReaderExperienceState } from './experience-state-contract-types'
+import type { ReaderExperienceState } from './experience-types'
 import { createReaderExperienceVisibilityState } from './experience-visibility-state'
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
 import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'

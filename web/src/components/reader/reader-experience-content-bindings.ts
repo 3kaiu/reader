@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
-import type { ReaderExperienceModelHandlerOptions } from '@/composables/reader/experience-model-handler-types'
+import type { ReaderExperienceModelHandlerOptions } from '@/composables/reader/experience-types'
 import type { ReaderExperienceServiceState } from '@/composables/reader/experience-state-service-types'
 import type { ReaderContentProps } from './reader-content-prop-types'
 

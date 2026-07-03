@@ -1,6 +1,6 @@
 import { createReaderExperienceBindings } from '@/composables/reader/experience-bindings'
 import { createReaderExperienceLayoutBindings } from './reader-experience-layout-bindings'
-import type { ReaderExperienceBindingProps } from '@/composables/reader/experience-binding-prop-types'
+import type { ReaderExperienceBindingProps } from '@/composables/reader/experience-types'
 import type { ReaderExperienceLayoutBindingOptions } from './reader-experience-layout-binding-types'
 import { createReaderExperienceSectionBindings } from './reader-experience-section-bindings'
 

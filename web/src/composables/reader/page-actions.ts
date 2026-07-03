@@ -1,6 +1,6 @@
-import type { ReaderPageActions } from './page-action-types'
-import type { ReaderPageModelChromeOptions } from './page-model-chrome-options'
-import type { ReaderPageModelExperienceOptions } from './page-model-experience-options'
+import type { ReaderPageActions } from './view-model-types'
+import type { ReaderPageModelChromeOptions } from './page-model-types'
+import type { ReaderPageModelExperienceOptions } from './page-model-types'
 
 type ReaderPageActionOptions = ReaderPageModelChromeOptions & ReaderPageModelExperienceOptions
 

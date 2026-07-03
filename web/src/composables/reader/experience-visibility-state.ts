@@ -1,6 +1,6 @@
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
 import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
-import type { ReaderExperienceVisibilityState } from './experience-state-visibility-types'
+import type { ReaderExperienceVisibilityState } from './experience-types'
 
 type ReaderExperienceVisibilityStateOptions = ReaderExperienceModelVisibilityOptions &
   Pick<ReaderExperienceModelServiceOptions, 'isFullscreen'>

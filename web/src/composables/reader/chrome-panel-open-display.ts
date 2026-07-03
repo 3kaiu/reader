@@ -1,5 +1,5 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeDisplayActions } from './chrome-types'
 
 export function createReaderChromePanelOpenDisplayActions(
   context: ReaderChromeActionContext

@@ -1,7 +1,7 @@
 import { createReaderChromeDisplayActions } from './chrome-display'
 import { createReaderChromeLayerActions } from './chrome-layers'
 import { createReaderChromeTimerActions } from './chrome-timers'
-import type { ReaderChromeActionsResult } from './chrome-actions-result-types'
+import type { ReaderChromeActionsResult } from './chrome-types'
 import type { ReaderChromeActionOptions } from './chrome-option-types'
 import type { ReaderChromeState } from './chrome-state'
 

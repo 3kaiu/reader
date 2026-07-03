@@ -1,6 +1,6 @@
 import type { ReaderContentInstance } from './shared-types'
-import type { ReaderExperienceViewActions } from './experience-view-action-types'
-import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
+import type { ReaderExperienceViewActions } from './experience-types'
+import type { ReaderExperienceModelHandlerOptions } from './experience-types'
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
 
 type ReaderExperienceViewActionOptions = Pick<ReaderExperienceModelServiceOptions, 'contentRef'> &

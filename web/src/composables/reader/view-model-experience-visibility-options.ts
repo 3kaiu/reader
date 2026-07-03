@@ -1,5 +1,5 @@
 import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
-import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
+import type { ReaderExperienceModelFeatures } from './view-model-types'
 
 export function createReaderViewExperienceVisibilityOptions(
   features: ReaderExperienceModelFeatures

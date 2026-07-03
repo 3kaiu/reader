@@ -1,6 +1,6 @@
 import { KEYBOARD_SHORTCUTS } from '@/constants/reader'
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
-import type { ReaderExperienceDisplayState } from './experience-state-display-types'
+import type { ReaderExperienceDisplayState } from './experience-types'
 
 type ReaderExperienceDisplayStateOptions = Pick<
   ReaderExperienceModelServiceOptions,

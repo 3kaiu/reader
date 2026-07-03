@@ -1,4 +1,4 @@
-import type { ReaderChromeActionsResult } from './chrome-actions-result-types'
+import type { ReaderChromeActionsResult } from './chrome-types'
 import type { ReaderChromeState } from './chrome-state'
 
 export interface ReaderChromeBindingState {

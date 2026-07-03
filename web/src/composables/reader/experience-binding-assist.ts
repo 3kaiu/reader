@@ -1,6 +1,6 @@
 import { createReaderEyeCareToggleHandler } from './experience-assist'
-import type { ReaderExperienceBindingProps } from './experience-binding-prop-types'
-import type { ReaderExperienceBindingAssistResult } from './experience-binding-assist-result-types'
+import type { ReaderExperienceBindingProps } from './experience-types'
+import type { ReaderExperienceBindingAssistResult } from './experience-types'
 
 export function createReaderExperienceBindingAssistResult(
   props: ReaderExperienceBindingProps

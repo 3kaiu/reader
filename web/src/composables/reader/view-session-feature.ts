@@ -1,5 +1,5 @@
 import { useReaderSession } from '@/composables/useReaderSession'
-import type { ReaderViewFeatures } from './view-feature-types'
+import type { ReaderViewFeatures } from './view-model-types'
 import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewServices } from './view-services'
 

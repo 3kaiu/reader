@@ -1,6 +1,6 @@
-import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
+import type { ReaderExperienceModelHandlerOptions } from './experience-types'
 import type { ReaderViewLayout } from './view-layout'
-import type { ReaderExperienceModelFeatures } from './view-model-experience-feature-types'
+import type { ReaderExperienceModelFeatures } from './view-model-types'
 
 export function createReaderViewExperienceHandlerOptions(
   layout: ReaderViewLayout,

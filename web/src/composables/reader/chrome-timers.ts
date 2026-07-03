@@ -1,5 +1,5 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeTimerActions } from './chrome-timer-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeTimerActions } from './chrome-types'
 import { createReaderChromeHideTimerClearAction } from './chrome-hide-timer-clear'
 import { createReaderChromeHideTimerStartAction } from './chrome-hide-timer-start'
 

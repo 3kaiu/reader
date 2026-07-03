@@ -1,5 +1,5 @@
-import type { ReaderPageModelChromeOptions } from './page-model-chrome-options'
-import type { ReaderPageModelFeatures } from './view-model-page-feature-types'
+import type { ReaderPageModelChromeOptions } from './page-model-types'
+import type { ReaderPageModelFeatures } from './view-model-types'
 
 export function createReaderViewPageChromeOptions(
   features: ReaderPageModelFeatures

@@ -1,5 +1,5 @@
-import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
-import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import type { ReaderChromeDisplayActions } from './chrome-types'
+import type { ReaderChromeLayerActions } from './chrome-types'
 
 export function createReaderChromeEscapeDisplayAction(
   layers: ReaderChromeLayerActions,

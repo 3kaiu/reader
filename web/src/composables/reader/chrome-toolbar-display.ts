@@ -1,6 +1,6 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeDisplayActions } from './chrome-display-action-types'
-import type { ReaderChromeTimerActions } from './chrome-timer-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeDisplayActions } from './chrome-types'
+import type { ReaderChromeTimerActions } from './chrome-types'
 import { createReaderChromeToolbarVisibilityDisplayActions } from './chrome-toolbar-visibility-display'
 import { createReaderChromeZenModeDisplayActions } from './chrome-zen-mode-display'
 

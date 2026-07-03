@@ -1,6 +1,6 @@
-import type { ReaderExperienceActions } from './experience-action-contract-types'
+import type { ReaderExperienceActions } from './experience-types'
 import { createReaderExperienceModalActions } from './experience-modal-actions'
-import type { ReaderExperienceModelHandlerOptions } from './experience-model-handler-types'
+import type { ReaderExperienceModelHandlerOptions } from './experience-types'
 import type { ReaderExperienceModelServiceOptions } from './experience-model-service-types'
 import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
 import { createReaderExperienceReadingActions } from './experience-reading-actions'

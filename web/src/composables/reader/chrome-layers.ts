@@ -1,5 +1,5 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
-import type { ReaderChromeLayerActions } from './chrome-layer-action-types'
+import type { ReaderChromeActionContext } from './chrome-types'
+import type { ReaderChromeLayerActions } from './chrome-types'
 import { createReaderChromePanelLayerCloseAction } from './chrome-panel-layer-close'
 import { createReaderChromeToolbarLayerCloseAction } from './chrome-toolbar-layer-close'
 

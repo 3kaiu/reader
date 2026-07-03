@@ -1,4 +1,4 @@
-import type { ReaderChromeActionContext } from './chrome-context-types'
+import type { ReaderChromeActionContext } from './chrome-types'
 
 export function createReaderChromeHideTimerClearAction(context: ReaderChromeActionContext) {
   return function clearHideTimer() {

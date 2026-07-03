@@ -1,4 +1,4 @@
-import type { ReaderExperienceModalActions } from './experience-modal-action-types'
+import type { ReaderExperienceModalActions } from './experience-types'
 import type { ReaderExperienceModelVisibilityOptions } from './experience-model-visibility-types'
 
 export function createReaderExperienceModalActions(

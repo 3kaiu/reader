@@ -1,5 +1,5 @@
 import { watch } from 'vue'
-import type { ReaderSessionLifecycleContext } from './session-lifecycle-context-types'
+import type { ReaderSessionLifecycleContext } from './session-types'
 
 export function setupReaderSessionRouteLifecycle(context: ReaderSessionLifecycleContext) {
   watch(

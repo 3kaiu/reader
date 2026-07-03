@@ -1,6 +1,6 @@
 import { createReaderSessionMissingTargetHandler } from './session-init-missing-target'
 import { createReaderSessionStartAction } from './session-init-start'
-import type { ReaderSessionInitContext } from './session-init-context-types'
+import type { ReaderSessionInitContext } from './session-types'
 
 export function createReaderSessionInitializer(context: ReaderSessionInitContext) {
   const handleMissingTarget = createReaderSessionMissingTargetHandler(context)

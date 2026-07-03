@@ -1,4 +1,4 @@
-import type { ReaderExperienceViewActions } from '@/composables/reader/experience-view-action-types'
+import type { ReaderExperienceViewActions } from '@/composables/reader/experience-types'
 import type { createReaderExperienceContentBindings } from './reader-experience-content-bindings'
 import type { createReaderExperienceModalBindings } from './reader-experience-modal-bindings'
 import type { createReaderExperienceToolbarBindings } from './reader-experience-toolbar-bindings'

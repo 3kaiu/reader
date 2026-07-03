@@ -1,6 +1,6 @@
 import { setupReaderSessionDisposeLifecycle } from './session-dispose-lifecycle'
 import { setupReaderSessionEngagementLifecycle } from './session-engagement-lifecycle'
-import type { ReaderSessionLifecycleContext } from './session-lifecycle-context-types'
+import type { ReaderSessionLifecycleContext } from './session-types'
 import { setupReaderSessionRouteLifecycle } from './session-route-lifecycle'
 
 export function setupReaderSessionLifecycle(context: ReaderSessionLifecycleContext) {
