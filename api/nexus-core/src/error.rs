@@ -370,6 +370,8 @@ impl EngineError {
                 | Self::ConnectionRefused { .. }
                 | Self::TlsHandshakeFailed { .. }
                 | Self::ScriptTimeout
+                | Self::CloudflareChallenge
+                | Self::CloudflareChallengeFailed
         )
     }
 
@@ -379,6 +381,7 @@ impl EngineError {
             Self::RateLimited { retry_after } => Some(*retry_after),
             Self::Timeout => Some(1),
             Self::CloudflareChallenge => Some(5),
+            Self::CloudflareChallengeFailed => Some(10),
             Self::Network { .. } | Self::ConnectionRefused { .. } => Some(2),
             Self::ScriptTimeout => Some(3),
             _ => None,

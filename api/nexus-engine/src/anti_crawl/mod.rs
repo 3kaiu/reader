@@ -17,4 +17,4 @@ mod chain;
 mod strategies;
 
 pub use chain::FallbackChain;
-pub use strategies::{BrowserProbeStrategy, CfBypassStrategy, DirectHttpStrategy};
+pub use strategies::{BrowserProbeStrategy, CfBypassStrategy, DirectHttpStrategy, PrimpHttpStrategy};

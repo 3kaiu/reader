@@ -54,8 +54,22 @@ impl FallbackChain {
         chain: Vec<Arc<dyn AntiCrawlStrategy>>,
     ) -> Result<FetchResponse, EngineError> {
         let mut last_err: Option<EngineError> = None;
-        let mut result = Err(EngineError::AllStrategiesFailed);
+        let mut last_response: Option<FetchResponse> = None;
         for (idx, strategy) in chain.iter().enumerate() {
+            // Check should_apply with the previous response (if available)
+            if idx > 0 {
+                if let Some(ref prev_resp) = last_response {
+                    if !strategy.should_apply(prev_resp) {
+                        debug!(
+                            "Strategy {} skipped (should_apply=false) for source {}",
+                            strategy.name(),
+                            ctx.source_id
+                        );
+                        continue;
+                    }
+                }
+            }
+
             match strategy.execute(ctx).await {
                 Ok(response) => {
                     if idx > 0 {
@@ -66,9 +80,7 @@ impl FallbackChain {
                             idx
                         );
                     }
-                    result = Ok(response);
-                    last_err = None;
-                    break;
+                    return Ok(response);
                 },
                 Err(err) => {
                     debug!(
@@ -77,16 +89,21 @@ impl FallbackChain {
                         ctx.source_id,
                         err
                     );
+                    // Capture the error response for should_apply checks on subsequent strategies
+                    if let EngineError::CloudflareChallenge = &err {
+                        last_response = Some(FetchResponse {
+                            status: 403,
+                            headers: std::collections::HashMap::new(),
+                            body: String::new(),
+                            url: ctx.url.clone(),
+                        });
+                    }
                     last_err = Some(err);
                 },
             }
         }
 
-        if result.is_err() {
-            result = Err(last_err.unwrap_or(EngineError::AllStrategiesFailed));
-        }
-
-        result
+        Err(last_err.unwrap_or(EngineError::AllStrategiesFailed))
     }
 
     /// Create with CF bypass strategy
@@ -213,5 +230,15 @@ impl FallbackChain {
         if let Some(breaker) = self.breakers.get(source_id) {
             breaker.reset();
         }
+    }
+
+    /// Remove circuit breaker for a source (frees memory)
+    pub fn remove_breaker(&self, source_id: &str) {
+        self.breakers.remove(source_id);
+    }
+
+    /// Number of active circuit breakers
+    pub fn breaker_count(&self) -> usize {
+        self.breakers.len()
     }
 }

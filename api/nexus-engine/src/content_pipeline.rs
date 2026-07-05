@@ -262,6 +262,9 @@ impl<'a> NxsContentPipeline<'a> {
                 let mut parts = payload.splitn(2, "::");
                 let pattern = parts.next().unwrap_or_default();
                 let replacement = parts.next().unwrap_or_default();
+                if pattern.len() > 256 {
+                    continue;
+                }
                 let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
                     message: format!("invalid replace regex: {}", e),
                 })?;
@@ -270,6 +273,9 @@ impl<'a> NxsContentPipeline<'a> {
             }
 
             if let Some(pattern) = cmd.strip_prefix("remove::") {
+                if pattern.len() > 256 {
+                    continue;
+                }
                 let re = regex::Regex::new(pattern).map_err(|e| EngineError::ScriptError {
                     message: format!("invalid remove regex: {}", e),
                 })?;

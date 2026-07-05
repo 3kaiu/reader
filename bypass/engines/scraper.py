@@ -86,30 +86,29 @@ class ScraperEngine(BaseBypassEngine):
         super().__init__("scraper")
         self.cache_manager = CacheManager()
         self._metrics = defaultdict(float)
+        self._scraper_lock = asyncio.Lock()
         logger.info("ScraperEngine initialized")
     
     def _get_domain(self, url: str) -> str:
         return urlparse(url).netloc
     
-    def _create_scraper(self, domain: str) -> cloudscraper.CloudScraper:
+    def _create_scraper(self) -> cloudscraper.CloudScraper:
         try:
             scraper = cloudscraper.create_scraper()
             scraper.headers.update({
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
             })
+            # requests auto-decompresses gzip/deflate; omit br to avoid
+            # brotli decoder issues across thread boundaries.
             return scraper
             
         except Exception as e:
-            logger.error(f"Failed to create scraper for {domain}: {e}")
+            logger.error(f"Failed to create scraper: {e}")
             return cloudscraper.create_scraper()
-    
-    async def _get_scraper(self, domain: str) -> cloudscraper.CloudScraper:
-        return self._create_scraper(domain)
     
     @error_handler
     async def fetch(
@@ -136,24 +135,25 @@ class ScraperEngine(BaseBypassEngine):
             if cached_result:
                 return cached_result
 
-        scraper = await self._get_scraper(domain)
-        
         try:
-            req_kwargs = {
-                'timeout': timeout,
-            }
-            if headers:
-                # Preserve caller-provided headers (especially User-Agent/Cookie),
-                # as some bypass cookies (e.g. cf_clearance) are UA-bound.
-                req_kwargs['headers'] = headers
-            
-            if body: req_kwargs['data'] = body
-            if proxy: req_kwargs['proxies'] = {'http': proxy, 'https': proxy}
-            
             # cloudscraper/requests is sync I/O; offload to a worker thread to avoid
             # blocking the event loop under concurrent FastAPI traffic.
-            request_call = partial(scraper.request, method, url, **req_kwargs)
-            response = await asyncio.to_thread(request_call)
+            # Create a NEW scraper inside the thread to avoid thread-safety issues
+            # with cloudscraper's SSL session/JS challenge state.
+            def do_request():
+                sc = self._create_scraper()
+                req_kwargs = {
+                    'timeout': timeout,
+                }
+                if headers:
+                    req_kwargs['headers'] = headers
+                
+                if body: req_kwargs['data'] = body
+                if proxy: req_kwargs['proxies'] = {'http': proxy, 'https': proxy}
+                
+                return sc.request(method, url, **req_kwargs)
+            
+            response = await asyncio.to_thread(do_request)
             duration = (datetime.now() - start_perf).total_seconds()
             
             cf_bypassed = True

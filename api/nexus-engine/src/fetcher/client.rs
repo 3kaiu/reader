@@ -128,12 +128,20 @@ impl HttpFetcher {
         }
     }
 
-    /// Convert HashMap to HeaderMap
+    /// Convert HashMap to HeaderMap with dangerous header filtering
     fn build_headers(&self, headers: Option<HashMap<String, String>>) -> HeaderMap {
         let mut header_map = HeaderMap::new();
 
         if let Some(h) = headers {
             for (key, value) in h {
+                let key_lower = key.to_ascii_lowercase();
+                // Block dangerous headers that could enable request smuggling or SSRF
+                if matches!(key_lower.as_str(),
+                    "host" | "transfer-encoding" | "content-length" | "content-encoding"
+                    | "upgrade" | "connection" | "proxy-connection" | "keep-alive"
+                ) {
+                    continue;
+                }
                 if let (Ok(name), Ok(val)) =
                     (HeaderName::try_from(key.as_str()), HeaderValue::from_str(&value))
                 {

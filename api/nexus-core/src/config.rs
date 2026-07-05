@@ -315,6 +315,10 @@ pub struct CloudflareBypassConfig {
     /// Request timeout in seconds
     #[serde(default = "default_cf_timeout")]
     pub timeout_seconds: u64,
+
+    /// Max concurrent requests to the bypass service
+    #[serde(default = "default_max_concurrent")]
+    pub max_concurrent: usize,
 }
 
 fn default_cf_service_url() -> String {
@@ -325,6 +329,10 @@ fn default_cf_timeout() -> u64 {
     35 // Slightly longer than Python service's 30s
 }
 
+fn default_max_concurrent() -> usize {
+    10 // Max concurrent requests to bypass service
+}
+
 impl Default for CloudflareBypassConfig {
     fn default() -> Self {
         Self {
@@ -333,6 +341,7 @@ impl Default for CloudflareBypassConfig {
             enabled: true,
             proxy: None,
             timeout_seconds: default_cf_timeout(),
+            max_concurrent: default_max_concurrent(),
         }
     }
 }

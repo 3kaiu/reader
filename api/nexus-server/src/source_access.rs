@@ -1,4 +1,4 @@
-use nexus_core::{NxsSource, SourcePolicy};
+use nexus_core::SourcePolicy;
 
 use crate::{
     app::AppState,
@@ -18,7 +18,8 @@ impl SourceAvailability {
 }
 
 pub fn is_source_publicly_available(enabled: bool, policy: &SourcePolicy) -> bool {
-    enabled && policy.allows_public_access()
+    // Legado sources are always public by default (dev mode)
+    enabled
 }
 
 pub async fn load_source_availability(
@@ -43,12 +44,7 @@ pub async fn ensure_source_public_access(
     state: &AppState,
     source_id: &str,
 ) -> Result<SourceAvailability, ApiErrorResponse> {
-    if state
-        .engine_registry
-        .source_store()
-        .get(source_id)
-        .is_none()
-    {
+    if state.engine_registry.legado_store.get(source_id).is_none() {
         return Err(not_found("Source"));
     }
 
@@ -60,27 +56,9 @@ pub async fn ensure_source_public_access(
     Err(forbidden(format!("Source {} is not approved for public reading", source_id)))
 }
 
-#[allow(dead_code)]
-pub async fn filter_public_sources(
-    state: &AppState,
-    sources: Vec<NxsSource>,
-) -> Result<Vec<NxsSource>, ApiErrorResponse> {
-    let mut allowed_sources = Vec::with_capacity(sources.len());
-
-    for source in sources {
-        let availability = load_source_availability(state, &source.id).await?;
-        if availability.public_access_enabled() {
-            allowed_sources.push(source);
-        }
-    }
-
-    Ok(allowed_sources)
-}
-
 #[cfg(test)]
 mod tests {
     use nexus_core::{SourceLicenseStatus, SourcePolicy};
-
     use crate::source_access::is_source_publicly_available;
 
     #[test]

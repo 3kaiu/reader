@@ -7,25 +7,19 @@ use parking_lot::RwLock;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 
-/// Circuit breaker states
+const MAX_BACKOFF_MULTIPLIER: u32 = 32;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CircuitState {
-    /// Normal operation
     Closed,
-    /// Blocking requests due to failures
     Open,
-    /// Testing if service recovered
     HalfOpen,
 }
 
-/// Circuit breaker configuration
 #[derive(Debug, Clone)]
 pub struct CircuitBreakerConfig {
-    /// Number of failures before opening circuit
     pub failure_threshold: u32,
-    /// How long to wait before trying again
     pub reset_timeout: Duration,
-    /// Number of successes needed to close circuit in half-open state
     pub success_threshold: u32,
 }
 
@@ -39,13 +33,13 @@ impl Default for CircuitBreakerConfig {
     }
 }
 
-/// Circuit breaker for a single source
 pub struct CircuitBreaker {
     config: CircuitBreakerConfig,
     failure_count: AtomicU32,
     success_count: AtomicU32,
     is_open: AtomicBool,
     last_failure: RwLock<Option<Instant>>,
+    open_count: AtomicU32,
 }
 
 impl CircuitBreaker {
@@ -56,31 +50,34 @@ impl CircuitBreaker {
             success_count: AtomicU32::new(0),
             is_open: AtomicBool::new(false),
             last_failure: RwLock::new(None),
+            open_count: AtomicU32::new(0),
         }
     }
 
-    /// Check if request should be allowed
+    fn effective_reset_timeout(&self) -> Duration {
+        let multiplier = 1u64 << self.open_count.load(Ordering::Relaxed).min(MAX_BACKOFF_MULTIPLIER);
+        Duration::from_millis(self.config.reset_timeout.as_millis() as u64 * multiplier)
+    }
+
     pub fn should_allow(&self) -> bool {
         if !self.is_open.load(Ordering::Relaxed) {
-            return true; // Circuit closed, allow
+            return true;
         }
 
-        // Circuit is open, check if we should try half-open
         if let Some(last) = *self.last_failure.read() {
-            if last.elapsed() > self.config.reset_timeout {
-                return true; // Timeout passed, allow probe request
+            if last.elapsed() > self.effective_reset_timeout() {
+                return true;
             }
         }
 
-        false // Still in timeout, block
+        false
     }
 
-    /// Get current circuit state
     pub fn state(&self) -> CircuitState {
         if !self.is_open.load(Ordering::Relaxed) {
             CircuitState::Closed
         } else if let Some(last) = *self.last_failure.read() {
-            if last.elapsed() > self.config.reset_timeout {
+            if last.elapsed() > self.effective_reset_timeout() {
                 CircuitState::HalfOpen
             } else {
                 CircuitState::Open
@@ -90,38 +87,40 @@ impl CircuitBreaker {
         }
     }
 
-    /// Record a successful request
     pub fn record_success(&self) {
         self.failure_count.store(0, Ordering::Relaxed);
 
         if self.is_open.load(Ordering::Relaxed) {
-            // In half-open state, count successes
             let count = self.success_count.fetch_add(1, Ordering::Relaxed) + 1;
             if count >= self.config.success_threshold {
-                // Enough successes, close circuit
                 self.is_open.store(false, Ordering::Relaxed);
                 self.success_count.store(0, Ordering::Relaxed);
             }
         }
     }
 
-    /// Record a failed request
     pub fn record_failure(&self) {
         self.success_count.store(0, Ordering::Relaxed);
         let count = self.failure_count.fetch_add(1, Ordering::Relaxed) + 1;
 
         if count >= self.config.failure_threshold {
-            // Too many failures, open circuit
-            self.is_open.store(true, Ordering::Relaxed);
+            let was_open = self.is_open.swap(true, Ordering::Relaxed);
+            if !was_open {
+                // First time opening — start with base timeout
+                self.open_count.store(0, Ordering::Relaxed);
+            } else {
+                // Repeated open — increase backoff
+                self.open_count.fetch_add(1, Ordering::Relaxed);
+            }
             *self.last_failure.write() = Some(Instant::now());
         }
     }
 
-    /// Reset the circuit breaker
     pub fn reset(&self) {
         self.failure_count.store(0, Ordering::Relaxed);
         self.success_count.store(0, Ordering::Relaxed);
         self.is_open.store(false, Ordering::Relaxed);
+        self.open_count.store(0, Ordering::Relaxed);
         *self.last_failure.write() = None;
     }
 }

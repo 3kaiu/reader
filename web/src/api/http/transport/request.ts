@@ -15,7 +15,6 @@ export function mergeHeaders(
 export function resolveBaseUrl(options: InternalApiFetchOptions, requestUrl: string): void {
   const edgeBaseUrl = import.meta.env.VITE_API_URL || '/api'
   const directBaseUrl = import.meta.env.VITE_NEXUS_LITE_DIRECT_URL || ''
-  const directApiKey = import.meta.env.VITE_NEXUS_LITE_API_KEY || ''
   const isAbsolute = /^https?:\/\//i.test(requestUrl)
   const routePolicy = !isAbsolute
     ? resolveRoutePolicy(requestUrl)
@@ -38,12 +37,6 @@ export function resolveBaseUrl(options: InternalApiFetchOptions, requestUrl: str
 
   options.baseURL = directBaseUrl
   options._usedDirect = true
-
-  if (directApiKey) {
-    options.headers = mergeHeaders(options.headers, {
-      'X-API-Key': directApiKey,
-    })
-  }
 }
 
 export function attachRequestMetadata(options: InternalApiFetchOptions, requestUrl: string): void {

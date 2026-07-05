@@ -24,16 +24,6 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
 
     let api_router = Router::new()
         .route("/api/health", get(routes::health))
-        .route("/api/sources", get(routes::source::list_sources))
-        .route("/api/sources", post(routes::source::add_source))
-        .route("/api/source-packages", get(routes::source::list_source_packages))
-        .route("/api/source-packages/import", post(routes::source::import_source_package))
-        .route("/api/source-packages/{id}", get(routes::source::get_source_package))
-        .route("/api/source-packages/{id}", delete(routes::source::delete_source_package))
-        .route("/api/sources/{id}", get(routes::source::get_source))
-        .route("/api/sources/{id}", delete(routes::source::delete_source))
-        .route("/api/sources/{id}/status", put(routes::source::update_source_status))
-        .route("/api/sources/{id}/policy", put(routes::source::update_source_policy))
         .route("/api/search", post(routes::search::search))
         .route("/api/search/stream", post(routes::search::search_stream))
         .route("/api/book", get(routes::book::book_info))
@@ -100,9 +90,11 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
             .layer(trace)
     };
 
+    let per_second = config.server.rate_limit.per_second.max(1);
+    let burst_size = config.server.rate_limit.burst_size.max(1);
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(config.server.rate_limit.per_second)
-        .burst_size(config.server.rate_limit.burst_size)
+        .per_second(per_second)
+        .burst_size(burst_size)
         .key_extractor(SmartIpKeyExtractor)
         .finish()
         .expect("valid governor config");

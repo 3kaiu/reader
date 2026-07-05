@@ -104,7 +104,6 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_NEXUS_LITE_DIRECT_URL: ${{ secrets.VITE_NEXUS_LITE_DIRECT_URL }}
-          VITE_NEXUS_LITE_API_KEY: ${{ secrets.VITE_NEXUS_LITE_API_KEY }}
         run: bun run build
       - uses: actions/upload-artifact@v6
         with:

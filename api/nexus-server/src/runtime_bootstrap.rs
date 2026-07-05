@@ -1,11 +1,12 @@
 use chrono::Utc;
 use nexus_core::EngineConfig;
 use nexus_engine::anti_crawl::{
-    BrowserProbeStrategy, CfBypassStrategy, DirectHttpStrategy, FallbackChain,
+    BrowserProbeStrategy, CfBypassStrategy, DirectHttpStrategy, FallbackChain, PrimpHttpStrategy,
 };
 use nexus_engine::extraction_metrics;
+use nexus_engine::fetcher::cookie_cache::CookieCache;
 use nexus_engine::fetcher::HttpFetcher;
-use nexus_storage::{ChapterCache, LegadoSourceStore, SledStore, SourceStore};
+use nexus_storage::{ChapterCache, LegadoSourceStore, SledStore};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::info;
@@ -31,11 +32,6 @@ pub async fn build_runtime_services(
 ) -> anyhow::Result<RuntimeServices> {
     extraction_metrics::configure_max_tracked_sources(config.limits.max_extraction_metrics_sources);
 
-    let source_store = Arc::new(SourceStore::new(&config.storage.sources_dir));
-    source_store.load_all().await?;
-    info!("Loaded {} NXS book sources", source_store.count());
-
-    // Load Legado sources from a separate directory (e.g. sources/legado)
     let legado_sources_dir = config.storage.sources_dir.join("legado");
     if !legado_sources_dir.exists() {
         tokio::fs::create_dir_all(&legado_sources_dir)
@@ -59,7 +55,7 @@ pub async fn build_runtime_services(
     let fetcher = Arc::new(HttpFetcher::from_config(&config.limits)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
 
-    let engine_registry = Arc::new(EngineRegistry::new(source_store, legado_store, anti_crawl.clone()));
+    let engine_registry = Arc::new(EngineRegistry::new(legado_store, anti_crawl.clone()));
     let orchestrator = Arc::new(SearchOrchestrator::new(
         engine_registry.clone(),
         store.health_tracker().clone(),
@@ -119,19 +115,37 @@ fn spawn_cache_cleanup(chapter_cache: Arc<ChapterCache>) {
 }
 
 fn build_anti_crawl_chain(config: &EngineConfig) -> anyhow::Result<FallbackChain> {
-    let cf_strategy = Arc::new(CfBypassStrategy::new(config.cf_bypass.clone())?);
+    let cookie_cache = Arc::new(CookieCache::new());
+
+    // PrimpHttpStrategy: TLS-fingerprinted HTTP (tried FIRST)
+    // Uses primp to mimic browser TLS fingerprint — bypasses CF edge detection
+    // for sites that only check JA3/JA4 without full JS challenges.
+    let primp_strategy = Arc::new(PrimpHttpStrategy::new(config.limits.http_timeout_seconds)?
+        .with_cookie_cache(cookie_cache.clone()));
+
+    let cf_strategy = Arc::new(CfBypassStrategy::new(
+        config.cf_bypass.clone(),
+        cookie_cache.clone(),
+    )?);
     let mut fallback_strategies: Vec<Arc<dyn nexus_core::AntiCrawlStrategy>> = Vec::new();
 
+    // CfBypassStrategy: external bypass service (tried SECOND)
+    fallback_strategies.push(cf_strategy);
+
+    // DirectHttpStrategy: plain reqwest fallback
     if let Ok(direct) = DirectHttpStrategy::new(config.limits.http_timeout_seconds) {
-        fallback_strategies.push(Arc::new(direct));
+        fallback_strategies.push(Arc::new(direct.with_cookie_cache(cookie_cache.clone())));
     }
 
-    // Browser probe as final fallback when both regular bypass and direct HTTP fail
-    if let Ok(browser) = BrowserProbeStrategy::new(config.cf_bypass.clone()) {
+    // BrowserProbeStrategy: headless browser as final fallback
+    if let Ok(browser) = BrowserProbeStrategy::new(
+        config.cf_bypass.clone(),
+        cookie_cache.clone(),
+    ) {
         fallback_strategies.push(Arc::new(browser));
     }
 
-    Ok(FallbackChain::with_fallbacks(cf_strategy, fallback_strategies))
+    Ok(FallbackChain::with_fallbacks(primp_strategy, fallback_strategies))
 }
 
 fn spawn_snapshot_persist_loop(store: Arc<SledStore>, snapshot_status: Arc<SnapshotStatus>) {
@@ -156,6 +170,11 @@ fn spawn_snapshot_persist_loop(store: Arc<SledStore>, snapshot_status: Arc<Snaps
                 .await
             {
                 tracing::warn!("Failed to persist extraction metrics snapshot: {}", error);
+            }
+
+            // Flush sled to disk to prevent data loss on crash
+            if let Err(error) = store.flush().await {
+                tracing::error!("Failed to flush sled database: {}", error);
             }
         }
     });

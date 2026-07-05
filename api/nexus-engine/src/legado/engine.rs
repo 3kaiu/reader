@@ -26,6 +26,7 @@ use scraper::Html;
 use crate::anti_crawl::FallbackChain;
 use crate::legado::rule_parser::{CombineOp, CompiledLegadoRule};
 use crate::legado::{operator, selector};
+use crate::selector_cache::FallbackSelector;
 use regex::Regex;
 use crate::uri::{encode_query, resolve_url};
 
@@ -179,7 +180,7 @@ impl LegadoEngine {
             let result = selector::js::execute_js(trimmed, query, &self.source.book_source_url);
             match result {
                 Some(url) => {
-                    return Ok(parse_legado_url(&url, &self.source.book_source_url));
+                    return Ok(parse_legado_url(&url, &self.source.book_source_url)?);
                 }
                 None => {
                     return Err(EngineError::ScriptError {
@@ -190,26 +191,31 @@ impl LegadoEngine {
         }
 
         // Handle Legado's compound URL format: "url,{method:'POST',body:'...'}"
-        Ok(parse_legado_url(search_url, &self.source.book_source_url))
+        Ok(parse_legado_url(search_url, &self.source.book_source_url)?)
     }
 
-    /// Fetch HTML from a URL using the anti-crawl chain
+    /// Fetch HTML from a URL using the anti-crawl chain.
+    /// Detects CF challenge pages and auto-retries with browser strategy.
     async fn fetch(&self, url: &str, method: &str, body: Option<String>) -> Result<String, EngineError> {
+        // Basic URL safety check (defense-in-depth for imported Legado sources)
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return Err(EngineError::Network {
+                message: format!("Invalid URL scheme: {}", &url[..url.len().min(40)]),
+            });
+        }
+
         use nexus_core::FetchContext;
 
         let mut ctx = FetchContext::new(url, &self.source_id);
         ctx.method = method.to_string();
         ctx.body = body;
 
-        // Apply source headers
         if let Some(headers) = self.parse_headers() {
             ctx.headers.extend(headers);
         }
 
-        // Set timeout from respond_time
         ctx.timeout_secs = std::cmp::max(1, (self.source.respond_time / 1000) as u64);
 
-        // Use FallbackChain's default strategy order
         let result = self.anti_crawl.execute(&mut ctx).await?;
 
         if !result.is_success() {
@@ -218,6 +224,42 @@ impl LegadoEngine {
             });
         }
 
+        // Generic CF challenge detection: if the response body contains a CF
+        // challenge page (Turnstile, JS challenge, IUAM), the status was 200
+        // but the content is not real. Retry with browser strategy.
+        if is_cf_challenge_page(&result.body) {
+            return self.fetch_with_browser(url, method, ctx.body).await;
+        }
+
+        Ok(result.body)
+    }
+
+    /// Fetch HTML using BrowserProbe strategy (for Turnstile/JS challenge pages)
+    async fn fetch_with_browser(&self, url: &str, method: &str, body: Option<String>) -> Result<String, EngineError> {
+        use nexus_core::FetchContext;
+
+        let mut ctx = FetchContext::new(url, &self.source_id);
+        ctx.method = method.to_string();
+        ctx.body = body;
+
+        if let Some(headers) = self.parse_headers() {
+            ctx.headers.extend(headers);
+        }
+
+        ctx.timeout_secs = std::cmp::max(30, (self.source.respond_time / 1000) as u64);
+
+        // Force BrowserProbe strategy — skip PrimpHTTP/CfBypass
+        let order = vec!["browserprobe".to_string()];
+        let result = self.anti_crawl.execute_with_strategy_order(&mut ctx, &order).await?;
+
+        if !result.is_success() {
+            return Err(EngineError::Network {
+                message: format!("Browser fetch failed with HTTP {} for {}", result.status, url),
+            });
+        }
+
+        // Guard against infinite loop: if browser also returns a challenge page,
+        // return it anyway — we've done our best
         Ok(result.body)
     }
 
@@ -228,6 +270,9 @@ impl LegadoEngine {
             None => return true, // no pattern = match all
         };
         if pattern.is_empty() {
+            return true;
+        }
+        if pattern.len() > 256 {
             return true;
         }
         // bookUrlPattern is a regex — try to match
@@ -318,14 +363,22 @@ impl LegadoEngine {
 
         // Collect root elements: either from bookList CSS selector, or the whole document
         let root_elements = if let Some(list_rule) = &book_list_rule {
-            // bookList is a CSS selector — extract ALL matching elements
-            let all_html = selector::css::extract_all_css(&doc, &list_rule.original);
+            let is_js_block = list_rule.original.starts_with("<js>")
+                || list_rule.original.starts_with("@js:");
+
+            // For JS-based bookList, extract CSS selector from the JS block
+            let css_selector = if is_js_block {
+                extract_css_from_js_block(&list_rule.original)
+            } else {
+                None
+            };
+
+            let selector = css_selector.as_deref().unwrap_or(&list_rule.original);
+
+            let all_html = selector::css::extract_all_css(&doc, selector);
             if all_html.is_empty() {
-                // Fallback: treat whole doc as the list
                 vec![doc]
             } else {
-                // Each matched element is a root for sub-rules
-                // We need to re-parse each selection as its own Html for sub-rule evaluation
                 all_html
                     .into_iter()
                     .map(|h| Html::parse_fragment(&h))
@@ -382,16 +435,94 @@ impl LegadoEngine {
 }
 
 // ============================================================================
+// Helper functions for template handling and Turnstile detection
+// ============================================================================
+
+/// Handle {{java.put('varname', value)}} templates in a string.
+/// Stores the value in runtime_vars and replaces the expression with the value.
+fn handle_java_put_template(s: &str, query: &str, runtime_vars: &mut HashMap<String, String>) -> String {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"\{\{java\.put\('([^']+)'\s*,\s*([^)]+)\)\}\}").unwrap());
+    let mut result = s.to_string();
+    for cap in re.captures_iter(s) {
+        let varname = &cap[1];
+        let expr = &cap[2].trim();
+        let value = if *expr == "key" || *expr == "'key'" {
+            query.to_string()
+        } else if expr.starts_with('\'') && expr.ends_with('\'') {
+            expr[1..expr.len()-1].to_string()
+        } else {
+            query.to_string()
+        };
+        runtime_vars.insert(varname.to_string(), value.clone());
+        result = result.replace(&cap[0], &value);
+    }
+    result
+}
+
+/// Check if an HTML response is a CF challenge page (any type)
+fn is_cf_challenge_page(html: &str) -> bool {
+    if html.len() > 25000 {
+        return false;
+    }
+
+    // Case-sensitive checks first — no allocation
+    if html.contains("challenges.cloudflare.com/turnstile")
+        || html.contains("turnstile.render")
+        || html.contains("cf-browser-verification")
+        || html.contains("/cdn-cgi/challenge-platform")
+        || html.contains("_cf_chl_opt")
+        || html.contains("cf-chl-widget")
+    {
+        return true;
+    }
+
+    // Case-insensitive checks — only allocate when needed
+    let lower = html.to_lowercase();
+    lower.contains("just a moment") || lower.contains("checking your browser")
+}
+
+/// Check if an HTML response is specifically a Turnstile challenge
+fn is_turnstile_challenge(html: &str) -> bool {
+    html.contains("challenges.cloudflare.com/turnstile")
+        || html.contains("turnstile.render")
+        || (html.len() < 15000 && html.contains("cf-browser-verification"))
+}
+
+/// Extract CSS selector from a Legado JS bookList block.
+/// Common pattern: var lr = "class.selector"; or similar variable assignment.
+fn extract_css_from_js_block(js: &str) -> Option<String> {
+    // Strip <js> and </js> tags if present
+    let js = js.trim();
+    let js = js
+        .strip_prefix("<js>")
+        .and_then(|s| s.strip_suffix("</js>"))
+        .or_else(|| js.strip_prefix("@js:"))
+        .unwrap_or(js);
+
+    // Match patterns like: var lr = "class.selector"
+    let re = Regex::new(r#"(?:var\s+\w+\s*=\s*)"([^"]+)"#).unwrap();
+    if let Some(cap) = re.captures(js) {
+        let css = cap[1].to_string();
+        if !css.is_empty() && css.contains('.') || css.contains('#') || css.contains('@') || css.contains('[') {
+            return Some(css);
+        }
+    }
+    None
+}
+
+// ============================================================================
 // Legado URL parsing helpers
 // ============================================================================
 
 /// Parse a Legado compound URL that may contain method/body options.
 /// Format: "url,{method:'POST',body:'searchkey={{key}}&type=all'}"
 /// Returns (url, body, method, charset)
+/// Validates that the resolved URL uses http or https scheme.
 fn parse_legado_url(
     url_str: &str,
     base_url: &str,
-) -> (String, Option<String>, String, Option<&'static str>) {
+) -> Result<(String, Option<String>, String, Option<&'static str>), EngineError> {
     let trimmed = url_str.trim();
 
     // Check for compound format: URL,{options}
@@ -433,11 +564,27 @@ fn parse_legado_url(
         };
 
         let resolved = resolve_url(url_part, base_url);
-        return (resolved, body, method, charset);
+        validate_url_scheme(&resolved)?;
+        return Ok((resolved, body, method, charset));
     }
 
     // Simple URL
-    (resolve_url(trimmed, base_url), None, "GET".to_string(), None)
+    let resolved = resolve_url(trimmed, base_url);
+    validate_url_scheme(&resolved)?;
+    Ok((resolved, None, "GET".to_string(), None))
+}
+
+fn validate_url_scheme(url: &str) -> Result<(), EngineError> {
+    if url.starts_with("http://") || url.starts_with("https://") {
+        Ok(())
+    } else {
+        Err(EngineError::InvalidConfig {
+            message: format!(
+                "URL scheme must be http or https, got: {}",
+                url.chars().take(30).collect::<String>()
+            ),
+        })
+    }
 }
 
 // ============================================================================
@@ -469,10 +616,13 @@ impl BookEngine for LegadoEngine {
         };
 
         // Resolve URL template — returns (url, body, method, charset)
-        let (url, body, method, _charset) = self.resolve_search_url(query)?;
+        let (url, body, method, charset) = self.resolve_search_url(query)?;
 
-        // Replace {{key}} / {key} / %s in URL and body
-        let encoded = encode_query(query, None);
+        // Handle {{java.put('varname', key)}} templates in URL and body
+        let mut runtime_vars: HashMap<String, String> = HashMap::new();
+
+        // Process body: handle {{java.put(...)}}, then {{key}} replacements
+        let encoded = encode_query(query, charset);
         let url = url
             .replace("{{key}}", &encoded)
             .replace("{{search}}", &encoded)
@@ -480,6 +630,7 @@ impl BookEngine for LegadoEngine {
             .replace("{search}", &encoded)
             .replace("%s", &encoded);
         let body = body.map(|b| {
+            let b = handle_java_put_template(&b, query, &mut runtime_vars);
             b.replace("{{key}}", &encoded)
                 .replace("{{search}}", &encoded)
                 .replace("{key}", &encoded)
@@ -487,15 +638,19 @@ impl BookEngine for LegadoEngine {
                 .replace("%s", &encoded)
         });
 
-        // Fetch
-        let html_str = self.fetch(&url, &method, body).await?;
+        // First fetch attempt — PrimpHttpStrategy handles TLS fingerprinting
+        let mut html_str = self.fetch(&url, &method, body.as_ref().cloned()).await?;
+
+        // Detect Turnstile/CF challenge — if present, retry with browser
+        if is_turnstile_challenge(&html_str) {
+            html_str = self.fetch_with_browser(&url, &method, body).await?;
+        }
 
         // Determine if the response is JSON or HTML
         let trimmed = html_str.trim();
         let is_json = trimmed.starts_with('[') || trimmed.starts_with('{');
 
         if is_json {
-            // Try JSON path first; fall back to HTML if JSON parse fails
             match self.search_json(rules, &html_str, &url) {
                 Ok(results) => Ok(results),
                 Err(_) => self.search_html(rules, &html_str, &url),
@@ -517,7 +672,7 @@ impl BookEngine for LegadoEngine {
 
         let url = self.abs_url(book_url);
         let html_str = self.fetch(&url, "GET", None).await?;
-        let doc = Html::parse_document(&html_str);
+        let doc = crate::html_doc_cache::get_or_parse(&url, &html_str);
 
         let name = self
             .exec_rule_str(&rules.name, &doc, &url)
@@ -579,7 +734,7 @@ impl BookEngine for LegadoEngine {
 
         let url = self.abs_url(toc_url);
         let html_str = self.fetch(&url, "GET", None).await?;
-        let doc = Html::parse_document(&html_str);
+        let doc = crate::html_doc_cache::get_or_parse(&url, &html_str);
 
         // Get chapter list — each item is a row in the TOC
         let chapter_list_rule = self.compile_optional(&rules.chapter_list);
@@ -587,8 +742,17 @@ impl BookEngine for LegadoEngine {
         let chapter_url_rule = self.compile_optional(&rules.chapter_url);
 
         let chapters = if let Some(list_rule) = &chapter_list_rule {
-            // Extract list items via CSS
-            let list_html = self.execute_rule(list_rule, &doc, &url);
+            // Extract all matching elements as HTML fragments (multi-value)
+            let list_html = FallbackSelector::get_or_compile_global(&list_rule.original)
+                .ok()
+                .and_then(|sel| {
+                    let elements = sel.select_all(&doc);
+                    if elements.is_empty() {
+                        None
+                    } else {
+                        Some(elements.iter().map(|e| e.html()).collect::<String>())
+                    }
+                });
             match list_html {
                 Some(html_fragment) => {
                     let fragment = Html::parse_document(&html_fragment);

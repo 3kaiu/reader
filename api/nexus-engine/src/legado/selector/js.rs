@@ -1,125 +1,211 @@
-//! JS selector dispatcher — sandboxed JavaScript execution via rquickjs
+//! JS selector dispatcher — sandboxed JavaScript execution
 //!
-//! Legado `@js:` and `<js>...</js>` snippets are executed in a sandboxed
-//! QuickJS runtime with injected host functions.
-//!
-//! ## Sandboxing
-//!
-//! - Memory limit: 1 MB per execution
-//! - Interrupt handler: 500ms timeout
-//! - No system call / I/O access from JS
-//! - Only explicitly injected globals are available
+//! Legado `@js:` and `<js>...</js>` snippets are executed in a persistent
+//! Node.js worker process that eliminates per-expression subprocess startup.
 
-use std::time::Duration;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::sync::Mutex;
+use std::thread;
+use std::time::{Duration, Instant};
 
 const JS_EXECUTION_TIMEOUT: Duration = Duration::from_secs(10);
+const WORKER_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 
-/// Execute a Legado JS expression with injected context variables.
-///
-/// Injects: `result`, `baseUrl`, `encodeURIComponent`, `decodeURIComponent`,
-/// `JSON`, `Math`, `RegExp` (already available in standard JS).
-///
-/// Returns `None` if execution fails or times out.
-pub fn execute_js(
-    js_code: &str,
-    result: &str,
-    base_url: &str,
-) -> Option<String> {
-    let code = js_code.trim();
-    if code.is_empty() {
-        return None;
+static WORKER_FAILED: AtomicBool = AtomicBool::new(false);
+
+struct JsWorker {
+    stdin: ChildStdin,
+    stdout: Option<BufReader<std::process::ChildStdout>>,
+    _child: Child,
+    last_used: Instant,
+}
+
+impl JsWorker {
+    fn start() -> Option<Self> {
+        let worker_script = r#"
+// Sandbox: block dangerous modules and globals
+const _origRequire = require;
+const _blocked = new Set(['child_process','fs','net','tls','dgram','cluster','v8','vm','module','worker_threads']);
+const _sandbox_require = (m) => {
+    if (_blocked.has(m)) throw new Error(`module '${m}' is not allowed`);
+    return _origRequire(m);
+};
+require = _sandbox_require;
+// Block process-level escapes
+process.exit = () => { throw new Error('process.exit is not allowed'); };
+process.kill = () => { throw new Error('process.kill is not allowed'); };
+process.abort = () => { throw new Error('process.abort is not allowed'); };
+// Disable process.binding (native addon access)
+if (process.binding) process.binding = () => { throw new Error('process.binding is not allowed'); };
+
+const rl = _sandbox_require('readline').createInterface({input:process.stdin,output:process.stdout,terminal:false});
+rl.on('line',(line)=>{
+    let r; try{r=JSON.parse(line)}catch(e){console.log(JSON.stringify({error:'parse'}));return}
+    const result=r.result,baseUrl=r.baseUrl,enc=(s)=>globalThis.encodeURIComponent(s),dec=(s)=>globalThis.decodeURIComponent(s);
+    try{const v=eval(r.code);console.log(JSON.stringify({id:r.id,value:v===null||v===undefined?null:String(v)}))}
+    catch(e){console.log(JSON.stringify({id:r.id,value:null,error:e.message}))}
+});
+"#;
+        let mut child = match Command::new("node")
+            .arg("-e")
+            .arg(worker_script)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("JS worker start failed: {}", e);
+                WORKER_FAILED.store(true, Ordering::Relaxed);
+                return None;
+            }
+        };
+        let stdin = child.stdin.take()?;
+        let stdout = BufReader::new(child.stdout.take()?);
+        WORKER_FAILED.store(false, Ordering::Relaxed);
+        tracing::debug!("JS worker started");
+        Some(Self { stdin, stdout: Some(stdout), _child: child, last_used: Instant::now() })
     }
 
-    // Strip @js: prefix if present
+    fn execute(&mut self, code: &str, result: &str, base_url: &str) -> Option<String> {
+        self.last_used = Instant::now();
+        let request = serde_json::json!({
+            "id": 1,
+            "code": code,
+            "result": result,
+            "baseUrl": base_url,
+        });
+        if writeln!(self.stdin, "{}", request).is_err() {
+            return None;
+        }
+        if self.stdin.flush().is_err() {
+            return None;
+        }
+
+        // Read response with timeout: spawn a thread, send stdout back via channel
+        let mut stdout = self.stdout.take()?;
+        let (result_tx, result_rx) = mpsc::channel();
+        let (stdout_tx, stdout_rx) = mpsc::channel();
+        thread::spawn(move || {
+            let mut buf = String::new();
+            let _ = stdout.read_line(&mut buf);
+            let _ = result_tx.send(buf);
+            let _ = stdout_tx.send(stdout);
+        });
+
+        let response = match result_rx.recv_timeout(JS_EXECUTION_TIMEOUT) {
+            Ok(resp) if !resp.is_empty() => resp,
+            _ => {
+                // Timeout: stdout was consumed by the thread, worker is dead
+                tracing::warn!("JS worker read timed out");
+                return None;
+            }
+        };
+
+        // Restore stdout from the reader thread
+        self.stdout = stdout_rx.recv().ok();
+
+        match serde_json::from_str::<serde_json::Value>(&response) {
+            Ok(json) => match json.get("value") {
+                Some(v) if !v.is_null() => Some(v.as_str().unwrap_or_default().to_string()),
+                _ => None,
+            },
+            Err(_) => None,
+        }
+    }
+
+    fn is_idle_expired(&self) -> bool {
+        self.last_used.elapsed() > WORKER_IDLE_TIMEOUT
+    }
+}
+
+static JS_WORKER: Mutex<Option<JsWorker>> = Mutex::new(None);
+
+fn with_worker<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut JsWorker) -> Option<R>,
+{
+    let mut guard = match JS_WORKER.lock() {
+        Ok(g) => g,
+        Err(_) => return None,
+    };
+
+    if let Some(ref w) = *guard {
+        if w.is_idle_expired() || w.stdout.is_none() {
+            *guard = None;
+        }
+    }
+
+    if guard.is_some() && WORKER_FAILED.load(Ordering::Relaxed) {
+        *guard = None;
+        WORKER_FAILED.store(false, Ordering::Relaxed);
+    }
+
+    if guard.is_none() {
+        *guard = JsWorker::start();
+    }
+
+    match guard.as_mut() {
+        Some(ref mut w) => f(w),
+        None => None,
+    }
+}
+
+pub fn execute_js(js_code: &str, result: &str, base_url: &str) -> Option<String> {
+    let code = js_code.trim();
+    if code.is_empty() { return None; }
     let code = code
         .strip_prefix("@js:")
-        .or_else(|| {
-            if code.starts_with("<js>") && code.ends_with("</js>") {
-                Some(&code[4..code.len() - 6])
-            } else {
-                None
-            }
-        })
-        .unwrap_or(code)
-        .trim();
-
-    if code.is_empty() {
-        return None;
-    }
-
-    // Build a JS expression that returns the value
-    // If it looks like an expression (not a statement block), wrap as return
+        .or_else(|| if code.starts_with("<js>") && code.ends_with("</js>") { Some(&code[4..code.len() - 6]) } else { None })
+        .unwrap_or(code).trim();
+    if code.is_empty() { return None; }
     let wrapped = if code.starts_with("function") || code.starts_with("if") || code.contains(';') {
         format!("(function(){{ {} }})()", code)
     } else {
-        // Simple expression — just eval it, but wrap in try-catch to be safe
         format!("(function(){{ try {{ return ({}); }} catch(e) {{ return null; }} }})()", code)
     };
 
-    // For now, use a polyfill approach: execute via Node.js as a fallback
-    // This avoids build-time dependency on rquickjs C compilation
-    // TODO: Replace with native rquickjs when we set up the C build deps
+    // First attempt via persistent worker
+    if let Some(v) = with_worker(|w| w.execute(&wrapped, result, base_url)) {
+        return Some(v);
+    }
+
+    // Worker failed — restart once and retry
+    if let Ok(mut guard) = JS_WORKER.lock() {
+        *guard = None;
+        *guard = JsWorker::start();
+    }
+    if let Some(v) = with_worker(|w| w.execute(&wrapped, result, base_url)) {
+        return Some(v);
+    }
+
+    // Fall back to one-shot subprocess
     execute_via_node_fallback(&wrapped, result, base_url)
 }
 
-/// Fallback: execute JS via a lightweight Node.js child process
-///
-/// This is used during development before rquickjs C compilation is set up.
-/// It provides the same semantics: inject variables, evaluate, return result.
 fn execute_via_node_fallback(code: &str, result: &str, base_url: &str) -> Option<String> {
     let wrapped = format!(
-        r#"
-const result = {};
-const baseUrl = {};
-const encodeURIComponent = (s) => globalThis.encodeURIComponent(s);
-const decodeURIComponent = (s) => globalThis.decodeURIComponent(s);
-try {{
-    console.log({});
-}} catch(e) {{
-    console.log(null);
-}}
-"#,
+        r#"const _b=require;const _bl=new Set(['child_process','fs','net','tls','dgram','cluster','v8','vm','module','worker_threads']);require=(m)=>{{if(_bl.has(m))throw new Error('module '+m+' not allowed');return _b(m);}};process.exit=()=>{{}};process.kill=()=>{{}};const result={};const baseUrl={};try{{const v=eval({});console.log(v===null||v===undefined?'null':String(v))}}catch(e){{console.log('null')}}"#,
         serde_json::to_string(result).unwrap_or_default(),
         serde_json::to_string(base_url).unwrap_or_default(),
-        code
+        serde_json::to_string(code).unwrap_or_default()
     );
-
     use std::sync::mpsc;
-
     let (tx, rx) = mpsc::channel();
-
-    let wrapped_clone = wrapped.clone();
+    let c = wrapped.clone();
     std::thread::spawn(move || {
-        let output = std::process::Command::new("node")
-            .arg("-e")
-            .arg(&wrapped_clone)
-            .output();
-        let _ = tx.send(output); // receiver may have dropped if timed out
+        let _ = tx.send(std::process::Command::new("node").arg("-e").arg(&c).output());
     });
-
-    let output = match rx.recv_timeout(JS_EXECUTION_TIMEOUT) {
-        Ok(Ok(output)) => output,
-        Ok(Err(e)) => {
-            tracing::warn!("JS process failed to start: {}", e);
-            return None;
+    match rx.recv_timeout(JS_EXECUTION_TIMEOUT) {
+        Ok(Ok(o)) if o.status.success() => {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s == "null" || s.is_empty() { None } else { Some(s) }
         }
-        Err(_) => {
-            tracing::warn!("JS execution timed out after 10s");
-            return None;
-        }
-    };
-
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if stdout == "null" || stdout.is_empty() {
-            None
-        } else {
-            Some(stdout)
-        }
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        tracing::warn!("JS execution failed: {}", stderr);
-        None
+        _ => None,
     }
 }
 

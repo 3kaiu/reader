@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for faster dependency management
 RUN pip install uv
 
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash nexus
+
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
@@ -30,8 +33,6 @@ COPY --chown=nexus:nexus engines ./engines
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash nexus
 USER nexus
 
 EXPOSE 8000

@@ -18,8 +18,12 @@ impl FetchResponse {
     pub fn is_cloudflare_challenge(&self) -> bool {
         self.status == 403
             || self.status == 503
+            || self.status == 429
             || self.body.contains("cf-browser-verification")
             || self.body.contains("Just a moment")
+            || self.body.contains("challenges.cloudflare.com/turnstile")
+            || self.body.contains("turnstile.render")
+            || self.body.contains("/cdn-cgi/challenge-platform")
     }
 }
 

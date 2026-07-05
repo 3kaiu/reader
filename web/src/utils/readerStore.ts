@@ -1,5 +1,6 @@
 import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage'
 import type { Book, Chapter } from '@/types/book'
+import DOMPurify from 'dompurify'
 
 const PROGRESS_STORAGE_KEY = 'reader-progress'
 const PROGRESS_META_STORAGE_KEY = 'reader-progress-meta'
@@ -61,13 +62,15 @@ export function formatReaderContent(content: string): string {
     return ''
   }
 
-  return normalized
+  const html = normalized
     .split(/\n{2,}/)
     .map(paragraph => {
       const line = escapeHtml(paragraph.trim()).replace(/\n/g, '<br />')
       return `<p class="content-paragraph">${line}</p>`
     })
     .join('')
+
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['p', 'br'], ALLOWED_ATTR: ['class'] })
 }
 
 export function loadPersistedReaderProgress(): Record<string, number> {

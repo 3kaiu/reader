@@ -3,13 +3,18 @@
 //! Direct Cloudflare bypass via HTTP REST API (bypass service)
 
 use async_trait::async_trait;
+use crate::fetcher::cookie_cache::{self, CookieCache};
 use nexus_core::{
     AntiCrawlStrategy, CloudflareBypassConfig, EngineError, FetchContext, FetchResponse,
 };
+use primp::imp::Impersonate;
+use primp::Client as PrimpClient;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Semaphore;
 use tracing::{debug, info, warn};
 
 /// Request body for /fetch endpoint
@@ -31,7 +36,6 @@ struct CfFetchRequest {
 struct CfFetchResponse {
     status: u16,
     html: String,
-    #[allow(dead_code)]
     cookies: HashMap<String, String>,
     headers: HashMap<String, String>,
     cf_bypassed: bool,
@@ -43,15 +47,31 @@ struct CfFetchResponse {
 pub struct CfBypassStrategy {
     config: CloudflareBypassConfig,
     client: Client,
+    cookie_cache: Arc<CookieCache>,
+    concurrency_limiter: Semaphore,
 }
 
-/// Direct HTTP strategy used as a fallback when external bypass service is unavailable.
+/// Direct HTTP strategy used as a fallback.
+/// Optionally backed by CookieCache: when cached CF cookies exist for a domain,
+/// they are injected into the request to avoid re-triggering challenges.
 pub struct DirectHttpStrategy {
     client: Client,
+    cookie_cache: Option<Arc<CookieCache>>,
+}
+
+/// TLS-impersonated HTTP strategy using primp.
+/// Mimics a real browser's TLS fingerprint (JA3/JA4) to bypass Cloudflare edge
+/// detection without requiring the external bypass service or a browser.
+/// Tried FIRST before falling back to CfBypassStrategy.
+pub struct PrimpHttpStrategy {
+    client: PrimpClient,
+    _impersonate: Impersonate,
+    cookie_cache: Option<Arc<CookieCache>>,
 }
 
 impl CfBypassStrategy {
-    pub fn new(config: CloudflareBypassConfig) -> Result<Self, EngineError> {
+    pub fn new(config: CloudflareBypassConfig, cookie_cache: Arc<CookieCache>) -> Result<Self, EngineError> {
+        let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
             .build()
@@ -61,7 +81,7 @@ impl CfBypassStrategy {
 
         debug!("CfBypassStrategy initialized: service_url={}", config.service_url);
 
-        Ok(Self { config, client })
+        Ok(Self { config, client, cookie_cache, concurrency_limiter: Semaphore::new(max_concurrent) })
     }
 
     fn fetch_url(&self) -> String {
@@ -77,7 +97,12 @@ impl DirectHttpStrategy {
             .map_err(|e| EngineError::InvalidConfig {
                 message: format!("Failed to build direct HTTP client: {}", e),
             })?;
-        Ok(Self { client })
+        Ok(Self { client, cookie_cache: None })
+    }
+
+    pub fn with_cookie_cache(mut self, cache: Arc<CookieCache>) -> Self {
+        self.cookie_cache = Some(cache);
+        self
     }
 }
 
@@ -104,18 +129,88 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             return Err(EngineError::StrategyDisabled);
         }
 
+        let domain = cookie_cache::extract_domain(&ctx.url);
+        let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
+
+        // Check cookie cache before calling the bypass service
+        if let Some(cached) = self.cookie_cache.get(&domain, &user_agent, "") {
+            debug!("CF Bypass: Using cached cookies for {}", domain);
+            let cookie_header = cached.iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join("; ");
+            ctx.headers.insert("Cookie".to_string(), cookie_header);
+
+            // Try direct fetch with cached cookies first
+            let method = ctx.method.to_ascii_uppercase();
+            let client = Client::builder()
+                .timeout(Duration::from_secs(ctx.timeout_secs))
+                .build()
+                .map_err(|e| EngineError::Network {
+                    message: format!("Failed to build direct client: {}", e),
+                })?;
+            let mut req = match method.as_str() {
+                "POST" => client.post(&ctx.url).body(ctx.body.clone().unwrap_or_default()),
+                _ => client.get(&ctx.url),
+            };
+            for (k, v) in &ctx.headers {
+                req = req.header(k, v);
+            }
+            let resp = req.send().await.map_err(|e| EngineError::Network {
+                message: format!("Cached cookie request failed: {}", e),
+            })?;
+            let resp_status = resp.status().as_u16();
+            if resp_status != 403 && resp_status != 429 {
+                let mut headers = HashMap::new();
+                for (k, v) in resp.headers() {
+                    if let Ok(s) = v.to_str() {
+                        headers.insert(k.to_string(), s.to_string());
+                    }
+                }
+                let body = resp.text().await.map_err(|e| EngineError::Network {
+                    message: format!("Failed to read cached response body: {}", e),
+                })?;
+                if body.len() > 200
+                    && !body.contains("cf-browser-verification")
+                    && !body.contains("Just a moment")
+                {
+                    info!("CF Bypass: Cached cookies valid for {}, skipping bypass", domain);
+                    return Ok(FetchResponse {
+                        status: resp_status,
+                        headers,
+                        body,
+                        url: ctx.url.clone(),
+                    });
+                }
+            }
+            debug!("CF Bypass: Cached cookies expired/invalid for {}, re-solving", domain);
+            self.cookie_cache.invalidate(&domain);
+        }
+
         info!("CF Bypass: Fetching {}", ctx.url);
+
+        // Try to acquire a concurrency permit. If the bypass service is saturated,
+        // skip this strategy and let the chain fall through.
+        let _permit = match self.concurrency_limiter.try_acquire() {
+            Ok(permit) => permit,
+            Err(_) => {
+                debug!("CF Bypass: Concurrency limit reached, skipping");
+                return Err(EngineError::StrategyDisabled);
+            }
+        };
+
+        let request_headers = if ctx.headers.is_empty() {
+            None
+        } else {
+            Some(ctx.headers.clone())
+        };
 
         let request_body = CfFetchRequest {
             url: ctx.url.clone(),
             method: ctx.method.clone(),
-            headers: if ctx.headers.is_empty() {
-                None
-            } else {
-                Some(ctx.headers.clone())
-            },
+            headers: request_headers,
             body: ctx.body.clone(),
-            timeout: ctx.timeout_secs as u32, // Use context timeout instead of hardcoded value
+            timeout: ctx.timeout_secs as u32,
             proxy: self.config.proxy.clone(),
         };
 
@@ -148,13 +243,20 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             }
         })?;
 
+        // Store returned cookies in cache after successful bypass
+        if body.cf_bypassed && !body.cookies.is_empty() {
+            let cookies_vec: Vec<(String, String)> = body.cookies.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            self.cookie_cache.set(&domain, cookies_vec, &ctx.url, &user_agent, "");
+            debug!("CF Bypass: Stored {} cookies for {}", body.cookies.len(), domain);
+        }
+
         if let Some(error) = body.error {
             warn!("CF Bypass: Service error: {}", error);
-            // Service explicitly failed to bypass (or got blocked).
             return Err(EngineError::CloudflareChallengeFailed);
         }
 
-        // Normalize status 0 to 200 if CF bypass succeeded
         let status = if body.status == 0 && body.cf_bypassed {
             info!("CF Bypass: Normalizing status 0 to 200 OK");
             200
@@ -162,7 +264,6 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             body.status
         };
 
-        // If we got blocked (403/429) and CF bypass didn't succeed, return error
         if (status == 403 || status == 429) && !body.cf_bypassed {
             warn!("CF Bypass: Target blocked with status {}", status);
             return Err(EngineError::CloudflareChallenge);
@@ -170,11 +271,7 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         info!(
             "CF Bypass: {} status={}",
-            if body.cf_bypassed {
-                "success"
-            } else {
-                "partial"
-            },
+            if body.cf_bypassed { "success" } else { "partial" },
             status
         );
 
@@ -182,6 +279,122 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             status,
             headers: body.headers,
             body: body.html,
+            url: ctx.url.clone(),
+        })
+    }
+}
+
+impl PrimpHttpStrategy {
+    pub fn new(timeout_seconds: u64) -> Result<Self, EngineError> {
+        let client = PrimpClient::builder()
+            .impersonate(Impersonate::ChromeV146)
+            .timeout(Duration::from_secs(timeout_seconds))
+            .pool_max_idle_per_host(100)
+            .pool_idle_timeout(Duration::from_secs(120))
+            .tcp_keepalive(Duration::from_secs(60))
+            .tcp_nodelay(true)
+            .build()
+            .map_err(|e| EngineError::InvalidConfig {
+                message: format!("Failed to build primp HTTP client: {}", e),
+            })?;
+        info!("PrimpHttpStrategy initialized (impersonate=ChromeV146)");
+        Ok(Self { client, _impersonate: Impersonate::ChromeV146, cookie_cache: None })
+    }
+
+    pub fn with_cookie_cache(mut self, cache: Arc<CookieCache>) -> Self {
+        self.cookie_cache = Some(cache);
+        self
+    }
+}
+
+#[async_trait]
+impl AntiCrawlStrategy for PrimpHttpStrategy {
+    fn name(&self) -> &str {
+        "PrimpHTTP"
+    }
+
+    fn level(&self) -> u8 {
+        2
+    }
+
+    fn should_apply(&self, _response: &FetchResponse) -> bool {
+        true
+    }
+
+    fn supports_script(&self) -> bool {
+        false
+    }
+
+    async fn execute(&self, ctx: &mut FetchContext) -> Result<FetchResponse, EngineError> {
+        if let Some(ref cache) = self.cookie_cache {
+            let domain = cookie_cache::extract_domain(&ctx.url);
+            let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
+            if let Some(cached) = cache.get(&domain, &user_agent, "") {
+                let cookie_header = cached.iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                ctx.headers.insert("Cookie".to_string(), cookie_header);
+            }
+        }
+
+        let method = ctx.method.to_ascii_uppercase();
+        let mut req = match method.as_str() {
+            "POST" => self
+                .client
+                .post(&ctx.url)
+                .body(ctx.body.clone().unwrap_or_default()),
+            _ => self.client.get(&ctx.url),
+        };
+
+        for (k, v) in &ctx.headers {
+            req = req.header(k, v);
+        }
+
+        let resp = req.send().await.map_err(|e| EngineError::Network {
+            message: format!("Primp request failed: {}", e),
+        })?;
+        let status = resp.status().as_u16();
+
+        // Single pass: build headers HashMap + extract Set-Cookie
+        let mut headers = HashMap::new();
+        let mut response_cookies: Vec<(String, String)> = Vec::new();
+        for (k, v) in resp.headers() {
+            if let Ok(s) = v.to_str() {
+                headers.insert(k.to_string(), s.to_string());
+                if k.as_str().eq_ignore_ascii_case("set-cookie") {
+                    if let Some(eq_pos) = s.find('=') {
+                        let semi_pos = s.find(';').unwrap_or(s.len());
+                        response_cookies.push((
+                            s[..eq_pos].to_string(),
+                            s[eq_pos + 1..semi_pos].to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        let body = resp.text().await.map_err(|e| EngineError::Network {
+            message: format!("Failed to read primp response body: {}", e),
+        })?;
+
+        // Store cookies in cache for other strategies to reuse
+        if !response_cookies.is_empty() {
+            if let Some(ref cache) = self.cookie_cache {
+                let domain = cookie_cache::extract_domain(&ctx.url);
+                let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
+                cache.set(&domain, response_cookies, &ctx.url, &user_agent, "");
+            }
+        }
+
+        if status == 403 || status == 429 {
+            return Err(EngineError::CloudflareChallenge);
+        }
+
+        Ok(FetchResponse {
+            status,
+            headers,
+            body,
             url: ctx.url.clone(),
         })
     }
@@ -206,6 +419,19 @@ impl AntiCrawlStrategy for DirectHttpStrategy {
     }
 
     async fn execute(&self, ctx: &mut FetchContext) -> Result<FetchResponse, EngineError> {
+        // Inject cached cookies if available
+        if let Some(ref cache) = self.cookie_cache {
+            let domain = cookie_cache::extract_domain(&ctx.url);
+            let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
+            if let Some(cached) = cache.get(&domain, &user_agent, "") {
+                let cookie_header = cached.iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                ctx.headers.insert("Cookie".to_string(), cookie_header);
+            }
+        }
+
         let method = ctx.method.to_ascii_uppercase();
         let mut req = match method.as_str() {
             "POST" => self
@@ -254,6 +480,8 @@ impl AntiCrawlStrategy for DirectHttpStrategy {
 pub struct BrowserProbeStrategy {
     config: CloudflareBypassConfig,
     client: Client,
+    cookie_cache: Arc<CookieCache>,
+    concurrency_limiter: Semaphore,
 }
 
 /// Request body for /api/browser-probe endpoint
@@ -272,7 +500,6 @@ struct BrowserProbeRequest {
 struct BrowserProbeResponse {
     status: u16,
     html: String,
-    #[allow(dead_code)]
     cookies: HashMap<String, String>,
     cf_bypassed: bool,
     #[serde(default)]
@@ -280,7 +507,8 @@ struct BrowserProbeResponse {
 }
 
 impl BrowserProbeStrategy {
-    pub fn new(config: CloudflareBypassConfig) -> Result<Self, EngineError> {
+    pub fn new(config: CloudflareBypassConfig, cookie_cache: Arc<CookieCache>) -> Result<Self, EngineError> {
+        let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds * 2)) // browser probe can be slower
             .build()
@@ -288,7 +516,7 @@ impl BrowserProbeStrategy {
                 message: format!("Failed to build HTTP client: {}", e),
             })?;
         debug!("BrowserProbeStrategy initialized: service_url={}", config.service_url);
-        Ok(Self { config, client })
+        Ok(Self { config, client, cookie_cache, concurrency_limiter: Semaphore::new(max_concurrent) })
     }
 
     fn probe_url(&self) -> String {
@@ -319,6 +547,16 @@ impl AntiCrawlStrategy for BrowserProbeStrategy {
         if !self.config.enabled {
             return Err(EngineError::StrategyDisabled);
         }
+
+        // Try to acquire a concurrency permit. If the bypass service is saturated,
+        // skip this strategy and let the chain fall through.
+        let _permit = match self.concurrency_limiter.try_acquire() {
+            Ok(permit) => permit,
+            Err(_) => {
+                debug!("BrowserProbe: Concurrency limit reached, skipping");
+                return Err(EngineError::StrategyDisabled);
+            }
+        };
 
         info!("BrowserProbe: Launching headless browser for {}", ctx.url);
 
@@ -358,6 +596,17 @@ impl AntiCrawlStrategy for BrowserProbeStrategy {
                 message: format!("Invalid response from browser probe service: {}", e),
             }
         })?;
+
+        // Store returned cookies in cache after successful probe
+        if body.cf_bypassed && !body.cookies.is_empty() {
+            let domain = cookie_cache::extract_domain(&ctx.url);
+            let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
+            let cookies_vec: Vec<(String, String)> = body.cookies.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            self.cookie_cache.set(&domain, cookies_vec, &ctx.url, &user_agent, "");
+            debug!("BrowserProbe: Stored {} cookies for {}", body.cookies.len(), domain);
+        }
 
         if let Some(error) = body.error {
             warn!("BrowserProbe: Service error: {}", error);

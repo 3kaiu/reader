@@ -93,7 +93,7 @@ function processSseEventBlock(
   }
 
   const dataText = dataLines.join('\n')
-  const payload = JSON.parse(dataText) as
+  let payload:
     | {
         data?: SearchResult
         source_id?: string
@@ -102,6 +102,11 @@ function processSseEventBlock(
         stage_reports?: PipelineStageReport[]
       }
     | undefined
+  try {
+    payload = JSON.parse(dataText)
+  } catch {
+    return
+  }
 
   if (eventName === 'result' && payload?.data) {
     handlers.onResult(payload.data)

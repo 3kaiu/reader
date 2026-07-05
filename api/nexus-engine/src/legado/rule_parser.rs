@@ -345,7 +345,8 @@ fn find_top_level(s: &str, sep: &str) -> Option<usize> {
             return Some(i);
         }
 
-        i += 1;
+        let c = s[i..].chars().next().unwrap_or('\0');
+        i += c.len_utf8();
     }
 
     None

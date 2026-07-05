@@ -5,13 +5,15 @@ Focused infrastructure service for fetching target HTML via bypass engines.
 import logging
 import os
 import asyncio
+import time
+from collections import defaultdict
 from datetime import datetime
 from typing import Optional, Dict
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, field_validator
 from contextlib import asynccontextmanager
 
 from core.engine_factory import factory as engine_factory
@@ -26,7 +28,25 @@ config = Config()
 logging.basicConfig(level=config.log_level)
 logger = logging.getLogger("cf-bypass")
 MAX_CONCURRENCY = max(1, int(os.getenv("BYPASS_MAX_CONCURRENCY", "20")))
+MAX_PER_DOMAIN = max(1, int(os.getenv("BYPASS_MAX_PER_DOMAIN", "3")))
+# Global semaphore across all domains
 FETCH_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENCY)
+# Per-domain semaphores to prevent one slow domain from starving others
+_DOMAIN_SEMAPHORES: dict[str, asyncio.Semaphore] = {}
+_DOMAIN_SEMAPHORE_LOCK = asyncio.Lock()
+
+async def acquire_domain_semaphore(domain: str):
+    """Acquire a per-domain semaphore (max MAX_PER_DOMAIN concurrent per domain)."""
+    global _DOMAIN_SEMAPHORES
+    async with _DOMAIN_SEMAPHORE_LOCK:
+        if domain not in _DOMAIN_SEMAPHORES:
+            _DOMAIN_SEMAPHORES[domain] = asyncio.Semaphore(MAX_PER_DOMAIN)
+    await _DOMAIN_SEMAPHORES[domain].acquire()
+
+def release_domain_semaphore(domain: str):
+    sem = _DOMAIN_SEMAPHORES.get(domain)
+    if sem:
+        sem.release()
 
 # Helper function for API key validation
 def validate_api_key(x_api_key: str = Header(None)):
@@ -42,6 +62,13 @@ class FetchRequest(BaseModel):
     proxy: Optional[str] = None
     body: Optional[str] = None
     engine: Optional[str] = None
+
+    @field_validator("body")
+    @classmethod
+    def limit_body_size(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 10_000_000:
+            raise ValueError("body exceeds maximum length of 10,000,000 characters")
+        return v
 
 class FetchResponse(BaseModel):
     status: int
@@ -78,7 +105,6 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -93,20 +119,24 @@ async def health():
 @app.post("/fetch", response_model=FetchResponse)
 async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     validate_api_key(x_api_key)
-    async with FETCH_SEMAPHORE:
-        url_str = str(request.url)
-        domain = urlparse(url_str).netloc
-        engine = engine_factory.get_engine(name=request.engine, domain=domain)
-        
-        result = await engine.fetch(
-            url=url_str,
-            method=request.method,
-            headers=request.headers,
-            body=request.body,
-            timeout=request.timeout,
-            proxy=request.proxy,
-        )
-    
+    url_str = str(request.url)
+    domain = urlparse(url_str).netloc
+
+    await acquire_domain_semaphore(domain)
+    try:
+        async with FETCH_SEMAPHORE:
+            engine = engine_factory.get_engine(name=request.engine, domain=domain)
+            result = await engine.fetch(
+                url=url_str,
+                method=request.method,
+                headers=request.headers,
+                body=request.body,
+                timeout=request.timeout,
+                proxy=request.proxy,
+            )
+    finally:
+        release_domain_semaphore(domain)
+
     return FetchResponse(
         status=result.status,
         html=result.html,
@@ -168,3 +198,44 @@ async def browser_probe(request: BrowserProbeRequest, x_api_key: str = Header(No
         "cf_bypassed": result.cf_bypassed,
         "error": result.error,
     }
+
+
+class SolveCFRequest(BaseModel):
+    url: str
+    timeout_ms: int = 30000
+
+
+@app.get("/api/adaptive-stats")
+async def adaptive_stats(x_api_key: str = Header(None)):
+    """Get per-domain adaptive solving statistics."""
+    validate_api_key(x_api_key)
+    return {
+        "domains": engine_factory.domain_registry.all_summaries(),
+        "engine_stats": engine_factory.get_active_stats(),
+    }
+
+
+@app.post("/api/solve-cf")
+async def solve_cf(request: SolveCFRequest, x_api_key: str = Header(None)):
+    """Auto-solve CF Turnstile challenges using headless browser.
+    
+    Returns:
+      ok: bool — whether CF was cleared
+      html: str — page HTML after CF
+      cookies: dict — cookies from the session (including cf_clearance)
+    """
+    validate_api_key(x_api_key)
+    engine = engine_factory.get_engine(name="browser-probe")
+    try:
+        result = await asyncio.wait_for(
+            engine.solve_cf(url=request.url, timeout_ms=request.timeout_ms),
+            timeout=(request.timeout_ms / 1000) + 10,
+        )
+        return result
+    except asyncio.TimeoutError:
+        return {
+            "ok": False,
+            "html": "",
+            "cookies": {},
+            "error": "Total solve timeout exceeded",
+        }
