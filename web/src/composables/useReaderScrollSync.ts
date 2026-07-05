@@ -24,13 +24,6 @@ export function useReaderScrollSync(options: {
   const handleBeforeUnload = () => options.readerStore.saveProgress()
   let pageActive = true
 
-  const reportReaderMetric = (
-    _name: string,
-    _value: number,
-    _context: Record<string, unknown> = {}
-  ) => {
-    // 性能监控服务已移除
-  }
   const handleVisibilityChange = () => {
     const hidden = typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
     pageActive = !hidden
@@ -61,7 +54,6 @@ export function useReaderScrollSync(options: {
       void nextTick(() => {
         options.readerStore.updateChapterIndexByScroll()
       })
-      reportReaderMetric('reader_bfcache_restore', 1)
     }
   }
 
@@ -81,11 +73,7 @@ export function useReaderScrollSync(options: {
     // 移除基于 2g/3g/4g 的细粒度预取控制
 
     if (options.readerStore.hasNextChapter && !options.readerStore.isLoadingMore) {
-      const appendStartAt = performance.now()
       const success = await options.readerStore.appendNextChapter()
-      reportReaderMetric('reader_append_next_duration', performance.now() - appendStartAt, {
-        success,
-      })
       if (!success) {
         logger.warn('自动加载下一章失败，显示重试选项', {
           loadError: options.readerStore.loadError,

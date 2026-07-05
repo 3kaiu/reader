@@ -1,0 +1,61 @@
+{
+  "bookSourceComment": "直连 69shuba.com 网页源 \n\n*二改请标明原作者\n// 2026/07/03/ By sjshb57 首次发布\n// 2026/07/05/ By sjshb57 新增功能\n// 发现页补全栏目＆优化书籍详情简介排版\n\n【搜索需过人机验证 Cloudflare Turnstile】\n· 搜索时若命中验证，会自动弹浏览器让你完成验证，完成验证后会自动重发请求，国内需挂代理进行使用。\n· 已完成验证后 Cookie 会复用一段时间，不会每次发起请求都要验证一次。",
+  "bookSourceGroup": "🌙 小说",
+  "bookSourceName": "🌙 69书吧",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://www.69shuba.com",
+  "bookUrlPattern": "https?://www\\.69shuba\\.com/book/\\d+\\.htm",
+  "customButton": false,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledCookieJar": true,
+  "enabledExplore": true,
+  "eventListener": false,
+  "exploreUrl": "[{\n    \"title\": \"【男生小说】\",\n    \"url\": \"/novels/male\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.33\n    }\n}, {\n    \"title\": \"【女生小说】\",\n    \"url\": \"/novels/female\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.33\n    }\n}, {\n    \"title\": \"人气\",\n    \"url\": \"/novels/monthvisit_0_0_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"推荐\",\n    \"url\": \"/novels/allvote_0_0_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"完本\",\n    \"url\": \"/novels/monthvisit_0_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"──── 连载 · 选分类 ────\",\n    \"url\": \"/novels/monthvisit_0_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 1\n    }\n}, {\n    \"title\": \"玄幻魔法\",\n    \"url\": \"/novels/monthvisit_1_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"修真武侠\",\n    \"url\": \"/novels/monthvisit_2_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"言情小说\",\n    \"url\": \"/novels/monthvisit_3_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"历史军事\",\n    \"url\": \"/novels/monthvisit_4_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"游戏竞技\",\n    \"url\": \"/novels/monthvisit_5_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"科幻空间\",\n    \"url\": \"/novels/monthvisit_6_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"悬疑惊悚\",\n    \"url\": \"/novels/monthvisit_7_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"同人小说\",\n    \"url\": \"/novels/monthvisit_8_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"都市小说\",\n    \"url\": \"/novels/monthvisit_9_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"官场职场\",\n    \"url\": \"/novels/monthvisit_10_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"穿越时空\",\n    \"url\": \"/novels/monthvisit_11_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"青春校园\",\n    \"url\": \"/novels/monthvisit_12_2_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"──── 全本 · 选分类 ────\",\n    \"url\": \"/novels/monthvisit_0_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 1\n    }\n}, {\n    \"title\": \"玄幻魔法\",\n    \"url\": \"/novels/monthvisit_1_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"修真武侠\",\n    \"url\": \"/novels/monthvisit_2_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"言情小说\",\n    \"url\": \"/novels/monthvisit_3_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"历史军事\",\n    \"url\": \"/novels/monthvisit_4_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"游戏竞技\",\n    \"url\": \"/novels/monthvisit_5_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"科幻空间\",\n    \"url\": \"/novels/monthvisit_6_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"悬疑惊悚\",\n    \"url\": \"/novels/monthvisit_7_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"同人小说\",\n    \"url\": \"/novels/monthvisit_8_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"都市小说\",\n    \"url\": \"/novels/monthvisit_9_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"官场职场\",\n    \"url\": \"/novels/monthvisit_10_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"穿越时空\",\n    \"url\": \"/novels/monthvisit_11_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}, {\n    \"title\": \"青春校园\",\n    \"url\": \"/novels/monthvisit_12_1_{{page}}.htm\",\n    \"style\": {\n        \"layout_flexGrow\": 1,\n        \"layout_flexBasisPercent\": 0.25\n    }\n}]",
+  "header": "{\n    \"Referer\": \"https://www.69shuba.com/\",\n    \"Accept-Language\": \"zh-CN,zh;q=0.9\"\n}",
+  "lastUpdateTime": 1783225958994,
+  "loginUrl": "login.php?jumpurl=https://www.69shuba.com/",
+  "respondTime": 180000,
+  "ruleBookInfo": {
+    "author": "[property$=author]@content",
+    "coverUrl": "[property$=image]@content",
+    "intro": "<js>\nfunction g(r) {\n    try {\n        return String(java.getString(r) || \"\").trim()\n    } catch (e) {\n        return \"\"\n    }\n}\nvar html = String(result);\nvar name = g(\"[property$=book_name]@content\");\nvar author = g(\"[property$=author]@content\");\nvar cat = g(\"[property$=category]@content\");\nvar update = g(\"[property$=update_time]@content\");\nvar last = g(\"[property$=latest_chapter_name]@content\");\nvar words = g(\"class.booknav2@tag.p.2@text\").replace(/\\s*\\|\\s*/g, \" · \");\nvar mt = html.match(/tags:\\s*\\x27([^\\x27]*)\\x27/);\nvar tags = mt ? mt[1].replace(/\\|+/g, \" · \").replace(/(^\\s*·\\s*|\\s*·\\s*$)/g, \"\").trim() : \"\";\nvar desc = g(\"class.navtxt@tag.p.0@textNodes\").replace(/^[\\s\\u3000]+/, \"\").replace(/[\\r\\n]+/g, \"\\n\").replace(/\\n/g, \"\\n\\u3000\\u3000\");\nvar L = [];\n\nfunction add(icon, label, val) {\n    if (val && String(val).trim()) L.push(\"\\u3000\\u3000\" + icon + \" \" + label + \"\\uff1a\" + val);\n}\nadd(\"\\ud83d\\udcd5\", \"\\u4e66\\u540d\", name);\nadd(\"\\ud83d\\udc64\", \"\\u4f5c\\u8005\", author);\nadd(\"\\ud83c\\udff7\\ufe0f\", \"\\u5206\\u7c7b\", cat);\nadd(\"\\ud83d\\udcca\", \"\\u5b57\\u6570\", words);\nadd(\"\\ud83d\\udd16\", \"\\u6807\\u7b7e\", tags);\nadd(\"\\ud83d\\udd50\", \"\\u66f4\\u65b0\", update);\nadd(\"\\ud83d\\udcd6\", \"\\u6700\\u65b0\", last);\nif (desc) {\n    L.push(\"\\u3000\\u3000\\u200b\");\n    L.push(\"\\u3000\\u3000\\ud83d\\udcdc \\u7b80\\u4ecb\\uff1a\");\n    L.push(\"\\u3000\\u3000\" + desc);\n}\nL.push(\"\\u3000\\u3000\\u200b\");\nL.push(\"\\u3000\\u3000\\ud83d\\udccd \\u4e66\\u7c4d\\u72b6\\u6001\\uff1a\\u6b63\\u5e38\");\nL.join(\"\\n\");\n</js>",
+    "kind": "[property~=category|status|update_time]@content",
+    "lastChapter": "[property$=latest_chapter_name]@content",
+    "name": "[property$=book_name]@content",
+    "tocUrl": "class.more-btn@href||class.addbtn@tag.a.0@href",
+    "wordCount": "class.booknav2@tag.p.2@text##\\s*\\|.*$##"
+  },
+  "ruleContent": {
+    "content": "class.txtnav@textNodes",
+    "replaceRegex": "##\\s*[（(]?本章完[）)]?\\s*$|新.{0,2}书吧|吧书.{0,2}新|请记住本书首发域名.*|www\\.69shuba\\.com|loadAdv\\([\\d, ]*\\);?"
+  },
+  "ruleExplore": {
+    "author": "class.labelbox@tag.label.0@text",
+    "bookList": "id.article_list_content@tag.li",
+    "bookUrl": "tag.h3@tag.a@href",
+    "coverUrl": "tag.img@data-src@src",
+    "intro": "class.ellipsis_2@text",
+    "kind": "<js>\nvar u = String(baseUrl || \"\");\nvar st = String(java.getString(\"class.labelbox@tag.label!0@text\") || \"\").trim();\nif (/monthvisit_\\d+_[12]_/.test(u)) st = \"\";\nst;\n</js>",
+    "lastChapter": "class.zxzj@tag.p@ownText",
+    "name": "tag.h3@tag.a@text"
+  },
+  "ruleSearch": {
+    "author": "class.labelbox@tag.label.0@text",
+    "bookList": "<js>\nvar lr = \"class.newbox@tag.li\";\njava.setContent(result);\nvar list = java.getElements(lr);\nvar isCF = /Just a moment|Cloudflare|challenge-platform|cf-browser-verification|turnstile|\\/verify\\.php|\\u9a8c\\u8bc1\\u60a8\\u662f\\u771f\\u4eba/i.test(String(result));\nif ((list == null || list.size() == 0) && isCF) {\n    var u = \"https://www.69shuba.com/modules/article/search.php\";\n    cookie.removeCookie(u);\n    java.startBrowserAwait(u + \"?searchkey=verify&_=\" + new Date().getTime(), \"69书吧\");\n    var k = java.get(\"69key\");\n    var req = 'https://www.69shuba.com/modules/article/search.php,{\"method\":\"POST\",\"body\":\"searchkey=' + k + '&searchtype=all\",\"charset\":\"gbk\"}';\n    var html = java.ajax(req);\n    java.setContent(html);\n    list = java.getElements(lr);\n}\nlist;\n</js>",
+    "bookUrl": "tag.h3@tag.a@href",
+    "checkKeyWord": "斗破苍穹",
+    "coverUrl": "tag.img@data-src",
+    "intro": "class.ellipsis_2@text",
+    "kind": "class.labelbox@tag.label!0@text",
+    "lastChapter": "class.zxzj@tag.p@ownText",
+    "name": "tag.h3@tag.a@text"
+  },
+  "ruleToc": {
+    "chapterList": "-id.catalog@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "searchUrl": "/modules/article/search.php,{\"method\":\"POST\",\"body\":\"searchkey={{java.put('69key',key)}}&searchtype=all\",\"charset\":\"gbk\"}",
+  "weight": 0
+}

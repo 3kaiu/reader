@@ -29,7 +29,7 @@ moka = { version = "0.12", features = ["future"] }
 memmap2 = "0.9"
 
 # Sync primitives
-parking_lot = "0.12"
+parking_lot.workspace = true
 
 # Hashing
 md5 = "0.7"

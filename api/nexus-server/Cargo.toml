@@ -25,7 +25,7 @@ tracing-subscriber.workspace = true
 async-trait.workspace = true
 uuid.workspace = true
 chrono.workspace = true
-dashmap = "6.1"
+dashmap.workspace = true
 
 # Web framework
 axum = { version = "0.8", features = ["ws", "macros"] }
@@ -37,13 +37,13 @@ futures = "0.3"
 tokio-stream = "0.1"
 
 # URL parsing
-url = "2"
+url.workspace = true
 
 # Rate limiting
 tower_governor = "0.8"
 
 # HTTP types (for extracting client IP)
-http = "1"
+http.workspace = true
 
 [features]
 default = ["discovery"]

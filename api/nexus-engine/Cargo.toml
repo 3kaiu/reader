@@ -35,14 +35,14 @@ regex = "1"
 serde_json_path = "0.7"
 
 # Encoding (for URL handling)
-url = "2"
+url.workspace = true
 urlencoding = "2"
 encoding_rs = "0.8"
-http = "1"
+http.workspace = true
 
 # Utilities
-parking_lot = "0.12"
-dashmap = "6"
+parking_lot.workspace = true
+dashmap.workspace = true
 lru = "0.12"
 rand = "0.9"
 aho-corasick = "1.1"
@@ -51,7 +51,6 @@ aho-corasick = "1.1"
 ttf-parser = "0.25"           # Font parsing for font decryption
 strsim = "0.11"               # String similarity for deduplication
 unicode-normalization = "0.1" # Unicode normalization
-image = "0.25.10"
 primp = "1.3.1"
 
 # Cloudflare bypass is handled by the external `bypass/` service in this repo.
@@ -65,5 +64,3 @@ wasm-bindgen = "0.2"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-lol_html = "1.1"
-kuchiki = "0.8"
