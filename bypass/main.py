@@ -17,6 +17,7 @@ from pydantic import BaseModel, HttpUrl, field_validator
 from contextlib import asynccontextmanager
 
 from core.engine_factory import factory as engine_factory
+from engines.browser_probe import is_cf_blocked
 
 # Configuration
 class Config:

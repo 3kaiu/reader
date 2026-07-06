@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
 const SEARCH_TIMEOUT_SECS: u64 = 20;
-const SEARCH_MAX_ATTEMPTS: u8 = 1;
+const SEARCH_MAX_ATTEMPTS: u8 = 2;
 
 /// Search result stream item
 #[derive(Debug, Clone)]

@@ -103,7 +103,9 @@ pub fn not_found(resource: &str) -> ApiErrorResponse {
 }
 
 pub fn internal_error(message: impl Into<String>) -> ApiErrorResponse {
-    ApiErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, ApiError::internal(message))
+    let msg = message.into();
+    tracing::warn!(error = %msg, "internal server error");
+    ApiErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, ApiError::internal(msg))
 }
 
 pub fn conflict(message: impl Into<String>) -> ApiErrorResponse {

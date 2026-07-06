@@ -38,6 +38,7 @@ impl ChapterCache {
     pub fn with_memory_limit(cache_dir: &Path, max_memory_mb: usize, max_disk_mb: usize) -> Self {
         let memory = Cache::builder()
             .max_capacity((max_memory_mb * 1024 * 1024) as u64)
+            .weigher(|_key, value: &Arc<str>| value.len() as u32)
             .time_to_idle(Duration::from_secs(3600))
             .build();
 

@@ -22,8 +22,10 @@ pub struct AppState {
     pub _anti_crawl: Arc<FallbackChain>,
     pub orchestrator: Arc<SearchOrchestrator>,
     pub config: Arc<EngineConfig>,
+    pub snapshot_status: Arc<SnapshotStatus>,
 }
 
+/// Tracks snapshot restore/save metadata for the runtime governance system.
 pub struct SnapshotStatus {
     restored_from_snapshot: AtomicBool,
     updated_at_ms: AtomicI64,
@@ -70,6 +72,26 @@ impl SnapshotStatus {
         }
     }
 
+    pub fn is_restored(&self) -> bool {
+        self.restored_from_snapshot.load(Ordering::Relaxed)
+    }
+
+    pub fn updated_at_ms(&self) -> i64 {
+        self.updated_at_ms.load(Ordering::Relaxed)
+    }
+
+    pub fn total_baseline_events(&self) -> (u64, u64) {
+        let guard = self.baselines.read().ok();
+        let mut health = 0u64;
+        let mut extraction = 0u64;
+        if let Some(b) = guard.as_ref() {
+            for v in b.values() {
+                health = health.saturating_add(v.health_total_events);
+                extraction = extraction.saturating_add(v.extraction_total_events);
+            }
+        }
+        (health, extraction)
+    }
 }
 
 pub async fn build_app_state(config: &EngineConfig) -> anyhow::Result<AppState> {
@@ -86,5 +108,6 @@ pub async fn build_app_state(config: &EngineConfig) -> anyhow::Result<AppState> 
         _anti_crawl: services.anti_crawl,
         orchestrator: services.orchestrator,
         config: Arc::new(config.clone()),
+        snapshot_status: services.snapshot_status,
     })
 }

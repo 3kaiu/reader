@@ -93,14 +93,21 @@ export async function proxyRequest(
   // Forward request
   const headers = new Headers(request.headers);
   headers.delete('host');
-  
+
+  // Configurable fetch timeout (15s default)
+  const FETCH_TIMEOUT_MS = 15000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   try {
     const response = await fetch(url.toString(), {
       method: request.method,
       headers: headers,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
       ...(request.method !== 'GET' && request.method !== 'HEAD' ? { duplex: 'half' } : {}),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     
     const newHeaders = new Headers(response.headers);
     Object.entries(getCorsHeaders(origin, corsEnv)).forEach(([key, value]) => {
@@ -137,6 +144,22 @@ export async function proxyRequest(
       headers: newHeaders,
     });
   } catch (error) {
+    clearTimeout(timeoutId);
+    // Graceful timeout handling
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.warn('Proxy request timed out after', FETCH_TIMEOUT_MS, 'ms');
+      return new Response(JSON.stringify({
+        code: 'GATEWAY_TIMEOUT',
+        message: 'Backend service timed out',
+        requestId,
+      }), {
+        status: 504,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(origin, corsEnv),
+        },
+      });
+    }
     console.error('Proxy error:', error);
     return new Response(JSON.stringify({
       code: 'SERVICE_UNAVAILABLE',

@@ -18,8 +18,7 @@ impl SourceAvailability {
 }
 
 pub fn is_source_publicly_available(enabled: bool, policy: &SourcePolicy) -> bool {
-    // Legado sources are always public by default (dev mode)
-    enabled
+    enabled && policy.allows_public_access()
 }
 
 pub async fn load_source_availability(

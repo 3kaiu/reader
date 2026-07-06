@@ -6,7 +6,7 @@ use nexus_engine::anti_crawl::{
 use nexus_engine::extraction_metrics;
 use nexus_engine::fetcher::cookie_cache::CookieCache;
 use nexus_engine::fetcher::HttpFetcher;
-use nexus_storage::{ChapterCache, LegadoSourceStore, SledStore};
+use nexus_storage::{ChapterCache, LegadoSourceStore, SledStore, SourceStore};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::info;
@@ -24,6 +24,7 @@ pub struct RuntimeServices {
     pub fetcher: Arc<HttpFetcher>,
     pub anti_crawl: Arc<FallbackChain>,
     pub orchestrator: Arc<SearchOrchestrator>,
+    pub snapshot_status: Arc<SnapshotStatus>,
 }
 
 pub async fn build_runtime_services(
@@ -42,6 +43,16 @@ pub async fn build_runtime_services(
     let legado_count = legado_store.load_all();
     info!("Loaded {} Legado book sources", legado_count);
 
+    let nxs_sources_dir = config.storage.sources_dir.join("nxs");
+    if !nxs_sources_dir.exists() {
+        tokio::fs::create_dir_all(&nxs_sources_dir)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create NXS sources dir: {}", e))?;
+    }
+    let nxs_store = Arc::new(SourceStore::new(&nxs_sources_dir));
+    let nxs_count = nxs_store.load_all().await?;
+    info!("Loaded {} NXS sources", nxs_count);
+
     let store = Arc::new(SledStore::new(&config.storage.db_path)?);
     restore_runtime_state(store.clone(), snapshot_status.clone()).await?;
 
@@ -55,14 +66,14 @@ pub async fn build_runtime_services(
     let fetcher = Arc::new(HttpFetcher::from_config(&config.limits)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
 
-    let engine_registry = Arc::new(EngineRegistry::new(legado_store, anti_crawl.clone()));
+    let engine_registry = Arc::new(EngineRegistry::new(legado_store, nxs_store, anti_crawl.clone()));
     let orchestrator = Arc::new(SearchOrchestrator::new(
         engine_registry.clone(),
         store.health_tracker().clone(),
         config.limits.max_concurrent_searches,
     ));
 
-    spawn_snapshot_persist_loop(store.clone(), snapshot_status);
+    spawn_snapshot_persist_loop(store.clone(), snapshot_status.clone());
 
     Ok(RuntimeServices {
         engine_registry,
@@ -72,6 +83,7 @@ pub async fn build_runtime_services(
         fetcher,
         anti_crawl,
         orchestrator,
+        snapshot_status,
     })
 }
 

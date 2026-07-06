@@ -21,8 +21,16 @@ pub enum ValidationError {
 
 /// Validate a URL for security
 /// - Must be http or https
-/// - Must not be a private/internal IP
+/// - Must not be a private/internal IP (unless allow_private is true)
+#[allow(dead_code)]
 pub fn validate_url(url_str: &str) -> Result<Url, ValidationError> {
+    validate_url_with_options(url_str, false)
+}
+
+/// Validate a URL with configurable private IP check
+/// - Must be http or https
+/// - If allow_private is false, private/internal IPs are rejected
+pub fn validate_url_with_options(url_str: &str, allow_private: bool) -> Result<Url, ValidationError> {
     let url = Url::parse(url_str)?;
 
     // Only allow http/https
@@ -30,9 +38,9 @@ pub fn validate_url(url_str: &str) -> Result<Url, ValidationError> {
         return Err(ValidationError::InvalidScheme);
     }
 
-    // Check for private IPs
+    // Check for private IPs (unless allowed)
     if let Some(host) = url.host_str() {
-        if is_private_host(host) {
+        if !allow_private && is_private_host(host) {
             return Err(ValidationError::PrivateIp);
         }
     } else {
@@ -101,6 +109,15 @@ mod tests {
         assert!(validate_url("http://localhost/api").is_err());
         assert!(validate_url("http://192.168.1.1/api").is_err());
         assert!(validate_url("http://10.0.0.1/api").is_err());
+    }
+
+    #[test]
+    fn test_private_ip_allowed_with_options() {
+        assert!(validate_url_with_options("http://127.0.0.1/api", true).is_ok());
+        assert!(validate_url_with_options("http://localhost/api", true).is_ok());
+        assert!(validate_url_with_options("http://192.168.1.1/api", true).is_ok());
+        assert!(validate_url_with_options("http://10.0.0.1/api", true).is_ok());
+        assert!(validate_url_with_options("http://127.0.0.1/api", false).is_err());
     }
 
     #[test]

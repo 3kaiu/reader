@@ -4,7 +4,7 @@ use nexus_core::{BookEngine, BookEngineRuntime};
 use nexus_core::ExploreEngine;
 use nexus_engine::anti_crawl::FallbackChain;
 use nexus_engine::legado::LegadoEngine;
-use nexus_storage::LegadoSourceStore;
+use nexus_storage::{LegadoSourceStore, SourceStore};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -12,6 +12,7 @@ const MAX_CACHED_ENGINES: usize = 2000;
 
 pub struct EngineRegistry {
     pub legado_store: Arc<LegadoSourceStore>,
+    pub nxs_store: Arc<SourceStore>,
     legado_cache: DashMap<String, Arc<LegadoEngine>>,
     anti_crawl: Arc<FallbackChain>,
 }
@@ -19,10 +20,12 @@ pub struct EngineRegistry {
 impl EngineRegistry {
     pub fn new(
         legado_store: Arc<LegadoSourceStore>,
+        nxs_store: Arc<SourceStore>,
         anti_crawl: Arc<FallbackChain>,
     ) -> Self {
         Self {
             legado_store,
+            nxs_store,
             legado_cache: DashMap::new(),
             anti_crawl,
         }
@@ -71,7 +74,7 @@ impl EngineRegistry {
     }
 
     pub fn source_count(&self) -> (usize, usize) {
-        (0, self.legado_store.count())
+        (self.nxs_store.count(), self.legado_store.count())
     }
 
     pub fn invalidate(&self, source_id: &str) {

@@ -16,7 +16,7 @@ use std::time::Instant;
 use crate::app::AppState;
 use crate::error::{bad_request, internal_error, not_found, ApiErrorResponse};
 use crate::source_access::ensure_source_public_access;
-use crate::validation::validate_url;
+use crate::validation::validate_url_with_options;
 
 #[derive(Deserialize)]
 pub struct BookQuery {
@@ -32,7 +32,7 @@ async fn resolve_engine_for_url(
     source_id: &str,
     url: &str,
 ) -> Result<Arc<dyn BookEngineRuntime>, ApiErrorResponse> {
-    validate_url(url).map_err(|e| bad_request(e.to_string()))?;
+    validate_url_with_options(url, true).map_err(|e| bad_request(e.to_string()))?;
     resolve_engine_for_source(state, source_id).await
 }
 
@@ -370,7 +370,7 @@ pub async fn batch_content(
 
         async move {
             // Validate URL
-            if let Err(e) = validate_url(&url_clone) {
+            if let Err(e) = validate_url_with_options(&url_clone, true) {
                 return (
                     idx,
                     BatchContentResult {

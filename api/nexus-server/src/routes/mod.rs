@@ -5,6 +5,7 @@ pub mod bookshelf;
 pub mod explore;
 
 pub mod replace_rules;
+pub mod runtime_state;
 pub mod search;
 pub mod source;
 
@@ -12,6 +13,7 @@ use axum::{extract::State, Json};
 use nexus_engine::extraction_metrics;
 use serde::Serialize;
 
+#[allow(unused_imports)]
 pub use crate::api_response::ApiResponse;
 use crate::app::AppState;
 
@@ -34,8 +36,8 @@ pub struct DependencyStatus {
 
 /// Enhanced health check handler with dependency status
 pub async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
-    let (_nxs_count, legado_count) = state.engine_registry.source_count();
-    let source_count = legado_count;
+    let (nxs_count, legado_count) = state.engine_registry.source_count();
+    let source_count = nxs_count + legado_count;
     let database = state.store.get_all().await.is_ok();
     let cf_bypass_configured = state.config.cf_bypass.enabled;
     let extraction = extraction_metrics::summary(5);
