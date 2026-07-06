@@ -51,8 +51,11 @@ dependencies = [
     { name = "cloudscraper" },
     { name = "curl-cffi" },
     { name = "fastapi" },
+    { name = "idna" },
     { name = "playwright" },
     { name = "pydantic" },
+    { name = "requests" },
+    { name = "urllib3" },
     { name = "uvicorn" },
 ]
 
@@ -69,8 +72,11 @@ requires-dist = [
     { name = "cloudscraper", specifier = ">=1.2.70" },
     { name = "curl-cffi", specifier = ">=0.7.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
+    { name = "idna", specifier = ">=3.7" },
     { name = "playwright", specifier = ">=1.40.0" },
     { name = "pydantic", specifier = ">=2.5.0" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "urllib3", specifier = ">=2.7.0" },
     { name = "uvicorn", specifier = ">=0.24.0" },
 ]
 
@@ -78,7 +84,7 @@ requires-dist = [
 dev = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "hypothesis", specifier = ">=6.0.0" },
-    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
 ]
 

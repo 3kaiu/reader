@@ -43,7 +43,7 @@ http.workspace = true
 # Utilities
 parking_lot.workspace = true
 dashmap.workspace = true
-lru = "0.12"
+lru = "0.13"
 rand = "0.9"
 aho-corasick = "1.1"
 
