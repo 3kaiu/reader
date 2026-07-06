@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import { createReaderActionHelpers } from '@/stores/reader/actions/helpers'
+import { createReaderActionHelpers, resetReaderServices } from '@/stores/reader/actions/helpers'
 import type { ReaderStoreState } from '@/stores/reader/types'
 import type { Chapter } from '@/types/book'
 import { ErrorCode, NexusError } from '@/utils/errors'
@@ -50,6 +50,7 @@ function createReaderState(): ReaderStoreState {
 describe('Reader Session Flow Guards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetReaderServices()
     mockBatchContent.mockResolvedValue({ isSuccess: true, data: { results: [] } })
   })
 

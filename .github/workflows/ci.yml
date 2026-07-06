@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.contracts == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.contracts == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

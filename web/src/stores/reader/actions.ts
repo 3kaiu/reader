@@ -30,6 +30,7 @@ export function createReaderStoreActions(state: ReaderStoreState, view: ReaderSt
     hasActiveSession: helpers.hasActiveSession,
     ensureCatalog: helpers.ensureCatalog,
     loadChapterAt: helpers.loadChapterAt,
+    setCurrentBook: helpers.setCurrentBook,
   })
 
   const { goToChapter, goToChapterInScroll, nextChapter, prevChapter } =

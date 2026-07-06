@@ -1,12 +1,19 @@
-//! Lightweight ML-based Content Scorer
+//! ML-based content scoring with a `ContentScorer` trait.
 //!
-//! Feature extraction and scoring model for content quality assessment.
-//! Uses simple linear regression without external ML dependencies.
+//! `FeatureExtractor` implements `ContentScorer` for the default
+//! linear-regression + ensemble approach. The trait allows swapping
+//! the scoring strategy without modifying the extraction pipeline.
 
 use scraper::{ElementRef, Selector};
 
-// Import visual features
-use crate::visual_features::VisualFeatureExtractor;
+use super::visual_features::VisualFeatureExtractor;
+
+/// Trait for content scoring — decouples the extraction pipeline
+/// from the scoring implementation.
+pub trait ContentScorer {
+    /// Score an element and return a quality score (higher = better content).
+    fn score(&self, el: &ElementRef, heuristic_score: f64) -> f64;
+}
 
 /// Feature extractor for content elements
 pub struct FeatureExtractor {
@@ -35,7 +42,23 @@ impl FeatureExtractor {
             visual_extractor: VisualFeatureExtractor::new(),
         }
     }
+}
 
+impl Default for FeatureExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ContentScorer for FeatureExtractor {
+    fn score(&self, el: &ElementRef, heuristic_score: f64) -> f64 {
+        let features = self.extract_features(el);
+        let ensemble = EnsembleScorer::new();
+        ensemble.score_ensemble(&features, heuristic_score)
+    }
+}
+
+impl FeatureExtractor {
     /// Extract comprehensive features from an element
     pub fn extract_features(&self, el: &ElementRef) -> ContentFeatures {
         let text = el.text().collect::<Vec<_>>().join("");
@@ -106,7 +129,6 @@ impl FeatureExtractor {
         let is_visually_header_footer = visual_features.is_header_footer();
 
         ContentFeatures {
-            // Basic features
             text_length: text_len as f64,
             link_count: link_count as f64,
             para_count: para_count as f64,
@@ -114,33 +136,21 @@ impl FeatureExtractor {
             img_count: img_count as f64,
             nav_count: nav_count as f64,
             button_count: button_count as f64,
-
-            // Density features
             link_density,
             punct_density,
             digit_density,
             chinese_density,
             avg_para_len,
-
-            // Keyword features
             content_keywords: content_keywords as f64,
             noise_keywords: noise_keywords as f64,
-
-            // Structure features
             depth: depth as f64,
             child_count: child_count as f64,
             sibling_count: sibling_count as f64,
-
-            // Class features
             has_content_class: if has_content_class { 1.0 } else { 0.0 },
             has_noise_class: if has_noise_class { 1.0 } else { 0.0 },
-
-            // Text statistics
             punct_count: punct_count as f64,
             digit_count: digit_count as f64,
             chinese_char_count: chinese_char_count as f64,
-
-            // Visual features
             visual_quality_score,
             is_visually_hidden: if is_visually_hidden { 1.0 } else { 0.0 },
             is_visually_sidebar: if is_visually_sidebar { 1.0 } else { 0.0 },
@@ -198,28 +208,9 @@ impl FeatureExtractor {
         let lower = text.to_ascii_lowercase();
 
         let keywords = [
-            "下一章",
-            "上一章",
-            "下一页",
-            "上一页",
-            "目录",
-            "广告",
-            "会员",
-            "点击",
-            "下载",
-            "推荐",
-            "热门",
-            "相关",
-            "点赞",
-            "收藏",
-            "分享",
-            "版权",
-            "免责",
-            "加载",
-            "刷新",
-            "本章完",
-            "完本",
-            "完结",
+            "下一章", "上一章", "下一页", "上一页", "目录", "广告", "会员", "点击", "下载",
+            "推荐", "热门", "相关", "点赞", "收藏", "分享", "版权", "免责", "加载", "刷新",
+            "本章完", "完本", "完结",
         ];
 
         keywords.iter().filter(|k| lower.contains(**k)).count()
@@ -260,16 +251,9 @@ impl FeatureExtractor {
     }
 }
 
-impl Default for FeatureExtractor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Comprehensive content features
 #[derive(Debug, Clone)]
 pub struct ContentFeatures {
-    // Basic features
     pub text_length: f64,
     pub link_count: f64,
     pub para_count: f64,
@@ -277,33 +261,21 @@ pub struct ContentFeatures {
     pub img_count: f64,
     pub nav_count: f64,
     pub button_count: f64,
-
-    // Density features
     pub link_density: f64,
     pub punct_density: f64,
     pub digit_density: f64,
     pub chinese_density: f64,
     pub avg_para_len: f64,
-
-    // Keyword features
     pub content_keywords: f64,
     pub noise_keywords: f64,
-
-    // Structure features
     pub depth: f64,
     pub child_count: f64,
     pub sibling_count: f64,
-
-    // Class features
     pub has_content_class: f64,
     pub has_noise_class: f64,
-
-    // Text statistics
     pub punct_count: f64,
     pub digit_count: f64,
     pub chinese_char_count: f64,
-
-    // Visual features
     pub visual_quality_score: f64,
     pub is_visually_hidden: f64,
     pub is_visually_sidebar: f64,
@@ -319,8 +291,6 @@ pub struct LinearScorer {
 impl LinearScorer {
     /// Create a new scorer with pre-trained weights
     pub fn new() -> Self {
-        // Pre-trained weights based on heuristic analysis
-        // These weights can be fine-tuned with real data
         let weights = vec![
             1.0,    // text_length
             -150.0, // link_count
@@ -419,7 +389,6 @@ impl EnsembleScorer {
     pub fn score_ensemble(&self, features: &ContentFeatures, heuristic_score: f64) -> f64 {
         let ml_score = self.linear_scorer.score(features);
 
-        // Normalize scores to [0, 1] range
         let normalized_heuristic = self.sigmoid(heuristic_score / 1000.0);
         let normalized_ml = self.sigmoid(ml_score / 1000.0);
 

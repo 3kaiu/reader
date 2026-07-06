@@ -3,8 +3,9 @@
 //! Tracks success/failure rates and latency for book sources
 //! to enable smart source prioritization
 
-use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -199,13 +200,13 @@ impl From<PersistedSourceHealth> for SourceHealth {
 
 /// Thread-safe health tracker for all sources
 pub struct HealthTracker {
-    stats: DashMap<String, SourceHealth>,
+    stats: Mutex<HashMap<String, SourceHealth>>,
 }
 
 impl HealthTracker {
     pub fn new() -> Self {
         Self {
-            stats: DashMap::new(),
+            stats: Mutex::new(HashMap::new()),
         }
     }
 
@@ -213,7 +214,8 @@ impl HealthTracker {
     pub fn record_success(&self, source_id: &str, latency: Duration) {
         let latency_ms = latency.as_millis() as u64;
 
-        self.stats
+        let mut stats = self.stats.lock().expect("health tracker lock");
+        stats
             .entry(source_id.to_string())
             .and_modify(|h| {
                 h.success_count += 1;
@@ -243,7 +245,8 @@ impl HealthTracker {
     }
 
     pub fn record_failure_kind(&self, source_id: &str, kind: HealthFailureKind) {
-        self.stats
+        let mut stats = self.stats.lock().expect("health tracker lock");
+        stats
             .entry(source_id.to_string())
             .and_modify(|h| {
                 h.failure_count += 1;
@@ -282,12 +285,14 @@ impl HealthTracker {
 
     /// Get health for a specific source
     pub fn get(&self, source_id: &str) -> Option<SourceHealth> {
-        self.stats.get(source_id).map(|h| h.clone())
+        let stats = self.stats.lock().expect("health tracker lock");
+        stats.get(source_id).cloned()
     }
 
     /// Get all health stats
     pub fn get_all(&self) -> Vec<SourceHealth> {
-        self.stats.iter().map(|r| r.value().clone()).collect()
+        let stats = self.stats.lock().expect("health tracker lock");
+        stats.values().cloned().collect()
     }
 
     pub fn snapshot_persisted(&self) -> Vec<PersistedSourceHealth> {
@@ -298,23 +303,25 @@ impl HealthTracker {
     }
 
     pub fn restore_from_snapshot(&self, items: Vec<PersistedSourceHealth>) {
-        self.stats.clear();
+        let mut stats = self.stats.lock().expect("health tracker lock");
+        stats.clear();
         for item in items {
-            self.stats
-                .insert(item.source_id.clone(), SourceHealth::from(item));
+            stats.insert(item.source_id.clone(), SourceHealth::from(item));
         }
     }
 
     /// Reset health statistics for a specific source
     pub fn reset_source(&self, source_id: &str) {
-        self.stats.remove(source_id);
+        let mut stats = self.stats.lock().expect("health tracker lock");
+        stats.remove(source_id);
     }
 
     /// Sort source IDs by health score (best first)
     pub fn sort_by_health(&self, source_ids: &mut [String]) {
+        let stats = self.stats.lock().expect("health tracker lock");
         source_ids.sort_by(|a, b| {
-            let score_a = self.stats.get(a).map(|h| h.score()).unwrap_or(0.5);
-            let score_b = self.stats.get(b).map(|h| h.score()).unwrap_or(0.5);
+            let score_a = stats.get(a).map(|h| h.score()).unwrap_or(0.5);
+            let score_b = stats.get(b).map(|h| h.score()).unwrap_or(0.5);
             score_b
                 .partial_cmp(&score_a)
                 .unwrap_or(std::cmp::Ordering::Equal)

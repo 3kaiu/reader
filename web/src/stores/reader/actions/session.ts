@@ -10,6 +10,7 @@ interface ReaderSessionHelpers {
   hasActiveSession: (target: ReaderTarget) => boolean
   ensureCatalog: () => Promise<Chapter[]>
   loadChapterAt: (index: number, options?: { replaceLoaded?: boolean }) => Promise<void>
+  setCurrentBook: (sourceId: string, bookUrl: string) => void
 }
 
 export function createReaderSessionActions(state: ReaderStoreState, helpers: ReaderSessionHelpers) {
@@ -33,6 +34,7 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
         sourceId: book.sourceId,
         bookUrl: book.bookUrl,
       }
+      helpers.setCurrentBook(book.sourceId, book.bookUrl)
       resetBookSession()
 
       await helpers.ensureCatalog()

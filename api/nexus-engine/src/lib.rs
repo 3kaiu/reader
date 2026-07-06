@@ -17,6 +17,7 @@ pub mod html_doc_cache;
 
 // ===== Shared utilities =====
 pub mod quality_gate;
+mod scoring;
 mod selector_cache;
 mod text_cleaner;
 mod uri;

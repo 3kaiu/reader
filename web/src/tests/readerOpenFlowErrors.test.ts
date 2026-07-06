@@ -132,6 +132,7 @@ describe('Reader Session Failure State', () => {
       hasActiveSession: vi.fn().mockReturnValue(false),
       ensureCatalog: vi.fn(),
       loadChapterAt: vi.fn(),
+      setCurrentBook: vi.fn(),
     })
 
     const response = await actions.startReaderSession('demo-source', 'https://example.com/book/1')

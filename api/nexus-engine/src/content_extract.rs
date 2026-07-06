@@ -14,7 +14,8 @@ use scraper::{ElementRef, Html, Selector};
 
 // Import dynamic noise detection and ML scoring
 use crate::dynamic_noise::{DynamicNoiseDetector, ExtractionContext};
-use crate::ml_scorer::{EnsembleScorer, FeatureExtractor};
+use crate::scoring::ml_scorer::ContentScorer;
+use crate::scoring::ml_scorer::FeatureExtractor;
 use crate::readability_wrapper::ReadabilityExtractor;
 
 // Import enhanced content cleaning modules
@@ -778,9 +779,8 @@ fn readability_like_extract_heuristic(
     let form_selector = Selector::parse(FORM_SELECTOR_RAW).ok()?;
     let button_like_selector = Selector::parse(BUTTON_LIKE_SELECTOR_RAW).ok()?;
 
-    // Initialize ML scorer and feature extractor
-    let feature_extractor = FeatureExtractor::new();
-    let ensemble_scorer = EnsembleScorer::new();
+    // Initialize ML scorer (via ContentScorer trait for testability)
+    let scorer = FeatureExtractor::new();
 
     // Limit candidates to avoid heavy work.
     let mut best_score: f64 = f64::MIN;
@@ -959,9 +959,8 @@ fn readability_like_extract_heuristic(
 
         let score = score + tag_bonus;
 
-        // Enhance with ML-based scoring
-        let features = feature_extractor.extract_features(&el);
-        let ensemble_score = ensemble_scorer.score_ensemble(&features, score);
+        // Enhance with ML-based scoring via ContentScorer trait
+        let ensemble_score = scorer.score(&el, score);
 
         if ensemble_score > best_score {
             best_score = ensemble_score;
