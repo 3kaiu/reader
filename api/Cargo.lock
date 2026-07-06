@@ -1678,7 +1678,7 @@ dependencies = [
  "nexus-core",
  "parking_lot 0.12.5",
  "primp",
- "rand 0.9.4",
+ "rand 0.10.2",
  "readability-rust",
  "regex",
  "reqwest",
