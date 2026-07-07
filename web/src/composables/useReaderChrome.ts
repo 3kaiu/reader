@@ -1,6 +1,5 @@
 import { useRouter } from 'vue-router'
-import { createReaderChromeControllerBindings } from '@/composables/reader/chrome-controller-bindings'
-import { createReaderChromeController } from '@/composables/reader/chrome-controller'
+import { createReaderChromeController, createReaderChromeControllerBindings } from '@/composables/reader/chrome-actions'
 import { setupReaderChromeLifecycle } from '@/composables/reader/chrome-lifecycle'
 import type { ReaderChromeActionOptions } from '@/composables/reader/chrome-option-types'
 

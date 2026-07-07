@@ -1,13 +1,45 @@
+import { useReaderSession } from '@/composables/useReaderSession'
+import { useReaderChrome } from '@/composables/useReaderChrome'
+import { useReaderActions } from '@/composables/useReaderActions'
 import { setupReaderViewFeatureEffects } from './view-feature-effects'
-import { createReaderViewActionFeature } from './view-action-feature'
-import { createReaderViewChromeFeature } from './view-chrome-feature'
-
+import type { ReaderViewFeatures } from './view-model-types'
 import type { ReaderViewLayout } from './view-layout'
 import type { ReaderViewServices } from './view-services'
-import { createReaderViewSessionFeature } from './view-session-feature'
-import type { ReaderViewFeatures } from './view-model-types'
 
 export type { ReaderViewFeatures } from './view-model-types'
+
+function createReaderViewSessionFeature(
+  services: ReaderViewServices,
+  _layout: ReaderViewLayout
+): ReaderViewFeatures['session'] {
+  return useReaderSession({
+    toast: services.toast,
+    readerStore: services.readerStore,
+    settingsStore: services.settingsStore,
+    offlineStore: services.offlineStore,
+  })
+}
+
+function createReaderViewChromeFeature(
+  services: ReaderViewServices,
+  _layout: ReaderViewLayout
+): ReaderViewFeatures['chrome'] {
+  return useReaderChrome({
+    settingsStore: services.settingsStore,
+    toast: services.toast,
+  })
+}
+
+function createReaderViewActionFeature(
+  services: ReaderViewServices,
+  _layout: ReaderViewLayout
+): ReaderViewFeatures['actions'] {
+  return useReaderActions({
+    readerStore: services.readerStore,
+    settingsStore: services.settingsStore,
+    toast: services.toast,
+  })
+}
 
 export function createReaderViewFeatures(
   services: ReaderViewServices,
@@ -19,9 +51,5 @@ export function createReaderViewFeatures(
 
   setupReaderViewFeatureEffects(services)
 
-  return {
-    session,
-    chrome,
-    actions,
-  }
+  return { session, chrome, actions }
 }

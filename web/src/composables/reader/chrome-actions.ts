@@ -1,5 +1,8 @@
 import type { ReaderChromeActionOptions } from './chrome-option-types'
 import type { ReaderChromeState } from './chrome-state'
+import { createReaderChromeState } from './chrome-state'
+import type { ReaderChromeController } from './chrome-types'
+import type { ReaderChromeBindingsResult, ReaderChromeBindingState } from './chrome-binding-types'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -148,4 +151,46 @@ export function createReaderChromeActions(
     goBack,
     handleEscape,
   }
+}
+
+// ── Controller ──────────────────────────────────────────────────────────
+
+export function createReaderChromeController(
+  options: ReaderChromeActionOptions
+): ReaderChromeController {
+  const state = createReaderChromeState()
+  const actions = createReaderChromeActions(state, options)
+
+  return { state, actions }
+}
+
+// ── Bindings ────────────────────────────────────────────────────────────
+
+function createReaderChromeBindingState(state: ReaderChromeState): ReaderChromeBindingState {
+  return {
+    showToolbar: state.showToolbar,
+    showCatalog: state.showCatalog,
+    showSettings: state.showSettings,
+    showSourcePicker: state.showSourcePicker,
+    showBookInfo: state.showBookInfo,
+    showKeyboardHelp: state.showKeyboardHelp,
+  }
+}
+
+export function createReaderChromeBindings(
+  state: ReaderChromeState,
+  actions: ReaderChromeActionsResult
+): ReaderChromeBindingsResult {
+  const { clearHideTimer, ...displayActions } = actions
+
+  return {
+    ...createReaderChromeBindingState(state),
+    ...displayActions,
+  }
+}
+
+export function createReaderChromeControllerBindings(
+  controller: ReaderChromeController
+): ReaderChromeBindingsResult {
+  return createReaderChromeBindings(controller.state, controller.actions)
 }
