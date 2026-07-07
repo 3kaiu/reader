@@ -44,7 +44,7 @@ http.workspace = true
 parking_lot.workspace = true
 dashmap.workspace = true
 lru = "0.13"
-rand = "0.9"
+rand = "0.10"
 aho-corasick = "1.1"
 
 # Content Cleaning
