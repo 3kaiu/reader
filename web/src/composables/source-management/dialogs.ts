@@ -1,18 +1,9 @@
 import type { SourceListItem } from '@/stores/source'
-import type { SourceManagementState } from './types'
+import { createManageModeDialogActions } from '@/composables/manage-mode/dialogs'
+import type { SourceManagementState } from './state'
 
 export function createSourceDialogActions(state: SourceManagementState) {
-  function openImport() {
-    state.showImport.value = true
-  }
-
-  function openEdit(source: SourceListItem) {
-    state.currentEditSource.value = source
-    state.showEdit.value = true
-  }
-
-  return {
-    openImport,
-    openEdit,
-  }
+  return createManageModeDialogActions<SourceListItem>(
+    state as unknown as Parameters<typeof createManageModeDialogActions<SourceListItem>>[0]
+  )
 }

@@ -1,11 +1,10 @@
-import type { SourceManagementContext } from './types'
+import type { Router } from 'vue-router'
+import { createManageModeNavigationActions } from '@/composables/manage-mode/navigation'
 
-export function createSourceNavigationActions(context: SourceManagementContext) {
-  function goBack() {
-    void context.router.push('/')
-  }
+interface NavigationSource {
+  router: Router
+}
 
-  return {
-    goBack,
-  }
+export function createSourceNavigationActions(source: NavigationSource) {
+  return createManageModeNavigationActions({ router: source.router })
 }
