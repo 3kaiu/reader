@@ -23,14 +23,11 @@ COPY nexus-storage ./nexus-storage
 COPY nexus-engine ./nexus-engine
 COPY nexus-server ./nexus-server
 
-# Copy data and config (most likely to change - last)
-COPY data ./data
-
 # Debug: Show Rust version and check dependencies
 RUN rustc --version && cargo --version
 
 # Debug: Check if all files are copied correctly
-RUN ls -la && ls -la nexus-* && ls -la data
+RUN ls -la && ls -la nexus-*/
 
 # Try check first to catch compilation errors early
 RUN cargo check --package nexus-server
@@ -55,18 +52,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy binary from builder
 COPY --from=builder /app/target/release/nexus-server /app/nexus-server
 
-# Debug: Verify binary was copied and is executable
-RUN ls -la /app/nexus-server
-
 # Copy source files and config
 COPY sources ./sources
 COPY nexus-server/config.json ./config.json
 
 # Create cache directory
 RUN mkdir -p /app/cache
-
-# Test that binary runs (basic check)
-RUN /app/nexus-server --help 2>/dev/null || echo "Binary exists"
 
 # Default port 7860; override PORT for NAS/Docker as needed.
 ENV HOST=0.0.0.0
