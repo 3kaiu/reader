@@ -10,7 +10,7 @@ import type {
   SourceRuntimeResetResponse,
   SourceRuntimeProfileResponse,
 } from '@/types/source'
-import type { SourceDefinition, SourceListEntry } from '@/stores/source/helpers'
+import type { buildSourceGroups, SourceDefinition, SourceListEntry } from './helpers'
 
 export type SourceListItem = SourceListEntry
 
@@ -50,7 +50,7 @@ export interface SourceStoreView {
   enabledCount: ComputedRef<number>
   unhealthyCount: ComputedRef<number>
   openCircuitCount: ComputedRef<number>
-  groups: ComputedRef<ReturnType<typeof import('@/utils/sourceStore').buildSourceGroups>>
+  groups: ComputedRef<ReturnType<typeof buildSourceGroups>>
 }
 
 export interface SourceStoreActions {
