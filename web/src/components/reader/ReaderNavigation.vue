@@ -5,11 +5,10 @@
  */
 import ReaderNavigationContent from './ReaderNavigationContent.vue'
 import { createReaderNavigationViewBindings } from './reader-navigation-view-bindings'
-import type { ReaderNavigationEmits, ReaderNavigationProps } from './reader-navigation-types'
+import type { ReaderNavigationProps } from './reader-navigation-types'
 
 const props = defineProps<ReaderNavigationProps>()
-const emit = defineEmits<ReaderNavigationEmits>()
-const { contentBindings } = createReaderNavigationViewBindings(props, emit)
+const { contentBindings } = createReaderNavigationViewBindings(props)
 </script>
 
 <template>

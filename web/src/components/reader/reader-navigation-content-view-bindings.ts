@@ -1,5 +1,4 @@
 import { computed, type ComputedRef } from 'vue'
-import type { ReaderNavigationContentEmitFn } from './reader-navigation-content-emit-types'
 import type { ReaderNavigationButtonProps } from './reader-navigation-button-view-bindings'
 import type { ReaderNavigationProgressProps } from './reader-navigation-progress-view-bindings'
 
@@ -8,6 +7,8 @@ export interface ReaderNavigationContentProps {
   hasNextChapter: boolean
   progressText: string
   progressPercent: number
+  onPrev: () => void
+  onNext: () => void
 }
 
 export interface ReaderNavigationButtonBindings extends ReaderNavigationButtonProps {
@@ -21,17 +22,16 @@ export interface ReaderNavigationContentViewBindingResult {
 }
 
 export function createReaderNavigationContentViewBindings(
-  props: ReaderNavigationContentProps,
-  emit: ReaderNavigationContentEmitFn
+  props: ReaderNavigationContentProps
 ): ReaderNavigationContentViewBindingResult {
   const previousButtonBindings = computed<ReaderNavigationButtonBindings>(() => ({
     disabled: !props.hasPrevChapter,
-    onClick: () => emit('prev'),
+    onClick: props.onPrev,
   }))
 
   const nextButtonBindings = computed<ReaderNavigationButtonBindings>(() => ({
     disabled: !props.hasNextChapter,
-    onClick: () => emit('next'),
+    onClick: props.onNext,
   }))
 
   const progressProps = computed(() => ({

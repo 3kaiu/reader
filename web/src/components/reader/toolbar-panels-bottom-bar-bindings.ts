@@ -1,5 +1,4 @@
 import { computed } from 'vue'
-import type { ReaderToolbarPanelsEmitFn } from './toolbar-panels-emit-types'
 import type { ReaderToolbarPanelsProps } from './toolbar-panels-prop-types'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 
@@ -16,19 +15,18 @@ export interface ReaderToolbarPanelsBottomBarBindings extends ReaderToolbarBotto
 }
 
 export function createReaderToolbarPanelsBottomBarBindings(
-  props: ReaderToolbarPanelsProps,
-  emit: ReaderToolbarPanelsEmitFn
+  props: ReaderToolbarPanelsProps
 ) {
   return computed<ReaderToolbarPanelsBottomBarBindings>(() => ({
     ...props.bottomBarProps,
-    onToggleDayNight: () => emit('toggleDayNight'),
-    onToggleSettings: () => emit('toggleSettings'),
-    onToggleEyeCare: () => emit('toggleEyeCare'),
-    onToggleZenMode: () => emit('toggleZenMode'),
-    onRefresh: () => emit('refresh'),
-    onPrevChapter: () => emit('prevChapter'),
-    onNextChapter: () => emit('nextChapter'),
-    onOpenSourcePicker: () => emit('openSourcePicker'),
-    onOpenBookInfo: () => emit('openBookInfo'),
+    onToggleDayNight: props.onToggleDayNight!,
+    onToggleSettings: props.onToggleSettings!,
+    onToggleEyeCare: props.onToggleEyeCare!,
+    onToggleZenMode: props.onToggleZenMode!,
+    onRefresh: props.onRefresh!,
+    onPrevChapter: props.onPrevChapter!,
+    onNextChapter: props.onNextChapter!,
+    onOpenSourcePicker: props.onOpenSourcePicker!,
+    onOpenBookInfo: props.onOpenBookInfo!,
   }))
 }

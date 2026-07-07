@@ -12,5 +12,7 @@ export function createReaderNavigationContentBindings(
     hasNextChapter: props.hasNextChapter,
     progressText: progressBindings.progressText.value,
     progressPercent: progressBindings.progressPercent.value,
+    onPrev: props.onPrev!,
+    onNext: props.onNext!,
   }))
 }

@@ -13,6 +13,8 @@ export function createReaderToolbarBottomBarBindings(props: ReaderToolbarBottomB
     totalChapters: props.totalChapters,
     hasPrevChapter: props.hasPrevChapter,
     hasNextChapter: props.hasNextChapter,
+    onPrev: props.onPrevChapter,
+    onNext: props.onNextChapter,
   }))
 
   const actionProps = computed<ReaderToolbarBottomActionsProps>(() => ({

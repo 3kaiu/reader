@@ -9,5 +9,8 @@ export function createReaderToolbarTopBarPropsBindings(props: ReaderToolbarProps
     bookName: props.bookName,
     chapterTitle: props.chapterTitle,
     isFullscreen: props.isFullscreen,
+    onBack: props.onBack,
+    onToggleCatalog: props.onToggleCatalog,
+    onToggleFullscreen: props.onToggleFullscreen,
   }))
 }

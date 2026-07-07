@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import ReaderToolbarBottomPanel from './ReaderToolbarBottomPanel.vue'
 import { createReaderToolbarBottomBarPanelBindings } from './toolbar-bottom-bar-panel-bindings'
-import type { ReaderToolbarBottomBarEmits } from './toolbar-bottom-bar-emit-types'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 
 const props = defineProps<ReaderToolbarBottomBarProps>()
-const emit = defineEmits<ReaderToolbarBottomBarEmits>()
-const { panelBindings, isVisible } = createReaderToolbarBottomBarPanelBindings(props, emit)
+const { panelBindings, isVisible } = createReaderToolbarBottomBarPanelBindings(props)
 </script>
 
 <template>

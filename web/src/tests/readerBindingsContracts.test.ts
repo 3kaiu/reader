@@ -10,22 +10,18 @@ import { createReaderToolbarTopBarBindings } from '@/components/reader/toolbar-t
 import type { ReaderContentViewportEmits } from '@/components/reader/reader-content-viewport-emit-types'
 import type { ReaderModalsEmitFn } from '@/components/reader/reader-modals-emit-types'
 import type { ReaderModalsProps } from '@/components/reader/reader-modals-prop-types'
-import type { ReaderNavigationEmitFn, ReaderNavigationProps } from '@/components/reader/reader-navigation-types'
+import type { ReaderNavigationProps } from '@/components/reader/reader-navigation-types'
 import type { ReaderKeyboardHelpOverlayEmitFn } from '@/components/reader/reader-keyboard-help-overlay-emit-types'
 import type { ReaderKeyboardHelpOverlayProps } from '@/components/reader/reader-keyboard-help-overlay-prop-types'
 import type { ReaderScrollLoadStateEmitFn } from '@/components/reader/reader-scroll-load-state-emit-types'
-import type { ReaderToolbarBottomBarEmitFn } from '@/components/reader/toolbar-bottom-bar-emit-types'
 import type { ReaderToolbarBottomBarProps } from '@/components/reader/toolbar-bottom-bar-prop-types'
-import type { ReaderToolbarTopBarEmitFn } from '@/components/reader/toolbar-top-bar-emit-types'
 import type { ReaderToolbarTopBarProps } from '@/components/reader/toolbar-top-bar-prop-types'
 import type { Book, Chapter } from '@/types/book'
 
 describe('Reader Binding Contracts', () => {
-  it('keeps bottom toolbar hidden in zen mode and wires action emits through panel bindings', () => {
-    const events: Array<[string, unknown[]]> = []
-    const emit: ReaderToolbarBottomBarEmitFn = (event, ...args) => {
-      events.push([event, args])
-    }
+  it('keeps bottom toolbar hidden in zen mode and wires action handlers through panel bindings', () => {
+    const handlerCalls: Array<[string, unknown[]]> = []
+    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
 
     const props: ReaderToolbarBottomBarProps = {
       show: true,
@@ -37,9 +33,18 @@ describe('Reader Binding Contracts', () => {
       isNightMode: false,
       isEyeCareEnabled: true,
       contentIssue: 'missing_paragraphs',
+      onToggleDayNight: track('toggleDayNight'),
+      onToggleSettings: track('toggleSettings'),
+      onToggleEyeCare: track('toggleEyeCare'),
+      onToggleZenMode: track('toggleZenMode'),
+      onRefresh: track('refresh'),
+      onPrevChapter: track('prevChapter'),
+      onNextChapter: track('nextChapter'),
+      onOpenSourcePicker: track('openSourcePicker'),
+      onOpenBookInfo: track('openBookInfo'),
     }
 
-    const { isVisible, panelBindings } = createReaderToolbarBottomBarPanelBindings(props, emit)
+    const { isVisible, panelBindings } = createReaderToolbarBottomBarPanelBindings(props)
 
     expect(isVisible.value).toBe(false)
     expect(panelBindings.value.readingProgress).toBe(37.5)
@@ -50,7 +55,7 @@ describe('Reader Binding Contracts', () => {
     panelBindings.value.onToggleSettings()
     panelBindings.value.onOpenBookInfo()
 
-    expect(events).toEqual([
+    expect(handlerCalls).toEqual([
       ['nextChapter', []],
       ['toggleSettings', []],
       ['openBookInfo', []],
@@ -58,10 +63,8 @@ describe('Reader Binding Contracts', () => {
   })
 
   it('derives top toolbar visibility and routes top-bar actions', () => {
-    const events: Array<[string, unknown[]]> = []
-    const emit: ReaderToolbarTopBarEmitFn = (event, ...args) => {
-      events.push([event, args])
-    }
+    const handlerCalls: Array<[string, unknown[]]> = []
+    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
 
     const props: ReaderToolbarTopBarProps = {
       show: true,
@@ -69,9 +72,12 @@ describe('Reader Binding Contracts', () => {
       bookName: 'Demo Book',
       chapterTitle: 'Chapter 3',
       isFullscreen: true,
+      onBack: track('back'),
+      onToggleCatalog: track('toggleCatalog'),
+      onToggleFullscreen: track('toggleFullscreen'),
     }
 
-    const { isVisible, contentBindings } = createReaderToolbarTopBarBindings(props, emit)
+    const { isVisible, contentBindings } = createReaderToolbarTopBarBindings(props)
 
     expect(isVisible.value).toBe(true)
     expect(contentBindings.value.bookName).toBe('Demo Book')
@@ -82,7 +88,7 @@ describe('Reader Binding Contracts', () => {
     contentBindings.value.onToggleCatalog()
     contentBindings.value.onToggleFullscreen()
 
-    expect(events).toEqual([
+    expect(handlerCalls).toEqual([
       ['back', []],
       ['toggleCatalog', []],
       ['toggleFullscreen', []],
@@ -90,19 +96,19 @@ describe('Reader Binding Contracts', () => {
   })
 
   it('derives navigation content bindings and routes prev/next actions', () => {
-    const events: Array<[string, unknown[]]> = []
-    const emit: ReaderNavigationEmitFn = (event, ...args) => {
-      events.push([event, args])
-    }
+    const handlerCalls: Array<[string, unknown[]]> = []
+    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
 
     const props: ReaderNavigationProps = {
       currentChapterIndex: 4,
       totalChapters: 10,
       hasPrevChapter: true,
       hasNextChapter: true,
+      onPrev: track('prev'),
+      onNext: track('next'),
     }
 
-    const { contentBindings } = createReaderNavigationViewBindings(props, emit)
+    const { contentBindings } = createReaderNavigationViewBindings(props)
 
     expect(contentBindings.value.progressText).toBe('5 / 10')
     expect(contentBindings.value.progressPercent).toBe(50)
@@ -112,7 +118,7 @@ describe('Reader Binding Contracts', () => {
     contentBindings.value.onPrev()
     contentBindings.value.onNext()
 
-    expect(events).toEqual([
+    expect(handlerCalls).toEqual([
       ['prev', []],
       ['next', []],
     ])

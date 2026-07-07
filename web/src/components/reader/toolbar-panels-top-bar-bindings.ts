@@ -1,5 +1,4 @@
 import { computed } from 'vue'
-import type { ReaderToolbarPanelsEmitFn } from './toolbar-panels-emit-types'
 import type { ReaderToolbarPanelsProps } from './toolbar-panels-prop-types'
 import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
@@ -10,13 +9,12 @@ export interface ReaderToolbarPanelsTopBarBindings extends ReaderToolbarTopBarPr
 }
 
 export function createReaderToolbarPanelsTopBarBindings(
-  props: ReaderToolbarPanelsProps,
-  emit: ReaderToolbarPanelsEmitFn
+  props: ReaderToolbarPanelsProps
 ) {
   return computed<ReaderToolbarPanelsTopBarBindings>(() => ({
     ...props.topBarProps,
-    onBack: () => emit('back'),
-    onToggleCatalog: () => emit('toggleCatalog'),
-    onToggleFullscreen: () => emit('toggleFullscreen'),
+    onBack: props.onBack!,
+    onToggleCatalog: props.onToggleCatalog!,
+    onToggleFullscreen: props.onToggleFullscreen!,
   }))
 }

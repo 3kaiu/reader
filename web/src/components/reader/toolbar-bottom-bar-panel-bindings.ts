@@ -1,7 +1,6 @@
 import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import { createReaderToolbarBottomBarBindings } from './toolbar-bottom-bar-bindings'
-import type { ReaderToolbarBottomBarEmitFn } from './toolbar-bottom-bar-emit-types'
 import type { ReaderToolbarBottomBarProps } from './toolbar-bottom-bar-prop-types'
 import type { ReaderToolbarBottomPanelProps } from './toolbar-bottom-panel-prop-types'
 
@@ -23,8 +22,7 @@ export interface ReaderToolbarBottomBarBindingResult {
 }
 
 export function createReaderToolbarBottomBarPanelBindings(
-  props: ReaderToolbarBottomBarProps,
-  emit: ReaderToolbarBottomBarEmitFn
+  props: ReaderToolbarBottomBarProps
 ): ReaderToolbarBottomBarBindingResult {
   const { readingProgress, navigationProps, actionProps } =
     createReaderToolbarBottomBarBindings(props)
@@ -33,15 +31,15 @@ export function createReaderToolbarBottomBarPanelBindings(
     readingProgress: readingProgress.value,
     navigationProps: navigationProps.value,
     actionProps: actionProps.value,
-    onToggleDayNight: () => emit('toggleDayNight'),
-    onToggleSettings: () => emit('toggleSettings'),
-    onToggleEyeCare: () => emit('toggleEyeCare'),
-    onToggleZenMode: () => emit('toggleZenMode'),
-    onRefresh: () => emit('refresh'),
-    onPrevChapter: () => emit('prevChapter'),
-    onNextChapter: () => emit('nextChapter'),
-    onOpenSourcePicker: () => emit('openSourcePicker'),
-    onOpenBookInfo: () => emit('openBookInfo'),
+    onToggleDayNight: props.onToggleDayNight!,
+    onToggleSettings: props.onToggleSettings!,
+    onToggleEyeCare: props.onToggleEyeCare!,
+    onToggleZenMode: props.onToggleZenMode!,
+    onRefresh: props.onRefresh!,
+    onPrevChapter: props.onPrevChapter!,
+    onNextChapter: props.onNextChapter!,
+    onOpenSourcePicker: props.onOpenSourcePicker!,
+    onOpenBookInfo: props.onOpenBookInfo!,
   }))
 
   const isVisible = computed(() => props.show && !props.zenMode)

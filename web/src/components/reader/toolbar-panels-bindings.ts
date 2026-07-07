@@ -1,5 +1,4 @@
 import type { ComputedRef } from 'vue'
-import type { ReaderToolbarPanelsEmitFn } from './toolbar-panels-emit-types'
 import type { ReaderToolbarPanelsProps } from './toolbar-panels-prop-types'
 import {
   createReaderToolbarPanelsBottomBarBindings,
@@ -16,11 +15,10 @@ export interface ReaderToolbarPanelsBindingResult {
 }
 
 export function createReaderToolbarPanelsBindings(
-  props: ReaderToolbarPanelsProps,
-  emit: ReaderToolbarPanelsEmitFn
+  props: ReaderToolbarPanelsProps
 ): ReaderToolbarPanelsBindingResult {
   return {
-    topBarBindings: createReaderToolbarPanelsTopBarBindings(props, emit),
-    bottomBarBindings: createReaderToolbarPanelsBottomBarBindings(props, emit),
+    topBarBindings: createReaderToolbarPanelsTopBarBindings(props),
+    bottomBarBindings: createReaderToolbarPanelsBottomBarBindings(props),
   }
 }

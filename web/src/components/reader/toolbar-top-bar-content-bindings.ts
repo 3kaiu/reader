@@ -1,6 +1,5 @@
 import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
-import type { ReaderToolbarTopBarEmitFn } from './toolbar-top-bar-emit-types'
 import type { ReaderToolbarTopBarProps } from './toolbar-top-bar-prop-types'
 
 export interface ReaderToolbarTopBarContentBindings extends ReaderToolbarTopBarProps {
@@ -15,14 +14,13 @@ export interface ReaderToolbarTopBarBindingResult {
 }
 
 export function createReaderToolbarTopBarBindings(
-  props: ReaderToolbarTopBarProps,
-  emit: ReaderToolbarTopBarEmitFn
+  props: ReaderToolbarTopBarProps
 ): ReaderToolbarTopBarBindingResult {
   const contentBindings = computed<ReaderToolbarTopBarContentBindings>(() => ({
     ...props,
-    onBack: () => emit('back'),
-    onToggleCatalog: () => emit('toggleCatalog'),
-    onToggleFullscreen: () => emit('toggleFullscreen'),
+    onBack: props.onBack!,
+    onToggleCatalog: props.onToggleCatalog!,
+    onToggleFullscreen: props.onToggleFullscreen!,
   }))
 
   const isVisible = computed(() => props.show && !props.zenMode)

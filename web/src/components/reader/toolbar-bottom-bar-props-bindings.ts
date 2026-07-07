@@ -13,5 +13,14 @@ export function createReaderToolbarBottomBarPropsBindings(props: ReaderToolbarPr
     isNightMode: props.isNightMode,
     isEyeCareEnabled: props.isEyeCareEnabled,
     contentIssue: props.contentIssue,
+    onToggleDayNight: props.onToggleDayNight,
+    onToggleSettings: props.onToggleSettings,
+    onToggleEyeCare: props.onToggleEyeCare,
+    onToggleZenMode: props.onToggleZenMode,
+    onRefresh: props.onRefresh,
+    onPrevChapter: props.onPrevChapter,
+    onNextChapter: props.onNextChapter,
+    onOpenSourcePicker: props.onOpenSourcePicker,
+    onOpenBookInfo: props.onOpenBookInfo,
   }))
 }

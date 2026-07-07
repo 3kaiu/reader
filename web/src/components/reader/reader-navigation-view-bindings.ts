@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import { createReaderNavigationBindings } from './reader-navigation-bindings'
-import type { ReaderNavigationEmitFn, ReaderNavigationProps } from './reader-navigation-types'
+import type { ReaderNavigationProps } from './reader-navigation-types'
 import type { ReaderNavigationContentProps } from './reader-navigation-content-view-bindings'
 
 export interface ReaderNavigationContentBindings extends ReaderNavigationContentProps {
@@ -14,16 +14,15 @@ export interface ReaderNavigationViewBindingResult {
 }
 
 export function createReaderNavigationViewBindings(
-  props: ReaderNavigationProps,
-  emit: ReaderNavigationEmitFn
+  props: ReaderNavigationProps
 ): ReaderNavigationViewBindingResult {
   const { contentProps } = createReaderNavigationBindings(props)
 
   return {
     contentBindings: computed<ReaderNavigationContentBindings>(() => ({
       ...contentProps.value,
-      onPrev: () => emit('prev'),
-      onNext: () => emit('next'),
+      onPrev: props.onPrev!,
+      onNext: props.onNext!,
     })),
   }
 }

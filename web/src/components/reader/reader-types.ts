@@ -68,6 +68,8 @@ export interface ReaderNavigationProps {
   totalChapters: number
   hasPrevChapter: boolean
   hasNextChapter: boolean
+  onPrev?: () => void
+  onNext?: () => void
 }
 
 export type ReaderNavigationEmits = {
@@ -138,17 +140,47 @@ export interface ReaderToolbarBottomBarProps {
   isNightMode: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
+  onToggleDayNight?: () => void
+  onToggleSettings?: () => void
+  onToggleEyeCare?: () => void
+  onToggleZenMode?: () => void
+  onRefresh?: () => void
+  onPrevChapter?: () => void
+  onNextChapter?: () => void
+  onOpenSourcePicker?: () => void
+  onOpenBookInfo?: () => void
 }
 
 export interface ReaderToolbarBottomPanelProps {
   readingProgress: number
   navigationProps: ReaderNavigationProps
   actionProps: ReaderToolbarBottomActionsProps
+  onToggleDayNight?: () => void
+  onToggleSettings?: () => void
+  onToggleEyeCare?: () => void
+  onToggleZenMode?: () => void
+  onRefresh?: () => void
+  onPrevChapter?: () => void
+  onNextChapter?: () => void
+  onOpenSourcePicker?: () => void
+  onOpenBookInfo?: () => void
 }
 
 export interface ReaderToolbarPanelsProps {
   topBarProps: ReaderToolbarTopBarProps
   bottomBarProps: ReaderToolbarBottomBarProps
+  onBack?: () => void
+  onToggleCatalog?: () => void
+  onToggleFullscreen?: () => void
+  onToggleDayNight?: () => void
+  onToggleSettings?: () => void
+  onToggleEyeCare?: () => void
+  onToggleZenMode?: () => void
+  onRefresh?: () => void
+  onPrevChapter?: () => void
+  onNextChapter?: () => void
+  onOpenSourcePicker?: () => void
+  onOpenBookInfo?: () => void
 }
 
 export interface ReaderToolbarProps {
@@ -164,6 +196,18 @@ export interface ReaderToolbarProps {
   isFullscreen: boolean
   isEyeCareEnabled: boolean
   contentIssue?: string | null
+  onBack?: () => void
+  onToggleCatalog?: () => void
+  onToggleFullscreen?: () => void
+  onToggleDayNight?: () => void
+  onToggleSettings?: () => void
+  onToggleEyeCare?: () => void
+  onToggleZenMode?: () => void
+  onRefresh?: () => void
+  onPrevChapter?: () => void
+  onNextChapter?: () => void
+  onOpenSourcePicker?: () => void
+  onOpenBookInfo?: () => void
 }
 
 export interface ReaderToolbarTopBarProps {
@@ -172,6 +216,9 @@ export interface ReaderToolbarTopBarProps {
   bookName?: string
   chapterTitle?: string
   isFullscreen: boolean
+  onBack?: () => void
+  onToggleCatalog?: () => void
+  onToggleFullscreen?: () => void
 }
 
 // ═══════════════════════════════════════════════════════

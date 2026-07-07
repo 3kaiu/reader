@@ -11,5 +11,17 @@ export function createReaderToolbarPanelsPropsBindings(props: ReaderToolbarProps
   return computed<ReaderToolbarPanelsProps>(() => ({
     topBarProps: topBarProps.value,
     bottomBarProps: bottomBarProps.value,
+    onBack: props.onBack,
+    onToggleCatalog: props.onToggleCatalog,
+    onToggleFullscreen: props.onToggleFullscreen,
+    onToggleDayNight: props.onToggleDayNight,
+    onToggleSettings: props.onToggleSettings,
+    onToggleEyeCare: props.onToggleEyeCare,
+    onToggleZenMode: props.onToggleZenMode,
+    onRefresh: props.onRefresh,
+    onPrevChapter: props.onPrevChapter,
+    onNextChapter: props.onNextChapter,
+    onOpenSourcePicker: props.onOpenSourcePicker,
+    onOpenBookInfo: props.onOpenBookInfo,
   }))
 }
