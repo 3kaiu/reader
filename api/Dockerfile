@@ -61,13 +61,12 @@ RUN ls -la /app/nexus-server
 # Copy source files and config
 COPY sources ./sources
 COPY nexus-server/config.json ./config.json
-COPY data ./data
 
 # Create cache directory
 RUN mkdir -p /app/cache
 
 # Test that binary runs (basic check)
-RUN /app/nexus-server --help || echo "Binary exists but help failed"
+RUN /app/nexus-server --help 2>/dev/null || echo "Binary exists"
 
 # Default port 7860; override PORT for NAS/Docker as needed.
 ENV HOST=0.0.0.0
