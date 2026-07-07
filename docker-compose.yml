@@ -1,0 +1,44 @@
+# Nexus Reader — Docker deployment (NAS / any Docker host)
+#
+# One-time:
+#   1. Replace YOUR_GITHUB_USER below with your GitHub username (lowercase)
+#   2. mkdir -p data sources && copy your .nxs sources into sources/
+#   3. If the GHCR package is private: docker login ghcr.io
+#   4. docker compose up -d
+#
+# Access: http://<nas-ip>:8080
+
+services:
+  nexus-server:
+    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-server:latest
+    container_name: nexus-server
+    restart: unless-stopped
+    expose:
+      - 7860
+    environment:
+      HOST: 0.0.0.0
+      PORT: "7860"
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ./data:/app/data
+      - ./sources:/app/sources
+
+  bypass:
+    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-bypass:latest
+    container_name: nexus-bypass
+    restart: unless-stopped
+    expose:
+      - 8000
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      BYPASS_MAX_CONCURRENCY: "20"
+      BYPASS_MAX_PER_DOMAIN: "3"
+
+  frontend:
+    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-frontend:latest
+    container_name: nexus-frontend
+    restart: unless-stopped
+    ports:
+      - "${NEXUS_PORT:-8080}:80"
+    depends_on:
+      - nexus-server
