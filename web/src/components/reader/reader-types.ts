@@ -72,16 +72,6 @@ export interface ReaderNavigationProps {
   onNext?: () => void
 }
 
-export type ReaderNavigationEmits = {
-  prev: []
-  next: []
-}
-
-export type ReaderNavigationEmitFn = <EventName extends keyof ReaderNavigationEmits>(
-  event: EventName,
-  ...args: ReaderNavigationEmits[EventName]
-) => void
-
 export interface ReaderScrollChapterListProps {
   loadedChapters: ReaderLoadedChapter[]
   layoutVersion: string
@@ -272,11 +262,6 @@ export type ReaderModalsEmits = {
   'download-all': []
 }
 
-export type ReaderNavigationContentEmits = {
-  prev: []
-  next: []
-}
-
 export type ReaderScrollContentEmits = {
   loadNextChapter: []
   retryLoad: []
@@ -285,66 +270,6 @@ export type ReaderScrollContentEmits = {
 export type ReaderScrollLoadStateEmits = {
   loadNextChapter: []
   retryLoad: []
-}
-
-export type ReaderToolbarBottomBarEmits = {
-  toggleDayNight: []
-  toggleSettings: []
-  toggleEyeCare: []
-  toggleZenMode: []
-  refresh: []
-  prevChapter: []
-  nextChapter: []
-  openSourcePicker: []
-  openBookInfo: []
-}
-
-export type ReaderToolbarBottomPanelEmits = {
-  toggleDayNight: []
-  toggleSettings: []
-  toggleEyeCare: []
-  toggleZenMode: []
-  refresh: []
-  prevChapter: []
-  nextChapter: []
-  openSourcePicker: []
-  openBookInfo: []
-}
-
-export type ReaderToolbarEmits = {
-  back: []
-  toggleCatalog: []
-  toggleSettings: []
-  toggleDayNight: []
-  toggleFullscreen: []
-  toggleEyeCare: []
-  toggleZenMode: []
-  refresh: []
-  prevChapter: []
-  nextChapter: []
-  openSourcePicker: []
-  openBookInfo: []
-}
-
-export type ReaderToolbarPanelsEmits = {
-  back: []
-  toggleCatalog: []
-  toggleFullscreen: []
-  toggleDayNight: []
-  toggleSettings: []
-  toggleEyeCare: []
-  toggleZenMode: []
-  refresh: []
-  prevChapter: []
-  nextChapter: []
-  openSourcePicker: []
-  openBookInfo: []
-}
-
-export type ReaderToolbarTopBarEmits = {
-  back: []
-  toggleCatalog: []
-  toggleFullscreen: []
 }
 
 // ═══════════════════════════════════════════════════════
@@ -380,34 +305,9 @@ export type ReaderModalsEmitFn = <EventName extends keyof ReaderModalsEmits>(
   ...args: ReaderModalsEmits[EventName]
 ) => void
 
-export type ReaderNavigationContentEmitFn = <EventName extends keyof ReaderNavigationContentEmits>(
-  event: EventName,
-  ...args: ReaderNavigationContentEmits[EventName]
-) => void
-
 export type ReaderScrollLoadStateEmitFn = <EventName extends keyof ReaderScrollLoadStateEmits>(
   event: EventName,
   ...args: ReaderScrollLoadStateEmits[EventName]
 ) => void
-
-export type ReaderToolbarBottomBarEmitFn = <EventName extends keyof ReaderToolbarBottomBarEmits>(
-  event: EventName,
-  ...args: ReaderToolbarBottomBarEmits[EventName]
-) => void
-
-export type ReaderToolbarBottomPanelEmitFn = <
-  EventName extends keyof ReaderToolbarBottomPanelEmits,
->(
-  event: EventName,
-  ...args: ReaderToolbarBottomPanelEmits[EventName]
-) => void
-
-export type ReaderToolbarPanelsEmitFn = <EventName extends keyof ReaderToolbarPanelsEmits>(
-  event: EventName,
-  ...args: ReaderToolbarPanelsEmits[EventName]
-) => void
-
-export type ReaderToolbarTopBarEmitFn = <EventName extends keyof ReaderToolbarTopBarEmits>(
-  event: EventName,
   ...args: ReaderToolbarTopBarEmits[EventName]
 ) => void
