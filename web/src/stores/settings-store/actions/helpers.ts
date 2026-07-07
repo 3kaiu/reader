@@ -1,4 +1,4 @@
-import { clampSettingValue, persistConfig } from '@/utils/settingsStore'
+import { clampSettingValue, persistConfig } from '@/stores/settings-store/helpers'
 import type { ReaderConfig, ThemeColors } from '@/types/settings'
 import type { SettingsStoreState, SettingsStoreView } from '../types'
 

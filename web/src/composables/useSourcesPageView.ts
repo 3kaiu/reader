@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useManageSelection } from '@/composables/useManageSelection'
 import { useSourceManagementView } from '@/composables/useSourceManagementView'
 import { useSourceStore, type SourceListItem } from '@/stores/source'
-import { filterSourcesByGroup } from '@/utils/sourceStore'
+import { filterSourcesByGroup } from '@/stores/source/helpers'
 
 export function useSourcesPageView() {
   const sourceStore = useSourceStore()

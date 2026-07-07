@@ -1,7 +1,7 @@
 import type { ApiResponse } from '@/api/http/types'
 import { sourceApi } from '@/api/source'
 import type { BookSource, SourceHealthSummary, SourcePolicy } from '@/types/source'
-import { normalizeSource, sortSourcesByBusinessPriority } from '@/utils/sourceStore'
+import { normalizeSource, sortSourcesByBusinessPriority } from '@/stores/source/helpers'
 import type { SourceStoreState } from '../types'
 
 export function createSourceLoadingActions(state: SourceStoreState) {

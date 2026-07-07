@@ -13,7 +13,7 @@ import {
   filterSearchResultsBySources,
   getSearchAggregateKey,
   toggleSelectedSource,
-} from '@/utils/searchStore'
+} from '@/stores/search/helpers'
 
 const SEARCH_HISTORY_LIMIT = 10
 

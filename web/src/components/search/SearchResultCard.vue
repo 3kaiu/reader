@@ -11,7 +11,7 @@ import type {
   SearchResult,
   SearchResultActionPayload,
 } from '@/types/search'
-import { getSearchResultIdentity } from '@/utils/searchStore'
+import { getSearchResultIdentity } from '@/stores/search/helpers'
 
 const props = defineProps<{
   book: SearchDisplayResult

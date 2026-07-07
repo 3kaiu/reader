@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { buildSourceGroups } from '@/utils/sourceStore'
+import { buildSourceGroups } from '@/stores/source/helpers'
 import type { SourceStoreState, SourceStoreView } from './types'
 
 export function createSourceStoreView(state: SourceStoreState): SourceStoreView {

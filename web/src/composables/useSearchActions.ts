@@ -5,7 +5,7 @@ import type { useLibraryStore } from '@/stores/library'
 import type { useSearchStore } from '@/stores/search'
 import type { Book } from '@/types/book'
 import type { SearchResult, SearchResultActionPayload } from '@/types/search'
-import { getSearchResultIdentity } from '@/utils/searchStore'
+import { getSearchResultIdentity } from '@/stores/search/helpers'
 
 export function useSearchActions(options: {
   searchKeyword: Ref<string>

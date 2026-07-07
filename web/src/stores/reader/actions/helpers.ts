@@ -8,7 +8,7 @@ import {
   mergeLoadedChapters,
   normalizeReaderCatalog,
   type ReaderBook,
-} from '@/utils/readerStore'
+} from '@/stores/reader/helpers'
 import type { ReaderStoreState, ReaderTarget } from '../types'
 import {
   createReaderContentService,

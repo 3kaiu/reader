@@ -212,7 +212,7 @@ export function normalizeCatalogPayload(payload: unknown): Chapter[] {
 
 // ─── 书籍信息规范化 ──────────────────────────────────────────
 
-import type { ReaderBook } from '@/utils/readerStore'
+import type { ReaderBook } from '@/stores/reader/helpers'
 
 function resolveBookPayloadRecords(payload: unknown): Record<string, unknown>[] {
   const normalizedPayload = tryParseJsonPayload(payload)

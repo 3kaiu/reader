@@ -1,6 +1,6 @@
 import { readerApi } from '@/api/reader'
 import type { Chapter } from '@/types/book'
-import type { ReaderBook } from '@/utils/readerStore'
+import type { ReaderBook } from '@/stores/reader/helpers'
 
 export interface PrefetchDeps {
   getCachedChapterContent: (chapterUrl: string) => string | undefined

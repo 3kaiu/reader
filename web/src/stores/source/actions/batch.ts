@@ -9,7 +9,7 @@ import {
   normalizeBatchIds,
 } from '@/utils/batchMutation'
 import { parseSourceImportText } from '@/utils/sourceImport'
-import { toImportedSourceText, type SourceDefinition } from '@/utils/sourceStore'
+import { toImportedSourceText, type SourceDefinition } from '@/stores/source/helpers'
 import type {
   DeleteSourcesResult,
   ImportSourceTextResult,

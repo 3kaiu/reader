@@ -1,6 +1,6 @@
 import type { Book } from '@/types/book'
 import type { BookGroup } from '@/types/group'
-import { isSameBook } from '@/utils/libraryStore'
+import { isSameBook } from '@/stores/library-store/helpers'
 import type { LibraryStoreState } from '../types'
 
 export function createLibraryActionHelpers(state: LibraryStoreState) {

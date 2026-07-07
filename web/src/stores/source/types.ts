@@ -10,7 +10,7 @@ import type {
   SourceRuntimeResetResponse,
   SourceRuntimeProfileResponse,
 } from '@/types/source'
-import type { SourceDefinition, SourceListEntry } from '@/utils/sourceStore'
+import type { SourceDefinition, SourceListEntry } from '@/stores/source/helpers'
 
 export type SourceListItem = SourceListEntry
 

@@ -10,7 +10,7 @@ import type {
   SourceRuntimeProfileResponse,
 } from '@/types/source'
 import { toPrettyJson } from '@/utils/json'
-import { filterSourcesByKeyword, toSourceDetailText } from '@/utils/sourceStore'
+import { filterSourcesByKeyword, toSourceDetailText } from '@/stores/source/helpers'
 import type { SourceDetailTextResult, SourceStoreState } from '../types'
 
 export function createSourceQueryActions(state: SourceStoreState) {

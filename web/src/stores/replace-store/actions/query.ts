@@ -1,5 +1,5 @@
 import type { ReplaceRule } from '@/types/replace'
-import { filterReplaceRules } from '@/utils/replaceStore'
+import { filterReplaceRules } from '@/stores/replace-store/helpers'
 import { getReplaceRuleKey } from '@/utils/replaceRules'
 import type { ReplaceStoreState } from '../types'
 

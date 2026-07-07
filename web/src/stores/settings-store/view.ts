@@ -4,7 +4,7 @@ import {
   THEME_COLORS,
   clampSettingValue,
   persistConfig,
-} from '@/utils/settingsStore'
+} from '@/stores/settings-store/helpers'
 import type { ThemeColors } from '@/types/settings'
 import type { SourceHealthSegment, SourceHealthStatus } from '@/api/sync'
 import type { SettingsStoreState, SettingsStoreView } from './types'

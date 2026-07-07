@@ -1,5 +1,5 @@
 import { reactive, shallowRef, ref } from 'vue'
-import { cloneDefaultConfig } from '@/utils/settingsStore'
+import { cloneDefaultConfig } from '@/stores/settings-store/helpers'
 import type { SettingsStoreState } from './types'
 
 export function createSettingsStoreState(): SettingsStoreState {

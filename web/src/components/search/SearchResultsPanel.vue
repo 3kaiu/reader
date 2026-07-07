@@ -7,7 +7,7 @@ import type {
   SearchSourceOption,
   SearchResult,
 } from '@/types/search'
-import { getSearchAggregateKey } from '@/utils/searchStore'
+import { getSearchAggregateKey } from '@/stores/search/helpers'
 import { Button } from '@/components/ui/button'
 import SearchQueryBar from './SearchQueryBar.vue'
 import SearchErrorPanel from './SearchErrorPanel.vue'

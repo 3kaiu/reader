@@ -1,6 +1,6 @@
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type { Chapter } from '@/types/book'
-import type { ReaderBook, ReaderLoadedChapter as LoadedChapter } from '@/utils/readerStore'
+import type { ReaderBook, ReaderLoadedChapter as LoadedChapter } from '@/stores/reader/helpers'
 
 export interface ReaderStageReport {
   stage: string

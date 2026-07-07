@@ -2,7 +2,7 @@ import { readerApi } from '@/api/reader'
 import type { ApiResponse } from '@/api/http/types'
 import type { Chapter } from '@/types/book'
 import { isNexusError } from '@/utils/errors'
-import { formatReaderContent, type ReaderBook, buildReaderContentBookId } from '@/utils/readerStore'
+import { formatReaderContent, type ReaderBook, buildReaderContentBookId } from '@/stores/reader/helpers'
 import {
   normalizeContentPayload,
   normalizeReaderBookPayload,

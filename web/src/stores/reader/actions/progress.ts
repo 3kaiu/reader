@@ -1,8 +1,8 @@
-import { savePersistedReaderProgress } from '@/utils/readerStore'
+import { savePersistedReaderProgress } from '@/stores/reader/helpers'
 import {
   loadPersistedReaderProgressMeta,
   savePersistedReaderProgressMeta,
-} from '@/utils/readerStore'
+} from '@/stores/reader/helpers'
 import type { ReaderStoreState } from '../types'
 
 export function createReaderProgressHandlers(state: ReaderStoreState) {

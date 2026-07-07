@@ -10,8 +10,8 @@ import { useLibraryStore } from '@/stores/library'
 import { useSearchStore } from '@/stores/search'
 import { useSourceStore } from '@/stores/source'
 import type { SearchDisplayResult, SearchResult, SearchSourceOption } from '@/types/search'
-import { aggregateSearchResults, getSearchAggregateKey } from '@/utils/searchStore'
-import { compareSourcesByBusinessPriority } from '@/utils/sourceStore'
+import { aggregateSearchResults, getSearchAggregateKey } from '@/stores/search/helpers'
+import { compareSourcesByBusinessPriority } from '@/stores/source/helpers'
 
 export function useSearchView() {
   const router = useRouter()

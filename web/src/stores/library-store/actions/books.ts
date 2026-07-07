@@ -8,7 +8,7 @@ import {
   getSettledApiError,
   normalizeBatchIds,
 } from '@/utils/batchMutation'
-import { isConflictError, mergeSavedBook, toSaveBookInput } from '@/utils/libraryStore'
+import { isConflictError, mergeSavedBook, toSaveBookInput } from '@/stores/library-store/helpers'
 import type { DeleteBooksResult, EnsureBookResult } from '../types'
 
 interface LibraryBookHelpers {

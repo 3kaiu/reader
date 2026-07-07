@@ -1,4 +1,4 @@
-import { cloneDefaultConfig, isInNightWindow } from '@/utils/settingsStore'
+import { cloneDefaultConfig, isInNightWindow } from '@/stores/settings-store/helpers'
 import type { ReaderConfig } from '@/types/settings'
 import type { SettingsStoreActions } from '../types'
 import { assignSettingsConfigValue, type SettingsStoreActionContext } from './helpers'

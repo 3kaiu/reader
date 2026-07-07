@@ -1,7 +1,7 @@
 import { replaceApi } from '@/api/replace'
 import type { ApiResponse } from '@/api/http/types'
 import type { ReplaceRule } from '@/types/replace'
-import { upsertRuleList } from '@/utils/replaceStore'
+import { upsertRuleList } from '@/stores/replace-store/helpers'
 import type { ReplaceManagementHelpers } from './management-shared'
 
 export function createReplaceManagementSaveActions(helpers: ReplaceManagementHelpers) {

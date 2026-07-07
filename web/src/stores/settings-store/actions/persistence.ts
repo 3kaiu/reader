@@ -4,7 +4,7 @@ import {
   cloneDefaultConfig,
   loadPersistedConfig,
   sanitizePersistedConfig,
-} from '@/utils/settingsStore'
+} from '@/stores/settings-store/helpers'
 import type { SettingsStoreActions } from '../types'
 import type { SettingsStoreActionContext } from './helpers'
 
