@@ -309,5 +309,3 @@ export type ReaderScrollLoadStateEmitFn = <EventName extends keyof ReaderScrollL
   event: EventName,
   ...args: ReaderScrollLoadStateEmits[EventName]
 ) => void
-  ...args: ReaderToolbarTopBarEmits[EventName]
-) => void

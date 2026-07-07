@@ -90,6 +90,10 @@ export function createReaderChapterOperations(
   }
 
   const appendNextChapter = async (): Promise<boolean> => {
+    if (state.isLoadingMore.value) {
+      return false
+    }
+
     if (!view.hasNextChapter.value || !state.catalog.value[state.currentChapterIndex.value + 1]) {
       return false
     }

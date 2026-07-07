@@ -63,6 +63,7 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
       await helpers.loadChapterAt(initialIndex, { replaceLoaded: true })
     } catch (err) {
       state.error.value = err instanceof Error ? err.message : '打开书籍失败'
+      state.loadError.value = state.error.value
       throw err
     } finally {
       state.isLoading.value = false
@@ -91,29 +92,37 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
       }
     }
 
-    if (helpers.isCurrentBookTarget(target) && state.currentBook.value) {
-      const book = await ensureReaderSession(state.currentBook.value)
+    try {
+      if (helpers.isCurrentBookTarget(target) && state.currentBook.value) {
+        const book = await ensureReaderSession(state.currentBook.value)
+        return {
+          isSuccess: true,
+          data: book,
+        }
+      }
+
+      const response = await helpers.fetchBookInfo(sourceId, bookUrl)
+
+      if (!response.isSuccess || !response.data) {
+        const message = response.errorMsg || '获取书籍信息失败'
+        state.error.value = message
+        state.loadError.value = message
+        state.loadErrorDetails.value = null
+        state.isLoading.value = false
+        return response
+      }
+
+      const book = await ensureReaderSession(response.data)
       return {
-        isSuccess: true,
+        ...response,
         data: book,
       }
-    }
-
-    const response = await helpers.fetchBookInfo(sourceId, bookUrl)
-
-    if (!response.isSuccess || !response.data) {
-      const message = response.errorMsg || '获取书籍信息失败'
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '启动阅读器会话失败'
       state.error.value = message
       state.loadError.value = message
-      state.loadErrorDetails.value = null
       state.isLoading.value = false
-      return response
-    }
-
-    const book = await ensureReaderSession(response.data)
-    return {
-      ...response,
-      data: book,
+      return { isSuccess: false, errorMsg: message, data: undefined as unknown as ReaderBook }
     }
   }
 
