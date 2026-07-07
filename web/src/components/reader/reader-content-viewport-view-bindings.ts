@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { ReaderContentViewportEmits } from './reader-content-viewport-emit-types'
 import type { ReaderContentViewportProps } from './reader-content-viewport-prop-types'
-import type { ReaderFullscreenTimeProps } from './reader-fullscreen-time-view-bindings'
+import type { ReaderFullscreenTimeProps } from './reader-ui.types'
 
 type ReaderContentViewportEmitFn = <EventName extends keyof ReaderContentViewportEmits>(
   event: EventName,

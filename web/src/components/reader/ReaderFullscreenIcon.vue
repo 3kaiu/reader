@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { createReaderFullscreenIconViewBindings } from './reader-fullscreen-icon-view-bindings'
+import { createReaderFullscreenIconViewBindings } from './reader-ui.types'
 
 const props = defineProps<{
   isFullscreen: boolean

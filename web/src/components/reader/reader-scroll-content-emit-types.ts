@@ -1,4 +1,1 @@
-export type ReaderScrollContentEmits = {
-  loadNextChapter: []
-  retryLoad: []
-}
+export type { ReaderScrollContentEmits } from './reader-types'

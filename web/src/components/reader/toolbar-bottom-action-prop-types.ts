@@ -1,5 +1,1 @@
-export interface ReaderToolbarBottomActionsProps {
-  isNightMode: boolean
-  isEyeCareEnabled: boolean
-  contentIssue?: string | null
-}
+export type { ReaderToolbarBottomActionsProps } from './reader-types'

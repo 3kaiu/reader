@@ -1,5 +1,1 @@
-import type { ReaderKeyboardShortcut } from '@/composables/reader/shared-types'
-
-export interface ReaderKeyboardHelpDialogProps {
-  shortcutItems: ReaderKeyboardShortcut[]
-}
+export type { ReaderKeyboardHelpDialogProps } from './reader-types'

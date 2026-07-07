@@ -1,7 +1,1 @@
-export interface ReaderToolbarTopBarProps {
-  show: boolean
-  zenMode: boolean
-  bookName?: string
-  chapterTitle?: string
-  isFullscreen: boolean
-}
+export type { ReaderToolbarTopBarProps } from './reader-types'

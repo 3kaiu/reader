@@ -1,8 +1,1 @@
-export interface ReaderScrollLoadStateProps {
-  hasLoadedChapters: boolean
-  isParsing: boolean
-  isLoadingMore: boolean
-  hasNextChapter: boolean
-  loadError?: string | null
-  loadErrorDetails?: string | null
-}
+export type { ReaderScrollLoadStateProps } from './reader-types'

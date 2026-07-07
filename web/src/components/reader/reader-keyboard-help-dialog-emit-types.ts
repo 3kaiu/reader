@@ -1,3 +1,1 @@
-export type ReaderKeyboardHelpDialogEmits = {
-  close: []
-}
+export type { ReaderKeyboardHelpDialogEmits } from './reader-types'

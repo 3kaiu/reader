@@ -1,4 +1,1 @@
-export type ReaderContentViewportEmits = {
-  loadNextChapter: []
-  retryLoad: []
-}
+export type { ReaderContentViewportEmits } from './reader-types'

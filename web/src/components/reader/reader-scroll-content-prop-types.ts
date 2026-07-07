@@ -1,15 +1,1 @@
-import type { ReaderLoadedChapter } from './content-chapter-types'
-import type { ReaderContentStyle } from '@/composables/reader/shared-types'
-
-export interface ReaderScrollContentProps {
-  contentStyle: ReaderContentStyle
-  loadedChapters: ReaderLoadedChapter[]
-  isParsing: boolean
-  isLoadingMore: boolean
-  hasNextChapter: boolean
-  paragraphSpacing: number
-  loadError?: string | null
-  loadErrorDetails?: string | null
-  highlightContent: (content: string | undefined) => string
-  handleContentClick: (event: MouseEvent) => void
-}
+export type { ReaderScrollContentProps } from './reader-types'

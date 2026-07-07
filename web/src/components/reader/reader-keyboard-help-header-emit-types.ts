@@ -1,10 +1,1 @@
-export type ReaderKeyboardHelpHeaderEmits = {
-  close: []
-}
-
-export type ReaderKeyboardHelpHeaderEmitFn = <
-  EventName extends keyof ReaderKeyboardHelpHeaderEmits,
->(
-  event: EventName,
-  ...args: ReaderKeyboardHelpHeaderEmits[EventName]
-) => void
+export type { ReaderKeyboardHelpHeaderEmits, ReaderKeyboardHelpHeaderEmitFn } from './reader-types'

@@ -1,6 +1,1 @@
-export interface ReaderScrollLoadActionsProps {
-  loadError?: string | null
-  loadErrorDetails?: string | null
-  onLoadNextChapter: () => void
-  onRetryLoad: () => void
-}
+export type { ReaderScrollLoadActionsProps } from './reader-types'

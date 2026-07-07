@@ -2,7 +2,7 @@
 /**
  * 👆 ReaderGesture - 阅读器交互手势组件
  */
-import type { ReaderGestureEmits } from './reader-gesture-emit-types'
+import type { ReaderGestureEmits } from './reader-ui.types'
 
 const emit = defineEmits<ReaderGestureEmits>()
 </script>

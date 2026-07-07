@@ -1,4 +1,1 @@
-export interface ReaderErrorStateProps {
-  error: string
-  errorDetails?: string | null
-}
+export type { ReaderErrorStateProps } from './reader-types'
