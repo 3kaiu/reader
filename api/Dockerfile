@@ -29,10 +29,7 @@ RUN rustc --version && cargo --version
 # Debug: Check if all files are copied correctly
 RUN ls -la && ls -la nexus-*/
 
-# Try check first to catch compilation errors early
-RUN cargo check --package nexus-server
-
-# Build release binary
+# Build release binary (skip cargo check — build alone is sufficient)
 RUN cargo build --release --package nexus-server
 
 # Debug: Check if binary was created
