@@ -16,167 +16,199 @@ type ReaderWakeLockNavigator = Navigator & {
   }
 }
 
-export function useReaderScrollSync(options: {
-  readerStore: ReturnType<typeof useReaderStore>
-  settingsStore: ReturnType<typeof useSettingsStore>
-}) {
-  const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
-  const handleBeforeUnload = () => options.readerStore.saveProgress()
-  let pageActive = true
+// ──────── 纯工具函数 ────────
 
-  const handleVisibilityChange = () => {
-    const hidden = typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
-    pageActive = !hidden
-    if (!pageActive) {
-      teardownChapterSyncBindings()
-      clearPerformanceObservers()
-      void releaseReaderWakeLock()
-      return
-    }
+function shouldHoldWakeLock(
+  settingsStore: ReturnType<typeof useSettingsStore>,
+  pageActive: boolean
+): boolean {
+  if (typeof document === 'undefined') return false
+  if (!settingsStore.config.wakeLockEnabled) return false
+  if (!pageActive) return false
+  return document.visibilityState !== 'hidden'
+}
 
-    setupChapterSyncBindings()
-    setupPerformanceObservers()
-    void requestReaderWakeLock()
-  }
-  const handlePageHide = () => {
-    pageActive = false
-    teardownChapterSyncBindings()
-    clearPerformanceObservers()
-    void releaseReaderWakeLock()
-  }
+function logPerformanceEventThrottled(
+  kind: 'longtask' | 'layout-shift' | 'event',
+  payload: Record<string, unknown>,
+  logLastAt: Map<string, number>,
+  throttleMs: number
+) {
+  const now = Date.now()
+  const lastAt = logLastAt.get(kind) || 0
+  if (now - lastAt < throttleMs) return
+  logLastAt.set(kind, now)
+  logger.debug(`reader ${kind} detected`, payload)
+}
 
-  const handlePageShow = (event: PageTransitionEvent) => {
-    pageActive = true
-    setupChapterSyncBindings()
-    setupPerformanceObservers()
-    void requestReaderWakeLock()
-    if (event.persisted) {
-      void nextTick(() => {
-        options.readerStore.updateChapterIndexByScroll()
-      })
-    }
-  }
+// ──────── WakeLock 管理 ────────
 
-  const debouncedAppendNext = useThrottleFn(async () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      return
-    }
+function createWakeLockManager(
+  settingsStore: ReturnType<typeof useSettingsStore>,
+  getPageActive: () => boolean
+) {
+  let sentinel: ReaderWakeLockSentinel | null = null
+  let requestInFlight = false
 
-    const adaptivePrefetchEnabled = options.settingsStore.config.adaptivePrefetchEnabled
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
-    
-    if (adaptivePrefetchEnabled && !isOnline) {
-      return
-    }
-
-    // 移除复杂的网络质量预测，仅保留基本的在线/离线判断
-    // 移除基于 2g/3g/4g 的细粒度预取控制
-
-    if (options.readerStore.hasNextChapter && !options.readerStore.isLoadingMore) {
-      const success = await options.readerStore.appendNextChapter()
-      if (!success) {
-        logger.warn('自动加载下一章失败，显示重试选项', {
-          loadError: options.readerStore.loadError,
-        })
-      }
-    }
-  }, 1000)
-
-  const debouncedChapterSync = useThrottleFn(() => {
-    options.readerStore.updateChapterIndexByScroll()
-  }, 500)
-
-  const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
-  let chapterMarkerObserver: IntersectionObserver | null = null
-  const visibleChapterMarkers = new Set<HTMLElement>()
-  let pendingChapterSyncRafId: number | null = null
-  let pendingMarkerRebindRafId: number | null = null
-  let performanceObservers: PerformanceObserver[] = []
-  let previousDocumentScrollBehavior: string | null = null
-  let wakeLockSentinel: ReaderWakeLockSentinel | null = null
-  let wakeLockRequestInFlight = false
-  let pendingSyncDefers = 0
-  let pendingRebindDefers = 0
-  const performanceLogLastAt = new Map<string, number>()
-  const PERFORMANCE_LOG_THROTTLE_MS = 3000
-  const MAX_INPUT_PENDING_DEFERS = 4
-
-  const logPerformanceEvent = (
-    kind: 'longtask' | 'layout-shift' | 'event',
-    payload: Record<string, unknown>
-  ) => {
-    const now = Date.now()
-    const lastAt = performanceLogLastAt.get(kind) || 0
-    if (now - lastAt < PERFORMANCE_LOG_THROTTLE_MS) {
-      return
-    }
-    performanceLogLastAt.set(kind, now)
-    logger.debug(`reader ${kind} detected`, payload)
-  }
-
-  const shouldHoldWakeLock = () => {
-    if (typeof document === 'undefined') {
-      return false
-    }
-    if (!options.settingsStore.config.wakeLockEnabled) {
-      return false
-    }
-    if (!pageActive) {
-      return false
-    }
-    return document.visibilityState !== 'hidden'
-  }
-
-  const requestReaderWakeLock = async () => {
-    if (wakeLockRequestInFlight || wakeLockSentinel || !shouldHoldWakeLock()) {
-      return
-    }
-    if (typeof navigator === 'undefined') {
-      return
-    }
+  const request = async () => {
+    if (requestInFlight || sentinel || !shouldHoldWakeLock(settingsStore, getPageActive())) return
+    if (typeof navigator === 'undefined') return
 
     const wakeLockNavigator = navigator as ReaderWakeLockNavigator
-    if (!wakeLockNavigator.wakeLock) {
-      return
-    }
+    if (!wakeLockNavigator.wakeLock) return
 
-    wakeLockRequestInFlight = true
+    requestInFlight = true
     try {
-      wakeLockSentinel = await wakeLockNavigator.wakeLock.request('screen')
-      wakeLockSentinel.addEventListener('release', () => {
-        wakeLockSentinel = null
-        if (shouldHoldWakeLock()) {
-          void requestReaderWakeLock()
+      sentinel = await wakeLockNavigator.wakeLock.request('screen')
+      sentinel.addEventListener('release', () => {
+        sentinel = null
+        if (shouldHoldWakeLock(settingsStore, getPageActive())) {
+          void request()
         }
       })
     } catch (error) {
       logger.debug('Wake lock request failed', { error })
     } finally {
-      wakeLockRequestInFlight = false
+      requestInFlight = false
     }
   }
 
-  const releaseReaderWakeLock = async () => {
-    if (!wakeLockSentinel) {
-      return
-    }
-
-    const currentSentinel = wakeLockSentinel
-    wakeLockSentinel = null
+  const release = async () => {
+    if (!sentinel) return
+    const current = sentinel
+    sentinel = null
     try {
-      await currentSentinel.release()
+      await current.release()
     } catch (error) {
       logger.debug('Wake lock release failed', { error })
     }
   }
 
-  const syncChapterByVisibleMarkers = () => {
-    if (!pageActive) {
+  return { request, release }
+}
+
+// ──────── Performance Observer 管理 ────────
+
+function createPerformanceObserverManager(
+  settingsStore: ReturnType<typeof useSettingsStore>,
+  readerStore: ReturnType<typeof useReaderStore>
+) {
+  const observers: PerformanceObserver[] = []
+  const logLastAt = new Map<string, number>()
+  const LOG_THROTTLE = 3000
+
+  const log = (kind: 'longtask' | 'layout-shift' | 'event', payload: Record<string, unknown>) =>
+    logPerformanceEventThrottled(kind, payload, logLastAt, LOG_THROTTLE)
+
+  const setup = () => {
+    if (
+      !import.meta.env.DEV ||
+      typeof window === 'undefined' ||
+      typeof PerformanceObserver === 'undefined' ||
+      settingsStore.config.performanceMode === 'compat'
+    ) {
       return
     }
 
-    if (visibleChapterMarkers.size === 0) {
-      options.readerStore.updateChapterIndexByScroll()
+    const supported = PerformanceObserver.supportedEntryTypes || []
+
+    if (supported.includes('longtask')) {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
+          if (entry.duration >= 50) {
+            log('longtask', { duration: Number(entry.duration.toFixed(1)), chapterIndex: readerStore.currentChapterIndex, loadedChapters: readerStore.loadedChapters.length })
+          }
+        })
+      })
+      observer.observe({ type: 'longtask', buffered: true })
+      observers.push(observer)
+    }
+
+    if (supported.includes('layout-shift')) {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
+          const shiftEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean }
+          if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
+            log('layout-shift', { value: Number((shiftEntry.value || 0).toFixed(4)), chapterIndex: readerStore.currentChapterIndex })
+          }
+        })
+      })
+      observer.observe({ type: 'layout-shift', buffered: true })
+      observers.push(observer)
+    }
+
+    if (supported.includes('event')) {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
+          if (entry.duration >= 120) {
+            log('event', { name: entry.name, duration: Number(entry.duration.toFixed(1)), chapterIndex: readerStore.currentChapterIndex })
+          }
+        })
+      })
+      observer.observe({ type: 'event', buffered: true } as PerformanceObserverInit)
+      observers.push(observer)
+    }
+  }
+
+  const clear = () => {
+    observers.forEach(o => o.disconnect())
+    observers.length = 0
+  }
+
+  return { setup, clear }
+}
+
+// ──────── Performance Environment 管理 ────────
+
+function createPerformanceEnvironmentManager() {
+  let previousScrollBehavior: string | null = null
+
+  const apply = (mode: string) => {
+    if (typeof document === 'undefined') return
+    const root = document.documentElement
+    root.dataset.readerPerformanceMode = mode
+    if (previousScrollBehavior === null) {
+      previousScrollBehavior = root.style.scrollBehavior || ''
+    }
+    root.style.scrollBehavior = 'auto'
+  }
+
+  const reset = () => {
+    if (typeof document === 'undefined') return
+    const root = document.documentElement
+    delete root.dataset.readerPerformanceMode
+    root.style.scrollBehavior = previousScrollBehavior ?? ''
+    previousScrollBehavior = null
+  }
+
+  return { apply, reset }
+}
+
+// ──────── 章节滑动同步 ────────
+
+function createChapterScrollSync(
+  readerStore: ReturnType<typeof useReaderStore>,
+  settingsStore: ReturnType<typeof useSettingsStore>,
+  getPageActive: () => boolean
+) {
+  const debouncedChapterSync = useThrottleFn(() => {
+    readerStore.updateChapterIndexByScroll()
+  }, 500)
+
+  const chapterMarkerSelector = '.chapter-marker[data-chapter-index]'
+  let observer: IntersectionObserver | null = null
+  const visibleMarkers = new Set<HTMLElement>()
+  let pendingSyncRafId: number | null = null
+  let pendingRebindRafId: number | null = null
+  let syncDefers = 0
+  let rebindDefers = 0
+  const MAX_DEFERS = 4
+
+  const syncByVisibleMarkers = () => {
+    if (!getPageActive()) return
+
+    if (visibleMarkers.size === 0) {
+      readerStore.updateChapterIndexByScroll()
       return
     }
 
@@ -184,256 +216,164 @@ export function useReaderScrollSync(options: {
     let resolvedIndex: number | null = null
     let minDistance = Number.POSITIVE_INFINITY
 
-    visibleChapterMarkers.forEach(marker => {
-      if (!marker.isConnected) {
-        visibleChapterMarkers.delete(marker)
-        return
-      }
-
+    visibleMarkers.forEach(marker => {
+      if (!marker.isConnected) { visibleMarkers.delete(marker); return }
       const chapterIndex = Number(marker.dataset.chapterIndex)
-      if (Number.isNaN(chapterIndex)) {
-        return
-      }
-
+      if (Number.isNaN(chapterIndex)) return
       const distance = Math.abs(marker.getBoundingClientRect().top - targetLine)
-      if (distance < minDistance) {
-        minDistance = distance
-        resolvedIndex = chapterIndex
-      }
+      if (distance < minDistance) { minDistance = distance; resolvedIndex = chapterIndex }
     })
 
     if (resolvedIndex !== null) {
-      options.readerStore.syncCurrentChapterByIndex(resolvedIndex)
+      readerStore.syncCurrentChapterByIndex(resolvedIndex)
       return
     }
-
-    options.readerStore.updateChapterIndexByScroll()
+    readerStore.updateChapterIndexByScroll()
   }
 
-  const scheduleChapterSyncByVisibleMarkers = () => {
-    if (!pageActive) {
-      return
-    }
-
-    if (pendingChapterSyncRafId !== null) {
-      return
-    }
-
-    pendingChapterSyncRafId = window.requestAnimationFrame(() => {
-      if (hasPendingUserInput() && pendingSyncDefers < MAX_INPUT_PENDING_DEFERS) {
-        pendingSyncDefers += 1
-        pendingChapterSyncRafId = null
-        scheduleChapterSyncByVisibleMarkers()
-        return
-      }
-      pendingSyncDefers = 0
-      pendingChapterSyncRafId = null
-      syncChapterByVisibleMarkers()
+  const scheduleSync = () => {
+    if (!getPageActive() || pendingSyncRafId !== null) return
+    pendingSyncRafId = window.requestAnimationFrame(() => {
+      if (hasPendingUserInput() && syncDefers < MAX_DEFERS) { syncDefers += 1; pendingSyncRafId = null; scheduleSync(); return }
+      syncDefers = 0; pendingSyncRafId = null; syncByVisibleMarkers()
     })
   }
 
-  const scheduleMarkerObserverRebind = () => {
-    if (!pageActive) {
-      return
-    }
-
-    if (pendingMarkerRebindRafId !== null) {
-      return
-    }
-
-    pendingMarkerRebindRafId = window.requestAnimationFrame(() => {
-      if (hasPendingUserInput() && pendingRebindDefers < MAX_INPUT_PENDING_DEFERS) {
-        pendingRebindDefers += 1
-        pendingMarkerRebindRafId = null
-        scheduleMarkerObserverRebind()
-        return
-      }
-      pendingRebindDefers = 0
-      pendingMarkerRebindRafId = null
-      if (chapterMarkerObserver) {
-        chapterMarkerObserver.disconnect()
-        visibleChapterMarkers.clear()
-        setupChapterMarkerObserver()
-      }
+  const scheduleRebind = () => {
+    if (!getPageActive() || pendingRebindRafId !== null) return
+    pendingRebindRafId = window.requestAnimationFrame(() => {
+      if (hasPendingUserInput() && rebindDefers < MAX_DEFERS) { rebindDefers += 1; pendingRebindRafId = null; scheduleRebind(); return }
+      rebindDefers = 0; pendingRebindRafId = null
+      if (observer) { observer.disconnect(); visibleMarkers.clear(); setupObserver() }
     })
   }
 
-  const setupChapterMarkerObserver = () => {
-    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
-      return false
+  const setupObserver = () => {
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return false
+    const mode = settingsStore.config.performanceMode
+    const rootMargin = mode === 'aggressive' ? '-30% 0px -50% 0px' : '-35% 0px -45% 0px'
+    const threshold = mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
+
+    if (!observer) {
+      observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const marker = entry.target as HTMLElement
+          if (entry.isIntersecting) visibleMarkers.add(marker)
+          else visibleMarkers.delete(marker)
+        })
+        scheduleSync()
+      }, { root: null, rootMargin, threshold })
     }
 
-    const mode = options.settingsStore.config.performanceMode
-    const observerRootMargin = mode === 'aggressive' ? '-30% 0px -50% 0px' : '-35% 0px -45% 0px'
-    const observerThreshold = mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
-
-    if (!chapterMarkerObserver) {
-      chapterMarkerObserver = new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
-            const marker = entry.target as HTMLElement
-            if (entry.isIntersecting) {
-              visibleChapterMarkers.add(marker)
-            } else {
-              visibleChapterMarkers.delete(marker)
-            }
-          })
-          scheduleChapterSyncByVisibleMarkers()
-        },
-        {
-          root: null,
-          rootMargin: observerRootMargin,
-          threshold: observerThreshold,
-        }
-      )
-    }
-
-    visibleChapterMarkers.clear()
-    const chapterMarkers = Array.from(document.querySelectorAll<HTMLElement>(chapterMarkerSelector))
-    chapterMarkers.forEach(marker => chapterMarkerObserver?.observe(marker))
-    scheduleChapterSyncByVisibleMarkers()
+    visibleMarkers.clear()
+    document.querySelectorAll<HTMLElement>(chapterMarkerSelector).forEach(marker => observer?.observe(marker))
+    scheduleSync()
     return true
   }
 
-  const clearPerformanceObservers = () => {
-    performanceObservers.forEach(observer => observer.disconnect())
-    performanceObservers = []
-  }
-
-  const setupPerformanceObservers = () => {
-    if (
-      !import.meta.env.DEV ||
-      typeof window === 'undefined' ||
-      typeof PerformanceObserver === 'undefined' ||
-      options.settingsStore.config.performanceMode === 'compat'
-    ) {
-      return
-    }
-
-    const supportedEntryTypes = PerformanceObserver.supportedEntryTypes || []
-
-    if (supportedEntryTypes.includes('longtask')) {
-      const longTaskObserver = new PerformanceObserver(list => {
-        list.getEntries().forEach(entry => {
-          if (entry.duration >= 50) {
-            logPerformanceEvent('longtask', {
-              duration: Number(entry.duration.toFixed(1)),
-              chapterIndex: options.readerStore.currentChapterIndex,
-              loadedChapters: options.readerStore.loadedChapters.length,
-            })
-          }
-        })
-      })
-      longTaskObserver.observe({ type: 'longtask', buffered: true })
-      performanceObservers.push(longTaskObserver)
-    }
-
-    if (supportedEntryTypes.includes('layout-shift')) {
-      const layoutShiftObserver = new PerformanceObserver(list => {
-        list.getEntries().forEach(entry => {
-          const shiftEntry = entry as PerformanceEntry & {
-            value?: number
-            hadRecentInput?: boolean
-          }
-          if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
-            logPerformanceEvent('layout-shift', {
-              value: Number((shiftEntry.value || 0).toFixed(4)),
-              chapterIndex: options.readerStore.currentChapterIndex,
-            })
-          }
-        })
-      })
-      layoutShiftObserver.observe({ type: 'layout-shift', buffered: true })
-      performanceObservers.push(layoutShiftObserver)
-    }
-
-    if (supportedEntryTypes.includes('event')) {
-      const eventObserver = new PerformanceObserver(list => {
-        list.getEntries().forEach(entry => {
-          if (entry.duration >= 120) {
-            logPerformanceEvent('event', {
-              name: entry.name,
-              duration: Number(entry.duration.toFixed(1)),
-              chapterIndex: options.readerStore.currentChapterIndex,
-            })
-          }
-        })
-      })
-      eventObserver.observe({
-        type: 'event',
-        buffered: true,
-      } as PerformanceObserverInit)
-      performanceObservers.push(eventObserver)
-    }
-  }
-
-  const applyReaderPerformanceEnvironment = () => {
-    if (typeof document === 'undefined') {
-      return
-    }
-
-    const mode = options.settingsStore.config.performanceMode
-    const root = document.documentElement
-    root.dataset.readerPerformanceMode = mode
-    if (previousDocumentScrollBehavior === null) {
-      previousDocumentScrollBehavior = root.style.scrollBehavior || ''
-    }
-    root.style.scrollBehavior = 'auto'
-  }
-
-  const resetReaderPerformanceEnvironment = () => {
-    if (typeof document === 'undefined') {
-      return
-    }
-
-    const root = document.documentElement
-    delete root.dataset.readerPerformanceMode
-    root.style.scrollBehavior = previousDocumentScrollBehavior ?? ''
-    previousDocumentScrollBehavior = null
-  }
-
-  const teardownChapterSyncBindings = () => {
-    if (chapterMarkerObserver) {
-      chapterMarkerObserver.disconnect()
-      chapterMarkerObserver = null
-      visibleChapterMarkers.clear()
-    }
-    if (pendingChapterSyncRafId !== null) {
-      window.cancelAnimationFrame(pendingChapterSyncRafId)
-      pendingChapterSyncRafId = null
-    }
-    pendingSyncDefers = 0
-    if (pendingMarkerRebindRafId !== null) {
-      window.cancelAnimationFrame(pendingMarkerRebindRafId)
-      pendingMarkerRebindRafId = null
-    }
-    pendingRebindDefers = 0
+  const teardown = () => {
+    if (observer) { observer.disconnect(); observer = null; visibleMarkers.clear() }
+    if (pendingSyncRafId !== null) { window.cancelAnimationFrame(pendingSyncRafId); pendingSyncRafId = null }
+    if (pendingRebindRafId !== null) { window.cancelAnimationFrame(pendingRebindRafId); pendingRebindRafId = null }
+    syncDefers = 0; rebindDefers = 0
     window.removeEventListener('scroll', debouncedChapterSync)
   }
 
-  const setupChapterSyncBindings = () => {
-    if (!pageActive) {
-      return
+  const setup = () => {
+    if (!getPageActive()) return
+    if (!setupObserver()) {
+      window.addEventListener('scroll', debouncedChapterSync, { passive: true })
     }
-
-    if (setupChapterMarkerObserver()) {
-      return
-    }
-
-    window.addEventListener('scroll', debouncedChapterSync, { passive: true })
   }
+
+  return { setup, teardown, debouncedChapterSync, scheduleRebind }
+}
+
+// ──────── 主动加载下一章 ────────
+
+function createAutoAppendNext(
+  readerStore: ReturnType<typeof useReaderStore>,
+  settingsStore: ReturnType<typeof useSettingsStore>
+) {
+  const debouncedAppendNext = useThrottleFn(async () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+
+    const adaptivePrefetchEnabled = settingsStore.config.adaptivePrefetchEnabled
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+    if (adaptivePrefetchEnabled && !isOnline) return
+
+    if (readerStore.hasNextChapter && !readerStore.isLoadingMore) {
+      const success = await readerStore.appendNextChapter()
+      if (!success) {
+        logger.warn('自动加载下一章失败，显示重试选项', { loadError: readerStore.loadError })
+      }
+    }
+  }, 1000)
+
+  return debouncedAppendNext
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 主 composable
+// ═══════════════════════════════════════════════════════════════════════
+
+export function useReaderScrollSync(options: {
+  readerStore: ReturnType<typeof useReaderStore>
+  settingsStore: ReturnType<typeof useSettingsStore>
+}) {
+  const { arrivedState } = useScroll(window, { offset: { bottom: 200 } })
+  let pageActive = true
+
+  // 创建子管理器
+  const wakeLock = createWakeLockManager(options.settingsStore, () => pageActive)
+  const perfObserver = createPerformanceObserverManager(options.settingsStore, options.readerStore)
+  const perfEnv = createPerformanceEnvironmentManager()
+  const chapterSync = createChapterScrollSync(options.readerStore, options.settingsStore, () => pageActive)
+  const appendNext = createAutoAppendNext(options.readerStore, options.settingsStore)
+
+  // ── 生命周期回调 ──
+
+  const handleBeforeUnload = () => options.readerStore.saveProgress()
+
+  const handleVisibilityChange = () => {
+    const hidden = typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
+    pageActive = !hidden
+    if (!pageActive) {
+      chapterSync.teardown()
+      perfObserver.clear()
+      void wakeLock.release()
+      return
+    }
+    chapterSync.setup()
+    perfObserver.setup()
+    void wakeLock.request()
+  }
+
+  const handlePageHide = () => {
+    pageActive = false
+    chapterSync.teardown()
+    perfObserver.clear()
+    void wakeLock.release()
+  }
+
+  const handlePageShow = (event: PageTransitionEvent) => {
+    pageActive = true
+    chapterSync.setup()
+    perfObserver.setup()
+    void wakeLock.request()
+    if (event.persisted) {
+      void nextTick(() => options.readerStore.updateChapterIndexByScroll())
+    }
+  }
+
+  // ── Watchers ──
 
   watch(
     () => arrivedState.bottom,
     isBottom => {
-      if (!pageActive) {
-        return
-      }
-
-      if (isBottom) {
-        if (!options.readerStore.loadError) {
-          debouncedAppendNext()
-        }
+      if (!pageActive) return
+      if (isBottom && !options.readerStore.loadError) {
+        appendNext()
       }
     }
   )
@@ -446,13 +386,8 @@ export function useReaderScrollSync(options: {
       return `${chapters.length}:${firstIndex}:${lastIndex}`
     },
     () => {
-      if (!pageActive) {
-        return
-      }
-
-      void nextTick(() => {
-        scheduleMarkerObserverRebind()
-      })
+      if (!pageActive) return
+      void nextTick(() => chapterSync.scheduleRebind())
     },
     { flush: 'post' }
   )
@@ -460,11 +395,11 @@ export function useReaderScrollSync(options: {
   watch(
     () => options.settingsStore.config.performanceMode,
     () => {
-      applyReaderPerformanceEnvironment()
-      teardownChapterSyncBindings()
-      clearPerformanceObservers()
-      setupChapterSyncBindings()
-      setupPerformanceObservers()
+      perfEnv.apply(options.settingsStore.config.performanceMode)
+      chapterSync.teardown()
+      perfObserver.clear()
+      chapterSync.setup()
+      perfObserver.setup()
     },
     { flush: 'post' }
   )
@@ -472,20 +407,19 @@ export function useReaderScrollSync(options: {
   watch(
     () => options.settingsStore.config.wakeLockEnabled,
     enabled => {
-      if (!enabled) {
-        void releaseReaderWakeLock()
-        return
-      }
-      void requestReaderWakeLock()
+      if (!enabled) { void wakeLock.release(); return }
+      void wakeLock.request()
     }
   )
 
+  // ── 挂载/卸载 ──
+
   onMounted(() => {
     pageActive = typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
-    applyReaderPerformanceEnvironment()
-    setupChapterSyncBindings()
-    setupPerformanceObservers()
-    void requestReaderWakeLock()
+    perfEnv.apply(options.settingsStore.config.performanceMode)
+    chapterSync.setup()
+    perfObserver.setup()
+    void wakeLock.request()
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handlePageHide)
     window.addEventListener('pageshow', handlePageShow)
@@ -493,10 +427,10 @@ export function useReaderScrollSync(options: {
   })
 
   onUnmounted(() => {
-    teardownChapterSyncBindings()
-    clearPerformanceObservers()
-    void releaseReaderWakeLock()
-    resetReaderPerformanceEnvironment()
+    chapterSync.teardown()
+    perfObserver.clear()
+    void wakeLock.release()
+    perfEnv.reset()
     window.removeEventListener('beforeunload', handleBeforeUnload)
     window.removeEventListener('pagehide', handlePageHide)
     window.removeEventListener('pageshow', handlePageShow)
