@@ -16,9 +16,6 @@ queries:
   - uses: security-and-quality
   - uses: security-experimental
 
-# Custom security queries (disabled due to query ID issues)
-# - uses: ./codeql-queries/nexus-security.qls
-
 # Paths to exclude from analysis
 paths-ignore:
   # Dependencies
