@@ -9,9 +9,11 @@ import { useSearchSession } from '@/composables/useSearchSession'
 import { useLibraryStore } from '@/stores/library'
 import { useSearchStore } from '@/stores/search'
 import { useSourceStore } from '@/stores/source'
-import type { SearchDisplayResult, SearchResult, SearchSourceOption } from '@/types/search'
-import { aggregateSearchResults, getSearchAggregateKey } from '@/stores/search/helpers'
-import { compareSourcesByBusinessPriority } from '@/stores/source/helpers'
+import {
+  aggregateSearchResults,
+  createSearchResultComparator,
+  decorateSearchErrors,
+} from '@/stores/search/helpers'
 
 export function useSearchView() {
   const router = useRouter()
@@ -35,20 +37,27 @@ export function useSearchView() {
     availableSources,
     filteredResults,
   } = storeToRefs(searchStore)
-  const sourceCatalogOptions = computed<SearchSourceOption[]>(() =>
-    sources.value
-      .filter(source => source.enabled !== false)
-      .map(source => ({
-        id: source.id,
-        name: source.name,
-      }))
-      .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
-  )
-  const mergedAvailableSources = computed<SearchSourceOption[]>(() => {
-    const sourceMap = new Map<string, SearchSourceOption>()
 
-    sourceCatalogOptions.value.forEach(source => {
-      sourceMap.set(source.id, source)
+  // ── 源查找表 ──────────────────────────────────────────
+
+  const sourceById = computed(
+    () => new Map(sources.value.map(source => [source.id, source] as const))
+  )
+
+  const sourceNameMap = computed(() => {
+    const entries = sources.value.map(source => [source.id, source.name] as const)
+    return new Map<string, string>(entries)
+  })
+
+  // ── 合并可用源（来自本地 + 搜索结果） ─────────────────
+
+  const mergedAvailableSources = computed(() => {
+    const sourceMap = new Map<string, { id: string; name: string }>()
+
+    sources.value.forEach(source => {
+      if (source.enabled !== false) {
+        sourceMap.set(source.id, { id: source.id, name: source.name })
+      }
     })
 
     availableSources.value.forEach(source => {
@@ -68,70 +77,32 @@ export function useSearchView() {
       if (typeof leftOrder === 'number' && typeof rightOrder === 'number') {
         return leftOrder - rightOrder
       }
-
-      if (typeof leftOrder === 'number') {
-        return -1
-      }
-
-      if (typeof rightOrder === 'number') {
-        return 1
-      }
+      if (typeof leftOrder === 'number') return -1
+      if (typeof rightOrder === 'number') return 1
 
       return left.name.localeCompare(right.name, 'zh-CN')
     })
   })
-  const sourceNameMap = computed(() => {
-    const entries = sources.value.map(source => [source.id, source.name] as const)
-    return new Map<string, string>(entries)
-  })
-  const sourceById = computed(
-    () => new Map(sources.value.map(source => [source.id, source] as const))
+
+  // ── 排序比较器 ────────────────────────────────────────
+
+  const searchResultComparator = computed(
+    () => createSearchResultComparator({
+      getPreferredSourceId: (book) => searchStore.getPreferredSourceId(book),
+      sourceById: sourceById.value,
+    })
   )
+
+  // ── 视图计算属性 ──────────────────────────────────────
+
   const searchErrorItems = computed(() =>
-    searchErrors.value.map(error => ({
-      ...error,
-      sourceName: sourceNameMap.value.get(error.sourceId) || error.sourceId,
-    }))
+    decorateSearchErrors(searchErrors.value, sourceNameMap.value)
   )
-  const compareSearchResultsBySourcePriority = (left: SearchResult, right: SearchResult) => {
-    const leftAggregateKey = getSearchAggregateKey(left)
-    const rightAggregateKey = getSearchAggregateKey(right)
 
-    if (leftAggregateKey === rightAggregateKey) {
-      const preferredSourceId = searchStore.getPreferredSourceId(left)
-      const leftPreferred = preferredSourceId === left.sourceId
-      const rightPreferred = preferredSourceId === right.sourceId
-
-      if (leftPreferred !== rightPreferred) {
-        return leftPreferred ? -1 : 1
-      }
-    }
-
-    const leftPackageRank = left.searchExplain?.packageRank ?? 0
-    const rightPackageRank = right.searchExplain?.packageRank ?? 0
-    if (leftPackageRank !== rightPackageRank) {
-      return rightPackageRank - leftPackageRank
-    }
-
-    const leftMatchScore = left.searchExplain?.matchScore ?? 0
-    const rightMatchScore = right.searchExplain?.matchScore ?? 0
-    if (leftMatchScore !== rightMatchScore) {
-      return rightMatchScore - leftMatchScore
-    }
-
-    const leftSource = sourceById.value.get(left.sourceId)
-    const rightSource = sourceById.value.get(right.sourceId)
-
-    return compareSourcesByBusinessPriority(
-      leftSource || { id: left.sourceId, name: left.sourceName, enabled: true },
-      rightSource || { id: right.sourceId, name: right.sourceName, enabled: true }
-    )
-  }
-
-  const aggregatedFilteredResults = computed<SearchDisplayResult[]>(() =>
-    aggregateSearchResults(filteredResults.value, compareSearchResultsBySourcePriority).sort(
+  const aggregatedFilteredResults = computed(() =>
+    aggregateSearchResults(filteredResults.value, searchResultComparator.value).sort(
       (left, right) => {
-        const compare = compareSearchResultsBySourcePriority(left, right)
+        const compare = searchResultComparator.value(left, right)
 
         if (compare !== 0) {
           return compare
@@ -145,12 +116,16 @@ export function useSearchView() {
       }
     )
   )
+
   const displayResultCount = computed(() => aggregatedFilteredResults.value.length)
   const hasResults = computed(() => aggregatedFilteredResults.value.length > 0)
   const showHeroState = computed(
     () => !hasSearched.value && !loading.value && searchResult.value.length === 0
   )
   const showSourceFilters = computed(() => mergedAvailableSources.value.length > 1)
+
+  // ── 操作 ──────────────────────────────────────────────
+
   const {
     openingBook,
     hasBookOnShelf,

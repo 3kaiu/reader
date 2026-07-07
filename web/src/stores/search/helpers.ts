@@ -4,6 +4,10 @@ import type {
   SearchResult,
   SearchSourceOption,
 } from '@/types/search'
+import type { BookSource } from '@/types/source'
+import { compareSourcesByBusinessPriority } from '@/stores/source/helpers'
+
+// ─── 标识生成 ────────────────────────────────────────
 
 export function getSearchResultIdentity(
   result: Pick<SearchResult, 'sourceId' | 'bookUrl'>
@@ -14,6 +18,8 @@ export function getSearchResultIdentity(
 export function getSearchAggregateKey(result: Pick<SearchResult, 'name' | 'author'>): string {
   return `${normalizeAggregateKeySegment(result.name)}||${normalizeAggregateKeySegment(result.author)}`
 }
+
+// ─── 源过滤 ──────────────────────────────────────────
 
 export function buildAvailableSources(results: SearchResult[]): SearchSourceOption[] {
   const sources = new Map<string, SearchSourceOption>()
@@ -43,6 +49,8 @@ export function filterSearchResultsBySources(
   return results.filter(book => selectedSources.has(book.sourceId || ''))
 }
 
+// ─── 历史管理 ──────────────────────────────────────────
+
 export function appendSearchHistory(history: string[], query: string, limit: number): string[] {
   if (history.includes(query)) {
     return history
@@ -62,6 +70,8 @@ export function toggleSelectedSource(selectedSources: Set<string>, source: strin
 
   return nextSources
 }
+
+// ─── 结果累加 ──────────────────────────────────────────
 
 export function appendSearchResult(
   results: SearchResult[],
@@ -92,9 +102,64 @@ export function appendSearchError(errors: SearchError[], nextError: SearchError)
   return [...errors, nextError]
 }
 
+// ─── 排序 ──────────────────────────────────────────────
+
+export type SearchResultComparator = (
+  left: SearchResult,
+  right: SearchResult
+) => number
+
+export type CompareDeps = {
+  getPreferredSourceId: (book: Pick<SearchResult, 'name' | 'author'>) => string | undefined
+  sourceById: ReadonlyMap<string, BookSource>
+}
+
 function normalizeAggregateKeySegment(value: string | undefined): string {
   return (value || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
+
+export function createSearchResultComparator(deps: CompareDeps): SearchResultComparator {
+  return function compare(left: SearchResult, right: SearchResult): number {
+    const leftAggregateKey = getSearchAggregateKey(left)
+    const rightAggregateKey = getSearchAggregateKey(right)
+
+    // 同一书籍：优先选择偏好的源
+    if (leftAggregateKey === rightAggregateKey) {
+      const preferredSourceId = deps.getPreferredSourceId(left)
+      const leftPreferred = preferredSourceId === left.sourceId
+      const rightPreferred = preferredSourceId === right.sourceId
+
+      if (leftPreferred !== rightPreferred) {
+        return leftPreferred ? -1 : 1
+      }
+    }
+
+    // 按包排名降序
+    const leftPackageRank = left.searchExplain?.packageRank ?? 0
+    const rightPackageRank = right.searchExplain?.packageRank ?? 0
+    if (leftPackageRank !== rightPackageRank) {
+      return rightPackageRank - leftPackageRank
+    }
+
+    // 按匹配分数降序
+    const leftMatchScore = left.searchExplain?.matchScore ?? 0
+    const rightMatchScore = right.searchExplain?.matchScore ?? 0
+    if (leftMatchScore !== rightMatchScore) {
+      return rightMatchScore - leftMatchScore
+    }
+
+    // 按书源优先级
+    const leftSource = deps.sourceById.get(left.sourceId)
+    const rightSource = deps.sourceById.get(right.sourceId)
+
+    return compareSourcesByBusinessPriority(
+      leftSource || { id: left.sourceId, name: left.sourceName, enabled: true },
+      rightSource || { id: right.sourceId, name: right.sourceName, enabled: true }
+    )
+  }
+}
+
+// ─── 聚合 ──────────────────────────────────────────────
 
 function mergeSearchResultDetails(current: SearchResult, incoming: SearchResult): SearchResult {
   return {
@@ -109,7 +174,7 @@ function mergeSearchResultDetails(current: SearchResult, incoming: SearchResult)
 function upsertSearchVariant(
   variants: SearchResult[],
   nextVariant: SearchResult,
-  comparePrimary: (left: SearchResult, right: SearchResult) => number
+  comparePrimary: SearchResultComparator
 ): SearchResult[] {
   const existingIndex = variants.findIndex(
     variant => variant.sourceId === nextVariant.sourceId && variant.bookUrl === nextVariant.bookUrl
@@ -135,7 +200,7 @@ function upsertSearchVariant(
 
 export function aggregateSearchResults(
   results: SearchResult[],
-  comparePrimary: (left: SearchResult, right: SearchResult) => number
+  comparePrimary: SearchResultComparator
 ): SearchDisplayResult[] {
   const resultMap = new Map<string, SearchDisplayResult>()
 
@@ -177,4 +242,16 @@ export function aggregateSearchResults(
   })
 
   return Array.from(resultMap.values())
+}
+
+// ─── 错误装饰 ─────────────────────────────────────────
+
+export function decorateSearchErrors(
+  errors: SearchError[],
+  sourceNameMap: ReadonlyMap<string, string>
+) {
+  return errors.map(error => ({
+    ...error,
+    sourceName: sourceNameMap.get(error.sourceId) || error.sourceId,
+  }))
 }
