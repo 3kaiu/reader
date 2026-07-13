@@ -165,24 +165,24 @@ function getHealthLabel(source: SourceListItem): string {
           <div class="group-hover:hidden flex items-center">
             <Switch
               :checked="props.source.enabled"
+              class="scale-75 origin-right data-[state=checked]:bg-primary"
               @update:checked="(value: boolean) => emit('toggleEnable', props.source, value)"
               @click.stop
-              class="scale-75 origin-right data-[state=checked]:bg-primary"
             />
           </div>
 
           <div class="hidden group-hover:flex items-center gap-1 -mr-1">
             <button
               class="w-7 h-7 rounded-md hover:bg-background border border-transparent hover:border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
-              @click.stop="emit('openEdit', props.source)"
               title="查看详情"
+              @click.stop="emit('openEdit', props.source)"
             >
               <Edit2 class="h-3.5 w-3.5" />
             </button>
             <button
               class="w-7 h-7 rounded-md hover:bg-destructive hover:text-destructive-foreground hover:border-transparent border border-transparent flex items-center justify-center text-muted-foreground transition-all"
-              @click.stop="emit('deleteSource', props.source)"
               title="删除"
+              @click.stop="emit('deleteSource', props.source)"
             >
               <Trash2 class="h-3.5 w-3.5" />
             </button>

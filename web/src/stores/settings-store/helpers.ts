@@ -1,8 +1,8 @@
 import { getLocalStorageItem, setLocalStorageItem } from '@/utils/browserStorage'
 import { config as appConfig } from '@/utils/config'
 import { logger } from '@/utils/logger'
+import { getThemeTokens, CORE_TOKEN_KEYS } from '@/constants/theme-tokens'
 import type {
-  ClientRouteKind,
   FontFamily,
   ReaderConfig,
   ReaderTheme,
@@ -11,11 +11,11 @@ import type {
 
 const STORAGE_KEY = 'reader-settings'
 
-export const DEFAULT_READER_CONFIG: ReaderConfig = {
-  theme: 'paper',
+const DEFAULT_READER_CONFIG: ReaderConfig = {
+  theme: 'wechat',
   customColors: {
-    bg: '#FAF7ED',
-    text: '#333333',
+    bg: '#edf1e7',
+    text: '#1f3328',
   },
   fontFamily: 'system',
   chineseConvert: 'none',
@@ -36,9 +36,42 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
 }
 
 export const THEME_COLORS: Record<ReaderTheme, ThemeColors> = {
-  white: { bg: '#FFFFFF', text: '#242424' },
-  paper: { bg: '#FAF7ED', text: '#38342F' },
-  night: { bg: '#191919', text: '#D1D1D6' },
+  wechat: { bg: '#edf1e7', text: '#1f3328' },
+  mist: { bg: '#ebe8e0', text: '#25322d' },
+  night: { bg: '#151718', text: '#b6c0bb' },
+}
+
+/**
+ * 应用完整主题 token 到 CSS 变量
+ *
+ * light-dark() 路径 (Chrome 123+, FF 120+, Safari 17.5+):
+ *   仅设置 color-scheme 切换，CSS 通过 light-dark() 自动选择色值
+ *
+ * JS fallback 路径:
+ *   逐条 setProperty 设置核心 token (~24) + 切换 .ir-dark class
+ */
+export function applyThemeTokens(theme: ReaderTheme): void {
+  const tokens = getThemeTokens(theme)
+  const style = document.documentElement.style
+  const isDark = theme === 'night'
+
+  // color-scheme 始终设置 — light-dark() 和浏览器 chrome 都需要
+  style.setProperty('color-scheme', isDark ? 'dark' : 'light')
+
+  // light-dark() 检测 — 原生支持则跳过 JS setProperty，由 CSS 变量处理
+  if (!CSS.supports('color', 'light-dark(red, blue)')) {
+    // JS fallback: 设置核心 token
+    for (const key of CORE_TOKEN_KEYS) {
+      const cssVar = `--ir-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`
+      style.setProperty(cssVar, tokens[key])
+    }
+    // .ir-dark class 用于 color-mix() 衍生 token 暗色覆盖 (见 reader.vue global CSS)
+    document.documentElement.classList.toggle('ir-dark', isDark)
+  }
+
+  // Update theme-color meta for mobile browser chrome
+  const tm = document.querySelector('meta[name="theme-color"]')
+  if (tm) tm.setAttribute('content', tokens.bg)
 }
 
 export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
@@ -49,8 +82,6 @@ export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
   fangsong: 'FangSong, STFangsong, serif',
   lxgw: "'LXGW WenKai Screen', 'LXGW WenKai', serif",
 }
-
-export const CLIENT_ROUTE_KINDS: ClientRouteKind[] = ['direct', 'edge']
 
 export function cloneDefaultConfig(): ReaderConfig {
   return {
@@ -125,18 +156,4 @@ export function persistConfig(readerConfig: ReaderConfig, language: string): voi
   } catch (error) {
     logger.warn('Failed to persist reader settings', { error })
   }
-}
-
-export function formatRouteShare(value?: number): string {
-  if (value == null || Number.isNaN(value)) {
-    return '0%'
-  }
-  return `${value.toFixed(2)}%`
-}
-
-export function formatRouteLatency(value?: number): string {
-  if (value == null || Number.isNaN(value)) {
-    return '-'
-  }
-  return `${value.toFixed(0)}ms`
 }

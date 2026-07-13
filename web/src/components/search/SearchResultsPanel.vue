@@ -57,7 +57,9 @@ const searchStageSummary = computed(() => {
 
 const packageIdSummary = computed(() => {
   const variants = props.filteredResults.flatMap(item => item.sourceVariants || [])
-  const ids = variants.map(v => v.packageId).filter((id): id is string => typeof id === 'string' && id.length > 0)
+  const ids = variants
+    .map(v => v.packageId)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
   const unique = Array.from(new Set(ids))
   return {
     unique,
@@ -116,7 +118,7 @@ const emit = defineEmits<{
       v-if="searchRequestId || (searchStageReports && searchStageReports.length > 0)"
       class="mb-4 rounded-xl border bg-muted/10 px-4 py-3"
       :open="diagnosticsOpen"
-      @toggle="diagnosticsOpen = (($event.target as HTMLDetailsElement)?.open ?? false)"
+      @toggle="diagnosticsOpen = ($event.target as HTMLDetailsElement)?.open ?? false"
     >
       <summary class="cursor-pointer select-none text-xs font-medium text-muted-foreground">
         诊断信息
@@ -165,7 +167,7 @@ const emit = defineEmits<{
         <pre
           v-if="searchStageReports && searchStageReports.length > 0"
           class="max-h-48 overflow-auto rounded-md border bg-background/40 p-2 text-[11px] leading-snug"
-        >{{ JSON.stringify(searchStageReports, null, 2) }}</pre>
+          >{{ JSON.stringify(searchStageReports, null, 2) }}</pre>
       </div>
     </details>
 

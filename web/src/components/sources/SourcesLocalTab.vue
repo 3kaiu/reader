@@ -73,8 +73,8 @@ const emit = defineEmits<{
             <button
               v-if="group !== '未分组' && activeGroup === group"
               class="absolute -top-1 -right-1 w-4 h-4 rounded-md bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/btn:opacity-100 transition-opacity hover:scale-110"
-              @click.stop="emit('deleteGroupSources', group)"
               aria-label="删除分组"
+              @click.stop="emit('deleteGroupSources', group)"
             >
               <X class="h-2.5 w-2.5" />
             </button>

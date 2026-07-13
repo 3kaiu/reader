@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import {
-  BookOpen,
-  Database,
-  FileJson,
-  RefreshCw,
-  Trash2,
-} from 'lucide-vue-next'
+import { BookOpen, Database, FileJson, RefreshCw, Trash2 } from 'lucide-vue-next'
 
 type SourcePackageSummary = {
   sourceId: string
@@ -17,12 +11,7 @@ type SourcePackageSummary = {
   enabled: boolean
   valid: boolean
   readinessState:
-    | 'draft'
-    | 'blocked'
-    | 'search_ready'
-    | 'catalog_ready'
-    | 'reading_ready'
-    | 'full_flow_ready'
+    'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
   searchable: boolean
   detailReady: boolean
   tocReady: boolean

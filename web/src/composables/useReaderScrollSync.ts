@@ -116,7 +116,11 @@ function createPerformanceObserverManager(
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.duration >= 50) {
-            log('longtask', { duration: Number(entry.duration.toFixed(1)), chapterIndex: readerStore.currentChapterIndex, loadedChapters: readerStore.loadedChapters.length })
+            log('longtask', {
+              duration: Number(entry.duration.toFixed(1)),
+              chapterIndex: readerStore.currentChapterIndex,
+              loadedChapters: readerStore.loadedChapters.length,
+            })
           }
         })
       })
@@ -127,9 +131,15 @@ function createPerformanceObserverManager(
     if (supported.includes('layout-shift')) {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
-          const shiftEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean }
+          const shiftEntry = entry as PerformanceEntry & {
+            value?: number
+            hadRecentInput?: boolean
+          }
           if (!shiftEntry.hadRecentInput && (shiftEntry.value || 0) > 0.04) {
-            log('layout-shift', { value: Number((shiftEntry.value || 0).toFixed(4)), chapterIndex: readerStore.currentChapterIndex })
+            log('layout-shift', {
+              value: Number((shiftEntry.value || 0).toFixed(4)),
+              chapterIndex: readerStore.currentChapterIndex,
+            })
           }
         })
       })
@@ -141,7 +151,11 @@ function createPerformanceObserverManager(
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.duration >= 120) {
-            log('event', { name: entry.name, duration: Number(entry.duration.toFixed(1)), chapterIndex: readerStore.currentChapterIndex })
+            log('event', {
+              name: entry.name,
+              duration: Number(entry.duration.toFixed(1)),
+              chapterIndex: readerStore.currentChapterIndex,
+            })
           }
         })
       })
@@ -217,11 +231,17 @@ function createChapterScrollSync(
     let minDistance = Number.POSITIVE_INFINITY
 
     visibleMarkers.forEach(marker => {
-      if (!marker.isConnected) { visibleMarkers.delete(marker); return }
+      if (!marker.isConnected) {
+        visibleMarkers.delete(marker)
+        return
+      }
       const chapterIndex = Number(marker.dataset.chapterIndex)
       if (Number.isNaN(chapterIndex)) return
       const distance = Math.abs(marker.getBoundingClientRect().top - targetLine)
-      if (distance < minDistance) { minDistance = distance; resolvedIndex = chapterIndex }
+      if (distance < minDistance) {
+        minDistance = distance
+        resolvedIndex = chapterIndex
+      }
     })
 
     if (resolvedIndex !== null) {
@@ -234,17 +254,34 @@ function createChapterScrollSync(
   const scheduleSync = () => {
     if (!getPageActive() || pendingSyncRafId !== null) return
     pendingSyncRafId = window.requestAnimationFrame(() => {
-      if (hasPendingUserInput() && syncDefers < MAX_DEFERS) { syncDefers += 1; pendingSyncRafId = null; scheduleSync(); return }
-      syncDefers = 0; pendingSyncRafId = null; syncByVisibleMarkers()
+      if (hasPendingUserInput() && syncDefers < MAX_DEFERS) {
+        syncDefers += 1
+        pendingSyncRafId = null
+        scheduleSync()
+        return
+      }
+      syncDefers = 0
+      pendingSyncRafId = null
+      syncByVisibleMarkers()
     })
   }
 
   const scheduleRebind = () => {
     if (!getPageActive() || pendingRebindRafId !== null) return
     pendingRebindRafId = window.requestAnimationFrame(() => {
-      if (hasPendingUserInput() && rebindDefers < MAX_DEFERS) { rebindDefers += 1; pendingRebindRafId = null; scheduleRebind(); return }
-      rebindDefers = 0; pendingRebindRafId = null
-      if (observer) { observer.disconnect(); visibleMarkers.clear(); setupObserver() }
+      if (hasPendingUserInput() && rebindDefers < MAX_DEFERS) {
+        rebindDefers += 1
+        pendingRebindRafId = null
+        scheduleRebind()
+        return
+      }
+      rebindDefers = 0
+      pendingRebindRafId = null
+      if (observer) {
+        observer.disconnect()
+        visibleMarkers.clear()
+        setupObserver()
+      }
     })
   }
 
@@ -255,27 +292,43 @@ function createChapterScrollSync(
     const threshold = mode === 'aggressive' ? [0, 1] : [0, 0.25, 0.5, 1]
 
     if (!observer) {
-      observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-          const marker = entry.target as HTMLElement
-          if (entry.isIntersecting) visibleMarkers.add(marker)
-          else visibleMarkers.delete(marker)
-        })
-        scheduleSync()
-      }, { root: null, rootMargin, threshold })
+      observer = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            const marker = entry.target as HTMLElement
+            if (entry.isIntersecting) visibleMarkers.add(marker)
+            else visibleMarkers.delete(marker)
+          })
+          scheduleSync()
+        },
+        { root: null, rootMargin, threshold }
+      )
     }
 
     visibleMarkers.clear()
-    document.querySelectorAll<HTMLElement>(chapterMarkerSelector).forEach(marker => observer?.observe(marker))
+    document
+      .querySelectorAll<HTMLElement>(chapterMarkerSelector)
+      .forEach(marker => observer?.observe(marker))
     scheduleSync()
     return true
   }
 
   const teardown = () => {
-    if (observer) { observer.disconnect(); observer = null; visibleMarkers.clear() }
-    if (pendingSyncRafId !== null) { window.cancelAnimationFrame(pendingSyncRafId); pendingSyncRafId = null }
-    if (pendingRebindRafId !== null) { window.cancelAnimationFrame(pendingRebindRafId); pendingRebindRafId = null }
-    syncDefers = 0; rebindDefers = 0
+    if (observer) {
+      observer.disconnect()
+      observer = null
+      visibleMarkers.clear()
+    }
+    if (pendingSyncRafId !== null) {
+      window.cancelAnimationFrame(pendingSyncRafId)
+      pendingSyncRafId = null
+    }
+    if (pendingRebindRafId !== null) {
+      window.cancelAnimationFrame(pendingRebindRafId)
+      pendingRebindRafId = null
+    }
+    syncDefers = 0
+    rebindDefers = 0
     window.removeEventListener('scroll', debouncedChapterSync)
   }
 
@@ -328,7 +381,11 @@ export function useReaderScrollSync(options: {
   const wakeLock = createWakeLockManager(options.settingsStore, () => pageActive)
   const perfObserver = createPerformanceObserverManager(options.settingsStore, options.readerStore)
   const perfEnv = createPerformanceEnvironmentManager()
-  const chapterSync = createChapterScrollSync(options.readerStore, options.settingsStore, () => pageActive)
+  const chapterSync = createChapterScrollSync(
+    options.readerStore,
+    options.settingsStore,
+    () => pageActive
+  )
   const appendNext = createAutoAppendNext(options.readerStore, options.settingsStore)
 
   // ── 生命周期回调 ──
@@ -407,7 +464,10 @@ export function useReaderScrollSync(options: {
   watch(
     () => options.settingsStore.config.wakeLockEnabled,
     enabled => {
-      if (!enabled) { void wakeLock.release(); return }
+      if (!enabled) {
+        void wakeLock.release()
+        return
+      }
       void wakeLock.request()
     }
   )

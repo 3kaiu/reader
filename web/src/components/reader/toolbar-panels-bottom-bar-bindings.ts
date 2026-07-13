@@ -14,9 +14,7 @@ export interface ReaderToolbarPanelsBottomBarBindings extends ReaderToolbarBotto
   onOpenBookInfo: () => void
 }
 
-export function createReaderToolbarPanelsBottomBarBindings(
-  props: ReaderToolbarPanelsProps
-) {
+export function createReaderToolbarPanelsBottomBarBindings(props: ReaderToolbarPanelsProps) {
   return computed<ReaderToolbarPanelsBottomBarBindings>(() => ({
     ...props.bottomBarProps,
     onToggleDayNight: props.onToggleDayNight!,

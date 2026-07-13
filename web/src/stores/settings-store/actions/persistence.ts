@@ -24,8 +24,7 @@ export function createSettingsPersistenceActions(
     state.language.value = (appConfig.get('ui.language', 'zh-CN') as string) || 'zh-CN'
 
     const persistedFontSize = appConfig.get('reading.fontSize', state.config.fontSize) as
-      | number
-      | undefined
+      number | undefined
 
     if (typeof persistedFontSize === 'number') {
       state.config.fontSize = clampSettingValue(persistedFontSize, 12, 32)

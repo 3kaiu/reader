@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { createReaderViewPageStateOptions } from '@/composables/reader/view-model-page-state-options'
 
@@ -7,7 +7,7 @@ describe('Reader Page State Options', () => {
     const services = {
       settingsStore: {
         config: {
-          theme: ref('paper'),
+          theme: ref('wechat'),
         },
       },
       readerStore: {
@@ -18,13 +18,7 @@ describe('Reader Page State Options', () => {
       },
     } as any
 
-    const features = {
-      actions: {
-        readerThemeStyle: computed(() => ({})),
-      },
-    } as any
-
-    const options = createReaderViewPageStateOptions(services, features)
+    const options = createReaderViewPageStateOptions(services)
 
     expect(options.error.value).toBe('章节内容为空，请重试或切换书源')
     expect(options.errorDetails.value).toBe('content_empty')

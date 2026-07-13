@@ -5,5 +5,4 @@
 
 import './sync-manager/autostart'
 
-export type { SyncPriority } from './sync-manager/types'
 export { syncManager } from './sync-manager/instance'

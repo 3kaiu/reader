@@ -13,12 +13,7 @@ type SourcePackageSummary = {
   enabled: boolean
   valid: boolean
   readinessState:
-    | 'draft'
-    | 'blocked'
-    | 'search_ready'
-    | 'catalog_ready'
-    | 'reading_ready'
-    | 'full_flow_ready'
+    'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
   searchable: boolean
   detailReady: boolean
   tocReady: boolean

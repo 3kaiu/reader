@@ -12,7 +12,7 @@ export type ToasterToast = {
   onOpenChange?: (open: boolean) => void
 }
 
-export const toastActionTypes = {
+const toastActionTypes = {
   ADD_TOAST: 'ADD_TOAST',
   UPDATE_TOAST: 'UPDATE_TOAST',
   DISMISS_TOAST: 'DISMISS_TOAST',

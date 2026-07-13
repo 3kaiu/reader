@@ -209,6 +209,7 @@ export interface ReaderToolbarTopBarProps {
   onBack?: () => void
   onToggleCatalog?: () => void
   onToggleFullscreen?: () => void
+  onToggleSettings?: () => void
 }
 
 // ═══════════════════════════════════════════════════════
@@ -237,6 +238,12 @@ export type ReaderKeyboardEmits = {
   'toggle-day-night': []
   'toggle-help': []
   escape: []
+  'scroll-page-down': []
+  'scroll-down': []
+  'scroll-up': []
+  'prev-chapter': []
+  'next-chapter': []
+  'cycle-theme': []
 }
 
 export type ReaderKeyboardHelpDialogEmits = {

@@ -6,15 +6,15 @@ export interface ReaderToolbarPanelsTopBarBindings extends ReaderToolbarTopBarPr
   onBack: () => void
   onToggleCatalog: () => void
   onToggleFullscreen: () => void
+  onToggleSettings: () => void
 }
 
-export function createReaderToolbarPanelsTopBarBindings(
-  props: ReaderToolbarPanelsProps
-) {
+export function createReaderToolbarPanelsTopBarBindings(props: ReaderToolbarPanelsProps) {
   return computed<ReaderToolbarPanelsTopBarBindings>(() => ({
     ...props.topBarProps,
-    onBack: props.onBack!,
-    onToggleCatalog: props.onToggleCatalog!,
-    onToggleFullscreen: props.onToggleFullscreen!,
+    onBack: props.onBack || (() => {}),
+    onToggleCatalog: props.onToggleCatalog || (() => {}),
+    onToggleFullscreen: props.onToggleFullscreen || (() => {}),
+    onToggleSettings: props.onToggleSettings || (() => {}),
   }))
 }

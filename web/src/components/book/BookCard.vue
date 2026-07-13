@@ -41,12 +41,12 @@ const { showMenu, progress, unreadCount, coverUrl, toggleMenu, handleDelete } = 
 <template>
   <div
     class="group cursor-pointer relative select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl interactive"
-    @click="emit('click', book)"
     role="button"
     tabindex="0"
+    :aria-label="`打开书籍 ${book.name}`"
+    @click="emit('click', book)"
     @keydown.enter="emit('click', book)"
     @keydown.space.prevent="emit('click', book)"
-    :aria-label="`打开书籍 ${book.name}`"
   >
     <!-- 封面容器 -->
     <div

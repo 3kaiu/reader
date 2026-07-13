@@ -7,7 +7,7 @@ withDefaults(
     containerClass?: string
   }>(),
   {
-  containerClass: 'py-12 text-center',
+    containerClass: 'py-12 text-center',
   }
 )
 </script>

@@ -23,7 +23,10 @@ describe('request id propagation into NexusError', () => {
       {
         status: 500,
         message: 'failed',
-        response: { headers: new Headers({ 'X-Request-ID': 'hdr-2' }), _data: { code: 'X', message: 'x' } },
+        response: {
+          headers: new Headers({ 'X-Request-ID': 'hdr-2' }),
+          _data: { code: 'X', message: 'x' },
+        },
       },
       '/api/search',
       'GET'
@@ -31,4 +34,3 @@ describe('request id propagation into NexusError', () => {
     expect(err.requestId).toBe('hdr-2')
   })
 })
-

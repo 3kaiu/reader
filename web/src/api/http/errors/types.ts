@@ -1,7 +1,3 @@
-export interface ErrorHandlerInstance {
-  handleError: (error: unknown, context?: string, showToast?: boolean) => void
-}
-
 export type HeaderBag = Record<string, unknown>
 
 export interface ErrorResponseLike {

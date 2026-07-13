@@ -104,10 +104,7 @@ export function appendSearchError(errors: SearchError[], nextError: SearchError)
 
 // ─── 排序 ──────────────────────────────────────────────
 
-export type SearchResultComparator = (
-  left: SearchResult,
-  right: SearchResult
-) => number
+export type SearchResultComparator = (left: SearchResult, right: SearchResult) => number
 
 export type CompareDeps = {
   getPreferredSourceId: (book: Pick<SearchResult, 'name' | 'author'>) => string | undefined

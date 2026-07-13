@@ -1,7 +1,11 @@
+/* ── 阅读器工具栏 CSS — 使用 --ir-* token 系统 ── */
+
 .reader-toolbar-glass {
-  background: rgb(var(--background-rgb));
-  border-bottom: 1px solid rgba(var(--foreground-rgb), 0.08);
-  border-top: 1px solid rgba(var(--foreground-rgb), 0.08);
+  background: var(--ir-panel, rgba(255, 255, 255, 0.86));
+  border: 1px solid var(--ir-border, rgba(0, 0, 0, 0.1));
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  box-shadow: var(--ir-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
 }
 
 .reader-toolbar-item {
@@ -16,7 +20,7 @@
 }
 
 .reader-toolbar-item:active {
-  background: rgba(var(--foreground-rgb), 0.05);
+  background: var(--ir-ripple, rgba(0, 0, 0, 0.05));
 }
 
 .reader-toolbar-item-icon {
@@ -31,12 +35,38 @@
 .reader-toolbar-item-label {
   font-size: 0.65rem;
   font-weight: 500;
-  opacity: 0.6;
+  color: var(--ir-muted, rgba(0, 0, 0, 0.5));
 }
 
+/* ── 涟漪动画 ── */
+.reader-toolbar-item,
+.reader-nav-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.reader-toolbar-item::after,
+.reader-nav-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--ir-ripple, rgba(0, 0, 0, 0.08));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.reader-toolbar-item:active::after,
+.reader-nav-btn:active::after {
+  opacity: 1;
+}
+
+/* ── Transitions ── */
 .slide-down-enter-active,
 .slide-down-leave-active {
-  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  transition:
+    transform 0.3s ease-out,
+    opacity 0.3s ease-out;
 }
 
 .slide-down-enter-from,
@@ -47,11 +77,42 @@
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  transition:
+    transform 0.3s ease-out,
+    opacity 0.3s ease-out;
 }
 
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(20px);
   opacity: 0;
+}
+
+/* ── @starting-style 入场动画 (Chrome 117+) ── */
+@starting-style {
+  .slide-down-enter-from,
+  .slide-up-enter-from {
+    opacity: 0;
+  }
+}
+
+/* ── Focus States ── */
+.reader-toolbar-item:focus-visible,
+.reader-nav-btn:focus-visible {
+  outline: 2px solid var(--ir-border-focus, rgba(0, 0, 0, 0.3));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Forced Colors — Windows High Contrast Mode ── */
+@media (forced-colors: active) {
+  .reader-toolbar-glass {
+    border: 2px solid ButtonText;
+    box-shadow: none;
+  }
+
+  .reader-toolbar-item,
+  .reader-nav-btn {
+    border: 1px solid ButtonText;
+  }
 }

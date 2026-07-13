@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'vue'
-
 export type ReaderToast = (payload: {
   title: string
   description?: string
@@ -17,4 +15,3 @@ export type ReaderKeyboardShortcut = {
 }
 
 export type ReaderContentStyle = Record<string, string | number>
-export type ReaderThemeStyle = CSSProperties

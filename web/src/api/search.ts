@@ -5,8 +5,6 @@ import type { InternalApiFetchOptions } from './http/types'
 import type { SearchError, SearchResponse, SearchResult } from '@/types/search'
 import type { PipelineStageReport } from '@/types/pipeline'
 
-export type { SearchError, SearchResponse, SearchResult }
-
 type SearchPayload = {
   keyword: string
   sources?: string[]
@@ -43,8 +41,7 @@ async function toRequestError(response: Response): Promise<Error> {
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
       const data = (await response.json()) as
-        | { message?: string; error?: string; errorMsg?: string }
-        | undefined
+        { message?: string; error?: string; errorMsg?: string } | undefined
       message = data?.message || data?.error || data?.errorMsg || message
     } else {
       const text = await response.text()
@@ -209,7 +206,8 @@ async function requestSearchStream(
     throw await toRequestError(response)
   }
 
-  const requestId = response.headers.get('X-Request-ID') || response.headers.get('x-request-id') || undefined
+  const requestId =
+    response.headers.get('X-Request-ID') || response.headers.get('x-request-id') || undefined
   if (requestId && options.onMeta) {
     options.onMeta({ requestId })
   }

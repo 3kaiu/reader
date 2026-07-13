@@ -4,8 +4,10 @@
  *   page-model-option-types, page-model-state-options, page-state-types
  */
 import type { Ref } from 'vue'
-import type { ReaderThemeStyle } from './shared-types'
-import type { ReaderExperienceViewActions, ReaderExperienceReadingActions } from './experience-types'
+import type {
+  ReaderExperienceViewActions,
+  ReaderExperienceReadingActions,
+} from './experience-types'
 
 // ── Chrome options ─────────────────────────────────────────────────
 export interface ReaderPageModelChromeOptions {
@@ -30,7 +32,6 @@ export type ReaderPageModelExperienceOptions = {
 
 // ── State options ──────────────────────────────────────────────────
 export type ReaderPageModelStateOptions = {
-  readerThemeStyle: Readonly<Ref<ReaderThemeStyle>>
   currentTheme: Readonly<Ref<string>>
   isLoading: Readonly<Ref<boolean>>
   error: Readonly<Ref<string | null | undefined>>
@@ -45,7 +46,6 @@ export type ReaderPageModelOptions = ReaderPageModelStateOptions &
 // ── Page state ─────────────────────────────────────────────────────
 export interface ReaderPageState {
   themeClass: string
-  readerThemeStyle: ReaderThemeStyle
   isLoading: boolean
   error: string | null | undefined
   errorDetails: string | null | undefined

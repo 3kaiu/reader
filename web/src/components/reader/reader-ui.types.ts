@@ -12,9 +12,7 @@ type ReaderFullscreenIconProps = {
   isFullscreen: boolean
 }
 
-export function createReaderFullscreenIconViewBindings(
-  props: ReaderFullscreenIconProps
-) {
+export function createReaderFullscreenIconViewBindings(props: ReaderFullscreenIconProps) {
   return {
     pathData: computed(() => (props.isFullscreen ? EXIT_FULLSCREEN_PATH : ENTER_FULLSCREEN_PATH)),
   }
@@ -26,9 +24,7 @@ export interface ReaderFullscreenTimeProps {
   formattedTime: string
 }
 
-export function createReaderFullscreenTimeViewBindings(
-  props: ReaderFullscreenTimeProps
-) {
+export function createReaderFullscreenTimeViewBindings(props: ReaderFullscreenTimeProps) {
   return {
     displayTime: computed(() => props.formattedTime),
   }

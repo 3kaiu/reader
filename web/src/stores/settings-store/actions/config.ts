@@ -21,8 +21,14 @@ export function createSettingsConfigActions(
   const { state } = context
 
   const updateConfig = <K extends keyof ReaderConfig>(key: K, value: ReaderConfig[K]) => {
+    const prevTheme = state.config.theme
     assignSettingsConfigValue(state.config, key, value)
-    context.applyThemeClass()
+    // View Transitions API 增强主题切换体验
+    if (key === 'theme' && prevTheme !== value && document.startViewTransition) {
+      document.startViewTransition(() => context.applyThemeClass())
+    } else {
+      context.applyThemeClass()
+    }
     context.persistCurrentConfig()
   }
 
@@ -55,7 +61,7 @@ export function createSettingsConfigActions(
       state.config.nightModeEndHour
     )
 
-    updateConfig('theme', nightMode ? 'night' : 'white')
+    updateConfig('theme', nightMode ? 'night' : 'wechat')
   }
 
   const toggleAutoNightMode = (enabled: boolean) => {

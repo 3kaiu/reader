@@ -5,9 +5,7 @@ export interface ReaderNavigationProgressProps {
   progressPercent: number
 }
 
-export function createReaderNavigationProgressViewBindings(
-  props: ReaderNavigationProgressProps
-) {
+export function createReaderNavigationProgressViewBindings(props: ReaderNavigationProgressProps) {
   return {
     chapterProgressText: computed(() => props.progressText),
     progressPercentText: computed(() => `${props.progressPercent}%`),

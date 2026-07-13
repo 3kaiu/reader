@@ -1,8 +1,5 @@
 import type { ComputedRef, Ref, WritableComputedRef } from 'vue'
-import type {
-  NxsSourcePackageDetail,
-  SourcePackageSummary,
-} from '@/api/sync'
+import type { NxsSourcePackageDetail, SourcePackageSummary } from '@/api/sync'
 import type { ReaderConfig, ThemeColors } from '@/types/settings'
 
 export type SourcePackageDetailSummary = {

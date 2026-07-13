@@ -2,9 +2,7 @@ import type { ReaderToolbarBottomActionsBindings } from './toolbar-bottom-action
 import { createReaderToolbarBottomPrimaryActions } from './toolbar-bottom-primary-actions'
 import { createReaderToolbarBottomTrailingActions } from './toolbar-bottom-trailing-actions'
 
-export function createReaderToolbarBottomStaticActions(
-  props: ReaderToolbarBottomActionsBindings
-) {
+export function createReaderToolbarBottomStaticActions(props: ReaderToolbarBottomActionsBindings) {
   const primaryActions = createReaderToolbarBottomPrimaryActions(props)
   const trailingActions = createReaderToolbarBottomTrailingActions(props)
 

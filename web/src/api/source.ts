@@ -12,8 +12,6 @@ import type {
   SourceRuntimeProfileResponse,
 } from '@/types/source'
 
-export type { BookSource }
-
 export const sourceApi = {
   // 获取所有书源
   getBookSources: () => $get<BookSource[]>('/sources'),

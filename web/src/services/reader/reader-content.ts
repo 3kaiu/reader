@@ -2,7 +2,11 @@ import { readerApi } from '@/api/reader'
 import type { ApiResponse } from '@/api/http/types'
 import type { Chapter } from '@/types/book'
 import { isNexusError } from '@/utils/errors'
-import { formatReaderContent, type ReaderBook, buildReaderContentBookId } from '@/stores/reader/helpers'
+import {
+  formatReaderContent,
+  type ReaderBook,
+  buildReaderContentBookId,
+} from '@/stores/reader/helpers'
 import {
   normalizeContentPayload,
   normalizeReaderBookPayload,
@@ -11,7 +15,7 @@ import {
 
 // ─── Cache ──────────────────────────────────────────────────────────
 
-export class LRUStringCache {
+class LRUStringCache {
   private map = new Map<string, string>()
   private max: number
 
@@ -67,10 +71,8 @@ export function createReaderContentService() {
       : chapterUrl
   }
 
-  const chapterRequestCacheKey = (
-    chapter: Chapter,
-    book: { bookUrl: string }
-  ) => `${book.bookUrl}::${chapter.url}`
+  const chapterRequestCacheKey = (chapter: Chapter, book: { bookUrl: string }) =>
+    `${book.bookUrl}::${chapter.url}`
 
   const setCurrentBook = (sourceId: string, bookUrl: string) => {
     currentSourceId = sourceId
@@ -256,5 +258,5 @@ export function createReaderContentService() {
 
 // ─── Re-export normalization helpers for backwards compat ───────────
 
-export { normalizeCatalogPayload, normalizeReaderBookPayload } from './content-normalizers'
+export { normalizeCatalogPayload } from './content-normalizers'
 export type { StageReport } from './content-normalizers'

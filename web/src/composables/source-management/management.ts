@@ -1,7 +1,13 @@
 import type { SourceListItem } from '@/stores/source'
 import type { SourceManagementContext } from './types'
-import { createManageModeDeleteActions, createManageModeExportActions } from '@/composables/manage-mode/management'
-import type { ManageModeDeleteDeps, ManageModeExportDeps } from '@/composables/manage-mode/management'
+import {
+  createManageModeDeleteActions,
+  createManageModeExportActions,
+} from '@/composables/manage-mode/management'
+import type {
+  ManageModeDeleteDeps,
+  ManageModeExportDeps,
+} from '@/composables/manage-mode/management'
 
 export function createSourceManagementActions(context: SourceManagementContext) {
   const deleteDeps: ManageModeDeleteDeps<SourceListItem, string> = {

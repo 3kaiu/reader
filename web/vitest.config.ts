@@ -1,70 +1,55 @@
 /**
  * Main Vitest Configuration
- * 
+ *
  * Configuration for unit tests and property-based tests
  */
 
-import { defineConfig } from 'vitest/config';
-import { resolve } from 'path';
+import { defineConfig } from 'vitest/config'
+import { resolve } from 'path'
 
 export default defineConfig({
   test: {
     // Test environment
     environment: 'node',
     globals: true,
-    
+
     // Include patterns
-    include: [
-      'src/tests/**/*.test.ts',
-      'tests/**/*.test.js'
-    ],
+    include: ['src/tests/**/*.test.ts', 'tests/**/*.test.js'],
     exclude: [
       'node_modules/**',
       'dist/**',
       'build/**',
-      'src/tests/integration/**' // Integration tests use separate config
+      'src/tests/integration/**', // Integration tests use separate config
     ],
-    
+
     // Timeouts
     testTimeout: 10000, // 10 seconds per test
     hookTimeout: 10000, // 10 seconds for setup/teardown
-    
+
     // Setup files - include crypto polyfill
-    setupFiles: [
-      './src/tests/setup/cryptoPolyfill.ts'
-    ],
-    
+    setupFiles: ['./src/tests/setup/cryptoPolyfill.ts'],
+
     // Coverage settings
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       reportsDirectory: './coverage',
-      include: [
-        'src/utils/**',
-        'src/components/**',
-        'src/api/**',
-        'src/services/**'
-      ],
-      exclude: [
-        'src/tests/**',
-        'src/**/*.test.ts',
-        'src/**/*.spec.ts',
-        'node_modules/**'
-      ]
+      include: ['src/utils/**', 'src/components/**', 'src/api/**', 'src/services/**'],
+      exclude: ['src/tests/**', 'src/**/*.test.ts', 'src/**/*.spec.ts', 'node_modules/**'],
     },
-    
+
     // Reporter configuration
     reporter: ['verbose'],
-    
+
     // Retry configuration for flaky tests
     retry: 1,
-    
+
     // Worker pool settings
     pool: 'threads',
     maxWorkers: 4,
-    minWorkers: 1
+    minWorkers: 1,
   },
-  
+
   // Resolve configuration
   resolve: {
     alias: {
@@ -73,12 +58,12 @@ export default defineConfig({
       '@utils': resolve(__dirname, './src/utils'),
       '@components': resolve(__dirname, './src/components'),
       '@api': resolve(__dirname, './src/api'),
-      '@services': resolve(__dirname, './src/services')
-    }
+      '@services': resolve(__dirname, './src/services'),
+    },
   },
-  
+
   // Define configuration
   define: {
-    __TEST_ENV__: '"unit"'
-  }
-});
+    __TEST_ENV__: '"unit"',
+  },
+})

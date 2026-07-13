@@ -53,8 +53,8 @@ function handleSheetNavigation(path: string) {
           <DropdownMenuItem
             v-for="item in group.items"
             :key="item.path"
-            @click="emit('navigate', item.path)"
             class="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors group"
+            @click="emit('navigate', item.path)"
           >
             <div
               class="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 transition-colors"
@@ -98,8 +98,8 @@ function handleSheetNavigation(path: string) {
             <button
               v-for="item in group.items"
               :key="item.path"
-              @click="handleSheetNavigation(item.path)"
               class="flex items-center gap-4 px-3 py-3 rounded-xl bg-secondary/30 active:scale-[0.98] transition-all border border-transparent active:border-primary/10"
+              @click="handleSheetNavigation(item.path)"
             >
               <div
                 class="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"

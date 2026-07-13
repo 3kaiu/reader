@@ -52,8 +52,8 @@ const copyRequestId = () => {
             <button
               type="button"
               class="truncate text-left underline decoration-dotted underline-offset-2 hover:text-white"
-              @click="copyRequestId"
               :title="readerStore.diagnosticsRequestId"
+              @click="copyRequestId"
             >
               {{ readerStore.diagnosticsRequestId }}
             </button>
@@ -67,8 +67,7 @@ const copyRequestId = () => {
           <pre
             v-if="readerStore.contentStageReports.length > 0"
             class="max-h-44 overflow-auto rounded-lg bg-black/30 p-2 text-[11px] leading-snug"
-          >
-{{ JSON.stringify(readerStore.contentStageReports, null, 2) }}
+            >{{ JSON.stringify(readerStore.contentStageReports, null, 2) }}
           </pre>
         </div>
       </details>

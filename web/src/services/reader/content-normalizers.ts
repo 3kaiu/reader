@@ -5,7 +5,7 @@
 
 // ─── JSON 解析 ──────────────────────────────────────────
 
-export function tryParseJsonPayload(value: unknown): unknown {
+function tryParseJsonPayload(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value
   }
@@ -29,7 +29,7 @@ export function tryParseJsonPayload(value: unknown): unknown {
   }
 }
 
-export function parseChapterCatalogPayload(payload: unknown): unknown[] {
+function parseChapterCatalogPayload(payload: unknown): unknown[] {
   const normalizedPayload = tryParseJsonPayload(payload)
   if (Array.isArray(normalizedPayload)) {
     return normalizedPayload
@@ -73,7 +73,7 @@ export function parseChapterCatalogPayload(payload: unknown): unknown[] {
 
 // ─── 类型转换 ──────────────────────────────────────────
 
-export function toOptionalString(value: unknown): string | undefined {
+function toOptionalString(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined
   }
@@ -81,7 +81,7 @@ export function toOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-export function pickFirstString(values: unknown[]): string | undefined {
+function pickFirstString(values: unknown[]): string | undefined {
   for (const value of values) {
     const normalized = toOptionalString(value)
     if (normalized) {
@@ -91,7 +91,7 @@ export function pickFirstString(values: unknown[]): string | undefined {
   return undefined
 }
 
-export function toOptionalNumber(value: unknown): number | undefined {
+function toOptionalNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -110,7 +110,7 @@ export function toOptionalNumber(value: unknown): number | undefined {
   return undefined
 }
 
-export function toOptionalBoolean(value: unknown): boolean | undefined {
+function toOptionalBoolean(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') {
     return value
   }
@@ -153,7 +153,7 @@ export function toOptionalBoolean(value: unknown): boolean | undefined {
 
 import type { Chapter } from '@/types/book'
 
-export function toCatalogChapter(entry: unknown, index: number): Chapter | null {
+function toCatalogChapter(entry: unknown, index: number): Chapter | null {
   if (!entry || typeof entry !== 'object') {
     return null
   }
@@ -348,14 +348,12 @@ function normalizeStageReports(value: unknown): StageReport[] {
         ...(metrics && Object.keys(metrics).length > 0 ? { metrics } : {}),
       }
     })
-    .filter(
-      (report): report is StageReport => report !== null
-    )
+    .filter((report): report is StageReport => report !== null)
 }
 
 // ─── 内容规范化 ──────────────────────────────────────────
 
-export type NormalizedContentResult = {
+type NormalizedContentResult = {
   content: string
   packageId?: string | null
   stageReports: StageReport[]
@@ -397,8 +395,8 @@ export function normalizeContentPayload(payload: unknown): NormalizedContentResu
   const packageId =
     metaValue && typeof metaValue === 'object'
       ? (toOptionalString((metaValue as Record<string, unknown>).packageId) ??
-          toOptionalString((metaValue as Record<string, unknown>).package_id) ??
-          null)
+        toOptionalString((metaValue as Record<string, unknown>).package_id) ??
+        null)
       : null
   const stageReportsValue =
     metaValue && typeof metaValue === 'object'

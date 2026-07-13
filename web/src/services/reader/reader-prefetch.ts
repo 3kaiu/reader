@@ -76,7 +76,11 @@ export function createReaderPrefetchService(deps: PrefetchDeps) {
     }
   }
 
-  const prefetchChapterContent = (chapter: Chapter | undefined, book: ReaderBook, catalog: Chapter[]) => {
+  const prefetchChapterContent = (
+    chapter: Chapter | undefined,
+    book: ReaderBook,
+    catalog: Chapter[]
+  ) => {
     if (!chapter) {
       return
     }
@@ -142,13 +146,15 @@ export function createReaderPrefetchService(deps: PrefetchDeps) {
       })().catch(() => undefined)
 
       for (const ch of toPrefetch) {
-        batchPromise.then(() => {
-          const c = deps.getCachedChapterContent(ch.url)
-          if (typeof c !== 'string') {
-            throw new Error('预取未完成')
-          }
-          return c
-        }).catch(() => undefined)
+        batchPromise
+          .then(() => {
+            const c = deps.getCachedChapterContent(ch.url)
+            if (typeof c !== 'string') {
+              throw new Error('预取未完成')
+            }
+            return c
+          })
+          .catch(() => undefined)
         deps.inflightCancel(ch, book)
       }
 

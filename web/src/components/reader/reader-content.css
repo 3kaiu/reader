@@ -1,12 +1,95 @@
+/* ── @property — 启用阅读器颜色属性平滑过渡 ── */
+@property --ir-bg {
+  syntax: '<color>';
+  initial-value: #edf1e7;
+  inherits: true;
+}
+@property --ir-text-body {
+  syntax: '<color>';
+  initial-value: #1f3328;
+  inherits: true;
+}
+@property --ir-text {
+  syntax: '<color>';
+  initial-value: #1c2e24;
+  inherits: true;
+}
+@property --ir-muted {
+  syntax: '<color>';
+  initial-value: #4d6358;
+  inherits: true;
+}
+@property --ir-faint {
+  syntax: '<color>';
+  initial-value: #5a6e64;
+  inherits: true;
+}
+@property --ir-panel {
+  syntax: '<color>';
+  initial-value: rgba(250, 248, 243, 0.86);
+  inherits: true;
+}
+@property --ir-border {
+  syntax: '<color>';
+  initial-value: rgba(100, 140, 118, 0.15);
+  inherits: true;
+}
+@property --ir-accent {
+  syntax: '<color>';
+  initial-value: #5c8e76;
+  inherits: true;
+}
+@property --ir-panel-alt {
+  syntax: '<color>';
+  initial-value: rgba(245, 242, 236, 0.88);
+  inherits: true;
+}
+@property --ir-panel-elevated {
+  syntax: '<color>';
+  initial-value: rgba(253, 251, 247, 0.92);
+  inherits: true;
+}
+@property --ir-heading {
+  syntax: '<color>';
+  initial-value: #182a20;
+  inherits: true;
+}
+@property --ir-shadow-xs {
+  syntax: '*';
+  initial-value: none;
+  inherits: false;
+}
+@property --ir-shadow-sm {
+  syntax: '*';
+  initial-value: none;
+  inherits: false;
+}
+
+/* ── Container ── */
 .reader-container {
   min-height: 100vh;
   cursor: text;
   scroll-behavior: auto;
+  background: var(--ir-bg, #edf1e7);
+  color: var(--ir-text-body, #1f3328);
+  /* Reserve gutter space — prevents content shift on scrollbar appear/disappear */
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+}
+
+/* CJK auto-spacing */
+@supports (text-autospace: ideograph-alpha) {
+  .reader-container {
+    text-autospace: ideograph-alpha;
+  }
 }
 
 .reader-content-host {
   overflow-anchor: auto;
   overscroll-behavior-y: contain;
+  position: relative;
+  z-index: 1;
+  font-size-adjust: 0.52;
 }
 
 .reader-content-host .reader-scroll-load-anchor {
@@ -25,6 +108,7 @@
   overflow-anchor: auto;
 }
 
+/* ── content-visibility for long chapters ── */
 @supports (content-visibility: auto) {
   .reader-content-host .reader-chapter-block {
     content-visibility: auto;
@@ -39,18 +123,31 @@ html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter
   contain-intrinsic-size: auto;
 }
 
+/* ── 段落排版 ── */
 .reader-content-host .reader-text .content-paragraph {
   text-indent: 2em;
   word-break: break-word;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.012em;
   text-align: justify;
-  line-height: var(--p-line-height, 2.0);
+  line-height: var(--p-line-height, 2);
   margin-bottom: var(--p-spacing, 1.6em);
+  color: var(--ir-text-body, inherit);
+  text-wrap: pretty;
+  transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@supports not (text-wrap: pretty) {
+  .reader-content-host .reader-text .content-paragraph {
+    hyphens: auto;
+  }
+}
+
+/* ── 章节标题 ── */
 .reader-content-host .chapter-title {
   position: relative;
   padding-bottom: 1rem;
+  color: var(--ir-heading, inherit);
+  text-wrap: balance;
 }
 
 .reader-content-host .chapter-title::after {
@@ -61,7 +158,7 @@ html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter
   transform: translateX(-50%);
   width: 60px;
   height: 2px;
-  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  background: linear-gradient(90deg, transparent, var(--ir-divider, currentColor), transparent);
   opacity: 0.3;
 }
 
@@ -73,4 +170,87 @@ html[data-reader-performance-mode='compat'] .reader-content-host .reader-chapter
 
 .reader-content-host .break-inside-avoid {
   break-inside: avoid;
+}
+
+/* ── 滚动条 ── */
+.reader-container {
+  scrollbar-color: var(--ir-border, rgba(0, 0, 0, 0.1)) transparent;
+  scrollbar-width: thin;
+}
+
+/* ── 章节完标记 ── */
+.reader-chapter-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 52px 0 28px;
+  padding: 0 12%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.reader-chapter-end-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ir-divider, rgba(0, 0, 0, 0.1)),
+    transparent
+  );
+}
+
+.reader-chapter-end-text {
+  font-size: 13px;
+  color: var(--ir-faint, rgba(0, 0, 0, 0.3));
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+}
+
+/* ── Accessibility: Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .reader-content-host *,
+  .reader-content-host *::before,
+  .reader-content-host *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reader-content-host .reader-chapter-block {
+    content-visibility: visible;
+  }
+}
+
+/* ── Print — hide UI chrome ── */
+@media print {
+  .reader-progress-horiz,
+  .reader-progress-vert,
+  .reader-atmosphere {
+    display: none !important;
+  }
+
+  .reader-container {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
+
+/* ── Forced Colors — Windows High Contrast Mode ── */
+@media (forced-colors: active) {
+  .reader-progress-horiz {
+    background: Canvas;
+  }
+
+  .reader-progress-horiz-bar {
+    background: Highlight;
+  }
+
+  .reader-progress-vert::before {
+    background: Highlight;
+  }
+
+  .reader-atmosphere {
+    display: none;
+  }
 }

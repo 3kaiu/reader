@@ -21,7 +21,10 @@ import type { Book, Chapter } from '@/types/book'
 describe('Reader Binding Contracts', () => {
   it('keeps bottom toolbar hidden in zen mode and wires action handlers through panel bindings', () => {
     const handlerCalls: Array<[string, unknown[]]> = []
-    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
+    const track =
+      (name: string) =>
+      (...args: unknown[]) =>
+        handlerCalls.push([name, args])
 
     const props: ReaderToolbarBottomBarProps = {
       show: true,
@@ -64,7 +67,10 @@ describe('Reader Binding Contracts', () => {
 
   it('derives top toolbar visibility and routes top-bar actions', () => {
     const handlerCalls: Array<[string, unknown[]]> = []
-    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
+    const track =
+      (name: string) =>
+      (...args: unknown[]) =>
+        handlerCalls.push([name, args])
 
     const props: ReaderToolbarTopBarProps = {
       show: true,
@@ -97,7 +103,10 @@ describe('Reader Binding Contracts', () => {
 
   it('derives navigation content bindings and routes prev/next actions', () => {
     const handlerCalls: Array<[string, unknown[]]> = []
-    const track = (name: string) => (...args: unknown[]) => handlerCalls.push([name, args])
+    const track =
+      (name: string) =>
+      (...args: unknown[]) =>
+        handlerCalls.push([name, args])
 
     const props: ReaderNavigationProps = {
       currentChapterIndex: 4,

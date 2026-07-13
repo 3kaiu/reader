@@ -6,6 +6,7 @@ export interface ReaderToolbarTopBarContentBindings extends ReaderToolbarTopBarP
   onBack: () => void
   onToggleCatalog: () => void
   onToggleFullscreen: () => void
+  onToggleSettings: () => void
 }
 
 export interface ReaderToolbarTopBarBindingResult {
@@ -18,9 +19,10 @@ export function createReaderToolbarTopBarBindings(
 ): ReaderToolbarTopBarBindingResult {
   const contentBindings = computed<ReaderToolbarTopBarContentBindings>(() => ({
     ...props,
-    onBack: props.onBack!,
-    onToggleCatalog: props.onToggleCatalog!,
-    onToggleFullscreen: props.onToggleFullscreen!,
+    onBack: props.onBack || (() => {}),
+    onToggleCatalog: props.onToggleCatalog || (() => {}),
+    onToggleFullscreen: props.onToggleFullscreen || (() => {}),
+    onToggleSettings: props.onToggleSettings || (() => {}),
   }))
 
   const isVisible = computed(() => props.show && !props.zenMode)

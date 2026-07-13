@@ -32,10 +32,7 @@ export interface ManageModeDeleteDeps<T, K extends string> {
 export interface ManageModeExportDeps<T, K extends string> {
   selectedKeys: Ref<Set<K>>
   filteredItems: Ref<readonly T[]>
-  getExportItems: (
-    selected: Set<K>,
-    filtered: T[]
-  ) => T[]
+  getExportItems: (selected: Set<K>, filtered: T[]) => T[]
   buildExportFilename: () => string
   success: (message: string) => void
   error: (message: string) => void
@@ -61,9 +58,7 @@ export function createManageModeDeleteActions<T, K extends string>(
       const result = await deps.deleteByIds([key])
       if (result.status === 'deleted') {
         deps.setSelection(
-          Array.from(deps.selectedKeys.value).filter(
-            selectedKey => selectedKey !== key
-          )
+          Array.from(deps.selectedKeys.value).filter(selectedKey => selectedKey !== key)
         )
         deps.success('删除成功')
         return
@@ -125,10 +120,7 @@ export function createManageModeExportActions<T, K extends string>(
   deps: ManageModeExportDeps<T, K>
 ) {
   function exportItems() {
-    const target = deps.getExportItems(
-      deps.selectedKeys.value,
-      deps.filteredItems.value as T[]
-    )
+    const target = deps.getExportItems(deps.selectedKeys.value, deps.filteredItems.value as T[])
 
     try {
       downloadJsonFile(deps.buildExportFilename(), target)

@@ -52,5 +52,18 @@ export interface ReaderChromeController {
   actions: ReaderChromeActionsResult
 }
 
+// ── Bindings ───────────────────────────────────────────────────────
+export interface ReaderChromeBindingState {
+  showToolbar: ReaderChromeState['showToolbar']
+  showCatalog: ReaderChromeState['showCatalog']
+  showSettings: ReaderChromeState['showSettings']
+  showSourcePicker: ReaderChromeState['showSourcePicker']
+  showBookInfo: ReaderChromeState['showBookInfo']
+  showKeyboardHelp: ReaderChromeState['showKeyboardHelp']
+}
+
+export interface ReaderChromeBindingsResult
+  extends Omit<ReaderChromeActionsResult, 'clearHideTimer'>, ReaderChromeBindingState {}
+
 // ── Lifecycle ──────────────────────────────────────────────────────
 export type ReaderChromeLifecycleActions = Pick<ReaderChromeActionsResult, 'clearHideTimer'>

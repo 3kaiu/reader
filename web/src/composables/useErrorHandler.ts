@@ -59,13 +59,10 @@ export function useErrorHandler() {
     }
 
     // 使用统一的错误处理器
-    errorHandler.handle(
-      normalizedError,
-      {
-        ...(typeof context === 'string' ? { message: context } : (context || {})),
-        requestId,
-      }
-    )
+    errorHandler.handle(normalizedError, {
+      ...(typeof context === 'string' ? { message: context } : context || {}),
+      requestId,
+    })
 
     return errorId
   }
@@ -110,8 +107,12 @@ export function useErrorHandler() {
 
   // Bridge standalone error-reporter events into the Vue composable.
   // This replaces the old pattern of importing useErrorHandler from api/ layer.
-  const unsubErrors = subscribeToErrors((payload) => {
-    handleError(new Error(payload.message), { source: 'error-reporter', details: payload.details }, true)
+  const unsubErrors = subscribeToErrors(payload => {
+    handleError(
+      new Error(payload.message),
+      { source: 'error-reporter', details: payload.details },
+      true
+    )
   })
   if (typeof onUnmounted === 'function') {
     onUnmounted(unsubErrors)

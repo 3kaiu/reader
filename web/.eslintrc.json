@@ -38,11 +38,5 @@
     "prefer-const": "warn",
     "no-var": "error"
   },
-  "ignorePatterns": [
-    "dist",
-    "node_modules",
-    "*.config.js",
-    "*.config.ts",
-    "coverage"
-  ]
+  "ignorePatterns": ["dist", "node_modules", "*.config.js", "*.config.ts", "coverage"]
 }

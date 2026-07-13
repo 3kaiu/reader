@@ -103,8 +103,8 @@ const isAllSelected = computed(
         <!-- 关闭按钮 -->
         <button
           class="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors ml-1 active:scale-95"
-          @click="emit('close')"
           title="退出管理"
+          @click="emit('close')"
         >
           <X class="h-4 w-4" />
         </button>

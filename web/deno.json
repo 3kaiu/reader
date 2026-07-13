@@ -1,0 +1,11 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@": "./src"
+  },
+  "tasks": {
+    "dev": "deno run -A npm:@rsbuild/core dev",
+    "build": "NODE_ENV=production deno run -A npm:@rsbuild/core build",
+    "preview": "deno run -A npm:@rsbuild/core preview"
+  }
+}

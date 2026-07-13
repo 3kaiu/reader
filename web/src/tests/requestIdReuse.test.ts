@@ -15,9 +15,11 @@ describe('HTTP transport request id reuse', () => {
     expect(second).toBe(first)
 
     // Simulate direct -> edge fallback / re-dispatch: URL changes, same request id.
-    attachRequestMetadata(options, 'https://edge.example.com/api/content?url=https%3A%2F%2Fexample.com%2Fchapter-1')
+    attachRequestMetadata(
+      options,
+      'https://edge.example.com/api/content?url=https%3A%2F%2Fexample.com%2Fchapter-1'
+    )
     const third = (options.headers as Record<string, string>)['X-Request-ID']
     expect(third).toBe(first)
   })
 })
-

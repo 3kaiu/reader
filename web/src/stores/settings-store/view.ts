@@ -174,7 +174,7 @@ export function createSettingsStoreView(state: SettingsStoreState): SettingsStor
       if (value === 'dark') {
         state.config.theme = 'night'
       } else if (value === 'light') {
-        state.config.theme = 'white'
+        state.config.theme = 'wechat'
       }
       persistConfig(state.config, state.language.value)
     },

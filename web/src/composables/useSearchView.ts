@@ -86,9 +86,9 @@ export function useSearchView() {
 
   // ── 排序比较器 ────────────────────────────────────────
 
-  const searchResultComparator = computed(
-    () => createSearchResultComparator({
-      getPreferredSourceId: (book) => searchStore.getPreferredSourceId(book),
+  const searchResultComparator = computed(() =>
+    createSearchResultComparator({
+      getPreferredSourceId: book => searchStore.getPreferredSourceId(book),
       sourceById: sourceById.value,
     })
   )

@@ -1,43 +1,56 @@
 import type { ReaderChromeActionOptions } from './chrome-option-types'
 import type { ReaderChromeState } from './chrome-state'
 import { createReaderChromeState } from './chrome-state'
-import type { ReaderChromeController } from './chrome-types'
-import type { ReaderChromeBindingsResult, ReaderChromeBindingState } from './chrome-binding-types'
+import type {
+  ReaderChromeController,
+  ReaderChromeTimerActions,
+  ReaderChromeLayerActions,
+  ReaderChromeDisplayActions,
+  ReaderChromeActionsResult,
+  ReaderChromeBindingsResult,
+  ReaderChromeBindingState,
+} from './chrome-types'
 
-// ── Types ─────────────────────────────────────────────────────────────
+// ── Scroll-driven toolbar visibility ───────────────────────────────────
 
-export interface ReaderChromeTimerActions {
-  clearHideTimer: () => void
-  startHideTimer: () => void
-}
+let scrollLastY = 0
+let chromeShowTime = 0
 
-export interface ReaderChromeLayerActions {
-  closeActiveLayer: () => boolean
-}
+/** 初始化/更新滚动驱动工具栏 — 在 reader view 层调用 */
+export function setupScrollDrivenChrome(
+  showToolbar: ReaderChromeState['showToolbar'],
+  _showSettings: ReaderChromeState['showSettings'],
+  _showCatalog: ReaderChromeState['showCatalog']
+) {
+  let ticking = false
 
-export interface ReaderChromeDisplayActions {
-  toggleToolbar: () => void
-  toggleZenMode: () => void
-  toggleCatalog: () => void
-  openCatalog: () => void
-  toggleSettings: () => void
-  openSettings: () => void
-  toggleKeyboardHelp: () => void
-  openSourcePicker: () => void
-  openBookInfo: () => void
-  goBack: () => void
-  handleEscape: () => void
-}
+  const onScroll = () => {
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(() => {
+      const cy = window.scrollY
+      const dy = cy - scrollLastY
+      const inGrace = Date.now() - chromeShowTime < 600
 
-export interface ReaderChromeActionsResult extends ReaderChromeDisplayActions {
-  clearHideTimer: () => void
+      // 下滑超过 20px → 隐藏工具栏 (不在 grace period 内)
+      if (dy > 20 && !inGrace) showToolbar.value = false
+      // 上滑超过 12px → 显示工具栏
+      else if (dy < -12) showToolbar.value = true
+      // 在顶部 30px 内 → 始终显示
+      if (cy < 30) showToolbar.value = true
+
+      scrollLastY = cy
+      ticking = false
+    })
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true })
+  return () => window.removeEventListener('scroll', onScroll)
 }
 
 // ── Hide Timer ─────────────────────────────────────────────────────────
 
-function createReaderChromeHideTimerActions(
-  state: ReaderChromeState
-): ReaderChromeTimerActions {
+function createReaderChromeHideTimerActions(state: ReaderChromeState): ReaderChromeTimerActions {
   function clearHideTimer() {
     if (state.hideToolbarTimer.value) {
       clearTimeout(state.hideToolbarTimer.value)
@@ -59,9 +72,7 @@ function createReaderChromeHideTimerActions(
 
 // ── Layer Actions ──────────────────────────────────────────────────────
 
-function createReaderChromeLayerActions(
-  state: ReaderChromeState
-): ReaderChromeLayerActions {
+function createReaderChromeLayerActions(state: ReaderChromeState): ReaderChromeLayerActions {
   const closeToolbarLayer = () => {
     if (state.showToolbar.value) {
       state.showToolbar.value = false
@@ -71,11 +82,26 @@ function createReaderChromeLayerActions(
   }
 
   const closePanelLayer = () => {
-    if (state.showKeyboardHelp.value) { state.showKeyboardHelp.value = false; return true }
-    if (state.showBookInfo.value) { state.showBookInfo.value = false; return true }
-    if (state.showSourcePicker.value) { state.showSourcePicker.value = false; return true }
-    if (state.showSettings.value) { state.showSettings.value = false; return true }
-    if (state.showCatalog.value) { state.showCatalog.value = false; return true }
+    if (state.showKeyboardHelp.value) {
+      state.showKeyboardHelp.value = false
+      return true
+    }
+    if (state.showBookInfo.value) {
+      state.showBookInfo.value = false
+      return true
+    }
+    if (state.showSourcePicker.value) {
+      state.showSourcePicker.value = false
+      return true
+    }
+    if (state.showSettings.value) {
+      state.showSettings.value = false
+      return true
+    }
+    if (state.showCatalog.value) {
+      state.showCatalog.value = false
+      return true
+    }
     return false
   }
 
@@ -94,7 +120,10 @@ function createReaderChromeToolbarDisplayActions(
   const toggleToolbar = () => {
     if (options.settingsStore.config.zenMode) return
     state.showToolbar.value = !state.showToolbar.value
-    if (state.showToolbar.value) timers.startHideTimer()
+    if (state.showToolbar.value) {
+      chromeShowTime = Date.now()
+      timers.startHideTimer()
+    }
   }
 
   const toggleZenMode = () => {
@@ -104,7 +133,11 @@ function createReaderChromeToolbarDisplayActions(
       state.showToolbar.value = false
       state.showSettings.value = false
       state.showCatalog.value = false
-      options.toast({ title: '已进入禅模式', description: '所有界面已隐藏，双击中央区域退出', duration: 3000 })
+      options.toast({
+        title: '已进入禅模式',
+        description: '所有界面已隐藏，双击中央区域退出',
+        duration: 3000,
+      })
     } else {
       options.toast({ title: '已退出禅模式', duration: 2000 })
     }
@@ -115,19 +148,47 @@ function createReaderChromeToolbarDisplayActions(
 
 function createReaderChromePanelDisplayActions(
   state: ReaderChromeState
-): Pick<ReaderChromeDisplayActions,
-  'toggleCatalog' | 'openCatalog' | 'toggleSettings' | 'openSettings' |
-  'toggleKeyboardHelp' | 'openSourcePicker' | 'openBookInfo'
+): Pick<
+  ReaderChromeDisplayActions,
+  | 'toggleCatalog'
+  | 'openCatalog'
+  | 'toggleSettings'
+  | 'openSettings'
+  | 'toggleKeyboardHelp'
+  | 'openSourcePicker'
+  | 'openBookInfo'
 > {
-  const toggleCatalog = () => { state.showCatalog.value = !state.showCatalog.value }
-  const openCatalog = () => { state.showCatalog.value = true }
-  const toggleSettings = () => { state.showSettings.value = !state.showSettings.value }
-  const openSettings = () => { state.showSettings.value = true }
-  const toggleKeyboardHelp = () => { state.showKeyboardHelp.value = !state.showKeyboardHelp.value }
-  const openSourcePicker = () => { state.showSourcePicker.value = true }
-  const openBookInfo = () => { state.showBookInfo.value = true }
+  const toggleCatalog = () => {
+    state.showCatalog.value = !state.showCatalog.value
+  }
+  const openCatalog = () => {
+    state.showCatalog.value = true
+  }
+  const toggleSettings = () => {
+    state.showSettings.value = !state.showSettings.value
+  }
+  const openSettings = () => {
+    state.showSettings.value = true
+  }
+  const toggleKeyboardHelp = () => {
+    state.showKeyboardHelp.value = !state.showKeyboardHelp.value
+  }
+  const openSourcePicker = () => {
+    state.showSourcePicker.value = true
+  }
+  const openBookInfo = () => {
+    state.showBookInfo.value = true
+  }
 
-  return { toggleCatalog, openCatalog, toggleSettings, openSettings, toggleKeyboardHelp, openSourcePicker, openBookInfo }
+  return {
+    toggleCatalog,
+    openCatalog,
+    toggleSettings,
+    openSettings,
+    toggleKeyboardHelp,
+    openSourcePicker,
+    openBookInfo,
+  }
 }
 
 // ── Entry Point ────────────────────────────────────────────────────────
@@ -141,8 +202,12 @@ export function createReaderChromeActions(
   const toolbar = createReaderChromeToolbarDisplayActions(state, timers, options)
   const panel = createReaderChromePanelDisplayActions(state)
 
-  const goBack = () => { void options.router.push('/') }
-  const handleEscape = () => { if (!layers.closeActiveLayer()) goBack() }
+  const goBack = () => {
+    void options.router.push('/')
+  }
+  const handleEscape = () => {
+    if (!layers.closeActiveLayer()) goBack()
+  }
 
   return {
     clearHideTimer: timers.clearHideTimer,
@@ -181,7 +246,7 @@ export function createReaderChromeBindings(
   state: ReaderChromeState,
   actions: ReaderChromeActionsResult
 ): ReaderChromeBindingsResult {
-  const { clearHideTimer, ...displayActions } = actions
+  const { clearHideTimer: _, ...displayActions } = actions
 
   return {
     ...createReaderChromeBindingState(state),

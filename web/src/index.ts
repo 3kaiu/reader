@@ -104,6 +104,26 @@ window.addEventListener('unhandledrejection', event => {
 // 挂载应用
 app.mount('#root')
 
+// 注入 SVG feTurbulence 纸张纹理滤镜 (全局, 供阅读器氛围层使用)
+function injectGrainFilter(): void {
+  if (document.getElementById('ir-grain-svg')) return
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.id = 'ir-grain-svg'
+  svg.setAttribute('width', '0')
+  svg.setAttribute('height', '0')
+  svg.style.position = 'absolute'
+  svg.style.pointerEvents = 'none'
+  svg.innerHTML = `<filter id="ir-grain">
+    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+    <feColorMatrix type="saturate" values="0"/>
+    <feComponentTransfer>
+      <feFuncA type="linear" slope="0.04" intercept="0"/>
+    </feComponentTransfer>
+  </filter>`
+  document.body.appendChild(svg)
+}
+injectGrainFilter()
+
 // 监控路由变化性能
 router.beforeEach((to, _from, next) => {
   const startTime = performance.now()

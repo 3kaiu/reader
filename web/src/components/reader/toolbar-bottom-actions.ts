@@ -15,9 +15,7 @@ export interface ReaderToolbarBottomActionsBindings extends ReaderToolbarBottomA
   onOpenBookInfo: () => void
 }
 
-export function createReaderToolbarBottomActions(
-  props: ReaderToolbarBottomActionsBindings
-) {
+export function createReaderToolbarBottomActions(props: ReaderToolbarBottomActionsBindings) {
   const actionButtons = computed<ReaderToolbarBottomAction[]>(() =>
     createReaderToolbarBottomActionList(props)
   )

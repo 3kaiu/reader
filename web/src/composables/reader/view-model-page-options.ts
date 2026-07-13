@@ -14,7 +14,7 @@ export function createReaderViewPageOptions(
   readerExperienceActions: ReaderPageExperienceActions
 ): ReaderPageModelOptions {
   return {
-    ...createReaderViewPageStateOptions(services, features),
+    ...createReaderViewPageStateOptions(services),
     ...createReaderViewPageChromeOptions(features),
     ...createReaderViewPageExperienceOptions(readerExperienceActions),
   }

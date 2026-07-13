@@ -20,10 +20,10 @@ const emit = defineEmits<{
       尝试更换搜索关键词或检查输入是否正确
     </p>
     <div class="flex gap-3">
-      <Button @click="emit('reset-search')" variant="outline" class="rounded-full">
+      <Button variant="outline" class="rounded-full" @click="emit('reset-search')">
         重新搜索
       </Button>
-      <Button @click="emit('go-back')" variant="ghost" class="rounded-full"> 返回书架 </Button>
+      <Button variant="ghost" class="rounded-full" @click="emit('go-back')"> 返回书架 </Button>
     </div>
   </div>
 </template>

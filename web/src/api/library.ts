@@ -1,6 +1,5 @@
 import { $delete, $get, $post, $put } from './client'
 import type { Book } from '@/types/book'
-import type { BookGroup } from '@/types/group'
 import { groupApi } from './group'
 
 export interface SaveBookInput {
@@ -11,8 +10,6 @@ export interface SaveBookInput {
   coverUrl?: string
   intro?: string
 }
-
-export type { Book, BookGroup }
 
 export const libraryApi = {
   listBooks: () => $get<Book[]>('/bookshelf'),

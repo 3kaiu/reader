@@ -33,7 +33,7 @@ withDefaults(
       v-if="icon || $slots.icon"
       class="w-20 h-20 rounded-2xl bg-muted/30 flex items-center justify-center mb-6"
     >
-      <component v-if="icon" :is="icon" class="h-10 w-10 text-muted-foreground/40" />
+      <component :is="icon" v-if="icon" class="h-10 w-10 text-muted-foreground/40" />
       <slot v-else name="icon" />
     </div>
 

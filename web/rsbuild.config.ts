@@ -1,31 +1,32 @@
-import { defineConfig, loadEnv } from "@rsbuild/core";
-import { pluginVue } from "@rsbuild/plugin-vue";
+import { defineConfig, loadEnv } from '@rsbuild/core'
+import { pluginVue } from '@rsbuild/plugin-vue'
+import { pluginTailwindcss } from '@rsbuild/plugin-tailwindcss'
 
 // Load environment variables
-const { publicVars } = loadEnv({ prefixes: ['VITE_'] });
+const { publicVars } = loadEnv({ prefixes: ['VITE_'] })
 
 // Only import bundle analyzer when needed
 const getBundleAnalyzerPlugin = async () => {
   if (process.env.ANALYZE === 'true') {
-    const { BundleAnalyzerPlugin } = await import('webpack-bundle-analyzer');
+    const { BundleAnalyzerPlugin } = await import('webpack-bundle-analyzer')
     return new BundleAnalyzerPlugin({
       analyzerMode: 'static',
       openAnalyzer: false,
       reportFilename: '../bundle-report.html',
       generateStatsFile: true,
       statsFilename: '../bundle-stats.json',
-    });
+    })
   }
-  return null;
-};
+  return null
+}
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig(async () => {
-  const analyzerPlugin = await getBundleAnalyzerPlugin();
+  const analyzerPlugin = await getBundleAnalyzerPlugin()
 
   return {
-    plugins: [pluginVue()],
-    
+    plugins: [pluginVue(), pluginTailwindcss()],
+
     // Inject VITE_* environment variables
     source: {
       define: publicVars,
@@ -33,12 +34,8 @@ export default defineConfig(async () => {
 
     tools: {
       rspack: {
-        ignoreWarnings: [
-          /Critical dependency: Accessing import.meta directly is unsupported/,
-        ],
-        plugins: [
-          ...(analyzerPlugin ? [analyzerPlugin] : []),
-        ],
+        ignoreWarnings: [/Critical dependency: Accessing import.meta directly is unsupported/],
+        plugins: [...(analyzerPlugin ? [analyzerPlugin] : [])],
         optimization: {
           usedExports: true,
           sideEffects: false,
@@ -50,70 +47,69 @@ export default defineConfig(async () => {
 
     resolve: {
       alias: {
-        "@": "./src",
+        '@': './src',
       },
     },
 
     html: {
-      title: "Nexus",
+      title: 'Nexus',
       meta: {
-        viewport:
-          "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",
-        description: "Self-hosted reading workspace powered by Nexus",
-        "theme-color": "#ffffff",
+        viewport: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no',
+        description: 'Self-hosted reading workspace powered by Nexus',
+        'theme-color': '#ffffff',
       },
       tags: [
-        { tag: "link", attrs: { rel: "manifest", href: "/manifest.json" } },
-        { tag: "link", attrs: { rel: "apple-touch-icon", href: "/favicon.png" } },
-        { tag: "link", attrs: { rel: "preconnect", href: "https://cdn.jsdelivr.net" } },
-        { tag: "link", attrs: { rel: "dns-prefetch", href: "https://cdn.jsdelivr.net" } },
+        { tag: 'link', attrs: { rel: 'manifest', href: '/manifest.json' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/favicon.png' } },
+        { tag: 'link', attrs: { rel: 'preconnect', href: 'https://cdn.jsdelivr.net' } },
+        { tag: 'link', attrs: { rel: 'dns-prefetch', href: 'https://cdn.jsdelivr.net' } },
         {
-          tag: "link",
+          tag: 'link',
           attrs: {
-            rel: "stylesheet",
-            href: "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css",
-            media: "all",
+            rel: 'stylesheet',
+            href: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css',
+            media: 'all',
           },
         },
         {
-          tag: "link",
+          tag: 'link',
           attrs: {
-            rel: "prefetch",
-            href: "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css",
-            as: "style",
+            rel: 'prefetch',
+            href: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css',
+            as: 'style',
           },
         },
       ],
     },
 
     performance: {
-      removeConsole: process.env.NODE_ENV === "production",
+      removeConsole: process.env.NODE_ENV === 'production',
       chunkSplit: {
-        strategy: "custom",
+        strategy: 'custom',
         splitChunks: {
           cacheGroups: {
             vue: {
               test: /[\\/]node_modules[\\/](vue|vue-router|pinia|@vueuse)[\\/]/,
-              name: "lib-vue",
-              chunks: "all",
+              name: 'lib-vue',
+              chunks: 'all',
               priority: 30,
             },
             ui: {
               test: /[\\/]node_modules[\\/](reka-ui|lucide-vue-next)[\\/]/,
-              name: "lib-ui",
-              chunks: "all",
+              name: 'lib-ui',
+              chunks: 'all',
               priority: 20,
             },
             utils: {
               test: /[\\/]node_modules[\\/](dayjs|clsx|idb|ofetch)[\\/]/,
-              name: "lib-utils",
-              chunks: "all",
+              name: 'lib-utils',
+              chunks: 'all',
               priority: 15,
             },
             vendor: {
               test: /[\\/]node_modules[\\/]/,
-              name: "vendor",
-              chunks: "all",
+              name: 'vendor',
+              chunks: 'all',
               priority: 5,
               minSize: 10000,
               maxSize: 100000,
@@ -125,33 +121,36 @@ export default defineConfig(async () => {
 
     output: {
       distPath: {
-        root: "dist",
+        root: 'dist',
       },
       cleanDistPath: true,
       filename: {
-        js: "[name].[contenthash:8].js",
-        css: "[name].[contenthash:8].css",
+        js: '[name].[contenthash:8].js',
+        css: '[name].[contenthash:8].css',
       },
-      minify: process.env.NODE_ENV === 'production' ? {
-        js: true,
-        css: true,
-      } : false,
+      minify:
+        process.env.NODE_ENV === 'production'
+          ? {
+              js: true,
+              css: true,
+            }
+          : false,
       copy: [],
     },
 
     server: {
       port: 5173,
       proxy: {
-        "/api": {
-          target: "http://localhost:8080",
+        '/api': {
+          target: 'http://localhost:8080',
           changeOrigin: true,
         },
-        "/ws/search": {
-          target: "http://localhost:8080",
+        '/ws/search': {
+          target: 'http://localhost:8080',
           changeOrigin: true,
           ws: true,
         },
       },
     },
-  };
-});
+  }
+})

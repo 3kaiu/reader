@@ -9,12 +9,7 @@ export type SourcePackageSummary = {
   enabled: boolean
   valid: boolean
   readinessState:
-    | 'draft'
-    | 'blocked'
-    | 'search_ready'
-    | 'catalog_ready'
-    | 'reading_ready'
-    | 'full_flow_ready'
+    'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
   searchable: boolean
   detailReady: boolean
   tocReady: boolean
@@ -28,14 +23,9 @@ export type SourcePackageSummary = {
   tags: string[]
 }
 
-export type SourceReadinessReport = {
+type SourceReadinessReport = {
   state:
-    | 'draft'
-    | 'blocked'
-    | 'search_ready'
-    | 'catalog_ready'
-    | 'reading_ready'
-    | 'full_flow_ready'
+    'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
   searchable: boolean
   detailReady: boolean
   tocReady: boolean
@@ -57,7 +47,7 @@ export type SourceHealthSegment = {
   lastValidatedAtMs?: number | null
 }
 
-export type SourceHealthReport = {
+type SourceHealthReport = {
   overallScore: number
   recommended: boolean
   search: SourceHealthSegment
@@ -66,7 +56,7 @@ export type SourceHealthReport = {
   content: SourceHealthSegment
 }
 
-export type SourceDocumentation = {
+type SourceDocumentation = {
   siteSummary?: string
   pageModel?: string
   bookPageNotes?: string
@@ -76,14 +66,14 @@ export type SourceDocumentation = {
   recommendedUsage?: string
 }
 
-export type SourceBuildSamples = {
+type SourceBuildSamples = {
   bookSampleUrl?: string
   chapterSampleUrl?: string
   bookSampleFingerprint?: string
   chapterSampleFingerprint?: string
 }
 
-export type SourceCapabilityMatrix = {
+type SourceCapabilityMatrix = {
   searchSupported: boolean
   bookSupported: boolean
   tocSupported: boolean
@@ -97,15 +87,15 @@ export type SourceCapabilityMatrix = {
   scriptCleanSupported: boolean
 }
 
-export type SourceSearchMode = 'native_search' | 'direct_detail' | 'external_discovery'
+type SourceSearchMode = 'native_search' | 'direct_detail' | 'external_discovery'
 
-export type SearchPaginationRule = {
+type SearchPaginationRule = {
   enabled: boolean
   nextPageSelector?: string | null
   maxPages: number
 }
 
-export type SearchStrategyRule = {
+type SearchStrategyRule = {
   id: string
   mode: SourceSearchMode
   enabled: boolean
@@ -121,13 +111,13 @@ export type SearchStrategyRule = {
   disabledReason?: string | null
 }
 
-export type SourceSearchProfile = {
+type SourceSearchProfile = {
   enabled: boolean
   defaultMode?: SourceSearchMode | null
   strategies: SearchStrategyRule[]
 }
 
-export type SourceImportPolicy = {
+type SourceImportPolicy = {
   enabledByDefault: boolean
   priority: number
   allowSearch: boolean
@@ -135,7 +125,7 @@ export type SourceImportPolicy = {
   visibility: string
 }
 
-export type SourceFetchProfile = {
+type SourceFetchProfile = {
   mode: string
   provider: string
   serviceUrl?: string | null
@@ -144,20 +134,7 @@ export type SourceFetchProfile = {
   note?: string | null
 }
 
-export type SourceRuleHints = {
-  searchEntry?: string | null
-  searchResultSelector?: string | null
-  bookTitleSelector?: string | null
-  authorSelector?: string | null
-  introSelector?: string | null
-  tocItemSelector?: string | null
-  contentSelector?: string | null
-  contentTitleSelector?: string | null
-  noisePatterns: string[]
-  paginationSelector?: string | null
-}
-
-export type SourceRuleValidationReport = {
+type SourceRuleValidationReport = {
   valid: boolean
   compileOk: boolean
   warnings: string[]
@@ -170,7 +147,7 @@ export type SourceRuleValidationReport = {
   lastValidatedAtMs?: number | null
 }
 
-export type SourceValidationStepReport = {
+type SourceValidationStepReport = {
   step: string
   ok: boolean
   summary: string
@@ -205,19 +182,14 @@ export type NxsSourcePackageDetail = {
   fetchProfile?: SourceFetchProfile | null
 }
 
-export type ImportSourcePackageResponse = {
+type ImportSourcePackageResponse = {
   sourceId: string
   packageId: string
   imported: boolean
   compileReady: boolean
   importable: boolean
   readinessState:
-    | 'draft'
-    | 'blocked'
-    | 'search_ready'
-    | 'catalog_ready'
-    | 'reading_ready'
-    | 'full_flow_ready'
+    'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
 }
 
 export const syncApi = {

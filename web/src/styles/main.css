@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ===========================
    Tailwind CSS 4.x 主题系统
@@ -113,7 +113,9 @@
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.1), 0 4px 8px -2px rgba(0, 0, 0, 0.06);
   --shadow-xl: 0 24px 48px -6px rgba(0, 0, 0, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
-  --shadow-premium: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 10px 30px -10px rgba(0, 0, 0, 0.15), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+  --shadow-premium:
+    0 0 0 1px rgba(0, 0, 0, 0.02), 0 10px 30px -10px rgba(0, 0, 0, 0.15),
+    0 4px 10px -2px rgba(0, 0, 0, 0.05);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
 
   /* 玻璃拟态基础混色变量 - 更加透明灵动 */
@@ -287,32 +289,35 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--color-border);
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "PingFang SC",
-      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'PingFang SC', 'Hiragino Sans GB',
+      'Microsoft YaHei', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "cv02", "cv05", "cv11", "ss01";
+    font-size-adjust: 0.52;
+    font-feature-settings: 'cv02', 'cv05', 'cv11', 'ss01';
   }
 
   /* 统一的焦点样式 - shadcn 风格 */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-ring), 0 0 0 4px var(--color-background);
   }
 
   /* 按钮和交互元素的统一过渡 */
   button,
   a,
-  [role="button"] {
-    @apply transition-colors duration-150;
-    transition-property: color, background-color, border-color,
-      text-decoration-color, fill, stroke, opacity, box-shadow, transform,
-      filter, backdrop-filter;
+  [role='button'] {
+    transition:
+      color, background-color, border-color, text-decoration-color, fill, stroke, opacity,
+      box-shadow, transform, filter, backdrop-filter 150ms ease;
   }
 }
 
@@ -321,7 +326,6 @@
    =========================== */
 
 @layer utilities {
-
   /* 动画工具类 */
   .animate-in {
     animation-duration: 150ms;
@@ -377,17 +381,28 @@
 
   /* 交互增强工具类 */
   .interactive {
-    @apply transition-all duration-150;
-    @apply hover:scale-[1.02] active:scale-[0.98];
+    transition: all 150ms ease;
+  }
+
+  .interactive:hover {
+    transform: scale(1.02);
+  }
+
+  .interactive:active {
+    transform: scale(0.98);
   }
 
   .interactive-press {
-    @apply transition-transform duration-150;
-    @apply active:scale-[0.98];
+    transition: transform 150ms ease;
   }
 
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  .interactive-press:active {
+    transform: scale(0.98);
+  }
+
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-ring), 0 0 0 4px var(--color-background);
   }
 
   /* 持续时间工具类 */
@@ -478,19 +493,21 @@
 
 @layer base {
   ::-webkit-scrollbar {
-    @apply w-2 h-2;
+    width: 0.5rem;
+    height: 0.5rem;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background-color: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    background-color: color-mix(in oklab, var(--color-muted-foreground) 30%, transparent);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    background-color: color-mix(in oklab, var(--color-muted-foreground) 50%, transparent);
   }
 }
 
@@ -513,13 +530,11 @@
    =========================== */
 
 @layer base {
-
   /* 触摸目标最小尺寸 (符合 WCAG 标准) */
   @media (pointer: coarse) {
-
     button,
-    a[role="button"],
-    [role="button"] {
+    a[role='button'],
+    [role='button'] {
       min-height: 44px;
       min-width: 44px;
     }
@@ -533,7 +548,6 @@
 
     /* 减少移动端动画以减少电量消耗 */
     @media (prefers-reduced-motion: reduce) {
-
       *,
       *::before,
       *::after {

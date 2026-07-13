@@ -32,8 +32,8 @@ const emit = defineEmits<{
       <div class="flex items-center gap-3 shrink-0 pointer-events-auto">
         <button
           class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
-          @click="emit('toggleDark')"
           aria-label="切换主题"
+          @click="emit('toggleDark')"
         >
           <Sun v-if="!isDark" class="h-5 w-5 text-foreground" />
           <Moon v-else class="h-5 w-5 text-foreground" />
@@ -41,8 +41,8 @@ const emit = defineEmits<{
 
         <button
           class="flex items-center justify-center transition-opacity hover:opacity-70 active:scale-90"
-          @click="emit('search')"
           aria-label="搜索"
+          @click="emit('search')"
         >
           <Search class="h-5 w-5 text-foreground" />
         </button>

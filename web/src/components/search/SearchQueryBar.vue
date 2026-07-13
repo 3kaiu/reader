@@ -36,21 +36,21 @@ const emit = defineEmits<{
       </div>
       <Input
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         :class="
           variant === 'hero'
             ? 'pl-10 pr-10 h-10 rounded-full bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0'
             : 'pl-10 pr-10 h-10 rounded-full border-0 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0 shadow-lg backdrop-blur-sm bg-background/90'
         "
         placeholder="搜索书名或作者..."
-        @keyup.enter="emit('search')"
         :autofocus="autofocus"
+        @update:model-value="emit('update:modelValue', $event)"
+        @keyup.enter="emit('search')"
       />
       <button
         v-if="modelValue"
         class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
-        @click="emit('update:modelValue', '')"
         aria-label="清除"
+        @click="emit('update:modelValue', '')"
       >
         <X class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
       </button>
@@ -70,9 +70,9 @@ const emit = defineEmits<{
       v-if="showStopButton"
       variant="destructive"
       size="sm"
-      @click="emit('stop')"
       :class="variant === 'hero' ? 'rounded-full shrink-0' : 'rounded-full text-xs h-7 px-3'"
       aria-label="停止搜索"
+      @click="emit('stop')"
     >
       {{ variant === 'hero' ? '停止' : '停止搜索' }}
     </Button>

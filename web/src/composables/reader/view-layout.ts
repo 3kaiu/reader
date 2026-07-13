@@ -1,8 +1,7 @@
-import { ref } from 'vue'
+import { type Ref } from 'vue'
 import { useDateFormat, useFullscreen, useNow } from '@vueuse/core'
 
-export function createReaderViewLayout() {
-  const readerRef = ref<HTMLElement | null>(null)
+export function createReaderViewLayout(readerRef: Ref<HTMLElement | null>) {
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(readerRef)
   const formattedTime = useDateFormat(useNow(), 'HH:mm')
 

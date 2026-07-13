@@ -95,9 +95,7 @@ export function createReaderActionHelpers(state: ReaderStoreState) {
       throw new Error(res.errorMsg || '获取目录失败')
     }
 
-    const normalizedCatalog = normalizeReaderCatalog(
-      normalizeCatalogPayload(res.data)
-    )
+    const normalizedCatalog = normalizeReaderCatalog(normalizeCatalogPayload(res.data))
     if (normalizedCatalog.length === 0) {
       throw new Error('目录为空，暂无可读章节')
     }

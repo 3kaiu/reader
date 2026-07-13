@@ -43,6 +43,3 @@ class Logger {
 }
 
 export const logger = new Logger()
-
-// Export default for convenience
-export default logger

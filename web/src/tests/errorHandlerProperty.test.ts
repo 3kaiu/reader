@@ -5,7 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as fc from 'fast-check'
-import { processError, withRetry } from '../utils/errors'
+import { processError } from '../utils/errors'
+import { withRetry } from '../utils/errors/processing'
 import { logger } from '../utils/logger'
 
 // Mock logger to avoid console output during tests
@@ -496,7 +497,13 @@ describe('useErrorHandler Composable Tests', () => {
 
       mockShowError.mockClear()
 
-      const err = new NexusError(ErrorCode.INTERNAL_ERROR, 'Boom', 'details', { url: '/api/x' }, 'req-xyz')
+      const err = new NexusError(
+        ErrorCode.INTERNAL_ERROR,
+        'Boom',
+        'details',
+        { url: '/api/x' },
+        'req-xyz'
+      )
       const { handleError } = useErrorHandler()
       handleError(err, undefined, true)
 

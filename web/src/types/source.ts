@@ -1,9 +1,5 @@
 export type SourceLicenseStatus =
-  | 'unknown'
-  | 'licensed'
-  | 'public_domain'
-  | 'restricted'
-  | 'blocked'
+  'unknown' | 'licensed' | 'public_domain' | 'restricted' | 'blocked'
 
 export type SourceAccessMode = 'unknown' | 'api' | 'feed' | 'public_archive' | 'manual_import'
 

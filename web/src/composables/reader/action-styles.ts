@@ -7,24 +7,30 @@ export function createReaderActionStyles(options: ReaderActionOptions) {
     lineHeight: options.settingsStore.config.lineHeight,
     fontWeight: options.settingsStore.config.fontWeight,
     fontFamily: options.settingsStore.currentFontFamily,
-    color: options.settingsStore.themeColors.text,
     maxWidth: `${options.settingsStore.config.pageWidth}px`,
-    '--custom-bg': options.settingsStore.themeColors.bg,
-    '--custom-text': options.settingsStore.themeColors.text,
   }))
-
-  const readerThemeStyle = computed(() => ({}))
 
   const isNightMode = computed(() => options.settingsStore.config.theme === 'night')
 
+  /**
+   * 选择主题 — View Transitions 由 config.ts updateConfig 内部处理
+   */
+  const selectTheme = (theme: 'wechat' | 'mist' | 'night') => {
+    options.settingsStore.updateConfig('theme', theme)
+  }
+
+  /**
+   * 切换日/夜模式 — 仅 toggle wechat ↔ night
+   */
   const toggleDayNight = () => {
-    options.settingsStore.updateConfig('theme', isNightMode.value ? 'white' : 'night')
+    const next = isNightMode.value ? 'wechat' : 'night'
+    selectTheme(next)
   }
 
   return {
     contentStyle,
-    readerThemeStyle,
     isNightMode,
     toggleDayNight,
+    selectTheme,
   }
 }

@@ -82,47 +82,77 @@ export function convertToNexusError(error: unknown, url: string, method: string)
   const errorString = normalizedError.toString?.() || String(error ?? '')
 
   if (normalizedError.name === 'AbortError' || errorMessage.includes('timeout')) {
-    return new NexusError(ErrorCode.TIMEOUT, '请求超时，请稍后重试', errorMessage, {
-      url,
-      method,
-      originalError: errorString,
-    }, requestId)
+    return new NexusError(
+      ErrorCode.TIMEOUT,
+      '请求超时，请稍后重试',
+      errorMessage,
+      {
+        url,
+        method,
+        originalError: errorString,
+      },
+      requestId
+    )
   }
 
   if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
-    return new NexusError(ErrorCode.NETWORK_ERROR, '网络连接失败，请检查网络后重试', errorMessage, {
-      url,
-      method,
-      originalError: errorString,
-    }, requestId)
+    return new NexusError(
+      ErrorCode.NETWORK_ERROR,
+      '网络连接失败，请检查网络后重试',
+      errorMessage,
+      {
+        url,
+        method,
+        originalError: errorString,
+      },
+      requestId
+    )
   }
 
   if (normalizedError.status === 401) {
-    return new NexusError(ErrorCode.UNAUTHORIZED, '登录已过期，请重新登录', backendDetails, {
-      url,
-      method,
-      status: normalizedError.status,
-      backendCode: backendPayload?.code,
-    }, requestId)
+    return new NexusError(
+      ErrorCode.UNAUTHORIZED,
+      '登录已过期，请重新登录',
+      backendDetails,
+      {
+        url,
+        method,
+        status: normalizedError.status,
+        backendCode: backendPayload?.code,
+      },
+      requestId
+    )
   }
 
   if (normalizedError.status === 403) {
-    return new NexusError(ErrorCode.FORBIDDEN, '没有权限访问此资源', backendDetails, {
-      url,
-      method,
-      status: normalizedError.status,
-      backendCode: backendPayload?.code,
-    }, requestId)
+    return new NexusError(
+      ErrorCode.FORBIDDEN,
+      '没有权限访问此资源',
+      backendDetails,
+      {
+        url,
+        method,
+        status: normalizedError.status,
+        backendCode: backendPayload?.code,
+      },
+      requestId
+    )
   }
 
   if (normalizedError.status === 429) {
-    return new NexusError(ErrorCode.RATE_LIMITED, '请求过于频繁，请稍后重试', backendDetails, {
-      url,
-      method,
-      status: normalizedError.status,
-      retryAfter: getHeaderValue(normalizedError.response?.headers, 'retry-after'),
-      backendCode: backendPayload?.code,
-    }, requestId)
+    return new NexusError(
+      ErrorCode.RATE_LIMITED,
+      '请求过于频繁，请稍后重试',
+      backendDetails,
+      {
+        url,
+        method,
+        status: normalizedError.status,
+        retryAfter: getHeaderValue(normalizedError.response?.headers, 'retry-after'),
+        backendCode: backendPayload?.code,
+      },
+      requestId
+    )
   }
 
   if ((normalizedError.status || 0) >= 500) {

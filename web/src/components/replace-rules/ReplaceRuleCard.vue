@@ -41,9 +41,9 @@ const emit = defineEmits<{
             >
               <Checkbox
                 :checked="isSelected"
+                class="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 @update:checked="emit('toggleSelect', rule)"
                 @click.stop
-                class="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
             </div>
             <div
@@ -91,17 +91,17 @@ const emit = defineEmits<{
         >
           <button
             class="w-7 h-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            @click.stop="emit('openEdit', rule)"
             title="编辑"
             aria-label="编辑"
+            @click.stop="emit('openEdit', rule)"
           >
             <Edit2 class="h-3.5 w-3.5" />
           </button>
           <button
             class="w-7 h-7 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-colors"
-            @click.stop="emit('deleteRule', rule)"
             title="删除"
             aria-label="删除"
+            @click.stop="emit('deleteRule', rule)"
           >
             <Trash2 class="h-3.5 w-3.5" />
           </button>
@@ -134,9 +134,9 @@ const emit = defineEmits<{
         <Switch
           v-if="!isManageMode"
           :checked="rule.isEnabled"
+          class="data-[state=checked]:bg-primary"
           @update:checked="(enabled: boolean) => emit('toggleEnabled', rule, enabled)"
           @click.stop
-          class="data-[state=checked]:bg-primary"
         />
       </div>
     </div>

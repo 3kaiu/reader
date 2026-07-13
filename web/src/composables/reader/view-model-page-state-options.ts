@@ -1,11 +1,9 @@
 import { computed, unref } from 'vue'
 import type { ReaderPageModelStateOptions } from './page-model-types'
-import type { ReaderPageModelFeatures } from './view-model-types'
 import type { ReaderViewServices } from './view-services'
 
 export function createReaderViewPageStateOptions(
-  services: ReaderViewServices,
-  features: ReaderPageModelFeatures
+  services: ReaderViewServices
 ): ReaderPageModelStateOptions {
   const currentTheme = computed(() => services.settingsStore.config.theme)
   const isLoading = computed(() => Boolean(unref(services.readerStore.isLoading as never)))
@@ -19,7 +17,6 @@ export function createReaderViewPageStateOptions(
   )
 
   return {
-    readerThemeStyle: features.actions.readerThemeStyle,
     currentTheme,
     isLoading,
     error,

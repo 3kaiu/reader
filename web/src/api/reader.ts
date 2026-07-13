@@ -1,16 +1,14 @@
 import { $get, $post } from './client'
 import type { Book, Chapter, ChapterContent } from '@/types/book'
 
-export type { Book, Chapter, ChapterContent } from '@/types/book'
-
 /** Mirrors `nexus-server` `BatchContentResponse` / `BatchContentResult`. */
-export type BatchContentResult = {
+type BatchContentResult = {
   url: string
   content?: string | null
   error?: string | null
 }
 
-export type BatchContentResponse = {
+type BatchContentResponse = {
   results: BatchContentResult[]
 }
 
@@ -111,7 +109,11 @@ export const readerApi = {
       ...(requestId ? ({ _requestId: requestId } as any) : {}),
     })
   },
-  getContent: (source: string, url: string, request?: ReaderContentRequest & { requestId?: string }) => {
+  getContent: (
+    source: string,
+    url: string,
+    request?: ReaderContentRequest & { requestId?: string }
+  ) => {
     const decodedUrl = validateSourceAndUrl(source, url)
     const requestId = request?.requestId
     return $get<ChapterContent>('/content', {

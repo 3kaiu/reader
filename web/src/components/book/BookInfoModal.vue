@@ -36,7 +36,7 @@ const { displayBook, addToShelf, startReading, formatIntro } = useBookInfoView({
         <SheetTitle class="text-center">书籍详情</SheetTitle>
       </SheetHeader>
 
-      <div class="flex-1 overflow-y-auto" v-if="displayBook">
+      <div v-if="displayBook" class="flex-1 overflow-y-auto">
         <!-- 头部信息 -->
         <div class="p-6 flex gap-5">
           <!-- 封面 -->
@@ -49,8 +49,8 @@ const { displayBook, addToShelf, startReading, formatIntro } = useBookInfoView({
                 class="w-full h-full"
               />
               <div
-                class="absolute inset-0 flex items-center justify-center text-muted-foreground/30 font-serif text-3xl font-bold bg-muted"
                 v-else
+                class="absolute inset-0 flex items-center justify-center text-muted-foreground/30 font-serif text-3xl font-bold bg-muted"
               >
                 {{ displayBook.name[0] }}
               </div>
@@ -66,15 +66,15 @@ const { displayBook, addToShelf, startReading, formatIntro } = useBookInfoView({
                 <User class="h-4 w-4" />
                 <span>{{ displayBook.author }}</span>
               </div>
-              <div class="flex items-center gap-2" v-if="displayBook.type">
+              <div v-if="displayBook.type" class="flex items-center gap-2">
                 <Tag class="h-4 w-4" />
                 <span>{{ displayBook.type }}</span>
               </div>
-              <div class="flex items-center gap-2" v-if="displayBook.latestChapterTitle">
+              <div v-if="displayBook.latestChapterTitle" class="flex items-center gap-2">
                 <RefreshCw class="h-4 w-4" />
                 <span class="truncate">{{ displayBook.latestChapterTitle }}</span>
               </div>
-              <div class="flex items-center gap-2" v-if="displayBook.originName">
+              <div v-if="displayBook.originName" class="flex items-center gap-2">
                 <Globe class="h-4 w-4" />
                 <span>{{ displayBook.originName }}</span>
               </div>

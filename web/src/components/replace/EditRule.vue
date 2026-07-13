@@ -58,14 +58,14 @@ const { loading, form, handleSave } = useEditRuleView({
 
         <div class="flex items-center gap-4 py-2">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="form.isRegex" class="w-4 h-4 rounded border-gray-300" />
+            <input v-model="form.isRegex" type="checkbox" class="w-4 h-4 rounded border-gray-300" />
             <span class="text-sm">使用正则</span>
           </label>
 
           <label class="flex items-center gap-2 cursor-pointer">
             <input
-              type="checkbox"
               v-model="form.isEnabled"
+              type="checkbox"
               class="w-4 h-4 rounded border-gray-300"
             />
             <span class="text-sm">启用规则</span>

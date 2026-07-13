@@ -60,9 +60,9 @@ function handleBack() {
     <button
       v-if="showBack"
       class="w-10 h-10 rounded-full hover:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
-      @click="handleBack"
       title="返回"
       aria-label="返回"
+      @click="handleBack"
     >
       <ArrowLeft class="h-5 w-5 text-muted-foreground" />
     </button>
@@ -80,15 +80,15 @@ function handleBack() {
         </div>
         <Input
           :model-value="searchModel"
-          @update:model-value="searchModel = $event"
           class="pl-10 pr-10 h-10 rounded-full bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0"
           :placeholder="searchPlaceholder"
+          @update:model-value="searchModel = $event"
         />
         <button
           v-if="searchModel"
           class="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
-          @click="searchModel = ''"
           aria-label="清除"
+          @click="searchModel = ''"
         >
           <X class="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
         </button>

@@ -13,7 +13,10 @@ const STATIC_ASSETS = ['/', '/index.html']
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+    caches
+      .open(STATIC_CACHE)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   )
 })
 
@@ -23,9 +26,7 @@ self.addEventListener('activate', event => {
       .keys()
       .then(cacheNames =>
         Promise.all(
-          cacheNames
-            .filter(name => !ACTIVE_CACHES.includes(name))
-            .map(name => caches.delete(name))
+          cacheNames.filter(name => !ACTIVE_CACHES.includes(name)).map(name => caches.delete(name))
         )
       )
       .then(() => self.clients.claim())
@@ -65,21 +66,20 @@ self.addEventListener('message', event => {
   if (event.data?.type === 'CACHE_CHAPTER') {
     const { url, content } = event.data
     event.waitUntil(
-      Promise.all([
-        caches.open(CHAPTER_CACHE),
-        caches.open(CHAPTER_META_CACHE),
-      ]).then(([chapterCache, chapterMetaCache]) => {
-        const response = withChapterCacheHeaders(
-          new Response(JSON.stringify({ isSuccess: true, data: content }), {
-            headers: { 'Content-Type': 'application/json' },
-          })
-        )
-        return Promise.all([
-          chapterCache.put(url, response),
-          writeChapterCacheMetadata(chapterMetaCache, url),
-          maybePruneChapterCache(chapterCache, chapterMetaCache),
-        ])
-      }),
+      Promise.all([caches.open(CHAPTER_CACHE), caches.open(CHAPTER_META_CACHE)]).then(
+        ([chapterCache, chapterMetaCache]) => {
+          const response = withChapterCacheHeaders(
+            new Response(JSON.stringify({ isSuccess: true, data: content }), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          )
+          return Promise.all([
+            chapterCache.put(url, response),
+            writeChapterCacheMetadata(chapterMetaCache, url),
+            maybePruneChapterCache(chapterCache, chapterMetaCache),
+          ])
+        }
+      )
     )
     return
   }
@@ -103,8 +103,7 @@ self.addEventListener('message', event => {
     }
     event.waitUntil(
       Promise.all([caches.open(CHAPTER_CACHE), caches.open(CHAPTER_META_CACHE)]).then(
-        ([chapterCache, chapterMetaCache]) =>
-          maybePruneChapterCache(chapterCache, chapterMetaCache)
+        ([chapterCache, chapterMetaCache]) => maybePruneChapterCache(chapterCache, chapterMetaCache)
       )
     )
   }
@@ -112,42 +111,6 @@ self.addEventListener('message', event => {
 
 function isChapterRequest(url) {
   return url.pathname === '/api/content'
-}
-
-async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName)
-  const cached = await cache.match(request)
-  if (cached) {
-    return cached
-  }
-
-  const response = await fetch(request)
-  if (response.ok) {
-    await cache.put(request, response.clone())
-  }
-  return response
-}
-
-async function cacheFirstWithRefresh(request, cacheName) {
-  const cache = await caches.open(cacheName)
-  const cached = await cache.match(request)
-  if (cached) {
-    void fetch(request)
-      .then(response => {
-        if (response.ok) {
-          return cache.put(request, response.clone())
-        }
-        return undefined
-      })
-      .catch(() => {})
-    return cached
-  }
-
-  const response = await fetch(request)
-  if (response.ok) {
-    await cache.put(request, response.clone())
-  }
-  return response
 }
 
 function withChapterCacheHeaders(response) {
@@ -196,8 +159,7 @@ async function writeChapterCacheMetadata(metaCache, url) {
 }
 
 async function deleteChapterCacheEntry(chapterCache, metaCache, requestOrUrl) {
-  const request =
-    typeof requestOrUrl === 'string' ? new Request(requestOrUrl) : requestOrUrl
+  const request = typeof requestOrUrl === 'string' ? new Request(requestOrUrl) : requestOrUrl
   await Promise.all([
     chapterCache.delete(request),
     metaCache.delete(getChapterCacheMetaRequest(request.url)),
@@ -236,10 +198,7 @@ async function maybePruneChapterCache(chapterCache, metaCache) {
         metadata: await readChapterCacheMetadata(metaCache, request.url),
       }))
     )
-  ).sort(
-    (a, b) =>
-      (b.metadata?.lastAccessAt || 0) - (a.metadata?.lastAccessAt || 0)
-  )
+  ).sort((a, b) => (b.metadata?.lastAccessAt || 0) - (a.metadata?.lastAccessAt || 0))
 
   if (remaining.length <= CHAPTER_CACHE_MAX_ENTRIES) {
     return

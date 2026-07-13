@@ -1,6 +1,6 @@
 type SourceDefinition = Record<string, unknown>
 
-export const SOURCE_IMPORT_FORMATS = {
+const SOURCE_IMPORT_FORMATS = {
   NXS: 'NXS 单源',
   ARRAY: 'NXS 数组',
   WRAPPER: 'NXS 包装集合',

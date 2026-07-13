@@ -24,7 +24,9 @@ if (existsSync(vueTscPath)) {
 
 const tscPath = resolve(binDir, `tsc${executableSuffix}`)
 if (existsSync(tscPath)) {
-  console.warn('[type-check] vue-tsc is not installed in node_modules; falling back to tsc --noEmit -p tsconfig.json')
+  console.warn(
+    '[type-check] vue-tsc is not installed in node_modules; falling back to tsc --noEmit -p tsconfig.json'
+  )
   runCommand(tscPath, ['--noEmit', '-p', 'tsconfig.json'])
 }
 

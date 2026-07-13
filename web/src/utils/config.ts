@@ -26,10 +26,7 @@ class UnifiedConfig {
   }
 
   private loadDefaultConfig(): void {
-    this.config.set(
-      'api.baseURL',
-      import.meta.env.VITE_API_URL || '/api'
-    )
+    this.config.set('api.baseURL', import.meta.env.VITE_API_URL || '/api')
     this.config.set('api.timeout', 10000)
     this.config.set('cache.enabled', true)
     this.config.set('cache.ttl', 5 * 60 * 1000)

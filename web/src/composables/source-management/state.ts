@@ -13,6 +13,8 @@ export function createSourceManagementState(): SourceManagementState {
   return {
     showImport: inner.showImport,
     showEdit: inner.showEdit,
-    get currentEditSource() { return inner.currentEditItem as Ref<SourceListItem | null> },
+    get currentEditSource() {
+      return inner.currentEditItem as Ref<SourceListItem | null>
+    },
   }
 }

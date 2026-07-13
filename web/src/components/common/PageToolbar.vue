@@ -77,9 +77,9 @@ const emit = defineEmits<{
     <Button
       v-if="showManageButton"
       variant="outline"
-      @click="emit('toggle-manage')"
       :class="isManageMode && 'bg-primary/10 text-primary border-primary/20'"
       class="shrink-0"
+      @click="emit('toggle-manage')"
     >
       <CheckSquare class="h-4 w-4 mr-2" />
       <span class="hidden sm:inline">{{ isManageMode ? '退出管理' : '批量管理' }}</span>

@@ -49,7 +49,8 @@ export function createReaderViewFeatures(
   const chrome = createReaderViewChromeFeature(services, layout)
   const actions = createReaderViewActionFeature(services, layout)
 
-  setupReaderViewFeatureEffects(services)
+  const features: ReaderViewFeatures = { session, chrome, actions }
+  setupReaderViewFeatureEffects(services, features)
 
-  return { session, chrome, actions }
+  return features
 }

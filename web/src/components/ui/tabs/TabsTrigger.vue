@@ -1,29 +1,43 @@
 <script setup lang="ts">
-import type { TabsTriggerProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
-import { TabsTrigger, useForwardProps } from 'reka-ui'
+import { inject, computed } from 'vue'
+import type { Ref } from 'vue'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<TabsTriggerProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<{
+  value: string
+  disabled?: boolean
+  class?: HTMLAttributes['class']
+}>()
 
-const delegatedProps = reactiveOmit(props, 'class')
+const activeTab = inject<Ref<string>>('tabs-active')
+const setActiveTab = inject<(value: string) => void>('tabs-set-active')
 
-const forwardedProps = useForwardProps(delegatedProps)
+const isActive = computed(() => activeTab?.value === props.value)
+
+function handleClick() {
+  if (!props.disabled && setActiveTab) {
+    setActiveTab(props.value)
+  }
+}
 </script>
 
 <template>
-  <TabsTrigger
-    v-bind="forwardedProps"
+  <button
+    role="tab"
+    :aria-selected="isActive"
+    :disabled="disabled"
     :class="
       cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow',
+        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+        isActive ? 'bg-background text-foreground shadow' : '',
         props.class
       )
     "
+    @click="handleClick"
   >
     <span class="truncate">
       <slot />
     </span>
-  </TabsTrigger>
+  </button>
 </template>

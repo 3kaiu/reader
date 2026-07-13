@@ -1,7 +1,10 @@
 import type { ApiResponse } from '@/api/http/types'
 import type { Chapter } from '@/types/book'
 import { resolveInitialChapterIndex, type ReaderBook } from '@/stores/reader/helpers'
-import { loadPersistedReaderProgressMeta, savePersistedReaderProgressMeta } from '@/stores/reader/helpers'
+import {
+  loadPersistedReaderProgressMeta,
+  savePersistedReaderProgressMeta,
+} from '@/stores/reader/helpers'
 import type { ReaderStoreState, ReaderTarget } from '../types'
 
 interface ReaderSessionHelpers {

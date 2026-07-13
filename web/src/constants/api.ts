@@ -2,9 +2,6 @@
  * API 相关常量
  */
 
-// 请求缓存 TTL（5分钟）
-export const API_CACHE_TTL = 5 * 60 * 1000
-
 // 请求超时时间（30秒）
 export const API_TIMEOUT = 30 * 1000
 

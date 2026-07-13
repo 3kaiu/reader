@@ -13,6 +13,8 @@ export function createReplaceRuleManagementState(): ReplaceRuleManagementState {
   return {
     showImport: inner.showImport,
     showEdit: inner.showEdit,
-    get currentEditRule() { return inner.currentEditItem as Ref<ReplaceRule | null> },
+    get currentEditRule() {
+      return inner.currentEditItem as Ref<ReplaceRule | null>
+    },
   }
 }

@@ -6,9 +6,9 @@ export const READ_SETTINGS_THEME_OPTIONS: Array<{
   color: string
   textColor?: string
 }> = [
-  { key: 'white', label: '白', color: '#FFFFFF' },
-  { key: 'paper', label: '护眼', color: '#FAF7ED' },
-  { key: 'night', label: '夜间', color: '#1C1C1E', textColor: '#A1A1AA' },
+  { key: 'wechat', label: '浅纸绿', color: '#edf1e7' },
+  { key: 'mist', label: '暖青灰', color: '#ebe8e0' },
+  { key: 'night', label: '夜间黑', color: '#151718', textColor: '#bcc6c1' },
 ]
 
 export const READ_SETTINGS_FONT_OPTIONS: Array<{

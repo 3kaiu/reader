@@ -22,9 +22,11 @@ export function bootstrapOfflineManager(offlineManager: OfflineManager): void {
   offlineManager.addStatusListener(status => {
     logger.info('Offline status changed', status)
 
-    const performanceMonitor = (window as Window & {
-      performanceMonitor?: PerformanceMonitorLike
-    }).performanceMonitor
+    const performanceMonitor = (
+      window as Window & {
+        performanceMonitor?: PerformanceMonitorLike
+      }
+    ).performanceMonitor
 
     if (performanceMonitor) {
       performanceMonitor.reportMetric('offline_status', status.isOnline ? 1 : 0, {

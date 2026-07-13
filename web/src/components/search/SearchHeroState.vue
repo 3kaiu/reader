@@ -76,8 +76,8 @@ const emit = defineEmits<{
             v-for="keyword in searchHistory.slice(0, 8)"
             :key="keyword"
             class="px-4 py-2 rounded-full bg-secondary hover:bg-secondary/80 text-sm text-foreground/80 hover:text-foreground transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:shadow-sm"
-            @click="emit('search', keyword)"
             :aria-label="`搜索 ${keyword}`"
+            @click="emit('search', keyword)"
           >
             {{ keyword }}
           </button>

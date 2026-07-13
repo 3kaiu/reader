@@ -6,4 +6,3 @@ export type PipelineStageReport = {
   warnings?: string[]
   metrics?: Record<string, string>
 }
-

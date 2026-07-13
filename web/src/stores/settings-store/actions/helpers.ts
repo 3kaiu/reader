@@ -1,4 +1,4 @@
-import { clampSettingValue, persistConfig } from '@/stores/settings-store/helpers'
+import { clampSettingValue, persistConfig, applyThemeTokens } from '@/stores/settings-store/helpers'
 import type { ReaderConfig, ThemeColors } from '@/types/settings'
 import type { SettingsStoreState, SettingsStoreView } from '../types'
 
@@ -18,7 +18,7 @@ export function createSettingsStoreActionContext(
       return
     }
 
-    document.documentElement.classList.toggle('dark', state.config.theme === 'night')
+    applyThemeTokens(state.config.theme)
   }
 
   return {

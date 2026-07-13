@@ -14,8 +14,14 @@ import type { ReaderExperienceModelVisibilityOptions } from './experience-model-
 type ViewActionOptions = Pick<ReaderExperienceModelServiceOptions, 'contentRef'> &
   Pick<
     ReaderExperienceModelHandlerOptions,
-    'goBack' | 'openCatalog' | 'toggleFullscreen' | 'toggleDayNight'
-    | 'openSettings' | 'toggleZenMode' | 'openSourcePicker' | 'openBookInfo'
+    | 'goBack'
+    | 'openCatalog'
+    | 'toggleFullscreen'
+    | 'toggleDayNight'
+    | 'openSettings'
+    | 'toggleZenMode'
+    | 'openSourcePicker'
+    | 'openBookInfo'
   >
 
 function createViewActions(options: ViewActionOptions): ReaderExperienceViewActions {
@@ -56,11 +62,21 @@ function createModalActions(
   options: ReaderExperienceModelVisibilityOptions
 ): ReaderExperienceModalActions {
   return {
-    setShowCatalog(value) { options.showCatalog.value = value },
-    setShowSettings(value) { options.showSettings.value = value },
-    setShowSourcePicker(value) { options.showSourcePicker.value = value },
-    setShowBookInfo(value) { options.showBookInfo.value = value },
-    setShowKeyboardHelp(value) { options.showKeyboardHelp.value = value },
+    setShowCatalog(value) {
+      options.showCatalog.value = value
+    },
+    setShowSettings(value) {
+      options.showSettings.value = value
+    },
+    setShowSourcePicker(value) {
+      options.showSourcePicker.value = value
+    },
+    setShowBookInfo(value) {
+      options.showBookInfo.value = value
+    },
+    setShowKeyboardHelp(value) {
+      options.showKeyboardHelp.value = value
+    },
   }
 }
 
