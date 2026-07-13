@@ -32,7 +32,7 @@ memmap2 = "0.9"
 parking_lot.workspace = true
 
 # Hashing
-md5 = "0.7"
+md5 = "0.8"
 
 [features]
 default = []
