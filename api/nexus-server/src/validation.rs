@@ -30,7 +30,10 @@ pub fn validate_url(url_str: &str) -> Result<Url, ValidationError> {
 /// Validate a URL with configurable private IP check
 /// - Must be http or https
 /// - If allow_private is false, private/internal IPs are rejected
-pub fn validate_url_with_options(url_str: &str, allow_private: bool) -> Result<Url, ValidationError> {
+pub fn validate_url_with_options(
+    url_str: &str,
+    allow_private: bool,
+) -> Result<Url, ValidationError> {
     let url = Url::parse(url_str)?;
 
     // Only allow http/https

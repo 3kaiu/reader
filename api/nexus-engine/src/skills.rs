@@ -7,7 +7,7 @@
 use crate::extraction_metrics::SourceExtractionStats;
 use crate::quality_gate::{evaluate_content_quality, passes_quality_gate, QualityGateConfig};
 use dashmap::DashMap;
-use nexus_core::types::{ExtractionQuality, FetchContext, SkillDecisionEnvelope, SourceRuntimeProfile};
+use nexus_core::{ExtractionQuality, FetchContext, SkillDecisionEnvelope, SourceRuntimeProfile};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::LazyLock;

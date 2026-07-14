@@ -2,11 +2,10 @@
 //!
 //! Direct Cloudflare bypass via HTTP REST API (bypass service)
 
-use async_trait::async_trait;
 use crate::fetcher::cookie_cache::{self, CookieCache};
+use async_trait::async_trait;
 use nexus_core::{
-    AntiCrawlStrategy, CloudflareBypassConfig, EngineError,
-    types::{FetchContext, FetchResponse},
+    AntiCrawlStrategy, CloudflareBypassConfig, EngineError, FetchContext, FetchResponse,
 };
 use primp::imp::Impersonate;
 use primp::Client as PrimpClient;
@@ -71,7 +70,10 @@ pub struct PrimpHttpStrategy {
 }
 
 impl CfBypassStrategy {
-    pub fn new(config: CloudflareBypassConfig, cookie_cache: Arc<CookieCache>) -> Result<Self, EngineError> {
+    pub fn new(
+        config: CloudflareBypassConfig,
+        cookie_cache: Arc<CookieCache>,
+    ) -> Result<Self, EngineError> {
         let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
@@ -82,7 +84,12 @@ impl CfBypassStrategy {
 
         debug!("CfBypassStrategy initialized: service_url={}", config.service_url);
 
-        Ok(Self { config, client, cookie_cache, concurrency_limiter: Semaphore::new(max_concurrent) })
+        Ok(Self {
+            config,
+            client,
+            cookie_cache,
+            concurrency_limiter: Semaphore::new(max_concurrent),
+        })
     }
 
     fn fetch_url(&self) -> String {
@@ -98,7 +105,10 @@ impl DirectHttpStrategy {
             .map_err(|e| EngineError::InvalidConfig {
                 message: format!("Failed to build direct HTTP client: {}", e),
             })?;
-        Ok(Self { client, cookie_cache: None })
+        Ok(Self {
+            client,
+            cookie_cache: None,
+        })
     }
 
     pub fn with_cookie_cache(mut self, cache: Arc<CookieCache>) -> Self {
@@ -136,7 +146,8 @@ impl AntiCrawlStrategy for CfBypassStrategy {
         // Check cookie cache before calling the bypass service
         if let Some(cached) = self.cookie_cache.get(&domain, &user_agent, "") {
             debug!("CF Bypass: Using cached cookies for {}", domain);
-            let cookie_header = cached.iter()
+            let cookie_header = cached
+                .iter()
                 .map(|(k, v)| format!("{}={}", k, v))
                 .collect::<Vec<_>>()
                 .join("; ");
@@ -151,7 +162,9 @@ impl AntiCrawlStrategy for CfBypassStrategy {
                     message: format!("Failed to build direct client: {}", e),
                 })?;
             let mut req = match method.as_str() {
-                "POST" => client.post(&ctx.url).body(ctx.body.clone().unwrap_or_default()),
+                "POST" => client
+                    .post(&ctx.url)
+                    .body(ctx.body.clone().unwrap_or_default()),
                 _ => client.get(&ctx.url),
             };
             for (k, v) in &ctx.headers {
@@ -197,7 +210,7 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             Err(_) => {
                 debug!("CF Bypass: Concurrency limit reached, skipping");
                 return Err(EngineError::StrategyDisabled);
-            }
+            },
         };
 
         let request_headers = if ctx.headers.is_empty() {
@@ -246,10 +259,13 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         // Store returned cookies in cache after successful bypass
         if body.cf_bypassed && !body.cookies.is_empty() {
-            let cookies_vec: Vec<(String, String)> = body.cookies.iter()
+            let cookies_vec: Vec<(String, String)> = body
+                .cookies
+                .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            self.cookie_cache.set(&domain, cookies_vec, &ctx.url, &user_agent, "");
+            self.cookie_cache
+                .set(&domain, cookies_vec, &ctx.url, &user_agent, "");
             debug!("CF Bypass: Stored {} cookies for {}", body.cookies.len(), domain);
         }
 
@@ -272,7 +288,11 @@ impl AntiCrawlStrategy for CfBypassStrategy {
 
         info!(
             "CF Bypass: {} status={}",
-            if body.cf_bypassed { "success" } else { "partial" },
+            if body.cf_bypassed {
+                "success"
+            } else {
+                "partial"
+            },
             status
         );
 
@@ -299,7 +319,11 @@ impl PrimpHttpStrategy {
                 message: format!("Failed to build primp HTTP client: {}", e),
             })?;
         info!("PrimpHttpStrategy initialized (impersonate=ChromeV146)");
-        Ok(Self { client, _impersonate: Impersonate::ChromeV146, cookie_cache: None })
+        Ok(Self {
+            client,
+            _impersonate: Impersonate::ChromeV146,
+            cookie_cache: None,
+        })
     }
 
     pub fn with_cookie_cache(mut self, cache: Arc<CookieCache>) -> Self {
@@ -331,7 +355,8 @@ impl AntiCrawlStrategy for PrimpHttpStrategy {
             let domain = cookie_cache::extract_domain(&ctx.url);
             let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
             if let Some(cached) = cache.get(&domain, &user_agent, "") {
-                let cookie_header = cached.iter()
+                let cookie_header = cached
+                    .iter()
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect::<Vec<_>>()
                     .join("; ");
@@ -366,10 +391,8 @@ impl AntiCrawlStrategy for PrimpHttpStrategy {
                 if k.as_str().eq_ignore_ascii_case("set-cookie") {
                     if let Some(eq_pos) = s.find('=') {
                         let semi_pos = s.find(';').unwrap_or(s.len());
-                        response_cookies.push((
-                            s[..eq_pos].to_string(),
-                            s[eq_pos + 1..semi_pos].to_string(),
-                        ));
+                        response_cookies
+                            .push((s[..eq_pos].to_string(), s[eq_pos + 1..semi_pos].to_string()));
                     }
                 }
             }
@@ -425,7 +448,8 @@ impl AntiCrawlStrategy for DirectHttpStrategy {
             let domain = cookie_cache::extract_domain(&ctx.url);
             let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
             if let Some(cached) = cache.get(&domain, &user_agent, "") {
-                let cookie_header = cached.iter()
+                let cookie_header = cached
+                    .iter()
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect::<Vec<_>>()
                     .join("; ");
@@ -508,7 +532,10 @@ struct BrowserProbeResponse {
 }
 
 impl BrowserProbeStrategy {
-    pub fn new(config: CloudflareBypassConfig, cookie_cache: Arc<CookieCache>) -> Result<Self, EngineError> {
+    pub fn new(
+        config: CloudflareBypassConfig,
+        cookie_cache: Arc<CookieCache>,
+    ) -> Result<Self, EngineError> {
         let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds * 2)) // browser probe can be slower
@@ -517,7 +544,12 @@ impl BrowserProbeStrategy {
                 message: format!("Failed to build HTTP client: {}", e),
             })?;
         debug!("BrowserProbeStrategy initialized: service_url={}", config.service_url);
-        Ok(Self { config, client, cookie_cache, concurrency_limiter: Semaphore::new(max_concurrent) })
+        Ok(Self {
+            config,
+            client,
+            cookie_cache,
+            concurrency_limiter: Semaphore::new(max_concurrent),
+        })
     }
 
     fn probe_url(&self) -> String {
@@ -556,7 +588,7 @@ impl AntiCrawlStrategy for BrowserProbeStrategy {
             Err(_) => {
                 debug!("BrowserProbe: Concurrency limit reached, skipping");
                 return Err(EngineError::StrategyDisabled);
-            }
+            },
         };
 
         info!("BrowserProbe: Launching headless browser for {}", ctx.url);
@@ -602,10 +634,13 @@ impl AntiCrawlStrategy for BrowserProbeStrategy {
         if body.cf_bypassed && !body.cookies.is_empty() {
             let domain = cookie_cache::extract_domain(&ctx.url);
             let user_agent = ctx.headers.get("User-Agent").cloned().unwrap_or_default();
-            let cookies_vec: Vec<(String, String)> = body.cookies.iter()
+            let cookies_vec: Vec<(String, String)> = body
+                .cookies
+                .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            self.cookie_cache.set(&domain, cookies_vec, &ctx.url, &user_agent, "");
+            self.cookie_cache
+                .set(&domain, cookies_vec, &ctx.url, &user_agent, "");
             debug!("BrowserProbe: Stored {} cookies for {}", body.cookies.len(), domain);
         }
 
@@ -625,7 +660,15 @@ impl AntiCrawlStrategy for BrowserProbeStrategy {
             return Err(EngineError::CloudflareChallenge);
         }
 
-        info!("BrowserProbe: {} status={}", if body.cf_bypassed { "success" } else { "partial" }, status);
+        info!(
+            "BrowserProbe: {} status={}",
+            if body.cf_bypassed {
+                "success"
+            } else {
+                "partial"
+            },
+            status
+        );
 
         Ok(FetchResponse {
             status,

@@ -55,7 +55,11 @@ impl CircuitBreaker {
     }
 
     fn effective_reset_timeout(&self) -> Duration {
-        let multiplier = 1u64 << self.open_count.load(Ordering::Relaxed).min(MAX_BACKOFF_MULTIPLIER);
+        let multiplier = 1u64
+            << self
+                .open_count
+                .load(Ordering::Relaxed)
+                .min(MAX_BACKOFF_MULTIPLIER);
         Duration::from_millis(self.config.reset_timeout.as_millis() as u64 * multiplier)
     }
 

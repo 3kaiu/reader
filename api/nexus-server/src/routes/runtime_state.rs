@@ -187,7 +187,11 @@ pub async fn export_runtime_snapshot(
         restored_from_snapshot: state.snapshot_status.is_restored(),
         snapshot_updated_at_ms: {
             let v = state.snapshot_status.updated_at_ms();
-            if v > 0 { Some(v) } else { None }
+            if v > 0 {
+                Some(v)
+            } else {
+                None
+            }
         },
         health_sources: health_snapshot.len(),
         extraction_sources: extraction_snapshot.len(),
@@ -201,8 +205,8 @@ pub async fn import_runtime_snapshot(
     State(state): State<AppState>,
     Json(payload): Json<RuntimeSnapshotImportPayload>,
 ) -> Result<Json<RuntimeSnapshotImportResponse>, ApiErrorResponse> {
-    use nexus_core::PersistedSourceHealth;
     use nexus_core::types::PersistedExtractionMetrics;
+    use nexus_core::PersistedSourceHealth;
 
     let imported_health: Vec<PersistedSourceHealth> = payload
         .health
@@ -275,7 +279,11 @@ pub async fn get_runtime_state_overview(
         restored_from_snapshot: state.snapshot_status.is_restored(),
         snapshot_updated_at_ms: {
             let v = state.snapshot_status.updated_at_ms();
-            if v > 0 { Some(v) } else { None }
+            if v > 0 {
+                Some(v)
+            } else {
+                None
+            }
         },
         tracked_sources,
         unhealthy_sources,
@@ -363,12 +371,12 @@ pub async fn reset_source_runtime_state(
                 // Circuit state reset by re-creating the entry
             }
             state.store.health_tracker().reset_source(&id);
-        }
+        },
         _ => {
             // Full reset
             state.store.health_tracker().reset_source(&id);
             extraction_metrics::reset_source(&id);
-        }
+        },
     }
 
     Ok(Json(SourceRuntimeResetResponse {

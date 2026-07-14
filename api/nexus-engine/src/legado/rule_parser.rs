@@ -66,8 +66,7 @@ impl Default for CombineOp {
 use dashmap::DashMap;
 use std::sync::LazyLock;
 
-static RULE_CACHE: LazyLock<DashMap<String, Arc<CompiledLegadoRule>>> =
-    LazyLock::new(DashMap::new);
+static RULE_CACHE: LazyLock<DashMap<String, Arc<CompiledLegadoRule>>> = LazyLock::new(DashMap::new);
 
 impl CompiledLegadoRule {
     /// Parse a Legado rule string into a compiled rule
@@ -167,7 +166,7 @@ impl CompiledLegadoRule {
         // Legado syntax: pattern##regex##replacement
         let mut parts = Vec::new();
         let mut start = 0;
-        
+
         // Use simple find loop
         loop {
             let remaining = &rule[start..];
@@ -271,8 +270,13 @@ fn find_top_level(s: &str, sep: &str) -> Option<usize> {
                     '\'' => {
                         i += 1;
                         while i < s.len() {
-                            if s.as_bytes()[i] as char == '\\' { i += 2; continue; }
-                            if s.as_bytes()[i] as char == '\'' { break; }
+                            if s.as_bytes()[i] as char == '\\' {
+                                i += 2;
+                                continue;
+                            }
+                            if s.as_bytes()[i] as char == '\'' {
+                                break;
+                            }
                             i += 1;
                         }
                         i += 1; // skip closing quote
@@ -281,8 +285,13 @@ fn find_top_level(s: &str, sep: &str) -> Option<usize> {
                     '"' => {
                         i += 1;
                         while i < s.len() {
-                            if s.as_bytes()[i] as char == '\\' { i += 2; continue; }
-                            if s.as_bytes()[i] as char == '"' { break; }
+                            if s.as_bytes()[i] as char == '\\' {
+                                i += 2;
+                                continue;
+                            }
+                            if s.as_bytes()[i] as char == '"' {
+                                break;
+                            }
                             i += 1;
                         }
                         i += 1;
@@ -291,24 +300,51 @@ fn find_top_level(s: &str, sep: &str) -> Option<usize> {
                     '/' => {
                         let prev = s[..i].trim_end().chars().last();
                         let is_regex_start = prev.map_or(true, |pc| {
-                            matches!(pc, '(' | ',' | '=' | ':' | '!' | '&' | '|'
-                                | '^' | '~' | '%' | '*' | '-' | '+' | '<'
-                                | '>' | '?' | '[' | '{' | ';' | ')' | '}')
+                            matches!(
+                                pc,
+                                '(' | ','
+                                    | '='
+                                    | ':'
+                                    | '!'
+                                    | '&'
+                                    | '|'
+                                    | '^'
+                                    | '~'
+                                    | '%'
+                                    | '*'
+                                    | '-'
+                                    | '+'
+                                    | '<'
+                                    | '>'
+                                    | '?'
+                                    | '['
+                                    | '{'
+                                    | ';'
+                                    | ')'
+                                    | '}'
+                            )
                         });
                         if is_regex_start {
                             i += 1; // skip opening /
                             while i < s.len() {
-                                if s.as_bytes()[i] as char == '\\' { i += 2; continue; }
-                                if s.as_bytes()[i] as char == '/' { break; }
+                                if s.as_bytes()[i] as char == '\\' {
+                                    i += 2;
+                                    continue;
+                                }
+                                if s.as_bytes()[i] as char == '/' {
+                                    break;
+                                }
                                 i += 1;
                             }
                             i += 1; // skip closing /
-                            // skip regex flags
+                                    // skip regex flags
                             while i < s.len() {
                                 let f = s.as_bytes()[i] as char;
                                 if matches!(f, 'd' | 'g' | 'i' | 'm' | 's' | 'u' | 'y' | 'v') {
                                     i += 1;
-                                } else { break; }
+                                } else {
+                                    break;
+                                }
                             }
                         } else {
                             i += 1;
@@ -425,7 +461,13 @@ mod tests {
         let input = "div.content##[a-z]+## ";
         eprintln!("input bytes: {:?}", input.as_bytes());
         let r = CompiledLegadoRule::parse(input).unwrap();
-        assert_eq!(r.segments.len(), 1, "expected 1 segment, got {}: {:?}", r.segments.len(), r.segments);
+        assert_eq!(
+            r.segments.len(),
+            1,
+            "expected 1 segment, got {}: {:?}",
+            r.segments.len(),
+            r.segments
+        );
         assert!(r.segments[0].regex_clean.is_some(), "expected regex_clean, got None");
         let (pat, repl) = r.segments[0].regex_clean.as_ref().unwrap();
         eprintln!("pat: {:?} (len={}), repl: {:?} (len={})", pat, pat.len(), repl, repl.len());

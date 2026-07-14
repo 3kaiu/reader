@@ -19,9 +19,7 @@ pub fn execute_fallback(
 ) -> Option<String> {
     for segment in &rule.segments {
         let result = match segment.mode {
-            SelectorMode::Css => {
-                selector::css::extract_css(html, &segment.expression)
-            },
+            SelectorMode::Css => selector::css::extract_css(html, &segment.expression),
             SelectorMode::Js => {
                 // For JS, pass the previous result (or empty) and base_url
                 let prev = "";
@@ -36,20 +34,31 @@ pub fn execute_fallback(
             },
             SelectorMode::Regex => {
                 // Regex is applied to the HTML text as a whole
-                selector::regex::extract_regex(&html.root_element().inner_html(), &segment.expression)
+                selector::regex::extract_regex(
+                    &html.root_element().inner_html(),
+                    &segment.expression,
+                )
             },
             SelectorMode::Xpath => {
                 // XPath not natively supported; log warning
-                tracing::warn!("XPath selector not supported in LegadoEngine: {}", segment.expression);
+                tracing::warn!(
+                    "XPath selector not supported in LegadoEngine: {}",
+                    segment.expression
+                );
                 None
             },
             SelectorMode::Text => {
                 // @text: returns the literal text after the prefix
-                let text = segment.expression
+                let text = segment
+                    .expression
                     .strip_prefix("@text:")
                     .unwrap_or(&segment.expression)
                     .trim();
-                if text.is_empty() { None } else { Some(text.to_string()) }
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                }
             },
         };
 

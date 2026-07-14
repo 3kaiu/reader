@@ -18,20 +18,33 @@ pub struct RunResult<T> {
 #[async_trait]
 pub trait Runner: Send + Sync {
     /// Execute a search.
-    async fn search(&self, source_id: &str, keyword: &str, page: u32)
-        -> Result<RunResult<Vec<BookItem>>, EngineError>;
+    async fn search(
+        &self,
+        source_id: &str,
+        keyword: &str,
+        page: u32,
+    ) -> Result<RunResult<Vec<BookItem>>, EngineError>;
 
     /// Get book info.
-    async fn book_info(&self, source_id: &str, book_url: &str)
-        -> Result<RunResult<BookInfo>, EngineError>;
+    async fn book_info(
+        &self,
+        source_id: &str,
+        book_url: &str,
+    ) -> Result<RunResult<BookInfo>, EngineError>;
 
     /// Get chapter list.
-    async fn chapters(&self, source_id: &str, toc_url: &str)
-        -> Result<RunResult<Vec<Chapter>>, EngineError>;
+    async fn chapters(
+        &self,
+        source_id: &str,
+        toc_url: &str,
+    ) -> Result<RunResult<Vec<Chapter>>, EngineError>;
 
     /// Get chapter content.
-    async fn content(&self, source_id: &str, chapter_url: &str)
-        -> Result<RunResult<String>, EngineError>;
+    async fn content(
+        &self,
+        source_id: &str,
+        chapter_url: &str,
+    ) -> Result<RunResult<String>, EngineError>;
 }
 
 pub mod node;

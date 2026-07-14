@@ -57,8 +57,8 @@ pub async fn ensure_source_public_access(
 
 #[cfg(test)]
 mod tests {
-    use nexus_core::{SourceLicenseStatus, SourcePolicy};
     use crate::source_access::is_source_publicly_available;
+    use nexus_core::{SourceLicenseStatus, SourcePolicy};
 
     #[test]
     fn public_access_requires_enabled_and_reviewed_policy() {

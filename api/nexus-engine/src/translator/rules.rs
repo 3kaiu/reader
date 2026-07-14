@@ -96,7 +96,7 @@ fn translate_rule_field(field: &Option<String>) -> String {
                 }
             }
             translate_selector_or_operator(rule)
-        }
+        },
     }
 }
 
@@ -186,23 +186,27 @@ fn split_top_level_ops(rule: &str) -> Vec<(String, String)> {
         match remaining.as_bytes().get(i) {
             Some(b'(') => depth += 1,
             Some(b')') => depth -= 1,
-            Some(b'|') if depth == 0 && i + 1 < remaining.len() && remaining.as_bytes()[i + 1] == b'|' => {
+            Some(b'|')
+                if depth == 0 && i + 1 < remaining.len() && remaining.as_bytes()[i + 1] == b'|' =>
+            {
                 let expr = &remaining[last_split..i];
                 if !expr.trim().is_empty() {
                     result.push((last_op.to_string(), expr.trim().to_string()));
                 }
                 last_split = i + 2;
                 last_op = "||";
-            }
-            Some(b'&') if depth == 0 && i + 1 < remaining.len() && remaining.as_bytes()[i + 1] == b'&' => {
+            },
+            Some(b'&')
+                if depth == 0 && i + 1 < remaining.len() && remaining.as_bytes()[i + 1] == b'&' =>
+            {
                 let expr = &remaining[last_split..i];
                 if !expr.trim().is_empty() {
                     result.push((last_op.to_string(), expr.trim().to_string()));
                 }
                 last_split = i + 2;
                 last_op = "&&";
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -305,10 +309,7 @@ pub fn translate_search(source: &LegadoSource) -> Result<SearchFn, TranslateErro
                 let steps = css::parse_chain(book_list);
                 if !steps.is_empty() {
                     js.push_str("const doc = __parseHTML(html);\n");
-                    js.push_str(&format!(
-                        "const items = {};\n",
-                        css::to_js_all_expression(&steps)
-                    ));
+                    js.push_str(&format!("const items = {};\n", css::to_js_all_expression(&steps)));
 
                     // Extract fields for each item
                     js.push_str("return items.map(item => ({\n");
@@ -338,10 +339,7 @@ pub fn translate_search(source: &LegadoSource) -> Result<SearchFn, TranslateErro
 
                     if let Some(keyword) = &search.check_key_word {
                         if !keyword.is_empty() {
-                            js.push_str(&format!(
-                                "  // checkKeyWord: {}\n",
-                                keyword
-                            ));
+                            js.push_str(&format!("  // checkKeyWord: {}\n", keyword));
                         }
                     }
 
@@ -412,8 +410,7 @@ pub fn translate_chapters(source: &LegadoSource) -> Result<ChaptersFn, Translate
         }
 
         if js_block::contains_js_block(toc_url) {
-            let (translated_js, _is_async, _needs_browser) =
-                js_block::translate_js_block(toc_url);
+            let (translated_js, _is_async, _needs_browser) = js_block::translate_js_block(toc_url);
             js.push_str(&translated_js);
             js.push('\n');
             js.push_str("return items || [];\n");
@@ -424,10 +421,7 @@ pub fn translate_chapters(source: &LegadoSource) -> Result<ChaptersFn, Translate
             // Parse chapter list CSS selector
             let steps = css::parse_chain(toc_url);
             if !steps.is_empty() {
-                js.push_str(&format!(
-                    "const items = {};\n",
-                    css::to_js_all_expression(&steps)
-                ));
+                js.push_str(&format!("const items = {};\n", css::to_js_all_expression(&steps)));
             } else {
                 js.push_str("const items = [];\n");
             }
@@ -436,8 +430,8 @@ pub fn translate_chapters(source: &LegadoSource) -> Result<ChaptersFn, Translate
 
             // Chapter name
             if let Some(name_rule) = &toc.chapter_name {
-                let translated = translate_rule_field(&Some(name_rule.clone()))
-                    .replace("el.", "item.");
+                let translated =
+                    translate_rule_field(&Some(name_rule.clone())).replace("el.", "item.");
                 js.push_str(&format!("  name: {},\n", translated));
             } else {
                 js.push_str("  name: item.textContent?.trim() || '',\n");
@@ -445,8 +439,8 @@ pub fn translate_chapters(source: &LegadoSource) -> Result<ChaptersFn, Translate
 
             // Chapter URL
             if let Some(url_rule) = &toc.chapter_url {
-                let translated = translate_rule_field(&Some(url_rule.clone()))
-                    .replace("el.", "item.");
+                let translated =
+                    translate_rule_field(&Some(url_rule.clone())).replace("el.", "item.");
                 js.push_str(&format!("  url: __resolveUrl({}, BASE),\n", translated));
             } else {
                 js.push_str("  url: item.getAttribute('href') || '',\n");
@@ -558,7 +552,10 @@ pub fn translate_content(source: &LegadoSource) -> Result<ContentFn, TranslateEr
         js.push_str("return '';\n");
     }
 
-    Ok(ContentFn { js_code: js, has_web_js })
+    Ok(ContentFn {
+        js_code: js,
+        has_web_js,
+    })
 }
 
 /// Generate the complete JS module code.
@@ -587,7 +584,9 @@ pub fn generate_source(source: &LegadoSource) -> Result<String, TranslateError> 
     code.push_str(&format!("const HEADERS = {};\n", meta.header_json));
     code.push_str("const TIMEOUT_MS = 30000;\n\n");
     code.push_str("// --- Runtime helpers (injected) ---\n");
-    code.push_str("// __fetch, __parseHTML, __browserRender, __resolveUrl, __cookieStore, __ctx\n\n");
+    code.push_str(
+        "// __fetch, __parseHTML, __browserRender, __resolveUrl, __cookieStore, __ctx\n\n",
+    );
 
     // CF detection helper
     code.push_str(
@@ -642,16 +641,10 @@ fn parse_metadata(source: &LegadoSource) -> SourceMeta {
         .trim_matches('_')
         .to_string();
 
-    let header_json = source
-        .header
-        .as_deref()
-        .unwrap_or("{}")
-        .to_string();
+    let header_json = source.header.as_deref().unwrap_or("{}").to_string();
 
     // Parse header JSON string
-    let header_json = header_json
-        .replace('\n', " ")
-        .replace('\r', " ");
+    let header_json = header_json.replace('\n', " ").replace('\r', " ");
 
     SourceMeta {
         id,

@@ -208,5 +208,6 @@ export const useSearchStore = defineStore('search', () => {
     search,
     clearHistory,
     reset,
+    $reset: reset,
   }
 })

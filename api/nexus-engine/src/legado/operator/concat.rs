@@ -22,9 +22,7 @@ pub fn execute_concat(
 
     for segment in &rule.segments {
         let result = match segment.mode {
-            SelectorMode::Css => {
-                selector::css::extract_css(html, &segment.expression)
-            },
+            SelectorMode::Css => selector::css::extract_css(html, &segment.expression),
             SelectorMode::Js => {
                 let prev = "";
                 selector::js::execute_js(&segment.expression, prev, base_url)
@@ -32,19 +30,25 @@ pub fn execute_concat(
             SelectorMode::Json => {
                 json.and_then(|j| selector::json::extract_json_path(j, &segment.expression))
             },
-            SelectorMode::Regex => {
-                selector::regex::extract_regex(&html.root_element().inner_html(), &segment.expression)
-            },
+            SelectorMode::Regex => selector::regex::extract_regex(
+                &html.root_element().inner_html(),
+                &segment.expression,
+            ),
             SelectorMode::Xpath => {
                 tracing::warn!("XPath selector not supported: {}", segment.expression);
                 None
             },
             SelectorMode::Text => {
-                let text = segment.expression
+                let text = segment
+                    .expression
                     .strip_prefix("@text:")
                     .unwrap_or(&segment.expression)
                     .trim();
-                if text.is_empty() { None } else { Some(text.to_string()) }
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                }
             },
         };
 
@@ -62,5 +66,9 @@ pub fn execute_concat(
         }
     }
 
-    if had_result { Some(combined) } else { None }
+    if had_result {
+        Some(combined)
+    } else {
+        None
+    }
 }

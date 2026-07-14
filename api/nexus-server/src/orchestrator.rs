@@ -123,8 +123,7 @@ impl SearchOrchestrator {
                                 break;
                             },
                             Ok(Err(e)) => {
-                                let can_retry =
-                                    e.is_retryable() && attempt < SEARCH_MAX_ATTEMPTS;
+                                let can_retry = e.is_retryable() && attempt < SEARCH_MAX_ATTEMPTS;
                                 if can_retry {
                                     let delay = e.retry_delay().unwrap_or(1);
                                     warn!(

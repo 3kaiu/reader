@@ -2,7 +2,7 @@
 
 use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 use dashmap::DashMap;
-use nexus_core::{AntiCrawlStrategy, EngineError, types::{FetchContext, FetchResponse}};
+use nexus_core::{AntiCrawlStrategy, EngineError, FetchContext, FetchResponse};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;

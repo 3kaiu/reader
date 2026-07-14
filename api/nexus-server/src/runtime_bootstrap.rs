@@ -66,7 +66,8 @@ pub async fn build_runtime_services(
     let fetcher = Arc::new(HttpFetcher::from_config(&config.limits)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
 
-    let engine_registry = Arc::new(EngineRegistry::new(legado_store, nxs_store, anti_crawl.clone()));
+    let engine_registry =
+        Arc::new(EngineRegistry::new(legado_store, nxs_store, anti_crawl.clone()));
     let orchestrator = Arc::new(SearchOrchestrator::new(
         engine_registry.clone(),
         store.health_tracker().clone(),
@@ -132,13 +133,13 @@ fn build_anti_crawl_chain(config: &EngineConfig) -> anyhow::Result<FallbackChain
     // PrimpHttpStrategy: TLS-fingerprinted HTTP (tried FIRST)
     // Uses primp to mimic browser TLS fingerprint — bypasses CF edge detection
     // for sites that only check JA3/JA4 without full JS challenges.
-    let primp_strategy = Arc::new(PrimpHttpStrategy::new(config.limits.http_timeout_seconds)?
-        .with_cookie_cache(cookie_cache.clone()));
+    let primp_strategy = Arc::new(
+        PrimpHttpStrategy::new(config.limits.http_timeout_seconds)?
+            .with_cookie_cache(cookie_cache.clone()),
+    );
 
-    let cf_strategy = Arc::new(CfBypassStrategy::new(
-        config.cf_bypass.clone(),
-        cookie_cache.clone(),
-    )?);
+    let cf_strategy =
+        Arc::new(CfBypassStrategy::new(config.cf_bypass.clone(), cookie_cache.clone())?);
     let mut fallback_strategies: Vec<Arc<dyn nexus_core::AntiCrawlStrategy>> = Vec::new();
 
     // CfBypassStrategy: external bypass service (tried SECOND)
@@ -150,10 +151,7 @@ fn build_anti_crawl_chain(config: &EngineConfig) -> anyhow::Result<FallbackChain
     }
 
     // BrowserProbeStrategy: headless browser as final fallback
-    if let Ok(browser) = BrowserProbeStrategy::new(
-        config.cf_bypass.clone(),
-        cookie_cache.clone(),
-    ) {
+    if let Ok(browser) = BrowserProbeStrategy::new(config.cf_bypass.clone(), cookie_cache.clone()) {
         fallback_strategies.push(Arc::new(browser));
     }
 

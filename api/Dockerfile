@@ -46,6 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN groupadd -r nexus && useradd -r -g nexus nexus
+
 # Copy binary from builder
 COPY --from=builder /app/target/release/nexus-server /app/nexus-server
 
@@ -54,12 +57,15 @@ COPY sources ./sources
 COPY nexus-server/config.json ./config.json
 
 # Create cache directory
-RUN mkdir -p /app/cache
+RUN mkdir -p /app/cache && chown -R nexus:nexus /app/cache /app/sources /app/config.json
 
 # Default port 7860; override PORT for NAS/Docker as needed.
 ENV HOST=0.0.0.0
 ENV PORT=7860
 ENV RUST_LOG=info
+
+# Switch to non-root user
+USER nexus
 
 EXPOSE 7860
 

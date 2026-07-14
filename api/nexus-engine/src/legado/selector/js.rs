@@ -62,13 +62,18 @@ rl.on('line',(line)=>{
                 tracing::warn!("JS worker start failed: {}", e);
                 WORKER_FAILED.store(true, Ordering::Relaxed);
                 return None;
-            }
+            },
         };
         let stdin = child.stdin.take()?;
         let stdout = BufReader::new(child.stdout.take()?);
         WORKER_FAILED.store(false, Ordering::Relaxed);
         tracing::debug!("JS worker started");
-        Some(Self { stdin, stdout: Some(stdout), _child: child, last_used: Instant::now() })
+        Some(Self {
+            stdin,
+            stdout: Some(stdout),
+            _child: child,
+            last_used: Instant::now(),
+        })
     }
 
     fn execute(&mut self, code: &str, result: &str, base_url: &str) -> Option<String> {
@@ -103,7 +108,7 @@ rl.on('line',(line)=>{
                 // Timeout: stdout was consumed by the thread, worker is dead
                 tracing::warn!("JS worker read timed out");
                 return None;
-            }
+            },
         };
 
         // Restore stdout from the reader thread
@@ -157,12 +162,23 @@ where
 
 pub fn execute_js(js_code: &str, result: &str, base_url: &str) -> Option<String> {
     let code = js_code.trim();
-    if code.is_empty() { return None; }
+    if code.is_empty() {
+        return None;
+    }
     let code = code
         .strip_prefix("@js:")
-        .or_else(|| if code.starts_with("<js>") && code.ends_with("</js>") { Some(&code[4..code.len() - 6]) } else { None })
-        .unwrap_or(code).trim();
-    if code.is_empty() { return None; }
+        .or_else(|| {
+            if code.starts_with("<js>") && code.ends_with("</js>") {
+                Some(&code[4..code.len() - 6])
+            } else {
+                None
+            }
+        })
+        .unwrap_or(code)
+        .trim();
+    if code.is_empty() {
+        return None;
+    }
     let wrapped = if code.starts_with("function") || code.starts_with("if") || code.contains(';') {
         format!("(function(){{ {} }})()", code)
     } else {
@@ -198,13 +214,22 @@ fn execute_via_node_fallback(code: &str, result: &str, base_url: &str) -> Option
     let (tx, rx) = mpsc::channel();
     let c = wrapped.clone();
     std::thread::spawn(move || {
-        let _ = tx.send(std::process::Command::new("node").arg("-e").arg(&c).output());
+        let _ = tx.send(
+            std::process::Command::new("node")
+                .arg("-e")
+                .arg(&c)
+                .output(),
+        );
     });
     match rx.recv_timeout(JS_EXECUTION_TIMEOUT) {
         Ok(Ok(o)) if o.status.success() => {
             let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s == "null" || s.is_empty() { None } else { Some(s) }
-        }
+            if s == "null" || s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        },
         _ => None,
     }
 }

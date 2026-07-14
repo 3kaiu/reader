@@ -3,7 +3,7 @@
 //!
 //! Keeps a bounded in-memory timeline of skill decisions for diagnosis and replay.
 
-use nexus_core::types::{SkillDecisionEnvelope, SkillDecisionLogEntry};
+use nexus_core::{SkillDecisionEnvelope, SkillDecisionLogEntry};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::{Arc, LazyLock, Mutex};

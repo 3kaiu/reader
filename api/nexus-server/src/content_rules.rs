@@ -27,9 +27,7 @@ impl ContentRuleResolver {
             return Ok(rules.clone());
         }
 
-        let merged_rules = Arc::<[ReplaceRule]>::from(
-            load_merged_rules(&self.store).await?,
-        );
+        let merged_rules = Arc::<[ReplaceRule]>::from(load_merged_rules(&self.store).await?);
 
         let mut cached_rules = self.cached_rules.write().await;
         if let Some(rules) = cached_rules.as_ref() {
@@ -41,9 +39,7 @@ impl ContentRuleResolver {
     }
 
     pub async fn refresh(&self) -> Result<Arc<[ReplaceRule]>, EngineError> {
-        let merged_rules = Arc::<[ReplaceRule]>::from(
-            load_merged_rules(&self.store).await?,
-        );
+        let merged_rules = Arc::<[ReplaceRule]>::from(load_merged_rules(&self.store).await?);
         let mut cached_rules = self.cached_rules.write().await;
         *cached_rules = Some(merged_rules.clone());
         Ok(merged_rules)
@@ -55,9 +51,7 @@ impl ContentRuleResolver {
     }
 }
 
-async fn load_merged_rules(
-    store: &SledStore,
-) -> Result<Vec<ReplaceRule>, EngineError> {
+async fn load_merged_rules(store: &SledStore) -> Result<Vec<ReplaceRule>, EngineError> {
     let merged_rules = store.get_replace_rules().await?;
     info!(
         replace_rule_count = merged_rules.len(),

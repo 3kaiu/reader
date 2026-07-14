@@ -9,9 +9,9 @@
 
 use crate::cache_model::{FetchSessionProfile, RawHtmlCacheEntry};
 use nexus_core::{
-    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError,
-    HealthTracker, PersistedExtractionMetrics, PersistedSourceHealth,
-    ReplaceRule, SkillDecisionLogEntry, SourcePolicy, SourceRulePackage, VoiceModelMetadata,
+    AiAnalysisHistory, AiMappingRule, BookGroup, BookshelfItem, EngineError, HealthTracker,
+    PersistedExtractionMetrics, PersistedSourceHealth, ReplaceRule, SkillDecisionLogEntry,
+    SourcePolicy, SourceRulePackage, VoiceModelMetadata,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sled::{Db, Tree};
@@ -28,7 +28,7 @@ pub struct SledStore {
 
     // Domain-specific trees (high cohesion)
     bookshelf: Tree,
-    bookshelf_idx: Tree, // Secondary index: read_time ordering
+    bookshelf_idx: Tree,    // Secondary index: read_time ordering
     bookshelf_lookup: Tree, // Secondary index: source_id:book_url -> id for O(1) exists(),
     groups: Tree,
     rules: Tree,
@@ -69,11 +69,11 @@ impl SledStore {
                 .map_err(|e| EngineError::Database {
                     message: e.to_string(),
                 })?,
-            bookshelf_lookup: db
-                .open_tree("bookshelf_lookup")
-                .map_err(|e| EngineError::Database {
+            bookshelf_lookup: db.open_tree("bookshelf_lookup").map_err(|e| {
+                EngineError::Database {
                     message: e.to_string(),
-                })?,
+                }
+            })?,
             groups: db.open_tree("groups").map_err(|e| EngineError::Database {
                 message: e.to_string(),
             })?,

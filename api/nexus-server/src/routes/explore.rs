@@ -3,10 +3,7 @@
 //! Provides endpoints for curated catalog browsing from book sources
 //! that implement the `ExploreEngine` trait.
 
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use nexus_core::ExploreCategory;
 use serde::{Deserialize, Serialize};
 

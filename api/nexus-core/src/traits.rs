@@ -3,7 +3,7 @@
 //! These traits define the plugin interfaces for the engine.
 
 use crate::error::EngineError;
-use crate::{FetchResponse, FetchContext};
+use crate::{FetchContext, FetchResponse};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

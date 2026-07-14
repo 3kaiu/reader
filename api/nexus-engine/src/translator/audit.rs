@@ -60,13 +60,20 @@ impl SourceAudit {
     }
 
     pub fn has_toc(&self) -> bool {
-        !self.issues.iter().any(|i| i.contains("missing chapter list"))
+        !self
+            .issues
+            .iter()
+            .any(|i| i.contains("missing chapter list"))
     }
 
     pub fn recommended_backend(&self) -> &str {
         if self.has_web_js || self.has_browser {
             "browser"
-        } else if self.has_js || self.capability.contains(&SourceCapability::NeedsJavaPolyfill) {
+        } else if self.has_js
+            || self
+                .capability
+                .contains(&SourceCapability::NeedsJavaPolyfill)
+        {
             "js-runtime"
         } else {
             "native"
@@ -142,7 +149,7 @@ pub fn audit_source(source: &LegadoSource) -> SourceAudit {
     }
 
     // Explore support
-let has_explore = source.explore_url.is_some()
+    let has_explore = source.explore_url.is_some()
         || source
             .rule_explore
             .as_ref()
@@ -196,8 +203,8 @@ let has_explore = source.explore_url.is_some()
     // Check for JS blocks in rules
     let all_rule_text = collect_rule_text(source);
     let has_js = all_rule_text.contains("@js:") || all_rule_text.contains("<js>");
-    let has_browser = all_rule_text.contains("java.startBrowser")
-        || all_rule_text.contains("startBrowserAwait");
+    let has_browser =
+        all_rule_text.contains("java.startBrowser") || all_rule_text.contains("startBrowserAwait");
     let has_java = all_rule_text.contains("java.")
         || all_rule_text.contains("source.")
         || all_rule_text.contains("cookie.");
@@ -388,9 +395,15 @@ impl AuditSummary {
         let total = audits.len();
         let usable = audits.iter().filter(|a| a.is_usable()).count();
         let auto_enable = audits.iter().filter(|a| a.is_auto_enable()).count();
-        let needs_browser = audits.iter().filter(|a| a.has_web_js || a.has_browser).count();
+        let needs_browser = audits
+            .iter()
+            .filter(|a| a.has_web_js || a.has_browser)
+            .count();
         let needs_js = audits.iter().filter(|a| a.has_js && !a.has_browser).count();
-        let pure_css = audits.iter().filter(|a| a.capability.contains(&SourceCapability::PureCss)).count();
+        let pure_css = audits
+            .iter()
+            .filter(|a| a.capability.contains(&SourceCapability::PureCss))
+            .count();
         let has_search = audits.iter().filter(|a| a.has_search).count();
         let has_explore = audits.iter().filter(|a| a.has_explore).count();
         let has_pagination = audits.iter().filter(|a| a.has_pagination).count();

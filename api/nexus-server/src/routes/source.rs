@@ -129,15 +129,16 @@ pub async fn import_legado_sources(
 }
 
 /// GET /api/sources/legado
-pub async fn list_legado_sources(
-    State(state): State<AppState>,
-) -> Json<Vec<LegadoSourceView>> {
+pub async fn list_legado_sources(State(state): State<AppState>) -> Json<Vec<LegadoSourceView>> {
     let sources = state.engine_registry.legado_store.get_all();
     let result: Vec<LegadoSourceView> = sources
         .into_iter()
         .map(|source| {
             let classification = classify_source(&source);
-            LegadoSourceView { source, classification }
+            LegadoSourceView {
+                source: (*source).clone(),
+                classification,
+            }
         })
         .collect();
     Json(result)
@@ -350,9 +351,7 @@ pub async fn delete_source(
 // ---- Source health ----
 
 /// GET /api/sources/health — get health summary for all sources
-pub async fn list_source_health(
-    State(state): State<AppState>,
-) -> Json<Vec<serde_json::Value>> {
+pub async fn list_source_health(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
     use nexus_engine::extraction_metrics;
 
     let health_tracker = state.store.health_tracker();
@@ -411,9 +410,7 @@ pub async fn import_source_package() -> (StatusCode, Json<serde_json::Value>) {
 }
 
 /// GET /api/source-packages/{id}
-pub async fn get_source_package(
-    Path(_id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn get_source_package(Path(_id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     (
         StatusCode::NOT_IMPLEMENTED,
         Json(serde_json::json!({

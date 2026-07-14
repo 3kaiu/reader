@@ -306,7 +306,11 @@ impl LegadoSource {
             .next()
             .unwrap_or(&self.book_source_url)
             .to_string();
-        let base = if domain.is_empty() { "unknown".to_string() } else { domain };
+        let base = if domain.is_empty() {
+            "unknown".to_string()
+        } else {
+            domain
+        };
 
         // Add a short hash of the full URL to avoid collisions between sources
         // that share the same domain prefix (e.g. example.com/path1 and example.com/path2)
@@ -322,39 +326,117 @@ impl LegadoSource {
     pub fn has_js_rules(&self) -> bool {
         // Collect all rule strings into a single string and scan
         let mut haystack = String::with_capacity(512);
-        if let Some(s) = &self.search_url { haystack.push_str(s); haystack.push('\n'); }
-        if let Some(s) = &self.header { haystack.push_str(s); haystack.push('\n'); }
-        if let Some(s) = &self.js_lib { haystack.push_str(s); haystack.push('\n'); }
-        if let Some(s) = &self.cover_decode_js { haystack.push_str(s); haystack.push('\n'); }
-        if let Some(s) = &self.login_check_js { haystack.push_str(s); haystack.push('\n'); }
+        if let Some(s) = &self.search_url {
+            haystack.push_str(s);
+            haystack.push('\n');
+        }
+        if let Some(s) = &self.header {
+            haystack.push_str(s);
+            haystack.push('\n');
+        }
+        if let Some(s) = &self.js_lib {
+            haystack.push_str(s);
+            haystack.push('\n');
+        }
+        if let Some(s) = &self.cover_decode_js {
+            haystack.push_str(s);
+            haystack.push('\n');
+        }
+        if let Some(s) = &self.login_check_js {
+            haystack.push_str(s);
+            haystack.push('\n');
+        }
         if let Some(r) = &self.rule_search {
-            if let Some(s) = &r.check_key_word { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.book_list { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.name { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.author { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.book_url { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.cover_url { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.base.intro { haystack.push_str(s); haystack.push('\n'); }
+            if let Some(s) = &r.check_key_word {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.book_list {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.name {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.author {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.book_url {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.cover_url {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.base.intro {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
         }
         if let Some(r) = &self.rule_book_info {
-            if let Some(s) = &r.init { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.name { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.author { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.intro { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.cover_url { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.toc_url { haystack.push_str(s); haystack.push('\n'); }
+            if let Some(s) = &r.init {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.name {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.author {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.intro {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.cover_url {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.toc_url {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
         }
         if let Some(r) = &self.rule_toc {
-            if let Some(s) = &r.chapter_list { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.chapter_name { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.chapter_url { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.format_js { haystack.push_str(s); haystack.push('\n'); }
+            if let Some(s) = &r.chapter_list {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.chapter_name {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.chapter_url {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.format_js {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
         }
         if let Some(r) = &self.rule_content {
-            if let Some(s) = &r.content { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.sub_content { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.web_js { haystack.push_str(s); haystack.push('\n'); }
-            if let Some(s) = &r.source_regex { haystack.push_str(s); haystack.push('\n'); }
+            if let Some(s) = &r.content {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.sub_content {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.web_js {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
+            if let Some(s) = &r.source_regex {
+                haystack.push_str(s);
+                haystack.push('\n');
+            }
         }
         haystack.contains("@js:") || haystack.contains("<js>") || haystack.contains("</js>")
     }
@@ -379,11 +461,11 @@ impl LegadoSource {
         if self.has_web_js() {
             "webjs" // requires WebView — highest complexity
         } else if self.has_js_rules() {
-            "js"    // has @js: snippets — needs JS engine
+            "js" // has @js: snippets — needs JS engine
         } else if self.has_xpath() {
             "xpath" // has XPath selectors — needs import-time conversion
         } else {
-            "css"   // pure CSS selectors — simplest path
+            "css" // pure CSS selectors — simplest path
         }
     }
 

@@ -39,33 +39,43 @@ pub fn execute_merge(
                         }
                     })
                     .collect()
-            }
+            },
             SelectorMode::Json => {
                 if let Some(json_val) = json {
-                    let results = selector::json::extract_all_json_path(json_val, &segment.expression);
+                    let results =
+                        selector::json::extract_all_json_path(json_val, &segment.expression);
                     results
                 } else {
                     Vec::new()
                 }
-            }
+            },
             SelectorMode::Js => {
                 // For JS in merge mode, use the last non-empty result as input
-                let prev = all_lists.last().and_then(|l| l.last()).map(|s| s.as_str()).unwrap_or("");
+                let prev = all_lists
+                    .last()
+                    .and_then(|l| l.last())
+                    .map(|s| s.as_str())
+                    .unwrap_or("");
                 selector::js::execute_js(&segment.expression, prev, base_url)
                     .map(|s| vec![s])
                     .unwrap_or_default()
-            }
-            SelectorMode::Regex => {
-                selector::regex::extract_regex(&html.root_element().inner_html(), &segment.expression)
-                    .map(|s| vec![s])
-                    .unwrap_or_default()
-            }
+            },
+            SelectorMode::Regex => selector::regex::extract_regex(
+                &html.root_element().inner_html(),
+                &segment.expression,
+            )
+            .map(|s| vec![s])
+            .unwrap_or_default(),
             SelectorMode::Xpath => {
-                tracing::warn!("XPath selector not supported in Legado merge: {}", segment.expression);
+                tracing::warn!(
+                    "XPath selector not supported in Legado merge: {}",
+                    segment.expression
+                );
                 Vec::new()
-            }
+            },
             SelectorMode::Text => {
-                let text = segment.expression
+                let text = segment
+                    .expression
                     .strip_prefix("@text:")
                     .unwrap_or(&segment.expression)
                     .trim();
@@ -74,7 +84,7 @@ pub fn execute_merge(
                 } else {
                     vec![text.to_string()]
                 }
-            }
+            },
         };
 
         if !list.is_empty() {
@@ -114,7 +124,7 @@ mod tests {
                     <span class='title'>Book B</span>
                     <span class='author'>Author B</span>
                 </div>
-            </div>"
+            </div>",
         );
         // Note: merge requires splitting rule with %%
         // This is a simplified test

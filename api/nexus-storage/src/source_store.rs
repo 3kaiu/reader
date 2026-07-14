@@ -123,11 +123,7 @@ impl SourceStore {
     /// Delete a source
     pub async fn delete(&self, id: &str) -> Result<(), EngineError> {
         // Validate ID to prevent directory traversal
-        if id.contains("..")
-            || id.contains('/')
-            || id.contains('\\')
-            || id.contains('\0')
-        {
+        if id.contains("..") || id.contains('/') || id.contains('\\') || id.contains('\0') {
             return Err(EngineError::FileIo {
                 message: format!("Invalid source ID (contains path separators): {}", id),
             });

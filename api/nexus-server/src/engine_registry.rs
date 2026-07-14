@@ -1,7 +1,7 @@
 use dashmap::DashMap;
-use nexus_core::{BookEngine, BookEngineRuntime};
 #[cfg(feature = "discovery")]
 use nexus_core::ExploreEngine;
+use nexus_core::{BookEngine, BookEngineRuntime};
 use nexus_engine::anti_crawl::FallbackChain;
 use nexus_engine::legado::LegadoEngine;
 use nexus_storage::{LegadoSourceStore, SourceStore};
@@ -36,7 +36,7 @@ impl EngineRegistry {
             return Some(engine.clone());
         }
         let source = self.legado_store.get(source_id)?;
-        match LegadoEngine::new(source, self.anti_crawl.clone()) {
+        match LegadoEngine::new(source.clone(), self.anti_crawl.clone()) {
             Ok(engine) => {
                 let engine_arc = Arc::new(engine);
 
@@ -49,28 +49,32 @@ impl EngineRegistry {
                     }
                 }
 
-                self.legado_cache.insert(source_id.to_string(), engine_arc.clone());
+                self.legado_cache
+                    .insert(source_id.to_string(), engine_arc.clone());
                 info!("Cached Legado engine for: {}", source_id);
                 Some(engine_arc)
-            }
+            },
             Err(e) => {
                 warn!("Failed to compile Legado engine for {}: {}", source_id, e);
                 None
-            }
+            },
         }
     }
 
     pub fn get_book_engine(&self, source_id: &str) -> Option<Arc<dyn BookEngine>> {
-        self.get_legado_engine(source_id).map(|e| e as Arc<dyn BookEngine>)
+        self.get_legado_engine(source_id)
+            .map(|e| e as Arc<dyn BookEngine>)
     }
 
     pub fn get_runtime_engine(&self, source_id: &str) -> Option<Arc<dyn BookEngineRuntime>> {
-        self.get_legado_engine(source_id).map(|e| e as Arc<dyn BookEngineRuntime>)
+        self.get_legado_engine(source_id)
+            .map(|e| e as Arc<dyn BookEngineRuntime>)
     }
 
     #[cfg(feature = "discovery")]
     pub fn get_explore_engine(&self, source_id: &str) -> Option<Arc<dyn ExploreEngine>> {
-        self.get_legado_engine(source_id).map(|e| e as Arc<dyn ExploreEngine>)
+        self.get_legado_engine(source_id)
+            .map(|e| e as Arc<dyn ExploreEngine>)
     }
 
     pub fn source_count(&self) -> (usize, usize) {

@@ -9,10 +9,10 @@ pub mod runtime_state;
 pub mod search;
 pub mod source;
 
+use crate::app_state::AppState;
 use axum::{extract::State, Json};
 use nexus_engine::extraction_metrics;
 use serde::Serialize;
-use crate::app_state::AppState;
 
 /// Health check response with dependency status
 #[derive(Serialize)]

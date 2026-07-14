@@ -16,9 +16,21 @@ export const useSourceStore = defineStore('source', () => {
   const view = createSourceStoreView(state)
   const actions = createSourceStoreActions(state)
 
+  function $reset() {
+    const initial = createSourceStoreState()
+    for (const key of Object.keys(state) as (keyof typeof state)[]) {
+      const ref = state[key]
+      const initialRef = initial[key]
+      if ('value' in ref && 'value' in initialRef) {
+        ;(ref as { value: unknown }).value = (initialRef as { value: unknown }).value
+      }
+    }
+  }
+
   return {
     ...state,
     ...view,
     ...actions,
+    $reset,
   }
 })

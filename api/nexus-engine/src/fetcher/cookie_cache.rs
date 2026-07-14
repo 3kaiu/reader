@@ -50,7 +50,12 @@ impl CookieCache {
         self
     }
 
-    pub fn get(&self, domain: &str, user_agent: &str, ip_address: &str) -> Option<Vec<(String, String)>> {
+    pub fn get(
+        &self,
+        domain: &str,
+        user_agent: &str,
+        ip_address: &str,
+    ) -> Option<Vec<(String, String)>> {
         let entry = self.cache.get(domain)?;
         if entry.expires_at > Instant::now()
             && entry.user_agent == user_agent
@@ -64,13 +69,22 @@ impl CookieCache {
         }
     }
 
-    pub fn set(&self, domain: &str, cookies: Vec<(String, String)>, _source_url: &str, user_agent: &str, ip_address: &str) {
+    pub fn set(
+        &self,
+        domain: &str,
+        cookies: Vec<(String, String)>,
+        _source_url: &str,
+        user_agent: &str,
+        ip_address: &str,
+    ) {
         // Periodic cleanup of stale solve locks (every ~1000 set calls)
         self.cleanup_stale_solve_locks();
 
         // Evict oldest entries if at capacity
         if self.cache.len() >= self.max_entries {
-            let to_remove: Vec<String> = self.cache.iter()
+            let to_remove: Vec<String> = self
+                .cache
+                .iter()
                 .min_by(|a, b| a.created_at.cmp(&b.created_at))
                 .map(|e| e.key().clone())
                 .into_iter()
@@ -81,13 +95,16 @@ impl CookieCache {
         }
 
         let now = Instant::now();
-        self.cache.insert(domain.to_string(), CookieEntry {
-            cookies,
-            expires_at: now + self.cf_ttl,
-            created_at: now,
-            user_agent: user_agent.to_string(),
-            ip_address: ip_address.to_string(),
-        });
+        self.cache.insert(
+            domain.to_string(),
+            CookieEntry {
+                cookies,
+                expires_at: now + self.cf_ttl,
+                created_at: now,
+                user_agent: user_agent.to_string(),
+                ip_address: ip_address.to_string(),
+            },
+        );
     }
 
     pub fn has_valid(&self, domain: &str, user_agent: &str, ip_address: &str) -> bool {
@@ -97,9 +114,15 @@ impl CookieCache {
     /// Try to acquire solve lock. Returns true if caller should perform the solve.
     /// Auto-releases stale locks older than SOLVE_LOCK_TIMEOUT.
     pub async fn try_acquire_solve_lock(&self, domain: &str) -> bool {
-        let lock = self.solve_locks
+        let lock = self
+            .solve_locks
             .entry(domain.to_string())
-            .or_insert_with(|| Arc::new(Mutex::new(SolveState { in_progress: false, locked_at: Instant::now() })))
+            .or_insert_with(|| {
+                Arc::new(Mutex::new(SolveState {
+                    in_progress: false,
+                    locked_at: Instant::now(),
+                }))
+            })
             .value()
             .clone();
 
@@ -206,7 +229,13 @@ mod tests {
     #[test]
     fn test_ip_mismatch_rejected() {
         let cache = CookieCache::new();
-        cache.set("test.com", vec![("cf_clearance".to_string(), "abc".to_string())], "https://test.com", TEST_UA, TEST_IP);
+        cache.set(
+            "test.com",
+            vec![("cf_clearance".to_string(), "abc".to_string())],
+            "https://test.com",
+            TEST_UA,
+            TEST_IP,
+        );
         // Different IP → should reject
         assert!(cache.get("test.com", TEST_UA, OTHER_IP).is_none());
         // No entry exists anymore (get removed it for mismatch)
@@ -216,7 +245,13 @@ mod tests {
     #[test]
     fn test_ua_mismatch_rejected() {
         let cache = CookieCache::new();
-        cache.set("test.com", vec![("cf_clearance".to_string(), "abc".to_string())], "https://test.com", TEST_UA, TEST_IP);
+        cache.set(
+            "test.com",
+            vec![("cf_clearance".to_string(), "abc".to_string())],
+            "https://test.com",
+            TEST_UA,
+            TEST_IP,
+        );
         // Different UA → should reject
         assert!(cache.get("test.com", OTHER_UA, TEST_IP).is_none());
         assert!(!cache.has_valid("test.com", OTHER_UA, TEST_IP));
@@ -225,7 +260,13 @@ mod tests {
     #[test]
     fn test_both_match_accepted() {
         let cache = CookieCache::new();
-        cache.set("test.com", vec![("cf_clearance".to_string(), "abc".to_string())], "https://test.com", TEST_UA, TEST_IP);
+        cache.set(
+            "test.com",
+            vec![("cf_clearance".to_string(), "abc".to_string())],
+            "https://test.com",
+            TEST_UA,
+            TEST_IP,
+        );
         assert!(cache.has_valid("test.com", TEST_UA, TEST_IP));
         let cookies = cache.get("test.com", TEST_UA, TEST_IP);
         assert!(cookies.is_some());

@@ -30,10 +30,7 @@ mod tests {
 
     #[test]
     fn test_capture_groups() {
-        assert_eq!(
-            clean_text("Chapter 123", r"Chapter (\d+)", "Ch. $1"),
-            "Ch. 123"
-        );
+        assert_eq!(clean_text("Chapter 123", r"Chapter (\d+)", "Ch. $1"), "Ch. 123");
     }
 
     #[test]

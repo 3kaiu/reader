@@ -17,10 +17,7 @@ pub enum UrlPart {
     /// Page number placeholder: {{page}}, {page}
     Page,
     /// Java method invocation in template: {{java.put('key', val)}}
-    JavaCall {
-        method: String,
-        args: Vec<String>,
-    },
+    JavaCall { method: String, args: Vec<String> },
     /// JSONPath placeholder: {{$.store.book[0].title}}
     JsonPath(String),
 }
@@ -55,7 +52,8 @@ pub fn parse_compound_url(input: &str) -> CompoundUrl {
         let mut charset: Option<String> = None;
 
         // Parse method
-        if options_part.contains("'method':'POST'") || options_part.contains("\"method\":\"POST\"") {
+        if options_part.contains("'method':'POST'") || options_part.contains("\"method\":\"POST\"")
+        {
             method = "POST".to_string();
         }
 
@@ -73,9 +71,12 @@ pub fn parse_compound_url(input: &str) -> CompoundUrl {
         }
 
         // Parse charset
-        if options_part.contains("'charset':'gbk'") || options_part.contains("\"charset\":\"gbk\"") {
+        if options_part.contains("'charset':'gbk'") || options_part.contains("\"charset\":\"gbk\"")
+        {
             charset = Some("gbk".to_string());
-        } else if options_part.contains("'charset':'utf-8'") || options_part.contains("\"charset\":\"utf-8\"") {
+        } else if options_part.contains("'charset':'utf-8'")
+            || options_part.contains("\"charset\":\"utf-8\"")
+        {
             charset = Some("utf-8".to_string());
         }
 
@@ -207,8 +208,8 @@ fn parse_java_call(input: &str) -> (String, Vec<String>) {
                         paren_close = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -235,10 +236,10 @@ fn parse_arguments(input: &str) -> Vec<String> {
                 if !in_single_quote {
                     // End of quoted string
                 }
-            }
+            },
             '"' if !in_single_quote => {
                 in_double_quote = !in_double_quote;
-            }
+            },
             '(' if !in_single_quote && !in_double_quote => depth += 1,
             ')' if !in_single_quote && !in_double_quote => depth -= 1,
             ',' if !in_single_quote && !in_double_quote && depth == 0 => {
@@ -248,8 +249,8 @@ fn parse_arguments(input: &str) -> Vec<String> {
                 }
                 current.clear();
                 continue;
-            }
-            _ => {}
+            },
+            _ => {},
         }
         current.push(c);
     }
@@ -292,11 +293,11 @@ pub fn generate_js_url(parts: &[UrlPart], keyword_var: &str, page_var: &str) -> 
                     // Unknown java call — emit warning in comment
                     js.push_str(&format!("${{'' /* TODO: java.{}({:?}) */}}", method, args));
                 }
-            }
+            },
             UrlPart::JsonPath(path) => {
                 // JSONPath result — needs to be resolved at runtime
                 js.push_str(&format!("${{/* JSONPath: {} */}}", path));
-            }
+            },
         }
     }
     js.push('`');
@@ -337,10 +338,10 @@ pub fn generate_js_body(parts: &[UrlPart], keyword_var: &str) -> String {
                 } else {
                     js.push_str("''");
                 }
-            }
+            },
             UrlPart::JsonPath(path) => {
                 js.push_str(&format!("${{/* JSONPath: {} */}}", path));
-            }
+            },
         }
     }
     js.push('`');
@@ -419,10 +420,7 @@ mod tests {
     fn test_generate_js_url_with_page() {
         let parts = parse_template("/search?q={{key}}&p={{page}}");
         let js = generate_js_url(&parts, "keyword", "page");
-        assert_eq!(
-            js,
-            "`/search?q=${encodeURIComponent(keyword)}&p=${page}`"
-        );
+        assert_eq!(js, "`/search?q=${encodeURIComponent(keyword)}&p=${page}`");
     }
 
     #[test]
@@ -447,10 +445,7 @@ mod tests {
         assert_eq!(url.method, "POST");
         assert_eq!(url.charset, Some("gbk".to_string()));
         assert_eq!(url.url_parts.len(), 1);
-        assert_eq!(
-            url.url_parts[0],
-            UrlPart::Literal("/modules/article/search.php".to_string())
-        );
+        assert_eq!(url.url_parts[0], UrlPart::Literal("/modules/article/search.php".to_string()));
 
         let js_body = generate_js_body(&url.body, "keyword");
         assert!(js_body.contains("__ctx.store['69key']=keyword"));

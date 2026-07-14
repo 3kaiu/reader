@@ -8,12 +8,13 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tracing::{error, info, warn};
 
 /// Storage for Legado format book sources
 pub struct LegadoSourceStore {
     sources_dir: PathBuf,
-    sources: RwLock<HashMap<String, LegadoSource>>,
+    sources: RwLock<HashMap<String, Arc<LegadoSource>>>,
 }
 
 impl LegadoSourceStore {
@@ -38,18 +39,19 @@ impl LegadoSourceStore {
             Err(e) => {
                 error!("Failed to read legado sources dir {:?}: {}", self.sources_dir, e);
                 return 0;
-            }
+            },
         };
 
         for entry in entries.flatten() {
             let path = entry.path();
-            if !path.extension().is_some_and(|ext| ext == "json" || ext == "legado") {
+            if !path
+                .extension()
+                .is_some_and(|ext| ext == "json" || ext == "legado")
+            {
                 continue;
             }
             // Skip known non-source files
-            let fname = path.file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
+            let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if fname == "legado-quality.json" || fname == "ALL.json" || fname == "all.json" {
                 continue;
             }
@@ -69,7 +71,8 @@ impl LegadoSourceStore {
     fn load_file(&self, path: &Path) -> Result<usize, String> {
         let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
         let mut content = String::new();
-        file.read_to_string(&mut content).map_err(|e| e.to_string())?;
+        file.read_to_string(&mut content)
+            .map_err(|e| e.to_string())?;
         let content = content.trim();
 
         // Try as Vec first (e.g. yckceo bulk exports), then as single object
@@ -98,17 +101,18 @@ impl LegadoSourceStore {
             );
         }
         info!("Loaded Legado source: {} ({})", source.book_source_name, id);
-        self.sources.write().insert(id.clone(), source);
+        let arc_source = Arc::new(source);
+        self.sources.write().insert(id.clone(), arc_source);
         id
     }
 
     /// Get a source by ID
-    pub fn get(&self, id: &str) -> Option<LegadoSource> {
+    pub fn get(&self, id: &str) -> Option<Arc<LegadoSource>> {
         self.sources.read().get(id).cloned()
     }
 
-    /// Get all sources
-    pub fn get_all(&self) -> Vec<LegadoSource> {
+    /// Get all sources (cheap clones via Arc)
+    pub fn get_all(&self) -> Vec<Arc<LegadoSource>> {
         self.sources.read().values().cloned().collect()
     }
 
@@ -116,11 +120,7 @@ impl LegadoSourceStore {
     pub async fn save(&self, source: &LegadoSource) -> Result<String, nexus_core::EngineError> {
         let id = source.infer_id();
         // Validate ID to prevent directory traversal
-        if id.contains("..")
-            || id.contains('/')
-            || id.contains('\\')
-            || id.contains('\0')
-        {
+        if id.contains("..") || id.contains('/') || id.contains('\\') || id.contains('\0') {
             return Err(nexus_core::EngineError::FileIo {
                 message: format!("Invalid source ID (contains path separators): {}", id),
             });
@@ -135,12 +135,15 @@ impl LegadoSourceStore {
                 message: e.to_string(),
             })?;
 
-        self.sources.write().insert(id.clone(), source.clone());
+        self.sources.write().insert(id.clone(), Arc::new(source.clone()));
         Ok(id)
     }
 
     /// Save multiple sources to individual files
-    pub async fn save_bulk(&self, sources: &[LegadoSource]) -> Result<Vec<String>, nexus_core::EngineError> {
+    pub async fn save_bulk(
+        &self,
+        sources: &[LegadoSource],
+    ) -> Result<Vec<String>, nexus_core::EngineError> {
         let mut ids = Vec::with_capacity(sources.len());
         for source in sources {
             let id = self.save(source).await?;
@@ -152,11 +155,7 @@ impl LegadoSourceStore {
     /// Delete a source
     pub async fn delete(&self, id: &str) -> Result<(), nexus_core::EngineError> {
         // Validate ID to prevent directory traversal
-        if id.contains("..")
-            || id.contains('/')
-            || id.contains('\\')
-            || id.contains('\0')
-        {
+        if id.contains("..") || id.contains('/') || id.contains('\\') || id.contains('\0') {
             return Err(nexus_core::EngineError::FileIo {
                 message: format!("Invalid source ID (contains path separators): {}", id),
             });

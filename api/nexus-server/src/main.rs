@@ -22,9 +22,8 @@ async fn main() -> anyhow::Result<()> {
     // Initialize logging
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "nexus_server=info,nexus_engine=info,tower_http=info".into()
-            }),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "nexus_server=info,nexus_engine=info,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

@@ -19,9 +19,8 @@ const MAX_CACHED_DOCS: usize = 50;
 struct SafeHtml(Html);
 unsafe impl Send for SafeHtml {}
 
-static HTML_DOC_CACHE: LazyLock<Mutex<LruCache<String, SafeHtml>>> = LazyLock::new(|| {
-    Mutex::new(LruCache::new(NonZeroUsize::new(MAX_CACHED_DOCS).unwrap()))
-});
+static HTML_DOC_CACHE: LazyLock<Mutex<LruCache<String, SafeHtml>>> =
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(MAX_CACHED_DOCS).unwrap())));
 
 /// Return a parsed HTML document, caching it by URL.
 ///

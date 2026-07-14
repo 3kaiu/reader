@@ -57,11 +57,11 @@ pub enum Step {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AttrOp {
-    Eq,    // =
-    Ends,  // $=
+    Eq,           // =
+    Ends,         // $=
     ContainsWord, // ~=
-    Prefix, // ^=
-    StartsWith, // |=
+    Prefix,       // ^=
+    StartsWith,   // |=
 }
 
 impl fmt::Display for AttrOp {
@@ -199,28 +199,29 @@ pub fn to_css_selector(steps: &[Step]) -> String {
             Step::Tag(name) => parts.push(name.clone()),
             Step::TagIndexed(name, idx) => {
                 parts.push(format!("{}:nth-child({})", name, idx + 1));
-            }
+            },
             Step::TagNotIndexed(name, idx) => {
                 parts.push(format!("{}:not(:nth-child({}))", name, idx + 1));
-            }
+            },
             Step::Attr { name, op, value } => {
                 if value.contains('|') && matches!(op, AttrOp::Eq | AttrOp::ContainsWord) {
-                    let selectors: Vec<String> = value.split('|')
+                    let selectors: Vec<String> = value
+                        .split('|')
                         .map(|v| format!("[{}{}\"{}\"]", name, op, v))
                         .collect();
                     parts.push(selectors.join(","));
                 } else {
                     parts.push(format!("[{}{}\"{}\"]", name, op, value));
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     parts.join(" ")
 }
 
 /// Generate a JS DOM query expression string.
-/// 
+///
 /// The output is a JS code fragment like:
 ///   `.querySelector('.foo p:first-child')?.textContent?.trim() || ''`
 pub fn to_js_expression(steps: &[Step]) -> String {
@@ -234,19 +235,26 @@ pub fn to_js_expression(steps: &[Step]) -> String {
     for step in steps {
         match step {
             // Accessor steps terminate the chain
-            s @ (Step::Text | Step::TextNodes | Step::Href | Step::Src | Step::Content | Step::Html | Step::OwnText | Step::GenericAttr(_)) => {
+            s @ (Step::Text
+            | Step::TextNodes
+            | Step::Href
+            | Step::Src
+            | Step::Content
+            | Step::Html
+            | Step::OwnText
+            | Step::GenericAttr(_)) => {
                 accessor = Some(s);
-            }
+            },
             // Selector steps combine into a CSS selector
             Step::Class(name) => selector_parts.push(format!(".{}", name)),
             Step::Id(name) => selector_parts.push(format!("#{}", name)),
             Step::Tag(name) => selector_parts.push(name.clone()),
             Step::TagIndexed(name, idx) => {
                 selector_parts.push(format!("{}:nth-child({})", name, idx + 1));
-            }
+            },
             Step::TagNotIndexed(name, idx) => {
                 selector_parts.push(format!("{}:not(:nth-child({}))", name, idx + 1));
-            }
+            },
             Step::Attr { name, op, value } => {
                 // Handle pipe-separated values: split into multiple selectors
                 if value.contains('|') && matches!(op, AttrOp::Eq | AttrOp::ContainsWord) {
@@ -259,7 +267,7 @@ pub fn to_js_expression(steps: &[Step]) -> String {
                 } else {
                     selector_parts.push(format!("[{}{}\"{}\"]", name, op, value));
                 }
-            }
+            },
         }
     }
 
@@ -281,24 +289,32 @@ pub fn to_js_expression(steps: &[Step]) -> String {
     }
 
     match accessor {
-        Some(Step::Text) => format!("el.querySelector('{}')?.textContent?.trim() || ''", css_selector),
+        Some(Step::Text) => {
+            format!("el.querySelector('{}')?.textContent?.trim() || ''", css_selector)
+        },
         Some(Step::TextNodes) => format!("el.querySelector('{}')?.textContent || ''", css_selector),
-        Some(Step::Href) => format!("el.querySelector('{}')?.getAttribute('href') || ''", css_selector),
-        Some(Step::Src) => format!("el.querySelector('{}')?.getAttribute('src') || ''", css_selector),
-        Some(Step::Content) => format!("el.querySelector('{}')?.getAttribute('content') || ''", css_selector),
+        Some(Step::Href) => {
+            format!("el.querySelector('{}')?.getAttribute('href') || ''", css_selector)
+        },
+        Some(Step::Src) => {
+            format!("el.querySelector('{}')?.getAttribute('src') || ''", css_selector)
+        },
+        Some(Step::Content) => {
+            format!("el.querySelector('{}')?.getAttribute('content') || ''", css_selector)
+        },
         Some(Step::Html) => format!("el.querySelector('{}')?.innerHTML || ''", css_selector),
         Some(Step::OwnText) => {
             format!(
                 "Array.from(el.querySelector('{}')?.childNodes || []).filter(n => n.nodeType === 3).map(n => n.textContent).join('') || ''",
                 css_selector
             )
-        }
+        },
         Some(Step::GenericAttr(name)) => {
             format!("el.querySelector('{}')?.getAttribute('{}') || ''", css_selector, name)
-        }
+        },
         _ => {
             format!("el.querySelector('{}')", css_selector)
-        }
+        },
     }
 }
 
@@ -313,18 +329,25 @@ pub fn to_js_all_expression(steps: &[Step]) -> String {
 
     for step in steps {
         match step {
-            s @ (Step::Text | Step::TextNodes | Step::Href | Step::Src | Step::Content | Step::Html | Step::OwnText | Step::GenericAttr(_)) => {
+            s @ (Step::Text
+            | Step::TextNodes
+            | Step::Href
+            | Step::Src
+            | Step::Content
+            | Step::Html
+            | Step::OwnText
+            | Step::GenericAttr(_)) => {
                 accessor = Some(s);
-            }
+            },
             Step::Class(name) => selector_parts.push(format!(".{}", name)),
             Step::Id(name) => selector_parts.push(format!("#{}", name)),
             Step::Tag(name) => selector_parts.push(name.clone()),
             Step::TagIndexed(name, idx) => {
                 selector_parts.push(format!("{}:nth-child({})", name, idx + 1));
-            }
+            },
             Step::TagNotIndexed(name, idx) => {
                 selector_parts.push(format!("{}:not(:nth-child({}))", name, idx + 1));
-            }
+            },
             Step::Attr { name, op, value } => {
                 if value.contains('|') && matches!(op, AttrOp::Eq | AttrOp::ContainsWord) {
                     let parts: Vec<&str> = value.split('|').collect();
@@ -336,7 +359,7 @@ pub fn to_js_all_expression(steps: &[Step]) -> String {
                 } else {
                     selector_parts.push(format!("[{}{}\"{}\"]", name, op, value));
                 }
-            }
+            },
         }
     }
 
@@ -347,10 +370,9 @@ pub fn to_js_all_expression(steps: &[Step]) -> String {
             "Array.from(el.querySelectorAll('{}'), e => e.textContent?.trim() || '')",
             css_selector
         ),
-        Some(Step::TextNodes) => format!(
-            "Array.from(el.querySelectorAll('{}'), e => e.textContent || '')",
-            css_selector
-        ),
+        Some(Step::TextNodes) => {
+            format!("Array.from(el.querySelectorAll('{}'), e => e.textContent || '')", css_selector)
+        },
         Some(Step::Href) => format!(
             "Array.from(el.querySelectorAll('{}'), e => e.getAttribute('href') || '')",
             css_selector
@@ -453,10 +475,7 @@ mod tests {
     fn test_to_js_expression_indexed() {
         let steps = parse_chain("class.navtxt@tag.p.0@textNodes");
         let js = to_js_expression(&steps);
-        assert_eq!(
-            js,
-            "el.querySelector('.navtxt p:nth-child(1)')?.textContent || ''"
-        );
+        assert_eq!(js, "el.querySelector('.navtxt p:nth-child(1)')?.textContent || ''");
     }
 
     #[test]
@@ -473,10 +492,7 @@ mod tests {
     fn test_to_js_expression_attr_content() {
         let steps = parse_chain("[property$=author]@content");
         let js = to_js_expression(&steps);
-        assert_eq!(
-            js,
-            "el.querySelector('[property$=\"author\"]')?.getAttribute('content') || ''"
-        );
+        assert_eq!(js, "el.querySelector('[property$=\"author\"]')?.getAttribute('content') || ''");
     }
 
     #[test]
@@ -522,10 +538,7 @@ mod tests {
         assert_eq!(steps[1], Step::GenericAttr("data-src".to_string()));
 
         let js = to_js_expression(&steps);
-        assert_eq!(
-            js,
-            "el.querySelector('img')?.getAttribute('data-src') || ''"
-        );
+        assert_eq!(js, "el.querySelector('img')?.getAttribute('data-src') || ''");
     }
 
     #[test]

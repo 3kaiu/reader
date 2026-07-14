@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use nexus_core::{
-    BookEngine, BookEngineRuntime, BookInfo, BookItem, Chapter, ContentPipelineOutput,
-    EngineError, LegadoSource, ReplaceRule, SourceRuntimeProfile,
+    BookEngine, BookEngineRuntime, BookInfo, BookItem, Chapter, ContentPipelineOutput, EngineError,
+    LegadoSource, ReplaceRule, SourceRuntimeProfile,
 };
 #[cfg(feature = "discovery")]
 use nexus_core::{ExploreCategory, ExploreEngine};
@@ -27,21 +27,25 @@ use crate::anti_crawl::FallbackChain;
 use crate::legado::rule_parser::{CombineOp, CompiledLegadoRule};
 use crate::legado::{operator, selector};
 use crate::selector_cache::FallbackSelector;
-use regex::Regex;
 use crate::uri::{encode_query, resolve_url};
+use regex::Regex;
 
 /// A compiled Legado book source engine
 pub struct LegadoEngine {
-    source: LegadoSource,
+    source: Arc<LegadoSource>,
     anti_crawl: Arc<FallbackChain>,
     source_id: String,
 }
 
 impl LegadoEngine {
     /// Create a new Legado engine from a LegadoSource
-    pub fn new(source: LegadoSource, anti_crawl: Arc<FallbackChain>) -> Result<Self, EngineError> {
+    pub fn new(source: Arc<LegadoSource>, anti_crawl: Arc<FallbackChain>) -> Result<Self, EngineError> {
         let source_id = source.infer_id();
-        Ok(Self { source, anti_crawl, source_id })
+        Ok(Self {
+            source,
+            anti_crawl,
+            source_id,
+        })
     }
 
     /// Execute a single rule against HTML content
@@ -68,7 +72,9 @@ impl LegadoEngine {
         match rule.combine {
             CombineOp::Concat => operator::concat::execute_concat(rule, &html, Some(json), ""),
             CombineOp::Merge => operator::merge::execute_merge(rule, &html, Some(json), ""),
-            CombineOp::Fallback => operator::fallback::execute_fallback(rule, &html, Some(json), ""),
+            CombineOp::Fallback => {
+                operator::fallback::execute_fallback(rule, &html, Some(json), "")
+            },
         }
     }
 
@@ -161,12 +167,19 @@ impl LegadoEngine {
             }
         }
 
-        if headers.is_empty() { None } else { Some(headers) }
+        if headers.is_empty() {
+            None
+        } else {
+            Some(headers)
+        }
     }
 
     /// Resolve search URL template
     /// Supports: {{key}} / {key} / %s / {{page}} / {page}
-    fn resolve_search_url(&self, query: &str) -> Result<(String, Option<String>, String, Option<&'static str>), EngineError> {
+    fn resolve_search_url(
+        &self,
+        query: &str,
+    ) -> Result<(String, Option<String>, String, Option<&'static str>), EngineError> {
         let search_url = self.source.search_url.as_deref().unwrap_or("");
         if search_url.is_empty() {
             return Err(EngineError::InvalidConfig {
@@ -181,12 +194,12 @@ impl LegadoEngine {
             match result {
                 Some(url) => {
                     return Ok(parse_legado_url(&url, &self.source.book_source_url)?);
-                }
+                },
                 None => {
                     return Err(EngineError::ScriptError {
                         message: "search URL JS returned empty".to_string(),
                     });
-                }
+                },
             }
         }
 
@@ -196,7 +209,12 @@ impl LegadoEngine {
 
     /// Fetch HTML from a URL using the anti-crawl chain.
     /// Detects CF challenge pages and auto-retries with browser strategy.
-    async fn fetch(&self, url: &str, method: &str, body: Option<String>) -> Result<String, EngineError> {
+    async fn fetch(
+        &self,
+        url: &str,
+        method: &str,
+        body: Option<String>,
+    ) -> Result<String, EngineError> {
         // Basic URL safety check (defense-in-depth for imported Legado sources)
         if !url.starts_with("http://") && !url.starts_with("https://") {
             return Err(EngineError::Network {
@@ -235,7 +253,12 @@ impl LegadoEngine {
     }
 
     /// Fetch HTML using BrowserProbe strategy (for Turnstile/JS challenge pages)
-    async fn fetch_with_browser(&self, url: &str, method: &str, body: Option<String>) -> Result<String, EngineError> {
+    async fn fetch_with_browser(
+        &self,
+        url: &str,
+        method: &str,
+        body: Option<String>,
+    ) -> Result<String, EngineError> {
         use nexus_core::FetchContext;
 
         let mut ctx = FetchContext::new(url, &self.source_id);
@@ -250,7 +273,10 @@ impl LegadoEngine {
 
         // Force BrowserProbe strategy — skip PrimpHTTP/CfBypass
         let order = vec!["browserprobe".to_string()];
-        let result = self.anti_crawl.execute_with_strategy_order(&mut ctx, &order).await?;
+        let result = self
+            .anti_crawl
+            .execute_with_strategy_order(&mut ctx, &order)
+            .await?;
 
         if !result.is_success() {
             return Err(EngineError::Network {
@@ -276,7 +302,9 @@ impl LegadoEngine {
             return true;
         }
         // bookUrlPattern is a regex — try to match
-        Regex::new(pattern).map(|re| re.is_match(url)).unwrap_or(true)
+        Regex::new(pattern)
+            .map(|re| re.is_match(url))
+            .unwrap_or(true)
     }
 
     /// Try to parse response as JSON and extract search results
@@ -286,8 +314,8 @@ impl LegadoEngine {
         body: &str,
         _base_url: &str,
     ) -> Result<Vec<BookItem>, EngineError> {
-        let json: serde_json::Value = serde_json::from_str(body)
-            .map_err(|e| EngineError::JsonParse {
+        let json: serde_json::Value =
+            serde_json::from_str(body).map_err(|e| EngineError::JsonParse {
                 message: format!("search JSON parse failed: {}", e),
             })?;
 
@@ -298,7 +326,7 @@ impl LegadoEngine {
             match list_result {
                 Some(list_str) => {
                     serde_json::from_str::<Vec<serde_json::Value>>(&list_str).unwrap_or_default()
-                }
+                },
                 None => vec![json],
             }
         } else {
@@ -311,12 +339,14 @@ impl LegadoEngine {
         let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
 
         for item in items {
-            let name = self.exec_json_rule_str(&rules.base.name, &item)
+            let name = self
+                .exec_json_rule_str(&rules.base.name, &item)
                 .unwrap_or_default();
             if name.is_empty() {
                 continue;
             }
-            let book_url = self.exec_json_rule_str(&rules.base.book_url, &item)
+            let book_url = self
+                .exec_json_rule_str(&rules.base.book_url, &item)
                 .unwrap_or_default();
             if book_url.is_empty() {
                 continue;
@@ -332,18 +362,17 @@ impl LegadoEngine {
                 continue;
             }
 
-            let mut book = BookItem::new(
-                name,
-                abs_book_url,
-                Arc::clone(&src_id),
-                Arc::clone(&src_name),
-            );
-            book.author = self.exec_json_rule_str(&rules.base.author, &item)
+            let mut book =
+                BookItem::new(name, abs_book_url, Arc::clone(&src_id), Arc::clone(&src_name));
+            book.author = self
+                .exec_json_rule_str(&rules.base.author, &item)
                 .map(|s| Arc::<str>::from(s));
-            book.cover_url = self.exec_json_rule_str(&rules.base.cover_url, &item)
+            book.cover_url = self
+                .exec_json_rule_str(&rules.base.cover_url, &item)
                 .map(|s| self.abs_url(&s))
                 .map(|s| Arc::<str>::from(s));
-            book.intro = self.exec_json_rule_str(&rules.base.intro, &item)
+            book.intro = self
+                .exec_json_rule_str(&rules.base.intro, &item)
                 .map(|s| Arc::<str>::from(s));
             results.push(book);
         }
@@ -363,8 +392,8 @@ impl LegadoEngine {
 
         // Collect root elements: either from bookList CSS selector, or the whole document
         let root_elements = if let Some(list_rule) = &book_list_rule {
-            let is_js_block = list_rule.original.starts_with("<js>")
-                || list_rule.original.starts_with("@js:");
+            let is_js_block =
+                list_rule.original.starts_with("<js>") || list_rule.original.starts_with("@js:");
 
             // For JS-based bookList, extract CSS selector from the JS block
             let css_selector = if is_js_block {
@@ -394,12 +423,14 @@ impl LegadoEngine {
         let src_name = Arc::<str>::from(self.source.book_source_name.as_str());
 
         for root in &root_elements {
-            let name = self.exec_rule_str(&rules.base.name, root, base_url)
+            let name = self
+                .exec_rule_str(&rules.base.name, root, base_url)
                 .unwrap_or_default();
             if name.is_empty() {
                 continue;
             }
-            let book_url = self.exec_rule_str(&rules.base.book_url, root, base_url)
+            let book_url = self
+                .exec_rule_str(&rules.base.book_url, root, base_url)
                 .unwrap_or_default();
             if book_url.is_empty() {
                 continue;
@@ -415,18 +446,17 @@ impl LegadoEngine {
                 continue;
             }
 
-            let mut book = BookItem::new(
-                name,
-                abs_book_url,
-                Arc::clone(&src_id),
-                Arc::clone(&src_name),
-            );
-            book.author = self.exec_rule_str(&rules.base.author, root, base_url)
+            let mut book =
+                BookItem::new(name, abs_book_url, Arc::clone(&src_id), Arc::clone(&src_name));
+            book.author = self
+                .exec_rule_str(&rules.base.author, root, base_url)
                 .map(|s| Arc::<str>::from(s));
-            book.cover_url = self.exec_rule_str(&rules.base.cover_url, root, base_url)
+            book.cover_url = self
+                .exec_rule_str(&rules.base.cover_url, root, base_url)
                 .map(|s| self.abs_url(&s))
                 .map(|s| Arc::<str>::from(s));
-            book.intro = self.exec_rule_str(&rules.base.intro, root, base_url)
+            book.intro = self
+                .exec_rule_str(&rules.base.intro, root, base_url)
                 .map(|s| Arc::<str>::from(s));
             results.push(book);
         }
@@ -440,9 +470,14 @@ impl LegadoEngine {
 
 /// Handle {{java.put('varname', value)}} templates in a string.
 /// Stores the value in runtime_vars and replaces the expression with the value.
-fn handle_java_put_template(s: &str, query: &str, runtime_vars: &mut HashMap<String, String>) -> String {
+fn handle_java_put_template(
+    s: &str,
+    query: &str,
+    runtime_vars: &mut HashMap<String, String>,
+) -> String {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"\{\{java\.put\('([^']+)'\s*,\s*([^)]+)\)\}\}").unwrap());
+    let re =
+        RE.get_or_init(|| Regex::new(r"\{\{java\.put\('([^']+)'\s*,\s*([^)]+)\)\}\}").unwrap());
     let mut result = s.to_string();
     for cap in re.captures_iter(s) {
         let varname = &cap[1];
@@ -450,7 +485,7 @@ fn handle_java_put_template(s: &str, query: &str, runtime_vars: &mut HashMap<Str
         let value = if *expr == "key" || *expr == "'key'" {
             query.to_string()
         } else if expr.starts_with('\'') && expr.ends_with('\'') {
-            expr[1..expr.len()-1].to_string()
+            expr[1..expr.len() - 1].to_string()
         } else {
             query.to_string()
         };
@@ -504,7 +539,11 @@ fn extract_css_from_js_block(js: &str) -> Option<String> {
     let re = Regex::new(r#"(?:var\s+\w+\s*=\s*)"([^"]+)"#).unwrap();
     if let Some(cap) = re.captures(js) {
         let css = cap[1].to_string();
-        if !css.is_empty() && css.contains('.') || css.contains('#') || css.contains('@') || css.contains('[') {
+        if !css.is_empty() && css.contains('.')
+            || css.contains('#')
+            || css.contains('@')
+            || css.contains('[')
+        {
             return Some(css);
         }
     }
@@ -527,7 +566,10 @@ fn parse_legado_url(
 
     // Check for compound format: URL,{options}
     if let Some(comma_pos) = trimmed.find(",{") {
-        let url_part = trimmed[..comma_pos].trim().trim_matches('"').trim_matches('\'');
+        let url_part = trimmed[..comma_pos]
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'');
         let options_part = &trimmed[comma_pos + 1..];
 
         // Default method
@@ -535,7 +577,8 @@ fn parse_legado_url(
         let mut body: Option<String> = None;
 
         // Parse options roughly
-        if options_part.contains("'method':'POST'") || options_part.contains("\"method\":\"POST\"") {
+        if options_part.contains("'method':'POST'") || options_part.contains("\"method\":\"POST\"")
+        {
             method = "POST".to_string();
         }
         if let Some(body_start) = options_part.find("'body':'") {
@@ -667,18 +710,18 @@ impl BookEngine for LegadoEngine {
                 return Err(EngineError::RuleMismatch {
                     rule: "book_info".to_string(),
                 });
-            }
+            },
         };
 
         let url = self.abs_url(book_url);
         let html_str = self.fetch(&url, "GET", None).await?;
         let doc = crate::html_doc_cache::get_or_parse(&url, &html_str);
 
-        let name = self
-            .exec_rule_str(&rules.name, &doc, &url)
-            .ok_or(EngineError::RuleMismatch {
-                rule: "book_info.name".to_string(),
-            })?;
+        let name =
+            self.exec_rule_str(&rules.name, &doc, &url)
+                .ok_or(EngineError::RuleMismatch {
+                    rule: "book_info.name".to_string(),
+                })?;
 
         let author = self
             .exec_rule_str(&rules.author, &doc, &url)
@@ -729,7 +772,7 @@ impl BookEngine for LegadoEngine {
                 return Err(EngineError::RuleMismatch {
                     rule: "toc".to_string(),
                 });
-            }
+            },
         };
 
         let url = self.abs_url(toc_url);
@@ -763,9 +806,13 @@ impl BookEngine for LegadoEngine {
                     if let Some(name_rule) = &chapter_name_rule {
                         if let Some(url_rule) = &chapter_url_rule {
                             // Try to extract multiple items — zip avoids clone
-                            let names = selector::css::extract_all_css(&fragment, &name_rule.original);
-                            let urls = selector::css::extract_all_css(&fragment, &url_rule.original);
-                            for (i, (name, url)) in names.into_iter().zip(urls.into_iter()).enumerate() {
+                            let names =
+                                selector::css::extract_all_css(&fragment, &name_rule.original);
+                            let urls =
+                                selector::css::extract_all_css(&fragment, &url_rule.original);
+                            for (i, (name, url)) in
+                                names.into_iter().zip(urls.into_iter()).enumerate()
+                            {
                                 chaps.push(Chapter {
                                     title: Arc::<str>::from(name),
                                     url: Arc::<str>::from(self.abs_url(&url)),
@@ -777,13 +824,17 @@ impl BookEngine for LegadoEngine {
                         }
                     }
                     chaps
-                }
+                },
                 None => Vec::new(),
             }
         } else {
             // No list rule — try to extract single chapter info
-            let name = self.exec_rule_str(&rules.chapter_name, &doc, &url).unwrap_or_default();
-            let chap_url = self.exec_rule_str(&rules.chapter_url, &doc, &url).unwrap_or_default();
+            let name = self
+                .exec_rule_str(&rules.chapter_name, &doc, &url)
+                .unwrap_or_default();
+            let chap_url = self
+                .exec_rule_str(&rules.chapter_url, &doc, &url)
+                .unwrap_or_default();
             if !name.is_empty() && !chap_url.is_empty() {
                 vec![Chapter {
                     title: Arc::<str>::from(name),
@@ -811,18 +862,18 @@ impl BookEngine for LegadoEngine {
                 return Err(EngineError::RuleMismatch {
                     rule: "content".to_string(),
                 });
-            }
+            },
         };
 
         let url = self.abs_url(chapter_url);
         let html_str = self.fetch(&url, "GET", None).await?;
         let doc = Html::parse_document(&html_str);
 
-        let content = self
-            .exec_rule_str(&rules.content, &doc, &url)
-            .ok_or(EngineError::ContentExtractionFailed {
+        let content = self.exec_rule_str(&rules.content, &doc, &url).ok_or(
+            EngineError::ContentExtractionFailed {
                 reason: "content rule returned empty".to_string(),
-            })?;
+            },
+        )?;
 
         // Apply source_regex replacement if present
         let cleaned = if let Some(source_regex) = &rules.source_regex {
@@ -953,12 +1004,10 @@ impl ExploreEngine for LegadoEngine {
         }
 
         // Fallback: look for links in the page
-        let fallback_categories = vec![
-            ExploreCategory {
-                name: "默认".to_string(),
-                url: explore_url.to_string(),
-            },
-        ];
+        let fallback_categories = vec![ExploreCategory {
+            name: "默认".to_string(),
+            url: explore_url.to_string(),
+        }];
         Ok(fallback_categories)
     }
 
@@ -969,7 +1018,7 @@ impl ExploreEngine for LegadoEngine {
                 // No explore rules — try to use the category URL directly
                 // as a page that contains book items
                 return Ok(Vec::new());
-            }
+            },
         };
 
         // Determine the URL to fetch
@@ -990,8 +1039,8 @@ impl ExploreEngine for LegadoEngine {
 
         if is_json {
             // JSON response
-            let json: serde_json::Value = serde_json::from_str(&html_str)
-                .map_err(|e| EngineError::JsonParse {
+            let json: serde_json::Value =
+                serde_json::from_str(&html_str).map_err(|e| EngineError::JsonParse {
                     message: format!("explore JSON parse failed: {}", e),
                 })?;
 
@@ -1000,10 +1049,8 @@ impl ExploreEngine for LegadoEngine {
             let items = if let Some(list_rule) = &book_list_rule {
                 let list_result = self.execute_json_rule(list_rule, &json);
                 match list_result {
-                    Some(list_str) => {
-                        serde_json::from_str::<Vec<serde_json::Value>>(&list_str)
-                            .unwrap_or_default()
-                    }
+                    Some(list_str) => serde_json::from_str::<Vec<serde_json::Value>>(&list_str)
+                        .unwrap_or_default(),
                     None => vec![json],
                 }
             } else {
@@ -1028,12 +1075,8 @@ impl ExploreEngine for LegadoEngine {
                 }
                 let abs_book_url = self.abs_url(&book_url);
 
-                let mut book = BookItem::new(
-                    name,
-                    abs_book_url,
-                    Arc::clone(&src_id),
-                    Arc::clone(&src_name),
-                );
+                let mut book =
+                    BookItem::new(name, abs_book_url, Arc::clone(&src_id), Arc::clone(&src_name));
                 book.author = self
                     .exec_json_rule_str(&rules.base.author, &item)
                     .map(|s| Arc::<str>::from(s));
@@ -1087,12 +1130,8 @@ impl ExploreEngine for LegadoEngine {
                 }
                 let abs_book_url = self.abs_url(&book_url);
 
-                let mut book = BookItem::new(
-                    name,
-                    abs_book_url,
-                    Arc::clone(&src_id),
-                    Arc::clone(&src_name),
-                );
+                let mut book =
+                    BookItem::new(name, abs_book_url, Arc::clone(&src_id), Arc::clone(&src_name));
                 book.author = self
                     .exec_rule_str(&rules.base.author, root, &fetch_url)
                     .map(|s| Arc::<str>::from(s));

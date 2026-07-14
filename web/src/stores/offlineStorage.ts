@@ -14,11 +14,25 @@ export const useOfflineStore = defineStore('offlineStorage', () => {
   const helpers = createOfflineStoreHelpers(state)
   const { initialize, ...actions } = createOfflineStoreActions(state, helpers)
 
+  function $reset() {
+    const initial = createOfflineStoreState()
+    for (const key of Object.keys(state) as (keyof typeof state)[]) {
+      const ref = state[key]
+      const initialRef = initial[key]
+      if ('value' in ref && 'value' in initialRef) {
+        ;(ref as { value: unknown }).value = (initialRef as { value: unknown }).value
+      } else if (ref && typeof ref === 'object' && !('value' in ref)) {
+        Object.assign(ref, initialRef)
+      }
+    }
+  }
+
   void initialize()
 
   return {
     state: readonly(state.offlineState),
     ...view,
     ...actions,
+    $reset,
   }
 })

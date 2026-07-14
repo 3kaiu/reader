@@ -7,8 +7,8 @@ use reqwest::{
     Client,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
 
@@ -136,9 +136,16 @@ impl HttpFetcher {
             for (key, value) in h {
                 let key_lower = key.to_ascii_lowercase();
                 // Block dangerous headers that could enable request smuggling or SSRF
-                if matches!(key_lower.as_str(),
-                    "host" | "transfer-encoding" | "content-length" | "content-encoding"
-                    | "upgrade" | "connection" | "proxy-connection" | "keep-alive"
+                if matches!(
+                    key_lower.as_str(),
+                    "host"
+                        | "transfer-encoding"
+                        | "content-length"
+                        | "content-encoding"
+                        | "upgrade"
+                        | "connection"
+                        | "proxy-connection"
+                        | "keep-alive"
                 ) {
                     continue;
                 }
@@ -358,15 +365,32 @@ impl Fetcher for HttpFetcher {
         let elapsed = start_time.elapsed().as_nanos() as u64;
         loop {
             let current = self.response_time_min_ns.load(Ordering::Relaxed);
-            if elapsed >= current { break; }
-            if self.response_time_min_ns.compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed).is_ok() { break; }
+            if elapsed >= current {
+                break;
+            }
+            if self
+                .response_time_min_ns
+                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
         }
         loop {
             let current = self.response_time_max_ns.load(Ordering::Relaxed);
-            if elapsed <= current { break; }
-            if self.response_time_max_ns.compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed).is_ok() { break; }
+            if elapsed <= current {
+                break;
+            }
+            if self
+                .response_time_max_ns
+                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
         }
-        self.response_time_sum_ns.fetch_add(elapsed, Ordering::Relaxed);
+        self.response_time_sum_ns
+            .fetch_add(elapsed, Ordering::Relaxed);
         self.response_time_count.fetch_add(1, Ordering::Relaxed);
 
         Ok(response)
@@ -375,9 +399,7 @@ impl Fetcher for HttpFetcher {
     fn statistics(&self) -> FetcherStatistics {
         let count = self.response_time_count.load(Ordering::Relaxed);
         let average_response_time_ms = if count > 0 {
-            self.response_time_sum_ns.load(Ordering::Relaxed) as f64
-                / count as f64
-                / 1_000_000.0
+            self.response_time_sum_ns.load(Ordering::Relaxed) as f64 / count as f64 / 1_000_000.0
         } else {
             0.0
         };

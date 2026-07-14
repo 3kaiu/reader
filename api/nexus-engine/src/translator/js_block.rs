@@ -89,7 +89,11 @@ pub fn translate_java_apis(js_code: &str) -> String {
     code = replace_all_regex(&code, r"java\.(long)?toast\s*\(([^)]*)\)", "console.log($2)");
 
     // ===== java.androidId() / java.deviceID() / java.qread() =====
-    code = replace_all_regex(&code, r"java\.(androidId|deviceID|qread)\s*\(\)", "'00000000-0000-0000-0000-000000000000'");
+    code = replace_all_regex(
+        &code,
+        r"java\.(androidId|deviceID|qread)\s*\(\)",
+        "'00000000-0000-0000-0000-000000000000'",
+    );
 
     // ===== java.md5Encode() =====
     code = replace_all_regex(&code, r"java\.md5Encode\s*\(([^)]*)\)", "crypto.md5($1)");
@@ -106,11 +110,7 @@ pub fn translate_java_apis(js_code: &str) -> String {
     // as the combo pattern is more specific
 
     // ===== Packages.java.* → try/catch dummy =====
-    code = replace_all_regex(
-        &code,
-        r"Packages\.[a-zA-Z0-9_.]+",
-        "undefined /* java class ref */"
-    );
+    code = replace_all_regex(&code, r"Packages\.[a-zA-Z0-9_.]+", "undefined /* java class ref */");
 
     // ===== java.longToast → console.log =====
     code = replace_all_regex(&code, r"java\.longToast\s*\(([^)]*)\)", "console.log($1)");
@@ -152,8 +152,8 @@ fn replace_java_ajax(code: &str) -> String {
                         end = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -163,7 +163,10 @@ fn replace_java_ajax(code: &str) -> String {
         // Check if it's a compound URL: url,{method:'POST',body:'...'}
         if args.contains(",{\"method\"") || args.contains(",'{\"method\"") {
             // Parse compound URL format
-            let url_end = args.find(",{").or_else(|| args.find(",'{")).unwrap_or(args.len());
+            let url_end = args
+                .find(",{")
+                .or_else(|| args.find(",'{"))
+                .unwrap_or(args.len());
             let url = &args[..url_end].trim().trim_matches('\'');
             result.push_str(&format!("await __fetch_with_options({})", url));
         } else {
@@ -175,18 +178,14 @@ fn replace_java_ajax(code: &str) -> String {
 }
 
 fn replace_java_start_browser(code: &str) -> String {
-    replace_all_regex(
-        code,
-        r"java\.startBrowser\s*\(([^)]*)\)",
-        "null /* needs browser: $1 */"
-    )
+    replace_all_regex(code, r"java\.startBrowser\s*\(([^)]*)\)", "null /* needs browser: $1 */")
 }
 
 fn replace_java_start_browser_await(code: &str) -> String {
     replace_all_regex(
         code,
         r"java\.startBrowserAwait\s*\(([^)]*)\)",
-        "await __browserInteraction($1)"
+        "await __browserInteraction($1)",
     )
 }
 
@@ -210,8 +209,8 @@ fn replace_java_put(code: &str) -> String {
                         end = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -251,8 +250,8 @@ fn replace_java_get(code: &str) -> String {
                         end = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -292,8 +291,8 @@ fn replace_java_set_content_get_elements(code: &str) -> String {
                         sc_end = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
         let html_var = &after_sc[..sc_end].trim();
@@ -314,8 +313,8 @@ fn replace_java_set_content_get_elements(code: &str) -> String {
                             ge_end = i;
                             break;
                         }
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
 
@@ -365,8 +364,8 @@ fn replace_java_get_elements(code: &str) -> String {
                         end = i;
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -403,13 +402,23 @@ fn replace_source_variable(code: &str) -> String {
         let mut depth = 1;
         let mut end = 0;
         for (i, c) in after.char_indices() {
-            match c { '(' => depth += 1, ')' => { depth -= 1; if depth == 0 { end = i; break; } } _ => {} }
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = i;
+                        break;
+                    }
+                },
+                _ => {},
+            }
         }
         let arg = &after[..end];
         remaining = &after[end + 1..];
         result.push_str(&format!("__ctx.variable={}", arg));
     }
-    result.push_str(remaining);  // Push any remaining text after setVariable
+    result.push_str(remaining); // Push any remaining text after setVariable
 
     // Reset for getVariable
     let remaining2 = result;
@@ -426,11 +435,7 @@ fn replace_source_variable(code: &str) -> String {
 }
 
 fn replace_source_login_info(code: &str) -> String {
-    replace_all_regex(
-        code,
-        r"source\.getLoginInfoMap\s*\(\s*\)",
-        "(__ctx.loginInfo || {})"
-    )
+    replace_all_regex(code, r"source\.getLoginInfoMap\s*\(\s*\)", "(__ctx.loginInfo || {})")
 }
 
 fn replace_cookie_apis(code: &str) -> String {
@@ -450,32 +455,32 @@ fn replace_cookie_apis(code: &str) -> String {
                 let (arg, rest) = extract_paren_arg(remaining);
                 result.push_str(&format!("__cookieStore.get({})", arg));
                 remaining = rest;
-            }
+            },
             (Some(_), Some(rp)) => {
                 result.push_str(&remaining[..rp]);
                 remaining = &remaining[rp + pattern_rm.len()..];
                 let (arg, rest) = extract_paren_arg(remaining);
                 result.push_str(&format!("__cookieStore.delete({})", arg));
                 remaining = rest;
-            }
+            },
             (Some(gp), None) => {
                 result.push_str(&remaining[..gp]);
                 remaining = &remaining[gp + pattern_get.len()..];
                 let (arg, rest) = extract_paren_arg(remaining);
                 result.push_str(&format!("__cookieStore.get({})", arg));
                 remaining = rest;
-            }
+            },
             (None, Some(rp)) => {
                 result.push_str(&remaining[..rp]);
                 remaining = &remaining[rp + pattern_rm.len()..];
                 let (arg, rest) = extract_paren_arg(remaining);
                 result.push_str(&format!("__cookieStore.delete({})", arg));
                 remaining = rest;
-            }
+            },
             (None, None) => {
                 result.push_str(remaining);
                 break;
-            }
+            },
         }
     }
 
@@ -493,8 +498,8 @@ fn extract_paren_arg(s: &str) -> (&str, &str) {
                 if depth == 0 {
                     return (&s[..i], &s[i + 1..]);
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     (s, "")
@@ -594,15 +599,14 @@ mod tests {
     #[test]
     fn test_translate_set_content_get_elements() {
         // Argument is a variable `lr` - can't statically translate to __queryAll
-        let result = translate_java_apis(
-            "java.setContent(result); var list = java.getElements(lr);"
-        );
+        let result =
+            translate_java_apis("java.setContent(result); var list = java.getElements(lr);");
         assert!(result.contains("parseHTML(result)"));
         assert!(result.contains("list = lr")); // variable ref, not inlined
 
         // With a string literal argument, it should be inlined
         let result2 = translate_java_apis(
-            "java.setContent(html); var list = java.getElements('class.foo@tag.li');"
+            "java.setContent(html); var list = java.getElements('class.foo@tag.li');",
         );
         assert!(result2.contains("__queryAll"));
     }

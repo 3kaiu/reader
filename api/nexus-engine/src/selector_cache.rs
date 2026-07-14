@@ -74,53 +74,68 @@ impl FallbackSelector {
                         '[' => bracket_depth += 1,
                         ']' => bracket_depth -= 1,
                         '@' if bracket_depth == 0 => at_positions.push(i),
-                        _ => {}
+                        _ => {},
                     }
                 }
 
-                let (selector_part, chain, inline_attr): (String, Vec<String>, Option<String>) = if at_positions.is_empty() {
-                    (part.to_string(), Vec::new(), None)
-                } else {
-                    let css_expr = &part[..at_positions[0]];
-                    let last_at = at_positions[at_positions.len() - 1];
-                    let last_segment = &part[last_at + 1..];
+                let (selector_part, chain, inline_attr): (String, Vec<String>, Option<String>) =
+                    if at_positions.is_empty() {
+                        (part.to_string(), Vec::new(), None)
+                    } else {
+                        let css_expr = &part[..at_positions[0]];
+                        let last_at = at_positions[at_positions.len() - 1];
+                        let last_segment = &part[last_at + 1..];
 
-                    // Determine if the last @-segment is an attribute extraction or a tag chain step.
-                    // Known extraction keywords: text, href, src, content, html, inner_html, ownText
-                    // Simple alphanumeric strings (no ., [, @, etc.) are also treated as attributes.
-                    let is_attr = !last_segment.is_empty()
-                        && last_segment.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+                        // Determine if the last @-segment is an attribute extraction or a tag chain step.
+                        // Known extraction keywords: text, href, src, content, html, inner_html, ownText
+                        // Simple alphanumeric strings (no ., [, @, etc.) are also treated as attributes.
+                        let is_attr = !last_segment.is_empty()
+                            && last_segment
+                                .chars()
+                                .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
 
-                    // Build tag chain from all intermediate @-segments.
-                    // If the last segment is NOT an attribute, include it in the chain too.
-                    let chain_end = if is_attr { at_positions.len() - 1 } else { at_positions.len() };
-                    let mut chain = Vec::new();
-                    for i in 0..chain_end {
-                        let start = at_positions[i] + 1;
-                        let end = if i + 1 < at_positions.len() { at_positions[i + 1] } else { part.len() };
-                        let tag = &part[start..end];
-                        let translated = translate_legado_segment(tag);
-                        if !translated.is_empty()
-                            && translated.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-                        {
-                            chain.push(translated);
+                        // Build tag chain from all intermediate @-segments.
+                        // If the last segment is NOT an attribute, include it in the chain too.
+                        let chain_end = if is_attr {
+                            at_positions.len() - 1
                         } else {
-                            // Fallback to raw tag if translation yields complex CSS
-                            if !tag.is_empty()
-                                && tag.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+                            at_positions.len()
+                        };
+                        let mut chain = Vec::new();
+                        for i in 0..chain_end {
+                            let start = at_positions[i] + 1;
+                            let end = if i + 1 < at_positions.len() {
+                                at_positions[i + 1]
+                            } else {
+                                part.len()
+                            };
+                            let tag = &part[start..end];
+                            let translated = translate_legado_segment(tag);
+                            if !translated.is_empty()
+                                && translated
+                                    .chars()
+                                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
                             {
-                                chain.push(tag.to_string());
+                                chain.push(translated);
+                            } else {
+                                // Fallback to raw tag if translation yields complex CSS
+                                if !tag.is_empty()
+                                    && tag
+                                        .chars()
+                                        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+                                {
+                                    chain.push(tag.to_string());
+                                }
                             }
                         }
-                    }
 
-                    let translated_css = translate_legado_segment(css_expr);
-                    if is_attr {
-                        (translated_css, chain, Some(last_segment.to_string()))
-                    } else {
-                        (translated_css, chain, None)
-                    }
-                };
+                        let translated_css = translate_legado_segment(css_expr);
+                        if is_attr {
+                            (translated_css, chain, Some(last_segment.to_string()))
+                        } else {
+                            (translated_css, chain, None)
+                        }
+                    };
 
                 // Update attribute if found inline
                 if let Some(a) = inline_attr {
@@ -312,7 +327,11 @@ pub fn extract_attr(element: ElementRef, attr: &str) -> Option<String> {
         "inner_html" => Some(element.inner_html().trim().to_string()),
         "textNodes" => {
             let text: String = element.text().collect();
-            if text.trim().is_empty() { None } else { Some(text) }
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            }
         },
         _ => element.value().attr(attr).map(|s| s.to_string()),
     }

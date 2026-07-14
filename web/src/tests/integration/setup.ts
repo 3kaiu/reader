@@ -15,85 +15,94 @@ declare global {
 // Global mocks and polyfills
 beforeAll(() => {
   // Mock global objects that might not be available in Node.js environment
-  Object.defineProperty(globalThis, 'window', {
-    value: {
-      localStorage: {
-        getItem: vi.fn(),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-        key: vi.fn(),
-        length: 0,
-      },
-      sessionStorage: {
-        getItem: vi.fn(),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-        key: vi.fn(),
-        length: 0,
-      },
-      location: {
-        href: 'http://localhost:3000',
-        origin: 'http://localhost:3000',
-        protocol: 'http:',
-        host: 'localhost:3000',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/',
-        search: '',
-        hash: '',
-      },
-      navigator: {
-        userAgent: 'Mozilla/5.0 (Test Environment)',
-        language: 'en-US',
-        languages: ['en-US', 'en'],
-        onLine: true,
-        cookieEnabled: true,
-      },
-      document: {
-        createElement: vi.fn(),
-        getElementById: vi.fn(),
-        querySelector: vi.fn(),
-        querySelectorAll: vi.fn(),
+  // Note: window mock is intentionally minimal to avoid breaking Pinia reactivity
+  // Pinia requires certain window properties for SSR detection
+  if (typeof globalThis.window === 'undefined') {
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        localStorage: {
+          getItem: vi.fn(),
+          setItem: vi.fn(),
+          removeItem: vi.fn(),
+          clear: vi.fn(),
+          key: vi.fn(),
+          length: 0,
+        },
+        sessionStorage: {
+          getItem: vi.fn(),
+          setItem: vi.fn(),
+          removeItem: vi.fn(),
+          clear: vi.fn(),
+          key: vi.fn(),
+          length: 0,
+        },
+        location: {
+          href: 'http://localhost:3000',
+          origin: 'http://localhost:3000',
+          protocol: 'http:',
+          host: 'localhost:3000',
+          hostname: 'localhost',
+          port: '3000',
+          pathname: '/',
+          search: '',
+          hash: '',
+        },
+        navigator: {
+          userAgent: 'Mozilla/5.0 (Test Environment)',
+          language: 'en-US',
+          languages: ['en-US', 'en'],
+          onLine: true,
+          cookieEnabled: true,
+        },
+        document: {
+          createElement: vi.fn(),
+          getElementById: vi.fn(),
+          querySelector: vi.fn(),
+          querySelectorAll: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          title: 'Test Environment',
+          body: {},
+          head: {},
+        },
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
-        title: 'Test Environment',
-        body: {},
-        head: {},
+        dispatchEvent: vi.fn(),
+        fetch: vi.fn(),
+        Request: vi.fn(),
+        Response: vi.fn(),
+        Headers: vi.fn(),
+        URL: vi.fn(),
+        URLSearchParams: vi.fn(),
+        WebSocket: vi.fn(),
+        Worker: vi.fn(),
+        ServiceWorker: vi.fn(),
+        performance: {
+          now: () => Date.now(),
+          mark: vi.fn(),
+          measure: vi.fn(),
+          getEntriesByType: vi.fn(() => []),
+          getEntriesByName: vi.fn(() => []),
+        },
+        requestAnimationFrame: vi.fn(cb => setTimeout(cb, 16)),
+        cancelAnimationFrame: vi.fn(),
+        setTimeout: vi.fn((cb, delay) => setTimeout(cb, delay)),
+        loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => {
+          /* mock implementation */
+        }),
+        clearTimeout: vi.fn(),
+        setInterval: vi.fn((cb, delay) => setInterval(cb, delay)),
+        clearInterval: vi.fn(),
+        // Pinia needs these for SSR detection
+        __VUE__: true,
+        __VUE_OPTIONS_API__: true,
+        __VUE_PROD_DEVTOOLS__: false,
+        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
       },
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-      fetch: vi.fn(),
-      Request: vi.fn(),
-      Response: vi.fn(),
-      Headers: vi.fn(),
-      URL: vi.fn(),
-      URLSearchParams: vi.fn(),
-      WebSocket: vi.fn(),
-      Worker: vi.fn(),
-      ServiceWorker: vi.fn(),
-      performance: {
-        now: () => Date.now(),
-        mark: vi.fn(),
-        measure: vi.fn(),
-        getEntriesByType: vi.fn(() => []),
-        getEntriesByName: vi.fn(() => []),
-      },
-      requestAnimationFrame: vi.fn(cb => setTimeout(cb, 16)),
-      cancelAnimationFrame: vi.fn(),
-      setTimeout: vi.fn((cb, delay) => setTimeout(cb, delay)),
-      loadHeavyModule: vi.fn().mockImplementation(async (_name, _loader) => {
-        /* mock implementation */
-      }),
-      clearTimeout: vi.fn(),
-      setInterval: vi.fn((cb, delay) => setInterval(cb, delay)),
-      clearInterval: vi.fn(),
-    },
-    writable: true,
-    configurable: true,
-  })
+      writable: true,
+      configurable: true,
+    })
+  }
 
   // Mock global fetch if not available
   if (!globalThis.fetch) {

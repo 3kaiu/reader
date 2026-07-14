@@ -22,7 +22,7 @@ export default defineConfig({
     ],
 
     // Environment setup
-    environment: 'node',
+    environment: 'jsdom',
     globals: true,
 
     // Timeouts for integration tests (longer than unit tests)
@@ -45,12 +45,7 @@ export default defineConfig({
     },
 
     // Reporter configuration
-    reporter: [
-      'verbose',
-      'json',
-      ['html', { outputFile: './test-results/integration-report.html' }],
-      ['junit', { outputFile: './test-results/integration-junit.xml' }],
-    ],
+    reporter: ['verbose'],
 
     // Setup files
     setupFiles: ['./src/tests/integration/setup.ts'],
