@@ -4,7 +4,13 @@
  * Do not edit by hand — run: node scripts/generate-http-route-constants.mjs
  */
 
-export const EDGE_ONLY_RULES = [] as const
+export const EDGE_ONLY_RULES = [
+  '/api/search',
+  '/api/book',
+  '/api/chapters',
+  '/api/content',
+  '/api/batch/content',
+] as const
 
 export const DIRECT_RULES = [
   '/api/search',

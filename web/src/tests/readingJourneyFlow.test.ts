@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useReaderStore } from '@/stores/reader'
 import { useSearchStore } from '@/stores/search'
+import { resetReaderServices } from '@/stores/reader/actions/helpers'
 
 const mockSearchBooksStream = vi.fn()
 const mockSearchBooks = vi.fn()
@@ -12,6 +13,13 @@ const mockBatchContent = vi.fn()
 
 vi.mock('@vueuse/core', () => ({
   useStorage: <T>(_key: string, initialValue: T) => ({ value: initialValue }),
+}))
+
+vi.mock('dompurify', () => ({
+  default: {
+    sanitize: (html: string) => html,
+  },
+  sanitize: (html: string) => html,
 }))
 
 vi.mock('@/api/search', () => ({
@@ -34,6 +42,7 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockBatchContent.mockResolvedValue({ isSuccess: true, data: { results: [] } })
+    resetReaderServices()
     setActivePinia(createPinia())
   })
 
@@ -151,13 +160,13 @@ describe('Reading Journey Flow (Search -> Reader Session)', () => {
 
     await searchStore.search('测试小说')
 
-    await expect(
-      readerStore.startReaderSession(
-        searchStore.searchResult[0].sourceId,
-        searchStore.searchResult[0].bookUrl
-      )
-    ).rejects.toThrow('章节内容为空，请重试或切换书源')
+    const startOutcome = await readerStore.startReaderSession(
+      searchStore.searchResult[0].sourceId,
+      searchStore.searchResult[0].bookUrl
+    )
 
+    expect(startOutcome.isSuccess).toBe(false)
+    expect(startOutcome.errorMsg).toBe('章节内容为空，请重试或切换书源')
     expect(readerStore.error).toBe('章节内容为空，请重试或切换书源')
     expect(readerStore.loadErrorDetails).toBe('content_empty')
   })

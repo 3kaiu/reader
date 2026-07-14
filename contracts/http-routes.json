@@ -1,6 +1,12 @@
 {
   "routing": {
-    "edgeHandledApiPrefixes": [],
+    "edgeHandledApiPrefixes": [
+      "/api/search",
+      "/api/book",
+      "/api/chapters",
+      "/api/content",
+      "/api/batch/content"
+    ],
     "edgeHandledPathExtras": []
   },
   "frontend": {

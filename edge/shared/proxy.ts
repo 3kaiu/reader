@@ -197,11 +197,12 @@ type ProxyEnvLike = Pick<
 export async function proxyRequestWithEnv(
   request: Request,
   env: ProxyEnvLike,
-  ctx?: ExecutionContextLike
+  ctx?: ExecutionContextLike,
+  options?: { useCache?: boolean }
 ): Promise<Response> {
   const url = new URL(request.url)
   const targetUrl = env.NEXUS_API_URL || env.nexusApiUrl || ''
-  const useCache = String(env.ENABLE_CACHE ?? 'true') === 'true'
+  const useCache = options?.useCache ?? (String(env.ENABLE_CACHE ?? 'true') === 'true')
   const kv = env.CONTENT_CACHE_KV
 
   return proxyRequest(request, targetUrl, url.pathname + url.search, {

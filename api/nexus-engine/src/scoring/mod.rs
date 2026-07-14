@@ -6,5 +6,5 @@
 //! from the content extraction pipeline, enabling testability and
 //! future model replacement.
 
-mod ml_scorer;
-mod visual_features;
+pub mod ml_scorer;
+pub mod visual_features;

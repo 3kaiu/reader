@@ -5,7 +5,8 @@
 use async_trait::async_trait;
 use crate::fetcher::cookie_cache::{self, CookieCache};
 use nexus_core::{
-    AntiCrawlStrategy, CloudflareBypassConfig, EngineError, FetchContext, FetchResponse,
+    AntiCrawlStrategy, CloudflareBypassConfig, EngineError,
+    types::{FetchContext, FetchResponse},
 };
 use primp::imp::Impersonate;
 use primp::Client as PrimpClient;

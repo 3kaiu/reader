@@ -12,10 +12,7 @@ pub mod source;
 use axum::{extract::State, Json};
 use nexus_engine::extraction_metrics;
 use serde::Serialize;
-
-#[allow(unused_imports)]
-pub use crate::api_response::ApiResponse;
-use crate::app::AppState;
+use crate::app_state::AppState;
 
 /// Health check response with dependency status
 #[derive(Serialize)]

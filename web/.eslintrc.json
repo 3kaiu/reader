@@ -32,11 +32,27 @@
     "no-console": [
       "warn",
       {
-        "allow": ["warn", "error"]
+        "allow": ["warn", "error", "log", "debug", "info"]
       }
     ],
     "prefer-const": "warn",
     "no-var": "error"
   },
-  "ignorePatterns": ["dist", "node_modules", "*.config.js", "*.config.ts", "coverage"]
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.ts", "**/tests/**/*.ts", "**/scripts/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "no-console": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "*.config.js",
+    "*.config.ts",
+    "coverage"
+  ]
 }

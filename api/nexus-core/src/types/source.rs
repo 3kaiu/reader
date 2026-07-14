@@ -49,7 +49,7 @@ impl SourcePolicy {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceRuleValidationReport {
     pub valid: bool,
@@ -99,7 +99,7 @@ impl Default for SourceRuleValidationReport {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceValidationStepReport {
     pub step: String,
@@ -131,7 +131,7 @@ pub enum SourceHealthStatus {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceHealthSegment {
     #[serde(default)]
@@ -146,7 +146,7 @@ pub struct SourceHealthSegment {
     pub last_validated_at_ms: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceHealthReport {
     #[serde(default)]
@@ -163,7 +163,7 @@ pub struct SourceHealthReport {
     pub content: SourceHealthSegment,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceReadinessState {
     #[default]
@@ -323,7 +323,7 @@ impl SourceReadinessReport {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceCapabilityMatrix {
     pub search_supported: bool,
@@ -365,7 +365,7 @@ pub enum SourceSearchMode {
     ExternalDiscovery,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchPaginationRule {
     #[serde(default)]
@@ -380,7 +380,7 @@ fn default_search_max_pages() -> u32 {
     1
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchStrategyRule {
     pub id: String,
@@ -412,7 +412,7 @@ fn default_search_priority() -> u32 {
     100
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceSearchProfile {
     #[serde(default)]
@@ -423,7 +423,7 @@ pub struct SourceSearchProfile {
     pub strategies: Vec<SearchStrategyRule>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceImportPolicy {
     pub enabled_by_default: bool,

@@ -18,7 +18,7 @@ export interface OfflineManagerControllerRuntime {
 
 export function createOfflineManagerControllerRuntime(): OfflineManagerControllerRuntime {
   const runtimeState = createOfflineManagerRuntimeState()
-  let runtimeContext!: OfflineManagerRuntimeContext
+  let runtimeContext: OfflineManagerRuntimeContext
 
   const refreshPersistedState = async () => {
     await refreshOfflineManagerRuntimeState(runtimeContext)

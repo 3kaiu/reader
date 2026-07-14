@@ -17,9 +17,8 @@
 //!   └── operator/regex_clean: ##pattern##replacement
 //! ```
 
-pub(crate) mod rule_parser;
-pub(crate) mod selector;
-pub(crate) mod operator;
-
-mod engine;
+pub mod rule_parser;
+pub mod selector;
+pub mod operator;
+pub mod engine;
 pub use engine::LegadoEngine;

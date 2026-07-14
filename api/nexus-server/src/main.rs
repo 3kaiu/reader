@@ -1,6 +1,5 @@
 //! Nexus API Server
 
-mod api_response;
 mod app;
 mod app_state;
 mod content_rules;
