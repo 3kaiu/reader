@@ -21,7 +21,7 @@
       "/api/bookshelf",
       "/api/groups",
       "/api/replace_rules",
-      "/ws/"
+      "/api/explore"
     ]
   },
   "worker": {
@@ -36,6 +36,7 @@
       "/api/sources/{id}/status",
       "/api/sources/{id}/policy",
       "/api/sources/health",
+      "/api/sources/health/probe",
       "/api/sources/runtime-state/snapshot",
       "/api/sources/runtime-state/export",
       "/api/sources/runtime-state/import",
@@ -45,6 +46,8 @@
       "/api/sources/{id}/runtime-state/reset",
       "/api/sources/legado",
       "/api/sources/legado/import",
+      "/api/sources/legado/import-url",
+      "/api/sources/legado/import-urls",
       "/api/sources/legado/{id}",
       "/api/source-packages",
       "/api/source-packages/import",

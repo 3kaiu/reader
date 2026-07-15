@@ -56,7 +56,7 @@ export async function proxyRequest(
   const origin = request.headers.get('Origin') || '';
   const requestId = getRequestId(request)
   
-  // Fix double-encoding issue for URL parameters
+  // Fix double-encoding issue for URL parameters (only decode once if needed)
   if (url.searchParams.has('url')) {
     const urlParam = url.searchParams.get('url');
     try {
@@ -93,9 +93,15 @@ export async function proxyRequest(
   // Forward request
   const headers = new Headers(request.headers);
   headers.delete('host');
+  // Strip CF-* headers to prevent IP spoofing (attacker can set CF-Connecting-IP to bypass rate limiting)
+  headers.delete('cf-connecting-ip');
+  headers.delete('cf-ipcountry');
+  headers.delete('cf-ray');
+  headers.delete('cf-visitor');
 
-  // Configurable fetch timeout (15s default)
-  const FETCH_TIMEOUT_MS = 15000;
+  // Configurable fetch timeout (15s default, 300s for streaming endpoints)
+  const isStreaming = path.includes('/stream') || request.headers.get('Accept')?.includes('text/event-stream');
+  const FETCH_TIMEOUT_MS = isStreaming ? 300_000 : 15_000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -161,16 +167,28 @@ export async function proxyRequest(
       });
     }
     console.error('Proxy error:', error);
+    // Differentiate error types for proper status codes
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isConnectionError = errorMessage.includes('ECONNREFUSED')
+      || errorMessage.includes('ENOTFOUND')
+      || errorMessage.includes('getaddrinfo')
+      || errorMessage.includes('connect')
+      || errorMessage.includes('DNS');
+    const statusCode = isConnectionError ? 502 : 500;
+    const code = isConnectionError ? 'BAD_GATEWAY' : 'INTERNAL_ERROR';
+    const message = isConnectionError
+      ? 'Backend service unreachable'
+      : 'Unexpected backend error';
     return new Response(JSON.stringify({
-      code: 'SERVICE_UNAVAILABLE',
-      message: 'Service temporarily unavailable',
-      details: 'Backend service is starting up, please retry in 30 seconds',
+      code,
+      message,
+      details: errorMessage,
       requestId,
     }), {
-      status: 503,
+      status: statusCode,
       headers: {
         'Content-Type': 'application/json',
-        'Retry-After': '30',
+        ...(isConnectionError ? { 'Retry-After': '10' } : {}),
         ...getCorsHeaders(origin, corsEnv),
       },
     });

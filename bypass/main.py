@@ -6,10 +6,12 @@ import logging
 import os
 import asyncio
 import time
+import ipaddress
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional, Dict
 from urllib.parse import urlparse
+import socket
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,6 +56,27 @@ def validate_api_key(x_api_key: str = Header(None)):
     if config.api_key and x_api_key != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
+def _validate_url_not_private(url_str: str) -> str:
+    """SSRF protection: reject URLs pointing to private/reserved IP ranges."""
+    parsed = urlparse(url_str)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Only http/https schemes allowed, got: {parsed.scheme}")
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL must have a hostname")
+    # Resolve hostname and check for private IPs
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
+    for family, type_, proto, canonname, sockaddr in infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if (ip.is_loopback or ip.is_private or ip.is_link_local
+                or ip.is_reserved or ip.is_unspecified
+                or ip.is_multicast):
+            raise ValueError(f"URL resolves to private/reserved IP: {ip}")
+    return url_str
+
 # Models
 class FetchRequest(BaseModel):
     url: HttpUrl
@@ -64,11 +87,23 @@ class FetchRequest(BaseModel):
     body: Optional[str] = None
     engine: Optional[str] = None
 
+    @field_validator("url", mode="before")
+    @classmethod
+    def validate_url_not_private(cls, v: str) -> str:
+        return _validate_url_not_private(v)
+
     @field_validator("body")
     @classmethod
     def limit_body_size(cls, v: Optional[str]) -> Optional[str]:
         if v and len(v) > 10_000_000:
             raise ValueError("body exceeds maximum length of 10,000,000 characters")
+        return v
+
+    @field_validator("timeout")
+    @classmethod
+    def limit_timeout(cls, v: int) -> int:
+        if v > 120:
+            raise ValueError("timeout must be <= 120 seconds")
         return v
 
 class FetchResponse(BaseModel):
@@ -89,6 +124,25 @@ class BrowserProbeRequest(BaseModel):
     visible: bool = False
     poll_cf: bool = False  # if true, run ensureCfPassed flow
 
+    @field_validator("url", mode="before")
+    @classmethod
+    def validate_url_not_private(cls, v: str) -> str:
+        return _validate_url_not_private(v)
+
+    @field_validator("js_code")
+    @classmethod
+    def limit_js_code(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 50_000:
+            raise ValueError("js_code exceeds maximum length of 50,000 characters")
+        return v
+
+    @field_validator("timeout_ms")
+    @classmethod
+    def limit_timeout_ms(cls, v: int) -> int:
+        if v > 120_000:
+            raise ValueError("timeout_ms must be <= 120000 (120s)")
+        return v
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("CF Bypass Service started")
@@ -105,7 +159,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "https://nexus.pages.dev",
+        "https://nexus-reader.pages.dev",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -204,6 +263,18 @@ async def browser_probe(request: BrowserProbeRequest, x_api_key: str = Header(No
 class SolveCFRequest(BaseModel):
     url: str
     timeout_ms: int = 30000
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_not_private(cls, v: str) -> str:
+        return _validate_url_not_private(v)
+
+    @field_validator("timeout_ms")
+    @classmethod
+    def limit_timeout_ms(cls, v: int) -> int:
+        if v > 120_000:
+            raise ValueError("timeout_ms must be <= 120000 (120s)")
+        return v
 
 
 @app.get("/api/adaptive-stats")

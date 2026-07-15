@@ -23,5 +23,5 @@ export const DIRECT_RULES = [
   '/api/bookshelf',
   '/api/groups',
   '/api/replace_rules',
-  '/ws/',
+  '/api/explore',
 ] as const

@@ -62,6 +62,7 @@ pub async fn build_runtime_services(
     let chapter_cache =
         Arc::new(ChapterCache::new(&config.storage.cache_dir, config.limits.chapter_cache_mb));
     spawn_cache_cleanup(chapter_cache.clone());
+    spawn_health_tracker_eviction(store.clone());
 
     let fetcher = Arc::new(HttpFetcher::from_config(&config.limits)?);
     let anti_crawl = Arc::new(build_anti_crawl_chain(config)?);
@@ -123,6 +124,16 @@ fn spawn_cache_cleanup(chapter_cache: Arc<ChapterCache>) {
             if let Err(error) = chapter_cache.cleanup().await {
                 tracing::error!("Cache cleanup failed: {}", error);
             }
+        }
+    });
+}
+
+fn spawn_health_tracker_eviction(store: Arc<SledStore>) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1800)); // 30 min
+        loop {
+            interval.tick().await;
+            store.health_tracker().evict_stale(std::time::Duration::from_secs(86400 * 7)); // 7 days
         }
     });
 }

@@ -165,7 +165,7 @@ pub struct ResourceLimits {
 }
 
 fn default_concurrent_searches() -> usize {
-    3
+    20
 }
 fn default_concurrent_fetches() -> usize {
     2

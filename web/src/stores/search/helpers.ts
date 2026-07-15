@@ -52,11 +52,9 @@ export function filterSearchResultsBySources(
 // ─── 历史管理 ──────────────────────────────────────────
 
 export function appendSearchHistory(history: string[], query: string, limit: number): string[] {
-  if (history.includes(query)) {
-    return history
-  }
-
-  return [query, ...history.slice(0, limit - 1)]
+  // Promote existing duplicate to front, otherwise prepend
+  const filtered = history.filter(h => h !== query)
+  return [query, ...filtered.slice(0, limit - 1)]
 }
 
 export function toggleSelectedSource(selectedSources: Set<string>, source: string): Set<string> {

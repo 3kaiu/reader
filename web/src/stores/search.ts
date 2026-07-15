@@ -140,7 +140,7 @@ export const useSearchStore = defineStore('search', () => {
       }
 
       try {
-        const response = await searchApi.searchBooks(normalizedQuery, targetSources)
+        const response = await searchApi.searchBooks(normalizedQuery, targetSources, abortController.signal)
         if (requestId !== searchRequestId.value) {
           return null
         }

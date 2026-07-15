@@ -43,7 +43,9 @@ pub async fn ensure_source_public_access(
     state: &AppState,
     source_id: &str,
 ) -> Result<SourceAvailability, ApiErrorResponse> {
-    if state.engine_registry.legado_store.get(source_id).is_none() {
+    let exists = state.engine_registry.legado_store.get(source_id).is_some()
+        || state.engine_registry.nxs_store.get(source_id).is_some();
+    if !exists {
         return Err(not_found("Source"));
     }
 

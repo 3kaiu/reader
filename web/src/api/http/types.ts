@@ -10,6 +10,8 @@ export type ApiFetchOptions = FetchOptions<'json'> & {
   silent?: boolean
   msgpack?: boolean
   forceEdge?: boolean
+  /** Internal: request ID for correlating related requests */
+  _requestId?: string
 }
 
 export type InternalApiFetchOptions = ApiFetchOptions & {

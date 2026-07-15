@@ -43,6 +43,8 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/replace_rules/{id}", delete(routes::replace_rules::delete_rule))
         // Legado source management
         .route("/api/sources/legado/import", post(routes::source::import_legado_sources))
+        .route("/api/sources/legado/import-url", post(routes::source::import_legado_sources_from_url))
+        .route("/api/sources/legado/import-urls", post(routes::source::import_legado_sources_from_urls))
         .route("/api/sources/legado", get(routes::source::list_legado_sources))
         .route("/api/sources/legado/{id}", delete(routes::source::delete_legado_source))
         // Unified source management
@@ -53,6 +55,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .route("/api/sources/{id}/status", put(routes::source::update_source_status))
         .route("/api/sources/{id}/policy", put(routes::source::update_source_policy))
         .route("/api/sources/health", get(routes::source::list_source_health))
+        .route("/api/sources/health/probe", post(routes::source::probe_source_health))
         // Runtime governance
         .route("/api/sources/runtime-state/snapshot", post(routes::runtime_state::save_runtime_snapshot))
         .route("/api/sources/runtime-state/export", get(routes::runtime_state::export_runtime_snapshot))

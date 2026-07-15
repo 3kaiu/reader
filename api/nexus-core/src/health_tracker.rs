@@ -316,6 +316,17 @@ impl HealthTracker {
         stats.remove(source_id);
     }
 
+    /// Evict stale entries not updated within the given duration
+    /// Call periodically (e.g. every 30 minutes) to prevent unbounded growth
+    pub fn evict_stale(&self, max_age: Duration) {
+        let mut stats = self.stats.lock().expect("health tracker lock");
+        let now = Instant::now();
+        stats.retain(|_, h| {
+            let last_activity = h.last_success.or(h.last_failure);
+            last_activity.map_or(true, |t| now.duration_since(t) < max_age)
+        });
+    }
+
     /// Sort source IDs by health score (best first)
     pub fn sort_by_health(&self, source_ids: &mut [String]) {
         let stats = self.stats.lock().expect("health tracker lock");

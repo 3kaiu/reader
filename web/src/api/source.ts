@@ -10,6 +10,7 @@ import type {
   RuntimeStateOverviewResponse,
   SourceRuntimeResetResponse,
   SourceRuntimeProfileResponse,
+  LegadoSourceView,
 } from '@/types/source'
 
 export const sourceApi = {
@@ -69,4 +70,12 @@ export const sourceApi = {
         : {}),
       ...(typeof policy.notes === 'string' ? { notes: policy.notes } : {}),
     }),
+
+  // 从 URL 导入 Legado 书源
+  importLegadoSourcesFromUrl: (url: string) =>
+    $post<LegadoSourceView[]>('/sources/legado/import-url', { url }),
+
+  // 从多个 URL 导入 Legado 书源
+  importLegadoSourcesFromUrls: (urls: string[]) =>
+    $post<LegadoSourceView[]>('/sources/legado/import-urls', { urls }),
 }

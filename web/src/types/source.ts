@@ -107,3 +107,9 @@ export interface BookSource {
   type?: string
   bookSourceGroup?: string
 }
+
+/** Legado source view with classification metadata */
+export interface LegadoSourceView {
+  source: Record<string, unknown>
+  classification: 'css' | 'js' | 'xpath' | 'webjs'
+}

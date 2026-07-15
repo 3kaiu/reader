@@ -28,8 +28,9 @@ pub struct SledStore {
 
     // Domain-specific trees (high cohesion)
     bookshelf: Tree,
-    bookshelf_idx: Tree,    // Secondary index: read_time ordering
-    bookshelf_lookup: Tree, // Secondary index: source_id:book_url -> id for O(1) exists(),
+    bookshelf_idx: Tree,          // Secondary index: read_time ordering
+    bookshelf_idx_reverse: Tree,  // Reverse index: book_id -> index_key for O(1) removal
+    bookshelf_lookup: Tree,       // Secondary index: source_id:book_url -> id for O(1) exists(),
     groups: Tree,
     rules: Tree,
     ai_mappings: Tree,
@@ -74,6 +75,12 @@ impl SledStore {
                     message: e.to_string(),
                 }
             })?,
+            // Reverse index: book_id -> index_key (for O(1) removal from time index)
+            bookshelf_idx_reverse: db
+                .open_tree("bookshelf_idx_reverse")
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?,
             groups: db.open_tree("groups").map_err(|e| EngineError::Database {
                 message: e.to_string(),
             })?,
@@ -261,11 +268,12 @@ impl SledStore {
     fn write_book_sync(
         bookshelf_tree: &Tree,
         idx_tree: &Tree,
+        idx_reverse_tree: &Tree,
         lookup_tree: &Tree,
         item: &BookshelfItem,
     ) -> Result<(), EngineError> {
         // Remove old index entry if exists
-        Self::remove_book_index_sync(idx_tree, &item.id)?;
+        Self::remove_book_index_sync(idx_tree, idx_reverse_tree, &item.id)?;
         Self::remove_book_lookup_sync(lookup_tree, &item.source_id, &item.book_url)?;
 
         // Write main data
@@ -275,7 +283,14 @@ impl SledStore {
         let timestamp = item.last_read_time.unwrap_or(item.created_at);
         let idx_key = format!("{:020}:{}", i64::MAX - timestamp, item.id);
         idx_tree
-            .insert(idx_key, &[])
+            .insert(idx_key.as_bytes(), &[])
+            .map_err(|e| EngineError::Database {
+                message: e.to_string(),
+            })?;
+
+        // Write reverse index for O(1) removal
+        idx_reverse_tree
+            .insert(item.id.as_bytes(), idx_key.as_bytes())
             .map_err(|e| EngineError::Database {
                 message: e.to_string(),
             })?;
@@ -326,10 +341,11 @@ impl SledStore {
     pub async fn add(&self, item: BookshelfItem) -> Result<(), EngineError> {
         let bookshelf_tree = self.bookshelf.clone();
         let idx_tree = self.bookshelf_idx.clone();
+        let idx_reverse_tree = self.bookshelf_idx_reverse.clone();
         let lookup_tree = self.bookshelf_lookup.clone();
 
         tokio::task::spawn_blocking(move || {
-            Self::write_book_sync(&bookshelf_tree, &idx_tree, &lookup_tree, &item)?;
+            Self::write_book_sync(&bookshelf_tree, &idx_tree, &idx_reverse_tree, &lookup_tree, &item)?;
             debug!("Added book to shelf: {}", item.name);
             Ok(())
         })
@@ -348,6 +364,7 @@ impl SledStore {
     ) -> Result<(), EngineError> {
         let bookshelf_tree = self.bookshelf.clone();
         let idx_tree = self.bookshelf_idx.clone();
+        let idx_reverse_tree = self.bookshelf_idx_reverse.clone();
         let lookup_tree = self.bookshelf_lookup.clone();
 
         tokio::task::spawn_blocking(move || {
@@ -358,7 +375,7 @@ impl SledStore {
                 item.last_read_time = Some(chrono::Utc::now().timestamp());
 
                 // Re-add with all indices via shared helper
-                Self::write_book_sync(&bookshelf_tree, &idx_tree, &lookup_tree, &item)?;
+                Self::write_book_sync(&bookshelf_tree, &idx_tree, &idx_reverse_tree, &lookup_tree, &item)?;
             }
             Ok(())
         })
@@ -372,6 +389,7 @@ impl SledStore {
     pub async fn remove(&self, id: String) -> Result<(), EngineError> {
         let bookshelf_tree = self.bookshelf.clone();
         let idx_tree = self.bookshelf_idx.clone();
+        let idx_reverse_tree = self.bookshelf_idx_reverse.clone();
         let lookup_tree = self.bookshelf_lookup.clone();
 
         tokio::task::spawn_blocking(move || {
@@ -379,7 +397,7 @@ impl SledStore {
             if let Ok(Some(item)) = Self::get_sync::<BookshelfItem>(&bookshelf_tree, &id) {
                 Self::remove_book_lookup_sync(&lookup_tree, &item.source_id, &item.book_url)?;
             }
-            Self::remove_book_index_sync(&idx_tree, &id)?;
+            Self::remove_book_index_sync(&idx_tree, &idx_reverse_tree, &id)?;
             Self::delete_sync(&bookshelf_tree, &id)?;
             debug!("Removed book from shelf: {}", id);
             Ok(())
@@ -408,6 +426,49 @@ impl SledStore {
         })?
     }
 
+    /// Atomically insert book if not exists (prevents TOCTOU race)
+    /// Returns Ok(true) if inserted, Ok(false) if already exists
+    pub async fn insert_book_if_not_exists(
+        &self,
+        item: &BookshelfItem,
+    ) -> Result<bool, EngineError> {
+        let bookshelf_tree = self.bookshelf.clone();
+        let idx_tree = self.bookshelf_idx.clone();
+        let idx_reverse_tree = self.bookshelf_idx_reverse.clone();
+        let lookup_tree = self.bookshelf_lookup.clone();
+        let item = item.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let lookup_key = format!("{}:{}", item.source_id, item.book_url);
+
+            // Use compare_and_swap for atomic check-and-insert on lookup index
+            let result = lookup_tree.compare_and_swap(
+                lookup_key.as_bytes(),
+                None::<&[u8]>, // Only insert if key doesn't exist
+                Some(item.id.as_bytes()),
+            );
+
+            match result {
+                Ok(Ok(())) => {
+                    // Inserted successfully, now write main data and time index
+                    Self::write_book_sync(&bookshelf_tree, &idx_tree, &idx_reverse_tree, &lookup_tree, &item)?;
+                    Ok(true)
+                },
+                Ok(Err(_)) => {
+                    // Key already exists — book already in bookshelf
+                    Ok(false)
+                },
+                Err(e) => Err(EngineError::Database {
+                    message: e.to_string(),
+                }),
+            }
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
     /// Move book to group
     pub async fn move_to_group(
         &self,
@@ -429,29 +490,32 @@ impl SledStore {
         })?
     }
 
-    /// Helper: remove book from time index (Sync)
-    fn remove_book_index_sync(idx_tree: &Tree, id: &str) -> Result<(), EngineError> {
-        // Find and remove the index entry
-        let prefix_to_find = format!(":{}", id);
-        let mut to_remove = None;
-
-        for entry in idx_tree.iter() {
-            let (key, _) = entry.map_err(|e| EngineError::Database {
+    /// Helper: remove book from time index using reverse index (O(1))
+    fn remove_book_index_sync(
+        idx_tree: &Tree,
+        idx_reverse_tree: &Tree,
+        id: &str,
+    ) -> Result<(), EngineError> {
+        // Look up the index key from reverse index
+        if let Some(idx_key) = idx_reverse_tree
+            .get(id.as_bytes())
+            .map_err(|e| EngineError::Database {
                 message: e.to_string(),
-            })?;
-            let key_str = String::from_utf8_lossy(&key);
-            if key_str.ends_with(&prefix_to_find) {
-                to_remove = Some(key.to_vec());
-                break;
-            }
+            })?
+        {
+            // Remove from time index
+            idx_tree
+                .remove(idx_key.as_ref())
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
+            // Remove from reverse index
+            idx_reverse_tree
+                .remove(id.as_bytes())
+                .map_err(|e| EngineError::Database {
+                    message: e.to_string(),
+                })?;
         }
-
-        if let Some(key) = to_remove {
-            idx_tree.remove(key).map_err(|e| EngineError::Database {
-                message: e.to_string(),
-            })?;
-        }
-
         Ok(())
     }
 
@@ -767,7 +831,8 @@ impl SledStore {
                 })? {
                 Some(bytes) => {
                     // Store as "1" for enabled, "0" for disabled
-                    Ok(bytes[0] == b'1')
+                    // Guard against empty value (manual DB manipulation or bug)
+                    Ok(bytes.first().copied().unwrap_or(b'1') == b'1')
                 },
                 None => Ok(true), // Default to enabled
             }

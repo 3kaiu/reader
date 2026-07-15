@@ -2,31 +2,7 @@ import { getCorsHeaders } from '../shared/cors.ts'
 import { proxyRequestWithEnv } from '../shared/proxy.ts'
 import type { ExecutionContextLike } from '../shared/types.ts'
 import type { EnhancedWorkerEnv } from '../worker/types.ts'
-
-/** Allowed first path segments under /api/. Kept in sync with contracts/http-routes.json. */
-const API_ALLOWED_SEGMENTS = new Set([
-  'health',
-  'sources',
-  'source-packages',
-  'search',
-  'book',
-  'chapters',
-  'content',
-  'batch',
-  'bookshelf',
-  'groups',
-  'replace_rules',
-  'explore',
-])
-
-/** Paths that should be handled by edge cache. Kept in sync with contracts/http-routes.json. */
-const EDGE_HANDLED_PREFIXES = new Set([
-  '/api/search',
-  '/api/book',
-  '/api/chapters',
-  '/api/content',
-  '/api/batch/content',
-])
+import { API_ALLOWED_SEGMENTS, EDGE_HANDLED_PREFIXES } from './dispatch.constants.generated.ts'
 
 function isAllowedApiPath(pathname: string): boolean {
   // pathname starts with /api/

@@ -57,20 +57,12 @@ pub struct AddBookRequest {
 }
 
 /// Add to bookshelf
+///
+/// Uses atomic insert-if-not-exists to prevent TOCTOU race conditions.
 pub async fn add(
     State(state): State<AppState>,
     Json(req): Json<AddBookRequest>,
 ) -> Result<Json<BookshelfItem>, ApiErrorResponse> {
-    // Check if already exists
-    if state
-        .store
-        .exists(req.source_id.clone(), req.book_url.clone())
-        .await
-        .map_err(|e| internal_error(e.to_string()))?
-    {
-        return Err(conflict("Book already in bookshelf"));
-    }
-
     // Try to fetch complete book info from source
     let mut item = BookshelfItem {
         id: Uuid::new_v4().to_string(),
@@ -102,17 +94,21 @@ pub async fn add(
                 // We could also store intro/update_time if BookshelfItem supported it
             },
             Err(e) => {
-                tracing::warn!("Failed to fetch book info during add: {}", e);
-                // Continue with partial info
+                tracing::warn!("Failed to fetch book info: {}", e);
             },
         }
     }
 
-    state
+    // Atomic insert — returns false if book already exists
+    let inserted = state
         .store
-        .add(item.clone())
+        .insert_book_if_not_exists(&item)
         .await
         .map_err(|e| internal_error(e.to_string()))?;
+
+    if !inserted {
+        return Err(conflict("Book already in bookshelf"));
+    }
 
     Ok(Json(item))
 }

@@ -16,6 +16,8 @@ export function createReaderChapterOperations(
     updateLoadedChapter: (chapter: Chapter, chapterContent: string, replaceOnly?: boolean) => void
   }
 ) {
+  // Concurrency guard: prevent multiple simultaneous refreshChapter calls
+  let refreshInflight: Promise<string> | null = null
   const captureScrollAnchorSnapshot = (): ScrollAnchorSnapshot | null => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return null
@@ -129,14 +131,25 @@ export function createReaderChapterOperations(
       return 0
     }
 
+    // Return existing promise if refresh is already in progress
+    if (refreshInflight) {
+      await refreshInflight
+      return 0
+    }
+
     const scrollRatio =
       typeof window !== 'undefined' && document.documentElement.scrollHeight > window.innerHeight
         ? window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)
         : 0
 
-    const chapterContent = await helpers.fetchChapterContent(state.currentChapter.value)
-    helpers.setCurrentChapterContent(state.currentChapter.value, chapterContent)
-    helpers.updateLoadedChapter(state.currentChapter.value, chapterContent, false)
+    refreshInflight = helpers.fetchChapterContent(state.currentChapter.value)
+    try {
+      const chapterContent = await refreshInflight
+      helpers.setCurrentChapterContent(state.currentChapter.value, chapterContent)
+      helpers.updateLoadedChapter(state.currentChapter.value, chapterContent, false)
+    } finally {
+      refreshInflight = null
+    }
     return scrollRatio
   }
 

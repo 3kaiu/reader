@@ -17,6 +17,9 @@ interface ReaderSessionHelpers {
 }
 
 export function createReaderSessionActions(state: ReaderStoreState, helpers: ReaderSessionHelpers) {
+  // Concurrency guard: prevent multiple simultaneous startReaderSession calls
+  let sessionInflight: Promise<ApiResponse<ReaderBook>> | null = null
+
   const resetBookSession = () => {
     state.catalog.value = []
     state.loadedChapters.value = []
@@ -95,38 +98,49 @@ export function createReaderSessionActions(state: ReaderStoreState, helpers: Rea
       }
     }
 
-    try {
-      if (helpers.isCurrentBookTarget(target) && state.currentBook.value) {
-        const book = await ensureReaderSession(state.currentBook.value)
+    // Return existing promise if a session start is already in progress
+    if (sessionInflight) {
+      return sessionInflight
+    }
+
+    sessionInflight = (async () => {
+      try {
+        if (helpers.isCurrentBookTarget(target) && state.currentBook.value) {
+          const book = await ensureReaderSession(state.currentBook.value)
+          return {
+            isSuccess: true,
+            data: book,
+          }
+        }
+
+        const response = await helpers.fetchBookInfo(sourceId, bookUrl)
+
+        if (!response.isSuccess || !response.data) {
+          const message = response.errorMsg || '获取书籍信息失败'
+          state.error.value = message
+          state.loadError.value = message
+          state.loadErrorDetails.value = null
+          state.isLoading.value = false
+          return response
+        }
+
+        const book = await ensureReaderSession(response.data)
         return {
-          isSuccess: true,
+          ...response,
           data: book,
         }
-      }
-
-      const response = await helpers.fetchBookInfo(sourceId, bookUrl)
-
-      if (!response.isSuccess || !response.data) {
-        const message = response.errorMsg || '获取书籍信息失败'
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '启动阅读器会话失败'
         state.error.value = message
         state.loadError.value = message
-        state.loadErrorDetails.value = null
         state.isLoading.value = false
-        return response
+        return { isSuccess: false, errorMsg: message, data: undefined as unknown as ReaderBook }
+      } finally {
+        sessionInflight = null
       }
+    })()
 
-      const book = await ensureReaderSession(response.data)
-      return {
-        ...response,
-        data: book,
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '启动阅读器会话失败'
-      state.error.value = message
-      state.loadError.value = message
-      state.isLoading.value = false
-      return { isSuccess: false, errorMsg: message, data: undefined as unknown as ReaderBook }
-    }
+    return sessionInflight
   }
 
   return {

@@ -220,8 +220,8 @@ async function requestSearchStream(
 }
 
 export const searchApi = {
-  searchBooks: (keyword: string, sources: string[] = []) =>
-    $post<SearchResponse>('/search', { keyword, sources }),
+  searchBooks: (keyword: string, sources: string[] = [], signal?: AbortSignal) =>
+    $post<SearchResponse>('/search', { keyword, sources }, { signal }),
 
   async searchBooksStream(
     keyword: string,

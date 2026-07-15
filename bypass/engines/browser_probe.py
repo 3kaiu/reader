@@ -249,16 +249,13 @@ class BrowserProbeEngine(BaseBypassEngine):
         """One-shot: navigate to URL, execute JS, return HTML."""
         session_id = await self.acquire_session(visible=visible)
         try:
-            result = await self.navigate_and_wait(
-                session_id, url, wait_until=wait_until, timeout_ms=timeout_ms, keep_page=False
-            )
             start = time.time()
-            # Execute the JS after navigation
+            # Navigate and execute JS in one pass (avoid double navigation)
             context = await self._get_context(session_id)
             page = await context.new_page()
             try:
                 await page.goto(url, wait_until=wait_until, timeout=timeout_ms)
-                js_result = await page.evaluate(js_code)
+                js_result = await page.evaluate(js_code) if js_code else None
                 html = await page.content()
             finally:
                 await page.close()
@@ -316,6 +313,7 @@ class BrowserProbeEngine(BaseBypassEngine):
         browser_shown = False
         passed = False
         real_html = None
+        page = None  # Initialize before try to avoid NameError in finally
 
         try:
             page = await (await self._get_context(session_id)).new_page()
@@ -678,7 +676,7 @@ class BrowserProbeEngine(BaseBypassEngine):
         domain = self._extract_domain_cf(url)
         profile = None
         if self.domain_registry:
-            profile = self.domain_registry.get(domain)
+            profile = await self.domain_registry.get(domain)
             if not profile.should_attempt():
                 logger.warning(f"[adaptive] circuit OPEN for {domain}, skipping solve")
                 return {

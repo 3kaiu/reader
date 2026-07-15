@@ -99,14 +99,14 @@ export const readerApi = {
 
     return $get<Book>('/book', {
       params: { source: source.trim(), url: decodedUrl },
-      ...(requestId ? ({ _requestId: requestId } as any) : {}),
+      ...(requestId ? { _requestId: requestId } : {}),
     })
   },
   getChapters: (source: string, url: string, requestId?: string) => {
     const decodedUrl = validateSourceAndUrl(source, url)
     return $get<Chapter[]>('/chapters', {
       params: { source: source.trim(), url: decodedUrl },
-      ...(requestId ? ({ _requestId: requestId } as any) : {}),
+      ...(requestId ? { _requestId: requestId } : {}),
     })
   },
   getContent: (
@@ -125,7 +125,7 @@ export const readerApi = {
         ...(typeof request?.index === 'number' ? { index: request.index } : {}),
         ...(typeof request?.chunkSize === 'number' ? { chunk_size: request.chunkSize } : {}),
       },
-      ...(requestId ? ({ _requestId: requestId } as any) : {}),
+      ...(requestId ? { _requestId: requestId } : {}),
     })
   },
 

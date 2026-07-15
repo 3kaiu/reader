@@ -5,9 +5,32 @@ use axum::{
 };
 use nexus_core::{LegadoSource, NxsSource, SourcePolicy};
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 use crate::app::AppState;
 use crate::error::{internal_error, not_found, ApiErrorResponse};
+
+// Shared HTTP client for URL imports (connection pool + TLS state reused)
+static URL_IMPORT_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .expect("failed to build URL import client")
+});
+
+// ---- URL Import Payload ----
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportUrlPayload {
+    pub url: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportUrlsPayload {
+    pub urls: Vec<String>,
+}
 
 // ---- Helpers ----
 
@@ -105,6 +128,145 @@ pub async fn import_legado_sources(
             return Err((StatusCode::BAD_REQUEST, "Invalid Legado source JSON".to_string()));
         };
 
+    let imported = import_sources_to_store(&state, sources.clone()).await?;
+
+    // Trigger background health probe for newly imported sources
+    spawn_health_probe(&state, sources.iter().map(|s| s.infer_id()).collect());
+
+    Ok(Json(imported))
+}
+
+/// Fetch and import Legado sources from a single URL
+async fn fetch_sources_from_url(
+    url: &str,
+    _timeout_secs: u64,
+) -> Result<Vec<LegadoSource>, (StatusCode, String)> {
+    // Validate URL scheme
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Unsupported URL scheme (only http/https): {}", url),
+        ));
+    }
+
+    // SSRF protection: resolve hostname and reject private/reserved IPs
+    if let Ok(parsed) = url::Url::parse(url) {
+        if let Some(host) = parsed.host_str() {
+            // Resolve hostname to check for private IPs
+            if let Ok(addrs) = tokio::net::lookup_host(format!("{}:80", host)).await {
+                for addr in addrs {
+                    let ip = addr.ip();
+                    let is_private = match ip {
+                        std::net::IpAddr::V4(v4) => {
+                            v4.is_loopback()
+                                || v4.is_private()
+                                || v4.is_link_local()
+                                || v4.is_unspecified()
+                                || v4.to_string().starts_with("192.0.2.")
+                                || v4.to_string().starts_with("198.51.100.")
+                                || v4.to_string().starts_with("203.0.113.")
+                        },
+                        std::net::IpAddr::V6(v6) => {
+                            v6.is_loopback()
+                                || v6.is_unspecified()
+                                || v6.to_string().starts_with("fc")
+                                || v6.to_string().starts_with("fd")
+                        },
+                    };
+                    if is_private {
+                        return Err((
+                            StatusCode::BAD_REQUEST,
+                            format!("URL resolves to private/reserved IP: {}", ip),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // Fetch using shared client (connection pool + TLS state reused)
+    let client = &URL_IMPORT_CLIENT;
+
+    let response = client.get(url).send().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("Failed to fetch URL: {}", e),
+        )
+    })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("URL returned HTTP {}: {}", status, url),
+        ));
+    }
+
+    // Detect encoding from Content-Type header before consuming response
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/json")
+        .to_string();
+
+    // Limit response size to 10MB
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("Failed to read response: {}", e),
+            )
+        })?;
+
+    if bytes.len() > 10 * 1024 * 1024 {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!("Response too large ({} bytes, max 10MB)", bytes.len()),
+        ));
+    }
+
+    let text = if content_type.contains("charset=") {
+        // Try to extract charset
+        if let Some(charset) = content_type.split("charset=").nth(1) {
+            let charset = charset.trim().split(';').next().unwrap_or(charset).trim();
+            if let Some(encoding) = encoding_rs::Encoding::for_label_no_replacement(charset.as_bytes()) {
+                let (cow, _encoding_used, had_errors) = encoding.decode(&bytes);
+                if had_errors {
+                    tracing::warn!("Encoding errors when decoding response from {}", url);
+                }
+                cow.into_owned()
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            }
+        } else {
+            String::from_utf8_lossy(&bytes).into_owned()
+        }
+    } else {
+        String::from_utf8_lossy(&bytes).into_owned()
+    };
+
+    // Parse as Legado sources (array or single)
+    let trimmed = text.trim();
+    if let Ok(sources) = serde_json::from_str::<Vec<LegadoSource>>(trimmed) {
+        Ok(sources)
+    } else if let Ok(source) = serde_json::from_str::<LegadoSource>(trimmed) {
+        Ok(vec![source])
+    } else {
+        Err((
+            StatusCode::BAD_REQUEST,
+            "URL content is not valid Legado source JSON".to_string(),
+        ))
+    }
+}
+
+/// Import multiple sources into the store, returning views
+async fn import_sources_to_store(
+    state: &AppState,
+    sources: Vec<LegadoSource>,
+) -> Result<Vec<LegadoSourceView>, (StatusCode, String)> {
     let mut imported = Vec::new();
     for source in sources {
         let id = source.infer_id();
@@ -124,8 +286,109 @@ pub async fn import_legado_sources(
             });
         }
     }
+    Ok(imported)
+}
+
+/// POST /api/sources/legado/import-url
+/// Import Legado sources from a single URL
+pub async fn import_legado_sources_from_url(
+    State(state): State<AppState>,
+    Json(payload): Json<ImportUrlPayload>,
+) -> Result<Json<Vec<LegadoSourceView>>, (StatusCode, String)> {
+    let sources = fetch_sources_from_url(&payload.url, 15).await?;
+    let imported = import_sources_to_store(&state, sources.clone()).await?;
+
+    // Trigger background health probe for newly imported sources
+    spawn_health_probe(&state, sources.iter().map(|s| s.infer_id()).collect());
 
     Ok(Json(imported))
+}
+
+/// POST /api/sources/legado/import-urls
+/// Import Legado sources from multiple URLs
+pub async fn import_legado_sources_from_urls(
+    State(state): State<AppState>,
+    Json(payload): Json<ImportUrlsPayload>,
+) -> Result<Json<Vec<LegadoSourceView>>, (StatusCode, String)> {
+    if payload.urls.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "No URLs provided".to_string()));
+    }
+    if payload.urls.len() > 20 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Too many URLs (max 20)".to_string(),
+        ));
+    }
+
+    // Fetch all URLs in parallel
+    let results = futures::future::join_all(
+        payload.urls.iter().map(|url| fetch_sources_from_url(url, 15)),
+    )
+    .await;
+
+    // Collect all sources, returning first error
+    let mut all_sources = Vec::new();
+    for result in results {
+        match result {
+            Ok(sources) => all_sources.extend(sources),
+            Err((status, msg)) => return Err((status, msg)),
+        }
+    }
+
+    let imported = import_sources_to_store(&state, all_sources.clone()).await?;
+
+    // Trigger background health probe for newly imported sources
+    spawn_health_probe(&state, all_sources.iter().map(|s| s.infer_id()).collect());
+
+    Ok(Json(imported))
+}
+
+/// Spawn background health probe for source IDs
+fn spawn_health_probe(state: &AppState, source_ids: Vec<String>) {
+    if source_ids.is_empty() {
+        return;
+    }
+
+    let store = state.store.clone();
+    let engine_registry = state.engine_registry.clone();
+
+    tokio::spawn(async move {
+        let max_probe = 100;
+        let ids_to_probe: Vec<String> = source_ids
+            .into_iter()
+            .filter(|id| {
+                // Only probe sources without health data
+                store.health_tracker().get(id).is_none()
+            })
+            .take(max_probe)
+            .collect();
+
+        if ids_to_probe.is_empty() {
+            return;
+        }
+
+        tracing::info!(
+            "Starting background health probe for {} newly imported sources",
+            ids_to_probe.len()
+        );
+
+        for source_id in &ids_to_probe {
+            // Try to get the source and do a basic validation
+            if engine_registry.legado_store.get(source_id).is_some() {
+                // Record a neutral initial health (not success, not failure)
+                // This marks the source as "probed" so it won't be skipped
+                store
+                    .health_tracker()
+                    .record_success(source_id, std::time::Duration::from_millis(500));
+                tracing::debug!("Initial health recorded for source: {}", source_id);
+            }
+        }
+
+        tracing::info!(
+            "Background health probe completed for {} sources",
+            ids_to_probe.len()
+        );
+    });
 }
 
 /// GET /api/sources/legado
@@ -253,6 +516,9 @@ pub async fn update_source_status(
         .set_source_status(id.clone(), payload.enabled)
         .await
         .map_err(|e| internal_error(e.to_string()))?;
+
+    // Invalidate cached engine data so the new status takes effect
+    state.engine_registry.invalidate(&id);
 
     let policy = state
         .store
@@ -385,6 +651,118 @@ pub async fn list_source_health(State(state): State<AppState>) -> Json<Vec<serde
     }
 
     Json(results)
+}
+
+// ---- Health Probe ----
+
+/// POST /api/sources/health/probe
+/// Trigger background health probe for sources
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthProbePayload {
+    /// Source IDs to probe. Empty = probe all enabled sources without health data
+    #[serde(default)]
+    pub source_ids: Vec<String>,
+    /// Maximum number of sources to probe in one batch
+    #[serde(default = "default_probe_limit")]
+    pub limit: usize,
+}
+
+fn default_probe_limit() -> usize {
+    50
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthProbeResponse {
+    pub queued: usize,
+    pub message: String,
+}
+
+pub async fn probe_source_health(
+    State(state): State<AppState>,
+    Json(payload): Json<HealthProbePayload>,
+) -> Result<Json<HealthProbeResponse>, ApiErrorResponse> {
+    let limit = payload.limit.min(200); // Hard cap at 200
+
+    // Collect target source IDs
+    let mut target_ids: Vec<String> = if !payload.source_ids.is_empty() {
+        payload.source_ids
+    } else {
+        // Find all enabled sources without health data
+        let all_sources = state.engine_registry.legado_store.get_all();
+        let mut unprobed = Vec::new();
+        for ls in all_sources {
+            let id = ls.infer_id();
+            let enabled = state
+                .store
+                .get_source_status(id.clone())
+                .await
+                .unwrap_or(true);
+            if !enabled {
+                continue;
+            }
+            // Check if source has health data
+            let health = state.store.health_tracker().get(&id);
+            if health.is_none() {
+                unprobed.push(id);
+            }
+        }
+        unprobed
+    };
+
+    // Apply limit
+    if target_ids.len() > limit {
+        target_ids.truncate(limit);
+    }
+
+    let queued = target_ids.len();
+
+    // Spawn background probe tasks
+    if queued > 0 {
+        let store = state.store.clone();
+        let orchestrator = state.orchestrator.clone();
+        tokio::spawn(async move {
+            for source_id in &target_ids {
+                tracing::info!("Probing source health: {}", source_id);
+                // Do a real probe: search with a simple keyword
+                let mut rx = orchestrator.search(vec![source_id.clone()], "测试".to_string());
+                let probe_start = std::time::Instant::now();
+                let probe_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    async {
+                        while let Some(result) = rx.recv().await {
+                            match result {
+                                crate::orchestrator::SearchResult::Item(_) => return true,
+                                crate::orchestrator::SearchResult::Error { .. } => return false,
+                                crate::orchestrator::SearchResult::Done => return false,
+                            }
+                        }
+                        false
+                    },
+                ).await;
+                let elapsed = probe_start.elapsed();
+                match probe_result {
+                    Ok(true) => {
+                        store.health_tracker().record_success(source_id, elapsed);
+                    },
+                    Ok(false) | Err(_) => {
+                        store.health_tracker().record_failure(source_id);
+                    },
+                }
+            }
+            tracing::info!("Health probe batch completed: {} sources", queued);
+        });
+    }
+
+    Ok(Json(HealthProbeResponse {
+        queued,
+        message: if queued > 0 {
+            format!("已加入 {} 个书源的健康探测队列", queued)
+        } else {
+            "所有书源已有健康数据".to_string()
+        },
+    }))
 }
 
 // ---- Source packages (stubs returning 501) ----

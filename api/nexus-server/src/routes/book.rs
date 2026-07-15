@@ -295,7 +295,8 @@ pub async fn content(
             content_run.content.len(),
             MAX_CHAPTER_BYTES
         );
-        content_run.content[..MAX_CHAPTER_BYTES].to_string()
+        let end = content_run.content.floor_char_boundary(MAX_CHAPTER_BYTES);
+        content_run.content[..end].to_string()
     } else {
         content_run.content
     };

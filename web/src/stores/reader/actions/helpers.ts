@@ -40,6 +40,7 @@ function getPrefetchService() {
       getCachedChapterContent: (url: string) => svc.getCachedChapterContent(url),
       cacheChapterContent: (url: string, content: string) => svc.cacheChapterContent(url, content),
       inflightFetch: async (chapter: Chapter, book: ReaderBook) => {
+        // Prefetch errors are intentionally discarded — they don't block the main reader flow
         return await svc.fetchChapterContent(chapter, book, {
           loadErrorDetailsRef: { value: null },
         })

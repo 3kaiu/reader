@@ -31,12 +31,12 @@ export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
 
 export function getCorsHeaders(origin: string, env?: CorsEnvSlice): Record<string, string> {
   const allowedOrigins = resolveAllowedOrigins(env)
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  const isAllowed = allowedOrigins.includes(origin)
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': isAllowed ? origin : '',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
-    'Access-Control-Allow-Credentials': 'true',
+    ...(isAllowed ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     'Access-Control-Max-Age': '86400',
   }
 }

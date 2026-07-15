@@ -106,7 +106,7 @@ node scripts/generate-http-route-constants.mjs   # regenerate generated TS const
 
 **Legado sources**: Loaded from `api/sources/legado/` (`*.json`/`*.legado`, non-recursive, skips `ALL.json`/`legado-quality.json`/`analysis.json`). Daily pipeline at `scripts/daily-legado-fetch.py`.
 
-**Contracts**: `contracts/http-routes.json` is the canonical route definition. Codegen produces `route-policy.constants.generated.ts` and `user-service-prefixes.generated.ts`. Both `web/` and `edge/` consume these.
+**Contracts**: `contracts/http-routes.json` is the canonical route definition. Codegen produces `route-policy.constants.generated.ts`. Both `web/` and `edge/` consume these.
 
 **Frontend entry**: `web/src/index.ts` — Vue app, Pinia, router, SW registration. Hash-based routes: `/`, `/reader`, `/search`, `/sources`, `/replace-rule`, `/settings`.
 

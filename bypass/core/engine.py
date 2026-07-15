@@ -105,15 +105,17 @@ class DomainProfile:
 
 
 class DomainRegistry:
-    """Thread-safe registry of per-domain solving profiles."""
+    """Async-safe registry of per-domain solving profiles."""
 
     def __init__(self):
         self._profiles: dict[str, DomainProfile] = {}
+        self._lock = asyncio.Lock()
 
-    def get(self, domain: str) -> DomainProfile:
-        if domain not in self._profiles:
-            self._profiles[domain] = DomainProfile(domain)
-        return self._profiles[domain]
+    async def get(self, domain: str) -> DomainProfile:
+        async with self._lock:
+            if domain not in self._profiles:
+                self._profiles[domain] = DomainProfile(domain)
+            return self._profiles[domain]
 
     def all_summaries(self) -> list[dict]:
         return [p.summary() for p in self._profiles.values()]

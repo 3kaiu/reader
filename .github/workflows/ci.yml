@@ -31,6 +31,7 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
       edge: ${{ steps.filter.outputs.edge }}
+      bypass: ${{ steps.filter.outputs.bypass }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -59,6 +60,8 @@ jobs:
               - 'edge/**'
               - 'contracts/**'
               - 'scripts/validate-contracts.mjs'
+            bypass:
+              - 'bypass/**'
 
   workflow-quality:
     name: Workflow Quality
@@ -141,3 +144,27 @@ jobs:
 
       - name: Run Nexus Edge type check
         uses: ./.github/actions/edge-quality
+
+  bypass-quality:
+    name: Nexus Bypass Type Check + Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.bypass == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: cd bypass && uv sync
+
+      - name: Run bypass tests
+        run: cd bypass && uv run pytest -v
