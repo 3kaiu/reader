@@ -1,0 +1,46 @@
+{
+  "bookSourceUrl": "https://jyapi.jyacg.com",
+  "bookSourceName": "鲸云轻说（优++）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 18,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "\n<js>java.ajax('https://jyapi.jyacg.com/web/books/detail?id={{$.id}}')</js>data.new_section\n",
+  "lastUpdateTime": 1759348616583,
+  "respondTime": 2364,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "exploreUrl": "[{\"title\":\"最新更新\",\"url\":\"/web/book_room?channel=0&tag=zxgx&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"人气最高\",\"url\":\"/web/book_room?channel=0&tag=rqzg&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"人气最高\",\"url\":\"/web/book_room?channel=0&tag=rqzg&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"收藏最高\",\"url\":\"/web/book_room?channel=0&tag=sczd&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"收藏最高\",\"url\":\"/web/book_room?channel=0&tag=ypzg&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}},\n{\"title\":\"打赏最多\",\"url\":\"/web/book_room?channel=0&tag=xlzg&page={{page}}&charge_type=&serial_status=\",\"style\":{\"layout_flexBasisPercent\":0.25,\"layout_flexGrow\":1}}]",
+  "ruleExplore": {},
+  "searchUrl": "/web/search?name={{key}}&page={{page}}&type=1",
+  "ruleSearch": {
+    "bookList": "data",
+    "name": "name",
+    "author": "author",
+    "intro": "intro",
+    "kind": "labels.name&&serial_status",
+    "bookUrl": "/web/books/detail?id={{$.id}}",
+    "coverUrl": "cover_image",
+    "wordCount": "{{$.total_words}}万字"
+  },
+  "ruleBookInfo": {
+    "init": "data",
+    "name": "name@put:{bid:id}",
+    "author": "author",
+    "intro": "book_label&&intro##(^|\\/)##  ✱ ",
+    "kind": "serial_status&&new_seciton_time##\\s.*",
+    "lastChapter": "new_section",
+    "coverUrl": "cover_image",
+    "tocUrl": "/web/books/directory?books_id={{$.id}}",
+    "wordCount": "{{$.total_words}}万字"
+  },
+  "ruleToc": {
+    "chapterList": "data[*].directory[*]",
+    "chapterName": "title",
+    "chapterUrl": "/web/books/read?page={{$.page}}&books_id=@get:{bid}"
+  },
+  "ruleContent": {
+    "content": "data.content##o:"
+  }
+}

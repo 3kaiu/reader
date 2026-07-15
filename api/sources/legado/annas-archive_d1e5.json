@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://annas-archive.li/",
+  "bookSourceName": "Anna Archive（主入口）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://annas-archive.li/search?q={{key}}",
+  "ruleSearch": {
+    "bookList": "html",
+    "name": "",
+    "bookUrl": ""
+  }
+}

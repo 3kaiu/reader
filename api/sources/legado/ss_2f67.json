@@ -1,0 +1,36 @@
+{
+  "bookSourceUrl": "https://ss.apps.dj",
+  "bookSourceName": "短剧合集（优+）",
+  "bookSourceGroup": "影视 书源",
+  "bookSourceType": 4,
+  "customOrder": 273,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766914842768,
+  "respondTime": 180000,
+  "weight": 0,
+  "header": "{\"User-Agent\":\"Mozilla/5.0 (Linux; U; Android 13; zh-Hans-CN; PFJM10 Build/TP1A.220905.001) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/135.0.4896.58 Quark/6.13.6.581 Mobile Safari/537.36\",\"Accept-Language\":\"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7\"}",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "/search.php?name={{key}}&page={{page}}",
+  "ruleSearch": {
+    "checkKeyWord": "萌宝",
+    "bookList": ".book-card",
+    "name": "h3@text",
+    "bookUrl": "a.0@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": ".desc@h2@text",
+    "intro": ".desc@p@text",
+    "coverUrl": "img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".episode-item",
+    "chapterName": "text",
+    "chapterUrl": "data-video-id##^##https://ss.apps.dj/play.php?video_id=\n@js:`data:;base64,{{java.base64Encode(result)}},{\"type\":\"null\"}`"
+  },
+  "ruleContent": {
+    "content": "<js>\nresult=java.hexDecodeToString(result)\n$=java.get(result,{}).headers();\nu = $.Location||$.location;\nif(book.durChapterIndex == chapter.index) {\njava.startBrowser(`data:text/html;charset=utf-8,<html><title>${chapter.title}</title><style>body {background-color: black;} video {position: fixed; top: 0; left: 0; width: 100%; height: 100%;}</style><body><video controls><source src=\"${u}\" type=\"video/mp4\"></video></body></html>`, chapter.title)\n    java.toast('正在加载视频\\n请耐心等待')\n    '【刷新正文】播放\\n直链:\\n' + u}\n</js>"
+  }
+}

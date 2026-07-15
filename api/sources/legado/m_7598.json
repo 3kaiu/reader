@@ -1,0 +1,42 @@
+{
+  "bookSourceUrl": "https://m.bqgcn.com/",
+  "bookSourceName": "冰清小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 156,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772086618819,
+  "respondTime": 180000,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "@js:\nvar html = java.ajax(source.key);\nvar token = html.match(/name=\"_token\" value=\"(.+?)\"/);  \ntoken = token ? token[1] : null;\njava.log(token);\n\nvar body = `_token=${token}&kw=${key}&action=login`;\nvar option = { \n  \"charset\": \"utf-8\",\n  \"method\": \"POST\",\n  \"body\": body\n};\nsource.key + \"search,\" + JSON.stringify(option);",
+  "ruleSearch": {
+    "bookList": ".lis li",
+    "name": "a@text",
+    "author": ".s3@text",
+    "kind": ".s1@text##\\[|\\]",
+    "bookUrl": "a@href",
+    "coverUrl": "a@href##(\\d+)_(\\d+)/##http://img.bqgcn.com/$1/$2/$2s.jpg"
+  },
+  "ruleBookInfo": {
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "author": "[property=\"og:novel:author\"]@content",
+    "intro": "[property=\"og:novel:update_time\"]@content&&\n[property=\"og:description\"]@content@js:'更新时间：'+result",
+    "kind": "[property~=category|status|tags]@content",
+    "lastChapter": "[property~=las?test_chapter_name]@content",
+    "coverUrl": "[property=\"og:image\"]@content"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter[1]@a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "nextTocUrl": "option@value"
+  },
+  "ruleContent": {
+    "content": "#nr1@p@text",
+    "nextContentUrl": "script@html##(http[^\"]+page[^\"]+)##$1###",
+    "replaceRegex": "##.*牢记网址:.*|本章未完.*"
+  }
+}

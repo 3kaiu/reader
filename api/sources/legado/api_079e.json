@@ -1,0 +1,31 @@
+{
+  "bookSourceUrl": "https://api.fanjiao.co/",
+  "bookSourceName": "饭角有声（优）",
+  "bookSourceGroup": "听书 书源",
+  "bookSourceType": 1,
+  "customOrder": 288,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1765999991682,
+  "respondTime": 756,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "<js>\nbody = \"keyword=\"+key+\"&page=\"+page+\"&size=20&type=2\";\nurl = \"https://api.fanjiao.co/walkman/api/search/keyword?\"+body;\nsign = java.md5Encode(body+\"879f30c4b1641142c6192acc23cfb733\")\nheaders = \n\t{\"headers\":{\"signature\":String(sign)}}\nurl+\",\"+JSON.stringify(headers)\n</js>",
+  "ruleSearch": {
+    "bookList": "$.data.list[*]",
+    "name": "$.name",
+    "intro": "$.description",
+    "bookUrl": "<js>\nbody = \"album_id={{$.album_id}}\";\nurl = \"https://api.fanjiao.co/walkman/api/album/audio?\"+body;\nsign = java.md5Encode(body+\"879f30c4b1641142c6192acc23cfb733\")\nheaders = \n\t{\"headers\":{\"signature\":String(sign)}}\nurl+\",\"+JSON.stringify(headers)\n</js>",
+    "coverUrl": "$.cover"
+  },
+  "ruleBookInfo": {
+    "name": "book.name"
+  },
+  "ruleToc": {
+    "chapterList": "$..audios_list[*]",
+    "chapterName": "$.name",
+    "chapterUrl": "$.src"
+  },
+  "ruleContent": {}
+}

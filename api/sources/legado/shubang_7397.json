@@ -1,0 +1,37 @@
+{
+  "bookSourceUrl": "http://www.shubang.net/book#",
+  "bookSourceName": "双语小说（英）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 224,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "英文",
+  "lastUpdateTime": 1759754331076,
+  "respondTime": 508,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "http://www.shubang.net/book/?q={{key}}",
+  "ruleSearch": {
+    "bookList": "class.mcon@a",
+    "name": "h3@text",
+    "author": "class.cont@p@text",
+    "intro": "class.cont@ownText",
+    "bookUrl": "a@href",
+    "coverUrl": "class.cover@img@src"
+  },
+  "ruleBookInfo": {
+    "kind": "class.tags@a@text",
+    "lastChapter": "tr.-1@td@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "tr@td",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": ".line_en@text%%.line_cn@title",
+    "nextContentUrl": "class.pagebar@a.-1@href"
+  }
+}

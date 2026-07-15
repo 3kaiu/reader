@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "http://www.rulianshi.org/#pb1101",
+  "bookSourceName": "殓师灵异（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 170,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759386366650,
+  "respondTime": 1353,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "http://www.rulianshi.org/s.php?ie=utf-8&q={{key}}",
+  "ruleSearch": {
+    "bookList": "class.bookbox",
+    "name": "h4@a@text",
+    "author": "class.author@text",
+    "lastChapter": "class.update@a@text",
+    "bookUrl": "h4@a@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "class.info@h2@text",
+    "author": "class.info@class.small@tag.span.0@text",
+    "intro": "class.info@ownText",
+    "kind": "class.info@class.small@tag.span.4@text&&\nclass.info@class.small@tag.span.1@text&&\nclass.info@class.small@tag.span.2@text##分类：|状态：|更新时间：",
+    "lastChapter": "class.info@class.small@tag.span.5@a@text",
+    "coverUrl": "class.cover@img@src",
+    "wordCount": "class.info@class.small@tag.span.3@text##字数："
+  },
+  "ruleToc": {
+    "chapterList": "class.listmain@dd",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": "id.content@html##http.*html|请记住本书首发.*org",
+    "nextContentUrl": "text.下一页@href"
+  }
+}

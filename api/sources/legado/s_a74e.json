@@ -1,0 +1,37 @@
+{
+  "bookSourceUrl": "http://s.sfacg.com/",
+  "bookSourceName": "心轻小说",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 436,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759386833801,
+  "respondTime": 792,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "loginUrl": "http://passport.sfacg.com/Login.aspx",
+  "ruleExplore": {},
+  "searchUrl": "http://s.sfacg.com/?Key={{key}}&S=1&SS=0",
+  "ruleSearch": {
+    "bookList": "tag.form@tag.table.-2@tag.ul",
+    "name": "tag.a@text",
+    "author": "tag.li.1@text##.+综合信息：\\s*([^\\/]+).*##$1",
+    "intro": "tag.li.1@text##.+\\d+:\\d+\\s*(.+).*##$1",
+    "lastChapter": "tag.li.1@text##.+\\/(\\d+\\/\\d+\\/\\d+).*##$1",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "tag.img@src"
+  },
+  "ruleBookInfo": {
+    "kind": "class.tag-list@class.text@text",
+    "tocUrl": "text.点击阅读@href"
+  },
+  "ruleToc": {
+    "chapterList": "class.catalog-list@tag.ul@tag.li@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "class.article-content font16@html"
+  }
+}

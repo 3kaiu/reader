@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://www.wikipedia.org/",
+  "bookSourceName": "Wikipedia（知识+书籍背景）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://en.wikipedia.org/w/api.php?action=opensearch&search={{key}}&limit=10&format=json",
+  "ruleSearch": {
+    "bookList": "$.1[*]",
+    "name": "",
+    "bookUrl": "$.3[*]"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "bookSourceUrl": "https://www.mangacopy.com/",
+  "bookSourceName": "拷贝漫画（优++）",
+  "bookSourceGroup": "漫画 书源",
+  "bookSourceType": 0,
+  "customOrder": 225,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "//By情无羁25.04.09 使用需要魔法",
+  "lastUpdateTime": 1759431612400,
+  "respondTime": 4161,
+  "weight": 0,
+  "header": "@js:\nJSON.stringify({\n\"platform\":\"1\",\n\"version\":\"9.9.9\",\n\"Accept-Language\": \"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7\",\r\n\"Accept\": \"application/json\",\n\"referer\":baseUrl\n})",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "https://api.mangacopy.com/api/v3/search/comic?platform=1&q={{key}}&limit=20&offset={{20*(page-1)}}&q_type=&_update=true",
+  "ruleSearch": {
+    "checkKeyWord": "登录武林系统",
+    "bookList": "<js>java.t2s(result)</js>\n$..list[*]",
+    "name": "$.name",
+    "author": "$.author##.*name=(.*?)\\,.*##$1",
+    "bookUrl": "https://api.mangacopy.com/api/v3/comic2/{{$.path_word}}?platform=1&_update=true",
+    "coverUrl": "$.cover"
+  },
+  "ruleBookInfo": {
+    "init": "<js>java.t2s(result)</js>\n$..comic",
+    "intro": "$..brief",
+    "kind": "{{$..display}},{{$..theme}}##.*?name\":\"(.*?)\".*?|\\,.*\\]##$1",
+    "lastChapter": "$..last_chapter##.*name=(.*?)\\W##$1",
+    "tocUrl": "https://api.mangacopy.com/api/v3/comic/{{$..path_word}}\n<js>\na=result.replace(/\\s.*/g,'').replace(/$/,'/group/default/chapters?limit=100&offset=0')\na\n</js>"
+  },
+  "ruleToc": {
+    "chapterList": "$..list[*]",
+    "chapterName": "name",
+    "chapterUrl": "https://api.mangacopy.com/api/v3/comic/{{$.comic_path_word}}/chapter2/{{$.uuid}}?in_mainland=true&platform=1",
+    "nextTocUrl": "$..count\n<js>\na=String(result[0]);\nb= Math.floor(parseFloat(a.replace(/\\s/,''))/100);\nb=b+1\nlist=[];\nfor(i=0;i<=b;i++){\n\tlist.push(baseUrl.replace(/offset=0/,'offset='+100*i))\n\t}list\n</js>"
+  },
+  "ruleContent": {
+    "content": "$..url\n<js>\nresult.split(\"\\n\").map(x=>'<img src=\"'+x+'\">').join(\"\\n\")\n</js>",
+    "imageStyle": "FULL"
+  }
+}

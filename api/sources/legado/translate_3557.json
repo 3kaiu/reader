@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://translate.google.com/",
+  "bookSourceName": "翻译入口（Google Translate Web）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": false,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://translate.google.com/?sl=en&tl=zh-CN&text={{key}}",
+  "ruleSearch": {
+    "bookList": "html",
+    "name": "",
+    "bookUrl": ""
+  }
+}

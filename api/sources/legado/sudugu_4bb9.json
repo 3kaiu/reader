@@ -1,0 +1,58 @@
+{
+  "bookSourceUrl": "https://www.sudugu.org",
+  "bookSourceName": "速读谷吧（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 153,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772086280887,
+  "respondTime": 15017,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"}",
+  "enabledCookieJar": true,
+  "concurrentRate": "3",
+  "exploreUrl": "[{\"title\":\"玄幻小说\",\"url\":\"/xuanhuan/\"}, {\"title\":\"仙侠小说\",\"url\":\"/xianxia/\"}, {\"title\":\"都市小说\",\"url\":\"/dushi/\"}, {\"title\":\"历史小说\",\"url\":\"/lishi/\"}, {\"title\":\"军事小说\",\"url\":\"/junshi/\"}, {\"title\":\"科幻小说\",\"url\":\"/kehuan/\"}, {\"title\":\"言情小说\",\"url\":\"/yanqing/\"}]",
+  "ruleExplore": {
+    "bookList": "class.item",
+    "name": "tag.h3@tag.a@text",
+    "author": "tag.p.1@tag.a@text##作者：",
+    "kind": "tag.p.0@tag.span.1@text",
+    "lastChapter": "tag.ul@tag.li.0@tag.a@text",
+    "bookUrl": "tag.h3@tag.a@href",
+    "coverUrl": "tag.img@src"
+  },
+  "searchUrl": "https://www.sudugu.org/i/sor.aspx?key={{key}}",
+  "ruleSearch": {
+    "checkKeyWord": "轮回乐园",
+    "bookList": "class.item",
+    "name": "tag.h3@tag.a@text",
+    "author": "tag.p.1@tag.a@text##作者：",
+    "kind": "tag.p.0@tag.span.1@text",
+    "lastChapter": "tag.ul@tag.li.0@tag.a@text",
+    "bookUrl": "tag.h3@tag.a@href",
+    "coverUrl": "tag.img@src"
+  },
+  "ruleBookInfo": {
+    "name": "tag.h1@tag.a@text## -速读谷",
+    "author": "class.itemtxt@tag.p@tag.a@text",
+    "intro": "class.container@class.des bb@tag.p@text",
+    "kind": "class.itemtxt@tag.p.0@tag.span.1@text",
+    "lastChapter": "class.itemtxt@tag.li@tag.a@text##\n发错了\n第4143章 番外3",
+    "coverUrl": "class.item@tag.img@src",
+    "tocUrl": "{{baseUrl}}/#dir",
+    "wordCount": "class.itemtxt@tag.h1@tag.i@text",
+    "downloadUrls": "@put:{id:\"##/(\\\\d+)/##1\"}@js:result='https://www.sudugu.org/txt/?id='+result.id+'&p=1'"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href",
+    "isVip": "id.pages@tag.a@href",
+    "nextTocUrl": "@xpath://div[@class='pages bb']//a[contains(text(),'下一页')]/@href"
+  },
+  "ruleContent": {
+    "content": "class.con@html##<div.*?>|</div>",
+    "nextContentUrl": "@xpath://div[@class='prenext']//a[contains(text(),'下一页')]/@href"
+  }
+}

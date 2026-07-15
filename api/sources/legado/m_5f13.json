@@ -1,0 +1,40 @@
+{
+  "bookSourceUrl": "https://m.1kkk.com/",
+  "bookSourceName": "酸奶漫画",
+  "bookSourceGroup": "正版漫画 书源",
+  "bookSourceType": 2,
+  "customOrder": 449,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759431577449,
+  "respondTime": 3500,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://m.1kkk.com/search?title={{key}}&language=1",
+  "ruleSearch": {
+    "bookList": "ul.book-list@tag.li",
+    "name": "p.book-list-info-title@text",
+    "author": "tag.p.0@text",
+    "intro": "p.book-list-info-desc@text",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "tag.img@src"
+  },
+  "ruleBookInfo": {
+    "name": "p.detail-main-info-title@text",
+    "author": "p.detail-main-info-author@tag.a@text",
+    "intro": "p.detail-desc@text",
+    "kind": "p.detail-main-info-class@tag.a@text",
+    "lastChapter": "ul.detail-list-select@tag,li.0@text",
+    "coverUrl": "img.detail-main-bg@src"
+  },
+  "ruleToc": {
+    "chapterList": "ul.detail-list-select@li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href",
+    "isVip": "@js:var vip_bool = result.select('img').hasClass('detail-list-lock');\nif(!vip_bool){\nvip_bool = result.select('img').hasClass('detail-list-2-info-right');\n}\nvip_bool;"
+  },
+  "ruleContent": {
+    "content": "@js:header={\"Referer\":baseUrl};\nheaders={\"headers\":JSON.stringify(header)};\neval(result.match(/eval(.*?)\\{\\}\\)\\)/)[0])\nvar image_list = []\nnewImgs.map(item=>{\n    image_list.push('<img src=\"'+item+','+JSON.stringify(headers)+'\">')\n})\nimage_list.join(\"\\n\")"
+  }
+}

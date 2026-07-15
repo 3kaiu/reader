@@ -1,0 +1,42 @@
+{
+  "bookSourceUrl": "https://www.yanxuanwk.com#",
+  "bookSourceName": "盐选文库（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 74,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "知乎盐选免费看",
+  "lastUpdateTime": 1759387597160,
+  "respondTime": 3000,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "知乎盐选::https://www.yanxuanwk.com/topic/yanxuan/page/{{page}}/\n天涯神帖::https://www.yanxuanwk.com/topic/tianya/page/{{page}}/",
+  "ruleExplore": {
+    "bookList": "class.typology-posts@article",
+    "name": "a.0@text",
+    "intro": "p@text",
+    "kind": "a.2@text",
+    "bookUrl": "a.0@href"
+  },
+  "searchUrl": "https://www.yanxuanwk.com/?s={{key}}",
+  "ruleSearch": {
+    "bookList": "class.typology-posts@article",
+    "name": "a.0@text",
+    "intro": "p@text",
+    "kind": "a.2@text",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": "class.entry-header@h1@text",
+    "kind": "class.meta-item meta-category.0@a@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.entry-header@h1",
+    "chapterName": "text"
+  },
+  "ruleContent": {
+    "content": "class.entry-content clearfix@html",
+    "nextContentUrl": "class.typology-link-pages@a@href"
+  }
+}

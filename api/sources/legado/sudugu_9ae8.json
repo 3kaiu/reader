@@ -1,0 +1,47 @@
+{
+  "bookSourceUrl": "https://www.sudugu.org/",
+  "bookSourceName": "速读谷子（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https:\\/\\/www\\.sudugu\\.org\\/\\d+\\/",
+  "customOrder": 166,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772085730188,
+  "respondTime": 11495,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "@js:\nconst u = source.key, list = [];\nconst push = (title, url, flex) => list.push({title, url, style: {layout_flexGrow: 1, layout_flexBasisPercent: flex}});\nconst doc = org.jsoup.Jsoup.parse(java.ajax(u+\"fenlei\")).select('.fenlei a');\n[\n    [\"排行榜\", \"paihang\"],\n    [\"完结\", \"wanjie\"],\n    [\"最新\", \"zuixin\"]\n].forEach(([a, b]) => {\n    push(`・${a}・`, b + \"<,/{{page}}.html>\", 1);\n    doc.forEach(e => \n      push(\n        String(e.text()).split(\"(\")[0],\n        String(e.attr('href')).replace(/\\/([^\\/]+)\\/$/, b != \"zuixin\" ? `${b}/$1<,-{{page}}>.html`: `$1/<,{{page}}.html>`),\n        .25\n    ));\n});\nJSON.stringify(list);",
+  "ruleExplore": {},
+  "searchUrl": "i/sor.aspx?key={{key}}<,&p={{page}}>",
+  "ruleSearch": {
+    "bookList": ".item",
+    "name": "h3@a,b@text",
+    "author": "text.作者：@text",
+    "kind": "span@text&&i.1@text",
+    "lastChapter": "li.0@a@text",
+    "bookUrl": "a.0@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "h1@a@text",
+    "author": "text.作者：@text",
+    "intro": ".des.0@html",
+    "kind": ".item@span@text&&#dir@span@text##更新时间：",
+    "lastChapter": ".item@li.0@a@text",
+    "coverUrl": ".item@img@src",
+    "wordCount": "h1@i@text",
+    "canReName": "1"
+  },
+  "ruleToc": {
+    "chapterList": ".dir@li",
+    "chapterName": "text",
+    "chapterUrl": "a@href",
+    "nextTocUrl": ".gr@href"
+  },
+  "ruleContent": {
+    "content": ".con@html",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##\\(本章完\\)"
+  }
+}

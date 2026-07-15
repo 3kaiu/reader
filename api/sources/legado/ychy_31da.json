@@ -1,0 +1,54 @@
+{
+  "bookSourceUrl": "http://www.ychy.org",
+  "bookSourceName": "海洋听书（优）",
+  "bookSourceGroup": "听书 书源",
+  "bookSourceType": 1,
+  "bookUrlPattern": "http://www.ychy.com/book/\\d+.html",
+  "customOrder": 303,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: Timed out waiting for 60000 ms\n\nhttp://www.ychy.com\n",
+  "lastUpdateTime": 1759440911104,
+  "respondTime": 256916,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "盗墓探险::/list/45<,_{{page}}>.html\n官场刑侦::/list/14<,_{{page}}>.html\n网络玄幻::/list/52<,_{{page}}>.html\n历史军事::/list/15<,_{{page}}>.html\n人物传记::/list/16<,_{{page}}>.html\n儿童读物::/list/4<,_{{page}}>.html\n恐怖悬疑::/list/17<,_{{page}}>.html\n都市言情::/list/13<,_{{page}}>.html\n职场商战::/list/81<,_{{page}}>.html\n传统武侠::/list/12<,_{{page}}>.html\n相声戏曲::/list/7<,_{{page}}>.html\n百家讲坛::/list/32<,_{{page}}>.html\n经典评书::/list/3<,_{{page}}>.html\n 广 播 剧 ::/list/18<,_{{page}}>.html\n文艺戏曲::/list/53<,_{{page}}>.html",
+  "ruleExplore": {
+    "bookList": ".bx_channel_test",
+    "name": "tag.a@title",
+    "author": "tag.p.2@text",
+    "intro": "tag.p.3@text",
+    "lastChapter": "tag.p.0@text",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "img@src"
+  },
+  "searchUrl": "/so.asp,{\n  \"body\": \"searchword={{key}}&Submit=++\",\n  \"charset\": \"GB2312\",\n  \"method\": \"POST\"\n}",
+  "ruleSearch": {
+    "bookList": "class.ItemListbody@ul@li",
+    "name": "tag.span@text",
+    "author": "tag.dd.1@text",
+    "intro": "tag.dd.9@text",
+    "kind": "tag.dd.3@text&&tag.dd.7@text",
+    "lastChapter": "tag.dd.2@text",
+    "bookUrl": "tag.a.1@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": ".content_title@tag.h1@text##有声小说",
+    "author": ".content_center@tag.a.1@text",
+    "intro": ".txtbox@html",
+    "kind": ".content_center@tag.a.2@text",
+    "lastChapter": ".playlist@tag.a.-1@text",
+    "coverUrl": ".content_right img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".playlist li a",
+    "chapterName": "text",
+    "chapterUrl": "href##$##,{\"webView\":true}"
+  },
+  "ruleContent": {
+    "content": "<js>result</js>",
+    "sourceRegex": ".*\\.(mp3|m4a).*",
+    "imageStyle": "0"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "bookSourceUrl": "https://jyapi.jyacg.com#",
+  "bookSourceName": "鲸云轻说（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 115,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759387145094,
+  "respondTime": 2836,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "最新更新::/web/book_room?channel=0&tag=zxgx&page={{page}}&charge_type=&serial_status=\n人气最高::/web/book_room?channel=0&tag=rqzg&page={{page}}&charge_type=&serial_status=\n人气最高::/web/book_room?channel=0&tag=rqzg&page={{page}}&charge_type=&serial_status=\n收藏最高::/web/book_room?channel=0&tag=sczd&page={{page}}&charge_type=&serial_status=\n收藏最高::/web/book_room?channel=0&tag=ypzg&page={{page}}&charge_type=&serial_status=\n打赏最多::/web/book_room?channel=0&tag=xlzg&page={{page}}&charge_type=&serial_status=",
+  "ruleExplore": {},
+  "searchUrl": "/web/search?name={{key}}&page={{page}}&type=1",
+  "ruleSearch": {
+    "bookList": "data",
+    "name": "name",
+    "author": "author",
+    "intro": "intro",
+    "kind": "labels.name&&serial_status",
+    "lastChapter": "<js>java.ajax('https://jyapi.jyacg.com/web/books/detail?id={{$.id}}')</js>data.new_section&&data.new_seciton_time##\\n##·",
+    "bookUrl": "/web/books/detail?id={{$.id}}",
+    "coverUrl": "cover_image",
+    "wordCount": "{{$.total_words}}万字"
+  },
+  "ruleBookInfo": {
+    "init": "data",
+    "name": "name@put:{bid:id}",
+    "author": "author",
+    "intro": "intro",
+    "kind": "book_label##/##,",
+    "lastChapter": "new_section&&new_seciton_time##\\n##·",
+    "coverUrl": "cover_image",
+    "tocUrl": "/web/books/directory?books_id={{$.id}}",
+    "wordCount": "{{$.total_words}}万字"
+  },
+  "ruleToc": {
+    "chapterList": "data[*].directory[*]",
+    "chapterName": "title",
+    "chapterUrl": "/web/books/read?page={{$.page}}&books_id=@get:{bid}"
+  },
+  "ruleContent": {
+    "content": "data.content##o:"
+  }
+}

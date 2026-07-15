@@ -1,0 +1,47 @@
+{
+  "bookSourceUrl": "http://www.guishiji.com/",
+  "bookSourceName": "鬼故事集（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 73,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "//250424by= =",
+  "lastUpdateTime": 1759513060976,
+  "respondTime": 956,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "exploreUrl": "小说频道::/html/rmxs/xspd/index_{{page}}.html\n                           最新                           ::\n短篇怪谈::/html/dpggs/\n长篇鬼话::/html/cpggs/\n校园诡事::/html/xyggs/\n医院夜谈::/html/yyggs/\n民间异闻::/html/mjggs/\n家有鬼事::/html/jlggs/\n灵异实录::/html/zslysj/\n                           全部                           ::\n短篇怪谈::/html/dpggs/index_{{page}}.html\n长篇鬼话::/html/cpggs/index_{{page}}.html\n校园诡事::/html/xyggs/index_{{page}}.html\n医院夜谈::/html/yyggs/index_{{page}}.html\n民间异闻::/html/mjggs/index_{{page}}.html\n家有鬼事::/html/jlggs/index_{{page}}.html\n灵异实录::/html/zslysj/index_{{page}}.html",
+  "ruleExplore": {
+    "bookList": "article",
+    "name": "a.0@title||h2@text",
+    "intro": ".umInfo@text||.intro@text",
+    "kind": ".ceta@a@title",
+    "lastChapter": ".date@font@text",
+    "bookUrl": "a.0@href",
+    "coverUrl": "img@src"
+  },
+  "ruleSearch": {
+    "bookList": ".item",
+    "name": "a.0@text",
+    "author": "a[href*=author]@text",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": "h1@text",
+    "author": "text.作者@text##作者：|\\s.*",
+    "intro": ".desc@html",
+    "kind": ".fot@span!0:1@text",
+    "wordCount": "text.字数@text##字数："
+  },
+  "ruleToc": {
+    "chapterList": "<js>\n//MjUwNDI0Ynk9ID0=\na=java.getElements(\".txt-list@li@a\")\nif(a.length==0){\n\tlist=[{text:\"第1页\",href:baseUrl}]\n\t}\n</js>",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "nextTocUrl": ".next@href"
+  },
+  "ruleContent": {
+    "content": "#MyContent@html||p@text",
+    "replaceRegex": "##部分文章源自.*|如果您有故事想与.*"
+  }
+}

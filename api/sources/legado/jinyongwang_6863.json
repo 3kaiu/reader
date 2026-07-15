@@ -1,0 +1,48 @@
+{
+  "bookSourceUrl": "https://www.jinyongwang.net",
+  "bookSourceName": "金庸小说（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 70,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 搜索失效",
+  "lastUpdateTime": 1766456412823,
+  "respondTime": 182861,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "[{\"title\":\"金庸作品\",\"url\":\"/book/\",\"style\":{\"layout_flexGrow\":1}}]",
+  "ruleExplore": {
+    "bookList": "class.list.3@li",
+    "name": "a.1@text##小说",
+    "author": "p.-1@text##.*年|\\/.*",
+    "kind": "p.-1@text##金庸.*",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src"
+  },
+  "searchUrl": "/search/{{key}}/",
+  "ruleSearch": {
+    "checkKeyWord": "雪山",
+    "bookList": ".article_li",
+    "name": "a.0@text",
+    "intro": "p.0@text##\\s",
+    "kind": "a.1@text&&span@text",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": ".title span@text##小说",
+    "author": ".author a@text",
+    "kind": ".title h1@text&&.time@text##.*小说|出版时间.|出版社.",
+    "lastChapter": ".mlist a.-1@text",
+    "coverUrl": ".bookimg img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".mlist li@a||h1",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "#vcon@p@html||#con@html",
+    "imageStyle": "0"
+  }
+}

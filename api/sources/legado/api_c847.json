@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "http://api.doufu.me",
+  "bookSourceName": "豆腐阅读",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 385,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1765832422498,
+  "respondTime": 1858,
+  "weight": 0,
+  "header": "{\n  \"Cookie\": \"wh=1080*2120; uid=7383010; os=Android-10; av=7.1.0; ch=tencent; md=Mi 10; cskey=90b881a0908991; skey=5f00e564e3ede8.21979201; aid=3; xx=0\"\n}",
+  "enabledCookieJar": false,
+  "loginUrl": "http://api.doufu.me/member/user_login",
+  "ruleExplore": {},
+  "searchUrl": "http://api.doufu.me/search/content?keyword={{key}}&start=0&rows=20&types=18&order=&is_finished=&vip=",
+  "ruleSearch": {
+    "bookList": "$.data[*]",
+    "name": "$.title",
+    "author": "$.author",
+    "intro": "$.des",
+    "kind": "$.tags[0].name&&$.tags[2].name&&$.tags[1].name&&$.tags[3].name",
+    "bookUrl": "http://api.doufu.me/topic/novel?topic_id={$.id}",
+    "coverUrl": "$.images[0].path"
+  },
+  "ruleBookInfo": {
+    "name": "$.data.topic.title",
+    "author": "$.data.topic.author",
+    "kind": "$.tags[0].name&&$.tags[2].name&&$.tags[1].name&&$.tags[3].name",
+    "coverUrl": "$.images[0].path",
+    "tocUrl": "http://api.doufu.me/index.php/novel/chapter_list?novel_id={$.data.topic.id}"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.list",
+    "chapterName": "$.title",
+    "chapterUrl": "http://api.doufu.me/index.php/post/view/{$.id}?with_ids=1&type=read",
+    "isVip": "$.vip",
+    "updateTime": "$.add_time"
+  },
+  "ruleContent": {
+    "content": "$.data.detail.des"
+  }
+}

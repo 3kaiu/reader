@@ -1,0 +1,39 @@
+{
+  "bookSourceUrl": "http://fuciyuanbang.ciyuans.com",
+  "bookSourceName": "潇社音乐（优+）",
+  "bookSourceGroup": "音乐 书源",
+  "bookSourceType": 1,
+  "customOrder": 309,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "\n备用接口：http://zhuan.djduoduo.cn",
+  "lastUpdateTime": 1759436557044,
+  "respondTime": 503,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "exploreUrl": "[{\"title\":\"推荐\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusichotlist&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"流行\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=liuxing&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"片段\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=pianduan&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"英文\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=yingwen&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"纯音\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=chunyinyue&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"广播剧\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=guangbo&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"古风\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=gufeng&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"最新\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusicrecentlistv&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"日系\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=rixi&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},\n{\"title\":\"电音\",\"url\":\"/fuciyuanphp/getmusiclist.php?act=getmusictaglist&tag=dianzi&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=9&loginuid=0\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}}]",
+  "ruleExplore": {},
+  "searchUrl": "/fuciyuanphp/search.php?act=search&type=music&key={{key}}&pagenum={{page}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=0&loginuid=0",
+  "ruleSearch": {
+    "bookList": "result.list",
+    "name": "title",
+    "author": "uname",
+    "intro": "des",
+    "kind": "pubtime",
+    "lastChapter": "@js:java.put('json',JSON.stringify(result));''",
+    "bookUrl": "/fuciyuanphp/getmusiclist.php?act=getmusiclyric&musicid={{$.id}}&plat=ar&ver=1.5.7.0&did=&sid=&channel=vivo&app=FuCiYuan&source=kon&iscover=false&forb=0&newu=1&appt=0&loginuid=0",
+    "coverUrl": "thumb",
+    "wordCount": "♡ {{$.prefer}}"
+  },
+  "ruleBookInfo": {
+    "init": "result",
+    "intro": "@js:`<p>{{book.intro}}</p>\\n&lrm;<p>{{$.3||$.tag}}</p>`"
+  },
+  "ruleToc": {
+    "chapterList": "@js:[java.get('json')]",
+    "chapterName": "title",
+    "chapterUrl": "url",
+    "updateTime": "artist"
+  },
+  "ruleContent": {}
+}

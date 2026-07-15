@@ -1,0 +1,47 @@
+{
+  "bookSourceUrl": "https://m.fx361.com/",
+  "bookSourceName": "过期杂志（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https://m.fx361.com/bk/\\w+/",
+  "customOrder": 130,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 发现目录失效\n\n2024.5.8\n看杂志\nby墨殇",
+  "lastUpdateTime": 1759350041524,
+  "respondTime": 187147,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "[{\"title\":\"时政综合\",\"url\":\"/bk/szzh.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1.00}},{\"title\":\"文学小说\",\"url\":\"/bk/wxxs.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"文摘文萃\",\"url\":\"/bk/wzwc.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"娱乐时尚\",\"url\":\"/bk/ylss.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"商业财经\",\"url\":\"/bk/sycj.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"人文科普\",\"url\":\"/bk/rwkp.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"环球时报\",\"url\":\"/bk/hqsb/\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"学生必读\",\"url\":\"/bk/xsbd.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"家庭养生\",\"url\":\"/bk/jtys.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"旅游美食\",\"url\":\"/bk/lyms.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"摄影数码\",\"url\":\"/bk/sysm.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"艺术收藏\",\"url\":\"/bk/yssc.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"农业乡村\",\"url\":\"/bk/nyxc.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"文化综合\",\"url\":\"/bk/whzh.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"职场理财\",\"url\":\"/bk/zclc.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"学术\",\"url\":\"/bk/xs.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"军事\",\"url\":\"/bk/js.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"体育\",\"url\":\"/bk/tiyu.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"汽车\",\"url\":\"/bk/qc.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}}]",
+  "ruleExplore": {
+    "bookList": "ul li",
+    "name": "strong.0@text",
+    "intro": "span.0@text",
+    "kind": "span.0@text",
+    "bookUrl": "a@href",
+    "coverUrl": "img@data-original"
+  },
+  "searchUrl": "https://m.fx361.com/search/index.html?keyword={{key}},{\"webView\": true}",
+  "ruleSearch": {
+    "checkKeyWord": "雪莲",
+    "bookList": "ul li",
+    "name": ".ar_title@text",
+    "author": ".s1@text",
+    "kind": ".s2@text",
+    "bookUrl": "a@href"
+  },
+  "ruleBookInfo": {
+    "name": "strong.0@text||.bt@text",
+    "author": "span.2@text||span.0@text||.f_z_b@text",
+    "intro": "🐾更新时间： {{@@.sj span.0@text}}{{@@span.1@text}}\n{{@@.sj span.1@text}}",
+    "kind": ".sj span.0@text"
+  },
+  "ruleToc": {
+    "chapterList": "h3.0||ul li a",
+    "chapterName": "p.-1@text||text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": ".wz_content@html"
+  }
+}

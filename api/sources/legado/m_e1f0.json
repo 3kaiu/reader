@@ -1,0 +1,48 @@
+{
+  "bookSourceUrl": "https://m.bqgcn.net",
+  "bookSourceName": "笔趣小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https?://m.bqgcn.net/[\\d_]+/",
+  "customOrder": 190,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "//正文下页修复 by: 游客",
+  "lastUpdateTime": 1759348482044,
+  "respondTime": 11316,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9; MIX 2 Build/PKQ1.190118.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/80.0.3987.99 Mobile Safari/537.36\"}",
+  "enabledCookieJar": true,
+  "exploreUrl": "玄幻::/xuanhuanxiaoshuo/<,?page={{page}}>\n仙侠::/xiuzhenxiaoshuo/<,?page={{page}}>\n都市::/dushixiaoshuo/<,?page={{page}}>\n历史::/lishixiaoshuo/<,?page={{page}}>\n网游::/wangyouxiaoshuo/<,?page={{page}}>\n科幻::/kehuanxiaoshuo/<,?page={{page}}>\n恐怖::/kongbuxiaoshuo/<,?page={{page}}>\n全本::/wanben/<,?page={{page}}>\n阅读记录::/bookcase/<,?page={{page}}>",
+  "ruleExplore": {},
+  "searchUrl": "/search\n@js:\nvar html = java.ajax(baseUrl),\ntoken = org.jsoup.Jsoup.parse(html).\nselect('input[name=_token]').attr('value');\nbody = `kw=${key}<,&page=${page}>&_token=${token}`;\nresult + \",\" + \n\tJSON.stringify({\n  \"body\": String(body),\n  \"method\": \"POST\"\n});",
+  "ruleSearch": {
+    "checkKeyWord": "剑来",
+    "bookList": ".lis dl",
+    "name": "a@text",
+    "author": ".s3@text",
+    "kind": ".s1@text##\\[|\\]",
+    "bookUrl": "a@href",
+    "coverUrl": "a@href##(\\d+)_(\\d+)##http://img.bqgcn.com/$1/$2/$2s.jpg###"
+  },
+  "ruleBookInfo": {
+    "init": "@put:{n:\"[property$=book_name]@content\",\na:\"[property$=author]@content\",\nk:\"[property~=category|status|update_time]@content\",\nl:\"[property~=las?test_chapter_name]@content\",\ni:\"[property$=description]@content\",\nc:\"[property$=image]@content\"}",
+    "name": "@get:{n}",
+    "author": "@get:{a}",
+    "intro": "@get:{i}##简介：|《.*》推荐！",
+    "kind": "@get:{k}",
+    "lastChapter": "@get:{l}",
+    "coverUrl": "@get:{c}"
+  },
+  "ruleToc": {
+    "chapterList": "ul.chapter.1@li a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "nextTocUrl": "option@value||text.下一页@href"
+  },
+  "ruleContent": {
+    "content": "#nr1.content-div@html",
+    "nextContentUrl": "text.下一页@class\n@js:\nif(result){\n\tnext = src.match(/eval(.function.*)/)||[];\n var url = next && eval(next[1]);\n //java.log(url)\n url && eval(url.replace(/var/,\"\"))\n\t}",
+    "replaceRegex": "##\\s*本章未完.*\\s*|\\s*.*牢记网址.*\\s*"
+  }
+}

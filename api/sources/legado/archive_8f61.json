@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://archive.org/",
+  "bookSourceName": "Internet Archive（电子书库PDF/EPUB）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://archive.org/advancedsearch.php?q={{key}}&output=json&rows=20",
+  "ruleSearch": {
+    "bookList": "$.response.docs[*]",
+    "name": "title",
+    "bookUrl": "identifier"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://www.gutenberg.org/",
+  "bookSourceName": "Project Gutenberg（经典英文小说）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://www.gutenberg.org/ebooks/search/?query={{key}}",
+  "ruleSearch": {
+    "bookList": "//li[@class='booklink']",
+    "name": ".//span[@class='title']/text()",
+    "bookUrl": ".//a/@href"
+  }
+}

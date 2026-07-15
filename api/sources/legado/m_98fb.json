@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "https://m.libahao.com",
+  "bookSourceName": "篱笆文学（优+++）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https://m.libahao.com/book/.+",
+  "customOrder": 7,
+  "enabled": true,
+  "enabledExplore": false,
+  "bookSourceComment": "// Error: stream was reset: PROTOCOL_ERROR",
+  "lastUpdateTime": 1772086876606,
+  "respondTime": 184112,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://m.libahao.com/sou?wd={{key}}",
+  "ruleSearch": {
+    "bookList": ".book-item",
+    "name": ".book-title@text",
+    "author": ".book-author@text",
+    "intro": ".book-description@text",
+    "bookUrl": "href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "[property=\"og:novel:book_name\"]@content",
+    "author": "[property=\"og:novel:author\"]@content",
+    "intro": "[property=\"og:description\"]@content",
+    "kind": "[property～=category|status|update_time]@content",
+    "lastChapter": "[property~=las?test_chapter_name]@content",
+    "coverUrl": "img@src",
+    "tocUrl": "[property=\"og:novel:read_url\"]@content"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter-list.1@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": ".chapter-content@html",
+    "nextContentUrl": "text.下一页@href"
+  }
+}

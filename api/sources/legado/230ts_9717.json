@@ -1,0 +1,46 @@
+{
+  "bookSourceUrl": "https://www.230ts.net/",
+  "bookSourceName": "爱上听书（优）",
+  "bookSourceGroup": "听书 书源",
+  "bookSourceType": 1,
+  "bookUrlPattern": "http://www.23ts.com/tingshu/\\d+",
+  "customOrder": 305,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "仅发现",
+  "lastUpdateTime": 1759513963830,
+  "respondTime": 188395,
+  "weight": 0,
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.73 Safari/537.36\"\n}",
+  "enabledCookieJar": false,
+  "exploreUrl": "玄幻有声::/sort/xuanhuan/{{page}}.html\n灵异有声::/sort/lingyi/{{page}}.html\n都市有声::/sort/dushi/{{page}}.html\n军事有声::/sort/junshi/{{page}}.html\n职场有声::/sort/tongren/{{page}}.html\n网游竞技::/sort/jingji/{{page}}.html\n长篇短评::/sort/pingshu/{{page}}.html",
+  "ruleExplore": {},
+  "searchUrl": "https://www.230ts.net/search.html?searchtype=name&searchword={{key}}&page={{page}}",
+  "ruleSearch": {
+    "bookList": "class.list-works@li",
+    "name": "class.list-book-dt@a@text",
+    "author": "class.list-book-cs@tag.span.1@text##演播：",
+    "intro": "class.list-book-des@text",
+    "kind": "class.list-book-cs@tag.span.0@text&&\nclass.list-book-cs@tag.span.3@text",
+    "lastChapter": "class.list-book-cs@tag.span.2@a@text",
+    "bookUrl": "class.list-book-dt@tag.a@href",
+    "coverUrl": "img@data-original"
+  },
+  "ruleBookInfo": {
+    "name": "class.book-info@tag.dt@h1@text##有声小说",
+    "author": "class.book-info@tag.dd.3@text##演播：",
+    "intro": "class.book-des@text",
+    "kind": "class.book-info@tag.dd.1@a@text&&\nclass.book-info@tag.dd.2@a@text&&\nclass.book-info@tag.dd.5@text##时间：",
+    "lastChapter": "class.book-info@tag.dd.4@text##状态：|更至",
+    "coverUrl": "class.book-img@img@src"
+  },
+  "ruleToc": {
+    "chapterList": "class.playlist@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href@js:'https://www.230ts.net'+result+',{webView:“true”}'"
+  },
+  "ruleContent": {
+    "content": "<js>result</js>",
+    "sourceRegex": ".*\\.(mp3|m4a).*"
+  }
+}

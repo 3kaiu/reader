@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "https://novelnext.net",
+  "bookSourceName": "全英文学（英）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 220,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766358915921,
+  "respondTime": 17723,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://novelnext.net/search?keyword={{key}}&page={{page}}",
+  "ruleSearch": {
+    "checkKeyWord": "I",
+    "bookList": "@XPath://div[@class='row' and position()>1]",
+    "name": "@XPath:div[2]/div/h3/a/@title",
+    "author": "@XPath:div[2]/div/span[2]/text()",
+    "lastChapter": "@XPath:div[3]/div/a/@title",
+    "bookUrl": "@XPath:div[2]/div/h3/a/@href",
+    "coverUrl": "@XPath:div[1]/div/img/@src"
+  },
+  "ruleBookInfo": {
+    "name": "@XPath://h3[@class='title'][1]/text()",
+    "author": "@XPath://ul[@class='info info-meta']/li[1]/a/text()",
+    "intro": "@XPath://div[@class='desc-text' and @itemprop='description']/text()",
+    "kind": "@XPath://ul[@class='info info-meta']/li[2]/a/text()",
+    "lastChapter": "@XPath://div[@class='item-value']/a/text()",
+    "coverUrl": "@XPath://img[@class='lazy']/@data-src"
+  },
+  "ruleToc": {
+    "chapterList": "@XPath://ul[@class='list-chapter']/li/a",
+    "chapterName": "@title",
+    "chapterUrl": "@href",
+    "nextTocUrl": "@XPath://li[@class='next']/a/@href"
+  },
+  "ruleContent": {
+    "content": "@XPath://div[@id='chapter-content']/p/text()"
+  }
+}

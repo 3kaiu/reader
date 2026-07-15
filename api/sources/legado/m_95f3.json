@@ -1,0 +1,46 @@
+{
+  "bookSourceUrl": "https://m.qbxsba.com",
+  "bookSourceName": "全本小说（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 88,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 都是老书",
+  "lastUpdateTime": 1766359167112,
+  "respondTime": 184734,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "exploreUrl": "玄幻魔幻::https://m.qbxsba.com/category-1-{{page}}/\n都市娱乐::https://m.qbxsba.com/category-2-{{page}}/\n仙侠武侠::https://m.qbxsba.com/category-3-{{page}}/\n历史军事::https://m.qbxsba.com/category-4-{{page}}/\n女频言情::https://m.qbxsba.com/category-5-{{page}}/\n游戏竞技::https://m.qbxsba.com/category-6-{{page}}/\n科幻灵异::https://m.qbxsba.com/category-7-{{page}}/\n综合其他::https://m.qbxsba.com/category-8-{{page}}/\n全部小说::https://m.qbxsba.com/category-0-{{page}}/",
+  "ruleExplore": {
+    "bookList": "class.cover@p",
+    "name": "a.0@text",
+    "author": "a.1@text",
+    "bookUrl": "a.0@href"
+  },
+  "searchUrl": "/modules/article/search.php,{\n  \"body\": \"searchkey={{key}}&action=login&searchtype=all\",\n  \"charset\": \"UTF-8\",\n  \"method\": \"POST\"\n}",
+  "ruleSearch": {
+    "checkKeyWord": "我的",
+    "bookList": "class.cover@p",
+    "name": "a.1@text",
+    "author": "a.2@text",
+    "kind": "a.0@text##\\[|\\]",
+    "bookUrl": "a.1@href"
+  },
+  "ruleBookInfo": {
+    "intro": "class.intro_info@text",
+    "lastChapter": "class.block_txt2@p.6@a@text",
+    "coverUrl": "class.block_img2@img@src"
+  },
+  "ruleToc": {
+    "chapterList": "class.chapter@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "nextTocUrl": "id.pagelink@a.11@href"
+  },
+  "ruleContent": {
+    "content": "id.nr1@html",
+    "nextContentUrl": "text.下一页@href",
+    "replaceRegex": "##本章未完.*"
+  }
+}

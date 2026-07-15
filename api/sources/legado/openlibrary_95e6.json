@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://openlibrary.org/",
+  "bookSourceName": "Open Library（全球图书馆索引）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://openlibrary.org/search.json?q={{key}}",
+  "ruleSearch": {
+    "bookList": "$.docs[*]",
+    "name": "title",
+    "bookUrl": "key"
+  }
+}

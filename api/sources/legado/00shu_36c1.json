@@ -1,0 +1,52 @@
+{
+  "bookSourceUrl": "https://www.00shu.la",
+  "bookSourceName": "零零小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 163,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772085545601,
+  "respondTime": 2175,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "玄幻奇幻::/xuanhuan/{{page}}/\n武侠仙侠::/wuxia/{{page}}/\n都市言情::/dushi/{{page}}/\n历史军事::/lishi/{{page}}/\n游戏竞技::/youxi/{{page}}/\n科幻灵异::/kehuan/{{page}}/",
+  "ruleExplore": {
+    "bookList": ".l@li",
+    "name": "a.0@text",
+    "author": ".s5@text",
+    "kind": ".s3@textNodes##\\(|\\)",
+    "lastChapter": "a.1@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>"
+  },
+  "searchUrl": "/modules/article/search.php?q={{key}}",
+  "ruleSearch": {
+    "bookList": "tbody@tr!0",
+    "name": "a.0@text",
+    "author": "td.2@text",
+    "kind": "td.5:4@text",
+    "lastChapter": "a.1@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
+    "wordCount": "td.3@text"
+  },
+  "ruleBookInfo": {
+    "name": "id.info@h1@text",
+    "author": "id.info@p.0@text",
+    "intro": "id.intro@p!0@text##(^|[。！？]+[”」）】]?)##$1<br>@js:result.replace(/各位书友要.*/g,\"\")",
+    "kind": ".con_top@a.2@text&&id.info@p.1:2@text##.*：|\\s.*",
+    "lastChapter": "id.info@a@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "coverUrl": "id.fmimg@img@src",
+    "tocUrl": "text.在线阅读@href"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@dd@a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "id.content@html",
+    "replaceRegex": "##最新网址：.*"
+  }
+}

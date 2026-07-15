@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://standardebooks.org/",
+  "bookSourceName": "Standard Ebooks（高质量英文小说）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://standardebooks.org/ebooks?query={{key}}",
+  "ruleSearch": {
+    "bookList": "//article",
+    "name": ".//h2/text()",
+    "bookUrl": ".//a/@href"
+  }
+}

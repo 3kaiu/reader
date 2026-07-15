@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "https://www.changduzw.com#",
+  "bookSourceName": "五五读书（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 142,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766457803593,
+  "respondTime": 1450,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://www.changduzw.com/modules/article/search.php,{\n'charset': 'utf-8',\n'method': 'POST',\n'body': 'searchkey={{key}}&type=submit'\n}",
+  "ruleSearch": {
+    "bookList": "body > div.warpper > div.o_all > div.o_content > div > table > tbody > tr!0",
+    "name": "td.0@a@text",
+    "author": "td.2@text",
+    "kind": "class.even@text",
+    "lastChapter": "td.1@a@text",
+    "bookUrl": "td.0@a@href"
+  },
+  "ruleBookInfo": {
+    "name": "class.status@tag.h1@text",
+    "author": "class.status@tag.p.1@text",
+    "intro": "class.con@tag.p@text",
+    "kind": "class.status@tag.a.0@text",
+    "lastChapter": "class.red.1@text",
+    "coverUrl": "class.imgbox@tag.img@src",
+    "tocUrl": "text.点击阅读@href",
+    "wordCount": "class.status@tag.p.-3@text##总字数."
+  },
+  "ruleToc": {
+    "chapterList": "class.mulu_list@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "id.htmlContent@html"
+  }
+}

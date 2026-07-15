@@ -1,0 +1,36 @@
+{
+  "bookSourceUrl": "https://cn.xgcartoon.com",
+  "bookSourceName": "西瓜卡通（优+）",
+  "bookSourceGroup": "影视 书源",
+  "bookSourceType": 4,
+  "customOrder": 276,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766914860733,
+  "respondTime": 180000,
+  "weight": 0,
+  "header": "{\n\"User-Agent\":\"Mozilla/5.0 (Android 14; Mobile; rv:120.0) Gecko/120.0 Firefox/120.0\"\n}",
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "/search?q={{key}}",
+  "ruleSearch": {
+    "bookList": ".topic-list-item",
+    "name": ".mb12.-1@text",
+    "kind": ".tag@text",
+    "bookUrl": "a.0@href",
+    "coverUrl": "amp-img@src",
+    "wordCount": "{{\"🍉西瓜卡通\"}}"
+  },
+  "ruleBookInfo": {
+    "intro": ".detail-right__desc@p@text##　　"
+  },
+  "ruleToc": {
+    "chapterList": "<js>\nfunction $(rule){\n\treturn java.getElements(rule);\n}\nvar tab_name=\"\",v_list=[];\n//获取所有线路❗️\ntab=$('.detail-right__volumes@.row')\nfor(i=0;i<tab.length;i++){\n\t//获取播放列表❗️\n\tlist=$('.detail-right__volumes')[i]\n\tlist=list.select('.row>div')\n for(j in list){\n\t\t //获取播放链接和标题\n\t\t if(String(list[j]).match(/volume-title/)){\n\t\t \t  volume_name=`${list[j].text()}`\n\t\t \t  v_list.push(JSON.stringify({\n\t\t\t   name:volume_name,href:'',volume:true\n\t\t   }))\n\t\t }else{\n\t\t \t  text=list[j].text();\n\t\t   url=list[j].select('a').attr('href');\n\t\t   v_list.push(JSON.stringify({\n\t\t\t   name:text,href:url,volume:false\n\t\t   }))\n\t\t }\n\t }\n}\nv_list\n</js>",
+    "chapterName": "$.name",
+    "chapterUrl": "$.href",
+    "isVolume": "$.volume"
+  },
+  "ruleContent": {
+    "content": "#video_content@iframe@src\n@js:\nif(book.durChapterIndex==chapter.index){\n\t\tjava.startBrowser(result,title)\n\t\tjava.toast('正在加载视频\\n视频加载较慢，请耐心等待')\n}\n'【刷新正文】播放\\n✅直链:\\n'+result"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "bookSourceUrl": "http://dict.cn/",
+  "bookSourceName": "海词词典（优）",
+  "bookSourceGroup": "特殊 书源",
+  "bookSourceType": 0,
+  "customOrder": 347,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759386575706,
+  "respondTime": 111,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "http://dict.cn/{{key}}",
+  "ruleSearch": {
+    "bookList": "body",
+    "name": "@js:decodeURI(baseUrl.split(\"/\").pop())",
+    "author": "@css:.phonetic@text",
+    "lastChapter": "@css:.dict-basic-ul@text"
+  },
+  "ruleBookInfo": {
+    "intro": "text"
+  },
+  "ruleToc": {
+    "chapterList": "body",
+    "chapterName": "@js:\"详细\""
+  },
+  "ruleContent": {
+    "content": "html"
+  }
+}

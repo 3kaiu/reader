@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://annas-archive.org/",
+  "bookSourceName": "Anna Archive 镜像1",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://annas-archive.org/search?q={{key}}",
+  "ruleSearch": {
+    "bookList": "html",
+    "name": "",
+    "bookUrl": ""
+  }
+}

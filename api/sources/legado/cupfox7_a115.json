@@ -1,0 +1,35 @@
+{
+  "bookSourceUrl": "https://www.cupfox7.com/",
+  "bookSourceName": "茶杯狐狸（优+++）",
+  "bookSourceGroup": "影视 书源",
+  "bookSourceType": 0,
+  "customOrder": 268,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772086435308,
+  "respondTime": 4787,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "国漫::vodshow/guochandongman/page/{{page}}.html\n日韩::vodshow/rihandongman/page/{{page}}.html\n欧美::vodshow/oumeidongman/page/{{page}}.html",
+  "ruleExplore": {},
+  "searchUrl": "vodsearch/{{key}}----------{{page}}---.html",
+  "ruleSearch": {
+    "checkKeyWord": "魔王",
+    "bookList": "class.stui-vodlist[0]@tag.li",
+    "name": "tag.a@title",
+    "kind": "tag.a@tag.span@text",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "tag.a@data-original"
+  },
+  "ruleBookInfo": {
+    "intro": "class.stui-content__detail@p@text##详情$##"
+  },
+  "ruleToc": {
+    "chapterList": "id.playlist1@tag.ul@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href"
+  },
+  "ruleContent": {
+    "content": "@js:\nvar pUrl = result.match(/\"url_next\":\"([^\"]*)\"/)\npUrl = pUrl[1].replace(/\\\\/g, \"\");\nif (cache.get(book.name+title)){\n    try{\n        java.startBrowserAwait(pUrl, title);\n    }catch(err){\n       \"其实...1+1=2!\"\n    }\n}else{\n    cache.put(book.name+title,true, 31536000);\n}\n\"请刷新查看内容\";"
+  }
+}

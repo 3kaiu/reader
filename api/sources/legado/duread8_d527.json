@@ -1,0 +1,45 @@
+{
+  "bookSourceUrl": "https://www.duread8.com##喜静",
+  "bookSourceName": "独阅读网",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 367,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 搜索失效",
+  "lastUpdateTime": 1766338842002,
+  "respondTime": 198907,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "loginUrl": "https://m.duread.cn/signup/login",
+  "exploreUrl": "[{\"title\":\"全部分类\",\"url\":\"https://www.duread.cn/index/book_list/0/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"西幻传说\",\"url\":\"https://www.duread.cn/index/book_list/1/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"武侠仙侠\",\"url\":\"https://www.duread.cn/index/book_list/2/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"游戏动漫\",\"url\":\"https://www.duread.cn/index/book_list/3/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"科幻时空\",\"url\":\"https://www.duread.cn/index/book_list/4/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"都市逸闻\",\"url\":\"https://www.duread.cn/index/book_list/5/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"历史军事\",\"url\":\"https://www.duread.cn/index/book_list/6/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}},{\"title\":\"诡异悬疑\",\"url\":\"https://www.duread.cn/index/book_list/7/0/week_click/0/0/0/1{{page}}\",\"style\":{\"layout_flexBasisPercent\":0.4,\"layout_flexGrow\":1}}]",
+  "ruleExplore": {
+    "bookList": "class.book-list J_BookList@li",
+    "name": "a.1@text",
+    "author": ".avatar@text",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@data-original"
+  },
+  "searchUrl": "https://www.duread8.com/index/get_search_book_list/{{key}}",
+  "ruleSearch": {
+    "bookList": "class.book-list@li",
+    "name": "class.book-name@text",
+    "author": "##作者[:：]([^<]+)<##$1###",
+    "intro": "class.summaries@html",
+    "lastChapter": "class.smaller@text##.*? / ",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "img@data-original"
+  },
+  "ruleBookInfo": {
+    "name": "class.book-title@text",
+    "intro": "class.desc@text"
+  },
+  "ruleToc": {
+    "chapterList": "#chapter_list@a",
+    "chapterName": "text",
+    "chapterUrl": "href##$##,{\"webView\":true}"
+  },
+  "ruleContent": {
+    "content": ".article-content@p@textNodes"
+  }
+}

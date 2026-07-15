@@ -1,0 +1,50 @@
+{
+  "bookSourceUrl": "https://m.zongheng.com/",
+  "bookSourceName": "纵横中文",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 387,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1765832377943,
+  "respondTime": 2901,
+  "weight": 0,
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/82.0.4080.0 Safari/537.36 Edg/82.0.453.0\"\n}",
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://m.zongheng.com/search?keywords={{key}},{\n  \"webView\": true\n}",
+  "ruleSearch": {
+    "checkKeyWord": "穿书炮灰，全家偷听我心声",
+    "bookList": "class.book-li",
+    "name": "class.book-title@text",
+    "author": "class.book-author@text##[作者：·]*",
+    "intro": "class.book-desc@text",
+    "kind": "class.book-label@text&&class.book-state@text##[类型状态：·\\d+万]",
+    "lastChapter": "class.book-li@a@href<js>java.ajax(result)</js>class.de-update-chapter flex@class.flex--fluid@text",
+    "bookUrl": "class.book-li@a@href",
+    "coverUrl": "img@data-imgsrc",
+    "wordCount": "class.book-label@ownText##[·]*"
+  },
+  "ruleBookInfo": {
+    "name": "class.de-header-title@text",
+    "author": "class.de-header-author@text",
+    "intro": "class.de-header-title@text&&\nclass.de-header-author@text&&\nclass.tags de-tags@text&&\nclass.de-update-chapter flex@class.time JissueTime@text&&\nclass.de-summary@span@text",
+    "kind": "class.tags de-header-line.0@span.0@text&&class.tags de-header-line.0@span.-1@text",
+    "lastChapter": "class.de-update-chapter flex@class.flex--fluid@text",
+    "coverUrl": "img@src",
+    "tocUrl": "text.进入作品目录 查看更多@href||class.de-gray-btn@href",
+    "wordCount": "class.tags de-header-line@span.1@text",
+    "canReName": "True"
+  },
+  "ruleToc": {
+    "chapterList": "class.chapbox",
+    "chapterName": "class.chapbox@text##App内免费##💎VIP",
+    "chapterUrl": "class.chapbox@a@href",
+    "isVip": "VIP",
+    "updateTime": "class.list_wrap__top@span@text"
+  },
+  "ruleContent": {
+    "content": "class.content@p@text",
+    "title": "class.chapterName-modul@text"
+  }
+}

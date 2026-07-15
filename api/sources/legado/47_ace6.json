@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "http://47.93.18.240/##",
+  "bookSourceName": "爱听书王（优+）",
+  "bookSourceGroup": "听书 书源",
+  "bookSourceType": 1,
+  "customOrder": 287,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: No results for path: $['data']['bookdetails']",
+  "lastUpdateTime": 1766339595598,
+  "respondTime": 180200,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "@js:\nsort=[];\npush=(title,url,type1,type2)=>sort.push({\n\t\ttitle: title,\n\t\turl: url,\n\t\tstyle: {\n\t\t\t\tlayout_flexGrow: type1,\n\t\t\t\tlayout_flexBasisPercent: type2\n\t\t\t}\n\t});\n\t\nfl = () =>{\n\t\t//\tflurl =  \"http://47.93.18.240/classifytitle.php\";\n\t\t\tflurl = `http://47.93.18.240/classifytitle.php,{\n  \"body\": \"=\",\n  \"method\": \"POST\",\n  \"headers\":{\n\t\"Content-Type\":\"application/x-www-form-urlencoded\",\n\t\"Connection\":\"Keep-Alive\",\n\t\"Host\":\"47.93.18.240\",\n\t\"User-Agent\":\"okhttp/4.9.0\"\n}\n}`;\nreturn  JSON.parse(java.ajax(flurl)).data.classifyarray; \t\t\n\t\t}\n\t\t\t\t\n\t\tfl().map(($,index)=>{\t   \t     \t    \n \t    title = $.title;\n     \tid = $.classifyid;\n    \t     \t\n\turl =  `@js:\n\tbody = '{\"bookclassifyid\":'+${id}+',\"startpos\":\"'+(page-1)*20+'\",\"endpos\":\"20\"}';\n     x = encodeURIComponent(body);\n     y = \tJSON.stringify({\n  \"body\": \"=\"+String(x),\n  \"method\": \"POST\",\n  \"headers\":{\n\t\"Content-Type\":\"application/x-www-form-urlencoded\",\n\t\"Connection\":\"Keep-Alive\",\n\t\"Host\":\"47.93.18.240\",\n\t\"User-Agent\":\"okhttp/4.9.0\"\n}\n});\n\turl = \"http://47.93.18.240/classifylist.php,\"+y;\n`;\n\t\n\t\t\tif(index+1 <= fl().length - fl().length%3)\n\t\t\t {\tpush(title, url, 1, 0.25);}\n\t\t\t\telse{ push(title, url, 0, 0.29);}\n        \n  });\n\nJSON.stringify(sort);",
+  "ruleExplore": {},
+  "searchUrl": "@js:\nbody = '{\"bookname\":\"'+key+'\",\"startpos\":\"'+(page-1)*20+'\",\"endpos\":\"20\"}';\nx = encodeURIComponent(body)\n\nurl = `http://47.93.18.240/searchbook1.4.0.php,{\n  \"body\": \"=${x}\",\n  \"method\": \"POST\",\n  \"headers\":{\n\t\"Content-Type\":\"application/x-www-form-urlencoded\",\n\t\"Connection\":\"Keep-Alive\",\n\t\"Host\":\"47.93.18.240\",\n\t\"User-Agent\":\"okhttp/4.9.0\"\n}\n}`;",
+  "ruleSearch": {
+    "bookList": "$.data.bookarray||$.data.collectsarray",
+    "name": "$.bookname",
+    "author": "{{$.bookauthor}}  演播：{{$.announcer}}",
+    "intro": "$.profile",
+    "kind": "{{$.classify}}\n{{r=java.getString('$.bookfeetype');\nif(r!=\"\") r=='3'?'VIP':'free';}}",
+    "bookUrl": "@js:\nbody = '{\"bookid\":\"{{$.bookid}}\",\"username\":\"\"}';\nx = encodeURIComponent(body)\n\nurl = `http://47.93.18.240/bookdetails_test.php,{\n  \"body\": \"=${x}\",\n  \"method\": \"POST\",\n  \"headers\":{\n\t\"Content-Type\":\"application/x-www-form-urlencoded\",\n\t\"Connection\":\"Keep-Alive\",\n\t\"Host\":\"47.93.18.240\",\n\t\"User-Agent\":\"okhttp/4.9.0\"\n}\n}`;",
+    "coverUrl": "$.bookpic"
+  },
+  "ruleBookInfo": {
+    "init": "$.data.bookdetails",
+    "name": "$.bookname",
+    "author": "{{$.bookauthor}}  演播：{{$.announcer}}",
+    "intro": "$.profile##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": "$.classify",
+    "coverUrl": "$.bookpic",
+    "tocUrl": "@js:\nbody = '{\"bookid\":\"{{$.bookid}}\",\"startpos\":\"0\",\"endpos\":\"10000\",\"version\":\"\",\"asc\":\"0\"}';\nx = encodeURIComponent(body)\n\nurl = `http://47.93.18.240/bookchapterlist0813.php,{\n  \"body\": \"=${x}\",\n  \"method\": \"POST\",\n  \"headers\":{\n\t\"Content-Type\":\"application/x-www-form-urlencoded\",\n\t\"Connection\":\"Keep-Alive\",\n\t\"Host\":\"47.93.18.240\",\n\t\"User-Agent\":\"okhttp/4.9.0\"\n}\n}`;"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.chapter_array",
+    "chapterName": "$.chaptername",
+    "chapterUrl": "$.mp3Filepath",
+    "isVip": "$.bookfeetype",
+    "updateTime": "$.filesize"
+  },
+  "ruleContent": {}
+}

@@ -1,0 +1,51 @@
+{
+  "bookSourceUrl": "https://www.qiufengshuwu.com#",
+  "bookSourceName": "秋风书屋（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https?://www.qiufengshuwu.com/book/\\d+.html",
+  "customOrder": 123,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766349169826,
+  "respondTime": 23193,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
+  "enabledCookieJar": true,
+  "exploreUrl": "男频小说::https://www.qiufengshuwu.com/sort/1_{{page}}/\n女频小说::https://www.qiufengshuwu.com/sort/2_{{page}}/\n中国文学::https://www.qiufengshuwu.com/sort/3_{{page}}/\n外国文学::https://www.qiufengshuwu.com/sort/4_{{page}}/\n轻小说::https://www.qiufengshuwu.com/sort/5_{{page}}/\n百合小说::https://www.qiufengshuwu.com/sort/6_{{page}}/\n耽美小说::https://www.qiufengshuwu.com/sort/7_{{page}}/\n网盘资源::https://www.qiufengshuwu.com/sort/8_{{page}}/\n完本小说::https://www.qiufengshuwu.com/full/{{page}}/",
+  "ruleExplore": {
+    "bookList": ".article||.full_content",
+    "name": ".p2@text||a.1@text",
+    "author": ".p3@text||a.2@text",
+    "intro": "p.simple@text",
+    "kind": ".p1@text##\\[|\\]",
+    "bookUrl": "a@href",
+    "coverUrl": "img@data-src"
+  },
+  "searchUrl": "https://www.qiufengshuwu.com/s.html,{\n  \"body\": \"s={{key}}&type=articlename\",\n  \"charset\": \"GBK\",\n  \"method\": \"POST\"\n}",
+  "ruleSearch": {
+    "checkKeyWord": "剑来",
+    "bookList": "p.sone",
+    "name": "a.0@text",
+    "author": "span@text",
+    "kind": "0",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": "h3.0@text",
+    "author": ".infotype a.0@text",
+    "intro": "#intro p@text",
+    "kind": ".infotype p.1:3:2@text\n##作品类型：|作品状态：|更新时间：",
+    "lastChapter": ".list_xm li.0@text",
+    "coverUrl": ".infohead img@src",
+    "tocUrl": "text.章节目录@href"
+  },
+  "ruleToc": {
+    "chapterList": ".chapters li",
+    "chapterName": "text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": "#novelcontent p@html"
+  }
+}

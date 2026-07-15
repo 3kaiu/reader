@@ -1,0 +1,49 @@
+{
+  "bookSourceUrl": "http://www.wensang.net",
+  "bookSourceName": "文桑小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 140,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1772085293930,
+  "respondTime": 1975,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "奇幻玄幻::/xuanhuan/page_{{page}}.html\n武侠仙侠::/xiuzhen/page_{{page}}.html\n都市言情::/dushi/page_{{page}}.html\n历史军事::/lishi/page_{{page}}.html\n网游竞技::/wangyou/page_{{page}}.html\n科幻悬疑::/kehuan/page_{{page}}.html\n女生小说::/nvpin/page_{{page}}.html\n青春校园::/qingchun/page_{{page}}.html\n耽美同人::/bl/page_{{page}}.html\n乡村小说::/xiangcun/page_{{page}}.html\n其它小说::/qita/page_{{page}}.html\n文桑视界::/wensang/page_{{page}}.html",
+  "ruleExplore": {
+    "bookList": ".filter-ret@li",
+    "name": "a.1@text",
+    "author": ".d1@ownText",
+    "intro": ".d2@text",
+    "lastChapter": "a.2@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src"
+  },
+  "searchUrl": "/home/search?type=action&q={{key}}",
+  "ruleSearch": {
+    "bookList": "id.sitebox@dl",
+    "name": "a.1@text",
+    "author": "span.1@text",
+    "kind": "span.3:2:0@text##\\s.*",
+    "lastChapter": "a.4@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": ".infos@h1@text",
+    "author": ".field@a.0@text",
+    "intro": ".desc-short@text##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".field@span.1:2:5@text##.*：|\\s..:.*",
+    "lastChapter": ".logs@a.1@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "coverUrl": "id.bookCover@img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter@li@a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "id.BookText@textNodes"
+  }
+}

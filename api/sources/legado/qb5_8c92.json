@@ -1,0 +1,50 @@
+{
+  "bookSourceUrl": "https://www.qb5.io",
+  "bookSourceName": "全本小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 136,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 搜索失效",
+  "lastUpdateTime": 1766341173498,
+  "respondTime": 183561,
+  "weight": 63,
+  "header": "@js:JSON.stringify({\"Referer\":baseUrl,\"Keep-Alive\":\"\"})",
+  "enabledCookieJar": true,
+  "exploreUrl": "奇幻玄幻::/shuku-1-{{page}}.html\n武侠仙侠::/shuku-2-{{page}}.html\n都市官场::/shuku-3-{{page}}.html\n历史军事::/shuku-4-{{page}}.html\n游戏竞技::/shuku-7-{{page}}.html\n科幻同人::/shuku-9-{{page}}.html\n经典畅销::/shuku-10-{{page}}.html\n图书杂志::/shuku-11-{{page}}.html\n其他::/shuku-0-{{page}}.html",
+  "ruleExplore": {
+    "bookList": "class.hot@dd",
+    "name": "h4@a@text",
+    "author": "p.0@span@text",
+    "intro": "p.1@text",
+    "bookUrl": "{{@@a.0@href##.html}}/",
+    "coverUrl": "a.0@img@src"
+  },
+  "searchUrl": "/?c=xs&a=sou&q={{key}}&page={{page}}",
+  "ruleSearch": {
+    "bookList": ".hot@dd",
+    "name": "h4@a@text",
+    "author": "p.0@span@text",
+    "intro": "p.1@text",
+    "bookUrl": "{{@@a.0@href##.html}}/",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "class.book w@h1@text",
+    "author": "class.book w@p.0@text",
+    "intro": "class.description w@text",
+    "kind": "class.book w@span[1,2]@text",
+    "lastChapter": "ul.0@li.-1@text",
+    "coverUrl": "class.book w@img@src"
+  },
+  "ruleToc": {
+    "chapterList": "ul.0@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": "id.content@html##<h1>.*?<\\/h1>",
+    "replaceRegex": "##未完.*?自动加载所有内容.*|^[^\\n]\\s*第.*章.*"
+  }
+}

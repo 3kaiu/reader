@@ -1,0 +1,40 @@
+{
+  "bookSourceUrl": "https://www.dbxsd.com/",
+  "bookSourceName": "独步小说（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 110,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766339825590,
+  "respondTime": 8065,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"\"}",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "plus/search.php?q={{key}}, {\"webView\": true}",
+  "ruleSearch": {
+    "checkKeyWord": "魔王",
+    "bookList": "tr!0",
+    "name": "a.0@title",
+    "author": "td.1@text",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": "[property*=title]@content",
+    "author": "[property*=author]@content",
+    "intro": ".book-detail@html",
+    "kind": "[property~=category|status|time]@content",
+    "lastChapter": "[property*=latest_chapter_name]@content",
+    "coverUrl": "[property*=image]@content"
+  },
+  "ruleToc": {
+    "chapterList": "#all-chapter@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "#cont-body@html",
+    "nextContentUrl": ".active+li@a@href"
+  }
+}

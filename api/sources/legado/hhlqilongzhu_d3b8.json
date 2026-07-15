@@ -1,0 +1,35 @@
+{
+  "bookSourceUrl": "https://www.hhlqilongzhu.cn",
+  "bookSourceName": "猫耳有声（优）",
+  "bookSourceGroup": "听书 书源",
+  "bookSourceType": 1,
+  "customOrder": 299,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "dy天天的鸟蛋蛋\n//\t可搜索猫耳的广播剧\n//  并获取免费音频\n//\t分三步获取",
+  "lastUpdateTime": 1759386318919,
+  "respondTime": 1302,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "/api/ximalaya/maoer_app.php?name={{key}}",
+  "ruleSearch": {
+    "bookList": "data[*]",
+    "name": "title",
+    "author": "Nickname",
+    "intro": "intro",
+    "kind": "type",
+    "bookUrl": "https://www.hhlqilongzhu.cn/api/ximalaya/maoer_app.php?albumId={{$.albumId}}",
+    "coverUrl": "cover"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "data[*]",
+    "chapterName": "title",
+    "chapterUrl": "/api/ximalaya/maoer_app.php?soundid={{$.soundid}}",
+    "updateTime": "intro"
+  },
+  "ruleContent": {
+    "content": "url"
+  }
+}

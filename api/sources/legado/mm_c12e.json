@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "https://mm.sfacg.com/",
+  "bookSourceName": "收费漫画",
+  "bookSourceGroup": "正版漫画 书源",
+  "bookSourceType": 2,
+  "customOrder": 451,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759430252480,
+  "respondTime": 6154,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "loginUrl": "https://mm.sfacg.com/Login/",
+  "exploreUrl": "更新::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=-1\n热血::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=1\n校园::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=2\n推理::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=3\n机战::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=4\n冒险::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=5\n运动::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=6\n耽美::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=7\n搞笑::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=8\n科幻::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=9\n魔幻::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=10\n恐怖::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=11\n社会::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=12\n爱情::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=13\n武侠::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=14\n温情::https://mm.sfacg.com/ajax/Common.ashx?op=getLatest&pageIndex={{page-1}}&tid=15\nnull",
+  "ruleExplore": {},
+  "searchUrl": "https://mm.sfacg.com/ajax/Common.ashx?op=search,{\n  \"method\": \"POST\",\n  \"body\": \"keyword={{key}}\"\n}",
+  "ruleSearch": {
+    "bookList": "$.comics.*||$.data.*",
+    "name": "$.ComicName",
+    "author": "$.AuthorName@put:{cid:ComicID}",
+    "kind": "$.TypeName",
+    "lastChapter": "$.LastChapterTitle",
+    "bookUrl": "@json:/b/{$.FolderName}",
+    "coverUrl": "$.ComicCover"
+  },
+  "ruleBookInfo": {
+    "name": "@css:.book_newtitle@text",
+    "author": "class.book_Author@tag.li.0@text",
+    "intro": "class.book_bk_qs1.0@text",
+    "kind": "@css:.book_info2>span@text",
+    "coverUrl": "@css:#page>div>ul>li:nth-child(2)>img@src"
+  },
+  "ruleToc": {
+    "chapterList": "-@css:.comic_main_list>a",
+    "chapterName": "text##VIP",
+    "chapterUrl": "href",
+    "isVip": "b@text"
+  },
+  "ruleContent": {
+    "content": "@js:\ncomicId=result.match(/var comicId = (\\d+)/)[1];\nchapterId=result.match(/var chapterId=(\\d+)/)[1];\nnv=result.match(/var nv = \"(.*?)\"/)[1];\nurl='https://mm.sfacg.com/ajax/Common.ashx?op=getPics&cid='+comicId+'&chapId='+chapterId+'&serial=ZP&path='+nv\n//java.ajax(url)\nresult=JSON.parse(java.ajax(url)).data\nresult.map(x=>'<img src=\\\"'+x+'\\\">').join(\"\\n\")",
+    "imageStyle": "FULL"
+  }
+}

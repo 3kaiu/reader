@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "https://m.qimanwu.app",
+  "bookSourceName": "奇漫屋子（优）",
+  "bookSourceGroup": "漫画 书源",
+  "bookSourceType": 0,
+  "customOrder": 262,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1757967592977,
+  "respondTime": 180000,
+  "weight": 0,
+  "header": "@js:\nJSON.stringify({\n\"User-Agent\": java.getWebViewUA()\n})",
+  "enabledCookieJar": false,
+  "exploreUrl": "@js:\nfunction qimanwu() {\n  let disc = [];\n  let Html = java.ajax(`${source.key}/custom/search`);\n  let doc = org.jsoup.Jsoup.parse(Html);\n  let tag = doc.select(\".groupList li a\");\n  Array.from(tag).forEach(a => {\n    disc.push({\n      title: a.text(),\n      url: a.attr(\"href\") +\"/page/{{page}}\",\n      style: {\n        layout_flexGrow: 1,\n        layout_flexBasisPercent: 0.45\n      }\n    });\n  });\n  \n  disc.push({\n    title: \"精品漫画\",\n    url: \"/custom/boutique\",\n    style: {layout_flexBasisPercent: 1, layout_flexGrow: 0.45}\n  });\n  \n  disc.push({\n    title: \"最近更新\",\n    url: \"/custom/update\",\n    style: {layout_flexBasisPercent: 1, layout_flexGrow: 0.45}\n  });\n  \n  disc.push({\n    title: \"热门推荐\",\n    url: \"/custom/recom\",\n    style: {layout_flexBasisPercent: 1, layout_flexGrow: 0.45}\n  });\n\n   return JSON.stringify(disc);\n}\nqimanwu();",
+  "ruleExplore": {},
+  "searchUrl": "/search/{{encodeURIComponent(key)}}/{{page}}",
+  "ruleSearch": {
+    "checkKeyWord": "烂柯棋缘",
+    "bookList": ".rankList@li",
+    "name": "p.0@text",
+    "author": "p.2@text",
+    "lastChapter": "p.1@text",
+    "bookUrl": "a@href",
+    "coverUrl": "img.0@src"
+  },
+  "ruleBookInfo": {
+    "name": "p.0@text",
+    "author": "p.1@text",
+    "intro": "p.5@text",
+    "kind": "p.2@a@text",
+    "lastChapter": "p.3@text##更新至：",
+    "coverUrl": "img.2@src"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter@ul@li@a",
+    "chapterName": "text",
+    "chapterUrl": "href##$##,{\"webView\": true}"
+  },
+  "ruleContent": {
+    "content": "img@data-src||img@src\n@js:\nresult.split(\"\\n\").map(url => ` <img src=\"${url}\"> `).join(\"\\n\")",
+    "imageStyle": "FULL"
+  }
+}

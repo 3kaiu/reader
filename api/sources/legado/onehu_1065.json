@@ -1,0 +1,45 @@
+{
+  "bookSourceUrl": "https://onehu.xyz",
+  "bookSourceName": "我是盐神（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 76,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "//仅支持搜索合集准确全名\n//20250224by= =\nr=org.jsoup.Jsoup.parse(java.ajax(\"https://onehu.xyz/categories/\"))\na=r.select(\".category-item\")\nname=[];\nfor(i in a){\n\tname.push(a[i].attr(\"title\"));\n}\nJSON.stringify(name)",
+  "lastUpdateTime": 1759293355937,
+  "respondTime": 3347,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "exploreUrl": "<js>\neval(String(source.bookSourceComment))\nfenl=[\n{\"title\": \"首页\",  \"url\": \"https://onehu.xyz<,/page/{{page}}/#board>\",  \"style\":{\"layout_flexGrow\": 0,  layout_flexBasisPercent: 0.45}},\n{\"title\": \"分类\",  \"url\": \"https://onehu.xyz/categories/\",  \"style\":{\"layout_flexGrow\": 0,  layout_flexBasisPercent: 0.45}}\n]\nb=name\nfor (i in b){\n\tx=String(b[i]);\nurl=\"https://onehu.xyz/categories/\"+x+\"/<,page/{{page}}/#board>\";\n fenl.push({title: x,url: url,style: {\n\t\tlayout_flexGrow: 1,\n\t\tlayout_flexBasisPercent: 0.5\t}})\n}\n\nJSON.stringify(fenl)\n</js>",
+  "ruleExplore": {
+    "bookList": ".index-card||.list-group@a||.category-post-list@a",
+    "name": "h1@a@text||.list-group-item-title@text||.list-group-item-action@title",
+    "author": ".category-chain-item@text",
+    "intro": "div.0@text##{{book.name}}|{{book.author}}",
+    "kind": "time@text##\\r",
+    "bookUrl": ".index-excerpt__noimg@href||href"
+  },
+  "searchUrl": "https://onehu.xyz/categories/{{key}}",
+  "ruleSearch": {
+    "checkKeyWord": "回答",
+    "bookList": ".list-group a",
+    "name": ".list-group-item-title@text",
+    "intro": "href##\\/%",
+    "bookUrl": "href"
+  },
+  "ruleBookInfo": {
+    "name": "[property$=title]@content",
+    "intro": "[property~=desc]@content",
+    "kind": "time@text",
+    "wordCount": ".mt-1@span.0@text##\\s字"
+  },
+  "ruleToc": {
+    "chapterList": ".post-content||.markdown-body",
+    "chapterName": "h1@text||p.0@text",
+    "chapterUrl": "{baseUrl}"
+  },
+  "ruleContent": {
+    "content": ".markdown-body@p@textNodes"
+  }
+}

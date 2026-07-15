@@ -1,0 +1,34 @@
+{
+  "bookSourceUrl": "https://ruarourou.top",
+  "bookSourceName": "咸鱼小说（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 121,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "仅发现",
+  "lastUpdateTime": 1766350159039,
+  "respondTime": 90736,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "归档::https://ruarourou.top/",
+  "ruleExplore": {
+    "bookList": "class.menu-item",
+    "name": "text",
+    "bookUrl": "a@href"
+  },
+  "ruleSearch": {},
+  "ruleBookInfo": {
+    "tocUrl": "text.more@href"
+  },
+  "ruleToc": {
+    "chapterList": "-class.entry-list",
+    "chapterName": "h2@text",
+    "chapterUrl": "h2@a@href",
+    "updateTime": "class.entry-date@text",
+    "nextTocUrl": "<js>\nif(!/page\\/2/.test(baseUrl)){\n\tpage = result.match(/第 1 页，共 (\\d+) 页/)[1];\nfor(var list=[],i=2;i<=page;i++){\n\tlist.push(baseUrl+\"page/\"+i+\"/\")\n\t}\nlist\n}\n</js>"
+  },
+  "ruleContent": {
+    "content": "class.entry-content@html"
+  }
+}

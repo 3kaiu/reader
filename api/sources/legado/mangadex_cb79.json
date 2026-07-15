@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://mangadex.org/",
+  "bookSourceName": "MangaDex（漫画源）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://api.mangadex.org/manga?title={{key}}",
+  "ruleSearch": {
+    "bookList": "$.data[*]",
+    "name": "attributes.title.en",
+    "bookUrl": "id"
+  }
+}

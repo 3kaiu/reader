@@ -1,0 +1,38 @@
+{
+  "bookSourceUrl": "http://www.xkushu.com",
+  "bookSourceName": "三五中文（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 162,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "                    \"error:timeout\n                    \"error:Connection reset\n\"\"",
+  "lastUpdateTime": 1772085570361,
+  "respondTime": 2740,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "http://www.xkushu.com/modules/article/search.php?searchkey={{key}}",
+  "ruleSearch": {
+    "bookList": "class.grid@tr",
+    "name": "class.odd@a@text",
+    "author": "class.odd.1@text",
+    "kind": "class.even.2@text",
+    "lastChapter": "class.even@a@text",
+    "bookUrl": "class.odd.0@tag.a.0@href",
+    "coverUrl": "tag.a.0@href##^.+?(\\d+)\\D(\\d+).+##/35zwhtml/$1/$2/$2s.jpg"
+  },
+  "ruleBookInfo": {
+    "name": "id.info@tag.h1@text",
+    "intro": "id.intro@text",
+    "lastChapter": "id.details@tag.a.2@text"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@dd@a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "id.content@textNodes"
+  }
+}

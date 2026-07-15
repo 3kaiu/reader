@@ -1,0 +1,17 @@
+{
+  "bookSourceUrl": "https://comicbookplus.com/",
+  "bookSourceName": "Comic Book Plus（经典漫画）",
+  "bookSourceType": 0,
+  "customOrder": 0,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 0,
+  "respondTime": 180000,
+  "weight": 0,
+  "searchUrl": "https://comicbookplus.com/?dlid=&search={{key}}",
+  "ruleSearch": {
+    "bookList": "html",
+    "name": "",
+    "bookUrl": ""
+  }
+}

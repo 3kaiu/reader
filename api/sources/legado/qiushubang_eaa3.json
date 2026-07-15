@@ -1,0 +1,42 @@
+{
+  "bookSourceUrl": "https://www.qiushubang.com/",
+  "bookSourceName": "求书帮吧（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 175,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 搜索失效",
+  "lastUpdateTime": 1761532484024,
+  "respondTime": 181779,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "https://www.sososhu.com/?q={{key}}&site=qiushubang&Submit=%E6%90%9C%E7%B4%A2,{\"webView\": true}",
+  "ruleSearch": {
+    "bookList": "class.item",
+    "name": "tag.dt@tag.a@text",
+    "author": "tag.span@text",
+    "intro": "tag.dd@text",
+    "bookUrl": "a@href",
+    "coverUrl": "a@img"
+  },
+  "ruleBookInfo": {
+    "name": "class.top@tag.h1@text",
+    "author": "class.fix@tag.a@text",
+    "intro": "class.desc xs-hidden@text",
+    "coverUrl": "class.imgbox@tag.img@src"
+  },
+  "ruleToc": {
+    "chapterList": "class.section-list fix.-1@tag.li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href",
+    "nextTocUrl": "tag.option@value"
+  },
+  "ruleContent": {
+    "content": "id.content@html",
+    "nextContentUrl": "id.next_url@href",
+    "replaceRegex": "##一秒记住【完本神站】手机用户输入地址.*"
+  }
+}

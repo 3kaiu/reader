@@ -1,0 +1,52 @@
+{
+  "bookSourceUrl": "https://www.83zws.com",
+  "bookSourceName": "八三中文（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https?://www.83zws.com/book/\\d+/\\d+/",
+  "customOrder": 102,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 发现失效, 搜索失效",
+  "lastUpdateTime": 1766313520923,
+  "respondTime": 180969,
+  "weight": 0,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
+  "enabledCookieJar": true,
+  "exploreUrl": "玄幻::/sort/1_{{page}}/\n武侠::/sort/2_{{page}}/\n都市::/sort/3_{{page}}/\n历史::/sort/4_{{page}}/\n科幻::/sort/5_{{page}}/\n游戏::/sort/6_{{page}}/\n女生::/sort/9_{{page}}/\n其他::/sort/10_{{page}}/",
+  "ruleExplore": {
+    "bookList": "class.r.0@tag.li",
+    "name": "class.s2.0@text",
+    "author": "class.s5.0@text",
+    "kind": "class.s1.0@text",
+    "bookUrl": "class.s2.0@tag.a.0@href"
+  },
+  "searchUrl": "{{url=source.getKey();\ncookie.removeCookie(url)}}/soso/,{\n  \"body\": \"searchkey={{key}}\",\n  \"method\": \"POST\",\n  \"charset\": \"UTF-8\"\n}",
+  "ruleSearch": {
+    "checkKeyWord": "剑来",
+    "bookList": "class.item",
+    "name": "tag.dl@tag.dt.0@tag.a.0@text",
+    "author": "class.btm@tag.a.0@text",
+    "intro": "tag.dl@tag.dd.0@textNodes",
+    "bookUrl": "tag.dl@tag.dt.0@tag.a.0@href",
+    "coverUrl": "class.image@tag.a.0@tag.img@data-original",
+    "wordCount": "class.btm@tag.em.0@text"
+  },
+  "ruleBookInfo": {
+    "name": "id.info@tag.h1@text",
+    "author": "id.info@tag.p.0@tag.a.0@text",
+    "intro": "id.intro@textNodes",
+    "kind": "class.con_top@tag.a.1@text",
+    "lastChapter": "id.info@tag.p.2@tag.a.0@text",
+    "coverUrl": "id.fmimg@tag.img@data-original"
+  },
+  "ruleToc": {
+    "chapterList": "id.list@tag.dl@tag.a!0:1:2:3:4:5:6:7",
+    "chapterName": "tag.dd@text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "id.booktxt@tag.p@textNodes##本章未完，点击下一页继续阅读。|83中文网最新网址www.*com",
+    "nextContentUrl": "text.下一页@href"
+  }
+}

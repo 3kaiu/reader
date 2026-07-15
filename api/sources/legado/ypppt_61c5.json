@@ -1,0 +1,34 @@
+{
+  "bookSourceUrl": "https://www.ypppt.com",
+  "bookSourceName": "优品学习（优）",
+  "bookSourceGroup": "特殊 书源",
+  "bookSourceType": 3,
+  "customOrder": 335,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 下载链接为空\n\n更新：\n使用说明",
+  "lastUpdateTime": 1766465452852,
+  "respondTime": 180556,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "https://www.ypppt.com/p/search.php?kwtype=1&q={{key}}",
+  "ruleSearch": {
+    "bookList": "class.posts clear@li",
+    "name": "a.1@text",
+    "kind": "div@span.0@a@text",
+    "bookUrl": "a.1@href",
+    "coverUrl": "a.0@img@src"
+  },
+  "ruleBookInfo": {
+    "intro": "@js:\nvar lis = {\n  比例:(String(src).match(/比例：.*?\\n/)),\n  页数:(String(src).match(/页数：.*?\\n/)),\n  格式:(String(src).match(/格式：.*?\\n/)),\n  大小:(String(src).match(/大小：.*?\\n/)),\n  日期:(String(src).match(/日期：.*?\\n/)),\n  效果:(String(src).match(/效果：.*?\\n/))\n}\n\"    \" + lis['比例'] + lis['页数'] + lis['格式'] + lis['大小'] + lis['日期'] + lis['效果']",
+    "tocUrl": "class.down-button@href"
+  },
+  "ruleToc": {
+    "chapterList": "class.down clear@li",
+    "chapterName": "a@text##2##1"
+  },
+  "ruleContent": {
+    "content": "html"
+  }
+}

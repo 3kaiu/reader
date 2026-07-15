@@ -1,0 +1,38 @@
+{
+  "bookSourceUrl": "https://book.tiexue.net",
+  "bookSourceName": "铁血读书",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 404,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759387083867,
+  "respondTime": 1000,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "loginUrl": "https://m.book.tiexue.net/Login.aspx",
+  "ruleExplore": {},
+  "searchUrl": "/SearchResults.aspx?PageSize=3&keywords={{key}}&noveltype=0,{\n  \"charset\": \"gb2312\"\n}",
+  "ruleSearch": {
+    "bookList": ".tianZhi_list dl:lt(3)",
+    "name": "h6 a@text",
+    "author": ".zuoZhe1 a@text",
+    "intro": ".cel02_row3@textNodes@js:result.trim()",
+    "kind": ".cel02_row2 span:not([class])@text",
+    "lastChapter": ".zhuJue@text",
+    "bookUrl": "h6 a@href",
+    "coverUrl": "a img@src"
+  },
+  "ruleBookInfo": {
+    "intro": ".bookPrdt@html##^##<br>",
+    "tocUrl": "@js:baseUrl.replace(/\\/?$/, '/list.html')"
+  },
+  "ruleToc": {
+    "chapterList": ".list01 li p",
+    "chapterName": "@js:(result.outerHtml().includes('vip_icon') ? '🔒' : '') + result.select('a').text()",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": ".p_01@html@js:result || ' 付费章节，换源阅读！'"
+  }
+}

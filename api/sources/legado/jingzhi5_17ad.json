@@ -1,0 +1,54 @@
+{
+  "bookSourceUrl": "http://www.jingzhi5.com",
+  "bookSourceName": "经致文学",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 435,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 发现失效\n\n20230902修复搜索添加校验关键字:上门龙婿（否则无正文）By_zhbyjm7783",
+  "lastUpdateTime": 1759383092400,
+  "respondTime": 180837,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "loginUrl": "http://www.jingzhi5.com/?s=login&a=index",
+  "exploreUrl": "[{\"title\":\"全部小说\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=0&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"热血青春\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1001&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"现代都市\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1002&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"悬疑灵异\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1003&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"军事历史\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1004&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"玄幻奇幻\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1005&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"武侠仙侠\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1006&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"网游竞技\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1007&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"热血言情\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1008&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"古代情缘\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1009&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"现代爱情\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1010&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}},{\"title\":\"幻想世界\",\"url\":\"https://mapi.xiaoshuo7.cn/v2/Library.php?cate=1011&status=0&vip=0&update=0&words=0&page={{page}}\",\"style\":{\"layout_flexGrow\":0.25}}]",
+  "ruleExplore": {
+    "bookList": "$..books[*]",
+    "name": "$.name",
+    "author": "$.author",
+    "kind": "$.update_time&&\n$.label",
+    "bookUrl": "http://www.jingzhi5.com/books/{{$.bookId}}",
+    "coverUrl": "$.img"
+  },
+  "searchUrl": "http://www.jingzhi5.com/?s=search&a=index&keyword={{key}}&page=0&page={{page}}",
+  "ruleSearch": {
+    "bookList": "class.works-list.0@li",
+    "name": "class.search-info@tag.a.0@text",
+    "author": "class.search-info@text##.*作者：",
+    "intro": "class.search-sumary@a@text",
+    "kind": "class.times@text##最后更新：",
+    "bookUrl": "class.search-info@tag.a.0@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "h2@text",
+    "author": "class.author-zone column-2@class.right@a@text",
+    "intro": "class.note@text",
+    "kind": "h4@span@text##更新",
+    "lastChapter": "h4@tag.a.0@text##>>",
+    "coverUrl": "class.pic@img@src",
+    "tocUrl": "class.buttons clearfix@tag.a.0@href",
+    "wordCount": "class.words@text##字"
+  },
+  "ruleToc": {
+    "chapterList": "class.float-list fill-block@li",
+    "chapterName": "tag.a@text",
+    "chapterUrl": "tag.a@href",
+    "isVip": "@js:result.select('a').hasClass('isvip')",
+    "updateTime": "class.time@text"
+  },
+  "ruleContent": {
+    "content": "class.page-content@html"
+  }
+}

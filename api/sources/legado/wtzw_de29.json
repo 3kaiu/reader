@@ -1,0 +1,56 @@
+{
+  "bookSourceUrl": "https://www.wtzw.com",
+  "bookSourceName": "梧桐中文",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 421,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "\n//七猫中文网",
+  "lastUpdateTime": 1759402798070,
+  "respondTime": 2079,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {
+    "bookList": ".w_picTxt_lr li",
+    "name": "a.1@text",
+    "author": "span.1@text##\\s.*",
+    "intro": "span.2@text",
+    "kind": "span.1@text",
+    "lastChapter": "span.3@text##.*\\s|更新",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src",
+    "wordCount": "span.3@text##\\s.*"
+  },
+  "searchUrl": "/search-{{key}}.html?p={{page}}",
+  "ruleSearch": {
+    "bookList": ".w_picTxt_lr li",
+    "name": "a.1@text",
+    "author": "span.1@textNodes",
+    "intro": "span.6@text",
+    "kind": "span.4:2@textNodes",
+    "lastChapter": "a.2@text##\\s..:.*",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src",
+    "wordCount": "span.3@textNodes"
+  },
+  "ruleBookInfo": {
+    "name": ".li_tit a@text",
+    "author": ".sName@text",
+    "intro": "🏷️   {{@.w_txt li.4@textNodes}}{{'\\n'+'​'}}\n{{@.pWorkInformation@html}}##(^|[。！？]+[”」）】]?)##$1<br>",
+    "kind": ".w_txt li.1@textNodes&&.li_tit i@text&&.li_upDate@textNodes##\\s..:.*",
+    "lastChapter": ".li_upDate a.0@text",
+    "coverUrl": ".w_pic@img@src",
+    "wordCount": ".w_txt li.2@textNodes"
+  },
+  "ruleToc": {
+    "chapterList": ".w_ulTxt li a",
+    "chapterName": "textNodes",
+    "chapterUrl": "href",
+    "isVip": "i@text"
+  },
+  "ruleContent": {
+    "content": ".article@html",
+    "imageStyle": "0"
+  }
+}

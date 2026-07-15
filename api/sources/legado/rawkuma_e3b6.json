@@ -1,0 +1,33 @@
+{
+  "bookSourceUrl": "https://rawkuma.com/",
+  "bookSourceName": "霓虹漫画（优）",
+  "bookSourceGroup": "漫画 书源",
+  "bookSourceType": 2,
+  "customOrder": 255,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "感谢酷安大佬 “莫宁哦” 做的源\n纯英文",
+  "lastUpdateTime": 1759568930817,
+  "respondTime": 3805,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "page/{{page}}/?s={{key}}",
+  "ruleSearch": {
+    "bookList": ".bs",
+    "name": ".tt@text",
+    "lastChapter": ".epxs@text",
+    "bookUrl": ".bsx@a.0@href",
+    "coverUrl": ".limit@img@src"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "-.clstyle@li",
+    "chapterName": ".chapternum.0@text",
+    "chapterUrl": ".eph-num@a@href"
+  },
+  "ruleContent": {
+    "content": "#readerarea@html",
+    "imageStyle": "FULL"
+  }
+}

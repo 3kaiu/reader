@@ -1,0 +1,56 @@
+{
+  "bookSourceUrl": "https://m.22biqu.com",
+  "bookSourceName": "💠 笔趣阁22",
+  "bookSourceGroup": "哈哈",
+  "bookSourceType": 0,
+  "bookUrlPattern": "https?://m.22biqu.com/biqu\\d+/",
+  "customOrder": 89,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1735646029968,
+  "respondTime": 9911,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "总排行榜::/rank/allvisit/\n月排行榜::/rank/monthvisit/\n周排行榜::/rank/weekvisit/\n总收藏榜::/rank/goodnum/\n玄幻魔法::/quanben/fenlei/1_{{page}}.html\n武侠修真::/quanben/fenlei/2_{{page}}.html\n都市言情::/quanben/fenlei/3_{{page}}.html\n历史军事::/quanben/fenlei/4_{{page}}.html\n科幻灵异::/quanben/fenlei/6_{{page}}.html\n游戏竞技::/quanben/fenlei/5_{{page}}.html\n女生耽美::/quanben/fenlei/7_{{page}}.html\n其他类型::/quanben/fenlei/8_{{page}}.html",
+  "ruleExplore": {
+    "bookList": ".hot_sale",
+    "name": "p.0@text##\\d+\\.",
+    "author": "p.1@text##（.*）",
+    "intro": "p.2@text##简介：",
+    "kind": "##作者.*（([^<]+)）##$1###",
+    "bookUrl": "a.0@href",
+    "coverUrl": "a.0@href##.+\\D((\\d+)\\d{3})\\D##https://img.22biqu.com/$2/$1/$1s.jpg###"
+  },
+  "searchUrl": "{{cookie.removeCookie(source.getKey())}}\n/ss/,{\n  \"body\": \"searchkey={{key}}\",\n  \"method\": \"POST\"\n}",
+  "ruleSearch": {
+    "bookList": ".bookbox",
+    "name": "a.1@text",
+    "author": ".author[0]@text",
+    "kind": ".author[1]@text##.*：",
+    "lastChapter": "a.2@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "init": "",
+    "name": "id.top@span@text",
+    "author": ".synopsisArea_detail@b@text",
+    "intro": ".review@p@html",
+    "kind": ".synopsisArea_detail@p.0:1:3@text##.*：|\\s..:.*",
+    "lastChapter": ".synopsisArea_detail@a@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "coverUrl": ".synopsisArea_detail@img@src",
+    "wordCount": ""
+  },
+  "ruleToc": {
+    "chapterList": ".directoryArea!0@p@a",
+    "chapterName": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+    "chapterUrl": "href",
+    "nextTocUrl": "option@value||.index-container-btn@href"
+  },
+  "ruleContent": {
+    "content": "id.chaptercontent@p@html",
+    "nextContentUrl": "id.pt_next@href",
+    "sourceRegex": "",
+    "replaceRegex": "##\\\\s*({{ book.durChapterTitle }}|.*作者：.*|PS：.*求推荐！|PS：.*求收藏！|感谢.*打赏.*|感谢.*推荐票.*|感谢.*月票.*|（.*月票.*）|（为大家的.*票加更.*）|第二更在.*|为防止采集.*支持！|网址：sudugu\\\\.com|更多.*書吧看！|无错.*小说。|必应.*速读谷|loadAdv.*)\\\\s*\""
+  }
+}

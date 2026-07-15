@@ -1,0 +1,36 @@
+{
+  "bookSourceUrl": "https://m.lizhi.fm",
+  "bookSourceName": "荔枝音乐（优）",
+  "bookSourceGroup": "音乐 书源",
+  "bookSourceType": 1,
+  "customOrder": 314,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759439189189,
+  "respondTime": 1369,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "https://m.lizhi.fm/vodapi/search/voice?deviceId=h5-f93e74ac-0065-8207-4853-75dec8585db3&keywords={{key}}&page={{page}}&receiptData=CAASJ2g1LWY5M2U3NGFjLTAwNjUtODIwNy00ODUzLTc1ZGVjODU4NWRiMyj%2FhvGLxy0wDDgF",
+  "ruleSearch": {
+    "bookList": "$.data.*",
+    "name": "$.voiceInfo.name",
+    "intro": "$.voiceDetailProperty.text",
+    "kind": "$.voiceInfo.lableName",
+    "bookUrl": "$.voiceInfo.voiceId@js:\"https://m.lizhi.fm/vodapi/voice/info/\"+result",
+    "coverUrl": "$.voiceInfo.imageUrl"
+  },
+  "ruleBookInfo": {
+    "name": "$..voiceInfo.name",
+    "author": "$..userVoice.name"
+  },
+  "ruleToc": {
+    "chapterList": "$.data[*]",
+    "chapterName": "$..voiceInfo.name",
+    "chapterUrl": "-"
+  },
+  "ruleContent": {
+    "content": "$..voicePlayProperty.trackUrl",
+    "imageStyle": "0"
+  }
+}

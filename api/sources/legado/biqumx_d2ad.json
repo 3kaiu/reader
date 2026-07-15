@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "http://www.biqumx.com",
+  "bookSourceName": "零点看书（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 189,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 发现失效, 搜索正文失效\n\n//By情无羁(yesui.me)25.04.08,网站优质，但最新仍有防盗(应该会陆续补更新),请仔细观察",
+  "lastUpdateTime": 1759294206227,
+  "respondTime": 185526,
+  "weight": 0,
+  "header": "{\"User-Agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Safari/97.0.495.28 Safari/537.36\"}",
+  "enabledCookieJar": false,
+  "exploreUrl": "[{\"title\":\"玄幻奇幻\",\"url\":\"/sort/1/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"武侠仙侠\",\"url\":\"/sort/2/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"都市言情\",\"url\":\"/sort/3/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"历史军事\",\"url\":\"/sort/4/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"网游竞技\",\"url\":\"/sort/5/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"科幻灵异\",\"url\":\"/sort/6/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"女生频道\",\"url\":\"/sort/7/{{page}}.html\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}}]",
+  "ruleExplore": {},
+  "searchUrl": "<js>\ncookie.removeCookie(source.key);\nurl=source.key;\na=java.ajax(url);\n//java.log(a)\nb=a.match(/action=\\\"([^\"]*)\\\"/)[1];\nc=`?keyWord=${key},{\"method\": \"get\"}`;\nb+=c\n</js>",
+  "ruleSearch": {
+    "checkKeyWord": "剑来",
+    "bookList": ".txt-list@li!0",
+    "name": ".s2@text",
+    "author": ".s4@text",
+    "kind": ".s1@text##\\[|\\]",
+    "lastChapter": ".s3@text",
+    "bookUrl": "a@href",
+    "coverUrl": "a.0@href##.*?(\\d+)(\\d{3}).*##http://www.biqumx.com/files/article/image/$1/$1$2/$1$2s.jpg"
+  },
+  "ruleBookInfo": {
+    "intro": ".m-desc@ownText"
+  },
+  "ruleToc": {
+    "chapterList": ".section-list li a",
+    "chapterName": "text",
+    "chapterUrl": "href##$##,{\"headers\":{\"User-Agent\":\"Mozilla/5.0 (HarmonyOS 2.0; Mobile; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Edge/41.0.306.77 Safari/537.36\"}}",
+    "nextTocUrl": "option@value"
+  },
+  "ruleContent": {
+    "content": ".content@html##（本章未完.*|.*第\\d/\\d页\\)",
+    "nextContentUrl": "text.下一页@href##$##,{\"headers\":{\"User-Agent\":\"Mozilla/5.0 (HarmonyOS 2.0; Mobile; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Edge/41.0.306.77 Safari/537.36\"}}"
+  }
+}

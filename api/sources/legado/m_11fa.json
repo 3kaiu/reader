@@ -1,0 +1,46 @@
+{
+  "bookSourceUrl": "https://m.huanxiangxs.com",
+  "bookSourceName": "幻想小说（优++）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 34,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759350973181,
+  "respondTime": 240016,
+  "weight": 0,
+  "header": "{\n    \"User-Agent\":\"Mozilla/5.0 (Linux; Android 10; V1824A Build/QP1A.190711.020) AppleWebKit/537.36 (KHTML, like Gecko)  Chrome/74.0.3729.186 Mobile Safari/537.36\"\n\n}",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "https://m.huanxiangxs.com/search/?keyword={{key}}&t=0&page={{page}},{\n  \"webView\": true\n}",
+  "ruleSearch": {
+    "checkKeyWord": "斗破苍穹",
+    "bookList": ".subject-item",
+    "name": ".info a.0@text",
+    "author": ".info a.1@text",
+    "intro": ".info p@text##【内容简介】",
+    "kind": ".info a.2@text",
+    "lastChapter": ".info a.3@text##【最新章节】",
+    "bookUrl": ".info a.0@href##$##,{'webView': true}",
+    "coverUrl": ".nbg img@data-original",
+    "wordCount": ".pub@text##.+\\/\\s"
+  },
+  "ruleBookInfo": {
+    "name": "[property$=book_name]@content",
+    "author": "[property$=author]@content",
+    "intro": "[property$=description]@content",
+    "kind": "[property~=category|status|update_time]@content",
+    "lastChapter": "[property$=latest_chapter_name]@content",
+    "coverUrl": "[property$=image]@content",
+    "tocUrl": "[property$=read_url]@content##$##,{'webView': true}"
+  },
+  "ruleToc": {
+    "chapterList": "#chapter@a",
+    "chapterName": "text",
+    "chapterUrl": "href##$##,{'webView': true}"
+  },
+  "ruleContent": {
+    "content": "#txt@p@html",
+    "replaceRegex": "##“.+最新章节！ |阅读.+请关注幻想小说网.+"
+  }
+}

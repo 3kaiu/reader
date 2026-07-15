@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "https://myself-bbs.com",
+  "bookSourceName": "盗随动漫（优+）",
+  "bookSourceGroup": "影视 书源",
+  "bookSourceType": 4,
+  "customOrder": 277,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766914864440,
+  "respondTime": 3231,
+  "weight": 36,
+  "enabledCookieJar": false,
+  "exploreUrl": "动画连载列表::https://myself-bbs.com/forum-133-{{page}}.html\n完结动画全集::https://myself-bbs.com/forum-113-{{page}}.html\n深夜寂寞（R18+）::https://myself-bbs.com/forum-137-{{page}}.html",
+  "ruleExplore": {
+    "bookList": "@css: ul[class=\"ml mlt mtw cl\"]>li",
+    "name": "@css: .ptn>a@text",
+    "bookUrl": "@css: .ptn>a@href",
+    "coverUrl": "@css: div[class=\"c cl\"]>a>img@src"
+  },
+  "searchUrl": "http://myself-bbs.com/search.php?mod=forum& formhash=94d459ba&srchtxt={{key}}&searchsubmit=yes",
+  "ruleSearch": {
+    "bookList": "@css: li[class=\"pbw\"]",
+    "name": "@css: h3[class=\"xs3\"]@text",
+    "bookUrl": "@css: h3[class=\"xs3\"] a@href"
+  },
+  "ruleBookInfo": {
+    "author": "@css: div[class=\"info_info\"] ul li:nth-child(4)@text",
+    "intro": "@css: div[id=\"info_introduction_text\"]@text",
+    "kind": "@css:.info_info>ul>li:eq(0)@text##作品類型: ##",
+    "coverUrl": "@css: div[class=\"info_img_box fl\"] img@src",
+    "wordCount": "@css:.info_info>ul>li:eq(2)@textNodes##: ##"
+  },
+  "ruleToc": {
+    "chapterList": "@css: .main_list>li",
+    "chapterName": "@css:a@text##(先鋒|站內)",
+    "chapterUrl": "@css:.display_none>li>a@data-href##.*\\/player\\/(.*)\\s?##$1\n@js:\n`data:;base64,{{java.base64Encode(result)}},{\"type\":\"null\"}`"
+  },
+  "ruleContent": {
+    "content": "@js:\nresult=java.hexDecodeToString(result)\na=result.slice(4,6)\nb=result.slice(6,8)\nc=result.slice(8,10)\nurl=`https://vpx05.myself-bbs.com/hls/${a}/${b}/${c}/${result}/index.m3u8`\nif(book.durChapterIndex == chapter.index){\njava.startBrowser(url,chapter.title);\njava.toast('正在加载视频...');\nresult = ' \\n\\n【刷新正文】跳转播放\\n不要相信且不要点击视频里的任何广告，误触后请立即返回\\n🔗直链:\\n' + url}"
+  }
+}

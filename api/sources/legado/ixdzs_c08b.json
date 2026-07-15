@@ -1,0 +1,39 @@
+{
+  "bookSourceUrl": "https://ixdzs.tw/",
+  "bookSourceName": "爱下电子（繁）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 217,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "繁体字",
+  "lastUpdateTime": 1772086589365,
+  "respondTime": 182726,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "https://ixdzs.tw/bsearch?q={{key}}",
+  "ruleSearch": {
+    "bookList": ".burl",
+    "name": ".bname@a@text",
+    "author": ".bauthor@a@text",
+    "intro": ".l-p2@text",
+    "kind": ".lz@text&&.l-time@text",
+    "lastChapter": ".l-last@a@text",
+    "bookUrl": ".bname@a@href",
+    "coverUrl": ".l-img@img@src",
+    "wordCount": ".size@text"
+  },
+  "ruleBookInfo": {
+    "tocUrl": "{{java.put(\"url\",baseUrl);\n\t\"https://ixdzs.tw/novel/clist/\"}},{\n  \"body\": \"bid={{baseUrl.match(/(\\d+).$/)[1]}}\",\n  \"method\": \"POST\"\n}"
+  },
+  "ruleToc": {
+    "chapterList": "$.data",
+    "chapterName": "$.title",
+    "chapterUrl": "@get:{url}p{{$.ordernum}}.html",
+    "isVolume": "$.ctype"
+  },
+  "ruleContent": {
+    "content": ".page-content@p@text"
+  }
+}

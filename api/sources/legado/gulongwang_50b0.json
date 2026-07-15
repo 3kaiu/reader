@@ -1,0 +1,32 @@
+{
+  "bookSourceUrl": "https://www.gulongwang.com",
+  "bookSourceName": "古龙全集（优+）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 67,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759513025455,
+  "respondTime": 535,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "古龙全集::/",
+  "ruleExplore": {
+    "bookList": ".shuming@li",
+    "name": "a.1@text",
+    "author": "@js:'古龙'",
+    "bookUrl": "a.1@href",
+    "coverUrl": "img@src"
+  },
+  "ruleSearch": {},
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "id.right@li@a",
+    "chapterName": "text##正文\\s",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": ".nr_con@html",
+    "replaceRegex": "##（古龙网.*）"
+  }
+}

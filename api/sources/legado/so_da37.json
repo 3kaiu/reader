@@ -1,0 +1,44 @@
+{
+  "bookSourceUrl": "https://so.itingwa.com",
+  "bookSourceName": "听蛙音乐（优+）",
+  "bookSourceGroup": "音乐 书源",
+  "bookSourceType": 1,
+  "customOrder": 312,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 发现失效",
+  "lastUpdateTime": 1758567769512,
+  "respondTime": 180802,
+  "weight": 0,
+  "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Linux; Android 9; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.90 Mobile Safari/537.36\"\n}",
+  "enabledCookieJar": false,
+  "exploreUrl": "电台NJ::https://www.itingwa.com/radio/nj/{{page}}",
+  "ruleExplore": {
+    "bookList": "class.clearfix nj_list@tag.li",
+    "name": "class.font_14@text",
+    "kind": "class.color2@text",
+    "bookUrl": "class.top_15@tag.a@href",
+    "coverUrl": "tag.img@src"
+  },
+  "searchUrl": "https://so.itingwa.com/?c=index&m=index&k={{key}}&t=1",
+  "ruleSearch": {
+    "bookList": "class.music_list@tag.tr",
+    "name": "tag.a.0@text##未知",
+    "author": "tag.a.1@text",
+    "bookUrl": "tag.a@href",
+    "coverUrl": "tag.img@src"
+  },
+  "ruleBookInfo": {
+    "intro": "class.top_10 intro@text",
+    "tocUrl": "id.item_music@tag.a@href"
+  },
+  "ruleToc": {
+    "chapterList": "class.frame1||class.left@tag.a",
+    "chapterName": "tag.h1@text||tag.a@text##下载音乐 支持听蛙",
+    "chapterUrl": "href",
+    "nextTocUrl": "text.下一页@href"
+  },
+  "ruleContent": {
+    "content": "class.jp-jplayer@init-data"
+  }
+}

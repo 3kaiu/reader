@@ -1,0 +1,43 @@
+{
+  "bookSourceUrl": "http://www.soshu8.com",
+  "bookSourceName": "搜书小说（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 150,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766339896366,
+  "respondTime": 11365,
+  "weight": 2,
+  "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 10) Mobile Safari/537.36\"}",
+  "enabledCookieJar": false,
+  "exploreScreen": "",
+  "ruleExplore": {},
+  "searchUrl": "http://www.soshu8.com/search.php?q={{key}}",
+  "ruleSearch": {
+    "bookList": ".row@dl",
+    "name": "dd@h3@text##\\[.*\\]",
+    "author": ".book_other@span@text",
+    "kind": "dd@h3@text##\\[|\\].*",
+    "lastChapter": "{{@@.book_other.-1@a@text}}·{{@@.book_other.-2@text##更新时间：|\\s.*}}",
+    "bookUrl": "dt@a@href",
+    "coverUrl": "dt@a@img@src"
+  },
+  "ruleBookInfo": {
+    "name": ".info@h1@text",
+    "author": ".options@li.0@a@text",
+    "intro": "[property$=og:description]@content",
+    "lastChapter": "{{@@.options@li.-3@a@text}}{{@@.options@li.1@text##更新时间：|\\s.*}}",
+    "coverUrl": "img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".book_list2@li",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "nextTocUrl": ".page-link@href"
+  },
+  "ruleContent": {
+    "content": ".font_max@html##第\\(\\d+\\/\\d+\\)页|.*\\.org|.*\\.cc|.*\\.cn|.*\\.com",
+    "nextContentUrl": "text.下一章@href"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "bookSourceUrl": "http://www.gashuw.com/",
+  "bookSourceName": "歌书网吧（优）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 198,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759571020991,
+  "respondTime": 2226,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "http://www.gashuw.com/modules/article/search.php?searchkey={{key}}",
+  "ruleSearch": {
+    "bookList": "#nr",
+    "name": ".odd.0@text",
+    "author": ".odd.1@text",
+    "kind": ".even.-1@text",
+    "lastChapter": ".even.0@text",
+    "bookUrl": "a.0@href",
+    "wordCount": ".even.-2@text"
+  },
+  "ruleBookInfo": {
+    "name": "text.txt下载.-2@text##txt下载",
+    "author": "text.作者：@text",
+    "intro": ".tabcontent@.tabvalue.0@text",
+    "kind": ".tabcontent@tbody@tr.0@td.0@text##类 别：",
+    "coverUrl": "img@src",
+    "tocUrl": ".ulrow@a.0@href",
+    "wordCount": ".tabcontent@tbody@tr.0@td.1@text##字 数："
+  },
+  "ruleToc": {
+    "chapterList": "dl dd[8:]",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": "#content@textNodes##www.gebiqu.com"
+  }
+}

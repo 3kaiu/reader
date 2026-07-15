@@ -1,0 +1,38 @@
+{
+  "bookSourceUrl": "http://m.yuedu.163.com#yc1101",
+  "bookSourceName": "网易云说",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 427,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1765997467565,
+  "respondTime": 1689,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "loginUrl": "https://m.yuedu.163.com/login.do",
+  "ruleExplore": {},
+  "searchUrl": "/search/book/data.json?key={{key}}",
+  "ruleSearch": {
+    "bookList": "data.books[*]\n@js:JSON.parse(result).map(o=> {\n    var J = org.jsoup.Jsoup.parse(java.ajax(baseUrl.match(/(.+?\\/\\/.+?\\/)/)[1] + 'source/' + o.sourceUuid));\n    return {\n        name: o.title,\n        author: o.author,\n        tags: o.keyName,\n        num:o.showTotalCount+'字',\n        latest: String(J.select('.m-book-recent a').text()).replace(/[\\(（【].*[求更谢乐发合].*[】）\\)]/,'') +String(J.select('.m-book-recent p').text()).replace(/\\s*(\\d+-\\d+-\\d+).+/, '（$1）').replace(/\\s*(\\d+)月(\\d+)日.+/, '（$1-$2）'),\n        intro: o.description.replace(/<\\/?\\w+>/g, '').trim(),\n        cover: o.coverImage,\n        catalogUrl: '/reader/book/info.json?catalog_only=true&source_uuid=' + o.sourceUuid\n    }\n});",
+    "name": "name",
+    "author": "author",
+    "intro": "intro",
+    "kind": "tags",
+    "lastChapter": "latest",
+    "bookUrl": "catalogUrl",
+    "coverUrl": "cover",
+    "wordCount": "num"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "data.catalog[?(@.grade > 1)]",
+    "chapterName": "$.title##[\\(（【].*[求更谢乐发合].*[】）\\)]",
+    "chapterUrl": "uuid@js:\nvar s_uuid = baseUrl.replace(/.*source_uuid=/,'')\n'/reader/book/content.json?source_uuid='+s_uuid+'&content_uuid='+result;",
+    "isVip": "$.needPay"
+  },
+  "ruleContent": {
+    "content": "data.content@js:\nresult ? String(java.base64Decode(result)).replace(/<h1>.+?<\\/h1>/, '') : ' 付费章节，换源阅读！';",
+    "imageStyle": "0"
+  }
+}

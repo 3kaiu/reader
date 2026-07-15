@@ -1,0 +1,29 @@
+{
+  "bookSourceUrl": "https://www.52dzxy.com/",
+  "bookSourceName": "我爱读者（优）",
+  "bookSourceGroup": "特殊 书源",
+  "bookSourceType": 0,
+  "customOrder": 343,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759385591772,
+  "respondTime": 712,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "#",
+  "ruleSearch": {
+    "bookList": "class.booklist@tag.td",
+    "name": "class.time@tag.a.0@text",
+    "bookUrl": "class.time@tag.a.0@href"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "class.maglisttitle@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "tag.p@text##我爱读者校园网"
+  }
+}

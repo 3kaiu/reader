@@ -1,0 +1,32 @@
+{
+  "bookSourceUrl": "https://www.jiumodiary.com#",
+  "bookSourceName": "鸠摩搜书（导）",
+  "bookSourceGroup": "小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 210,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766349461783,
+  "respondTime": 7241,
+  "weight": 62,
+  "enabledCookieJar": true,
+  "ruleExplore": {},
+  "searchUrl": "@js:\nurl1='https://www.jiumodiary.com/init_hubs.php,';\npost={\"method\":\"POST\",\"body\":\"q=\"+key+\"&remote_ip=&time_int=\"+Date.now()};\nid=java.ajax(url1+JSON.stringify(post)).match(/id\":\"([^\"]+)\"/)[1];\nurl='https://www.jiumodiary.com/ajax_fetch_hubs.php';\nbody='id='+id+'&set='+page;\nheader={\n\"method\": \"POST\",\n\"body\": String(body)\n}\njava.put('key',key);\nur=url+','+JSON.stringify(header);",
+  "ruleSearch": {
+    "bookList": "<js>\nlist=JSON.parse(result).sources\nJson=[]\nfor(i in list){\nlist1=JSON.parse(result).sources[i].details.data;\nfor(j in list1){\nif(list1[j].title.indexOf(java.get('key'))>-1){\nJson.push(list1[j])\n}\n}\n}\nresult=JSON.stringify(Json)\n</js>\n$.[*]",
+    "name": "$.title##<.*?>|(^.{0,15})##$1###",
+    "intro": "$.host&&$.des&&$.title##<.*?>",
+    "kind": "$.des",
+    "bookUrl": "$.link",
+    "coverUrl": "$.img_link"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "@js:a=[{a:'💬下载地址',b:baseUrl}]",
+    "chapterName": "a",
+    "chapterUrl": "b"
+  },
+  "ruleContent": {
+    "content": "@js:\n'💬点击章节链接跳转浏览器下载'+baseUrl"
+  }
+}

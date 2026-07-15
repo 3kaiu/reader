@@ -1,0 +1,42 @@
+{
+  "bookSourceUrl": "http://book.tiexue.net/",
+  "bookSourceName": "铁血读书",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 405,
+  "enabled": true,
+  "enabledExplore": true,
+  "bookSourceComment": "// Error: 搜索失效",
+  "lastUpdateTime": 1766137587464,
+  "respondTime": 180398,
+  "weight": 0,
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "http://book.tiexue.net/SearchResults.aspx?pageindex={{page}}&PageSize=20&keywords={{key}}&noveltype=0,{\n  \"charset\": \"escape\"\n}",
+  "ruleSearch": {
+    "bookList": "class.tianZhi_list@tag.dl",
+    "name": "tag.h6@tag.a@text",
+    "author": "class.zuoZhe1@tag.a@text",
+    "kind": "class.keyWords colorTh@tag.a.0@text",
+    "bookUrl": "class.keyRight.0@tag.a.0@href",
+    "coverUrl": "tag.dt@tag.a@tag.img@src"
+  },
+  "ruleBookInfo": {
+    "name": "class.normaltitle@tag.span@text",
+    "author": "class.xQing@tag.table@tag.tbody@tag.tr.0@tag.td.0@tag.p@tag.a@tag.u@text",
+    "intro": "p.colorGray@text",
+    "kind": ".cel_02@.xQing@tr.0@td.1@a@u@text&&dd.colorGray2@text##更新于\\s",
+    "lastChapter": ".newChapter@h3@a@text",
+    "coverUrl": "class.li_01@tag.a@tag.img@src",
+    "tocUrl": "class.newChapter borderY marTop@tag.ul@tag.li.1@tag.a@href",
+    "wordCount": ".cel_02@.xQing@tr.1@td.3@span.orange@text"
+  },
+  "ruleToc": {
+    "chapterList": "class.list01@tag.li@tag.p@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "class.p_01@tag.p@html"
+  }
+}

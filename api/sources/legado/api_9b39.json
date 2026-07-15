@@ -1,0 +1,33 @@
+{
+  "bookSourceUrl": "https://api.520diandu.com/",
+  "bookSourceName": "名著阅读（优++）",
+  "bookSourceGroup": "漫画 书源",
+  "bookSourceType": 2,
+  "customOrder": 228,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1766230205190,
+  "respondTime": 2348,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "exploreUrl": "[{\"title\":\"📚全部书籍\",\"url\":\"https://api.520diandu.com/api/read/allReadBooks?uid=&key=&page={{page}}&cv=134&from=web\",\"style\":{\"layout_flexBasisPercent\":1,\"layout_flexGrow\":1}}]",
+  "ruleExplore": {},
+  "searchUrl": "https://api.520diandu.com/api/read/allReadBooks?uid=&key=&name={{key}}&page={{page}}&cv=134&from=app",
+  "ruleSearch": {
+    "checkKeyWord": "封神",
+    "bookList": "$..books[*]",
+    "name": "$.book_name",
+    "intro": "$.title",
+    "bookUrl": "https://api.520diandu.com/api/read/readAllPages?uid=&key=&cv=134&from=web&bid={{$.id}}",
+    "coverUrl": "$.famous"
+  },
+  "ruleBookInfo": {},
+  "ruleToc": {
+    "chapterList": "$.data",
+    "chapterName": "$.page",
+    "chapterUrl": "$.pic@put:{img:pic}"
+  },
+  "ruleContent": {
+    "content": "@get:{img}@js:headers={\"headers\":{\"Referer\":baseUrl}};\nresult.split(\"\\n\").map(x=>'<img src=\\\"'+x+','+JSON.stringify(headers)+'\\\">').join(\"\\n\")"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "bookSourceUrl": "http://www.bgwxc.com#",
+  "bookSourceName": "布咕阅读",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 423,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759387226914,
+  "respondTime": 1881,
+  "weight": 0,
+  "header": "{\"Cookie\":\"user_account=F76A5O7ZdGuH3Ey2Frt34k3p9WBtdKheC3N%2Bk85WDanWB4lQx42C5q136iNFIafAJdQ8ESdj2TBFTB772Djd03teGEtg\"}",
+  "enabledCookieJar": false,
+  "ruleExplore": {},
+  "searchUrl": "http://www.bgwxc.com/module/novel/search.php?keyword={{key}}",
+  "ruleSearch": {
+    "bookList": "class.res-item",
+    "name": "h4@text",
+    "author": ".author@text",
+    "intro": "class.search-alt@html\n<js>result.replace(/(.*)/,' ○○○STORY:\\n$1')</js>",
+    "kind": "class.t-row t-row-2@span@text",
+    "lastChapter": "class.chapter-span@text",
+    "bookUrl": "tag.a.0@href",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "intro": ".txtinfobox@html",
+    "tocUrl": "class.tabs-menus@tag.a.0@href"
+  },
+  "ruleToc": {
+    "chapterList": "class.chapter-item",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "text##(VIP)##$1###"
+  },
+  "ruleContent": {
+    "content": "class.read-content@html"
+  }
+}

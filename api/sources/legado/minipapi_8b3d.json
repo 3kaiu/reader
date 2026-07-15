@@ -1,0 +1,53 @@
+{
+  "bookSourceUrl": "https://minipapi.sfacg.com",
+  "bookSourceName": "安轻小说",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 431,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1759386994045,
+  "respondTime": 1374,
+  "weight": 0,
+  "header": "{\n\"content-type\": \"application/json\",\n\"sf-minip-info\": \"minip_novel/1.0.70(android;10)/wxmp\",\n\"authorization\": \"Basic YW5kcm9pZHVzZXI6MWEjJDUxLXl0Njk7KkFjdkBxeHE=\"\n}",
+  "enabledCookieJar": true,
+  "exploreUrl": "魔幻::https://api.sfacg.com/novels/21/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n玄幻::https://api.sfacg.com/novels/22/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n古风::https://api.sfacg.com/novels/23/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n科幻::https://api.sfacg.com/novels/24/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n校园::https://api.sfacg.com/novels/25/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n都市::https://api.sfacg.com/novels/26/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n游戏::https://api.sfacg.com/novels/27/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate\n悬疑::https://api.sfacg.com/novels/28/sysTags/novels?sort=latest&systagids=&isfree=both&isfinish=both&updatedays=-1&charcountbegin=0&charcountend=0&page={{page - 1}}&size=20&expand=typeName,tags,discount,discountExpireDate",
+  "ruleExplore": {
+    "bookList": "$.data",
+    "name": "$.novelName",
+    "author": "$.authorName",
+    "kind": "$.expand.typeName",
+    "bookUrl": "https://minipapi.sfacg.com/pas/mpapi/novels/{{$.novelId}}?expand=latestchapter,chapterCount,typeName,intro,fav,ticket,pointCount,tags,sysTags,signlevel,discount,discountExpireDate,totalNeedFireMoney,originTotalNeedFireMoney",
+    "coverUrl": "$.novelCover",
+    "wordCount": "$.charCount"
+  },
+  "searchUrl": "https://m.sfacg.com/API/HTML5.ashx?op=search&keyword={{key}}",
+  "ruleSearch": {
+    "bookList": "$.Novels",
+    "name": "$.NovelName",
+    "author": "$.AuthorName",
+    "kind": "$.TypeName",
+    "bookUrl": "https://minipapi.sfacg.com/pas/mpapi/novels/{{$.NovelID}}?expand=latestchapter,chapterCount,typeName,intro,fav,ticket,pointCount,tags,sysTags,signlevel,discount,discountExpireDate,totalNeedFireMoney,originTotalNeedFireMoney",
+    "coverUrl": "https://rs.sfacg.com/web/novel/images/NovelCover/Big/{{$.NovelCover}}"
+  },
+  "ruleBookInfo": {
+    "name": "$.data.novelName",
+    "author": "$.data.authorName",
+    "intro": "$.data.expand.intro",
+    "kind": "$.data.typeName",
+    "lastChapter": "$.data.expand.latestChapter.title",
+    "coverUrl": "$.data.novelCover",
+    "tocUrl": "https://minipapi.sfacg.com/pas/mpapi/novels/{{$.data.novelId}}/dirs",
+    "wordCount": "$.data.charCount"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.volumeList[*].chapterList[*]",
+    "chapterName": "$.title",
+    "chapterUrl": "https://minipapi.sfacg.com/pas/mpapi/Chaps/{{$.chapId}}?expand=content,needFireMoney,originNeedFireMoney,tsukkomi&autoOrder=false",
+    "isVip": "$.isVip",
+    "updateTime": "$.updateTime"
+  },
+  "ruleContent": {
+    "content": "$.data.expand.content"
+  }
+}

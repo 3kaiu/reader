@@ -1,0 +1,38 @@
+{
+  "bookSourceUrl": "https://h5.17k.com",
+  "bookSourceName": "中小说网",
+  "bookSourceGroup": "正版小说 书源",
+  "bookSourceType": 0,
+  "customOrder": 396,
+  "enabled": true,
+  "enabledExplore": true,
+  "lastUpdateTime": 1765832597046,
+  "respondTime": 4692,
+  "weight": 0,
+  "enabledCookieJar": true,
+  "concurrentRate": "1500",
+  "ruleExplore": {},
+  "searchUrl": "{{java.put(\"su\",`https://h5.17k.com/ck/search/list?page=1&keyword=${key}`)}}",
+  "ruleSearch": {
+    "bookList": "<js>\nif (result.includes('setCookie')) {\n    java.webView(null, \"https://h5.17k.com/ck/search/\", null);\n    x = java.ajax(java.get(\"su\"));\n} else {\n    x = result;\n}\nx;\n</js>\n$.data.lists[*]",
+    "name": "$.bookName",
+    "author": "$.authorPenName",
+    "kind": "$.bookChannel.name",
+    "lastChapter": "{{$.lastUpdateChapterName}}",
+    "bookUrl": "@put:{id:$.id}\nhttps://h5.17k.com/book/@get:{id}.html",
+    "coverUrl": "$.coverImg"
+  },
+  "ruleBookInfo": {
+    "tocUrl": "https://h5.17k.com/list/@get:{id}.html"
+  },
+  "ruleToc": {
+    "chapterList": ".listCont@dd",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href",
+    "isVip": "@js:// 字符串\n/vip/.test(result) ? true : false;"
+  },
+  "ruleContent": {
+    "content": "#Context@html",
+    "replaceRegex": "##.*17K小说.*"
+  }
+}
