@@ -10,10 +10,24 @@ use std::sync::LazyLock;
 use crate::app::AppState;
 use crate::error::{internal_error, not_found, ApiErrorResponse};
 
+/// Check if an IPv4 address is private/reserved (RFC 1918/5737/6598/loopback/link-local)
+fn is_ipv4_private(v4: &std::net::Ipv4Addr) -> bool {
+    v4.is_loopback()
+        || v4.is_private()
+        || v4.is_link_local()
+        || v4.is_unspecified()
+        // Documentation ranges (TEST-NET-1/2/3)
+        || v4.octets() == [192, 0, 2, 0]
+        || v4.octets() == [198, 51, 100, 0]
+        || v4.octets() == [203, 0, 113, 0]
+}
+
 // Shared HTTP client for URL imports (connection pool + TLS state reused)
 static URL_IMPORT_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
+        // Never follow redirects — attacker could redirect to internal IPs
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .expect("failed to build URL import client")
 });
@@ -157,20 +171,21 @@ async fn fetch_sources_from_url(
                 for addr in addrs {
                     let ip = addr.ip();
                     let is_private = match ip {
-                        std::net::IpAddr::V4(v4) => {
-                            v4.is_loopback()
-                                || v4.is_private()
-                                || v4.is_link_local()
-                                || v4.is_unspecified()
-                                || v4.to_string().starts_with("192.0.2.")
-                                || v4.to_string().starts_with("198.51.100.")
-                                || v4.to_string().starts_with("203.0.113.")
-                        },
+                        std::net::IpAddr::V4(v4) => is_ipv4_private(&v4),
                         std::net::IpAddr::V6(v6) => {
+                            // Check IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+                            if let Some(_mapped_v4) = v6.to_ipv4_mapped() {
+                                return Err((
+                                    StatusCode::BAD_REQUEST,
+                                    format!("URL resolves to private/reserved IP: {}", ip),
+                                ));
+                            }
                             v6.is_loopback()
                                 || v6.is_unspecified()
-                                || v6.to_string().starts_with("fc")
-                                || v6.to_string().starts_with("fd")
+                                || v6.is_unique_local()      // fc00::/7
+                                || v6.is_unicast_link_local()  // fe80::/10
+                                // Documentation range 2001:db8::/32
+                                || (v6.segments()[0] == 0x2001 && v6.segments()[1] == 0x0db8)
                         },
                     };
                     if is_private {
@@ -202,7 +217,7 @@ async fn fetch_sources_from_url(
         ));
     }
 
-    // Detect encoding from Content-Type header before consuming response
+    // Extract Content-Type before consuming response (bytes_stream takes ownership)
     let content_type = response
         .headers()
         .get("content-type")
@@ -210,22 +225,28 @@ async fn fetch_sources_from_url(
         .unwrap_or("application/json")
         .to_string();
 
-    // Limit response size to 10MB
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| {
+    // Limit response size to 10MB using streaming (prevents OOM on large responses)
+    use futures::StreamExt;
+    const MAX_BODY_BYTES: u64 = 10 * 1024 * 1024;
+    let mut stream = response.bytes_stream();
+    let mut bytes = Vec::new();
+    let mut total_size: u64 = 0;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| {
             (
                 StatusCode::BAD_GATEWAY,
-                format!("Failed to read response: {}", e),
+                format!("Failed to read response chunk: {}", e),
             )
         })?;
-
-    if bytes.len() > 10 * 1024 * 1024 {
-        return Err((
-            StatusCode::PAYLOAD_TOO_LARGE,
-            format!("Response too large ({} bytes, max 10MB)", bytes.len()),
-        ));
+        total_size += chunk.len() as u64;
+        if total_size > MAX_BODY_BYTES {
+            return Err((
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!("Response exceeds {}MB limit", MAX_BODY_BYTES / 1024 / 1024),
+            ));
+        }
+        bytes.extend_from_slice(&chunk);
     }
 
     let text = if content_type.contains("charset=") {

@@ -87,7 +87,7 @@ async function handleUrlImport() {
         break
       }
       try {
-        const result = await sourceApi.importLegadoSourcesFromUrl(url.trim())
+        const result = await sourceApi.importLegadoSourcesFromUrl(url.trim(), urlImportAbortController.signal)
         if (result.isSuccess && result.data) {
           urlResults.value.push({
             url: url.trim(),

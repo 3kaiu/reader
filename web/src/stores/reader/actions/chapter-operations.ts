@@ -142,11 +142,13 @@ export function createReaderChapterOperations(
         ? window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)
         : 0
 
-    refreshInflight = helpers.fetchChapterContent(state.currentChapter.value)
+    // Capture chapter reference once — currentChapter may change during await
+    const chapter = state.currentChapter.value
+    refreshInflight = helpers.fetchChapterContent(chapter)
     try {
       const chapterContent = await refreshInflight
-      helpers.setCurrentChapterContent(state.currentChapter.value, chapterContent)
-      helpers.updateLoadedChapter(state.currentChapter.value, chapterContent, false)
+      helpers.setCurrentChapterContent(chapter, chapterContent)
+      helpers.updateLoadedChapter(chapter, chapterContent, false)
     } finally {
       refreshInflight = null
     }

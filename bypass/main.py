@@ -25,6 +25,11 @@ from engines.browser_probe import is_cf_blocked
 class Config:
     def __init__(self):
         self.api_key = os.getenv("CF_API_KEY", "")
+        if not self.api_key:
+            raise RuntimeError(
+                "CF_API_KEY environment variable is required. "
+                "All bypass endpoints (fetch, browser-probe, solve-cf) require authentication."
+            )
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
 
 config = Config()
@@ -90,6 +95,13 @@ class FetchRequest(BaseModel):
     @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:
+        return _validate_url_not_private(v)
+
+    @field_validator("proxy", mode="before")
+    @classmethod
+    def validate_proxy_not_private(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
         return _validate_url_not_private(v)
 
     @field_validator("body")

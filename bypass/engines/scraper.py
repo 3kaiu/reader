@@ -144,6 +144,7 @@ class ScraperEngine(BaseBypassEngine):
                 sc = self._create_scraper()
                 req_kwargs = {
                     'timeout': timeout,
+                    'allow_redirects': False,  # Prevent SSRF via redirect
                 }
                 if headers:
                     req_kwargs['headers'] = headers

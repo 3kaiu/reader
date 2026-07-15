@@ -72,8 +72,8 @@ export const sourceApi = {
     }),
 
   // 从 URL 导入 Legado 书源
-  importLegadoSourcesFromUrl: (url: string) =>
-    $post<LegadoSourceView[]>('/sources/legado/import-url', { url }),
+  importLegadoSourcesFromUrl: (url: string, signal?: AbortSignal) =>
+    $post<LegadoSourceView[]>('/sources/legado/import-url', { url }, { signal }),
 
   // 从多个 URL 导入 Legado 书源
   importLegadoSourcesFromUrls: (urls: string[]) =>

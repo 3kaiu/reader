@@ -43,7 +43,7 @@ url.workspace = true
 tower_governor = { version = "0.8", features = ["axum"] }
 
 # HTTP client (for URL import)
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 
 # Encoding detection (for URL import content decoding)
 encoding_rs = "0.8"

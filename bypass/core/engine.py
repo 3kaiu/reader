@@ -3,6 +3,7 @@ Base Bypass Engine Abstraction
 Unified interface for all bypass engines (Scraper, Mesh, etc.)
 """
 import abc
+import asyncio
 import time
 from enum import Enum, auto
 from typing import Dict, Any, Optional
