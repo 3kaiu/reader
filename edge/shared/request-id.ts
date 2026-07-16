@@ -26,17 +26,3 @@ export function ensureRequestId(request: Request): { request: Request; requestId
     requestId,
   }
 }
-
-export function attachRequestId(response: Response, requestId: string): Response {
-  if (response.headers.get(REQUEST_ID_HEADER) === requestId) {
-    return response
-  }
-
-  const headers = new Headers(response.headers)
-  headers.set(REQUEST_ID_HEADER, requestId)
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  })
-}

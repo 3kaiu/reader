@@ -102,6 +102,23 @@ export async function proxyRequest(
   // Configurable fetch timeout (15s default, 300s for streaming endpoints)
   const isStreaming = path.includes('/stream') || request.headers.get('Accept')?.includes('text/event-stream');
   const FETCH_TIMEOUT_MS = isStreaming ? 300_000 : 15_000;
+
+  // Request body size limit: reject payloads > 10MB
+  const MAX_BODY_SIZE = 10 * 1024 * 1024;
+  const contentLength = request.headers.get('Content-Length');
+  if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+    return new Response(JSON.stringify({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'Request body exceeds maximum size of 10MB',
+      requestId,
+    }), {
+      status: 413,
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCorsHeaders(origin, corsEnv),
+      },
+    });
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 

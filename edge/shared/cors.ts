@@ -38,6 +38,10 @@ export function getCorsHeaders(origin: string, env?: CorsEnvSlice): Record<strin
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     ...(isAllowed ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     'Access-Control-Max-Age': '86400',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Vary': 'Origin',
   }
 }
 

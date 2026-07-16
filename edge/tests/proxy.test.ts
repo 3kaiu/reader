@@ -108,12 +108,12 @@ describe('shared/proxy proxyRequest', () => {
       })
 
       const res = await proxyRequest(req, 'https://backend.example', '/api/search', {})
-      expect(res.status).toBe(503)
+      expect(res.status).toBe(500)
 
       const json = await res.json()
       expect(json).toMatchObject({
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Service temporarily unavailable',
+        code: 'INTERNAL_ERROR',
+        message: 'Unexpected backend error',
         requestId,
       })
     } finally {

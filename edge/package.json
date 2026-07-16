@@ -1,10 +1,9 @@
 {
-  "name": "novel-decoder-optimized",
+  "name": "nexus-edge",
   "version": "1.0.0",
-  "description": "Cloudflare Workers Novel Decoder with Auto-Optimization",
+  "description": "Nexus Reader Edge Worker — proxy, caching, CORS",
   "main": "entry.ts",
   "scripts": {
-    "init": "./init.sh",
     "deploy": "wrangler deploy",
     "status": "wrangler deployments list",
     "test": "vitest run",
@@ -22,7 +21,7 @@
     "optimization",
     "ai"
   ],
-  "author": "Auto-Optimized",
+  "author": "Nexus Reader",
   "license": "MIT",
   "devDependencies": {
     "vitest": "^3.2.4",

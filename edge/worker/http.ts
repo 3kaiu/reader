@@ -1,4 +1,4 @@
-import { getCorsHeaders } from '../shared/cors.ts'
+import { getCorsHeaders, type CorsEnvSlice } from '../shared/cors.ts'
 import { getRequestId, REQUEST_ID_HEADER } from '../shared/request-id.ts'
 
 export { REQUEST_ID_HEADER }
@@ -8,7 +8,8 @@ export function jsonError(
   code: string,
   message: string,
   status: number,
-  details?: string
+  details?: string,
+  corsEnv?: CorsEnvSlice
 ): Response {
   const requestId = getRequestId(request)
   const origin = request.headers.get('Origin') || ''
@@ -20,7 +21,7 @@ export function jsonError(
   }), {
     status,
     headers: {
-      ...getCorsHeaders(origin, undefined),
+      ...getCorsHeaders(origin, corsEnv),
       'Content-Type': 'application/json',
       [REQUEST_ID_HEADER]: requestId,
     }

@@ -39,9 +39,6 @@ export interface AnalyticsEngineDatasetLike {
   query(sql: string): Promise<Record<string, unknown>>;
 }
 
-export interface ServiceUrls {
-  nexusLiteUrl: string;
-}
 
 export interface WorkerEnv {
   NEXUS_API_URL: string;

@@ -50,15 +50,4 @@ export function createLogger(env: LoggerEnv): Logger {
   };
 }
 
-/**
- * No-op logger for production environments where logging is disabled
- */
-export const noopLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: (message: string, ...args: unknown[]) => {
-    // Only errors are logged in production
-    console.error(`[ERROR] ${message}`, ...args);
-  },
-};
+
