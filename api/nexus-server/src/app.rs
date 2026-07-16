@@ -12,7 +12,7 @@ use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{app_state::build_app_state, routes};
 
@@ -127,8 +127,10 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
 
     let app = if config.server.enable_cors {
         if config.server.allowed_origins.is_empty() {
-            info!("CORS: permissive mode (dev)");
-            app.layer(CorsLayer::permissive())
+            error!("CORS is enabled but allowed_origins is empty. Configure allowed_origins or set enable_cors to false.");
+            return Err(anyhow::anyhow!(
+                "CORS enabled but no allowed_origins configured. Either set allowed_origins or disable CORS."
+            ));
         } else {
             use http::HeaderValue;
             use tower_http::cors::{AllowOrigin, Any};

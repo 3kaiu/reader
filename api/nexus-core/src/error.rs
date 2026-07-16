@@ -63,12 +63,7 @@ pub enum ErrorCode {
     ConfigNotFound = 8001,
     ConfigValidationFailed = 8002,
 
-    // AI/ML Layer (9000-9999) — speculative, no runtime yet
-    ModelLoadFailed = 9000,
-    InferenceFailed = 9001,
-    UnsupportedModelType = 9002,
-    ModelTimeout = 9003,
-    InsufficientResources = 9004,
+    // AI/ML block (9000-9999) — reserved for future use
 
     // Generic (0000-0999)
     InternalError = 0,
@@ -219,24 +214,6 @@ pub enum EngineError {
     #[error("Configuration validation failed: {details}")]
     ConfigValidationFailed { details: String },
 
-    // ============== AI/ML Layer (speculative generality — no runtime yet) ==============
-    // TODO: Remove when AI integration lands; these variants exist only for
-    //       forward-compatibility with planned NLP/NLG pipelines.
-    #[error("Model load failed: {model_id}")]
-    ModelLoadFailed { model_id: String },
-
-    #[error("AI inference failed: {reason}")]
-    InferenceFailed { reason: String },
-
-    #[error("Unsupported model type: {model_type}")]
-    UnsupportedModelType { model_type: String },
-
-    #[error("Model inference timeout")]
-    ModelTimeout,
-
-    #[error("Insufficient resources for AI processing")]
-    InsufficientResources,
-
     // ============== Generic ==============
     #[error("Internal error: {message}")]
     Internal { message: String },
@@ -308,13 +285,6 @@ impl EngineError {
             Self::ConfigNotFound { .. } => ErrorCode::ConfigNotFound,
             Self::ConfigValidationFailed { .. } => ErrorCode::ConfigValidationFailed,
 
-            // AI/ML Layer
-            Self::ModelLoadFailed { .. } => ErrorCode::ModelLoadFailed,
-            Self::InferenceFailed { .. } => ErrorCode::InferenceFailed,
-            Self::UnsupportedModelType { .. } => ErrorCode::UnsupportedModelType,
-            Self::ModelTimeout => ErrorCode::ModelTimeout,
-            Self::InsufficientResources => ErrorCode::InsufficientResources,
-
             // Generic
             Self::Internal { .. } => ErrorCode::InternalError,
             Self::Unknown { .. } => ErrorCode::UnknownError,
@@ -331,15 +301,14 @@ impl EngineError {
             Self::CircuitOpen { .. } | Self::AllStrategiesFailed | Self::StorageQuotaExceeded => {
                 ErrorSeverity::Critical
             },
-            Self::IpBanned | Self::CloudflareChallengeFailed | Self::InsufficientResources => {
+            Self::IpBanned | Self::CloudflareChallengeFailed => {
                 ErrorSeverity::High
             },
 
             // High impact errors
             Self::RateLimited { .. }
             | Self::Unauthorized
-            | Self::Forbidden
-            | Self::ModelTimeout => ErrorSeverity::High,
+            | Self::Forbidden => ErrorSeverity::High,
             Self::Database { .. } | Self::FileIo { .. } | Self::Internal { .. } => {
                 ErrorSeverity::High
             },
@@ -463,11 +432,6 @@ impl EngineError {
             Self::InvalidConfig { .. } => "INVALID_CONFIG",
             Self::ConfigNotFound { .. } => "CONFIG_NOT_FOUND",
             Self::ConfigValidationFailed { .. } => "CONFIG_VALIDATION_FAILED",
-            Self::ModelLoadFailed { .. } => "MODEL_LOAD_FAILED",
-            Self::InferenceFailed { .. } => "INFERENCE_FAILED",
-            Self::UnsupportedModelType { .. } => "UNSUPPORTED_MODEL_TYPE",
-            Self::ModelTimeout => "MODEL_TIMEOUT",
-            Self::InsufficientResources => "INSUFFICIENT_RESOURCES",
             Self::Internal { .. } => "INTERNAL_ERROR",
             Self::Unknown { .. } => "UNKNOWN_ERROR",
             Self::Validation { .. } => "VALIDATION_ERROR",

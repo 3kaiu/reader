@@ -302,9 +302,18 @@ impl LegadoEngine {
             return true;
         }
         // bookUrlPattern is a regex — try to match
-        Regex::new(pattern)
-            .map(|re| re.is_match(url))
-            .unwrap_or(true)
+        match Regex::new(pattern) {
+            Ok(re) => re.is_match(url),
+            Err(e) => {
+                tracing::warn!(
+                    source_name = %self.source.book_source_name,
+                    pattern = %pattern,
+                    error = %e,
+                    "Invalid bookUrlPattern regex — treating as no-match"
+                );
+                false
+            }
+        }
     }
 
     /// Try to parse response as JSON and extract search results
@@ -1149,5 +1158,460 @@ impl ExploreEngine for LegadoEngine {
             }
             Ok(results)
         }
+    }
+}
+
+// ============================================================================
+// Unit tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::anti_crawl::FallbackChain;
+    use crate::legado::rule_parser::{CombineOp, SelectorMode};
+    use async_trait::async_trait;
+    use nexus_core::legado::{BookInfoRule, ContentRule, SearchRule, TocRule};
+    use nexus_core::{AntiCrawlStrategy, EngineError, FetchContext, FetchResponse, LegadoSource};
+    use std::sync::Arc;
+
+    // Fixture paths relative to manifest dir
+    const FIXTURE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/69shuba");
+
+    // ---- Mock anti-crawl strategy ----
+
+    struct MockHttpStrategy {
+        html: String,
+    }
+
+    impl MockHttpStrategy {
+        fn from_fixture(filename: &str) -> Self {
+            let path = format!("{}/{}", FIXTURE_DIR, filename);
+            let html = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("failed to read fixture {}: {}", path, e));
+            Self { html }
+        }
+
+        fn new(html: &str) -> Self {
+            Self {
+                html: html.to_string(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl AntiCrawlStrategy for MockHttpStrategy {
+        fn name(&self) -> &str {
+            "mock-http"
+        }
+
+        fn should_apply(&self, _response: &FetchResponse) -> bool {
+            true
+        }
+
+        async fn execute(&self, _ctx: &mut FetchContext) -> Result<FetchResponse, EngineError> {
+            Ok(FetchResponse {
+                status: 200,
+                headers: std::collections::HashMap::new(),
+                body: self.html.clone(),
+                url: _ctx.url.clone(),
+            })
+        }
+    }
+
+    fn make_engine(
+        source: LegadoSource,
+        html: &str,
+    ) -> Result<LegadoEngine, EngineError> {
+        let strategy = MockHttpStrategy::new(html);
+        let chain = FallbackChain::new(Arc::new(strategy));
+        LegadoEngine::new(Arc::new(source), Arc::new(chain))
+    }
+
+    fn make_engine_from_fixture(
+        source: LegadoSource,
+        fixture: &str,
+    ) -> Result<LegadoEngine, EngineError> {
+        let strategy = MockHttpStrategy::from_fixture(fixture);
+        let chain = FallbackChain::new(Arc::new(strategy));
+        LegadoEngine::new(Arc::new(source), Arc::new(chain))
+    }
+
+    // ===================================================================
+    // 1. parse_legado_url tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_simple_url() {
+        let (url, body, method, charset) =
+            parse_legado_url("https://example.com/books", "https://base.com").unwrap();
+        assert_eq!(url, "https://example.com/books");
+        assert_eq!(method, "GET");
+        assert!(body.is_none());
+        assert!(charset.is_none());
+    }
+
+    #[test]
+    fn test_parse_relative_url() {
+        let (url, body, method, _charset) =
+            parse_legado_url("/search", "https://example.com").unwrap();
+        assert_eq!(url, "https://example.com/search");
+        assert_eq!(method, "GET");
+        assert!(body.is_none());
+    }
+
+    #[test]
+    fn test_parse_compound_url_get() {
+        let (url, body, method, charset) = parse_legado_url(
+            "https://example.com/search,{'method':'GET'}",
+            "https://base.com",
+        )
+        .unwrap();
+        assert_eq!(url, "https://example.com/search");
+        assert_eq!(method, "GET");
+        assert!(body.is_none());
+        assert!(charset.is_none());
+    }
+
+    #[test]
+    fn test_parse_compound_url_post_with_gbk() {
+        let (url, body, method, charset) = parse_legado_url(
+            "https://example.com/api,{'method':'POST','body':'key={{key}}','charset':'gbk'}",
+            "https://base.com",
+        )
+        .unwrap();
+        assert_eq!(url, "https://example.com/api");
+        assert_eq!(method, "POST");
+        assert_eq!(body.unwrap(), "key={{key}}");
+        assert_eq!(charset.unwrap(), "gbk");
+    }
+
+    #[test]
+    fn test_parse_compound_url_post_utf8() {
+        let (_url, _body, method, charset) = parse_legado_url(
+            "https://example.com/api,{\"method\":\"POST\",\"charset\":\"utf-8\"}",
+            "https://base.com",
+        )
+        .unwrap();
+        assert_eq!(method, "POST");
+        assert_eq!(charset.unwrap(), "utf-8");
+    }
+
+    #[test]
+    fn test_parse_compound_url_double_quoted_body() {
+        let (_url, body, method, _charset) = parse_legado_url(
+            "https://example.com,{\"body\":\"searchkey={{key}}&type=all\"}",
+            "https://base.com",
+        )
+        .unwrap();
+        // When there's no explicit method, it defaults to GET
+        assert!(method == "GET" || method == "POST");
+        // The body should be extracted from the double-quoted body option
+        assert_eq!(body.unwrap(), "searchkey={{key}}&type=all");
+    }
+
+    #[test]
+    fn test_parse_compound_url_inside_braces() {
+        let (_url, body, method, _charset) = parse_legado_url(
+            "https://example.com/api,{'method':'POST','body':'searchkey={{key}}&type=all'}",
+            "https://base.com",
+        )
+        .unwrap();
+        assert_eq!(method, "POST");
+        assert_eq!(body.unwrap(), "searchkey={{key}}&type=all");
+    }
+
+    #[test]
+    fn test_parse_url_rejects_non_http_absolute() {
+        // Non-http absolute URLs pass through resolve_url as-is (they start with scheme://)
+        // and are then rejected by validate_url_scheme
+        let result = validate_url_scheme("ftp://evil.com/books");
+        assert!(result.is_err());
+        let result = validate_url_scheme("file:///etc/passwd");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_url_rejects_javascript_after_resolve() {
+        // javascript: URIs get prepended with base URL by resolve_url,
+        // so the result starts with https://. The outer fetch() function has
+        // additional validation. Here we test the validate helper directly.
+        let result = validate_url_scheme("javascript:alert(1)");
+        assert!(result.is_err());
+    }
+
+    // ===================================================================
+    // 2. rule_parser combine operators (via CompiledLegadoRule)
+    // ===================================================================
+
+    #[test]
+    fn test_combine_fallback_or() {
+        let rule = CompiledLegadoRule::parse("div.title || h1 || span.name").unwrap();
+        assert_eq!(rule.combine, CombineOp::Fallback);
+        assert_eq!(rule.segments.len(), 3);
+        assert_eq!(rule.segments[0].expression, "div.title");
+        assert_eq!(rule.segments[1].expression, "h1");
+        assert_eq!(rule.segments[2].expression, "span.name");
+    }
+
+    #[test]
+    fn test_combine_concat_and() {
+        let rule = CompiledLegadoRule::parse("prefix@suffix && @text:-").unwrap();
+        assert_eq!(rule.combine, CombineOp::Concat);
+        assert_eq!(rule.segments.len(), 2);
+    }
+
+    #[test]
+    fn test_combine_merge() {
+        let rule = CompiledLegadoRule::parse("div.name@text %% a.url@href").unwrap();
+        assert_eq!(rule.combine, CombineOp::Merge);
+        assert_eq!(rule.segments.len(), 2);
+    }
+
+    #[test]
+    fn test_no_split_inside_js_block() {
+        // `||` inside @js: must not cause a split
+        let rule = CompiledLegadoRule::parse(
+            "@js:result.match(/a||b/g) || div.title",
+        )
+        .unwrap();
+        assert_eq!(rule.combine, CombineOp::Fallback);
+        assert_eq!(rule.segments.len(), 2);
+        assert_eq!(rule.segments[0].mode, SelectorMode::Js);
+    }
+
+    #[test]
+    fn test_no_split_inside_js_tag_block() {
+        let rule = CompiledLegadoRule::parse(
+            "<js>result.match(/page/); result.indexOf('||')>=0</js> && @text:ok",
+        )
+        .unwrap();
+        assert_eq!(rule.combine, CombineOp::Concat);
+        assert_eq!(rule.segments.len(), 2);
+        assert_eq!(rule.segments[0].mode, SelectorMode::Js);
+    }
+
+    // ===================================================================
+    // 3. book_info extraction (with fixture) — smoke test
+    // ===================================================================
+
+    #[tokio::test]
+    async fn test_book_info_extracts_name_author_from_fixture() {
+        let source = LegadoSource {
+            book_source_url: "https://www.69shuba.com".to_string(),
+            book_source_name: "69书吧".to_string(),
+            rule_book_info: Some(BookInfoRule {
+                name: Some("meta[property=\"og:novel:book_name\"]@content".to_string()),
+                author: Some("meta[property=\"og:novel:author\"]@content".to_string()),
+                cover_url: Some("meta[property=\"og:image\"]@content".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let engine =
+            make_engine_from_fixture(source, "book-90442.sample.html").expect("engine creation");
+
+        let info = engine
+            .book_info("https://www.69shuba.com/book/90442.htm")
+            .await
+            .expect("book_info should succeed");
+
+        assert_eq!(info.name.as_ref(), "霍格沃茨的学习面板");
+        assert_eq!(info.author.as_ref(), "林曦遇鹿");
+        assert!(
+            info.cover_url
+                .as_ref()
+                .unwrap()
+                .contains("90442s.jpg"),
+            "cover_url should point to the book cover image"
+        );
+    }
+
+    // ===================================================================
+    // 4. search() basic flow — smoke test
+    // ===================================================================
+
+    #[tokio::test]
+    async fn test_search_returns_book_item_from_fixture() {
+        let source = LegadoSource {
+            book_source_url: "https://www.69shuba.com".to_string(),
+            book_source_name: "69书吧".to_string(),
+            search_url: Some("https://www.69shuba.com/modules/article/search.php?searchkey={{key}}".to_string()),
+            rule_search: Some(SearchRule {
+                check_key_word: None,
+                base: nexus_core::legado::BookListRule {
+                    book_list: Some("div.newbox ul li@html".to_string()),
+                    name: Some("h3 a@text".to_string()),
+                    author: Some("div.labelbox label@text".to_string()),
+                    book_url: Some("a.imgbox@href".to_string()),
+                    ..Default::default()
+                },
+            }),
+            ..Default::default()
+        };
+
+        let engine = make_engine_from_fixture(source, "search-方仙外道.sample.html")
+            .expect("engine creation");
+
+        let results = engine.search("方仙外道").await.expect("search should succeed");
+        assert_eq!(results.len(), 1, "expected 1 search result");
+        assert_eq!(results[0].name.as_ref(), "方仙外道");
+        // author: first <label> inside .labelbox is "布谷聊"
+        assert_eq!(results[0].author.as_ref().unwrap().as_ref(), "布谷聊");
+        assert!(
+            results[0]
+                .book_url
+                .contains("90431.htm"),
+            "book_url should contain book id"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_search_empty_query_returns_empty() {
+        let source = LegadoSource {
+            book_source_url: "https://example.com".to_string(),
+            book_source_name: "test".to_string(),
+            ..Default::default()
+        };
+
+        let engine = make_engine(source, "").expect("engine creation");
+        let results = engine.search("").await.expect("empty query should not error");
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_no_rules_returns_empty() {
+        let source = LegadoSource {
+            book_source_url: "https://example.com".to_string(),
+            book_source_name: "test".to_string(),
+            search_url: Some("https://example.com/search".to_string()),
+            rule_search: None,
+            ..Default::default()
+        };
+
+        let engine = make_engine(source, "").expect("engine creation");
+        let results = engine.search("foo").await.expect("search without rules should not error");
+        assert!(results.is_empty());
+    }
+
+    // ===================================================================
+    // 5. content extraction — smoke test (CSS-based content rule)
+    // ===================================================================
+
+    #[tokio::test]
+    async fn test_content_extracts_from_fixture() {
+        let source = LegadoSource {
+            book_source_url: "https://www.69shuba.com".to_string(),
+            book_source_name: "69书吧".to_string(),
+            rule_content: Some(ContentRule {
+                // Use @text to extract text content from the page
+                content: Some("div.txtnav@text".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let engine = make_engine_from_fixture(source, "chapter-90431-41044003.sample.html")
+            .expect("engine creation");
+
+        let content = engine
+            .content(
+                "https://www.69shuba.com/txt/90431/41044003",
+                &[],
+            )
+            .await
+            .expect("content extraction should succeed");
+
+        assert!(
+            content.contains("第312章"),
+            "content should contain chapter title, got: {}",
+            &content[..content.len().min(200)]
+        );
+        assert!(
+            content.contains("笑面鼠"),
+            "content should contain chapter body text"
+        );
+        assert!(
+            !content.trim().is_empty(),
+            "extracted content should not be empty"
+        );
+    }
+
+    // ===================================================================
+    // 6. chapters() — TOC extraction smoke test
+    // ===================================================================
+
+    #[tokio::test]
+    async fn test_chapters_extracts_from_fixture() {
+        let source = LegadoSource {
+            book_source_url: "https://www.69shuba.com".to_string(),
+            book_source_name: "69书吧".to_string(),
+            rule_toc: Some(TocRule {
+                chapter_list: Some("div.qustime ul".to_string()),
+                chapter_name: Some("a span@text".to_string()),
+                chapter_url: Some("a@href".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let engine =
+            make_engine_from_fixture(source, "book-90442.sample.html").expect("engine creation");
+
+        let chapters = engine
+            .chapters("https://www.69shuba.com/book/90442/")
+            .await
+            .expect("chapters should succeed");
+
+        assert!(
+            !chapters.is_empty(),
+            "should extract at least one chapter"
+        );
+        let first = &chapters[0];
+        assert!(
+            first.title.as_ref().contains("第"),
+            "chapter name should contain chapter number, got: {}",
+            first.title
+        );
+        assert!(
+            first.url.starts_with("https://www.69shuba.com"),
+            "chapter url should be absolute, got: {}",
+            first.url
+        );
+    }
+
+    // ===================================================================
+    // 7. URL scheme validation / security
+    // ===================================================================
+
+    #[test]
+    fn test_validate_url_scheme_allows_http() {
+        assert!(validate_url_scheme("http://example.com").is_ok());
+        assert!(validate_url_scheme("https://example.com").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_scheme_rejects_other() {
+        assert!(validate_url_scheme("ftp://example.com").is_err());
+        assert!(validate_url_scheme("file:///etc/passwd").is_err());
+        assert!(validate_url_scheme("data:text/html,hello").is_err());
+    }
+
+    // ===================================================================
+    // 8. resolve_search_url — template resolution
+    // ===================================================================
+
+    #[test]
+    fn test_resolve_search_url_rejects_empty() {
+        let source = LegadoSource {
+            book_source_url: "https://example.com".to_string(),
+            book_source_name: "test".to_string(),
+            search_url: None,
+            ..Default::default()
+        };
+        let engine = make_engine(source, "").expect("engine creation");
+        let result = engine.resolve_search_url("test");
+        assert!(result.is_err());
     }
 }
