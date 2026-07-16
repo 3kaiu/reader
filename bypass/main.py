@@ -218,7 +218,6 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     url_str = str(request.url)
     domain = urlparse(url_str).netloc
 
-    await acquire_domain_semaphore(domain)
     domain_sem = await acquire_domain_semaphore(domain)
     try:
         async with FETCH_SEMAPHORE:

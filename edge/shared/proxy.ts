@@ -199,7 +199,7 @@ export async function proxyRequest(
     return new Response(JSON.stringify({
       code,
       message,
-      details: errorMessage,
+      details: (corsEnv && typeof corsEnv === 'object' && 'ENVIRONMENT' in corsEnv && (corsEnv as Record<string,unknown>).ENVIRONMENT === 'development') ? errorMessage : undefined,
       requestId,
     }), {
       status: statusCode,
