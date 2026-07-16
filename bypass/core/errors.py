@@ -4,7 +4,7 @@ Implements standardized error codes and responses compatible with Nexus ecosyste
 """
 
 from enum import Enum
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import time
 

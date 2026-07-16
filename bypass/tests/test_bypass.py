@@ -126,10 +126,11 @@ class TestErrorClasses:
 class TestDomainRegistry:
     """Tests for DomainRegistry."""
 
-    def test_domain_registry_tracks_domains(self):
+    @pytest.mark.asyncio
+    async def test_domain_registry_tracks_domains(self):
         registry = DomainRegistry()
         
-        profile = registry.get("example.com")
+        profile = await registry.get("example.com")
         profile.record("playwright", 1.5, True)
         profile.record("playwright", 2.0, False)
         
@@ -138,10 +139,11 @@ class TestDomainRegistry:
         from core.engine import DomainProfile
         assert profile.best_method() == DomainProfile.METHOD_TWO_PHASE
 
-    def test_domain_registry_circuit_breaker(self):
+    @pytest.mark.asyncio
+    async def test_domain_registry_circuit_breaker(self):
         registry = DomainRegistry()
         
-        profile = registry.get("blocked.com")
+        profile = await registry.get("blocked.com")
         # Record 3 failures to open circuit
         for _ in range(3):
             profile.record("playwright", 1.0, False)

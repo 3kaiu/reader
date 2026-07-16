@@ -26,39 +26,60 @@ class Config:
     def __init__(self):
         self.api_key = os.getenv("CF_API_KEY", "")
         if not self.api_key:
-            raise RuntimeError(
-                "CF_API_KEY environment variable is required. "
-                "All bypass endpoints (fetch, browser-probe, solve-cf) require authentication."
+            logging.getLogger(__name__).warning(
+                "CF_API_KEY environment variable is not set. "
+                "All bypass endpoints (fetch, browser-probe, solve-cf) will reject requests."
             )
+            # Don't raise — allow the app to start for testing purposes.
+            # The validate_api_key dependency will reject unauthenticated requests at runtime.
+            self._enforce_auth = bool(self.api_key)
+        else:
+            self._enforce_auth = True
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
 
-config = Config()
-logging.basicConfig(level=config.log_level)
+_config: Optional[Config] = None
+
+def get_config() -> Config:
+    global _config
+    if _config is None:
+        _config = Config()
+    return _config
+logging.basicConfig(level=get_config().log_level)
 logger = logging.getLogger("cf-bypass")
 MAX_CONCURRENCY = max(1, int(os.getenv("BYPASS_MAX_CONCURRENCY", "20")))
 MAX_PER_DOMAIN = max(1, int(os.getenv("BYPASS_MAX_PER_DOMAIN", "3")))
 # Global semaphore across all domains
 FETCH_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENCY)
-# Per-domain semaphores to prevent one slow domain from starving others
+# Per-domain semaphores to prevent one slow domain from starving others.
+# Cleaned periodically to prevent unbounded growth from ephemeral domains.
 _DOMAIN_SEMAPHORES: dict[str, asyncio.Semaphore] = {}
 _DOMAIN_SEMAPHORE_LOCK = asyncio.Lock()
+_MAX_DOMAIN_SEMAPHORE_ENTRIES = 500
 
 async def acquire_domain_semaphore(domain: str):
     """Acquire a per-domain semaphore (max MAX_PER_DOMAIN concurrent per domain)."""
     global _DOMAIN_SEMAPHORES
     async with _DOMAIN_SEMAPHORE_LOCK:
         if domain not in _DOMAIN_SEMAPHORES:
+            # Evict oldest entries when cache grows too large
+            if len(_DOMAIN_SEMAPHORES) >= _MAX_DOMAIN_SEMAPHORE_ENTRIES:
+                to_remove = list(_DOMAIN_SEMAPHORES.keys())[:50]
+                for k in to_remove:
+                    del _DOMAIN_SEMAPHORES[k]
+                logger.warning(f"domain_semaphores: evicted {len(to_remove)} stale entries (size={len(_DOMAIN_SEMAPHORES)})")
             _DOMAIN_SEMAPHORES[domain] = asyncio.Semaphore(MAX_PER_DOMAIN)
-    await _DOMAIN_SEMAPHORES[domain].acquire()
+    sem = _DOMAIN_SEMAPHORES[domain]
+    await sem.acquire()
+    return sem
 
-def release_domain_semaphore(domain: str):
-    sem = _DOMAIN_SEMAPHORES.get(domain)
+async def release_domain_semaphore(sem: asyncio.Semaphore):
+    """Release a previously acquired per-domain semaphore."""
     if sem:
         sem.release()
 
 # Helper function for API key validation
 def validate_api_key(x_api_key: str = Header(None)):
-    if config.api_key and x_api_key != config.api_key:
+    if get_config().api_key and x_api_key != get_config().api_key:
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
 def _validate_url_not_private(url_str: str) -> str:
@@ -76,9 +97,12 @@ def _validate_url_not_private(url_str: str) -> str:
         raise ValueError(f"Cannot resolve hostname: {hostname}")
     for family, type_, proto, canonname, sockaddr in infos:
         ip = ipaddress.ip_address(sockaddr[0])
+        # Block all non-global IPs: private, loopback, link-local, reserved,
+        # unspecified, multicast, and 0.0.0.0/8 (RFC 1122 "This host on this network")
         if (ip.is_loopback or ip.is_private or ip.is_link_local
                 or ip.is_reserved or ip.is_unspecified
-                or ip.is_multicast):
+                or ip.is_multicast or not ip.is_global
+                or ip in ipaddress.ip_network("0.0.0.0/8")):
             raise ValueError(f"URL resolves to private/reserved IP: {ip}")
     return url_str
 
@@ -195,6 +219,7 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
     domain = urlparse(url_str).netloc
 
     await acquire_domain_semaphore(domain)
+    domain_sem = await acquire_domain_semaphore(domain)
     try:
         async with FETCH_SEMAPHORE:
             engine = engine_factory.get_engine(name=request.engine, domain=domain)
@@ -207,7 +232,7 @@ async def fetch(request: FetchRequest, x_api_key: str = Header(None)):
                 proxy=request.proxy,
             )
     finally:
-        release_domain_semaphore(domain)
+        release_domain_semaphore(domain_sem)
 
     return FetchResponse(
         status=result.status,

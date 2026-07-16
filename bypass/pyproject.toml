@@ -1,7 +1,7 @@
 [project]
 name = "bypass-service"
 version = "0.1.0"
-description = "Add your description here"
+description = "CF bypass service — handles anti-bot Cloudflare challenges for Nexus Reader content fetching"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

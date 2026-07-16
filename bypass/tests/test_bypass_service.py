@@ -124,19 +124,21 @@ class TestErrorClasses:
 class TestDomainRegistry:
     """Tests for DomainRegistry."""
 
-    def test_domain_registry_tracks_domains(self):
+    @pytest.mark.asyncio
+    async def test_domain_registry_tracks_domains(self):
         registry = DomainRegistry()
 
-        profile = registry.get("example.com")
+        profile = await registry.get("example.com")
         profile.record("playwright", 1.5, True)
         profile.record("playwright", 2.0, False)
 
         assert profile._consecutive_failures == 1
         assert profile.best_method() == DomainProfile.METHOD_TWO_PHASE
 
-    def test_domain_registry_circuit_breaker(self):
+    @pytest.mark.asyncio
+    async def test_domain_registry_circuit_breaker(self):
         registry = DomainRegistry()
-        profile = registry.get("blocked.com")
+        profile = await registry.get("blocked.com")
 
         # Record 3 failures to open circuit
         for _ in range(3):
@@ -145,9 +147,10 @@ class TestDomainRegistry:
         assert profile._circuit_state == CircuitState.OPEN
         assert profile.should_attempt() is False
 
-    def test_domain_registry_cooldown(self):
+    @pytest.mark.asyncio
+    async def test_domain_registry_cooldown(self):
         registry = DomainRegistry()
-        profile = registry.get("cooldown.com")
+        profile = await registry.get("cooldown.com")
 
         # Record failures
         for _ in range(3):
