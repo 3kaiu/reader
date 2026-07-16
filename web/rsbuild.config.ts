@@ -38,7 +38,7 @@ export default defineConfig(async () => {
         plugins: [...(analyzerPlugin ? [analyzerPlugin] : [])],
         optimization: {
           usedExports: true,
-          sideEffects: false,
+          sideEffects: true,
           minimize: process.env.NODE_ENV === 'production',
           concatenateModules: true,
         },
@@ -66,18 +66,15 @@ export default defineConfig(async () => {
         {
           tag: 'link',
           attrs: {
-            rel: 'stylesheet',
+            rel: 'preload',
+            as: 'style',
             href: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css',
-            media: 'all',
+            onload: "this.onload=null;this.rel='stylesheet'",
           },
         },
         {
-          tag: 'link',
-          attrs: {
-            rel: 'prefetch',
-            href: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css',
-            as: 'style',
-          },
+          tag: 'noscript',
+          children: `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css">`,
         },
       ],
     },

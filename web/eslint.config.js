@@ -12,12 +12,5 @@ const compat = new FlatCompat({
 
 export default [
   ...compat.config(eslintrc),
-  // `vue/valid-v-for` produces a large batch of errors in this codebase.
-  // We disable it globally to keep the lint signal actionable.
-  {
-    rules: {
-      'vue/valid-v-for': 'off',
-    },
-  },
 ]
 

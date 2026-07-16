@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { $delete, $get, $post, type ApiFetchOptions } from './client'
 
 export type SourcePackageSummary = {
@@ -192,6 +193,26 @@ type ImportSourcePackageResponse = {
     'draft' | 'blocked' | 'search_ready' | 'catalog_ready' | 'reading_ready' | 'full_flow_ready'
 }
 
+const sourcePackagePayloadSchema = z.object({}).passthrough()
+
+function parseSourcePackage(packageJson: string): Record<string, unknown> {
+  let raw: unknown
+  try {
+    raw = JSON.parse(packageJson)
+  } catch {
+    throw new Error('导入失败：JSON 解析错误，请检查数据包格式')
+  }
+
+  const result = sourcePackagePayloadSchema.safeParse(raw)
+  if (!result.success) {
+    throw new Error(
+      `导入失败：数据包格式不正确 (${result.error.issues.map(i => i.message).join(', ')})`
+    )
+  }
+
+  return result.data
+}
+
 export const syncApi = {
   listSourcePackages: async () => {
     return await $get<SourcePackageSummary[]>('/source-packages', {
@@ -208,7 +229,7 @@ export const syncApi = {
     return await $post<ImportSourcePackageResponse>(
       '/source-packages/import',
       {
-        package: JSON.parse(packageJson),
+        package: parseSourcePackage(packageJson),
       },
       {
         silent: true,

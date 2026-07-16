@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { $post } from './client'
 import { isLikelyNetworkOrCorsError } from './http/errors'
 import { mergeHeaders, resolveBaseUrl } from './http/transport/request'
@@ -62,6 +63,54 @@ async function toRequestError(response: Response): Promise<Error> {
   return error
 }
 
+const sseEventPayloadSchema = z.object({
+  data: z
+    .object({
+      bookUrl: z.string(),
+      name: z.string(),
+      author: z.string().optional(),
+      coverUrl: z.string().optional(),
+      intro: z.string().optional(),
+      sourceId: z.string(),
+      sourceName: z.string(),
+      latestChapter: z.string().optional(),
+      latestChapterTitle: z.string().optional(),
+      searchExplain: z
+        .object({
+          strategy: z.string(),
+          provider: z.string(),
+          matchScore: z.number().optional(),
+          packageRank: z.number().optional(),
+          note: z.string().optional(),
+        })
+        .optional(),
+      packageId: z.string().optional(),
+    })
+    .optional(),
+  source_id: z.string().optional(),
+  error: z.string().optional(),
+  total: z.number().optional(),
+  stage_reports: z
+    .array(
+      z.object({
+        stage: z.string(),
+        ok: z.boolean(),
+        strategy: z.string().nullable().optional(),
+        failureCode: z.string().nullable().optional(),
+        warnings: z.array(z.string()).optional(),
+        metrics: z.record(z.string(), z.string()).optional(),
+      })
+    )
+    .optional(),
+})
+
+type SseEventPayload = z.infer<typeof sseEventPayloadSchema>
+
+function parseSseEventPayload(raw: string): SseEventPayload | null {
+  const result = sseEventPayloadSchema.safeParse(JSON.parse(raw))
+  return result.success ? result.data : null
+}
+
 function processSseEventBlock(
   block: string,
   handlers: Required<Pick<SearchStreamOptions, 'onResult' | 'onError' | 'onDone' | 'onMeta'>>
@@ -90,27 +139,17 @@ function processSseEventBlock(
   }
 
   const dataText = dataLines.join('\n')
-  let payload:
-    | {
-        data?: SearchResult
-        source_id?: string
-        error?: string
-        total?: number
-        stage_reports?: PipelineStageReport[]
-      }
-    | undefined
-  try {
-    payload = JSON.parse(dataText)
-  } catch {
+  const payload = parseSseEventPayload(dataText)
+  if (!payload) {
     return
   }
 
-  if (eventName === 'result' && payload?.data) {
-    handlers.onResult(payload.data)
+  if (eventName === 'result' && payload.data) {
+    handlers.onResult(payload.data as SearchResult)
     return
   }
 
-  if (eventName === 'error' && payload?.source_id && payload.error) {
+  if (eventName === 'error' && payload.source_id && payload.error) {
     handlers.onError({
       sourceId: payload.source_id,
       error: payload.error,
@@ -119,12 +158,12 @@ function processSseEventBlock(
   }
 
   if (eventName === 'done') {
-    handlers.onDone(typeof payload?.total === 'number' ? payload.total : 0)
+    handlers.onDone(typeof payload.total === 'number' ? payload.total : 0)
     return
   }
 
   if (eventName === 'meta') {
-    handlers.onMeta({ stageReports: payload?.stage_reports })
+    handlers.onMeta({ stageReports: payload.stage_reports as PipelineStageReport[] | undefined })
   }
 }
 

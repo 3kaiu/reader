@@ -1,6 +1,5 @@
 import { reportError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
-import { decode } from '@/utils/msgpack'
 import { convertToNexusError, reportBusinessError, reportRequestError } from '../errors'
 import type { InternalApiFetchOptions } from '../types'
 import type { ApiInterceptorResponse } from './types'
@@ -41,19 +40,8 @@ function getErrorMessage(error: unknown): string | undefined {
 }
 
 export function decodeMessagePackResponse(response: ApiInterceptorResponse<unknown>): void {
-  const contentType = response.headers.get('content-type')
-  if (contentType !== 'application/x-msgpack') {
-    return
-  }
-
-  try {
-    const buffer = response._data
-    if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
-      response._data = decode(new Uint8Array(buffer))
-    }
-  } catch (error) {
-    logger.error('Failed to decode MessagePack response', { error })
-  }
+  // MessagePack transport disabled — backend does not support it.
+  // Kept as a hook for future implementation when backend adds support.
 }
 
 export function handleBusinessResponse(

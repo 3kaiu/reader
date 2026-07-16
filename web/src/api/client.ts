@@ -1,5 +1,4 @@
 import type { ApiFetchOptions, ApiResponse } from './http/types'
-import { clearApiResponseCache } from './http/cache'
 import { requestWithDirectFallback } from './http/transport'
 import { normalizeApiResponse } from './http/types'
 
@@ -16,7 +15,6 @@ async function requestMutation<T>(
     method,
     ...(body === undefined ? {} : { body }),
   })
-  clearApiResponseCache()
   return normalizeApiResponse<T>(response)
 }
 

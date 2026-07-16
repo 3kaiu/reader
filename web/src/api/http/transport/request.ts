@@ -1,5 +1,4 @@
 import { resolveRoutePolicy } from '@/api/route-policy'
-import { encode } from '@/utils/msgpack'
 import type { InternalApiFetchOptions } from '../types'
 
 export function mergeHeaders(
@@ -52,13 +51,6 @@ export function attachRequestMetadata(options: InternalApiFetchOptions, requestU
 }
 
 export function attachMessagePackHeaders(options: InternalApiFetchOptions): void {
-  if (!options.msgpack || !options.body) {
-    return
-  }
-
-  options.body = encode(options.body)
-  options.headers = mergeHeaders(options.headers, {
-    'Content-Type': 'application/x-msgpack',
-    Accept: 'application/x-msgpack',
-  })
+  // MessagePack transport disabled — backend does not support it.
+  // The msgpack? flag on ApiFetchOptions is retained for forward-compatibility only.
 }

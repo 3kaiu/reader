@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { readerApi } from '@/api/reader'
 import type { ApiResponse } from '@/api/http/types'
 import type { Chapter } from '@/types/book'
@@ -110,35 +111,58 @@ export function createReaderContentService() {
     return formatted
   }
 
+  const stageFailureDetailsSchema = z.object({
+    failureCode: z.string().optional(),
+    stageReports: z
+      .array(
+        z.object({
+          stage: z.string().optional(),
+          ok: z.boolean().optional(),
+          failureCode: z.string().optional(),
+        })
+      )
+      .optional(),
+  })
+
+  function parseStageFailureDetails(
+    raw: string
+  ): z.infer<typeof stageFailureDetailsSchema> | null {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      return null
+    }
+    const result = stageFailureDetailsSchema.safeParse(parsed)
+    return result.success ? result.data : null
+  }
+
   const summarizeStageFailure = (details?: string): string | null => {
     if (!details) {
       return null
     }
 
-    try {
-      const parsed = JSON.parse(details) as {
-        failureCode?: string
-        stageReports?: Array<{ stage?: string; ok?: boolean; failureCode?: string }>
-      }
-      const stage =
-        parsed.stageReports?.find(
-          item =>
-            item?.ok === false &&
-            (typeof item?.stage === 'string' || typeof item?.failureCode === 'string')
-        ) ||
-        parsed.stageReports?.find(item => typeof item?.failureCode === 'string') ||
-        parsed.stageReports?.find(item => typeof item?.stage === 'string')
-      const parts = [
-        stage?.stage ? `阶段: ${stage.stage}` : null,
-        stage?.failureCode || parsed.failureCode
-          ? `代码: ${stage?.failureCode || parsed.failureCode}`
-          : null,
-      ].filter(Boolean)
-
-      return parts.length > 0 ? parts.join(' · ') : null
-    } catch {
+    const parsed = parseStageFailureDetails(details)
+    if (!parsed) {
       return null
     }
+
+    const stage =
+      parsed.stageReports?.find(
+        item =>
+          item?.ok === false &&
+          (typeof item?.stage === 'string' || typeof item?.failureCode === 'string')
+      ) ||
+      parsed.stageReports?.find(item => typeof item?.failureCode === 'string') ||
+      parsed.stageReports?.find(item => typeof item?.stage === 'string')
+    const parts = [
+      stage?.stage ? `阶段: ${stage.stage}` : null,
+      stage?.failureCode || parsed.failureCode
+        ? `代码: ${stage?.failureCode || parsed.failureCode}`
+        : null,
+    ].filter(Boolean)
+
+    return parts.length > 0 ? parts.join(' · ') : null
   }
 
   const fetchBookInfo = async (

@@ -13,7 +13,12 @@ import type { Ref, ComputedRef } from 'vue'
  * 自动响应滚动位置更新 remainingMinutes
  */
 export function useReadingTimeDisplay(formattedContent: Ref<string> | ComputedRef<string>) {
-  const totalChars = computed(() => formattedContent.value?.length ?? 0)
+  const totalChars = computed(() => {
+    const html = formattedContent.value
+    if (!html) return 0
+    // Strip HTML tags to count only visible text characters
+    return html.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').length
+  })
   const totalMinutes = computed(() => {
     const charCount = totalChars.value
     return Math.max(1, Math.round(charCount / 400))

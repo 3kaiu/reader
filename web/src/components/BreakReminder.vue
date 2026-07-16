@@ -6,6 +6,7 @@ import { Coffee, X, RotateCcw } from 'lucide-vue-next'
 
 defineProps<{
   readingTime: string
+  visible: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +18,7 @@ const emit = defineEmits<{
 <template>
   <Transition name="fade">
     <div
-      v-if="true"
+      v-if="visible"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     >
       <div class="mx-4 w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-2xl">
@@ -29,7 +30,7 @@ const emit = defineEmits<{
         </div>
 
         <!-- 标题 -->
-        <h3 class="mb-2 text-center text-lg font-semibold">该休息一下了 👀</h3>
+        <h3 class="mb-2 text-center text-lg font-semibold">该休息一下了</h3>
 
         <!-- 描述 -->
         <p class="mb-6 text-center text-sm text-zinc-600 dark:text-zinc-400">

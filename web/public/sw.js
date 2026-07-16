@@ -59,7 +59,7 @@ self.addEventListener('fetch', event => {
 })
 
 self.addEventListener('message', event => {
-  if (event.origin && event.origin !== self.location.origin) {
+  if (event.origin !== self.location.origin) {
     return
   }
 
