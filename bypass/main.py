@@ -297,13 +297,13 @@ async def browser_probe(request: BrowserProbeRequest, x_api_key: str = Header(No
 
 
 class SolveCFRequest(BaseModel):
-    url: str
+    url: HttpUrl
     timeout_ms: int = 30000
 
-    @field_validator("url")
+    @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:
-        return _validate_url_not_private(v)
+        return _validate_url_not_private(str(v))
 
     @field_validator("timeout_ms")
     @classmethod
