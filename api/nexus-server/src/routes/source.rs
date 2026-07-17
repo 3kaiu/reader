@@ -173,19 +173,17 @@ async fn fetch_sources_from_url(
                     let is_private = match ip {
                         std::net::IpAddr::V4(v4) => is_ipv4_private(&v4),
                         std::net::IpAddr::V6(v6) => {
-                            // Check IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
-                            if let Some(_mapped_v4) = v6.to_ipv4_mapped() {
-                                return Err((
-                                    StatusCode::BAD_REQUEST,
-                                    format!("URL resolves to private/reserved IP: {}", ip),
-                                ));
+                            // Check IPv4-mapped IPv6 (e.g. ::ffff:x.x.x.x)
+                            // Use mapped IPv4 for private-check rather than rejecting outright
+                            if let Some(mapped_v4) = v6.to_ipv4_mapped() {
+                                is_ipv4_private(&mapped_v4)
+                            } else {
+                                v6.is_loopback()
+                                    || v6.is_unspecified()
+                                    || v6.is_unique_local()
+                                    || v6.is_unicast_link_local()
+                                    || (v6.segments()[0] == 0x2001 && v6.segments()[1] == 0x0db8)
                             }
-                            v6.is_loopback()
-                                || v6.is_unspecified()
-                                || v6.is_unique_local()      // fc00::/7
-                                || v6.is_unicast_link_local()  // fe80::/10
-                                // Documentation range 2001:db8::/32
-                                || (v6.segments()[0] == 0x2001 && v6.segments()[1] == 0x0db8)
                         },
                     };
                     if is_private {

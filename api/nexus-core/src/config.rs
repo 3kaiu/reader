@@ -49,7 +49,7 @@ pub struct ServerConfig {
     #[serde(default = "default_true")]
     pub enable_cors: bool,
 
-    /// Allowed CORS origins (empty = permissive/allow all)
+    /// Allowed CORS origins (empty → startup error; configure origins or disable CORS)
     /// Example: ["https://example.com", "https://app.example.com"]
     #[serde(default)]
     pub allowed_origins: Vec<String>,

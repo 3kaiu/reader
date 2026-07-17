@@ -41,6 +41,7 @@ process.abort = () => { throw new Error('process.abort is not allowed'); };
 process._rawDebug = () => { throw new Error('process._rawDebug is not allowed'); };
 process.dlopen = () => { throw new Error('process.dlopen is not allowed'); };
 process.report = { writeReport: () => { throw new Error('process.report is not allowed'); } };
+process._linkedBinding = () => { throw new Error('process._linkedBinding is not allowed'); };
 // Disable process.binding (native addon access)
 if (process.binding) process.binding = () => { throw new Error('process.binding is not allowed'); };
 
