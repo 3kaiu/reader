@@ -3,11 +3,18 @@
  * Feature: unified-error-handling
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as fc from 'fast-check'
-import { processError } from '../utils/errors'
+import { processError, NexusError, ErrorCode } from '../utils/errors'
 import { withRetry } from '../utils/errors/processing'
 import { logger } from '../utils/logger'
+import { useErrorHandler } from '../composables/useErrorHandler'
+
+// Hoisted mock references so vi.mock factory can access them
+const { mockShowError, mockShowWarning } = vi.hoisted(() => ({
+  mockShowError: vi.fn(),
+  mockShowWarning: vi.fn(),
+}))
 
 // Mock logger to avoid console output during tests
 vi.mock('../utils/logger', () => ({
@@ -17,6 +24,13 @@ vi.mock('../utils/logger', () => ({
     info: vi.fn(),
     debug: vi.fn(),
   },
+}))
+
+vi.mock('../composables/useMessage', () => ({
+  useMessage: () => ({
+    error: mockShowError,
+    warning: mockShowWarning,
+  }),
 }))
 
 describe('Error Handler Property Tests', () => {
@@ -373,29 +387,10 @@ describe('Error Handler Property Tests', () => {
 })
 
 describe('useErrorHandler Composable Tests', () => {
-  // Mock useMessage - must be defined before vi.mock
-  let mockShowError: ReturnType<typeof vi.fn>
-  let mockShowWarning: ReturnType<typeof vi.fn>
-
   beforeEach(() => {
-    mockShowError = vi.fn()
-    mockShowWarning = vi.fn()
-
-    // Reset modules to ensure fresh imports
-    vi.resetModules()
-
-    // Mock useMessage
-    vi.doMock('../composables/useMessage', () => ({
-      useMessage: () => ({
-        error: mockShowError,
-        warning: mockShowWarning,
-      }),
-    }))
-  })
-
-  afterEach(() => {
     vi.clearAllMocks()
-    vi.doUnmock('../composables/useMessage')
+    mockShowError.mockClear()
+    mockShowWarning.mockClear()
   })
 
   describe('Property 6: Toast Display Controlled by showToast Parameter', () => {
@@ -407,9 +402,6 @@ describe('useErrorHandler Composable Tests', () => {
      * **Validates: Requirements 3.2, 3.4**
      */
     it('should display toast when showToast is true', async () => {
-      // Dynamic import to get fresh instance with mocked useMessage
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       await fc.assert(
         fc.asyncProperty(
           fc.oneof(
@@ -436,8 +428,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should not display toast when showToast is false', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       await fc.assert(
         fc.asyncProperty(
           fc.oneof(
@@ -459,8 +449,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should display toast by default (showToast parameter omitted)', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       mockShowError.mockClear()
 
       const { handleError } = useErrorHandler()
@@ -471,8 +459,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should display correct userMessage in toast', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       const knownErrors = [
         { error: 'NetworkError', expectedInMessage: '网络' },
         { error: 'Unauthorized', expectedInMessage: '登录' },
@@ -492,9 +478,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should include requestId in toast when available on NexusError', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-      const { NexusError, ErrorCode } = await import('../utils/errors')
-
       mockShowError.mockClear()
 
       const err = new NexusError(
@@ -514,8 +497,6 @@ describe('useErrorHandler Composable Tests', () => {
 
   describe('API Compatibility Tests', () => {
     it('should expose all required methods', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       const handler = useErrorHandler()
 
       expect(handler).toHaveProperty('handleError')
@@ -532,8 +513,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should handle API errors correctly', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       const { handleApiError } = useErrorHandler() as any
 
       // Success response
@@ -550,8 +529,6 @@ describe('useErrorHandler Composable Tests', () => {
     })
 
     it('should handle warnings correctly', async () => {
-      const { useErrorHandler } = await import('../composables/useErrorHandler')
-
       mockShowWarning.mockClear()
 
       const { handleWarning } = useErrorHandler() as any
