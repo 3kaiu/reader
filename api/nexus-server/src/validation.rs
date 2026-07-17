@@ -53,15 +53,18 @@ pub fn validate_url_with_options(
     Ok(url)
 }
 
-/// Check if a host is a private/internal address
+/// Check if a host is a private/internal address.
+/// Performs DNS resolution for domain names to prevent DNS rebinding attacks.
 fn is_private_host(host: &str) -> bool {
+    use std::net::ToSocketAddrs;
+
     // Check common private hostnames
     let private_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
     if private_hosts.contains(&host.to_lowercase().as_str()) {
         return true;
     }
 
-    // Try to parse as IP and check if private
+    // Try to parse as literal IP first — no DNS resolution needed
     if let Ok(ip) = host.parse::<IpAddr>() {
         return is_private_ip(&ip);
     }
@@ -71,7 +74,20 @@ fn is_private_host(host: &str) -> bool {
         return true;
     }
 
-    false
+    // DNS resolution: check all resolved IPs to prevent DNS rebinding
+    let host_port = format!("{host}:443");
+    match host_port.to_socket_addrs() {
+        Ok(addrs) => {
+            for addr in addrs {
+                if is_private_ip(&addr.ip()) {
+                    return true;
+                }
+            }
+            false
+        },
+        // DNS resolution failed — not private, the fetch will fail naturally
+        Err(_) => false,
+    }
 }
 
 /// Check if an IP address is private/internal

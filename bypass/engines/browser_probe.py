@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.engine import BaseBypassEngine, BypassResult
+from core.utils import validate_url_not_private
 
 logger = logging.getLogger("browser-probe")
 
@@ -186,6 +187,8 @@ class BrowserProbeEngine(BaseBypassEngine):
         page = await context.new_page()
         try:
             await page.goto(url, wait_until=wait_until, timeout=timeout_ms)
+            # Post-navigation SSRF check: verify the browser didn't redirect to a private IP
+            validate_url_not_private(page.url)
             title = await page.title()
             html = await page.content()
             current_url = page.url
@@ -206,6 +209,8 @@ class BrowserProbeEngine(BaseBypassEngine):
         page = await context.new_page()
         try:
             await page.goto(url, wait_until=wait_until, timeout=timeout_ms)
+            # Post-navigation SSRF check
+            validate_url_not_private(page.url)
             if keep_page:
                 return page
             title = await page.title()
@@ -255,6 +260,8 @@ class BrowserProbeEngine(BaseBypassEngine):
             page = await context.new_page()
             try:
                 await page.goto(url, wait_until=wait_until, timeout=timeout_ms)
+                # Post-navigation SSRF check
+                validate_url_not_private(page.url)
                 js_result = await page.evaluate(js_code) if js_code else None
                 html = await page.content()
             finally:
@@ -320,6 +327,8 @@ class BrowserProbeEngine(BaseBypassEngine):
 
             # Navigate with 'load' (NOT 'networkidle' — CF redirects break networkidle)
             await page.goto(url, wait_until="load", timeout=30000)
+            # Post-navigation SSRF check
+            validate_url_not_private(page.url)
 
             for attempt in range(max_attempts):
                 await asyncio.sleep(poll_interval_ms / 1000.0)
@@ -572,6 +581,8 @@ class BrowserProbeEngine(BaseBypassEngine):
             page = await context.new_page()
 
             await page.goto(url, wait_until="load", timeout=timeout_ms)
+            # Post-navigation SSRF check
+            validate_url_not_private(page.url)
             html = await page.content()
 
             if not is_cf_blocked(html):

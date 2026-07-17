@@ -33,12 +33,13 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       BYPASS_MAX_CONCURRENCY: "20"
       BYPASS_MAX_PER_DOMAIN: "3"
+      CF_API_KEY: ${CF_API_KEY:-}
 
   frontend:
     image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-frontend:latest
     container_name: nexus-frontend
     restart: unless-stopped
     ports:
-      - "${NEXUS_PORT:-8080}:80"
+      - "${NEXUS_PORT:-8080}:8080"
     depends_on:
       - nexus-server

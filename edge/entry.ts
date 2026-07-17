@@ -37,7 +37,7 @@ export default {
       } catch (error: unknown) {
         const errorMessage = getErrorMessage(error)
         logger.error('Worker env validation failed:', error)
-        return jsonError(requestWithId, 'MISCONFIGURED', 'Misconfigured worker', 500, errorMessage, env)
+        return jsonError(requestWithId, 'MISCONFIGURED', 'Misconfigured worker', 500, env.ENVIRONMENT === 'development' ? errorMessage : undefined, env)
       }
     }
 

@@ -78,7 +78,7 @@ class CurlImpersonateEngine(BaseBypassEngine):
         try:
             session = await self._get_session()
 
-            req_kwargs = {"timeout": timeout}
+            req_kwargs = {"timeout": timeout, "allow_redirects": False}  # Prevent SSRF via redirect
             if headers:
                 req_kwargs["headers"] = headers
             if body:

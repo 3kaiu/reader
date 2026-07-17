@@ -1,6 +1,7 @@
 //! Application builder
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{delete, get, patch, post, put},
     Router,
 };
@@ -81,15 +82,18 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         info!("Serving static files from: {}", static_dir);
         let index_path = static_path.join("index.html");
 
-        Router::new().merge(api_router).fallback_service(
-            ServeDir::new(&static_dir)
-                .precompressed_br()
-                .precompressed_gzip()
-                .not_found_service(ServeFile::new(index_path)),
-        )
+        Router::new()
+            .merge(api_router)
+            .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+            .fallback_service(
+                ServeDir::new(&static_dir)
+                    .precompressed_br()
+                    .precompressed_gzip()
+                    .not_found_service(ServeFile::new(index_path)),
+            )
     } else {
         info!("Static directory not found, API-only mode");
-        api_router
+        api_router.layer(DefaultBodyLimit::max(10 * 1024 * 1024))
     };
 
     let app = {

@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -33,8 +33,9 @@ const _sandbox_require = (m) => {
     if (_blocked.has(m)) throw new Error(`module '${m}' is not allowed`);
     return _origRequire(m);
 };
-require = _sandbox_require;
+globalThis.require = _sandbox_require;
 // Block process-level escapes
+process.env = {}; // Clear environment variables to prevent leakage
 process.exit = () => { throw new Error('process.exit is not allowed'); };
 process.kill = () => { throw new Error('process.kill is not allowed'); };
 process.abort = () => { throw new Error('process.abort is not allowed'); };
@@ -42,14 +43,27 @@ process._rawDebug = () => { throw new Error('process._rawDebug is not allowed');
 process.dlopen = () => { throw new Error('process.dlopen is not allowed'); };
 process.report = { writeReport: () => { throw new Error('process.report is not allowed'); } };
 process._linkedBinding = () => { throw new Error('process._linkedBinding is not allowed'); };
-// Disable process.binding (native addon access)
 if (process.binding) process.binding = () => { throw new Error('process.binding is not allowed'); };
+// Block Function constructor to prevent sandbox escape via new Function('return process')()
+const _origFunction = Function;
+const _BlockedFunction = function(...args) {
+    throw new Error('Function constructor is not allowed');
+};
+_BlockedFunction.prototype = _origFunction.prototype;
+Object.setPrototypeOf(_BlockedFunction, _origFunction);
+Object.defineProperty(globalThis, 'Function', { value: _BlockedFunction, writable: false, configurable: false });
+// Block eval to prevent sandbox escape via eval("this.constructor.constructor('return process')()")
+Object.defineProperty(globalThis, 'eval', { value: () => { throw new Error('eval is not allowed'); }, writable: false, configurable: false });
 
 const rl = _sandbox_require('readline').createInterface({input:process.stdin,output:process.stdout,terminal:false});
 rl.on('line',(line)=>{
     let r; try{r=JSON.parse(line)}catch(e){console.log(JSON.stringify({error:'parse'}));return}
     const result=r.result,baseUrl=r.baseUrl,enc=(s)=>globalThis.encodeURIComponent(s),dec=(s)=>globalThis.decodeURIComponent(s);
-    try{const v=eval(r.code);console.log(JSON.stringify({id:r.id,value:v===null||v===undefined?null:String(v)}))}
+    // Use _origFunction with "use strict" to execute user code.
+    // Strict mode ensures `this` is undefined in normal function calls, preventing
+    // prototype-chain escapes like this.constructor.constructor('return process')().
+    // eval and Function are both blocked on globalThis (non-configurable, non-writable).
+    try{const fn=_origFunction('result','baseUrl','encodeURIComponent','decodeURIComponent','"use strict";return (function(){try{return ('+r.code+')}catch(e){return null}})()');const v=fn(result,baseUrl,enc,dec);console.log(JSON.stringify({id:r.id,value:v===null||v===undefined?null:String(v)}))}
     catch(e){console.log(JSON.stringify({id:r.id,value:null,error:e.message}))}
 });
 "#;
@@ -138,10 +152,7 @@ fn with_worker<F, R>(f: F) -> Option<R>
 where
     F: FnOnce(&mut JsWorker) -> Option<R>,
 {
-    let mut guard = match JS_WORKER.lock() {
-        Ok(g) => g,
-        Err(_) => return None,
-    };
+    let mut guard = JS_WORKER.lock();
 
     if let Some(ref w) = *guard {
         if w.is_idle_expired() || w.stdout.is_none() {
@@ -195,7 +206,8 @@ pub fn execute_js(js_code: &str, result: &str, base_url: &str) -> Option<String>
     }
 
     // Worker failed — restart once and retry
-    if let Ok(mut guard) = JS_WORKER.lock() {
+    {
+        let mut guard = JS_WORKER.lock();
         *guard = None;
         *guard = JsWorker::start();
     }
@@ -209,7 +221,7 @@ pub fn execute_js(js_code: &str, result: &str, base_url: &str) -> Option<String>
 
 fn execute_via_node_fallback(code: &str, result: &str, base_url: &str) -> Option<String> {
     let wrapped = format!(
-        r#"const _b=require;const _bl=new Set(['child_process','fs','net','tls','dgram','cluster','v8','vm','module','worker_threads']);require=(m)=>{{if(_bl.has(m))throw new Error('module '+m+' not allowed');return _b(m);}};process.exit=()=>{{}};process.kill=()=>{{}};const result={};const baseUrl={};try{{const v=eval({});console.log(v===null||v===undefined?'null':String(v))}}catch(e){{console.log('null')}}"#,
+        r#"const _origRequire=require;const _bl=new Set(['child_process','fs','net','tls','dgram','cluster','v8','vm','module','worker_threads']);globalThis.require=(m)=>{{if(_bl.has(m))throw new Error('module '+m+' not allowed');return _origRequire(m);}};process.env={{}};process.exit=()=>{{}};process.kill=()=>{{}};process.abort=()=>{{}};process.dlopen=()=>{{}};process._linkedBinding=()=>{{}};if(process.binding)process.binding=()=>{{}};const _origFunction=Function;Object.defineProperty(globalThis,'Function',{{value:function(){{throw new Error('Function constructor is not allowed')}},writable:false,configurable:false}});Object.defineProperty(globalThis,'eval',{{value:()=>{{throw new Error('eval is not allowed')}},writable:false,configurable:false}});const result={};const baseUrl={};try{{const fn=_origFunction('result','baseUrl','"use strict";return (function(){{try{{return ({})}}catch(e){{return null}}}})()');const v=fn(result,baseUrl);console.log(v===null||v===undefined?'null':String(v))}}catch(e){{console.log('null')}}"#,
         serde_json::to_string(result).unwrap_or_default(),
         serde_json::to_string(base_url).unwrap_or_default(),
         serde_json::to_string(code).unwrap_or_default()
@@ -263,6 +275,48 @@ mod tests {
     #[test]
     fn test_empty_js() {
         let result = execute_js("", "", "");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_blocked_require_fs() {
+        // Attempting to require 'fs' should fail and return None
+        let result = execute_js("require('fs')", "", "");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_blocked_require_child_process() {
+        let result = execute_js("require('child_process')", "", "");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_blocked_process_env() {
+        // process.env should be cleared — accessing any key returns undefined
+        let result = execute_js("process.env.HOME || 'empty'", "", "");
+        assert_eq!(result, Some("empty".to_string()));
+    }
+
+    #[test]
+    fn test_blocked_function_constructor() {
+        // Function constructor should be blocked
+        let result = execute_js("new Function('return process')()", "", "");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_blocked_eval() {
+        // eval should be blocked
+        let result = execute_js("eval('1+1')", "", "");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_blocked_proto_chain_escape() {
+        // Prototype-chain escape via this.constructor.constructor should be blocked
+        // (strict mode makes `this` undefined in normal function calls)
+        let result = execute_js("this.constructor.constructor('return process')()", "", "");
         assert_eq!(result, None);
     }
 }

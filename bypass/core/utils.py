@@ -26,6 +26,43 @@ class LogCategory(Enum):
 
 
 # ─────────────────────────────────────────────────────────────
+# SSRF Protection
+# ─────────────────────────────────────────────────────────────
+
+def validate_url_not_private(url_str: str) -> str:
+    """SSRF protection: reject URLs pointing to private/reserved IP ranges.
+    
+    Performs DNS resolution to check all resolved IPs.
+    On DNS resolution failure, raises ValueError (the fetch will fail naturally).
+    """
+    import socket
+    import ipaddress
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url_str)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Only http/https schemes allowed, got: {parsed.scheme}")
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL must have a hostname")
+    # Resolve hostname and check for private IPs
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
+    for family, type_, proto, canonname, sockaddr in infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        # Block all non-global IPs: private, loopback, link-local, reserved,
+        # unspecified, multicast, and 0.0.0.0/8 (RFC 1122 "This host on this network")
+        if (ip.is_loopback or ip.is_private or ip.is_link_local
+                or ip.is_reserved or ip.is_unspecified
+                or ip.is_multicast or not ip.is_global
+                or ip in ipaddress.ip_network("0.0.0.0/8")):
+            raise ValueError(f"URL resolves to private/reserved IP: {ip}")
+    return url_str
+
+
+# ─────────────────────────────────────────────────────────────
 # Shared Utility Functions
 # ─────────────────────────────────────────────────────────────
 

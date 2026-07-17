@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -214,7 +214,7 @@ impl HealthTracker {
     pub fn record_success(&self, source_id: &str, latency: Duration) {
         let latency_ms = latency.as_millis() as u64;
 
-        let mut stats = self.stats.lock().expect("health tracker lock");
+        let mut stats = self.stats.lock();
         stats
             .entry(source_id.to_string())
             .and_modify(|h| {
@@ -245,7 +245,7 @@ impl HealthTracker {
     }
 
     pub fn record_failure_kind(&self, source_id: &str, kind: HealthFailureKind) {
-        let mut stats = self.stats.lock().expect("health tracker lock");
+        let mut stats = self.stats.lock();
         stats
             .entry(source_id.to_string())
             .and_modify(|h| {
@@ -285,13 +285,13 @@ impl HealthTracker {
 
     /// Get health for a specific source
     pub fn get(&self, source_id: &str) -> Option<SourceHealth> {
-        let stats = self.stats.lock().expect("health tracker lock");
+        let stats = self.stats.lock();
         stats.get(source_id).cloned()
     }
 
     /// Get all health stats
     pub fn get_all(&self) -> Vec<SourceHealth> {
-        let stats = self.stats.lock().expect("health tracker lock");
+        let stats = self.stats.lock();
         stats.values().cloned().collect()
     }
 
@@ -303,7 +303,7 @@ impl HealthTracker {
     }
 
     pub fn restore_from_snapshot(&self, items: Vec<PersistedSourceHealth>) {
-        let mut stats = self.stats.lock().expect("health tracker lock");
+        let mut stats = self.stats.lock();
         stats.clear();
         for item in items {
             stats.insert(item.source_id.clone(), SourceHealth::from(item));
@@ -312,14 +312,14 @@ impl HealthTracker {
 
     /// Reset health statistics for a specific source
     pub fn reset_source(&self, source_id: &str) {
-        let mut stats = self.stats.lock().expect("health tracker lock");
+        let mut stats = self.stats.lock();
         stats.remove(source_id);
     }
 
     /// Evict stale entries not updated within the given duration
     /// Call periodically (e.g. every 30 minutes) to prevent unbounded growth
     pub fn evict_stale(&self, max_age: Duration) {
-        let mut stats = self.stats.lock().expect("health tracker lock");
+        let mut stats = self.stats.lock();
         let now = Instant::now();
         stats.retain(|_, h| {
             let last_activity = h.last_success.or(h.last_failure);
@@ -329,7 +329,7 @@ impl HealthTracker {
 
     /// Sort source IDs by health score (best first)
     pub fn sort_by_health(&self, source_ids: &mut [String]) {
-        let stats = self.stats.lock().expect("health tracker lock");
+        let stats = self.stats.lock();
         source_ids.sort_by(|a, b| {
             let score_a = stats.get(a).map(|h| h.score()).unwrap_or(0.5);
             let score_b = stats.get(b).map(|h| h.score()).unwrap_or(0.5);

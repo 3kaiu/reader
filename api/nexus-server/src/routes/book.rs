@@ -32,7 +32,7 @@ async fn resolve_engine_for_url(
     source_id: &str,
     url: &str,
 ) -> Result<Arc<dyn BookEngineRuntime>, ApiErrorResponse> {
-    validate_url_with_options(url, true).map_err(|e| bad_request(e.to_string()))?;
+    validate_url_with_options(url, false).map_err(|e| bad_request(e.to_string()))?;
     resolve_engine_for_source(state, source_id).await
 }
 
@@ -371,7 +371,7 @@ pub async fn batch_content(
 
         async move {
             // Validate URL
-            if let Err(e) = validate_url_with_options(&url_clone, true) {
+            if let Err(e) = validate_url_with_options(&url_clone, false) {
                 return (
                     idx,
                     BatchContentResult {

@@ -6,12 +6,11 @@ import logging
 import os
 import asyncio
 import time
-import ipaddress
+import hmac
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional, Dict
 from urllib.parse import urlparse
-import socket
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +18,7 @@ from pydantic import BaseModel, HttpUrl, field_validator
 from contextlib import asynccontextmanager
 
 from core.engine_factory import factory as engine_factory
+from core.utils import validate_url_not_private
 from engines.browser_probe import is_cf_blocked
 
 # Configuration
@@ -79,32 +79,11 @@ async def release_domain_semaphore(sem: asyncio.Semaphore):
 
 # Helper function for API key validation
 def validate_api_key(x_api_key: str = Header(None)):
-    if get_config().api_key and x_api_key != get_config().api_key:
+    key = get_config().api_key
+    if not key:
+        raise HTTPException(status_code=503, detail="Service not configured: API key not set")
+    if not hmac.compare_digest(x_api_key or "", key):
         raise HTTPException(status_code=401, detail="Invalid API Key")
-
-def _validate_url_not_private(url_str: str) -> str:
-    """SSRF protection: reject URLs pointing to private/reserved IP ranges."""
-    parsed = urlparse(url_str)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"Only http/https schemes allowed, got: {parsed.scheme}")
-    hostname = parsed.hostname
-    if not hostname:
-        raise ValueError("URL must have a hostname")
-    # Resolve hostname and check for private IPs
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        raise ValueError(f"Cannot resolve hostname: {hostname}")
-    for family, type_, proto, canonname, sockaddr in infos:
-        ip = ipaddress.ip_address(sockaddr[0])
-        # Block all non-global IPs: private, loopback, link-local, reserved,
-        # unspecified, multicast, and 0.0.0.0/8 (RFC 1122 "This host on this network")
-        if (ip.is_loopback or ip.is_private or ip.is_link_local
-                or ip.is_reserved or ip.is_unspecified
-                or ip.is_multicast or not ip.is_global
-                or ip in ipaddress.ip_network("0.0.0.0/8")):
-            raise ValueError(f"URL resolves to private/reserved IP: {ip}")
-    return url_str
 
 # Models
 class FetchRequest(BaseModel):
@@ -119,14 +98,14 @@ class FetchRequest(BaseModel):
     @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:
-        return _validate_url_not_private(v)
+        return validate_url_not_private(v)
 
     @field_validator("proxy", mode="before")
     @classmethod
     def validate_proxy_not_private(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return None
-        return _validate_url_not_private(v)
+        return validate_url_not_private(v)
 
     @field_validator("body")
     @classmethod
@@ -163,7 +142,7 @@ class BrowserProbeRequest(BaseModel):
     @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:
-        return _validate_url_not_private(v)
+        return validate_url_not_private(v)
 
     @field_validator("js_code")
     @classmethod
@@ -303,7 +282,7 @@ class SolveCFRequest(BaseModel):
     @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:
-        return _validate_url_not_private(str(v))
+        return validate_url_not_private(str(v))
 
     @field_validator("timeout_ms")
     @classmethod

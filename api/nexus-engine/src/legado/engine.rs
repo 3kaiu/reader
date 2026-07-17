@@ -222,6 +222,13 @@ impl LegadoEngine {
             });
         }
 
+        // SSRF protection: reject URLs pointing to private/internal IPs
+        if nexus_core::url_safety::is_private_url(url) {
+            return Err(EngineError::Network {
+                message: "URL resolves to private/internal address".to_string(),
+            });
+        }
+
         use nexus_core::FetchContext;
 
         let mut ctx = FetchContext::new(url, &self.source_id);

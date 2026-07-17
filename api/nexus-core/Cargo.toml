@@ -15,6 +15,8 @@ chrono.workspace = true
 urlencoding = "2"
 uuid.workspace = true
 erased-serde = "0.4.10"
+url.workspace = true
+parking_lot.workspace = true
 
 [features]
 default = []

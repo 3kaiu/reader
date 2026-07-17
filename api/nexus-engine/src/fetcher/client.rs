@@ -42,6 +42,7 @@ impl HttpFetcher {
             .timeout(Duration::from_secs(limits.http_timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
             .read_timeout(Duration::from_secs(limits.http_timeout_seconds))
+            .redirect(reqwest::redirect::Policy::none())
             .pool_max_idle_per_host(limits.pool_max_idle_per_host)
             .pool_idle_timeout(Duration::from_secs(limits.pool_idle_timeout_secs))
             .tcp_keepalive(Duration::from_secs(limits.tcp_keepalive_secs))
@@ -77,6 +78,7 @@ impl HttpFetcher {
             .timeout(Duration::from_secs(timeout_seconds))
             .connect_timeout(Duration::from_secs(10))
             .read_timeout(Duration::from_secs(timeout_seconds))
+            .redirect(reqwest::redirect::Policy::none())
             // Enhanced connection pool optimization
             .pool_max_idle_per_host(100) // Allow more idle connections
             .pool_idle_timeout(Duration::from_secs(120)) // Keep connections alive longer

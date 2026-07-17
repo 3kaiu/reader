@@ -5,7 +5,7 @@ use nexus_storage::{ChapterCache, SledStore};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
-use std::sync::RwLock;
+use parking_lot::RwLock;
 
 use crate::{
     content_rules::ContentRuleResolver, engine_registry::EngineRegistry,
@@ -56,9 +56,7 @@ impl SnapshotStatus {
         if let Some(value) = updated_at_ms {
             self.updated_at_ms.store(value, Ordering::Relaxed);
         }
-        if let Ok(mut current) = self.baselines.write() {
-            *current = baselines;
-        }
+        *self.baselines.write() = baselines;
     }
 
     pub fn mark_saved(
@@ -67,9 +65,7 @@ impl SnapshotStatus {
         baselines: HashMap<String, SnapshotEventBaseline>,
     ) {
         self.updated_at_ms.store(updated_at_ms, Ordering::Relaxed);
-        if let Ok(mut current) = self.baselines.write() {
-            *current = baselines;
-        }
+        *self.baselines.write() = baselines;
     }
 
     pub fn is_restored(&self) -> bool {
@@ -81,14 +77,12 @@ impl SnapshotStatus {
     }
 
     pub fn total_baseline_events(&self) -> (u64, u64) {
-        let guard = self.baselines.read().ok();
+        let guard = self.baselines.read();
         let mut health = 0u64;
         let mut extraction = 0u64;
-        if let Some(b) = guard.as_ref() {
-            for v in b.values() {
-                health = health.saturating_add(v.health_total_events);
-                extraction = extraction.saturating_add(v.extraction_total_events);
-            }
+        for v in guard.values() {
+            health = health.saturating_add(v.health_total_events);
+            extraction = extraction.saturating_add(v.extraction_total_events);
         }
         (health, extraction)
     }

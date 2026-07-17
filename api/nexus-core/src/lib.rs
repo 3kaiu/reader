@@ -15,6 +15,7 @@ pub mod error; // 错误定义
 pub mod health_tracker;
 pub mod traits; // 特质定义
 pub mod types; // 类型定义
+pub mod url_safety; // SSRF 防护
 
 // ===== 核心导出 =====
 pub use book_engine::*;

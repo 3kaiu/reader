@@ -77,6 +77,7 @@ impl CfBypassStrategy {
         let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| EngineError::InvalidConfig {
                 message: format!("Failed to build HTTP client: {}", e),
@@ -101,6 +102,7 @@ impl DirectHttpStrategy {
     pub fn new(timeout_seconds: u64) -> Result<Self, EngineError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| EngineError::InvalidConfig {
                 message: format!("Failed to build direct HTTP client: {}", e),
@@ -157,6 +159,7 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             let method = ctx.method.to_ascii_uppercase();
             let client = Client::builder()
                 .timeout(Duration::from_secs(ctx.timeout_secs))
+                .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .map_err(|e| EngineError::Network {
                     message: format!("Failed to build direct client: {}", e),
@@ -310,6 +313,7 @@ impl PrimpHttpStrategy {
         let client = PrimpClient::builder()
             .impersonate(Impersonate::ChromeV146)
             .timeout(Duration::from_secs(timeout_seconds))
+            .redirect(primp::redirect::Policy::none())
             .pool_max_idle_per_host(100)
             .pool_idle_timeout(Duration::from_secs(120))
             .tcp_keepalive(Duration::from_secs(60))
@@ -539,6 +543,7 @@ impl BrowserProbeStrategy {
         let max_concurrent = config.max_concurrent.max(1);
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds * 2)) // browser probe can be slower
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| EngineError::InvalidConfig {
                 message: format!("Failed to build HTTP client: {}", e),
