@@ -5,6 +5,7 @@ members = [
     "nexus-engine",
     "nexus-storage",
     "nexus-server",
+    "nexus-ai",
 ]
 
 [workspace.package]

@@ -8,14 +8,15 @@ This document is written for AI coding agents onboarding into this monorepo. It 
 
 **Nexus** is a self-hosted reading workspace for web novels and books. It fetches content from configured book sources, extracts clean text, and presents it in a modern reading UI with offline support, search, progress syncing, and replace rules.
 
-The repository is a multi-service monorepo containing four runtime components and shared contracts:
+The repository is a multi-service monorepo containing six runtime components and shared contracts:
 
 | Directory | Purpose | Tech Stack |
 |---|---|---|
 | `web/` | Frontend SPA — the reader UI | Vue 3, TypeScript, Rsbuild, Tailwind CSS 4, Pinia |
-| `api/` | Rust backend — content fetching, extraction, storage, API server | Rust (workspace: `nexus-core`, `nexus-engine`, `nexus-storage`, `nexus-server`) |
+| `api/` | Rust backend — content fetching, extraction, storage, AI decoding, API server | Rust (workspace: `nexus-core`, `nexus-engine`, `nexus-storage`, `nexus-server`, `nexus-ai`) |
 | `edge/` | Cloudflare Worker — edge proxy, caching, routing | TypeScript, Wrangler |
 | `bypass/` | Python HTTP fetch service — bypass Cloudflare/anti-bot | Python, FastAPI, cloudscraper |
+| `ai-inference/` | Python AI inference service — alias decoding, chapter scanning, context analysis | Python, FastAPI, Ollama/MLX |
 | `contracts/` | Shared route/policy contracts consumed by `web` and `edge` | JSON + JS scripts |
 
 ---
@@ -26,18 +27,20 @@ The repository is a multi-service monorepo containing four runtime components an
 ┌────────────┐      ┌──────────────┐      ┌──────────────┐
 │  Browser   │ ───▶ │  Edge Worker │ ───▶ │  Nexus API   │
 │  (web/)    │      │  (edge/)     │      │  (api/)      │
-└────────────┘      └──────────────┘      └──────┬───────┘
-       │                                         │
-       │                                    ┌────▼───────┐
-       └──────────────────────────────────▶ │ Bypass svc │
-           (when online+direct, some       │ (bypass/)  │
-            routes skip the Worker)        └────────────┘
+└────────────┘      └──────────────┘      └───┬───┬───┬──┘
+       │                                      │   │   │
+       │                                 ┌────▼┐ ┌▼───┴──────┐
+       └──────────────────────────────▶ │Bypass│ │AI-Infer    │
+           (skips Worker for some       │svc   │ │(ai-infer/) │
+            routes)                     │(bypa/│ │decode/scan │
+                                        └──────┘ └───────────┘
 ```
 
 - **Frontend**: A Vue 3 SPA served by Cloudflare Pages. It talks to the Nexus API directly for reads/writes, and to the Worker for proxied requests. The dev server (`localhost:5173`) proxies `/api` to `localhost:8080` via Rsbuild's built-in proxy.
 - **Edge Worker**: A Cloudflare Worker that validates requests, handles CORS, proxies API calls, and caches content in a KV namespace. Deployment is managed via `wrangler.toml` with production/staging environments.
 - **Nexus API**: A Rust HTTP server (axum framework) that handles book source management, content fetching and extraction, search, bookshelf/library CRUD, replace rules, and sync. Runs as a Docker container on the user's NAS or server.
 - **Bypass Service**: An optional Python FastAPI service that handles fetching pages behind Cloudflare/anti-bot protections. The Nexus API calls it when a source requires it. Not always deployed.
+- **AI Inference Service**: An optional Python FastAPI service for alias/context decoding and chapter scanning. Used by the AI Decoder feature. Runs locally on the dev machine or as a sidecar container with Ollama backend. See `PLANS/ai-decoder.md`.
 
 ---
 
@@ -123,6 +126,16 @@ Workspace members (in dependency order):
 - `tests/` — Vitest-based tests
 
 Deployment environments: `production` and `staging` in `wrangler.toml`.
+
+### `ai-inference/` — Python AI Inference Service
+
+- FastAPI application exposing `/decode`, `/scan`, `/health` endpoints
+- Pluggable model backends: Ollama (anywhere), MLX (macOS dev), llama.cpp (NAS CPU)
+- Default model: Qwen2.5-7B (quantized)
+- **Decode pipeline**: on-demand alias/entity resolution for selected text
+- **Scan pipeline**: full-chapter batch analysis for alias/event extraction
+- JSON-formatted structured output for deterministic parsing
+- See `PLANS/ai-decoder.md` for full design
 
 ### `bypass/` — Python Fetch Service
 
