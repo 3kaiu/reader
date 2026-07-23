@@ -19,6 +19,8 @@ const emits = defineEmits<{
 }>()
 
 const delegatedProps = computed(() => {
+  // side is destructured but unused by the delegated props — keep for clarity
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { class: _, side, ...delegated } = props
   return delegated
 })

@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue'
 import type { AliasMapping, PendingMapping, DecodeResponse } from './types'
-import type { ApiResponse } from '@/api/http/types'
 import { $post } from '@/api/client'
 
 /**
