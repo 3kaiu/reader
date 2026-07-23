@@ -233,7 +233,10 @@ async function chapterCacheFirstWithRefresh(request) {
           }
           return undefined
         })
-        .catch(() => {})
+        .catch(() => {
+          // Network failed (offline) — enqueue for background sync
+          void enqueueForSync(request.url)
+        })
 
       return cached
     }
@@ -281,3 +284,89 @@ async function staleWhileRevalidate(request, cacheName) {
 
   return cached || networkFetch
 }
+
+// ============================================================================
+// Background Sync — retry failed chapter prefetch when back online
+// ============================================================================
+
+const SYNC_QUEUE_DB = 'reader-sync-queue'
+const SYNC_QUEUE_STORE = 'pending-requests'
+
+/**
+ * Open (or create) the IndexedDB database used to queue failed requests.
+ */
+function openSyncQueue() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SYNC_QUEUE_DB, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+        db.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id', autoIncrement: true })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/**
+ * Enqueue a failed chapter request for later background sync.
+ */
+async function enqueueForSync(url) {
+  try {
+    const db = await openSyncQueue()
+    const tx = db.transaction(SYNC_QUEUE_STORE, 'readwrite')
+    tx.objectStore(SYNC_QUEUE_STORE).add({ url, timestamp: Date.now() })
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    // Register a background sync (Chrome/Edge); falls back gracefully elsewhere
+    if ('sync' in self.registration) {
+      await self.registration.sync.register('chapter-prefetch-sync')
+    }
+  } catch (e) {
+    console.warn('[SW] Failed to enqueue for sync:', e)
+  }
+}
+
+/**
+ * Process all queued requests: re-fetch and cache each one.
+ */
+async function processSyncQueue() {
+  let db
+  try {
+    db = await openSyncQueue()
+  } catch {
+    return
+  }
+
+  const tx = db.transaction(SYNC_QUEUE_STORE, 'readwrite')
+  const store = tx.objectStore(SYNC_QUEUE_STORE)
+  const all = await new Promise((resolve) => {
+    const req = store.getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => resolve([])
+  })
+
+  for (const entry of all) {
+    try {
+      const response = await fetch(entry.url)
+      if (response.ok) {
+        const cache = await caches.open(CHAPTER_CACHE)
+        await cache.put(entry.url, response.clone())
+        // Remove from queue on success
+        store.delete(entry.id)
+      }
+    } catch {
+      // Still offline or request failed — keep in queue for next sync
+    }
+  }
+}
+
+// Handle the Background Sync event
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'chapter-prefetch-sync') {
+    event.waitUntil(processSyncQueue())
+  }
+})
