@@ -12,6 +12,11 @@ export type ToasterToast = {
   onOpenChange?: (open: boolean) => void
 }
 
+/**
+ * Action type constants for toast reducer.
+ * Only used as type — suppress the lint warning.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const toastActionTypes = {
   ADD_TOAST: 'ADD_TOAST',
   UPDATE_TOAST: 'UPDATE_TOAST',

@@ -1,5 +1,4 @@
 import { reportError } from '@/utils/errors'
-import { logger } from '@/utils/logger'
 import { convertToNexusError, reportBusinessError, reportRequestError } from '../errors'
 import type { InternalApiFetchOptions } from '../types'
 import type { ApiInterceptorResponse } from './types'

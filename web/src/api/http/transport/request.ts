@@ -50,7 +50,7 @@ export function attachRequestMetadata(options: InternalApiFetchOptions, requestU
   })
 }
 
-export function attachMessagePackHeaders(options: InternalApiFetchOptions): void {
+export function attachMessagePackHeaders(_options: InternalApiFetchOptions): void {
   // MessagePack transport disabled — backend does not support it.
   // The msgpack? flag on ApiFetchOptions is retained for forward-compatibility only.
 }
