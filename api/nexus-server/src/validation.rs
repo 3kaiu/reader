@@ -55,8 +55,10 @@ pub fn validate_url_with_options(
 
 /// Check if a host is a private/internal address.
 /// Performs DNS resolution for domain names to prevent DNS rebinding attacks.
+/// Uses DNS pinning to ensure the same IP is used for validation and fetching.
 fn is_private_host(host: &str) -> bool {
-    use std::net::ToSocketAddrs;
+    use nexus_core::dns_pin::{resolve_and_pin_sync, DnsError};
+    use std::time::Duration;
 
     // Check common private hostnames
     let private_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
@@ -74,18 +76,15 @@ fn is_private_host(host: &str) -> bool {
         return true;
     }
 
-    // DNS resolution: check all resolved IPs to prevent DNS rebinding
-    let host_port = format!("{host}:443");
-    match host_port.to_socket_addrs() {
-        Ok(addrs) => {
-            for addr in addrs {
-                if is_private_ip(&addr.ip()) {
-                    return true;
-                }
-            }
-            false
+    // DNS resolution with pinning: resolve once and check the pinned IP
+    // This prevents DNS rebinding by using the same IP for validation and fetching
+    match resolve_and_pin_sync(host, 443, Duration::from_secs(300)) {
+        Ok(pinned) => {
+            // Check if the pinned IP is private
+            is_private_ip(&pinned.ip)
         },
         // DNS resolution failed — not private, the fetch will fail naturally
+        Err(DnsError::NoRecords) => false,
         Err(_) => false,
     }
 }

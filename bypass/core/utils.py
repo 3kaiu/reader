@@ -26,16 +26,57 @@ class LogCategory(Enum):
 
 
 # ─────────────────────────────────────────────────────────────
-# SSRF Protection
+# SSRF Protection with DNS Pinning
 # ─────────────────────────────────────────────────────────────
+
+# DNS cache for pinned IPs (prevents DNS rebinding)
+_dns_cache: dict[tuple[str, int], tuple[str, float]] = {}
+_dns_ttl = 300.0  # 5 minutes
+
+def _resolve_and_pin(hostname: str, port: int = 443) -> str:
+    """Resolve DNS and pin the IP address to prevent DNS rebinding.
+
+    Returns the pinned IP address. Uses a cache with TTL to avoid
+    repeated DNS resolutions within the TTL period.
+    """
+    import socket
+    import time
+
+    cache_key = (hostname, port)
+    now = time.time()
+
+    # Check cache first
+    if cache_key in _dns_cache:
+        ip, resolved_at = _dns_cache[cache_key]
+        if now - resolved_at < _dns_ttl:
+            return ip
+        # Expired, remove from cache
+        del _dns_cache[cache_key]
+
+    # Resolve DNS
+    try:
+        infos = socket.getaddrinfo(hostname, port)
+    except socket.gaierror as e:
+        raise ValueError(f"Cannot resolve hostname: {hostname}") from e
+
+    if not infos:
+        raise ValueError(f"No DNS records found for: {hostname}")
+
+    # Take first valid IP and pin it
+    family, type_, proto, canonname, sockaddr = infos[0]
+    ip = sockaddr[0]
+
+    # Cache the pinned IP
+    _dns_cache[cache_key] = (ip, now)
+
+    return ip
 
 def validate_url_not_private(url_str: str) -> str:
     """SSRF protection: reject URLs pointing to private/reserved IP ranges.
-    
-    Performs DNS resolution to check all resolved IPs.
-    On DNS resolution failure, raises ValueError (the fetch will fail naturally).
+
+    Performs DNS resolution with IP pinning to prevent DNS rebinding attacks.
+    The resolved IP is pinned and reused for subsequent requests within the TTL.
     """
-    import socket
     import ipaddress
     from urllib.parse import urlparse
 
@@ -45,20 +86,23 @@ def validate_url_not_private(url_str: str) -> str:
     hostname = parsed.hostname
     if not hostname:
         raise ValueError("URL must have a hostname")
-    # Resolve hostname and check for private IPs
+
+    # Resolve and pin the IP address
     try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
+        pinned_ip = _resolve_and_pin(hostname, 443)
+    except ValueError:
         raise ValueError(f"Cannot resolve hostname: {hostname}")
-    for family, type_, proto, canonname, sockaddr in infos:
-        ip = ipaddress.ip_address(sockaddr[0])
-        # Block all non-global IPs: private, loopback, link-local, reserved,
-        # unspecified, multicast, and 0.0.0.0/8 (RFC 1122 "This host on this network")
-        if (ip.is_loopback or ip.is_private or ip.is_link_local
-                or ip.is_reserved or ip.is_unspecified
-                or ip.is_multicast or not ip.is_global
-                or ip in ipaddress.ip_network("0.0.0.0/8")):
-            raise ValueError(f"URL resolves to private/reserved IP: {ip}")
+
+    # Check if the pinned IP is private/reserved
+    ip = ipaddress.ip_address(pinned_ip)
+    # Block all non-global IPs: private, loopback, link-local, reserved,
+    # unspecified, multicast, and 0.0.0.0/8 (RFC 1122 "This host on this network")
+    if (ip.is_loopback or ip.is_private or ip.is_link_local
+            or ip.is_reserved or ip.is_unspecified
+            or ip.is_multicast or not ip.is_global
+            or ip in ipaddress.ip_network("0.0.0.0/8")):
+        raise ValueError(f"URL resolves to private/reserved IP: {ip}")
+
     return url_str
 
 
