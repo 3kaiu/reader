@@ -93,6 +93,19 @@ class BrowserProbeEngine(BaseBypassEngine):
     - Return the real rendered HTML after challenge completion
     """
 
+    def __init__(self, scraper_engine=None):
+        super().__init__("browser-probe")
+        self._playwright = None
+        self._browser = None
+        self._browser_lock = asyncio.Lock()
+        self._contexts: Dict[str, Any] = {}
+        self._metrics: Dict[str, float] = defaultdict(float)
+        self._session_counter = 0
+        # Accept an injected ScraperEngine (from factory) instead of creating one internally.
+        # Falls back to lazy import for backward compatibility.
+        self._scraper = scraper_engine
+        # Adaptive domain solving registry (injected by factory)
+        self.domain_registry = None
 
     async def _get_browser(self):
         """Lazy-init Chromium with minimal flag footprint.
@@ -727,20 +740,6 @@ class BrowserProbeEngine(BaseBypassEngine):
         return result
 
     # ─── BaseBypassEngine Interface ────────────────────────────────────────
-
-    def __init__(self, scraper_engine=None):
-        super().__init__("browser-probe")
-        self._playwright = None
-        self._browser = None
-        self._browser_lock = asyncio.Lock()
-        self._contexts: Dict[str, Any] = {}
-        self._metrics: Dict[str, float] = defaultdict(float)
-        self._session_counter = 0
-        # Accept an injected ScraperEngine (from factory) instead of creating one internally.
-        # Falls back to lazy import for backward compatibility.
-        self._scraper = scraper_engine
-        # Adaptive domain solving registry (injected by factory)
-        self.domain_registry = None
 
     async def fetch(
         self,
