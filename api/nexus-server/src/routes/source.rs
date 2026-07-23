@@ -756,8 +756,9 @@ pub async fn probe_source_health(
         tokio::spawn(async move {
             for source_id in &target_ids {
                 tracing::info!("Probing source health: {}", source_id);
-                // Do a real probe: search with a simple keyword
-                let mut rx = orchestrator.search(vec![source_id.clone()], "测试".to_string());
+                // Do a real probe: search with a short keyword
+                // Use a universal character to avoid locale-specific issues
+                let mut rx = orchestrator.search(vec![source_id.clone()], "a".to_string());
                 let probe_start = std::time::Instant::now();
                 let probe_result = tokio::time::timeout(
                     std::time::Duration::from_secs(10),
