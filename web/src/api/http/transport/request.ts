@@ -54,3 +54,10 @@ export function attachMessagePackHeaders(options: InternalApiFetchOptions): void
   // MessagePack transport disabled — backend does not support it.
   // The msgpack? flag on ApiFetchOptions is retained for forward-compatibility only.
 }
+
+export function attachApiKeyHeader(options: InternalApiFetchOptions): void {
+  const apiKey = localStorage.getItem('api_key')
+  if (apiKey) {
+    options.headers = mergeHeaders(options.headers, { 'X-API-Key': apiKey })
+  }
+}

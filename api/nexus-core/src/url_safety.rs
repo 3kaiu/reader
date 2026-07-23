@@ -85,7 +85,17 @@ fn is_private_ip(ip: &IpAddr) -> bool {
                 || (ipv4.octets()[0] == 172 && (16..=31).contains(&ipv4.octets()[1]))
                 || (ipv4.octets()[0] == 192 && ipv4.octets()[1] == 168)
         },
-        IpAddr::V6(ipv6) => ipv6.is_loopback() || ipv6.is_unspecified(),
+        IpAddr::V6(ipv6) => {
+            // Check IPv4-mapped IPv6 addresses (e.g. ::ffff:192.168.1.1)
+            if let Some(mapped_v4) = ipv6.to_ipv4_mapped() {
+                return is_private_ip(&IpAddr::V4(mapped_v4));
+            }
+            ipv6.is_loopback()
+                || ipv6.is_unspecified()
+                || ipv6.is_unique_local()        // fc00::/7
+                || ipv6.is_unicast_link_local()  // fe80::/10
+                || (ipv6.segments()[0] == 0x2001 && ipv6.segments()[1] == 0x0db8) // 2001:db8::/32 (documentation range)
+        },
     }
 }
 
@@ -119,5 +129,33 @@ mod tests {
     fn test_non_http_schemes() {
         assert!(is_private_url("file:///etc/passwd"));
         assert!(is_private_url("ftp://example.com/file"));
+    }
+
+    #[test]
+    fn test_ipv6_private_addresses() {
+        // Loopback
+        assert!(is_private_url("http://[::1]/api"));
+        // Unspecified
+        assert!(is_private_url("http://[::]/api"));
+        // Unique local (fc00::/7)
+        assert!(is_private_url("http://[fc00::1]/api"));
+        assert!(is_private_url("http://[fd00::abcd]/api"));
+        // Unicast link-local (fe80::/10)
+        assert!(is_private_url("http://[fe80::1]/api"));
+        // Documentation range (2001:db8::/32)
+        assert!(is_private_url("http://[2001:db8::1]/api"));
+        // IPv4-mapped IPv6 with private IPv4
+        assert!(is_private_url("http://[::ffff:192.168.1.1]/api"));
+        assert!(is_private_url("http://[::ffff:10.0.0.1]/api"));
+        assert!(is_private_url("http://[::ffff:127.0.0.1]/api"));
+    }
+
+    #[test]
+    fn test_ipv6_public_addresses() {
+        // Public IPv6 — should NOT be blocked
+        assert!(!is_private_url("http://[2001:4860:4860::8888]/api")); // Google DNS
+        assert!(!is_private_url("http://[2606:4700:4700::1111]/api")); // Cloudflare DNS
+        // IPv4-mapped IPv6 with public IPv4 — should NOT be blocked
+        assert!(!is_private_url("http://[::ffff:8.8.8.8]/api"));
     }
 }

@@ -12,4 +12,9 @@ export function validateWorkerEnv(env: EnhancedWorkerEnv): void {
   if (apiUrl.includes('.workers.dev')) {
     throw new Error(`NEXUS_API_URL must not point to a workers.dev domain: ${apiUrl}`)
   }
+
+  // Validate optional KV binding
+  if (!env.CONTENT_CACHE_KV) {
+    console.warn('Missing CONTENT_CACHE_KV binding, caching will be disabled')
+  }
 }

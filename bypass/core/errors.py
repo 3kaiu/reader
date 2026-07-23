@@ -100,7 +100,7 @@ class ErrorResponse:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
-            "code": self.code.value,
+            "code": self.code.name,  # Use enum name (string) for frontend compatibility
             "severity": self.severity.value,
             "message": self.message,
             "details": self.details,

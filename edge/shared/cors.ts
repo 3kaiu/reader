@@ -4,7 +4,11 @@
 
 import type { WorkerEnv } from './types.ts'
 
-const LOCAL_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'] as const
+const ENVIRONMENT = (import.meta as any).env?.ENVIRONMENT || 'development'
+const LOCAL_ORIGINS =
+  ENVIRONMENT !== 'production'
+    ? (['http://localhost:5173', 'http://localhost:4173'] as const)
+    : ([] as const)
 const DEFAULT_PAGES_ORIGINS = ['https://nexus.pages.dev', 'https://nexus-reader.pages.dev'] as const
 
 export type CorsEnvSlice = Pick<WorkerEnv, 'FRONTEND_URL' | 'CORS_EXTRA_ORIGINS'>
@@ -18,7 +22,17 @@ export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
   const out: string[] = []
   const add = (raw: string) => {
     const o = normalizeOrigin(raw)
-    if (o && !out.includes(o)) out.push(o)
+    if (!o) return
+
+    // Validate URL format
+    try {
+      new URL(o)
+    } catch {
+      console.warn(`Invalid CORS origin format: ${o}`)
+      return
+    }
+
+    if (!out.includes(o)) out.push(o)
   }
   for (const o of LOCAL_ORIGINS) add(o)
   for (const o of DEFAULT_PAGES_ORIGINS) add(o)

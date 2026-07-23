@@ -5,8 +5,17 @@ import type { EnhancedWorkerEnv } from '../worker/types.ts'
 import { API_ALLOWED_SEGMENTS, EDGE_HANDLED_PREFIXES } from './dispatch.constants.generated.ts'
 
 function isAllowedApiPath(pathname: string): boolean {
+  // Normalize path to resolve . and .. segments, preventing path traversal
+  // bypasses (e.g. /api/allowed-segment/../../forbidden-path).
+  let normalized: string
+  try {
+    normalized = new URL(pathname, 'https://placeholder.local').pathname
+  } catch {
+    return false
+  }
+
   // pathname starts with /api/
-  const segments = pathname.split('/')
+  const segments = normalized.split('/')
   // segments[0] is '' (leading /), segments[1] is 'api'
   return segments[2] !== undefined && API_ALLOWED_SEGMENTS.has(segments[2])
 }

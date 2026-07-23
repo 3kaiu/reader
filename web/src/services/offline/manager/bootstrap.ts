@@ -1,25 +1,34 @@
 import { logger } from '../../../utils/logger'
+import type { OfflineStatus } from '../types'
 import type { OfflineManager } from './runtime'
 
 type PerformanceMonitorLike = {
   reportMetric: (name: string, value: number, context?: Record<string, unknown>) => void
 }
 
-export function bootstrapOfflineManager(offlineManager: OfflineManager): void {
+/**
+ * Bootstraps the offline manager: starts auto-sync, schedules periodic cleanup,
+ * registers a beforeunload hook and a status listener. Returns a cleanup function
+ * that stops the auto-sync timer, clears the periodic interval, removes the
+ * beforeunload listener and unsubscribes the status listener. Call it on teardown
+ * to avoid leaking intervals and listeners.
+ */
+export function bootstrapOfflineManager(offlineManager: OfflineManager): () => void {
   offlineManager.startAutoSync()
 
-  setInterval(
+  const cleanupInterval = setInterval(
     () => {
       offlineManager.cleanupExpiredContent()
     },
     60 * 60 * 1000
   )
 
-  window.addEventListener('beforeunload', () => {
+  const beforeUnloadHandler = () => {
     offlineManager.stopAutoSync()
-  })
+  }
+  window.addEventListener('beforeunload', beforeUnloadHandler)
 
-  offlineManager.addStatusListener(status => {
+  const statusListener = (status: OfflineStatus) => {
     logger.info('Offline status changed', status)
 
     const performanceMonitor = (
@@ -35,5 +44,13 @@ export function bootstrapOfflineManager(offlineManager: OfflineManager): void {
         offlineDuration: status.offlineDuration,
       })
     }
-  })
+  }
+  offlineManager.addStatusListener(statusListener)
+
+  return () => {
+    offlineManager.stopAutoSync()
+    clearInterval(cleanupInterval)
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+    offlineManager.removeStatusListener(statusListener)
+  }
 }

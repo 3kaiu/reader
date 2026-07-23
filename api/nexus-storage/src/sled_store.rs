@@ -15,6 +15,7 @@ use nexus_core::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sled::{Db, Tree};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -870,6 +871,61 @@ impl SledStore {
         let policy_tree = self.source_policy.clone();
         tokio::task::spawn_blocking(move || {
             Ok(Self::get_sync::<SourcePolicy>(&policy_tree, &source_id)?.unwrap_or_default())
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    /// Batch-load source enabled statuses for many IDs in a single blocking pass.
+    ///
+    /// Used to avoid N+1 queries in list endpoints: one sled scan replaces N individual
+    /// `get_source_status` calls. Missing IDs default to `true` (enabled).
+    pub async fn get_source_statuses_batch(
+        &self,
+        source_ids: Vec<String>,
+    ) -> Result<HashMap<String, bool>, EngineError> {
+        let status_tree = self.source_status.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut result = HashMap::with_capacity(source_ids.len());
+            for id in source_ids {
+                let enabled = match status_tree.get(&id) {
+                    Ok(Some(bytes)) => bytes.first().copied().unwrap_or(b'1') == b'1',
+                    Ok(None) => true, // default: enabled
+                    Err(e) => {
+                        return Err(EngineError::Database {
+                            message: e.to_string(),
+                        })
+                    },
+                };
+                result.insert(id, enabled);
+            }
+            Ok(result)
+        })
+        .await
+        .map_err(|e| EngineError::Internal {
+            message: format!("Storage execution failed: {}", e),
+        })?
+    }
+
+    /// Batch-load source governance policies for many IDs in a single blocking pass.
+    ///
+    /// Used to avoid N+1 queries in list endpoints: one sled scan replaces N individual
+    /// `get_source_policy` calls. Missing IDs default to `SourcePolicy::default()`.
+    pub async fn get_source_policies_batch(
+        &self,
+        source_ids: Vec<String>,
+    ) -> Result<HashMap<String, SourcePolicy>, EngineError> {
+        let policy_tree = self.source_policy.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut result = HashMap::with_capacity(source_ids.len());
+            for id in source_ids {
+                let policy = Self::get_sync::<SourcePolicy>(&policy_tree, &id)?
+                    .unwrap_or_default();
+                result.insert(id, policy);
+            }
+            Ok(result)
         })
         .await
         .map_err(|e| EngineError::Internal {

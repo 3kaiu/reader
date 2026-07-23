@@ -12,8 +12,9 @@ from datetime import datetime
 from typing import Optional, Dict
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, HttpUrl, field_validator
 from contextlib import asynccontextmanager
 
@@ -86,6 +87,8 @@ def validate_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
 # Models
+ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+
 class FetchRequest(BaseModel):
     url: HttpUrl
     method: str = "GET"
@@ -94,6 +97,14 @@ class FetchRequest(BaseModel):
     proxy: Optional[str] = None
     body: Optional[str] = None
     engine: Optional[str] = None
+
+    @field_validator("method", mode="before")
+    @classmethod
+    def validate_method(cls, v: str) -> str:
+        method = v.upper()
+        if method not in ALLOWED_HTTP_METHODS:
+            raise ValueError(f"Invalid HTTP method: {v}. Allowed: {', '.join(sorted(ALLOWED_HTTP_METHODS))}")
+        return method
 
     @field_validator("url", mode="before")
     @classmethod
@@ -172,17 +183,41 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS: restrict to the HTTP methods and headers actually used by this service.
+# - Methods: GET (/health, /api/adaptive-stats) and POST (/fetch, /api/browser-probe,
+#   /api/solve-cf). OPTIONS is required for CORS preflight.
+# - Headers: Content-Type (JSON request bodies) and X-API-Key (authentication).
+#   Avoiding "*" prevents clients from sending arbitrary headers cross-origin.
+# Allow origins can be overridden via BYPASS_CORS_ORIGINS (comma-separated).
+_bypass_cors_origins = [
+    o.strip()
+    for o in os.getenv(
+        "BYPASS_CORS_ORIGINS",
+        "http://localhost:5173,http://localhost:4173,"
+        "https://nexus.pages.dev,https://nexus-reader.pages.dev",
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:4173",
-        "https://nexus.pages.dev",
-        "https://nexus-reader.pages.dev",
-    ],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_bypass_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
+
+# Standardize error responses to match Nexus error protocol
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "code": f"HTTP_{exc.status_code}",
+            "message": exc.detail,
+            "requestId": request.headers.get("x-request-id"),
+        },
+    )
 
 @app.get("/health")
 async def health():

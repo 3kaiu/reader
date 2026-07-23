@@ -19,6 +19,12 @@ services:
       HOST: 0.0.0.0
       PORT: "7860"
       RUST_LOG: ${RUST_LOG:-info}
+      # Bypass service URL (container name resolves via Docker network)
+      CF_SERVICE_URL: http://bypass:8000
+      # API authentication key (leave empty to disable auth)
+      API_KEY: ${API_KEY:-}
+      # CORS allowed origins (comma-separated, e.g. "http://localhost:5173")
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
     volumes:
       - ./data:/app/data
       - ./sources:/app/sources

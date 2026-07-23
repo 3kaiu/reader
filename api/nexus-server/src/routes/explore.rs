@@ -8,7 +8,8 @@ use nexus_core::ExploreCategory;
 use serde::{Deserialize, Serialize};
 
 use crate::app::AppState;
-use crate::error::{internal_error, not_found, ApiErrorResponse};
+use crate::error::{bad_request, internal_error, not_found, ApiErrorResponse};
+use crate::validation::validate_url_with_options;
 
 #[derive(Deserialize)]
 pub struct ExploreCategoriesQuery {
@@ -51,6 +52,10 @@ pub async fn explore(
     State(state): State<AppState>,
     Json(query): Json<ExploreQuery>,
 ) -> Result<Json<Vec<nexus_core::BookItem>>, ApiErrorResponse> {
+    // Validate category_url to prevent SSRF attacks
+    validate_url_with_options(&query.category_url, false)
+        .map_err(|e| bad_request(format!("Invalid category URL: {}", e)))?;
+
     let engine = state
         .engine_registry
         .get_explore_engine(&query.source)

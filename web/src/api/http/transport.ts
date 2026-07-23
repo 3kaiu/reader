@@ -2,6 +2,7 @@ import { ofetch } from 'ofetch'
 import { API_TIMEOUT, API_MAX_RETRIES, API_RETRY_DELAY_MULTIPLIER } from '@/constants/api'
 import { isLikelyNetworkOrCorsError } from './errors'
 import {
+  attachApiKeyHeader,
   attachMessagePackHeaders,
   attachRequestMetadata,
   resolveBaseUrl,
@@ -27,6 +28,7 @@ const internalFetch = ofetch.create({
 
     resolveBaseUrl(requestOptions, requestUrl)
     attachRequestMetadata(requestOptions, requestUrl)
+    attachApiKeyHeader(requestOptions)
     attachMessagePackHeaders(requestOptions)
   },
   onResponse({ response, options }) {

@@ -11,6 +11,7 @@ use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyE
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
+    set_header::SetResponseHeaderLayer,
     trace::TraceLayer,
 };
 use tracing::{error, info};
@@ -136,8 +137,9 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
                 "CORS enabled but no allowed_origins configured. Either set allowed_origins or disable CORS."
             ));
         } else {
+            use axum::http::{HeaderName, Method};
             use http::HeaderValue;
-            use tower_http::cors::{AllowOrigin, Any};
+            use tower_http::cors::AllowOrigin;
 
             let origins: Vec<HeaderValue> = config
                 .server
@@ -148,11 +150,24 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
 
             info!("CORS: restricted to {} origin(s)", origins.len());
 
+            // Restrict CORS methods and headers to reduce attack surface
             app.layer(
                 CorsLayer::new()
                     .allow_origin(AllowOrigin::list(origins))
-                    .allow_methods(Any)
-                    .allow_headers(Any),
+                    .allow_methods([
+                        Method::GET,
+                        Method::POST,
+                        Method::PUT,
+                        Method::PATCH,
+                        Method::DELETE,
+                        Method::OPTIONS,
+                    ])
+                    .allow_headers([
+                        HeaderName::from_static("content-type"),
+                        HeaderName::from_static("x-api-key"),
+                        HeaderName::from_static("x-request-id"),
+                        HeaderName::from_static("authorization"),
+                    ]),
             )
         }
     } else {
@@ -168,6 +183,29 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         info!("API Key authentication: disabled");
         app
     };
+
+    // Security response headers — defense-in-depth for all responses.
+    // X-Content-Type-Options: prevents MIME-type sniffing.
+    // X-Frame-Options: prevents clickjacking by disallowing framing.
+    // Referrer-Policy: limits referrer leakage to same-origin requests.
+    // Cache-Control: no-store ensures sensitive data is not cached by intermediaries.
+    let app = app
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::X_CONTENT_TYPE_OPTIONS,
+            axum::http::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::X_FRAME_OPTIONS,
+            axum::http::HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::REFERRER_POLICY,
+            axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        ));
 
     Ok(app)
 }

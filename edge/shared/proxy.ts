@@ -56,24 +56,16 @@ export async function proxyRequest(
   const origin = request.headers.get('Origin') || '';
   const requestId = getRequestId(request)
   
-  // Fix double-encoding issue for URL parameters (only decode once if needed)
-  if (url.searchParams.has('url')) {
-    const urlParam = url.searchParams.get('url');
-    try {
-      if (urlParam && (urlParam.includes('%2F') || urlParam.includes('%3A'))) {
-        const decoded = decodeURIComponent(urlParam);
-        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-          url.searchParams.set('url', decoded);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to decode URL parameter:', e);
-    }
-  }
-  
-  // Try cache for GET requests
+  // NOTE: Auto-decoding of URL parameters (e.g. %2F, %3A) was removed for security.
+  // The frontend must encode URL parameters correctly before sending requests.
+  // Auto-decoding here could be exploited for SSRF attacks.
+
+  // Try cache for GET requests — but skip if request has authentication headers.
+  // Authenticated responses are user-specific and must not be cached/shared across users.
+  const hasAuthHeaders =
+    request.headers.has('authorization') || request.headers.has('cookie');
   const cacheKey = generateCacheKey(path, Object.fromEntries(url.searchParams));
-  if (useCache && request.method === 'GET' && kv) {
+  if (useCache && request.method === 'GET' && kv && !hasAuthHeaders) {
     const t0 = Date.now();
     const cached = await getFromCache(kv, cacheKey);
     if (cached) {
@@ -93,11 +85,22 @@ export async function proxyRequest(
   // Forward request
   const headers = new Headers(request.headers);
   headers.delete('host');
-  // Strip CF-* headers to prevent IP spoofing (attacker can set CF-Connecting-IP to bypass rate limiting)
+
+  // Extract real client IP from Cloudflare header before stripping.
+  // cf-connecting-ip is set by Cloudflare infrastructure (not spoofable by the browser),
+  // so reading it here and forwarding as X-Forwarded-For is safe.
+  const realIp = headers.get('cf-connecting-ip');
+
+  // Strip CF-* headers to prevent IP spoofing downstream
   headers.delete('cf-connecting-ip');
   headers.delete('cf-ipcountry');
   headers.delete('cf-ray');
   headers.delete('cf-visitor');
+
+  // Forward real client IP to backend for rate limiting (SmartIpKeyExtractor)
+  if (realIp) {
+    headers.set('x-forwarded-for', realIp);
+  }
 
   // Configurable fetch timeout (15s default, 300s for streaming endpoints)
   const isStreaming = path.includes('/stream') || request.headers.get('Accept')?.includes('text/event-stream');
@@ -149,8 +152,8 @@ export async function proxyRequest(
       });
     }
     
-    // Cache successful GET responses
-    if (useCache && response.ok && request.method === 'GET' && kv && ctx) {
+    // Cache successful GET responses (skip if request had auth headers — user-specific)
+    if (useCache && response.ok && request.method === 'GET' && kv && ctx && !hasAuthHeaders) {
       const body = await response.text();
       ctx.waitUntil(saveToCache(kv, cacheKey, body, contentType || 'application/json', cacheTTL));
       recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'set' });

@@ -445,36 +445,41 @@ pub async fn delete_legado_source(
 pub async fn list_sources(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<SourceView>>, ApiErrorResponse> {
-    let mut sources: Vec<SourceView> = Vec::new();
+    // Optimisation: batch-load statuses and policies to avoid O(2N) sequential
+    // DB queries (one status + one policy per source). A single sled scan replaces
+    // all individual lookups.
+    let legado_sources = state.engine_registry.legado_store.get_all();
+    let nxs_sources = state.engine_registry.nxs_store.get_all();
+
+    let mut all_ids: Vec<String> = Vec::with_capacity(legado_sources.len() + nxs_sources.len());
+    for ls in &legado_sources {
+        all_ids.push(ls.infer_id());
+    }
+    for nxs in &nxs_sources {
+        all_ids.push(nxs.id.clone());
+    }
+
+    let (statuses, policies) = tokio::try_join!(
+        state.store.get_source_statuses_batch(all_ids.clone()),
+        state.store.get_source_policies_batch(all_ids),
+    )
+    .map_err(|e| crate::error::internal_error(e.to_string()))?;
+
+    let mut sources: Vec<SourceView> =
+        Vec::with_capacity(legado_sources.len() + nxs_sources.len());
 
     // Legado sources
-    for ls in state.engine_registry.legado_store.get_all() {
+    for ls in legado_sources {
         let id = ls.infer_id();
-        let enabled = state
-            .store
-            .get_source_status(id.clone())
-            .await
-            .unwrap_or(true);
-        let policy = state
-            .store
-            .get_source_policy(id.clone())
-            .await
-            .unwrap_or_default();
+        let enabled = *statuses.get(&id).unwrap_or(&true);
+        let policy = policies.get(&id).cloned().unwrap_or_default();
         sources.push(SourceView::from_legado(&ls, enabled, policy));
     }
 
     // NXS sources
-    for nxs in state.engine_registry.nxs_store.get_all() {
-        let enabled = state
-            .store
-            .get_source_status(nxs.id.clone())
-            .await
-            .unwrap_or(true);
-        let policy = state
-            .store
-            .get_source_policy(nxs.id.clone())
-            .await
-            .unwrap_or_default();
+    for nxs in nxs_sources {
+        let enabled = *statuses.get(&nxs.id).unwrap_or(&true);
+        let policy = policies.get(&nxs.id).cloned().unwrap_or_default();
         sources.push(SourceView::from_nxs(&nxs, enabled, policy));
     }
 
@@ -750,14 +755,12 @@ pub async fn probe_source_health(
                 let probe_result = tokio::time::timeout(
                     std::time::Duration::from_secs(10),
                     async {
-                        while let Some(result) = rx.recv().await {
-                            match result {
-                                crate::orchestrator::SearchResult::Item(_) => return true,
-                                crate::orchestrator::SearchResult::Error { .. } => return false,
-                                crate::orchestrator::SearchResult::Done => return false,
-                            }
+                        match rx.recv().await {
+                            Some(crate::orchestrator::SearchResult::Item(_)) => true,
+                            Some(crate::orchestrator::SearchResult::Error { .. }) => false,
+                            Some(crate::orchestrator::SearchResult::Done) => false,
+                            None => false,
                         }
-                        false
                     },
                 ).await;
                 let elapsed = probe_start.elapsed();

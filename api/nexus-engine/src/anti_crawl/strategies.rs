@@ -237,6 +237,11 @@ impl AntiCrawlStrategy for CfBypassStrategy {
             req = req.header("X-API-Key", api_key);
         }
 
+        // Propagate trace_id as X-Request-ID for cross-service log correlation
+        if let Some(ref trace_id) = ctx.trace_id {
+            req = req.header("X-Request-ID", trace_id);
+        }
+
         let response = req.send().await.map_err(|e| {
             warn!("CF Bypass: Request failed: {}", e);
             EngineError::Network {
