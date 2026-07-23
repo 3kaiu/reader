@@ -11,17 +11,20 @@ import type {
   ReaderChromeBindingState,
 } from './chrome-types'
 
-// ── Scroll-driven toolbar visibility ───────────────────────────────────
-
-let scrollLastY = 0
+// Module-level state shared across scroll listener and toolbar toggle.
+// NOTE: these are scoped to a single reader instance per page.
+// If multi-reader support is added, move these into createReaderChromeController.
 let chromeShowTime = 0
 
-/** 初始化/更新滚动驱动工具栏 — 在 reader view 层调用 */
+/** 创建滚动驱动工具栏 — 在 reader view 层调用 */
 export function setupScrollDrivenChrome(
   showToolbar: ReaderChromeState['showToolbar'],
   _showSettings: ReaderChromeState['showSettings'],
   _showCatalog: ReaderChromeState['showCatalog']
 ) {
+  // scrollLastY and ticking are local — each call creates its own.
+  // chromeShowTime is shared with toggleToolbar via module-level var (below).
+  let scrollLastY = 0
   let ticking = false
 
   const onScroll = () => {

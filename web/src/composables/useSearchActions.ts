@@ -134,7 +134,7 @@ export function useSearchActions(options: {
       })
     } catch (error) {
       // Best effort only. Reading should not be blocked by shelf persistence.
-      logger.debug('Background shelf persistence failed', { error, bookUrl: book.bookUrl })
+      console.debug('Background shelf persistence failed', { error, bookUrl: book.bookUrl })
     }
   }
 

@@ -55,7 +55,7 @@ function handleSelectChineseConvert(value: string) {
     title="正文字体"
     :options="fonts"
     :selected-key="config.fontFamily"
-    :aria-label-template="'切换到{label}字体'"
+    aria-label-template="切换到{label}字体"
     @select="handleSelectFontFamily"
   />
 
@@ -63,7 +63,7 @@ function handleSelectChineseConvert(value: string) {
     title="简繁转换"
     :options="chineseOptions"
     :selected-key="config.chineseConvert"
-    :aria-label-template="'{label}简繁转换'"
+    aria-label-template="{label}简繁转换"
     :wrap="false"
     @select="handleSelectChineseConvert"
   />

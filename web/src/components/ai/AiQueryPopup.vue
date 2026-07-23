@@ -20,6 +20,23 @@ const emit = defineEmits<{
 
 const show = ref(false)
 
+function categoryBadgeClass(category: string): string {
+  switch (category) {
+    case 'person':
+      return 'bg-blue-100 text-blue-800'
+    case 'place':
+      return 'bg-green-100 text-green-800'
+    case 'event':
+      return 'bg-purple-100 text-purple-800'
+    case 'faction':
+      return 'bg-orange-100 text-orange-800'
+    case 'meme':
+      return 'bg-pink-100 text-pink-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
 watch(() => props.result, (val) => {
   show.value = val !== null
 })

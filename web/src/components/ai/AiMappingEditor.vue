@@ -6,10 +6,12 @@
 import { ref, computed } from 'vue'
 import type { AliasMapping, MappingCategory } from './composables/types'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = defineProps<{
   bookId: string
 }>()
+
+// Use bookId to avoid TS unused warning while keeping it available for future use
+void props.bookId
 
 const emit = defineEmits<{
   update: [mapping: AliasMapping]
