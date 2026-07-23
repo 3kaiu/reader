@@ -39,7 +39,7 @@ pub struct SearchRequest {
     #[serde(default)]
     pub sources: Vec<String>, // Empty = all enabled sources, max 50 entries
     #[serde(default = "default_page")]
-    pub _page: u32,
+    pub _page: u32, // Reserved for future pagination. Stored with underscore prefix to suppress unused warning.
     #[serde(default = "default_light_mode")]
     pub light_mode: bool,
 }
