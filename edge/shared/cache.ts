@@ -17,6 +17,10 @@ type CachedPayload = {
 function stableHash64(str: string, seed = 0): string {
   // Deterministic, fast, dependency-free 64-bit hash.
   // Uses two independent 32-bit hashes to avoid birthday paradox at ~77k entries.
+  // NOTE: This is NOT collision-resistant against deliberate attacks.
+  // For cache key generation on a single-tenant edge worker this is acceptable
+  // because the key space is small (<10k entries). If attack resistance is needed,
+  // replace with crypto.subtle.digest('SHA-256', ...) and pass the async result.
   let h1 = seed + 0x9e3779b9
   let h2 = seed + 0x517cc1b7
   for (let i = 0; i < str.length; i++) {
