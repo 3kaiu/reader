@@ -227,7 +227,7 @@ export function createReaderContentService() {
       const chapterContent = normalizedContent.content || ''
 
       if (options?.contentStageReportsRef) {
-        options.contentStageReportsRef.value = normalizedContent.stageReports as any
+        options.contentStageReportsRef.value = normalizedContent.stageReports
       }
 
       if (!chapterContent.trim()) {
