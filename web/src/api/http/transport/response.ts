@@ -38,7 +38,7 @@ function getErrorMessage(error: unknown): string | undefined {
   return undefined
 }
 
-export function decodeMessagePackResponse(response: ApiInterceptorResponse<unknown>): void {
+export function decodeMessagePackResponse(_response: ApiInterceptorResponse<unknown>): void {
   // MessagePack transport disabled — backend does not support it.
   // Kept as a hook for future implementation when backend adds support.
 }

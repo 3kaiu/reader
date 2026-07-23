@@ -1,5 +1,5 @@
 use crate::domain::book_source::{
-    BookSource, BookSourceError, BookSourceFilter, BookSourceReadModelError, BookSourceSnapshot,
+    BookSource, BookSourceError, BookSourceFilter, BookSourceReadModelError,
     RepoSnapshot, SourceId,
 };
 use async_trait::async_trait;

@@ -6,6 +6,7 @@
 import { ref, computed } from 'vue'
 import type { AliasMapping, MappingCategory } from './composables/types'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = defineProps<{
   bookId: string
 }>()
