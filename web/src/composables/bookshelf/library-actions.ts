@@ -21,7 +21,7 @@ export function createBookshelfLibraryActions(
   const deps: ManageModeDeleteDeps<BookshelfBook, string> = {
     name: book => book.name,
     getKey: book => book.id!,
-    selectedKeys: options.selectedBooks as any,
+    selectedKeys: options.selectedBooks,
     setSelection: options.setSelection,
     toggleManageMode: options.toggleManageMode,
     confirm: options.confirm,
