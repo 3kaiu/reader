@@ -1,7 +1,7 @@
 name = "nexus-edge"
 main = "entry.ts"
 compatibility_date = "2025-06-01"
-compatibility_flags = ["nodejs_compat"]
+# nodejs_compat removed — no Node.js polyfills needed; keeping it adds cold-start overhead
 
 # Custom hostname: under [env.production] / [env.staging], set routes[].pattern and zone_name to your
 # API host and DNS zone (e.g. api.example.com + example.com). Wrangler does not expand env vars here.

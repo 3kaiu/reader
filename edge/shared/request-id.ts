@@ -1,11 +1,8 @@
 export const REQUEST_ID_HEADER = 'X-Request-ID'
 
 function readRequestId(headers: Headers): string | null {
-  return (
-    headers.get(REQUEST_ID_HEADER) ||
-    headers.get('x-request-id') ||
-    headers.get('X-Request-Id')
-  )
+  // Headers.get() is case-insensitive per spec — single call suffices
+  return headers.get(REQUEST_ID_HEADER)
 }
 
 export function getRequestId(request: Request): string {

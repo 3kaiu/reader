@@ -570,11 +570,13 @@ pub async fn update_source_policy(
     Path(id): Path<String>,
     Json(policy): Json<SourcePolicy>,
 ) -> Result<Json<SourceView>, ApiErrorResponse> {
-    let exists = state.engine_registry.legado_store.get(&id).is_some()
-        || state.engine_registry.nxs_store.get(&id).is_some();
-    if !exists {
+    let is_legado = state.engine_registry.legado_store.get(&id).is_some();
+    let is_nxs = state.engine_registry.nxs_store.get(&id).is_some();
+    if !is_legado && !is_nxs {
         return Err(not_found("Source"));
     }
+
+    let source_type = if is_legado { "legado" } else { "nxs" };
 
     state
         .store
@@ -591,7 +593,7 @@ pub async fn update_source_policy(
     Ok(Json(SourceView {
         id: id.clone(),
         name: id.clone(),
-        source_type: "unknown",
+        source_type,
         enabled,
         policy,
     }))

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
+import { SceneLoader } from '@/components/ui'
 
 withDefaults(
   defineProps<{
@@ -14,7 +14,7 @@ withDefaults(
 
 <template>
   <div :class="containerClass">
-    <Loader2 class="w-8 h-8 animate-spin mx-auto opacity-40" />
+    <SceneLoader scene="readerScroll" :size="48" class="mx-auto opacity-40" />
     <p class="text-sm opacity-40 mt-3">{{ message }}</p>
   </div>
 </template>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { BookMarked, Check, Loader2, Radio } from 'lucide-vue-next'
+import { BookMarked, Check, Radio } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { LazyImage } from '@/components/ui'
+import { LazyImage, SceneLoader } from '@/components/ui'
 import type {
   SearchDisplayResult,
   SearchExplain,
@@ -199,7 +199,7 @@ function getRankingHint(explain?: SearchExplain): string | null {
       v-if="isOpeningAnyVariant"
       class="absolute inset-0 bg-background/80 backdrop-blur-sm z-30 flex items-center justify-center"
     >
-      <Loader2 class="h-5 w-5 animate-spin text-primary" />
+      <SceneLoader scene="searchCard" :size="24" class="text-primary" />
     </div>
   </div>
 
@@ -318,7 +318,7 @@ function getRankingHint(explain?: SearchExplain): string | null {
                 class="h-8 px-3 text-xs"
                 @click.stop="openVariant(variant)"
               >
-                <Loader2 v-if="isOpeningVariant(variant)" class="mr-1 h-3.5 w-3.5 animate-spin" />
+                <SceneLoader v-if="isOpeningVariant(variant)" scene="searchCard" :size="16" class="mr-1 text-current" />
                 {{ isOpeningVariant(variant) ? '打开中' : '阅读' }}
               </Button>
               <Button

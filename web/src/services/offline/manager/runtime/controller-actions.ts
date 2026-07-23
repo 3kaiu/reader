@@ -24,7 +24,7 @@ import type { OfflineManagerController, OfflineManagerImportData } from './contr
 export function createOfflineManagerControllerActions(
   runtime: OfflineManagerControllerRuntime
 ): OfflineManagerController {
-  const { runtimeContext, ready } = runtime
+  const { runtimeContext, ready, dispose } = runtime
 
   const waitUntilReady = async () => {
     await ready
@@ -123,5 +123,6 @@ export function createOfflineManagerControllerActions(
     exportOfflineData,
     importOfflineData,
     refreshPersistedState,
+    dispose,
   }
 }

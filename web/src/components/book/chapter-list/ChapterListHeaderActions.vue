@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, CloudDownload, Locate, RotateCw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { SceneLoader } from '@/components/ui'
 
 defineProps<{
   isReverse: boolean
@@ -41,7 +42,8 @@ const emit = defineEmits<{
     </Button>
 
     <Button variant="outline" size="sm" class="flex-1 h-8 text-xs gap-1" @click="emit('refresh')">
-      <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
+      <SceneLoader v-if="loading" scene="chapterRefresh" :size="16" class="text-current" />
+      <RotateCw v-else class="h-3.5 w-3.5" />
       刷新
     </Button>
 

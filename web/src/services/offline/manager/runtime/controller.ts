@@ -31,4 +31,5 @@ export class OfflineManager implements OfflineManagerController {
   readonly exportOfflineData = this.controller.exportOfflineData
   readonly importOfflineData = this.controller.importOfflineData
   readonly refreshPersistedState = this.controller.refreshPersistedState
+  readonly dispose = this.controller.dispose
 }

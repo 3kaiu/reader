@@ -1,2 +1,6 @@
 export { default as Skeleton } from './Skeleton.vue'
 export { default as LazyImage } from './LazyImage.vue'
+export { default as CurveLoader } from './CurveLoader.vue'
+export { default as SceneLoader } from './SceneLoader.vue'
+export { getCurve, SCENE_CURVES } from './curve-configs'
+export type { SceneName, CurveConfig } from './curve-configs'

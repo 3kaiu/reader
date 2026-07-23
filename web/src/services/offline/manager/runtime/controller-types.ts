@@ -28,4 +28,9 @@ export interface OfflineManagerController {
   exportOfflineData: () => OfflineExportData
   importOfflineData: (data: OfflineManagerImportData) => void
   refreshPersistedState: () => Promise<void>
+  /**
+   * Tear down listeners/intervals registered by bootstrap + runtime init.
+   * Call to avoid leaking event listeners and timers.
+   */
+  dispose: () => void
 }

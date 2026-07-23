@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
+import { SceneLoader } from '@/components/ui'
 import { createReaderScrollChapterViewBindings } from './reader-scroll-chapter-view-bindings'
 import type { ReaderScrollChapterProps } from './reader-scroll-chapter-prop-types'
 
@@ -30,9 +30,11 @@ const {
     </div>
 
     <article class="reader-text" @click="onContentClick">
+      <!-- v-html is safe here: content is pre-sanitized via DOMPurify + HTML entity escaping
+           in the rendering pipeline before reaching this component. See: ReaderContentFormatter -->
       <div v-if="hasFormattedContent" v-html="renderedContent" />
       <div v-else class="py-10 text-center opacity-40">
-        <Loader2 class="w-6 h-6 animate-spin mx-auto mb-2" />
+        <SceneLoader scene="readerChapter" :size="36" class="mx-auto mb-2 opacity-40" />
         <p class="text-xs">正在解析内容...</p>
       </div>
     </article>

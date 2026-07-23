@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * 通用加载状态网格组件
+ * 通用加载状态组件 — 数学曲线动效
  */
+import { SceneLoader } from '@/components/ui'
+
 withDefaults(
   defineProps<{
     items?: number
@@ -15,12 +17,7 @@ withDefaults(
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    <div
-      v-for="i in items"
-      :key="i"
-      class="bg-card rounded-2xl border border-border/50 animate-pulse"
-      :style="{ height: itemHeight }"
-    ></div>
+  <div class="flex items-center justify-center py-16">
+    <SceneLoader scene="general" :size="64" class="text-primary/30" />
   </div>
 </template>

@@ -14,6 +14,7 @@ export interface OfflineManagerControllerRuntime {
   runtimeState: OfflineManagerRuntimeState
   runtimeContext: OfflineManagerRuntimeContext
   ready: Promise<void>
+  dispose: () => void
 }
 
 export function createOfflineManagerControllerRuntime(): OfflineManagerControllerRuntime {
@@ -44,9 +45,12 @@ export function createOfflineManagerControllerRuntime(): OfflineManagerControlle
     syncQueuedOperations,
   })
 
+  const initialization = initializeOfflineManager(runtimeContext)
+
   return {
     runtimeState,
     runtimeContext,
-    ready: initializeOfflineManager(runtimeContext),
+    ready: initialization.ready,
+    dispose: initialization.dispose,
   }
 }

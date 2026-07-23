@@ -17,8 +17,15 @@ function normalizeOrigin(raw: string): string {
   return raw.trim().replace(/\/$/, '')
 }
 
-/** Merge localhost, default Nexus Pages origins, FRONTEND_URL, and optional comma-separated extras. */
+/** Merge localhost, default Nexus Pages origins, FRONTEND_URL, and optional comma-separated extras.
+ *  Results are cached per env config to avoid re-computation on every request. */
+const allowedOriginsCache = new WeakMap<CorsEnvSlice, string[]>()
+
 export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
+  const key = env || {} as CorsEnvSlice
+  const cached = allowedOriginsCache.get(key)
+  if (cached) return cached
+
   const out: string[] = []
   const add = (raw: string) => {
     const o = normalizeOrigin(raw)
@@ -40,6 +47,7 @@ export function resolveAllowedOrigins(env?: CorsEnvSlice): string[] {
   if (env?.CORS_EXTRA_ORIGINS) {
     for (const part of env.CORS_EXTRA_ORIGINS.split(',')) add(part)
   }
+  allowedOriginsCache.set(key, out)
   return out
 }
 

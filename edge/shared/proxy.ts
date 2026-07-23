@@ -253,7 +253,10 @@ export async function proxyRequestWithEnv(
 
   return proxyRequest(request, targetUrl, url.pathname + url.search, {
     useCache,
-    cacheTTL: 120,
+    cacheTTL: 120, // NOTE: Hardcoded TTL ignores backend Cache-Control header.
+    // TODO: Parse the backend's Cache-Control max-age directive instead of
+    // using a fixed value. This would let dynamic content expire sooner and
+    // static content be cached longer. See: stableHash64 collision docs.
     kv,
     ctx,
     corsEnv: env,

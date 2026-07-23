@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SceneLoader } from '@/components/ui'
 
 defineProps<{
   loading: boolean
@@ -21,7 +21,7 @@ const emit = defineEmits<{
     <div class="flex items-center gap-3">
       <span class="text-sm font-semibold text-foreground">搜索结果</span>
       <Badge v-if="loading" variant="secondary" class="gap-1.5">
-        <Loader2 class="h-3 w-3 animate-spin" />
+        <SceneLoader scene="searchHeader" :size="16" class="text-current" />
         搜索中...
       </Badge>
       <Badge v-else-if="resultCount > 0" variant="secondary"> {{ resultCount }} 本 </Badge>
