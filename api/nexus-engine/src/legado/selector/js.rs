@@ -200,7 +200,26 @@ pub fn execute_js(js_code: &str, result: &str, base_url: &str) -> Option<String>
         format!("(function(){{ try {{ return ({}); }} catch(e) {{ return null; }} }})()", code)
     };
 
-    // First attempt via persistent worker
+    // Try rquickjs first if enabled via feature flag
+    #[cfg(feature = "use-rquickjs")]
+    {
+        use super::js_rquickjs::create_shared_sandbox;
+        use std::sync::OnceLock;
+        static SANDBOX: OnceLock<Option<super::js_rquickjs::SharedJsSandbox>> = OnceLock::new();
+
+        let sandbox = SANDBOX.get_or_init(|| create_shared_sandbox().ok()).as_ref();
+        if let Some(sandbox) = sandbox {
+            let guard = sandbox.lock();
+            if let Ok(result) = guard.execute(&wrapped, result, base_url) {
+                if result != "null" && !result.is_empty() {
+                    return Some(result);
+                }
+            }
+        }
+        // Fall through to Node.js if rquickjs fails
+    }
+
+    // First attempt via persistent worker (Node.js)
     if let Some(v) = with_worker(|w| w.execute(&wrapped, result, base_url)) {
         return Some(v);
     }
