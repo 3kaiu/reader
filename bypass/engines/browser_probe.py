@@ -226,6 +226,10 @@ class BrowserProbeEngine(BaseBypassEngine):
         context = await self._get_context(session_id)
         page = await context.new_page()
         try:
+            # Apply strict CSP to limit script execution scope
+            await page.set_extra_http_headers({
+                "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline';"
+            })
             result = await page.evaluate(js_code)
             return result
         finally:
@@ -259,6 +263,10 @@ class BrowserProbeEngine(BaseBypassEngine):
             context = await self._get_context(session_id)
             page = await context.new_page()
             try:
+                # Apply strict CSP before navigation to limit script execution
+                await page.set_extra_http_headers({
+                    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline';"
+                })
                 await page.goto(url, wait_until=wait_until, timeout=timeout_ms)
                 # Post-navigation SSRF check
                 validate_url_not_private(page.url)
