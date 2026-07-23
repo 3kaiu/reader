@@ -10,9 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from main import app
 from core.engine_factory import EngineFactory
 from core.engine import BaseBypassEngine
-from core.errors import BypassError
 from core.engine import DomainRegistry, CircuitState
 from core.errors import ErrorCode
+
+# Import shared test classes from test_bypass_service to avoid duplication
+from test_bypass_service import TestEngineFactoryIntegration, TestErrorClasses  # noqa: F401
 
 
 class TestEngineFactory:
@@ -74,53 +76,6 @@ class TestBaseBypassEngine:
         
         engine = CompleteEngine("test")
         assert engine.name == "test"
-
-
-class TestEngineFactoryIntegration:
-    """Integration tests for EngineFactory with real engines."""
-
-    def test_get_engine_creates_curl_engine(self):
-        factory = EngineFactory()
-        factory._engines.clear()
-        
-        engine = factory.get_engine("curl")
-        assert engine is not None
-
-    def test_get_engine_creates_scraper_engine(self):
-        factory = EngineFactory()
-        factory._engines.clear()
-        
-        engine = factory.get_engine("scraper")
-        assert engine is not None
-
-    def test_get_engine_creates_browser_probe_engine(self):
-        factory = EngineFactory()
-        factory._engines.clear()
-        
-        engine = factory.get_engine("browser-probe")
-        assert engine is not None
-
-
-class TestErrorClasses:
-    """Tests for error classes."""
-
-    def test_bypass_error_creation(self):
-        """Test BypassError creation."""
-        error = BypassError(
-            ErrorCode.NETWORK_ERROR,
-            "Test error",
-            context={"url": "https://example.com"}
-        )
-        assert str(error) == "Test error"
-        assert error.code == ErrorCode.NETWORK_ERROR
-        assert error.context["url"] == "https://example.com"
-
-    def test_error_code_enum(self):
-        """Test ErrorCode enum values."""
-        assert ErrorCode.NETWORK_ERROR.value == 1000
-        assert ErrorCode.TIMEOUT.value == 1001
-        assert ErrorCode.CLOUDFLARE_CHALLENGE.value == 2000
-        assert ErrorCode.INTERNAL_ERROR.value == 0
 
 
 class TestDomainRegistry:

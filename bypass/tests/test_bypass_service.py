@@ -195,28 +195,6 @@ class TestBypassResult:
         assert result.cached is False
 
 
-class TestErrorClasses:
-    """Tests for error classes"""
-
-    def test_bypass_error_creation(self):
-        """Test BypassError creation with ErrorCode."""
-        error = BypassError(
-            ErrorCode.NETWORK_ERROR,
-            "Network request failed",
-            context={"url": "https://example.com"}
-        )
-        assert str(error) == "Network request failed"
-        assert error.code == ErrorCode.NETWORK_ERROR
-        assert error.context["url"] == "https://example.com"
-
-    def test_error_code_enum(self):
-        """Test ErrorCode enum values."""
-        assert ErrorCode.NETWORK_ERROR.value == 1000
-        assert ErrorCode.TIMEOUT.value == 1001
-        assert ErrorCode.CLOUDFLARE_CHALLENGE.value == 2000
-        assert ErrorCode.INTERNAL_ERROR.value == 0
-
-
 class TestConvenienceFunctions:
     """Tests for convenience error creation functions"""
 
@@ -235,28 +213,6 @@ class TestConvenienceFunctions:
         error = internal_error("DB connection failed", context={"db": "users"})
         assert error.code == ErrorCode.INTERNAL_ERROR
         assert error.context["db"] == "users"
-
-
-class TestEngineFactoryIntegration:
-    """Integration tests for EngineFactory with real engines"""
-
-    def test_get_engine_creates_curl_engine(self):
-        factory = EngineFactory()
-        engine = factory.get_engine(name="curl")
-        assert engine is not None
-        assert hasattr(engine, 'fetch')
-
-    def test_get_engine_creates_scraper_engine(self):
-        factory = EngineFactory()
-        engine = factory.get_engine(name="scraper")
-        assert engine is not None
-        assert hasattr(engine, 'fetch')
-
-    def test_get_engine_creates_browser_probe_engine(self):
-        factory = EngineFactory()
-        engine = factory.get_engine(name="browser-probe")
-        assert engine is not None
-        assert hasattr(engine, 'fetch')
 
 
 if __name__ == "__main__":

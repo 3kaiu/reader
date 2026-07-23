@@ -30,11 +30,12 @@ pub fn is_private_url(url_str: &str) -> bool {
 }
 
 /// Check if a host is a private/internal address.
+/// Check if a host is a private/internal address.
 ///
 /// If the host is a literal IP, checks it directly.
 /// If the host is a domain name, resolves it via DNS and checks all results.
 /// On DNS resolution failure, returns `false` (the fetch will fail naturally).
-fn is_private_host(host: &str) -> bool {
+pub fn is_private_host(host: &str) -> bool {
     // Check common private hostnames
     let private_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
     if private_hosts.contains(&host.to_lowercase().as_str()) {
@@ -72,7 +73,7 @@ fn is_private_host(host: &str) -> bool {
 }
 
 /// Check if an IP address is private/internal
-fn is_private_ip(ip: &IpAddr) -> bool {
+pub fn is_private_ip(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(ipv4) => {
             ipv4.is_private()
