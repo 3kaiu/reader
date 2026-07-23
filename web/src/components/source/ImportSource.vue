@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Upload, FileJson, CheckCircle2, XCircle, Link2, Plus, X, Loader2 } from 'lucide-vue-next'
+import { Upload, FileJson, CheckCircle2, XCircle, Link2, Plus, X } from 'lucide-vue-next'
+import { SceneLoader } from '@/components/ui'
 import { useMessage } from '@/composables/useMessage'
 import { sourceApi } from '@/api/source'
 import { useSourceStore } from '@/stores/source'
@@ -94,7 +95,7 @@ async function handleUrlImport() {
             count: result.data.length,
           })
         }
-      } catch (error: unknown) {
+      } catch (_error: unknown) {
         // Skip if aborted
         if (urlImportAbortController.signal.aborted) break
         urlResults.value.push({
@@ -338,7 +339,7 @@ Example: [{"bookSourceUrl": "...", "bookSourceName": "..."}]'
               :disabled="urlImportLoading || !hasValidUrls"
               @click="handleUrlImport"
             >
-              <Loader2 v-if="urlImportLoading" class="h-4 w-4 animate-spin" />
+              <SceneLoader v-if="urlImportLoading" scene="import" :size="20" class="text-current" />
               {{ urlImportLoading ? '导入中...' : '从 URL 导入' }}
             </Button>
           </SheetFooter>

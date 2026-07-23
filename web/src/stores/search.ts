@@ -134,7 +134,7 @@ export const useSearchStore = defineStore('search', () => {
       }
 
       return { type: 'success' }
-    } catch (error) {
+    } catch (_error) {
       if (abortController.signal.aborted || requestId !== searchRequestId.value) {
         return null
       }
