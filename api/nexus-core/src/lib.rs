@@ -11,6 +11,7 @@ pub mod ports;
 
 // ===== 基础支撑模块 =====
 pub mod config; // 配置处理
+pub mod dns_pin; // DNS 固定（防止 DNS 重绑定）
 pub mod error; // 错误定义
 pub mod health_tracker;
 pub mod traits; // 特质定义
