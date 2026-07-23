@@ -150,6 +150,14 @@ class BrowserProbeRequest(BaseModel):
     visible: bool = False
     poll_cf: bool = False  # if true, run ensureCfPassed flow
 
+    @field_validator("wait_until")
+    @classmethod
+    def validate_wait_until(cls, v: str) -> str:
+        allowed = {"load", "domcontentloaded", "networkidle", "commit"}
+        if v not in allowed:
+            raise ValueError(f"Invalid wait_until: {v}. Allowed: {', '.join(sorted(allowed))}")
+        return v
+
     @field_validator("url", mode="before")
     @classmethod
     def validate_url_not_private(cls, v: str) -> str:

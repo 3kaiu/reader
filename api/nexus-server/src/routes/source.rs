@@ -528,12 +528,14 @@ pub async fn update_source_status(
     Path(id): Path<String>,
     Json(payload): Json<UpdateStatusPayload>,
 ) -> Result<Json<SourceView>, ApiErrorResponse> {
-    // Check source exists in either store
-    let exists = state.engine_registry.legado_store.get(&id).is_some()
-        || state.engine_registry.nxs_store.get(&id).is_some();
-    if !exists {
+    // Check source exists in either store and determine type
+    let is_legado = state.engine_registry.legado_store.get(&id).is_some();
+    let is_nxs = state.engine_registry.nxs_store.get(&id).is_some();
+    if !is_legado && !is_nxs {
         return Err(not_found("Source"));
     }
+
+    let source_type = if is_legado { "legado" } else { "nxs" };
 
     state
         .store
@@ -553,7 +555,7 @@ pub async fn update_source_status(
     Ok(Json(SourceView {
         id: id.clone(),
         name: id.clone(),
-        source_type: "unknown",
+        source_type: source_type,
         enabled: payload.enabled,
         policy,
     }))

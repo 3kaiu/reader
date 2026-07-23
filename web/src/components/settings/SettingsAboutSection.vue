@@ -29,6 +29,7 @@ import { Info, Settings } from 'lucide-vue-next'
           <a
             href="https://github.com/hectorqin/reader"
             target="_blank"
+            rel="noopener noreferrer"
             class="text-primary hover:text-primary/80 hover:underline transition-colors font-medium"
           >
             GitHub
