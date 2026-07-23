@@ -362,14 +362,8 @@ pub async fn reset_source_runtime_state(
     let mode = payload.mode.as_deref().unwrap_or("full");
     match mode {
         "circuit_only" => {
-            // Reset only circuit breaker state
-            let health = state.store.health_tracker().get(&id);
-            if let Some(h) = health {
-                let mut fresh = nexus_core::health_tracker::SourceHealth::new(id.clone());
-                fresh.success_count = h.success_count;
-                fresh.failure_count = h.failure_count;
-                // Circuit state reset by re-creating the entry
-            }
+            // Reset only circuit breaker state by removing the health entry.
+            // The next fetch will create a fresh entry with default circuit state.
             state.store.health_tracker().reset_source(&id);
         },
         _ => {
