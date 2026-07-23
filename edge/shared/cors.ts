@@ -48,7 +48,9 @@ export function getCorsHeaders(origin: string, env?: CorsEnvSlice): Record<strin
   const isAllowed = allowedOrigins.includes(origin)
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : '',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    // Restrict to actual methods used by the frontend (GET/POST)
+    // PUT/DELETE not needed for read-oriented Nexus Reader API
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     ...(isAllowed ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     'Access-Control-Max-Age': '86400',
