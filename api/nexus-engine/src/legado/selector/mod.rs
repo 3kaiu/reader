@@ -2,6 +2,7 @@
 
 pub mod css;
 pub mod js;
+pub mod js_rquickjs;
 pub mod json;
 pub mod regex;
 

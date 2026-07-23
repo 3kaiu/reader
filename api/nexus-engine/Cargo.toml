@@ -47,6 +47,9 @@ lru = "0.13"
 rand = "0.10"
 aho-corasick = "1.1"
 
+# JavaScript Engine (rquickjs - embedded QuickJS)
+rquickjs = { version = "0.6", features = ["loader", "parallel", "classes", "properties"] }
+
 # Content Cleaning
 ttf-parser = "0.25"           # Font parsing for font decryption
 strsim = "0.11"               # String similarity for deduplication
