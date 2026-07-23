@@ -141,22 +141,22 @@ describe('Store Integration', () => {
   describe('Replace Store', () => {
     it('should initialize with empty state', () => {
       const store = useReplaceStore()
-      expect(store.rules.value).toEqual([])
-      expect(store.loading.value).toBe(false)
-      expect(store.loaded.value).toBe(false)
+      expect(store.rules).toEqual([])
+      expect(store.loading).toBe(false)
+      expect(store.loaded).toBe(false)
     })
 
     it('should reset state', () => {
       const store = useReplaceStore()
-      store.rules.value = [{ id: 'r1', name: 'Rule', pattern: 'test' } as any]
-      store.loading.value = true
-      store.loaded.value = true
+      store.rules = [{ id: 'r1', name: 'Rule', pattern: 'test' } as any]
+      store.loading = true
+      store.loaded = true
 
       store.$reset()
 
-      expect(store.rules.value).toEqual([])
-      expect(store.loading.value).toBe(false)
-      expect(store.loaded.value).toBe(false)
+      expect(store.rules).toEqual([])
+      expect(store.loading).toBe(false)
+      expect(store.loaded).toBe(false)
     })
   })
 })

@@ -272,13 +272,13 @@ pub fn extract_structured_text_from_root<'a>(
         }
         // Remove script/style blocks entirely.
         static RE_SCRIPT: std::sync::LazyLock<Regex> =
-            std::sync::LazyLock::new(|| Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap());
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<script[^>]*>.*?</script>").expect("regex is valid: script tag pattern"));
         static RE_STYLE: std::sync::LazyLock<Regex> =
-            std::sync::LazyLock::new(|| Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap());
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<style[^>]*>.*?</style>").expect("regex is valid: style tag pattern"));
         static RE_BR: std::sync::LazyLock<Regex> =
-            std::sync::LazyLock::new(|| Regex::new(r"(?i)<br\\s*/?>").unwrap());
+            std::sync::LazyLock::new(|| Regex::new(r"(?i)<br\\s*/?>").expect("regex is valid: br tag pattern"));
         static RE_TAG: std::sync::LazyLock<Regex> =
-            std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").unwrap());
+            std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").expect("regex is valid: html tag pattern"));
 
         let without_scripts = RE_SCRIPT.replace_all(&inner, "");
         let without_styles = RE_STYLE.replace_all(&without_scripts, "");
