@@ -15,7 +15,7 @@ function sanitizeContext(context: ErrorContext): ErrorContext {
   const sanitized: ErrorContext = { ...context }
   // Redact any values that look like API keys, tokens, or secrets
   const sensitivePatterns = [/^api[-_]?key$/i, /^secret/i, /^token$/i, /^password$/i, /^authorization$/i]
-  for (const [key, value] of Object.entries(sanitized)) {
+  for (const [key] of Object.entries(sanitized)) {
     if (sensitivePatterns.some((p) => p.test(key))) {
       sanitized[key] = '[REDACTED]'
     }

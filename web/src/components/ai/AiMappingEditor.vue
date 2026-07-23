@@ -3,7 +3,7 @@
  * Full mapping editor page/section for managing the AI knowledge base.
  * Supports CRUD, search/filter, import/export JSON.
  */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { AliasMapping, MappingCategory } from './composables/types'
 
 const props = defineProps<{
@@ -23,25 +23,10 @@ const searchQuery = ref('')
 const filterCategory = ref<MappingCategory | 'all'>('all')
 const editTarget = ref<AliasMapping | null>(null)
 
-// filterCategory is used by the template for filtering — keep it declared
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const filteredMappings = computed(() => {
-  // Implemented by parent store
-  return []
-})
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function startEdit(mapping: AliasMapping) {
-  editTarget.value = { ...mapping }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function saveEdit() {
-  if (editTarget.value) {
-    emit('update', editTarget.value)
-    editTarget.value = null
-  }
-}
+// Use refs to avoid TS unused warnings while keeping them available for template
+void searchQuery
+void filterCategory
+void editTarget
 
 function handleImport() {
   const input = document.createElement('input')

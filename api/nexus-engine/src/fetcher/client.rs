@@ -186,6 +186,40 @@ impl HttpFetcher {
         header_map
     }
 
+    /// Record response time metrics (lock-free, approximate).
+    /// Called by both get() and post() to avoid code duplication.
+    fn record_response_time(&self, elapsed_ns: u64) {
+        loop {
+            let current = self.response_time_min_ns.load(Ordering::Relaxed);
+            if elapsed_ns >= current {
+                break;
+            }
+            if self
+                .response_time_min_ns
+                .compare_exchange_weak(current, elapsed_ns, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
+        }
+        loop {
+            let current = self.response_time_max_ns.load(Ordering::Relaxed);
+            if elapsed_ns <= current {
+                break;
+            }
+            if self
+                .response_time_max_ns
+                .compare_exchange_weak(current, elapsed_ns, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
+        }
+        self.response_time_sum_ns
+            .fetch_add(elapsed_ns, Ordering::Relaxed);
+        self.response_time_count.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Convert reqwest response to FetchResponse
     async fn convert_response(
         &self,
@@ -273,37 +307,7 @@ impl Fetcher for HttpFetcher {
             .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
         // Track response time (lock-free)
-        let elapsed = start_time.elapsed().as_nanos() as u64;
-        // Update min, max, sum, count atomically
-        loop {
-            let current = self.response_time_min_ns.load(Ordering::Relaxed);
-            if elapsed >= current {
-                break;
-            }
-            if self
-                .response_time_min_ns
-                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                break;
-            }
-        }
-        loop {
-            let current = self.response_time_max_ns.load(Ordering::Relaxed);
-            if elapsed <= current {
-                break;
-            }
-            if self
-                .response_time_max_ns
-                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                break;
-            }
-        }
-        self.response_time_sum_ns
-            .fetch_add(elapsed, Ordering::Relaxed);
-        self.response_time_count.fetch_add(1, Ordering::Relaxed);
+        self.record_response_time(start_time.elapsed().as_nanos() as u64);
 
         Ok(response)
     }
@@ -364,36 +368,7 @@ impl Fetcher for HttpFetcher {
             .fetch_add(response.body.len() as u64, Ordering::Relaxed);
 
         // Track response time (lock-free)
-        let elapsed = start_time.elapsed().as_nanos() as u64;
-        loop {
-            let current = self.response_time_min_ns.load(Ordering::Relaxed);
-            if elapsed >= current {
-                break;
-            }
-            if self
-                .response_time_min_ns
-                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                break;
-            }
-        }
-        loop {
-            let current = self.response_time_max_ns.load(Ordering::Relaxed);
-            if elapsed <= current {
-                break;
-            }
-            if self
-                .response_time_max_ns
-                .compare_exchange_weak(current, elapsed, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                break;
-            }
-        }
-        self.response_time_sum_ns
-            .fetch_add(elapsed, Ordering::Relaxed);
-        self.response_time_count.fetch_add(1, Ordering::Relaxed);
+        self.record_response_time(start_time.elapsed().as_nanos() as u64);
 
         Ok(response)
     }
