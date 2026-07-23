@@ -126,7 +126,7 @@ pub async fn create_app(config: &EngineConfig) -> anyhow::Result<Router> {
         .burst_size(burst_size)
         .key_extractor(SmartIpKeyExtractor)
         .finish()
-        .expect("valid governor config");
+        .ok_or_else(|| anyhow::anyhow!("Invalid governor config"))?;
 
     let app = app.layer(GovernorLayer::new(governor_conf));
 

@@ -142,10 +142,13 @@ pub async fn import_legado_sources(
             return Err((StatusCode::BAD_REQUEST, "Invalid Legado source JSON".to_string()));
         };
 
-    let imported = import_sources_to_store(&state, sources.clone()).await?;
+    // Extract IDs first to avoid cloning the entire vector
+    let source_ids: Vec<String> = sources.iter().map(|s| s.infer_id()).collect();
+
+    let imported = import_sources_to_store(&state, sources).await?;
 
     // Trigger background health probe for newly imported sources
-    spawn_health_probe(&state, sources.iter().map(|s| s.infer_id()).collect());
+    spawn_health_probe(&state, source_ids);
 
     Ok(Json(imported))
 }
