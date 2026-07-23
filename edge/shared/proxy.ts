@@ -153,11 +153,19 @@ export async function proxyRequest(
     }
     
     // Cache successful GET responses (skip if request had auth headers — user-specific)
-    if (useCache && response.ok && request.method === 'GET' && kv && ctx && !hasAuthHeaders) {
+    // Also skip caching for large responses to avoid OOM (128MB Worker memory limit)
+    const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5MB
+    const contentLength = response.headers.get('Content-Length');
+    const isTooLarge = contentLength && parseInt(contentLength, 10) > MAX_CACHE_SIZE;
+
+    if (useCache && response.ok && request.method === 'GET' && kv && ctx && !hasAuthHeaders && !isTooLarge) {
       const body = await response.text();
-      ctx.waitUntil(saveToCache(kv, cacheKey, body, contentType || 'application/json', cacheTTL));
-      recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'set' });
-      
+      // Double-check actual size (Content-Length may be missing or inaccurate)
+      if (body.length <= MAX_CACHE_SIZE) {
+        ctx.waitUntil(saveToCache(kv, cacheKey, body, contentType || 'application/json', cacheTTL));
+        recordCacheMetric(options.analytics, ctx, { layer: 'proxy', result: 'set' });
+      }
+
       return new Response(body, {
         status: response.status,
         headers: newHeaders,
