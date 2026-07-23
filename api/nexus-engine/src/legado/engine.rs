@@ -552,8 +552,11 @@ fn extract_css_from_js_block(js: &str) -> Option<String> {
         .unwrap_or(js);
 
     // Match patterns like: var lr = "class.selector"
-    let re = Regex::new(r#"(?:var\s+\w+\s*=\s*)"([^"]+)"#).unwrap();
-    if let Some(cap) = re.captures(js) {
+    // Use static regex to avoid recompilation on every call
+    static RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?:var\s+\w+\s*=\s*)"([^"]+)"#).unwrap()
+    });
+    if let Some(cap) = RE.captures(js) {
         let css = cap[1].to_string();
         if !css.is_empty() && css.contains('.')
             || css.contains('#')
