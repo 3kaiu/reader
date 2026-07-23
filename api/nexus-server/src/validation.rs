@@ -1,6 +1,6 @@
 //! URL and input validation utilities
 
-use std::net::IpAddr;
+use nexus_core::url_safety;
 use url::Url;
 
 /// Validation errors
@@ -43,7 +43,7 @@ pub fn validate_url_with_options(
 
     // Check for private IPs (unless allowed)
     if let Some(host) = url.host_str() {
-        if !allow_private && is_private_host(host) {
+        if !allow_private && url_safety::is_private_host(host) {
             return Err(ValidationError::PrivateIp);
         }
     } else {
@@ -51,74 +51,6 @@ pub fn validate_url_with_options(
     }
 
     Ok(url)
-}
-
-/// Check if a host is a private/internal address.
-/// Performs DNS resolution for domain names to prevent DNS rebinding attacks.
-/// Uses DNS pinning to ensure the same IP is used for validation and fetching.
-fn is_private_host(host: &str) -> bool {
-    use nexus_core::dns_pin::{resolve_and_pin_sync, DnsError};
-    use std::time::Duration;
-
-    // Check common private hostnames
-    let private_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
-    if private_hosts.contains(&host.to_lowercase().as_str()) {
-        return true;
-    }
-
-    // Try to parse as literal IP first — no DNS resolution needed
-    if let Ok(ip) = host.parse::<IpAddr>() {
-        return is_private_ip(&ip);
-    }
-
-    // Check for internal domain patterns
-    if host.ends_with(".local") || host.ends_with(".internal") || host.ends_with(".localhost") {
-        return true;
-    }
-
-    // DNS resolution with pinning: resolve once and check the pinned IP
-    // This prevents DNS rebinding by using the same IP for validation and fetching
-    match resolve_and_pin_sync(host, 443, Duration::from_secs(300)) {
-        Ok(pinned) => {
-            // Check if the pinned IP is private
-            is_private_ip(&pinned.ip)
-        },
-        // DNS resolution failed — not private, the fetch will fail naturally
-        Err(DnsError::NoRecords) => false,
-        Err(_) => false,
-    }
-}
-
-/// Check if an IP address is private/internal
-fn is_private_ip(ip: &IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(ipv4) => {
-            ipv4.is_private()
-                || ipv4.is_loopback()
-                || ipv4.is_link_local()
-                || ipv4.is_broadcast()
-                || ipv4.is_unspecified()
-                // 169.254.x.x (link-local)
-                || (ipv4.octets()[0] == 169 && ipv4.octets()[1] == 254)
-                // 10.x.x.x
-                || ipv4.octets()[0] == 10
-                // 172.16.x.x - 172.31.x.x
-                || (ipv4.octets()[0] == 172 && (16..=31).contains(&ipv4.octets()[1]))
-                // 192.168.x.x
-                || (ipv4.octets()[0] == 192 && ipv4.octets()[1] == 168)
-        },
-        IpAddr::V6(ipv6) => {
-            // Check IPv4-mapped IPv6 addresses (e.g. ::ffff:192.168.1.1)
-            if let Some(mapped_v4) = ipv6.to_ipv4_mapped() {
-                return is_private_ip(&IpAddr::V4(mapped_v4));
-            }
-            ipv6.is_loopback()
-                || ipv6.is_unspecified()
-                || ipv6.is_unique_local()        // fc00::/7
-                || ipv6.is_unicast_link_local()  // fe80::/10
-                || (ipv6.segments()[0] == 0x2001 && ipv6.segments()[1] == 0x0db8) // 2001:db8::/32 (documentation range)
-        },
-    }
 }
 
 #[cfg(test)]
