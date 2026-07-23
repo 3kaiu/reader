@@ -2,8 +2,13 @@
 # Nexus Reader - Git Ignore
 # =============================================================================
 
-# Kiro IDE
-.kiro/
+# AI IDE agent configs (per-developer, not project-checked)
+.agents/
+.claude/
+.cursor/
+.kimi-code/
+.opencode/
+.trellis/
 
 # Environment & Secrets
 .env
