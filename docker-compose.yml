@@ -1,5 +1,8 @@
 # Nexus Reader — Docker deployment (NAS / any Docker host)
 #
+# Core images (nexus-server, frontend) are pulled from GHCR.
+# Python sidecars (bypass, ai-inference) are built locally — fast, no compilation.
+#
 # One-time:
 #   1. Replace YOUR_GITHUB_USER below with your GitHub username (lowercase)
 #   2. mkdir -p data sources && copy your .nxs sources into sources/
@@ -30,7 +33,7 @@ services:
       - ./sources:/app/sources
 
   bypass:
-    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-bypass:latest
+    build: ./bypass
     container_name: nexus-bypass
     restart: unless-stopped
     expose:
@@ -42,7 +45,7 @@ services:
       CF_API_KEY: ${CF_API_KEY:-}
 
   ai-inference:
-    image: ghcr.io/${GITHUB_USER:-your-github-user-lowercase}/nexus-ai-inference:latest
+    build: ./ai-inference
     container_name: nexus-ai-inference
     restart: unless-stopped
     profiles:
