@@ -24,7 +24,7 @@
   "author": "Nexus Reader",
   "license": "MIT",
   "devDependencies": {
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.8",
     "wrangler": "^4.80.0"
   }
 }
