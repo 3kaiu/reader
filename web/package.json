@@ -29,7 +29,7 @@
     "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dompurify": "3.4.12",
+    "dompurify": "3.4.13",
     "idb": "^8.0.3",
     "lucide-vue-next": "^0.564.0",
     "ofetch": "^1.5.1",
